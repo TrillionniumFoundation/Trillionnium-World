@@ -654,6 +654,16 @@ cat >"$JQ_FILTER" <<'JQ'
   and .first_contact_player_screen_label_guard.field_status_title == "FIELD STATUS"
   and .first_contact_player_screen_label_guard.live_status_labels == ["SQUAD READY","RALLY 16/9","QUEUE GUARD 64%","SCOUTING 76%","CAMERA 16/16","SUPPLY 12/22","SAVE ROUTE READY"]
   and .first_contact_player_screen_label_guard.live_state_labels == ["ORDER SECURE RELAY BEACON","TARGET RELAY BEACON","BUILD IDLE","QUEUE GUARD 64%","CAM 16/16","DRAG NONE","HOVER NONE","RES UPGRADE 210 CREDITS"]
+  and .first_contact_player_screen_label_guard.tactical_header_title == "TACTICAL VIEW"
+  and .first_contact_player_screen_label_guard.tactical_header_order_label == "SECURE RELAY BEACON"
+  and .first_contact_player_screen_label_guard.tactical_header_camera_label == "CAM 16/16 Z100"
+  and (.first_contact_player_screen_label_guard.build_placement_status_label | startswith("PLACE "))
+  and (.first_contact_player_screen_label_guard.build_placement_status_label | contains("TOWER"))
+  and (.first_contact_player_screen_label_guard.build_placement_status_label | contains(":") | not)
+  and (.first_contact_player_screen_label_guard.build_placement_status_label | contains("_") | not)
+  and (.first_contact_player_screen_label_guard.upgrade_placement_status_label | contains("TRAINING"))
+  and (.first_contact_player_screen_label_guard.upgrade_placement_status_label | contains(":") | not)
+  and (.first_contact_player_screen_label_guard.upgrade_placement_status_label | contains("_") | not)
   and (.first_contact_player_screen_label_guard.forbidden_display_fragments | index("TRNM") != null)
   and (.first_contact_player_screen_label_guard.forbidden_display_fragments | index("PRODUCTION COMPLETE") != null)
   and (.first_contact_player_screen_label_guard.forbidden_display_fragments | index("LIVE INPUT") != null)
@@ -674,6 +684,10 @@ cat >"$JQ_FILTER" <<'JQ'
   and .first_contact_player_screen_label_guard.tactics_detail_width_gate == true
   and .first_contact_player_screen_label_guard.live_status_width_gate == true
   and .first_contact_player_screen_label_guard.live_state_width_gate == true
+  and .first_contact_player_screen_label_guard.tactical_header_title_order_width_gate == true
+  and .first_contact_player_screen_label_guard.tactical_header_camera_width_gate == true
+  and .first_contact_player_screen_label_guard.build_placement_status_width_gate == true
+  and .first_contact_player_screen_label_guard.tactical_header_vertical_separation_gate == true
   and .first_contact_player_screen_label_guard.raw_marker_gate == true
   and .first_contact_player_screen_label_guard_gate == true
   and .first_contact_visual_readability_contract == "trillionnium_world_bevy_classic_rts_first_contact_visual_readability_v1"

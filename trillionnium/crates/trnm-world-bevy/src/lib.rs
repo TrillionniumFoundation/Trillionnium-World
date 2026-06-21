@@ -86062,7 +86062,7 @@ fn classic_draw_openra_style_build_placement_ghost(
         );
     }
     let panel_x = viewport_x + 238;
-    let panel_y = viewport_y + 8;
+    let panel_y = viewport_y + 30;
     classic_draw_rect(buffer, width, height, panel_x, panel_y, 286, 20, 0x101913);
     classic_draw_rect(buffer, width, height, panel_x, panel_y, 5, 20, ghost_color);
     classic_draw_text(
@@ -86071,15 +86071,8 @@ fn classic_draw_openra_style_build_placement_ghost(
         height,
         panel_x + 10,
         panel_y + 7,
-        &classic_catalog_text_label(
-            &format!(
-                "PLACEMENT {} {}C {}",
-                blueprint_id.replace('_', " "),
-                classic_rts_queue_gold_cost(&placement_queue_id),
-                if affordable { "READY" } else { "LOW CRED" }
-            ),
-            42,
-        ),
+        &classic_first_contact_build_placement_status_label(runtime)
+            .unwrap_or_else(|| "PLACE READY".to_string()),
         1,
         CLASSIC_HUD_TEXT_COLOR,
     );
@@ -110314,6 +110307,74 @@ fn classic_rts_live_state_lines(runtime: &NativeFirstPlayableRuntime) -> Vec<Str
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_first_contact_tactical_header_title(
+    chrome: &RtsFirstContactPlayerScreenChromeProfile,
+) -> String {
+    classic_catalog_text_label(&chrome.tactical_view_title, 16)
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_first_contact_tactical_header_order_label(
+    runtime: &NativeFirstPlayableRuntime,
+    chrome: &RtsFirstContactPlayerScreenChromeProfile,
+) -> String {
+    classic_catalog_text_label(
+        &classic_first_contact_tactical_status_label(runtime, chrome),
+        24,
+    )
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_first_contact_tactical_header_camera_label(
+    runtime: &NativeFirstPlayableRuntime,
+    chrome: &RtsFirstContactPlayerScreenChromeProfile,
+) -> String {
+    let camera_tile = runtime
+        .rts_camera_focus_tile_id
+        .as_deref()
+        .map(classic_hud_tile_label)
+        .unwrap_or_else(|| {
+            classic_hud_tile_label(&classic_first_contact_tile_id(
+                chrome.tactical_view_default_camera_tile,
+            ))
+        });
+    classic_catalog_text_label(
+        &format!(
+            "{} {} {}{}",
+            chrome.tactical_view_camera_prefix,
+            camera_tile,
+            chrome.tactical_view_zoom_prefix,
+            runtime.rts_camera_zoom_percent.max(1)
+        ),
+        16,
+    )
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_first_contact_build_placement_status_label(
+    runtime: &NativeFirstPlayableRuntime,
+) -> Option<String> {
+    let blueprint_id = runtime.rts_building_blueprint_id.as_deref()?;
+    let primary_tile_id = runtime.rts_build_site_tile_ids.first()?;
+    let placement_queue_id = format!("build:{blueprint_id}@{primary_tile_id}");
+    let subject = classic_rts_order_completion_subject_label(blueprint_id);
+    let state = if classic_rts_queue_is_affordable(runtime, &placement_queue_id) {
+        "READY"
+    } else {
+        "LOW CRED"
+    };
+    Some(classic_catalog_text_label(
+        &format!(
+            "PLACE {} {}C {}",
+            subject,
+            classic_rts_queue_gold_cost(&placement_queue_id),
+            state
+        ),
+        28,
+    ))
+}
+
+#[cfg(not(target_os = "android"))]
 fn classic_rts_live_label_has_raw_marker(label: &str) -> bool {
     let upper = label.to_ascii_uppercase();
     label.contains(':')
@@ -111640,6 +111701,35 @@ fn classic_first_contact_player_screen_label_guard(
     let field_status_title = "FIELD STATUS".to_string();
     let live_status_labels = classic_rts_live_status_labels(runtime);
     let live_state_labels = classic_rts_live_state_lines(runtime);
+    let tactical_header_title = classic_first_contact_tactical_header_title(chrome);
+    let tactical_header_order_label =
+        classic_first_contact_tactical_header_order_label(runtime, chrome);
+    let tactical_header_camera_label =
+        classic_first_contact_tactical_header_camera_label(runtime, chrome);
+    let mut build_placement_runtime = runtime.clone();
+    build_placement_runtime.rts_building_blueprint_id = Some("watch_tower".to_string());
+    build_placement_runtime.rts_build_site_tile_ids = string_vec(["7,4", "7,5", "8,4"]);
+    build_placement_runtime.coins = build_placement_runtime.coins.max(1_000);
+    build_placement_runtime.rts_resource_spend_log.clear();
+    let build_placement_status_label =
+        classic_first_contact_build_placement_status_label(&build_placement_runtime)
+            .unwrap_or_else(|| "PLACE TOWER READY".to_string());
+    let mut upgrade_placement_runtime = runtime.clone();
+    upgrade_placement_runtime.rts_building_blueprint_id = Some("upgrade:training_hall".to_string());
+    upgrade_placement_runtime.rts_build_site_tile_ids = string_vec(["4,3", "4,4"]);
+    upgrade_placement_runtime.coins = upgrade_placement_runtime.coins.max(1_000);
+    upgrade_placement_runtime.rts_resource_spend_log.clear();
+    let upgrade_placement_status_label =
+        classic_first_contact_build_placement_status_label(&upgrade_placement_runtime)
+            .unwrap_or_else(|| "PLACE TRAINING READY".to_string());
+    let tactical_header_title_width_px = classic_text_advance_px(&tactical_header_title, 1);
+    let tactical_header_order_width_px = classic_text_advance_px(&tactical_header_order_label, 1);
+    let tactical_header_camera_width_px = classic_text_advance_px(&tactical_header_camera_label, 1);
+    let tactical_header_title_order_width_px =
+        tactical_header_title_width_px + 14 + tactical_header_order_width_px;
+    let build_placement_status_width_px = classic_text_advance_px(&build_placement_status_label, 1);
+    let upgrade_placement_status_width_px =
+        classic_text_advance_px(&upgrade_placement_status_label, 1);
     let mut all_display_labels = Vec::new();
     all_display_labels.extend(resource_labels.iter().cloned());
     all_display_labels.extend(production_slot_labels.iter().cloned());
@@ -111653,6 +111743,13 @@ fn classic_first_contact_player_screen_label_guard(
     all_display_labels.push(field_status_title.clone());
     all_display_labels.extend(live_status_labels.iter().cloned());
     all_display_labels.extend(live_state_labels.iter().cloned());
+    all_display_labels.extend([
+        tactical_header_title.clone(),
+        tactical_header_order_label.clone(),
+        tactical_header_camera_label.clone(),
+        build_placement_status_label.clone(),
+        upgrade_placement_status_label.clone(),
+    ]);
 
     let expected_label_gate = resource_labels
         == string_vec(["CREDITS", "POWER", "SUPPLY", "VISION"])
@@ -111702,7 +111799,13 @@ fn classic_first_contact_player_screen_label_guard(
                 "DRAG NONE",
                 "HOVER NONE",
                 "RES UPGRADE 210 CREDITS",
-            ]);
+            ])
+        && tactical_header_title == "TACTICAL VIEW"
+        && tactical_header_order_label == "SECURE RELAY BEACON"
+        && tactical_header_camera_label == "CAM 16/16 Z100"
+        && build_placement_status_label.starts_with("PLACE ")
+        && build_placement_status_label.contains("TOWER")
+        && upgrade_placement_status_label.contains("TRAINING");
     let resource_spacing_gate = resource_spacing_samples
         .iter()
         .all(|sample| sample.get("value_spacing_gate").and_then(Value::as_bool) == Some(true));
@@ -111733,6 +111836,11 @@ fn classic_first_contact_player_screen_label_guard(
     let live_state_width_gate = live_state_labels
         .iter()
         .all(|label| classic_text_advance_px(label, 1) <= 180);
+    let tactical_header_title_order_width_gate = tactical_header_title_order_width_px <= 310;
+    let tactical_header_camera_width_gate = tactical_header_camera_width_px <= 96;
+    let build_placement_status_width_gate =
+        build_placement_status_width_px <= 240 && upgrade_placement_status_width_px <= 240;
+    let tactical_header_vertical_separation_gate = 18 + 4 <= 30;
     let raw_marker_gate = all_display_labels.iter().all(|label| {
         !classic_first_contact_label_has_raw_marker(label)
             && !classic_rts_live_label_has_raw_marker(label)
@@ -111748,6 +111856,10 @@ fn classic_first_contact_player_screen_label_guard(
         && tactics_detail_width_gate
         && live_status_width_gate
         && live_state_width_gate
+        && tactical_header_title_order_width_gate
+        && tactical_header_camera_width_gate
+        && build_placement_status_width_gate
+        && tactical_header_vertical_separation_gate
         && raw_marker_gate;
 
     json!({
@@ -111771,6 +111883,17 @@ fn classic_first_contact_player_screen_label_guard(
         "field_status_title": field_status_title,
         "live_status_labels": live_status_labels,
         "live_state_labels": live_state_labels,
+        "tactical_header_title": tactical_header_title,
+        "tactical_header_order_label": tactical_header_order_label,
+        "tactical_header_camera_label": tactical_header_camera_label,
+        "tactical_header_title_width_px": tactical_header_title_width_px,
+        "tactical_header_order_width_px": tactical_header_order_width_px,
+        "tactical_header_camera_width_px": tactical_header_camera_width_px,
+        "tactical_header_title_order_width_px": tactical_header_title_order_width_px,
+        "build_placement_status_label": build_placement_status_label,
+        "upgrade_placement_status_label": upgrade_placement_status_label,
+        "build_placement_status_width_px": build_placement_status_width_px,
+        "upgrade_placement_status_width_px": upgrade_placement_status_width_px,
         "forbidden_display_fragments": ["TRNM", "PRODUCTION COMPLETE", "BUILD COMPLETE", "UPGRADE COMPLETE", "LIVE INPUT", "LMB", "WASD", "CTRL", "SHIFT", "PROD ", ":", ".", "@", "_", "->"],
         "expected_label_gate": expected_label_gate,
         "resource_spacing_gate": resource_spacing_gate,
@@ -111783,6 +111906,10 @@ fn classic_first_contact_player_screen_label_guard(
         "tactics_detail_width_gate": tactics_detail_width_gate,
         "live_status_width_gate": live_status_width_gate,
         "live_state_width_gate": live_state_width_gate,
+        "tactical_header_title_order_width_gate": tactical_header_title_order_width_gate,
+        "tactical_header_camera_width_gate": tactical_header_camera_width_gate,
+        "build_placement_status_width_gate": build_placement_status_width_gate,
+        "tactical_header_vertical_separation_gate": tactical_header_vertical_separation_gate,
         "raw_marker_gate": raw_marker_gate,
     })
 }
@@ -114211,13 +114338,36 @@ fn classic_draw_openra_style_rts_shell(
         viewport_h,
         CLASSIC_RTS_STRATEGY_PANEL_BORDER_COLOR,
     );
+    let (tactical_header_title, tactical_header_order, tactical_header_camera) =
+        if let Some(chrome) = first_contact_player_chrome.as_ref() {
+            (
+                classic_first_contact_tactical_header_title(chrome),
+                classic_first_contact_tactical_header_order_label(runtime, chrome),
+                classic_first_contact_tactical_header_camera_label(runtime, chrome),
+            )
+        } else {
+            (
+                "TACTICAL VIEW".to_string(),
+                classic_tactical_status_label(runtime),
+                format!(
+                    "CAM {} Z{}",
+                    classic_hud_tile_label(
+                        runtime.rts_camera_focus_tile_id.as_deref().unwrap_or("5,4")
+                    ),
+                    runtime.rts_camera_zoom_percent.max(1)
+                ),
+            )
+        };
+    let tactical_header_x = viewport_x + 8;
+    let tactical_header_y = viewport_y + 8;
+    let tactical_header_w = 330;
     classic_draw_rect(
         buffer,
         width,
         height,
-        viewport_x + 8,
-        viewport_y + 8,
-        214,
+        tactical_header_x,
+        tactical_header_y,
+        tactical_header_w,
         18,
         0x0d1510,
     );
@@ -114225,42 +114375,53 @@ fn classic_draw_openra_style_rts_shell(
         buffer,
         width,
         height,
-        viewport_x + 16,
-        viewport_y + 14,
-        &first_contact_player_chrome
-            .as_ref()
-            .map(|chrome| {
-                let camera_tile = runtime
-                    .rts_camera_focus_tile_id
-                    .as_deref()
-                    .map(classic_hud_tile_label)
-                    .unwrap_or_else(|| {
-                        classic_hud_tile_label(&classic_first_contact_tile_id(
-                            chrome.tactical_view_default_camera_tile,
-                        ))
-                    });
-                format!(
-                    "{}  {}  {} {} {}{}",
-                    chrome.tactical_view_title,
-                    classic_first_contact_tactical_status_label(runtime, chrome),
-                    chrome.tactical_view_camera_prefix,
-                    camera_tile,
-                    chrome.tactical_view_zoom_prefix,
-                    runtime.rts_camera_zoom_percent.max(1)
-                )
-            })
-            .unwrap_or_else(|| {
-                format!(
-                    "TACTICAL VIEW  {}  CAM {} Z{}",
-                    classic_tactical_status_label(runtime),
-                    classic_hud_tile_label(
-                        runtime.rts_camera_focus_tile_id.as_deref().unwrap_or("5,4")
-                    ),
-                    runtime.rts_camera_zoom_percent.max(1)
-                )
-            }),
+        tactical_header_x + 8,
+        tactical_header_y + 6,
+        &tactical_header_title,
+        1,
+        CLASSIC_RTS_PRODUCT_UI_ACCENT_COLOR,
+    );
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        tactical_header_x + 8 + classic_text_advance_px(&tactical_header_title, 1) + 14,
+        tactical_header_y + 6,
+        &tactical_header_order,
         1,
         CLASSIC_HUD_TEXT_COLOR,
+    );
+    let tactical_camera_w = 116;
+    let tactical_camera_x = viewport_x + viewport_w - tactical_camera_w - 12;
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        tactical_camera_x,
+        tactical_header_y,
+        tactical_camera_w,
+        18,
+        0x0d1510,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        tactical_camera_x,
+        tactical_header_y,
+        4,
+        18,
+        CLASSIC_RTS_CAMERA_SYNC_VIEWPORT_COLOR,
+    );
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        tactical_camera_x + 10,
+        tactical_header_y + 6,
+        &tactical_header_camera,
+        1,
+        CLASSIC_HUD_MUTED_TEXT_COLOR,
     );
     classic_draw_openra_style_build_placement_ghost(
         buffer, width, height, runtime, viewport_x, viewport_y, viewport_w, viewport_h,
@@ -160422,6 +160583,38 @@ mod tests {
             ]))
         );
         assert_eq!(
+            guard.get("tactical_header_title").and_then(Value::as_str),
+            Some("TACTICAL VIEW")
+        );
+        assert_eq!(
+            guard
+                .get("tactical_header_order_label")
+                .and_then(Value::as_str),
+            Some("SECURE RELAY BEACON")
+        );
+        assert_eq!(
+            guard
+                .get("tactical_header_camera_label")
+                .and_then(Value::as_str),
+            Some("CAM 16/16 Z100")
+        );
+        let build_placement_status_label = guard
+            .get("build_placement_status_label")
+            .and_then(Value::as_str)
+            .expect("build placement status label");
+        assert!(build_placement_status_label.starts_with("PLACE "));
+        assert!(!classic_first_contact_label_has_raw_marker(
+            build_placement_status_label
+        ));
+        let upgrade_placement_status_label = guard
+            .get("upgrade_placement_status_label")
+            .and_then(Value::as_str)
+            .expect("upgrade placement status label");
+        assert!(upgrade_placement_status_label.contains("TRAINING"));
+        assert!(!classic_first_contact_label_has_raw_marker(
+            upgrade_placement_status_label
+        ));
+        assert_eq!(
             guard
                 .get("tactics_summary_width_gate")
                 .and_then(Value::as_bool),
@@ -160439,6 +160632,30 @@ mod tests {
         );
         assert_eq!(
             guard.get("live_state_width_gate").and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            guard
+                .get("tactical_header_title_order_width_gate")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            guard
+                .get("tactical_header_camera_width_gate")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            guard
+                .get("build_placement_status_width_gate")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            guard
+                .get("tactical_header_vertical_separation_gate")
+                .and_then(Value::as_bool),
             Some(true)
         );
         assert_eq!(
