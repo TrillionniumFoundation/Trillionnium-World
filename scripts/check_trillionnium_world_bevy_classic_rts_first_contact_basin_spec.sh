@@ -131,6 +131,8 @@ required_source_lines=(
   'fn classic_draw_first_contact_silhouette_readability_layer'
   'TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_ART_READABILITY_CONTRACT'
   'fn classic_first_contact_art_readability_guard'
+  'fn classic_first_contact_art_landmark_samples'
+  'fn classic_draw_first_contact_art_landmark_detail'
   'fn classic_draw_first_contact_art_readability_layer'
   'TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_MOTION_READABILITY_CONTRACT'
   'fn classic_first_contact_motion_readability_guard'
@@ -777,6 +779,7 @@ jq -e '
   and .first_contact_art_readability_guard.source_path == "trnm-world-bevy classic_draw_first_contact_art_readability_layer"
   and .first_contact_art_readability_guard.terrain_material_roles == ["base_concrete","base_concrete","base_concrete","base_concrete","resource_crystal","resource_crystal","beacon_lane","beacon_lane","basin_floor"]
   and .first_contact_art_readability_guard.building_roles == ["command_core","command_core","command_core","command_core","relay","relay","beacon","beacon","beacon","beacon"]
+  and .first_contact_art_readability_guard.map_landmark_roles == ["base_gate","base_gate","base_gate","base_gate","resource_cluster","resource_cluster","beacon_lane","beacon_lane","basin_scar","basin_scar","relay_cable","relay_cable","beacon_ring","beacon_ring","beacon_ring","beacon_ring"]
   and (.first_contact_art_readability_guard.terrain_material_signatures | index("foundation_panel_seams") != null)
   and (.first_contact_art_readability_guard.terrain_material_signatures | index("flux_crystal_shards") != null)
   and (.first_contact_art_readability_guard.terrain_material_signatures | index("painted_lane_chevrons") != null)
@@ -784,13 +787,27 @@ jq -e '
   and (.first_contact_art_readability_guard.building_facade_signatures | index("lit_window_rows") != null)
   and (.first_contact_art_readability_guard.building_facade_signatures | index("antenna_band_panels") != null)
   and (.first_contact_art_readability_guard.building_facade_signatures | index("glowing_spire_panels") != null)
+  and (.first_contact_art_readability_guard.map_landmark_signatures | index("base_gate_lamps") != null)
+  and (.first_contact_art_readability_guard.map_landmark_signatures | index("crystal_shadow_sparkles") != null)
+  and (.first_contact_art_readability_guard.map_landmark_signatures | index("lane_power_pylons") != null)
+  and (.first_contact_art_readability_guard.map_landmark_signatures | index("crater_scuff_marks") != null)
+  and (.first_contact_art_readability_guard.map_landmark_signatures | index("relay_ground_cables") != null)
+  and (.first_contact_art_readability_guard.map_landmark_signatures | index("beacon_capture_rings") != null)
   and .first_contact_art_readability_guard.command_core_facade_count == 4
   and .first_contact_art_readability_guard.relay_facade_count == 2
   and .first_contact_art_readability_guard.beacon_facade_count == 4
+  and .first_contact_art_readability_guard.base_landmark_count == 4
+  and .first_contact_art_readability_guard.resource_landmark_count == 2
+  and .first_contact_art_readability_guard.lane_landmark_count == 2
+  and .first_contact_art_readability_guard.basin_landmark_count == 2
+  and .first_contact_art_readability_guard.relay_landmark_count == 2
+  and .first_contact_art_readability_guard.beacon_landmark_count == 4
   and .first_contact_art_readability_guard.terrain_material_pixel_budget >= 432
   and .first_contact_art_readability_guard.building_facade_pixel_budget >= 860
+  and .first_contact_art_readability_guard.map_landmark_pixel_budget >= 1152
   and .first_contact_art_readability_guard.terrain_material_gate == true
   and .first_contact_art_readability_guard.building_facade_gate == true
+  and .first_contact_art_readability_guard.map_landmark_detail_gate == true
   and .first_contact_art_readability_guard.authored_map_art_gate == true
   and .first_contact_art_readability_guard_gate == true
   and .first_contact_motion_readability_contract == "trillionnium_world_bevy_classic_rts_first_contact_motion_readability_v1"
