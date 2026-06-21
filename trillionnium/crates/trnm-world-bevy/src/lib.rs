@@ -98364,104 +98364,134 @@ fn classic_first_contact_atlas_frame_family_samples(
 ) -> Vec<((i32, i32), &'static str, &'static str, &'static str, u32)> {
     vec![
         (
-            (14, 11),
+            (4, 14),
             "worker_unit_family",
             "actor_worker_idle",
             "worker_idle_frame_family",
             1,
         ),
         (
-            (14, 12),
+            (4, 16),
             "worker_unit_family",
             "actor_worker_carry",
             "worker_carry_frame_family",
             1,
         ),
         (
-            (15, 11),
+            (4, 18),
             "scout_unit_family",
             "actor_player_walk_east_1",
             "scout_stride_east_frame_family",
             2,
         ),
         (
-            (15, 10),
+            (4, 20),
             "scout_unit_family",
             "actor_player_walk_east_2",
             "scout_stride_east_alt_frame_family",
             2,
         ),
         (
-            (15, 12),
+            (29, 14),
             "warden_unit_family",
             "actor_guard_idle",
             "warden_guard_idle_frame_family",
             1,
         ),
         (
-            (16, 12),
+            (29, 16),
             "warden_unit_family",
             "actor_guard_attack",
             "warden_guard_attack_frame_family",
             1,
         ),
         (
-            (17, 12),
+            (29, 18),
             "relay_unit_family",
             "actor_mentor_talk",
             "relay_operator_talk_frame_family",
             1,
         ),
         (
-            (8, 8),
+            (4, 4),
             "command_core_structure_family",
             "model_town_hall",
             "command_core_town_hall_frame_family",
             1,
         ),
         (
-            (9, 9),
+            (6, 4),
             "command_core_structure_family",
             "model_training_hall",
             "command_core_training_hall_frame_family",
             1,
         ),
         (
-            (11, 8),
+            (27, 4),
             "relay_structure_family",
             "model_waygate",
             "relay_waygate_frame_family",
             1,
         ),
         (
-            (22, 25),
+            (29, 4),
             "relay_structure_family",
             "prop_banner",
             "relay_banner_frame_family",
             1,
         ),
         (
-            (16, 9),
+            (29, 22),
             "beacon_objective_family",
             "marker_objective",
             "beacon_objective_frame_family",
             1,
         ),
         (
-            (16, 10),
+            (29, 24),
             "beacon_objective_family",
             "rts_command_destination_marker",
             "beacon_destination_marker_frame_family",
             1,
         ),
         (
-            (16, 24),
+            (29, 26),
             "beacon_objective_family",
             "marker_interaction",
             "beacon_interaction_frame_family",
             1,
         ),
     ]
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_first_contact_atlas_family_gallery_lane(tile: (i32, i32)) -> &'static str {
+    if tile.1 <= 6 {
+        "north_gallery"
+    } else if tile.0 <= 6 {
+        "west_gallery"
+    } else if tile.0 >= 27 {
+        "east_gallery"
+    } else {
+        "field_gallery"
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_first_contact_atlas_family_busy_core_tile(tile: (i32, i32)) -> bool {
+    (12..=19).contains(&tile.0) && (9..=13).contains(&tile.1)
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_first_contact_atlas_family_slot_color(role: &str) -> u32 {
+    match role {
+        "worker_unit_family" | "command_core_structure_family" => CLASSIC_ISO_GOLD_COLOR,
+        "scout_unit_family" | "relay_structure_family" => CLASSIC_RTS_CAMERA_SYNC_VIEWPORT_COLOR,
+        "warden_unit_family" => CLASSIC_RTS_SELECTION_FEEDBACK_ATTACK_COLOR,
+        "relay_unit_family" => CLASSIC_RTS_FIDELITY_NPC_ACTION_COLOR,
+        "beacon_objective_family" => CLASSIC_RTS_COMMAND_SURFACE_TARGET_COLOR,
+        _ => CLASSIC_HUD_MUTED_TEXT_COLOR,
+    }
 }
 
 #[cfg(not(target_os = "android"))]
@@ -98568,6 +98598,58 @@ fn classic_draw_first_contact_atlas_asset_sample(
 
 #[cfg(not(target_os = "android"))]
 #[allow(clippy::too_many_arguments)]
+fn classic_draw_first_contact_atlas_family_slot_cue(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    map_x: i32,
+    map_y: i32,
+    cell_w: i32,
+    cell_h: i32,
+    tile: (i32, i32),
+    role: &str,
+) {
+    let (tile_x, tile_y) = classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, tile);
+    let color = classic_first_contact_atlas_family_slot_color(role);
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        tile_x + 2,
+        tile_y + 2,
+        (cell_w - 4).max(4),
+        2,
+        color,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        tile_x + 2,
+        tile_y + cell_h - 3,
+        (cell_w - 4).max(4),
+        1,
+        classic_darken(color, 1, 3),
+    );
+    let lane_x = match classic_first_contact_atlas_family_gallery_lane(tile) {
+        "west_gallery" => tile_x + 1,
+        "east_gallery" => tile_x + cell_w - 3,
+        _ => tile_x + cell_w / 2 - 1,
+    };
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        lane_x,
+        tile_y + 4,
+        2,
+        (cell_h - 7).max(3),
+        classic_darken(color, 1, 5),
+    );
+}
+
+#[cfg(not(target_os = "android"))]
+#[allow(clippy::too_many_arguments)]
 fn classic_draw_first_contact_atlas_readability_layer(
     buffer: &mut [u32],
     width: usize,
@@ -98585,6 +98667,9 @@ fn classic_draw_first_contact_atlas_readability_layer(
         );
     }
     for (tile, role, frame_id, _, scale) in classic_first_contact_atlas_frame_family_samples() {
+        classic_draw_first_contact_atlas_family_slot_cue(
+            buffer, width, height, map_x, map_y, cell_w, cell_h, tile, role,
+        );
         classic_draw_first_contact_atlas_asset_sample(
             buffer, width, height, assets, map_x, map_y, cell_w, cell_h, tile, role, frame_id,
             scale,
@@ -112285,6 +112370,17 @@ fn classic_first_contact_atlas_readability_guard() -> Value {
             })
         })
         .collect::<Vec<_>>();
+    let atlas_family_gallery_lanes = family_samples
+        .iter()
+        .map(|(tile, _, _, _, _)| {
+            classic_first_contact_atlas_family_gallery_lane(*tile).to_string()
+        })
+        .collect::<Vec<_>>();
+    let atlas_family_busy_core_tiles = family_samples
+        .iter()
+        .filter(|(tile, _, _, _, _)| classic_first_contact_atlas_family_busy_core_tile(*tile))
+        .map(|(tile, _, _, _, _)| classic_rts_tile_id(*tile))
+        .collect::<Vec<_>>();
     let atlas_family_manifest_roles = family_samples
         .iter()
         .map(|(_, _, frame_id, _, _)| {
@@ -112329,6 +112425,22 @@ fn classic_first_contact_atlas_readability_guard() -> Value {
         .iter()
         .collect::<std::collections::BTreeSet<_>>()
         .len();
+    let atlas_family_unique_gallery_lane_count = atlas_family_gallery_lanes
+        .iter()
+        .collect::<std::collections::BTreeSet<_>>()
+        .len();
+    let north_gallery_frame_count = atlas_family_gallery_lanes
+        .iter()
+        .filter(|lane| lane.as_str() == "north_gallery")
+        .count();
+    let west_gallery_frame_count = atlas_family_gallery_lanes
+        .iter()
+        .filter(|lane| lane.as_str() == "west_gallery")
+        .count();
+    let east_gallery_frame_count = atlas_family_gallery_lanes
+        .iter()
+        .filter(|lane| lane.as_str() == "east_gallery")
+        .count();
     let terrain_frame_count = atlas_roles
         .iter()
         .filter(|role| role.as_str() == "terrain_tile")
@@ -112504,6 +112616,11 @@ fn classic_first_contact_atlas_readability_guard() -> Value {
         && atlas_family_override_frame_ids
             .iter()
             .any(|frame_id| frame_id == "rts_command_destination_marker");
+    let atlas_family_perimeter_placement_gate = atlas_family_unique_gallery_lane_count >= 3
+        && atlas_family_busy_core_tiles.is_empty()
+        && north_gallery_frame_count >= 4
+        && west_gallery_frame_count >= 4
+        && east_gallery_frame_count >= 6;
     let atlas_composition_gate = manifest_frame_gate
         && unique_frame_count >= 14
         && unique_signature_count >= 12
@@ -112519,7 +112636,8 @@ fn classic_first_contact_atlas_readability_guard() -> Value {
         && command_core_frame_family_gate
         && relay_structure_frame_family_gate
         && beacon_frame_family_gate
-        && override_frame_family_gate;
+        && override_frame_family_gate
+        && atlas_family_perimeter_placement_gate;
     let no_copy_boundary_gate =
         !assets.manifest.cex_runtime_player_client_allowed && !assets.manifest.wgpu_required;
     let first_contact_atlas_readability_gate = atlas_manifest_gate
@@ -112552,6 +112670,8 @@ fn classic_first_contact_atlas_readability_guard() -> Value {
         "atlas_family_override_frame_ids": atlas_family_override_frame_ids,
         "atlas_family_signatures": atlas_family_signatures,
         "atlas_family_samples": atlas_family_samples,
+        "atlas_family_gallery_lanes": atlas_family_gallery_lanes,
+        "atlas_family_busy_core_tiles": atlas_family_busy_core_tiles,
         "terrain_frame_count": terrain_frame_count,
         "unit_frame_count": unit_frame_count,
         "structure_frame_count": structure_frame_count,
@@ -112567,6 +112687,10 @@ fn classic_first_contact_atlas_readability_guard() -> Value {
         "unique_signature_count": unique_signature_count,
         "atlas_family_unique_frame_count": atlas_family_unique_frame_count,
         "atlas_family_unique_signature_count": atlas_family_unique_signature_count,
+        "atlas_family_unique_gallery_lane_count": atlas_family_unique_gallery_lane_count,
+        "north_gallery_frame_count": north_gallery_frame_count,
+        "west_gallery_frame_count": west_gallery_frame_count,
+        "east_gallery_frame_count": east_gallery_frame_count,
         "atlas_frame_pixel_budget": atlas_frame_pixel_budget,
         "atlas_family_frame_pixel_budget": atlas_family_frame_pixel_budget,
         "manifest_frame_gate": manifest_frame_gate,
@@ -112584,6 +112708,7 @@ fn classic_first_contact_atlas_readability_guard() -> Value {
         "relay_structure_frame_family_gate": relay_structure_frame_family_gate,
         "beacon_frame_family_gate": beacon_frame_family_gate,
         "override_frame_family_gate": override_frame_family_gate,
+        "atlas_family_perimeter_placement_gate": atlas_family_perimeter_placement_gate,
         "atlas_composition_gate": atlas_composition_gate,
         "atlas_frame_family_gate": atlas_frame_family_gate,
         "no_copy_boundary_gate": no_copy_boundary_gate,
@@ -160021,6 +160146,60 @@ mod tests {
             Some(true)
         );
         assert_eq!(
+            guard.get("atlas_family_sample_tiles").cloned(),
+            Some(json!([
+                "4,14", "4,16", "4,18", "4,20", "29,14", "29,16", "29,18", "4,4", "6,4", "27,4",
+                "29,4", "29,22", "29,24", "29,26"
+            ]))
+        );
+        assert_eq!(
+            guard.get("atlas_family_gallery_lanes").cloned(),
+            Some(json!([
+                "west_gallery",
+                "west_gallery",
+                "west_gallery",
+                "west_gallery",
+                "east_gallery",
+                "east_gallery",
+                "east_gallery",
+                "north_gallery",
+                "north_gallery",
+                "north_gallery",
+                "north_gallery",
+                "east_gallery",
+                "east_gallery",
+                "east_gallery"
+            ]))
+        );
+        assert_eq!(
+            guard.get("atlas_family_busy_core_tiles").cloned(),
+            Some(json!([]))
+        );
+        assert_eq!(
+            guard
+                .get("atlas_family_unique_gallery_lane_count")
+                .and_then(Value::as_u64),
+            Some(3)
+        );
+        assert_eq!(
+            guard
+                .get("west_gallery_frame_count")
+                .and_then(Value::as_u64),
+            Some(4)
+        );
+        assert_eq!(
+            guard
+                .get("east_gallery_frame_count")
+                .and_then(Value::as_u64),
+            Some(6)
+        );
+        assert_eq!(
+            guard
+                .get("north_gallery_frame_count")
+                .and_then(Value::as_u64),
+            Some(4)
+        );
+        assert_eq!(
             guard
                 .get("atlas_family_unique_frame_count")
                 .and_then(Value::as_u64),
@@ -160048,6 +160227,7 @@ mod tests {
             "relay_structure_frame_family_gate",
             "beacon_frame_family_gate",
             "override_frame_family_gate",
+            "atlas_family_perimeter_placement_gate",
             "atlas_composition_gate",
             "atlas_frame_family_gate",
             "no_copy_boundary_gate",

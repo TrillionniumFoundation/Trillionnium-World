@@ -869,6 +869,9 @@ jq -e '
   and .first_contact_atlas_readability_guard.atlas_parse_gate == true
   and .first_contact_atlas_readability_guard.atlas_roles == ["terrain_tile","terrain_tile","terrain_tile","terrain_tile","terrain_tile","terrain_tile","unit_sprite","unit_sprite","unit_sprite","unit_sprite","structure_sprite","structure_sprite","structure_sprite","structure_sprite","objective_sprite","objective_sprite"]
   and .first_contact_atlas_readability_guard.atlas_family_roles == ["worker_unit_family","worker_unit_family","scout_unit_family","scout_unit_family","warden_unit_family","warden_unit_family","relay_unit_family","command_core_structure_family","command_core_structure_family","relay_structure_family","relay_structure_family","beacon_objective_family","beacon_objective_family","beacon_objective_family"]
+  and .first_contact_atlas_readability_guard.atlas_family_sample_tiles == ["4,14","4,16","4,18","4,20","29,14","29,16","29,18","4,4","6,4","27,4","29,4","29,22","29,24","29,26"]
+  and .first_contact_atlas_readability_guard.atlas_family_gallery_lanes == ["west_gallery","west_gallery","west_gallery","west_gallery","east_gallery","east_gallery","east_gallery","north_gallery","north_gallery","north_gallery","north_gallery","east_gallery","east_gallery","east_gallery"]
+  and .first_contact_atlas_readability_guard.atlas_family_busy_core_tiles == []
   and (.first_contact_atlas_readability_guard.atlas_frame_ids | index("tile_stone") != null)
   and (.first_contact_atlas_readability_guard.atlas_frame_ids | index("tile_water") != null)
   and (.first_contact_atlas_readability_guard.atlas_frame_ids | index("actor_player_walk_south_1") != null)
@@ -908,6 +911,10 @@ jq -e '
   and .first_contact_atlas_readability_guard.unique_signature_count >= 12
   and .first_contact_atlas_readability_guard.atlas_family_unique_frame_count >= 14
   and .first_contact_atlas_readability_guard.atlas_family_unique_signature_count >= 14
+  and .first_contact_atlas_readability_guard.atlas_family_unique_gallery_lane_count == 3
+  and .first_contact_atlas_readability_guard.north_gallery_frame_count == 4
+  and .first_contact_atlas_readability_guard.west_gallery_frame_count == 4
+  and .first_contact_atlas_readability_guard.east_gallery_frame_count == 6
   and .first_contact_atlas_readability_guard.atlas_frame_pixel_budget >= 11776
   and .first_contact_atlas_readability_guard.atlas_family_frame_pixel_budget >= 42496
   and .first_contact_atlas_readability_guard.manifest_frame_gate == true
@@ -925,6 +932,7 @@ jq -e '
   and .first_contact_atlas_readability_guard.relay_structure_frame_family_gate == true
   and .first_contact_atlas_readability_guard.beacon_frame_family_gate == true
   and .first_contact_atlas_readability_guard.override_frame_family_gate == true
+  and .first_contact_atlas_readability_guard.atlas_family_perimeter_placement_gate == true
   and .first_contact_atlas_readability_guard.atlas_composition_gate == true
   and .first_contact_atlas_readability_guard.atlas_frame_family_gate == true
   and .first_contact_atlas_readability_guard.no_copy_boundary_gate == true
