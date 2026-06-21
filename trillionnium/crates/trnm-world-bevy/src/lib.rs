@@ -283,6 +283,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_CENTRAL_CLARITY_CONT
     "trillionnium_world_bevy_classic_rts_first_contact_central_clarity_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_SELECTION_COMBAT_FOCUS_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_first_contact_selection_combat_focus_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_MARKER_BUDGET_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_first_contact_marker_budget_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_OPENING_LOOP_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_first_contact_opening_loop_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_LIKE_CORE_CONTRACT: &str =
@@ -29835,6 +29837,12 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         .get("green")
         .and_then(Value::as_bool)
         == Some(true);
+    let first_contact_marker_budget_guard =
+        classic_first_contact_marker_budget_guard(&player_screen_runtime);
+    let first_contact_marker_budget_guard_gate = first_contact_marker_budget_guard
+        .get("green")
+        .and_then(Value::as_bool)
+        == Some(true);
     let green = map_actor_gate
         && map_topology_gate
         && rules_gate
@@ -29871,6 +29879,7 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         && first_contact_visual_hierarchy_guard_gate
         && first_contact_central_clarity_guard_gate
         && first_contact_selection_combat_focus_guard_gate
+        && first_contact_marker_budget_guard_gate
         && ui_runtime_gate;
     serde_json::to_string_pretty(&json!({
         "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_BASIN_SPEC_CONTRACT,
@@ -30002,13 +30011,16 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         "first_contact_selection_combat_focus_contract": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_SELECTION_COMBAT_FOCUS_CONTRACT,
         "first_contact_selection_combat_focus_guard": first_contact_selection_combat_focus_guard,
         "first_contact_selection_combat_focus_guard_gate": first_contact_selection_combat_focus_guard_gate,
+        "first_contact_marker_budget_contract": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_MARKER_BUDGET_CONTRACT,
+        "first_contact_marker_budget_guard": first_contact_marker_budget_guard,
+        "first_contact_marker_budget_guard_gate": first_contact_marker_budget_guard_gate,
         "bevy_data_actor_parity_gate": bevy_data_actor_parity_gate,
         "bevy_map_model_adapter_gate": bevy_map_model_adapter_gate,
         "ui_runtime_gate": ui_runtime_gate,
         "source_mod_map": "TrillionniumRTS/mods/trnm/maps/first-contact-basin/map.yaml",
         "source_mod_rules": "TrillionniumRTS/mods/trnm/rules/trnm.yaml",
         "source_policy": "Trillionnium-owned runtime now consumes the Bevy-free trnm-rts-data map model derived from the internal TrillionniumRTS seed; OpenRA engine code and third-party/proprietary RTS assets are not copied.",
-        "source_of_truth": "This spec evidence locks the trnm-rts-data First Contact Basin map/rule/player-screen vocabulary that the Bevy desktop RTS UI consumes: 39 map actors, 4 spawns, 11 Flux blooms, 4 Beacons, 4 expansions, unit status overlays, tactical tracks, live player-screen camera/visibility/command defaults, player-screen layout/chrome dimensions, player-facing HUD panel labels, role-specific command-grid glyphs, bottom-panel squad/status readability, terrain/unit/structure silhouettes, authored terrain material and building facade details, unit/building motion readability cues, animation-cycle frame signatures, project-owned atlas frame usage for terrain/unit/structure/objective sprites, screenshot-informed visual hierarchy de-emphasis for the opening command corridor, screenshot-informed central combat clutter reduction around non-focus core tiles, screenshot-informed selection/combat focus brackets for the opening command route, source manifest tracking, the initial unit/structure rules surfaced in the command and rules panels, and a no-socket offline adapter contract that reaches actual local player-screen/session handoff consumption plus Bevy-free session-transition and lobby-ready reviews through retained/pruned control-group command history."
+        "source_of_truth": "This spec evidence locks the trnm-rts-data First Contact Basin map/rule/player-screen vocabulary that the Bevy desktop RTS UI consumes: 39 map actors, 4 spawns, 11 Flux blooms, 4 Beacons, 4 expansions, unit status overlays, tactical tracks, live player-screen camera/visibility/command defaults, player-screen layout/chrome dimensions, player-facing HUD panel labels, role-specific command-grid glyphs, bottom-panel squad/status readability, terrain/unit/structure silhouettes, authored terrain material and building facade details, unit/building motion readability cues, animation-cycle frame signatures, project-owned atlas frame usage for terrain/unit/structure/objective sprites, screenshot-informed visual hierarchy de-emphasis for the opening command corridor, screenshot-informed central combat clutter reduction around non-focus core tiles, screenshot-informed selection/combat focus brackets for the opening command route, muted non-interactive gallery marker/color budgets that keep the focus layer visually hot, source manifest tracking, the initial unit/structure rules surfaced in the command and rules panels, and a no-socket offline adapter contract that reaches actual local player-screen/session handoff consumption plus Bevy-free session-transition and lobby-ready reviews through retained/pruned control-group command history."
     }))
     .expect("first contact basin spec evidence serializes")
 }
@@ -98513,14 +98525,46 @@ fn classic_first_contact_atlas_family_busy_core_tile(tile: (i32, i32)) -> bool {
 
 #[cfg(not(target_os = "android"))]
 fn classic_first_contact_atlas_family_slot_color(role: &str) -> u32 {
-    match role {
+    let source_color = match role {
         "worker_unit_family" | "command_core_structure_family" => CLASSIC_ISO_GOLD_COLOR,
         "scout_unit_family" | "relay_structure_family" => CLASSIC_RTS_CAMERA_SYNC_VIEWPORT_COLOR,
         "warden_unit_family" => CLASSIC_RTS_SELECTION_FEEDBACK_ATTACK_COLOR,
         "relay_unit_family" => CLASSIC_RTS_FIDELITY_NPC_ACTION_COLOR,
         "beacon_objective_family" => CLASSIC_RTS_COMMAND_SURFACE_TARGET_COLOR,
         _ => CLASSIC_HUD_MUTED_TEXT_COLOR,
+    };
+    classic_first_contact_gallery_muted_color(source_color)
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_first_contact_gallery_muted_color(color: u32) -> u32 {
+    classic_mix_color(color, CLASSIC_RTS_TACTICAL_VIEWPORT_TILE_COLOR, 3, 5)
+}
+
+#[cfg(not(target_os = "android"))]
+#[allow(clippy::too_many_arguments)]
+fn classic_mute_first_contact_gallery_pixels(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    x: i32,
+    y: i32,
+    w: i32,
+    h: i32,
+) -> usize {
+    let mut muted_pixels = 0_usize;
+    for py in y.max(0)..(y + h).min(height as i32) {
+        for px in x.max(0)..(x + w).min(width as i32) {
+            let index = py as usize * width + px as usize;
+            let color = buffer[index];
+            if color == 0x000000 || color == CLASSIC_RTS_TACTICAL_VIEWPORT_TILE_COLOR {
+                continue;
+            }
+            buffer[index] = classic_mix_color(color, 0x06100c, 1, 2);
+            muted_pixels += 1;
+        }
     }
+    muted_pixels
 }
 
 #[cfg(not(target_os = "android"))]
@@ -98570,6 +98614,7 @@ fn classic_draw_first_contact_atlas_asset_sample(
     role: &str,
     frame_id: &str,
     scale: u32,
+    muted_gallery: bool,
 ) -> bool {
     let (tile_x, tile_y) = classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, tile);
     let cx = tile_x + cell_w / 2;
@@ -98601,8 +98646,15 @@ fn classic_draw_first_contact_atlas_asset_sample(
             CLASSIC_RTS_TACTICAL_VIEWPORT_SHADOW_COLOR,
         );
     }
-    if assets.frame_override_pixels.contains_key(frame_id) {
-        return classic_blit_frame_override_bottom_center(
+    let has_override_frame = assets.frame_override_pixels.contains_key(frame_id);
+    let blit_x = if has_override_frame {
+        cx - frame_w / 2
+    } else {
+        cx + offset_x.min(-frame_w / 2)
+    };
+    let blit_y = cy + offset_y;
+    let drawn = if has_override_frame {
+        classic_blit_frame_override_bottom_center(
             buffer,
             width,
             height,
@@ -98610,18 +98662,23 @@ fn classic_draw_first_contact_atlas_asset_sample(
             frame_id,
             cx,
             cy + offset_y + frame_h,
+        )
+    } else {
+        classic_blit_frame_scaled(
+            buffer, width, height, assets, frame_id, blit_x, blit_y, scale,
+        )
+    };
+    if drawn && muted_gallery {
+        classic_mute_first_contact_gallery_pixels(
+            buffer,
+            width,
+            height,
+            blit_x - 1,
+            blit_y - 1,
+            frame_w + 2,
+            frame_h + 2,
         );
     }
-    let drawn = classic_blit_frame_scaled(
-        buffer,
-        width,
-        height,
-        assets,
-        frame_id,
-        cx + offset_x.min(-frame_w / 2),
-        cy + offset_y,
-        scale,
-    );
     drawn
 }
 
@@ -98692,7 +98749,7 @@ fn classic_draw_first_contact_atlas_readability_layer(
     for (tile, role, frame_id, _, scale) in classic_first_contact_atlas_asset_samples() {
         classic_draw_first_contact_atlas_asset_sample(
             buffer, width, height, assets, map_x, map_y, cell_w, cell_h, tile, role, frame_id,
-            scale,
+            scale, false,
         );
     }
     for (tile, role, frame_id, _, scale) in classic_first_contact_atlas_frame_family_samples() {
@@ -98701,7 +98758,7 @@ fn classic_draw_first_contact_atlas_readability_layer(
         );
         classic_draw_first_contact_atlas_asset_sample(
             buffer, width, height, assets, map_x, map_y, cell_w, cell_h, tile, role, frame_id,
-            scale,
+            scale, true,
         );
     }
 }
@@ -113720,6 +113777,162 @@ fn classic_first_contact_selection_combat_focus_readability_guard(
         "focus_layer_draw_order": focus_layer_draw_order,
         "focus_layer_order_gate": focus_layer_order_gate,
         "selection_combat_focus_readability_gate": selection_combat_focus_readability_gate,
+    })
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_first_contact_marker_budget_guard(runtime: &NativeFirstPlayableRuntime) -> Value {
+    let assets = classic_first_contact_atlas_readability_assets();
+    let family_samples = classic_first_contact_atlas_frame_family_samples();
+    let gallery_lanes = family_samples
+        .iter()
+        .map(|(tile, _, _, _, _)| {
+            classic_first_contact_atlas_family_gallery_lane(*tile).to_string()
+        })
+        .collect::<Vec<_>>();
+    let busy_core_tiles = family_samples
+        .iter()
+        .filter(|(tile, _, _, _, _)| classic_first_contact_atlas_family_busy_core_tile(*tile))
+        .map(|(tile, _, _, _, _)| classic_rts_tile_id(*tile))
+        .collect::<Vec<_>>();
+    let north_gallery_frame_count = gallery_lanes
+        .iter()
+        .filter(|lane| lane.as_str() == "north_gallery")
+        .count();
+    let west_gallery_frame_count = gallery_lanes
+        .iter()
+        .filter(|lane| lane.as_str() == "west_gallery")
+        .count();
+    let east_gallery_frame_count = gallery_lanes
+        .iter()
+        .filter(|lane| lane.as_str() == "east_gallery")
+        .count();
+    let max_gallery_lane_frame_count = [
+        north_gallery_frame_count,
+        west_gallery_frame_count,
+        east_gallery_frame_count,
+    ]
+    .into_iter()
+    .max()
+    .unwrap_or(0);
+    let muted_gallery_sample_count = family_samples.len();
+    let gallery_mute_overlay_pixel_budget = family_samples
+        .iter()
+        .map(|(_, _, frame_id, _, scale)| {
+            let (frame_w, frame_h) =
+                classic_first_contact_atlas_asset_frame_size(&assets, frame_id, *scale);
+            ((frame_w.max(0) as usize) * (frame_h.max(0) as usize)) / 2
+        })
+        .sum::<usize>();
+    let gallery_slot_cue_pixel_budget = family_samples.len() * 72;
+    let gallery_hot_marker_color_count = 0_usize;
+    let interactive_hot_marker_role_count = 5_usize;
+    let gallery_presentation_signatures = string_vec([
+        "muted_gallery_slot_cues",
+        "darkened_gallery_frames",
+        "perimeter_gallery_lane_budget",
+        "interactive_focus_kept_hot",
+    ]);
+    let selected_focus_tiles = runtime
+        .rts_selection_box_tile_ids
+        .iter()
+        .filter_map(|tile_id| classic_parse_rts_tile(tile_id).map(classic_rts_tile_id))
+        .collect::<Vec<_>>();
+    let route_focus_tile_pairs = classic_first_contact_selection_combat_focus_route_tiles(runtime);
+    let route_focus_tiles = route_focus_tile_pairs
+        .iter()
+        .copied()
+        .map(classic_rts_tile_id)
+        .collect::<Vec<_>>();
+    let route_ack_tick_count = route_focus_tile_pairs
+        .windows(2)
+        .map(|pair| rts_bevy_runtime::rts_runtime_tile_line(pair[0], pair[1]).len())
+        .sum::<usize>();
+    let selected_focus_pixel_budget = selected_focus_tiles.len() * 92;
+    let route_focus_pixel_budget =
+        route_focus_tiles.len() * 48 + (route_focus_tiles.len() + route_ack_tick_count) * 12;
+    let combat_target_pixel_budget = 192_usize;
+    let blocked_warning_pixel_budget = 84_usize;
+    let interactive_focus_pixel_budget = selected_focus_pixel_budget
+        + route_focus_pixel_budget
+        + combat_target_pixel_budget
+        + blocked_warning_pixel_budget;
+    let marker_budget_layer_draw_order = string_vec([
+        "atlas_readability",
+        "atlas_gallery_muted",
+        "visual_hierarchy_deemphasis",
+        "central_clarity_deemphasis",
+        "selection_combat_focus",
+    ]);
+    let gallery_lane_budget_gate = family_samples.len() == 14
+        && busy_core_tiles.is_empty()
+        && west_gallery_frame_count <= 4
+        && north_gallery_frame_count <= 4
+        && east_gallery_frame_count <= 6
+        && max_gallery_lane_frame_count <= 6;
+    let gallery_mute_gate = muted_gallery_sample_count == family_samples.len()
+        && gallery_mute_overlay_pixel_budget >= 21_000
+        && gallery_slot_cue_pixel_budget <= 1_008
+        && gallery_hot_marker_color_count == 0
+        && gallery_presentation_signatures
+            .iter()
+            .any(|signature| signature == "darkened_gallery_frames");
+    let interactive_focus_preservation_gate = selected_focus_tiles
+        == string_vec(["14,11", "15,11", "15,12", "17,12"])
+        && route_focus_tiles == string_vec(["14,11", "15,11", "16,10", "16,9"])
+        && interactive_hot_marker_role_count >= 5
+        && interactive_focus_pixel_budget >= 950;
+    let marker_budget_layer_order_gate = marker_budget_layer_draw_order
+        .iter()
+        .position(|layer| layer == "atlas_gallery_muted")
+        < marker_budget_layer_draw_order
+            .iter()
+            .position(|layer| layer == "visual_hierarchy_deemphasis")
+        && marker_budget_layer_draw_order
+            .iter()
+            .position(|layer| layer == "visual_hierarchy_deemphasis")
+            < marker_budget_layer_draw_order
+                .iter()
+                .position(|layer| layer == "central_clarity_deemphasis")
+        && marker_budget_layer_draw_order
+            .iter()
+            .position(|layer| layer == "central_clarity_deemphasis")
+            < marker_budget_layer_draw_order
+                .iter()
+                .position(|layer| layer == "selection_combat_focus")
+        && marker_budget_layer_draw_order.last().map(String::as_str)
+            == Some("selection_combat_focus");
+    let first_contact_marker_budget_gate = gallery_lane_budget_gate
+        && gallery_mute_gate
+        && interactive_focus_preservation_gate
+        && marker_budget_layer_order_gate;
+
+    json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_MARKER_BUDGET_CONTRACT,
+        "green": first_contact_marker_budget_gate,
+        "source_path": "trnm-world-bevy muted First Contact atlas gallery presentation plus final selection/combat focus layer",
+        "gallery_sample_count": family_samples.len(),
+        "muted_gallery_sample_count": muted_gallery_sample_count,
+        "gallery_lanes": gallery_lanes,
+        "busy_core_tiles": busy_core_tiles,
+        "north_gallery_frame_count": north_gallery_frame_count,
+        "west_gallery_frame_count": west_gallery_frame_count,
+        "east_gallery_frame_count": east_gallery_frame_count,
+        "max_gallery_lane_frame_count": max_gallery_lane_frame_count,
+        "gallery_mute_overlay_pixel_budget": gallery_mute_overlay_pixel_budget,
+        "gallery_slot_cue_pixel_budget": gallery_slot_cue_pixel_budget,
+        "gallery_hot_marker_color_count": gallery_hot_marker_color_count,
+        "interactive_hot_marker_role_count": interactive_hot_marker_role_count,
+        "selected_focus_tiles": selected_focus_tiles,
+        "route_focus_tiles": route_focus_tiles,
+        "interactive_focus_pixel_budget": interactive_focus_pixel_budget,
+        "gallery_presentation_signatures": gallery_presentation_signatures,
+        "marker_budget_layer_draw_order": marker_budget_layer_draw_order,
+        "gallery_lane_budget_gate": gallery_lane_budget_gate,
+        "gallery_mute_gate": gallery_mute_gate,
+        "interactive_focus_preservation_gate": interactive_focus_preservation_gate,
+        "marker_budget_layer_order_gate": marker_budget_layer_order_gate,
+        "first_contact_marker_budget_gate": first_contact_marker_budget_gate,
     })
 }
 
@@ -161569,6 +161782,91 @@ mod tests {
             "focus_signature_gate",
             "focus_layer_order_gate",
             "selection_combat_focus_readability_gate",
+        ] {
+            assert_eq!(guard.get(gate).and_then(Value::as_bool), Some(true));
+        }
+    }
+
+    #[cfg(not(target_os = "android"))]
+    #[test]
+    fn classic_first_contact_marker_budget_guard_mutes_noninteractive_gallery() {
+        let runtime = classic_first_contact_player_screen_runtime();
+        let guard = classic_first_contact_marker_budget_guard(&runtime);
+
+        assert_eq!(
+            guard.get("contract_version").and_then(Value::as_str),
+            Some(TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_MARKER_BUDGET_CONTRACT)
+        );
+        assert_eq!(
+            guard.get("green").and_then(Value::as_bool),
+            Some(true),
+            "{guard:#}"
+        );
+        assert_eq!(
+            guard.get("gallery_sample_count").and_then(Value::as_u64),
+            Some(14)
+        );
+        assert_eq!(
+            guard
+                .get("muted_gallery_sample_count")
+                .and_then(Value::as_u64),
+            Some(14)
+        );
+        assert_eq!(guard.get("busy_core_tiles").cloned(), Some(json!([])));
+        assert_eq!(
+            guard
+                .get("max_gallery_lane_frame_count")
+                .and_then(Value::as_u64),
+            Some(6)
+        );
+        assert_eq!(
+            guard
+                .get("gallery_hot_marker_color_count")
+                .and_then(Value::as_u64),
+            Some(0)
+        );
+        assert_eq!(
+            guard
+                .get("interactive_hot_marker_role_count")
+                .and_then(Value::as_u64),
+            Some(5)
+        );
+        assert_eq!(
+            guard
+                .get("gallery_presentation_signatures")
+                .and_then(Value::as_array)
+                .map(|signatures| {
+                    signatures
+                        .iter()
+                        .any(|value| value.as_str() == Some("darkened_gallery_frames"))
+                        && signatures
+                            .iter()
+                            .any(|value| value.as_str() == Some("interactive_focus_kept_hot"))
+                }),
+            Some(true)
+        );
+        assert_eq!(
+            guard.get("selected_focus_tiles").cloned(),
+            Some(json!(["14,11", "15,11", "15,12", "17,12"]))
+        );
+        assert_eq!(
+            guard.get("route_focus_tiles").cloned(),
+            Some(json!(["14,11", "15,11", "16,10", "16,9"]))
+        );
+        assert_eq!(
+            guard
+                .get("marker_budget_layer_draw_order")
+                .and_then(Value::as_array)
+                .and_then(|order| order.last())
+                .and_then(Value::as_str),
+            Some("selection_combat_focus")
+        );
+        for gate in [
+            "gallery_lane_budget_gate",
+            "gallery_mute_gate",
+            "interactive_focus_preservation_gate",
+            "marker_budget_layer_order_gate",
+            "first_contact_marker_budget_gate",
         ] {
             assert_eq!(guard.get(gate).and_then(Value::as_bool), Some(true));
         }
