@@ -813,14 +813,23 @@ jq -e '
   and .first_contact_motion_readability_contract == "trillionnium_world_bevy_classic_rts_first_contact_motion_readability_v1"
   and .first_contact_motion_readability_guard.contract_version == "trillionnium_world_bevy_classic_rts_first_contact_motion_readability_v1"
   and .first_contact_motion_readability_guard.green == true
-  and .first_contact_motion_readability_guard.source_path == "trnm-world-bevy classic_draw_first_contact_opening_actions + classic_draw_first_contact_unit_state_layers + classic_draw_first_contact_command_feedback_layers"
+  and .first_contact_motion_readability_guard.source_path == "trnm-world-bevy classic_draw_first_contact_opening_actions + classic_draw_first_contact_unit_state_layers + classic_draw_first_contact_command_feedback_layers + classic_draw_first_contact_animation_readability_layer"
   and .first_contact_motion_readability_guard.opening_action_ids == ["worker_harvest_flux","build_flux_relay","train_worker","train_horizon_scout","secure_flux_beacon"]
   and .first_contact_motion_readability_guard.action_verbs == ["worker","build","train","train","secure"]
   and .first_contact_motion_readability_guard.unit_status_badges == ["W","S","R","G"]
   and .first_contact_motion_readability_guard.unit_status_color_roles == ["health","mana","attack","confirm"]
   and .first_contact_motion_readability_guard.track_roles == ["action_trail","npc_action","action_trail","npc_action","action_trail","npc_action"]
+  and .first_contact_motion_readability_guard.animation_roles == ["worker","worker","worker","scout","scout","warden","warden","relay","command_core","command_core","relay_structure","beacon","beacon"]
+  and (.first_contact_motion_readability_guard.animation_signatures | index("harvest_tool_swing_frame") != null)
+  and (.first_contact_motion_readability_guard.animation_signatures | index("sensor_sweep_arc") != null)
+  and (.first_contact_motion_readability_guard.animation_signatures | index("spawn_door_open_frame") != null)
+  and (.first_contact_motion_readability_guard.animation_signatures | index("capture_pulse_frame") != null)
   and .first_contact_motion_readability_guard.action_trail_count == 3
   and .first_contact_motion_readability_guard.npc_action_count == 3
+  and .first_contact_motion_readability_guard.unit_animation_frame_count == 8
+  and .first_contact_motion_readability_guard.building_animation_frame_count == 3
+  and .first_contact_motion_readability_guard.objective_animation_frame_count == 2
+  and .first_contact_motion_readability_guard.unique_animation_signature_count >= 13
   and .first_contact_motion_readability_guard.feedback_selected_group == "GROUP 1"
   and .first_contact_motion_readability_guard.feedback_active_order == "SECURE BEACON"
   and .first_contact_motion_readability_guard.feedback_target_tile == "16,9"
@@ -835,11 +844,16 @@ jq -e '
   and .first_contact_motion_readability_guard.unit_status_pixel_budget >= 256
   and .first_contact_motion_readability_guard.tactical_track_pixel_budget >= 288
   and .first_contact_motion_readability_guard.feedback_pixel_budget >= 190
+  and .first_contact_motion_readability_guard.animation_frame_pixel_budget >= 1144
   and .first_contact_motion_readability_guard.opening_action_gate == true
   and .first_contact_motion_readability_guard.unit_state_motion_gate == true
   and .first_contact_motion_readability_guard.tactical_track_motion_gate == true
   and .first_contact_motion_readability_guard.command_feedback_motion_gate == true
   and .first_contact_motion_readability_guard.runtime_motion_gate == true
+  and .first_contact_motion_readability_guard.unit_animation_frame_gate == true
+  and .first_contact_motion_readability_guard.building_animation_frame_gate == true
+  and .first_contact_motion_readability_guard.objective_animation_frame_gate == true
+  and .first_contact_motion_readability_guard.animation_cycle_detail_gate == true
   and .first_contact_motion_readability_guard_gate == true
   and .rts_data_player_screen_chrome_profile.group_summary_prefix == "GROUP"
   and .rts_data_player_screen_chrome_profile.group_summary_suffix == "UNITS SELECTED"

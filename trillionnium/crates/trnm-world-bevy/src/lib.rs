@@ -29961,7 +29961,7 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         "source_mod_map": "TrillionniumRTS/mods/trnm/maps/first-contact-basin/map.yaml",
         "source_mod_rules": "TrillionniumRTS/mods/trnm/rules/trnm.yaml",
         "source_policy": "Trillionnium-owned runtime now consumes the Bevy-free trnm-rts-data map model derived from the internal TrillionniumRTS seed; OpenRA engine code and third-party/proprietary RTS assets are not copied.",
-        "source_of_truth": "This spec evidence locks the trnm-rts-data First Contact Basin map/rule/player-screen vocabulary that the Bevy desktop RTS UI consumes: 39 map actors, 4 spawns, 11 Flux blooms, 4 Beacons, 4 expansions, unit status overlays, tactical tracks, live player-screen camera/visibility/command defaults, player-screen layout/chrome dimensions, player-facing HUD panel labels, role-specific command-grid glyphs, bottom-panel squad/status readability, terrain/unit/structure silhouettes, authored terrain material and building facade details, unit/building motion readability cues, source manifest tracking, the initial unit/structure rules surfaced in the command and rules panels, and a no-socket offline adapter contract that reaches actual local player-screen/session handoff consumption plus Bevy-free session-transition and lobby-ready reviews through retained/pruned control-group command history."
+        "source_of_truth": "This spec evidence locks the trnm-rts-data First Contact Basin map/rule/player-screen vocabulary that the Bevy desktop RTS UI consumes: 39 map actors, 4 spawns, 11 Flux blooms, 4 Beacons, 4 expansions, unit status overlays, tactical tracks, live player-screen camera/visibility/command defaults, player-screen layout/chrome dimensions, player-facing HUD panel labels, role-specific command-grid glyphs, bottom-panel squad/status readability, terrain/unit/structure silhouettes, authored terrain material and building facade details, unit/building motion readability cues, animation-cycle frame signatures, source manifest tracking, the initial unit/structure rules surfaced in the command and rules panels, and a no-socket offline adapter contract that reaches actual local player-screen/session handoff consumption plus Bevy-free session-transition and lobby-ready reviews through retained/pruned control-group command history."
     }))
     .expect("first contact basin spec evidence serializes")
 }
@@ -97879,6 +97879,357 @@ fn classic_draw_first_contact_art_readability_layer(
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_first_contact_animation_cycle_samples() -> Vec<((i32, i32), &'static str, &'static str)>
+{
+    vec![
+        ((12, 16), "worker", "harvest_tool_swing_frame"),
+        ((10, 12), "worker", "carry_bob_frame"),
+        ((14, 11), "worker", "locomotion_footfall_pair"),
+        ((25, 8), "scout", "sensor_sweep_arc"),
+        ((24, 10), "scout", "turn_arc_frame"),
+        ((8, 25), "warden", "shield_charge_flash"),
+        ((10, 23), "warden", "attack_recoil_ticks"),
+        ((11, 8), "relay", "relay_packet_pulse"),
+        ((8, 8), "command_core", "training_tick_lane"),
+        ((9, 9), "command_core", "spawn_door_open_frame"),
+        ((11, 8), "relay_structure", "construction_spark_ladder"),
+        ((16, 9), "beacon", "capture_pulse_frame"),
+        ((16, 10), "beacon", "rally_flag_flutter"),
+    ]
+}
+
+#[cfg(not(target_os = "android"))]
+#[allow(clippy::too_many_arguments)]
+fn classic_draw_first_contact_animation_cycle_detail(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    map_x: i32,
+    map_y: i32,
+    cell_w: i32,
+    cell_h: i32,
+    tile: (i32, i32),
+    signature: &str,
+) {
+    let (tile_x, tile_y) = classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, tile);
+    let cx = tile_x + cell_w / 2;
+    let cy = tile_y + cell_h / 2;
+    match signature {
+        "harvest_tool_swing_frame" => {
+            for step in 0..6 {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    cx - 26 + step * 9,
+                    cy - cell_h - 20 + step * 4,
+                    10,
+                    4,
+                    CLASSIC_RTS_HARVEST_ANIMATION_TOOL_SWING_COLOR,
+                );
+            }
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                cx - 14,
+                cy - cell_h - 4,
+                28,
+                5,
+                CLASSIC_RTS_HARVEST_ANIMATION_RESOURCE_POP_COLOR,
+            );
+        }
+        "carry_bob_frame" => {
+            for bob in 0..5 {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    cx - 20 + bob * 10,
+                    cy - cell_h - 10 - (bob % 2) * 4,
+                    7,
+                    7,
+                    CLASSIC_RTS_ACTION_CADENCE_CARRY_BOB_COLOR,
+                );
+            }
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                cx - cell_w,
+                cy + cell_h / 2,
+                cell_w * 2,
+                3,
+                CLASSIC_RTS_HARVEST_ANIMATION_CARRY_LOAD_COLOR,
+            );
+        }
+        "locomotion_footfall_pair" => {
+            for step in 0..4 {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    cx - 22 + step * 12,
+                    cy + cell_h / 2 + (step % 2) * 3,
+                    8,
+                    3,
+                    CLASSIC_RTS_LOCOMOTION_LEFT_STEP_COLOR,
+                );
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    cx - 17 + step * 12,
+                    cy + cell_h / 2 + 6 - (step % 2) * 2,
+                    8,
+                    3,
+                    CLASSIC_RTS_LOCOMOTION_RIGHT_STEP_COLOR,
+                );
+            }
+        }
+        "sensor_sweep_arc" => {
+            for radius in [cell_w / 2, cell_w, cell_w + cell_w / 2] {
+                classic_draw_iso_ellipse(
+                    buffer,
+                    width,
+                    height,
+                    cx,
+                    cy - cell_h,
+                    radius.max(8),
+                    (radius / 3).max(3),
+                    CLASSIC_RTS_SELECTION_FEEDBACK_CONFIRM_COLOR,
+                );
+            }
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                cx - 2,
+                cy - cell_h * 2,
+                4,
+                cell_h * 2,
+                CLASSIC_RTS_STATUS_MANA_BAR_COLOR,
+            );
+        }
+        "turn_arc_frame" => {
+            for step in 0..6 {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    cx - 30 + step * 11,
+                    cy - cell_h + (step % 3) * 4,
+                    9,
+                    3,
+                    CLASSIC_RTS_LOCOMOTION_TURN_COLOR,
+                );
+            }
+        }
+        "shield_charge_flash" => {
+            for ring in 0..3 {
+                classic_draw_iso_ellipse(
+                    buffer,
+                    width,
+                    height,
+                    cx,
+                    cy - cell_h / 2,
+                    cell_w + ring * 8,
+                    (cell_h / 2 + ring * 3).max(4),
+                    CLASSIC_RTS_STATUS_BUFF_BADGE_COLOR,
+                );
+            }
+        }
+        "attack_recoil_ticks" => {
+            for tick in 0..5 {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    cx - cell_w + tick * 12,
+                    cy - cell_h - 14 - (tick % 2) * 5,
+                    10,
+                    4,
+                    CLASSIC_RTS_SELECTION_FEEDBACK_ATTACK_COLOR,
+                );
+            }
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                cx - 4,
+                cy - cell_h - 32,
+                8,
+                22,
+                CLASSIC_RTS_ACTION_CADENCE_SHADOW_SMEAR_COLOR,
+            );
+        }
+        "relay_packet_pulse" => {
+            for step in 0..=6 {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    cx + step * 7,
+                    cy - cell_h - 7 - (step % 2) * 4,
+                    6,
+                    4,
+                    CLASSIC_RTS_STRUCTURE_REPAIR_BEAM_COLOR,
+                );
+            }
+        }
+        "training_tick_lane" => {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                cx - cell_w,
+                cy - cell_h * 2 - 13,
+                cell_w * 2,
+                7,
+                CLASSIC_RTS_STRUCTURE_FOUNDATION_SHADOW_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                cx - cell_w + 3,
+                cy - cell_h * 2 - 11,
+                cell_w + cell_w / 2,
+                3,
+                CLASSIC_RTS_PRODUCTION_SPAWN_TRAINING_TICK_COLOR,
+            );
+            for tick in 0..5 {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    cx - cell_w + 5 + tick * 8,
+                    cy - cell_h * 2 - 4,
+                    5,
+                    12,
+                    CLASSIC_RTS_PRODUCTION_SPAWN_TRAINING_TICK_COLOR,
+                );
+            }
+        }
+        "spawn_door_open_frame" => {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                cx - cell_w,
+                cy + cell_h + 2,
+                cell_w * 2,
+                6,
+                CLASSIC_RTS_PRODUCTION_SPAWN_DOOR_COLOR,
+            );
+            for panel in 0..4 {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    cx - cell_w + panel * 13,
+                    cy + cell_h + 9 + (panel % 2) * 4,
+                    9,
+                    18,
+                    CLASSIC_RTS_PRODUCTION_SPAWN_DOOR_COLOR,
+                );
+            }
+        }
+        "construction_spark_ladder" => {
+            for rung in 0..4 {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    cx - cell_w / 2,
+                    cy - cell_h * 2 + rung * 10,
+                    cell_w,
+                    3,
+                    CLASSIC_RTS_STRUCTURE_SCAFFOLD_COLOR,
+                );
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    cx - 4 + (rung % 2) * 8,
+                    cy - cell_h * 2 + rung * 10 - 5,
+                    8,
+                    6,
+                    CLASSIC_RTS_STRUCTURE_CONSTRUCTION_SPARK_COLOR,
+                );
+            }
+        }
+        "capture_pulse_frame" => {
+            for pulse in 0..4 {
+                classic_draw_iso_ellipse(
+                    buffer,
+                    width,
+                    height,
+                    cx,
+                    cy,
+                    cell_w + pulse * 8,
+                    (cell_h / 2 + pulse * 3).max(4),
+                    CLASSIC_RTS_ABILITY_TELEGRAPH_RANGE_COLOR,
+                );
+            }
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                cx - 3,
+                cy - cell_h * 2,
+                6,
+                cell_h * 3,
+                CLASSIC_RTS_ENVIRONMENT_RESOURCE_GLINT_COLOR,
+            );
+        }
+        "rally_flag_flutter" => {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                cx - 3,
+                cy - cell_h * 2,
+                6,
+                cell_h * 3,
+                CLASSIC_RTS_PRODUCTION_SPAWN_RALLY_FLAG_COLOR,
+            );
+            for stripe in 0..4 {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    cx + 2,
+                    cy - cell_h * 2 + stripe * 8,
+                    28 - stripe * 4,
+                    6,
+                    CLASSIC_RTS_PRODUCTION_SPAWN_RALLY_FLAG_COLOR,
+                );
+            }
+        }
+        _ => {}
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+#[allow(clippy::too_many_arguments)]
+fn classic_draw_first_contact_animation_readability_layer(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    map_x: i32,
+    map_y: i32,
+    cell_w: i32,
+    cell_h: i32,
+) {
+    for (tile, _, signature) in classic_first_contact_animation_cycle_samples() {
+        classic_draw_first_contact_animation_cycle_detail(
+            buffer, width, height, map_x, map_y, cell_w, cell_h, tile, signature,
+        );
+    }
+}
+
+#[cfg(not(target_os = "android"))]
 #[allow(clippy::too_many_arguments)]
 fn classic_draw_first_contact_tactical_viewport(
     buffer: &mut [u32],
@@ -98714,6 +99065,9 @@ fn classic_draw_first_contact_basin_scene(
         buffer, width, height, map_x, map_y, cell_w, cell_h,
     );
     classic_draw_first_contact_art_readability_layer(
+        buffer, width, height, map_x, map_y, cell_w, cell_h,
+    );
+    classic_draw_first_contact_animation_readability_layer(
         buffer, width, height, map_x, map_y, cell_w, cell_h,
     );
     classic_draw_first_contact_unit_state_layers(
@@ -111229,6 +111583,7 @@ fn classic_first_contact_motion_readability_guard() -> Value {
     let feedback = classic_first_contact_command_feedback();
     let telemetry = classic_first_contact_visual_telemetry();
     let runtime = classic_first_contact_player_screen_runtime();
+    let animation_samples = classic_first_contact_animation_cycle_samples();
     let active_beacon_tile_id = classic_first_contact_tile_id(opening.active_beacon_tile);
     let active_relay_tile_id = classic_first_contact_tile_id(opening.active_relay_tile);
     let opening_action_ids = opening.opening_actions.clone();
@@ -111262,6 +111617,44 @@ fn classic_first_contact_motion_readability_guard() -> Value {
             })
         })
         .collect::<Vec<_>>();
+    let animation_sample_tiles = animation_samples
+        .iter()
+        .map(|(tile, _, _)| classic_rts_tile_id(*tile))
+        .collect::<Vec<_>>();
+    let animation_roles = animation_samples
+        .iter()
+        .map(|(_, role, _)| (*role).to_string())
+        .collect::<Vec<_>>();
+    let animation_signatures = animation_samples
+        .iter()
+        .map(|(_, _, signature)| (*signature).to_string())
+        .collect::<Vec<_>>();
+    let animation_sample_objects = animation_samples
+        .iter()
+        .map(|(tile, role, signature)| {
+            json!({
+                "tile": classic_rts_tile_id(*tile),
+                "role": role,
+                "signature": signature,
+            })
+        })
+        .collect::<Vec<_>>();
+    let unique_animation_signature_count = animation_signatures
+        .iter()
+        .collect::<std::collections::BTreeSet<_>>()
+        .len();
+    let unit_animation_frame_count = animation_roles
+        .iter()
+        .filter(|role| matches!(role.as_str(), "worker" | "scout" | "warden" | "relay"))
+        .count();
+    let building_animation_frame_count = animation_roles
+        .iter()
+        .filter(|role| matches!(role.as_str(), "command_core" | "relay_structure"))
+        .count();
+    let objective_animation_frame_count = animation_roles
+        .iter()
+        .filter(|role| role.as_str() == "beacon")
+        .count();
     let action_trail_count = telemetry
         .tactical_tracks
         .iter()
@@ -111283,6 +111676,7 @@ fn classic_first_contact_motion_readability_guard() -> Value {
     let feedback_pixel_budget = usize::from(feedback.command_ack_progress)
         + usize::from(feedback.cooldown_progress)
         + usize::from(feedback.queued_after) * 24;
+    let animation_frame_pixel_budget = animation_samples.len() * 88;
     let opening_action_gate = opening_action_ids
         == string_vec([
             "worker_harvest_flux",
@@ -111335,11 +111729,48 @@ fn classic_first_contact_motion_readability_guard() -> Value {
         && tactical_track_motion_gate
         && command_feedback_motion_gate
         && runtime_motion_gate;
+    let unit_animation_frame_gate = unit_animation_frame_count >= 8
+        && animation_roles.iter().any(|role| role.as_str() == "worker")
+        && animation_roles.iter().any(|role| role.as_str() == "scout")
+        && animation_roles.iter().any(|role| role.as_str() == "warden")
+        && animation_roles.iter().any(|role| role.as_str() == "relay")
+        && animation_signatures
+            .iter()
+            .any(|signature| signature.as_str() == "harvest_tool_swing_frame")
+        && animation_signatures
+            .iter()
+            .any(|signature| signature.as_str() == "sensor_sweep_arc")
+        && animation_signatures
+            .iter()
+            .any(|signature| signature.as_str() == "attack_recoil_ticks");
+    let building_animation_frame_gate = building_animation_frame_count >= 3
+        && animation_signatures
+            .iter()
+            .any(|signature| signature.as_str() == "training_tick_lane")
+        && animation_signatures
+            .iter()
+            .any(|signature| signature.as_str() == "spawn_door_open_frame")
+        && animation_signatures
+            .iter()
+            .any(|signature| signature.as_str() == "construction_spark_ladder");
+    let objective_animation_frame_gate = objective_animation_frame_count >= 2
+        && animation_signatures
+            .iter()
+            .any(|signature| signature.as_str() == "capture_pulse_frame")
+        && animation_signatures
+            .iter()
+            .any(|signature| signature.as_str() == "rally_flag_flutter");
+    let animation_cycle_detail_gate = unit_animation_frame_gate
+        && building_animation_frame_gate
+        && objective_animation_frame_gate
+        && unique_animation_signature_count >= 13
+        && animation_frame_pixel_budget >= 1_144;
+    let green = green && animation_cycle_detail_gate;
 
     json!({
         "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_MOTION_READABILITY_CONTRACT,
         "green": green,
-        "source_path": "trnm-world-bevy classic_draw_first_contact_opening_actions + classic_draw_first_contact_unit_state_layers + classic_draw_first_contact_command_feedback_layers",
+        "source_path": "trnm-world-bevy classic_draw_first_contact_opening_actions + classic_draw_first_contact_unit_state_layers + classic_draw_first_contact_command_feedback_layers + classic_draw_first_contact_animation_readability_layer",
         "active_relay_tile": active_relay_tile_id,
         "active_beacon_tile": active_beacon_tile_id,
         "opening_action_ids": opening_action_ids,
@@ -111374,6 +111805,19 @@ fn classic_first_contact_motion_readability_guard() -> Value {
         "training_progress_percent": runtime.rts_training_progress_percent,
         "build_progress_percent": runtime.rts_build_progress_percent,
         "runtime_motion_gate": runtime_motion_gate,
+        "animation_sample_tiles": animation_sample_tiles,
+        "animation_roles": animation_roles,
+        "animation_signatures": animation_signatures,
+        "animation_samples": animation_sample_objects,
+        "unit_animation_frame_count": unit_animation_frame_count,
+        "building_animation_frame_count": building_animation_frame_count,
+        "objective_animation_frame_count": objective_animation_frame_count,
+        "unique_animation_signature_count": unique_animation_signature_count,
+        "animation_frame_pixel_budget": animation_frame_pixel_budget,
+        "unit_animation_frame_gate": unit_animation_frame_gate,
+        "building_animation_frame_gate": building_animation_frame_gate,
+        "objective_animation_frame_gate": objective_animation_frame_gate,
+        "animation_cycle_detail_gate": animation_cycle_detail_gate,
     })
 }
 
@@ -158648,6 +159092,41 @@ mod tests {
             Some(json!(["W", "S", "R", "G"]))
         );
         assert_eq!(
+            guard.get("animation_roles").cloned(),
+            Some(json!([
+                "worker",
+                "worker",
+                "worker",
+                "scout",
+                "scout",
+                "warden",
+                "warden",
+                "relay",
+                "command_core",
+                "command_core",
+                "relay_structure",
+                "beacon",
+                "beacon"
+            ]))
+        );
+        assert_eq!(
+            guard
+                .get("animation_signatures")
+                .and_then(Value::as_array)
+                .map(|signatures| {
+                    signatures
+                        .iter()
+                        .any(|value| value.as_str() == Some("harvest_tool_swing_frame"))
+                        && signatures
+                            .iter()
+                            .any(|value| value.as_str() == Some("spawn_door_open_frame"))
+                        && signatures
+                            .iter()
+                            .any(|value| value.as_str() == Some("capture_pulse_frame"))
+                }),
+            Some(true)
+        );
+        assert_eq!(
             guard.get("route_tile_ids").cloned(),
             Some(json!(["14,11", "15,11", "16,10", "16,9"]))
         );
@@ -158671,6 +159150,10 @@ mod tests {
             "tactical_track_motion_gate",
             "command_feedback_motion_gate",
             "runtime_motion_gate",
+            "unit_animation_frame_gate",
+            "building_animation_frame_gate",
+            "objective_animation_frame_gate",
+            "animation_cycle_detail_gate",
         ] {
             assert_eq!(guard.get(gate).and_then(Value::as_bool), Some(true));
         }
