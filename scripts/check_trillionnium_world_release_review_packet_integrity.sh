@@ -770,6 +770,40 @@ require_artifact_json_expr first_contact_basin_spec_semantics native_bevy_classi
   and .first_contact_motion_readability_guard.objective_animation_frame_gate == true
   and .first_contact_motion_readability_guard.animation_cycle_detail_gate == true
   and .first_contact_motion_readability_guard_gate == true
+  and .first_contact_atlas_readability_contract == "trillionnium_world_bevy_classic_rts_first_contact_atlas_readability_v1"
+  and .first_contact_atlas_readability_guard.contract_version == "trillionnium_world_bevy_classic_rts_first_contact_atlas_readability_v1"
+  and .first_contact_atlas_readability_guard.green == true
+  and .first_contact_atlas_readability_guard.source_path == "trnm-world-bevy classic_draw_first_contact_atlas_readability_layer"
+  and .first_contact_atlas_readability_guard.asset_pack_contract == "trillionnium_world_bevy_classic_asset_pack_v1"
+  and (.first_contact_atlas_readability_guard.asset_boundary | contains("project_owned"))
+  and .first_contact_atlas_readability_guard.atlas_parse_gate == true
+  and .first_contact_atlas_readability_guard.atlas_roles == ["terrain_tile","terrain_tile","terrain_tile","terrain_tile","terrain_tile","terrain_tile","unit_sprite","unit_sprite","unit_sprite","unit_sprite","structure_sprite","structure_sprite","structure_sprite","structure_sprite","objective_sprite","objective_sprite"]
+  and (.first_contact_atlas_readability_guard.atlas_frame_ids | index("tile_stone") != null)
+  and (.first_contact_atlas_readability_guard.atlas_frame_ids | index("tile_water") != null)
+  and (.first_contact_atlas_readability_guard.atlas_frame_ids | index("actor_player_walk_south_1") != null)
+  and (.first_contact_atlas_readability_guard.atlas_frame_ids | index("actor_enemy_attack") != null)
+  and (.first_contact_atlas_readability_guard.atlas_frame_ids | index("prop_workbench") != null)
+  and (.first_contact_atlas_readability_guard.atlas_frame_ids | index("marker_objective") != null)
+  and (.first_contact_atlas_readability_guard.atlas_signatures | index("worker_walk_atlas_frame") != null)
+  and (.first_contact_atlas_readability_guard.atlas_signatures | index("command_core_workbench_frame") != null)
+  and (.first_contact_atlas_readability_guard.atlas_signatures | index("beacon_objective_atlas_frame") != null)
+  and .first_contact_atlas_readability_guard.terrain_frame_count == 6
+  and .first_contact_atlas_readability_guard.unit_frame_count == 4
+  and .first_contact_atlas_readability_guard.structure_frame_count == 4
+  and .first_contact_atlas_readability_guard.objective_frame_count == 2
+  and .first_contact_atlas_readability_guard.unique_frame_count >= 14
+  and .first_contact_atlas_readability_guard.unique_signature_count >= 12
+  and .first_contact_atlas_readability_guard.atlas_frame_pixel_budget >= 11776
+  and .first_contact_atlas_readability_guard.manifest_frame_gate == true
+  and .first_contact_atlas_readability_guard.atlas_manifest_gate == true
+  and .first_contact_atlas_readability_guard.terrain_atlas_frame_gate == true
+  and .first_contact_atlas_readability_guard.unit_atlas_sprite_gate == true
+  and .first_contact_atlas_readability_guard.structure_atlas_sprite_gate == true
+  and .first_contact_atlas_readability_guard.objective_atlas_sprite_gate == true
+  and .first_contact_atlas_readability_guard.atlas_composition_gate == true
+  and .first_contact_atlas_readability_guard.no_copy_boundary_gate == true
+  and .first_contact_atlas_readability_guard.first_contact_atlas_readability_gate == true
+  and .first_contact_atlas_readability_guard_gate == true
   and .rts_online_protocol_fixture.transport.contract_version == "trnm_rts_online_loopback_transport_v1"
   and .rts_online_protocol_fixture.transport.green == true
   and .rts_online_protocol_fixture.transport.socket_opened == false

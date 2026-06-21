@@ -275,6 +275,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_ART_READABILITY_CONT
     "trillionnium_world_bevy_classic_rts_first_contact_art_readability_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_MOTION_READABILITY_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_first_contact_motion_readability_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_ATLAS_READABILITY_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_first_contact_atlas_readability_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_OPENING_LOOP_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_first_contact_opening_loop_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_LIKE_CORE_CONTRACT: &str =
@@ -29804,6 +29806,11 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         .get("green")
         .and_then(Value::as_bool)
         == Some(true);
+    let first_contact_atlas_readability_guard = classic_first_contact_atlas_readability_guard();
+    let first_contact_atlas_readability_guard_gate = first_contact_atlas_readability_guard
+        .get("green")
+        .and_then(Value::as_bool)
+        == Some(true);
     let green = map_actor_gate
         && map_topology_gate
         && rules_gate
@@ -29836,6 +29843,7 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         && first_contact_silhouette_readability_guard_gate
         && first_contact_art_readability_guard_gate
         && first_contact_motion_readability_guard_gate
+        && first_contact_atlas_readability_guard_gate
         && ui_runtime_gate;
     serde_json::to_string_pretty(&json!({
         "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_BASIN_SPEC_CONTRACT,
@@ -29955,13 +29963,16 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         "first_contact_motion_readability_contract": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_MOTION_READABILITY_CONTRACT,
         "first_contact_motion_readability_guard": first_contact_motion_readability_guard,
         "first_contact_motion_readability_guard_gate": first_contact_motion_readability_guard_gate,
+        "first_contact_atlas_readability_contract": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_ATLAS_READABILITY_CONTRACT,
+        "first_contact_atlas_readability_guard": first_contact_atlas_readability_guard,
+        "first_contact_atlas_readability_guard_gate": first_contact_atlas_readability_guard_gate,
         "bevy_data_actor_parity_gate": bevy_data_actor_parity_gate,
         "bevy_map_model_adapter_gate": bevy_map_model_adapter_gate,
         "ui_runtime_gate": ui_runtime_gate,
         "source_mod_map": "TrillionniumRTS/mods/trnm/maps/first-contact-basin/map.yaml",
         "source_mod_rules": "TrillionniumRTS/mods/trnm/rules/trnm.yaml",
         "source_policy": "Trillionnium-owned runtime now consumes the Bevy-free trnm-rts-data map model derived from the internal TrillionniumRTS seed; OpenRA engine code and third-party/proprietary RTS assets are not copied.",
-        "source_of_truth": "This spec evidence locks the trnm-rts-data First Contact Basin map/rule/player-screen vocabulary that the Bevy desktop RTS UI consumes: 39 map actors, 4 spawns, 11 Flux blooms, 4 Beacons, 4 expansions, unit status overlays, tactical tracks, live player-screen camera/visibility/command defaults, player-screen layout/chrome dimensions, player-facing HUD panel labels, role-specific command-grid glyphs, bottom-panel squad/status readability, terrain/unit/structure silhouettes, authored terrain material and building facade details, unit/building motion readability cues, animation-cycle frame signatures, source manifest tracking, the initial unit/structure rules surfaced in the command and rules panels, and a no-socket offline adapter contract that reaches actual local player-screen/session handoff consumption plus Bevy-free session-transition and lobby-ready reviews through retained/pruned control-group command history."
+        "source_of_truth": "This spec evidence locks the trnm-rts-data First Contact Basin map/rule/player-screen vocabulary that the Bevy desktop RTS UI consumes: 39 map actors, 4 spawns, 11 Flux blooms, 4 Beacons, 4 expansions, unit status overlays, tactical tracks, live player-screen camera/visibility/command defaults, player-screen layout/chrome dimensions, player-facing HUD panel labels, role-specific command-grid glyphs, bottom-panel squad/status readability, terrain/unit/structure silhouettes, authored terrain material and building facade details, unit/building motion readability cues, animation-cycle frame signatures, project-owned atlas frame usage for terrain/unit/structure/objective sprites, source manifest tracking, the initial unit/structure rules surfaced in the command and rules panels, and a no-socket offline adapter contract that reaches actual local player-screen/session handoff consumption plus Bevy-free session-transition and lobby-ready reviews through retained/pruned control-group command history."
     }))
     .expect("first contact basin spec evidence serializes")
 }
@@ -87360,7 +87371,7 @@ fn classic_draw_scene(
     let scene_id = classic_scene_id(runtime);
     let player_frame = classic_player_frame_id(assets, runtime);
     if scene_id == "first_contact_basin" {
-        classic_draw_first_contact_basin_scene(buffer, width, height, runtime);
+        classic_draw_first_contact_basin_scene(buffer, width, height, runtime, assets);
     } else {
         let scene = assets
             .scene_by_id
@@ -98230,6 +98241,205 @@ fn classic_draw_first_contact_animation_readability_layer(
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_first_contact_atlas_asset_samples(
+) -> Vec<((i32, i32), &'static str, &'static str, &'static str, u32)> {
+    vec![
+        (
+            (8, 8),
+            "terrain_tile",
+            "tile_stone",
+            "base_pad_stone_frame",
+            1,
+        ),
+        (
+            (25, 8),
+            "terrain_tile",
+            "tile_stone",
+            "base_pad_stone_frame",
+            1,
+        ),
+        (
+            (12, 16),
+            "terrain_tile",
+            "tile_water",
+            "flux_pool_ripple_frame",
+            1,
+        ),
+        (
+            (21, 16),
+            "terrain_tile",
+            "tile_water",
+            "flux_pool_ripple_frame",
+            1,
+        ),
+        (
+            (16, 9),
+            "terrain_tile",
+            "tile_road",
+            "beacon_lane_tile_frame",
+            1,
+        ),
+        (
+            (16, 16),
+            "terrain_tile",
+            "tile_floor",
+            "basin_floor_tile_frame",
+            1,
+        ),
+        (
+            (14, 11),
+            "unit_sprite",
+            "actor_player_walk_south_1",
+            "worker_walk_atlas_frame",
+            2,
+        ),
+        (
+            (15, 11),
+            "unit_sprite",
+            "actor_player_walk_east_1",
+            "scout_stride_atlas_frame",
+            2,
+        ),
+        (
+            (15, 12),
+            "unit_sprite",
+            "actor_enemy_attack",
+            "warden_attack_atlas_frame",
+            2,
+        ),
+        (
+            (17, 12),
+            "unit_sprite",
+            "actor_mentor_talk",
+            "relay_operator_atlas_frame",
+            2,
+        ),
+        (
+            (8, 8),
+            "structure_sprite",
+            "prop_workbench",
+            "command_core_workbench_frame",
+            2,
+        ),
+        (
+            (25, 8),
+            "structure_sprite",
+            "prop_market_stall",
+            "command_core_stall_frame",
+            2,
+        ),
+        (
+            (11, 8),
+            "structure_sprite",
+            "prop_signpost",
+            "relay_mast_signpost_frame",
+            2,
+        ),
+        (
+            (22, 25),
+            "structure_sprite",
+            "prop_banner",
+            "relay_banner_frame",
+            2,
+        ),
+        (
+            (16, 9),
+            "objective_sprite",
+            "marker_objective",
+            "beacon_objective_atlas_frame",
+            2,
+        ),
+        (
+            (16, 24),
+            "objective_sprite",
+            "marker_interaction",
+            "beacon_interaction_atlas_frame",
+            2,
+        ),
+    ]
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_first_contact_atlas_asset_offset(role: &str, frame_px: i32, cell_h: i32) -> (i32, i32) {
+    match role {
+        "terrain_tile" => (-frame_px / 2, -frame_px / 2),
+        "unit_sprite" => (-frame_px / 2, -cell_h - frame_px + 6),
+        "structure_sprite" => (-frame_px / 2, -cell_h * 2 - frame_px / 2),
+        "objective_sprite" => (-frame_px / 2, -cell_h * 2 - frame_px / 2),
+        _ => (-frame_px / 2, -frame_px / 2),
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+#[allow(clippy::too_many_arguments)]
+fn classic_draw_first_contact_atlas_asset_sample(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    assets: &ClassicRuntimeAssets,
+    map_x: i32,
+    map_y: i32,
+    cell_w: i32,
+    cell_h: i32,
+    tile: (i32, i32),
+    role: &str,
+    frame_id: &str,
+    scale: u32,
+) -> bool {
+    let (tile_x, tile_y) = classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, tile);
+    let cx = tile_x + cell_w / 2;
+    let cy = tile_y + cell_h / 2;
+    let frame_px = 16 * scale.max(1) as i32;
+    let (offset_x, offset_y) = classic_first_contact_atlas_asset_offset(role, frame_px, cell_h);
+    if matches!(
+        role,
+        "unit_sprite" | "structure_sprite" | "objective_sprite"
+    ) {
+        classic_draw_iso_ellipse(
+            buffer,
+            width,
+            height,
+            cx,
+            cy + cell_h / 2 + 2,
+            (cell_w / 2 + 5).max(8),
+            (cell_h / 4 + 2).max(4),
+            CLASSIC_RTS_TACTICAL_VIEWPORT_SHADOW_COLOR,
+        );
+    }
+    let drawn = classic_blit_frame_scaled(
+        buffer,
+        width,
+        height,
+        assets,
+        frame_id,
+        cx + offset_x,
+        cy + offset_y,
+        scale,
+    );
+    drawn
+}
+
+#[cfg(not(target_os = "android"))]
+#[allow(clippy::too_many_arguments)]
+fn classic_draw_first_contact_atlas_readability_layer(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    assets: &ClassicRuntimeAssets,
+    map_x: i32,
+    map_y: i32,
+    cell_w: i32,
+    cell_h: i32,
+) {
+    for (tile, role, frame_id, _, scale) in classic_first_contact_atlas_asset_samples() {
+        classic_draw_first_contact_atlas_asset_sample(
+            buffer, width, height, assets, map_x, map_y, cell_w, cell_h, tile, role, frame_id,
+            scale,
+        );
+    }
+}
+
+#[cfg(not(target_os = "android"))]
 #[allow(clippy::too_many_arguments)]
 fn classic_draw_first_contact_tactical_viewport(
     buffer: &mut [u32],
@@ -98945,6 +99155,7 @@ fn classic_draw_first_contact_basin_scene(
     width: usize,
     height: usize,
     runtime: &NativeFirstPlayableRuntime,
+    assets: &ClassicRuntimeAssets,
 ) {
     let player_screen = classic_player_screen_mode_enabled();
     let player_screen_profile = classic_first_contact_player_screen_profile();
@@ -99069,6 +99280,9 @@ fn classic_draw_first_contact_basin_scene(
     );
     classic_draw_first_contact_animation_readability_layer(
         buffer, width, height, map_x, map_y, cell_w, cell_h,
+    );
+    classic_draw_first_contact_atlas_readability_layer(
+        buffer, width, height, assets, map_x, map_y, cell_w, cell_h,
     );
     classic_draw_first_contact_unit_state_layers(
         buffer, width, height, map_x, map_y, cell_w, cell_h,
@@ -111818,6 +112032,181 @@ fn classic_first_contact_motion_readability_guard() -> Value {
         "building_animation_frame_gate": building_animation_frame_gate,
         "objective_animation_frame_gate": objective_animation_frame_gate,
         "animation_cycle_detail_gate": animation_cycle_detail_gate,
+    })
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_first_contact_atlas_readability_guard() -> Value {
+    let assets = load_classic_runtime_assets();
+    let samples = classic_first_contact_atlas_asset_samples();
+    let sample_tiles = samples
+        .iter()
+        .map(|(tile, _, _, _, _)| classic_rts_tile_id(*tile))
+        .collect::<Vec<_>>();
+    let atlas_roles = samples
+        .iter()
+        .map(|(_, role, _, _, _)| (*role).to_string())
+        .collect::<Vec<_>>();
+    let atlas_frame_ids = samples
+        .iter()
+        .map(|(_, _, frame_id, _, _)| (*frame_id).to_string())
+        .collect::<Vec<_>>();
+    let atlas_signatures = samples
+        .iter()
+        .map(|(_, _, _, signature, _)| (*signature).to_string())
+        .collect::<Vec<_>>();
+    let atlas_samples = samples
+        .iter()
+        .map(|(tile, role, frame_id, signature, scale)| {
+            json!({
+                "tile": classic_rts_tile_id(*tile),
+                "role": role,
+                "frame_id": frame_id,
+                "signature": signature,
+                "scale": scale,
+            })
+        })
+        .collect::<Vec<_>>();
+    let atlas_manifest_roles = samples
+        .iter()
+        .map(|(_, _, frame_id, _, _)| {
+            assets
+                .frame_by_id
+                .get(*frame_id)
+                .map(|frame| frame.role.clone())
+                .unwrap_or_else(|| "missing".to_string())
+        })
+        .collect::<Vec<_>>();
+    let manifest_frame_gate = atlas_frame_ids
+        .iter()
+        .all(|frame_id| assets.frame_by_id.contains_key(frame_id));
+    let unique_frame_count = atlas_frame_ids
+        .iter()
+        .collect::<std::collections::BTreeSet<_>>()
+        .len();
+    let unique_signature_count = atlas_signatures
+        .iter()
+        .collect::<std::collections::BTreeSet<_>>()
+        .len();
+    let terrain_frame_count = atlas_roles
+        .iter()
+        .filter(|role| role.as_str() == "terrain_tile")
+        .count();
+    let unit_frame_count = atlas_roles
+        .iter()
+        .filter(|role| role.as_str() == "unit_sprite")
+        .count();
+    let structure_frame_count = atlas_roles
+        .iter()
+        .filter(|role| role.as_str() == "structure_sprite")
+        .count();
+    let objective_frame_count = atlas_roles
+        .iter()
+        .filter(|role| role.as_str() == "objective_sprite")
+        .count();
+    let atlas_frame_pixel_budget = samples
+        .iter()
+        .map(|(_, _, _, _, scale)| 16_usize * 16_usize * (*scale as usize).pow(2))
+        .sum::<usize>();
+    let atlas_manifest_gate = assets.manifest.contract_version
+        == TRILLIONNIUM_WORLD_BEVY_CLASSIC_ASSET_PACK_CONTRACT
+        && assets.atlas_parse_gate
+        && assets.manifest.asset_boundary.contains("project_owned")
+        && !assets.manifest.cex_runtime_player_client_allowed
+        && !assets.manifest.wgpu_required;
+    let terrain_atlas_frame_gate = terrain_frame_count >= 6
+        && atlas_frame_ids
+            .iter()
+            .any(|frame_id| frame_id == "tile_stone")
+        && atlas_frame_ids
+            .iter()
+            .any(|frame_id| frame_id == "tile_water")
+        && atlas_frame_ids
+            .iter()
+            .any(|frame_id| frame_id == "tile_road")
+        && atlas_frame_ids
+            .iter()
+            .any(|frame_id| frame_id == "tile_floor");
+    let unit_atlas_sprite_gate = unit_frame_count >= 4
+        && atlas_frame_ids
+            .iter()
+            .any(|frame_id| frame_id == "actor_player_walk_south_1")
+        && atlas_frame_ids
+            .iter()
+            .any(|frame_id| frame_id == "actor_player_walk_east_1")
+        && atlas_frame_ids
+            .iter()
+            .any(|frame_id| frame_id == "actor_enemy_attack")
+        && atlas_frame_ids
+            .iter()
+            .any(|frame_id| frame_id == "actor_mentor_talk");
+    let structure_atlas_sprite_gate = structure_frame_count >= 4
+        && atlas_frame_ids
+            .iter()
+            .any(|frame_id| frame_id == "prop_workbench")
+        && atlas_frame_ids
+            .iter()
+            .any(|frame_id| frame_id == "prop_market_stall")
+        && atlas_frame_ids
+            .iter()
+            .any(|frame_id| frame_id == "prop_signpost")
+        && atlas_frame_ids
+            .iter()
+            .any(|frame_id| frame_id == "prop_banner");
+    let objective_atlas_sprite_gate = objective_frame_count >= 2
+        && atlas_frame_ids
+            .iter()
+            .any(|frame_id| frame_id == "marker_objective")
+        && atlas_frame_ids
+            .iter()
+            .any(|frame_id| frame_id == "marker_interaction");
+    let atlas_composition_gate = manifest_frame_gate
+        && unique_frame_count >= 14
+        && unique_signature_count >= 12
+        && atlas_frame_pixel_budget >= 8_704;
+    let no_copy_boundary_gate =
+        !assets.manifest.cex_runtime_player_client_allowed && !assets.manifest.wgpu_required;
+    let first_contact_atlas_readability_gate = atlas_manifest_gate
+        && terrain_atlas_frame_gate
+        && unit_atlas_sprite_gate
+        && structure_atlas_sprite_gate
+        && objective_atlas_sprite_gate
+        && atlas_composition_gate
+        && no_copy_boundary_gate;
+    let green = first_contact_atlas_readability_gate;
+
+    json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_ATLAS_READABILITY_CONTRACT,
+        "green": green,
+        "source_path": "trnm-world-bevy classic_draw_first_contact_atlas_readability_layer",
+        "asset_pack_contract": assets.manifest.contract_version,
+        "asset_boundary": assets.manifest.asset_boundary,
+        "atlas_parse_gate": assets.atlas_parse_gate,
+        "sample_tiles": sample_tiles,
+        "atlas_roles": atlas_roles,
+        "atlas_frame_ids": atlas_frame_ids,
+        "atlas_manifest_roles": atlas_manifest_roles,
+        "atlas_signatures": atlas_signatures,
+        "atlas_samples": atlas_samples,
+        "terrain_frame_count": terrain_frame_count,
+        "unit_frame_count": unit_frame_count,
+        "structure_frame_count": structure_frame_count,
+        "objective_frame_count": objective_frame_count,
+        "unique_frame_count": unique_frame_count,
+        "unique_signature_count": unique_signature_count,
+        "atlas_frame_pixel_budget": atlas_frame_pixel_budget,
+        "manifest_frame_gate": manifest_frame_gate,
+        "atlas_manifest_gate": atlas_manifest_gate,
+        "terrain_atlas_frame_gate": terrain_atlas_frame_gate,
+        "unit_atlas_sprite_gate": unit_atlas_sprite_gate,
+        "structure_atlas_sprite_gate": structure_atlas_sprite_gate,
+        "objective_atlas_sprite_gate": objective_atlas_sprite_gate,
+        "atlas_composition_gate": atlas_composition_gate,
+        "no_copy_boundary_gate": no_copy_boundary_gate,
+        "first_contact_atlas_readability_gate": first_contact_atlas_readability_gate,
+        "warcraft_iii_asset_copied": false,
+        "openra_asset_copied": false,
+        "third_party_asset_copied": false,
     })
 }
 
@@ -159154,6 +159543,86 @@ mod tests {
             "building_animation_frame_gate",
             "objective_animation_frame_gate",
             "animation_cycle_detail_gate",
+        ] {
+            assert_eq!(guard.get(gate).and_then(Value::as_bool), Some(true));
+        }
+    }
+
+    #[cfg(not(target_os = "android"))]
+    #[test]
+    fn classic_first_contact_atlas_readability_guard_tracks_project_owned_frames() {
+        let guard = classic_first_contact_atlas_readability_guard();
+
+        assert_eq!(
+            guard.get("contract_version").and_then(Value::as_str),
+            Some(TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_ATLAS_READABILITY_CONTRACT)
+        );
+        assert_eq!(
+            guard.get("green").and_then(Value::as_bool),
+            Some(true),
+            "{guard:#}"
+        );
+        assert_eq!(
+            guard.get("atlas_roles").cloned(),
+            Some(json!([
+                "terrain_tile",
+                "terrain_tile",
+                "terrain_tile",
+                "terrain_tile",
+                "terrain_tile",
+                "terrain_tile",
+                "unit_sprite",
+                "unit_sprite",
+                "unit_sprite",
+                "unit_sprite",
+                "structure_sprite",
+                "structure_sprite",
+                "structure_sprite",
+                "structure_sprite",
+                "objective_sprite",
+                "objective_sprite"
+            ]))
+        );
+        assert_eq!(
+            guard
+                .get("atlas_frame_ids")
+                .and_then(Value::as_array)
+                .map(|frames| {
+                    frames
+                        .iter()
+                        .any(|value| value.as_str() == Some("tile_stone"))
+                        && frames
+                            .iter()
+                            .any(|value| value.as_str() == Some("actor_player_walk_south_1"))
+                        && frames
+                            .iter()
+                            .any(|value| value.as_str() == Some("prop_workbench"))
+                        && frames
+                            .iter()
+                            .any(|value| value.as_str() == Some("marker_objective"))
+                }),
+            Some(true)
+        );
+        assert_eq!(
+            guard.get("unique_frame_count").and_then(Value::as_u64),
+            Some(14)
+        );
+        assert_eq!(
+            guard
+                .get("atlas_frame_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(11776)
+        );
+        for gate in [
+            "manifest_frame_gate",
+            "atlas_manifest_gate",
+            "terrain_atlas_frame_gate",
+            "unit_atlas_sprite_gate",
+            "structure_atlas_sprite_gate",
+            "objective_atlas_sprite_gate",
+            "atlas_composition_gate",
+            "no_copy_boundary_gate",
+            "first_contact_atlas_readability_gate",
         ] {
             assert_eq!(guard.get(gate).and_then(Value::as_bool), Some(true));
         }
