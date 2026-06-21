@@ -98360,14 +98360,140 @@ fn classic_first_contact_atlas_asset_samples(
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_first_contact_atlas_frame_family_samples(
+) -> Vec<((i32, i32), &'static str, &'static str, &'static str, u32)> {
+    vec![
+        (
+            (14, 11),
+            "worker_unit_family",
+            "actor_worker_idle",
+            "worker_idle_frame_family",
+            1,
+        ),
+        (
+            (14, 12),
+            "worker_unit_family",
+            "actor_worker_carry",
+            "worker_carry_frame_family",
+            1,
+        ),
+        (
+            (15, 11),
+            "scout_unit_family",
+            "actor_player_walk_east_1",
+            "scout_stride_east_frame_family",
+            2,
+        ),
+        (
+            (15, 10),
+            "scout_unit_family",
+            "actor_player_walk_east_2",
+            "scout_stride_east_alt_frame_family",
+            2,
+        ),
+        (
+            (15, 12),
+            "warden_unit_family",
+            "actor_guard_idle",
+            "warden_guard_idle_frame_family",
+            1,
+        ),
+        (
+            (16, 12),
+            "warden_unit_family",
+            "actor_guard_attack",
+            "warden_guard_attack_frame_family",
+            1,
+        ),
+        (
+            (17, 12),
+            "relay_unit_family",
+            "actor_mentor_talk",
+            "relay_operator_talk_frame_family",
+            1,
+        ),
+        (
+            (8, 8),
+            "command_core_structure_family",
+            "model_town_hall",
+            "command_core_town_hall_frame_family",
+            1,
+        ),
+        (
+            (9, 9),
+            "command_core_structure_family",
+            "model_training_hall",
+            "command_core_training_hall_frame_family",
+            1,
+        ),
+        (
+            (11, 8),
+            "relay_structure_family",
+            "model_waygate",
+            "relay_waygate_frame_family",
+            1,
+        ),
+        (
+            (22, 25),
+            "relay_structure_family",
+            "prop_banner",
+            "relay_banner_frame_family",
+            1,
+        ),
+        (
+            (16, 9),
+            "beacon_objective_family",
+            "marker_objective",
+            "beacon_objective_frame_family",
+            1,
+        ),
+        (
+            (16, 10),
+            "beacon_objective_family",
+            "rts_command_destination_marker",
+            "beacon_destination_marker_frame_family",
+            1,
+        ),
+        (
+            (16, 24),
+            "beacon_objective_family",
+            "marker_interaction",
+            "beacon_interaction_frame_family",
+            1,
+        ),
+    ]
+}
+
+#[cfg(not(target_os = "android"))]
 fn classic_first_contact_atlas_asset_offset(role: &str, frame_px: i32, cell_h: i32) -> (i32, i32) {
     match role {
         "terrain_tile" => (-frame_px / 2, -frame_px / 2),
-        "unit_sprite" => (-frame_px / 2, -cell_h - frame_px + 6),
-        "structure_sprite" => (-frame_px / 2, -cell_h * 2 - frame_px / 2),
-        "objective_sprite" => (-frame_px / 2, -cell_h * 2 - frame_px / 2),
+        "unit_sprite" | "worker_unit_family" | "scout_unit_family" | "warden_unit_family"
+        | "relay_unit_family" => (-frame_px / 2, -cell_h - frame_px + 6),
+        "structure_sprite" | "command_core_structure_family" | "relay_structure_family" => {
+            (-frame_px / 2, -cell_h * 2 - frame_px / 2)
+        }
+        "objective_sprite" | "beacon_objective_family" => {
+            (-frame_px / 2, -cell_h * 2 - frame_px / 2)
+        }
         _ => (-frame_px / 2, -frame_px / 2),
     }
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_first_contact_atlas_asset_frame_size(
+    assets: &ClassicRuntimeAssets,
+    frame_id: &str,
+    scale: u32,
+) -> (i32, i32) {
+    if let Some(frame) = assets.frame_override_pixels.get(frame_id) {
+        return (frame.width as i32, frame.height as i32);
+    }
+    let scale = scale.max(1) as i32;
+    (
+        assets.manifest.source_tile_size_px as i32 * scale,
+        assets.manifest.source_tile_size_px as i32 * scale,
+    )
 }
 
 #[cfg(not(target_os = "android"))]
@@ -98389,11 +98515,21 @@ fn classic_draw_first_contact_atlas_asset_sample(
     let (tile_x, tile_y) = classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, tile);
     let cx = tile_x + cell_w / 2;
     let cy = tile_y + cell_h / 2;
-    let frame_px = 16 * scale.max(1) as i32;
-    let (offset_x, offset_y) = classic_first_contact_atlas_asset_offset(role, frame_px, cell_h);
+    let (frame_w, frame_h) = classic_first_contact_atlas_asset_frame_size(assets, frame_id, scale);
+    let (offset_x, offset_y) =
+        classic_first_contact_atlas_asset_offset(role, frame_h.max(frame_w), cell_h);
     if matches!(
         role,
-        "unit_sprite" | "structure_sprite" | "objective_sprite"
+        "unit_sprite"
+            | "structure_sprite"
+            | "objective_sprite"
+            | "worker_unit_family"
+            | "scout_unit_family"
+            | "warden_unit_family"
+            | "relay_unit_family"
+            | "command_core_structure_family"
+            | "relay_structure_family"
+            | "beacon_objective_family"
     ) {
         classic_draw_iso_ellipse(
             buffer,
@@ -98406,13 +98542,24 @@ fn classic_draw_first_contact_atlas_asset_sample(
             CLASSIC_RTS_TACTICAL_VIEWPORT_SHADOW_COLOR,
         );
     }
+    if assets.frame_override_pixels.contains_key(frame_id) {
+        return classic_blit_frame_override_bottom_center(
+            buffer,
+            width,
+            height,
+            assets,
+            frame_id,
+            cx,
+            cy + offset_y + frame_h,
+        );
+    }
     let drawn = classic_blit_frame_scaled(
         buffer,
         width,
         height,
         assets,
         frame_id,
-        cx + offset_x,
+        cx + offset_x.min(-frame_w / 2),
         cy + offset_y,
         scale,
     );
@@ -98432,6 +98579,12 @@ fn classic_draw_first_contact_atlas_readability_layer(
     cell_h: i32,
 ) {
     for (tile, role, frame_id, _, scale) in classic_first_contact_atlas_asset_samples() {
+        classic_draw_first_contact_atlas_asset_sample(
+            buffer, width, height, assets, map_x, map_y, cell_w, cell_h, tile, role, frame_id,
+            scale,
+        );
+    }
+    for (tile, role, frame_id, _, scale) in classic_first_contact_atlas_frame_family_samples() {
         classic_draw_first_contact_atlas_asset_sample(
             buffer, width, height, assets, map_x, map_y, cell_w, cell_h, tile, role, frame_id,
             scale,
@@ -112036,9 +112189,36 @@ fn classic_first_contact_motion_readability_guard() -> Value {
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_first_contact_atlas_readability_assets() -> ClassicRuntimeAssets {
+    if env::var("TRNM_WORLD_BEVY_CLASSIC_ASSET_OVERRIDE_DIR").is_ok() {
+        return load_classic_runtime_assets();
+    }
+    let mut override_dirs = vec![
+        "../assets/trnm-world/classic/art-pack-v1".to_string(),
+        "assets/trnm-world/classic/art-pack-v1".to_string(),
+        "../../assets/trnm-world/classic/art-pack-v1".to_string(),
+        "../../../assets/trnm-world/classic/art-pack-v1".to_string(),
+    ];
+    override_dirs.push(
+        Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../../assets/trnm-world/classic/art-pack-v1")
+            .to_string_lossy()
+            .to_string(),
+    );
+    for override_dir in override_dirs {
+        let assets = load_classic_runtime_assets_with_override_dir(Some(override_dir.to_string()));
+        if !assets.frame_override_pixels.is_empty() {
+            return assets;
+        }
+    }
+    load_classic_runtime_assets()
+}
+
+#[cfg(not(target_os = "android"))]
 fn classic_first_contact_atlas_readability_guard() -> Value {
-    let assets = load_classic_runtime_assets();
+    let assets = classic_first_contact_atlas_readability_assets();
     let samples = classic_first_contact_atlas_asset_samples();
+    let family_samples = classic_first_contact_atlas_frame_family_samples();
     let sample_tiles = samples
         .iter()
         .map(|(tile, _, _, _, _)| classic_rts_tile_id(*tile))
@@ -112077,14 +112257,75 @@ fn classic_first_contact_atlas_readability_guard() -> Value {
                 .unwrap_or_else(|| "missing".to_string())
         })
         .collect::<Vec<_>>();
+    let atlas_family_sample_tiles = family_samples
+        .iter()
+        .map(|(tile, _, _, _, _)| classic_rts_tile_id(*tile))
+        .collect::<Vec<_>>();
+    let atlas_family_roles = family_samples
+        .iter()
+        .map(|(_, role, _, _, _)| (*role).to_string())
+        .collect::<Vec<_>>();
+    let atlas_family_frame_ids = family_samples
+        .iter()
+        .map(|(_, _, frame_id, _, _)| (*frame_id).to_string())
+        .collect::<Vec<_>>();
+    let atlas_family_signatures = family_samples
+        .iter()
+        .map(|(_, _, _, signature, _)| (*signature).to_string())
+        .collect::<Vec<_>>();
+    let atlas_family_samples = family_samples
+        .iter()
+        .map(|(tile, role, frame_id, signature, scale)| {
+            json!({
+                "tile": classic_rts_tile_id(*tile),
+                "role": role,
+                "frame_id": frame_id,
+                "signature": signature,
+                "scale": scale,
+            })
+        })
+        .collect::<Vec<_>>();
+    let atlas_family_manifest_roles = family_samples
+        .iter()
+        .map(|(_, _, frame_id, _, _)| {
+            assets
+                .frame_by_id
+                .get(*frame_id)
+                .map(|frame| frame.role.clone())
+                .unwrap_or_else(|| {
+                    if assets.frame_override_pixels.contains_key(*frame_id) {
+                        "override_frame".to_string()
+                    } else {
+                        "missing".to_string()
+                    }
+                })
+        })
+        .collect::<Vec<_>>();
+    let atlas_family_override_frame_ids = atlas_family_frame_ids
+        .iter()
+        .filter(|frame_id| assets.frame_override_pixels.contains_key(frame_id.as_str()))
+        .cloned()
+        .collect::<Vec<_>>();
     let manifest_frame_gate = atlas_frame_ids
         .iter()
         .all(|frame_id| assets.frame_by_id.contains_key(frame_id));
+    let family_frame_available_gate = atlas_family_frame_ids.iter().all(|frame_id| {
+        assets.frame_by_id.contains_key(frame_id)
+            || assets.frame_override_pixels.contains_key(frame_id)
+    });
     let unique_frame_count = atlas_frame_ids
         .iter()
         .collect::<std::collections::BTreeSet<_>>()
         .len();
     let unique_signature_count = atlas_signatures
+        .iter()
+        .collect::<std::collections::BTreeSet<_>>()
+        .len();
+    let atlas_family_unique_frame_count = atlas_family_frame_ids
+        .iter()
+        .collect::<std::collections::BTreeSet<_>>()
+        .len();
+    let atlas_family_unique_signature_count = atlas_family_signatures
         .iter()
         .collect::<std::collections::BTreeSet<_>>()
         .len();
@@ -112104,9 +112345,47 @@ fn classic_first_contact_atlas_readability_guard() -> Value {
         .iter()
         .filter(|role| role.as_str() == "objective_sprite")
         .count();
+    let worker_family_frame_count = atlas_family_roles
+        .iter()
+        .filter(|role| role.as_str() == "worker_unit_family")
+        .count();
+    let scout_family_frame_count = atlas_family_roles
+        .iter()
+        .filter(|role| role.as_str() == "scout_unit_family")
+        .count();
+    let warden_family_frame_count = atlas_family_roles
+        .iter()
+        .filter(|role| role.as_str() == "warden_unit_family")
+        .count();
+    let relay_unit_family_frame_count = atlas_family_roles
+        .iter()
+        .filter(|role| role.as_str() == "relay_unit_family")
+        .count();
+    let command_core_family_frame_count = atlas_family_roles
+        .iter()
+        .filter(|role| role.as_str() == "command_core_structure_family")
+        .count();
+    let relay_structure_family_frame_count = atlas_family_roles
+        .iter()
+        .filter(|role| role.as_str() == "relay_structure_family")
+        .count();
+    let beacon_family_frame_count = atlas_family_roles
+        .iter()
+        .filter(|role| role.as_str() == "beacon_objective_family")
+        .count();
     let atlas_frame_pixel_budget = samples
         .iter()
         .map(|(_, _, _, _, scale)| 16_usize * 16_usize * (*scale as usize).pow(2))
+        .sum::<usize>();
+    let atlas_family_frame_pixel_budget = family_samples
+        .iter()
+        .map(|(_, _, frame_id, _, scale)| {
+            if let Some(frame) = assets.frame_override_pixels.get(*frame_id) {
+                (frame.width as usize) * (frame.height as usize)
+            } else {
+                16_usize * 16_usize * (*scale as usize).pow(2)
+            }
+        })
         .sum::<usize>();
     let atlas_manifest_gate = assets.manifest.contract_version
         == TRILLIONNIUM_WORLD_BEVY_CLASSIC_ASSET_PACK_CONTRACT
@@ -112160,10 +112439,87 @@ fn classic_first_contact_atlas_readability_guard() -> Value {
         && atlas_frame_ids
             .iter()
             .any(|frame_id| frame_id == "marker_interaction");
+    let worker_frame_family_gate = worker_family_frame_count >= 2
+        && atlas_family_frame_ids
+            .iter()
+            .any(|frame_id| frame_id == "actor_worker_idle")
+        && atlas_family_frame_ids
+            .iter()
+            .any(|frame_id| frame_id == "actor_worker_carry");
+    let scout_frame_family_gate = scout_family_frame_count >= 2
+        && atlas_family_frame_ids
+            .iter()
+            .any(|frame_id| frame_id == "actor_player_walk_east_1")
+        && atlas_family_frame_ids
+            .iter()
+            .any(|frame_id| frame_id == "actor_player_walk_east_2");
+    let warden_frame_family_gate = warden_family_frame_count >= 2
+        && atlas_family_frame_ids
+            .iter()
+            .any(|frame_id| frame_id == "actor_guard_idle")
+        && atlas_family_frame_ids
+            .iter()
+            .any(|frame_id| frame_id == "actor_guard_attack");
+    let relay_unit_frame_family_gate = relay_unit_family_frame_count >= 1
+        && atlas_family_frame_ids
+            .iter()
+            .any(|frame_id| frame_id == "actor_mentor_talk");
+    let command_core_frame_family_gate = command_core_family_frame_count >= 2
+        && atlas_family_frame_ids
+            .iter()
+            .any(|frame_id| frame_id == "model_town_hall")
+        && atlas_family_frame_ids
+            .iter()
+            .any(|frame_id| frame_id == "model_training_hall");
+    let relay_structure_frame_family_gate = relay_structure_family_frame_count >= 2
+        && atlas_family_frame_ids
+            .iter()
+            .any(|frame_id| frame_id == "model_waygate")
+        && atlas_family_frame_ids
+            .iter()
+            .any(|frame_id| frame_id == "prop_banner");
+    let beacon_frame_family_gate = beacon_family_frame_count >= 3
+        && atlas_family_frame_ids
+            .iter()
+            .any(|frame_id| frame_id == "marker_objective")
+        && atlas_family_frame_ids
+            .iter()
+            .any(|frame_id| frame_id == "marker_interaction")
+        && atlas_family_frame_ids
+            .iter()
+            .any(|frame_id| frame_id == "rts_command_destination_marker");
+    let override_frame_family_gate = atlas_family_override_frame_ids.len() >= 10
+        && atlas_family_override_frame_ids
+            .iter()
+            .any(|frame_id| frame_id == "actor_worker_carry")
+        && atlas_family_override_frame_ids
+            .iter()
+            .any(|frame_id| frame_id == "actor_guard_attack")
+        && atlas_family_override_frame_ids
+            .iter()
+            .any(|frame_id| frame_id == "model_town_hall")
+        && atlas_family_override_frame_ids
+            .iter()
+            .any(|frame_id| frame_id == "model_waygate")
+        && atlas_family_override_frame_ids
+            .iter()
+            .any(|frame_id| frame_id == "rts_command_destination_marker");
     let atlas_composition_gate = manifest_frame_gate
         && unique_frame_count >= 14
         && unique_signature_count >= 12
         && atlas_frame_pixel_budget >= 8_704;
+    let atlas_frame_family_gate = family_frame_available_gate
+        && atlas_family_unique_frame_count >= 14
+        && atlas_family_unique_signature_count >= 14
+        && atlas_family_frame_pixel_budget >= 34_000
+        && worker_frame_family_gate
+        && scout_frame_family_gate
+        && warden_frame_family_gate
+        && relay_unit_frame_family_gate
+        && command_core_frame_family_gate
+        && relay_structure_frame_family_gate
+        && beacon_frame_family_gate
+        && override_frame_family_gate;
     let no_copy_boundary_gate =
         !assets.manifest.cex_runtime_player_client_allowed && !assets.manifest.wgpu_required;
     let first_contact_atlas_readability_gate = atlas_manifest_gate
@@ -112172,6 +112528,7 @@ fn classic_first_contact_atlas_readability_guard() -> Value {
         && structure_atlas_sprite_gate
         && objective_atlas_sprite_gate
         && atlas_composition_gate
+        && atlas_frame_family_gate
         && no_copy_boundary_gate;
     let green = first_contact_atlas_readability_gate;
 
@@ -112188,20 +112545,47 @@ fn classic_first_contact_atlas_readability_guard() -> Value {
         "atlas_manifest_roles": atlas_manifest_roles,
         "atlas_signatures": atlas_signatures,
         "atlas_samples": atlas_samples,
+        "atlas_family_sample_tiles": atlas_family_sample_tiles,
+        "atlas_family_roles": atlas_family_roles,
+        "atlas_family_frame_ids": atlas_family_frame_ids,
+        "atlas_family_manifest_roles": atlas_family_manifest_roles,
+        "atlas_family_override_frame_ids": atlas_family_override_frame_ids,
+        "atlas_family_signatures": atlas_family_signatures,
+        "atlas_family_samples": atlas_family_samples,
         "terrain_frame_count": terrain_frame_count,
         "unit_frame_count": unit_frame_count,
         "structure_frame_count": structure_frame_count,
         "objective_frame_count": objective_frame_count,
+        "worker_family_frame_count": worker_family_frame_count,
+        "scout_family_frame_count": scout_family_frame_count,
+        "warden_family_frame_count": warden_family_frame_count,
+        "relay_unit_family_frame_count": relay_unit_family_frame_count,
+        "command_core_family_frame_count": command_core_family_frame_count,
+        "relay_structure_family_frame_count": relay_structure_family_frame_count,
+        "beacon_family_frame_count": beacon_family_frame_count,
         "unique_frame_count": unique_frame_count,
         "unique_signature_count": unique_signature_count,
+        "atlas_family_unique_frame_count": atlas_family_unique_frame_count,
+        "atlas_family_unique_signature_count": atlas_family_unique_signature_count,
         "atlas_frame_pixel_budget": atlas_frame_pixel_budget,
+        "atlas_family_frame_pixel_budget": atlas_family_frame_pixel_budget,
         "manifest_frame_gate": manifest_frame_gate,
+        "family_frame_available_gate": family_frame_available_gate,
         "atlas_manifest_gate": atlas_manifest_gate,
         "terrain_atlas_frame_gate": terrain_atlas_frame_gate,
         "unit_atlas_sprite_gate": unit_atlas_sprite_gate,
         "structure_atlas_sprite_gate": structure_atlas_sprite_gate,
         "objective_atlas_sprite_gate": objective_atlas_sprite_gate,
+        "worker_frame_family_gate": worker_frame_family_gate,
+        "scout_frame_family_gate": scout_frame_family_gate,
+        "warden_frame_family_gate": warden_frame_family_gate,
+        "relay_unit_frame_family_gate": relay_unit_frame_family_gate,
+        "command_core_frame_family_gate": command_core_frame_family_gate,
+        "relay_structure_frame_family_gate": relay_structure_frame_family_gate,
+        "beacon_frame_family_gate": beacon_frame_family_gate,
+        "override_frame_family_gate": override_frame_family_gate,
         "atlas_composition_gate": atlas_composition_gate,
+        "atlas_frame_family_gate": atlas_frame_family_gate,
         "no_copy_boundary_gate": no_copy_boundary_gate,
         "first_contact_atlas_readability_gate": first_contact_atlas_readability_gate,
         "warcraft_iii_asset_copied": false,
@@ -159613,14 +159997,59 @@ mod tests {
                 .and_then(Value::as_u64),
             Some(11776)
         );
+        assert_eq!(
+            guard
+                .get("atlas_family_frame_ids")
+                .and_then(Value::as_array)
+                .map(|frames| {
+                    frames
+                        .iter()
+                        .any(|value| value.as_str() == Some("actor_worker_carry"))
+                        && frames
+                            .iter()
+                            .any(|value| value.as_str() == Some("actor_guard_attack"))
+                        && frames
+                            .iter()
+                            .any(|value| value.as_str() == Some("model_town_hall"))
+                        && frames
+                            .iter()
+                            .any(|value| value.as_str() == Some("model_waygate"))
+                        && frames
+                            .iter()
+                            .any(|value| value.as_str() == Some("rts_command_destination_marker"))
+                }),
+            Some(true)
+        );
+        assert_eq!(
+            guard
+                .get("atlas_family_unique_frame_count")
+                .and_then(Value::as_u64),
+            Some(14)
+        );
+        assert_eq!(
+            guard
+                .get("atlas_family_frame_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(42496)
+        );
         for gate in [
             "manifest_frame_gate",
+            "family_frame_available_gate",
             "atlas_manifest_gate",
             "terrain_atlas_frame_gate",
             "unit_atlas_sprite_gate",
             "structure_atlas_sprite_gate",
             "objective_atlas_sprite_gate",
+            "worker_frame_family_gate",
+            "scout_frame_family_gate",
+            "warden_frame_family_gate",
+            "relay_unit_frame_family_gate",
+            "command_core_frame_family_gate",
+            "relay_structure_frame_family_gate",
+            "beacon_frame_family_gate",
+            "override_frame_family_gate",
             "atlas_composition_gate",
+            "atlas_frame_family_gate",
             "no_copy_boundary_gate",
             "first_contact_atlas_readability_gate",
         ] {

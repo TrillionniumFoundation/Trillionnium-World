@@ -778,29 +778,65 @@ require_artifact_json_expr first_contact_basin_spec_semantics native_bevy_classi
   and (.first_contact_atlas_readability_guard.asset_boundary | contains("project_owned"))
   and .first_contact_atlas_readability_guard.atlas_parse_gate == true
   and .first_contact_atlas_readability_guard.atlas_roles == ["terrain_tile","terrain_tile","terrain_tile","terrain_tile","terrain_tile","terrain_tile","unit_sprite","unit_sprite","unit_sprite","unit_sprite","structure_sprite","structure_sprite","structure_sprite","structure_sprite","objective_sprite","objective_sprite"]
+  and .first_contact_atlas_readability_guard.atlas_family_roles == ["worker_unit_family","worker_unit_family","scout_unit_family","scout_unit_family","warden_unit_family","warden_unit_family","relay_unit_family","command_core_structure_family","command_core_structure_family","relay_structure_family","relay_structure_family","beacon_objective_family","beacon_objective_family","beacon_objective_family"]
   and (.first_contact_atlas_readability_guard.atlas_frame_ids | index("tile_stone") != null)
   and (.first_contact_atlas_readability_guard.atlas_frame_ids | index("tile_water") != null)
   and (.first_contact_atlas_readability_guard.atlas_frame_ids | index("actor_player_walk_south_1") != null)
   and (.first_contact_atlas_readability_guard.atlas_frame_ids | index("actor_enemy_attack") != null)
   and (.first_contact_atlas_readability_guard.atlas_frame_ids | index("prop_workbench") != null)
   and (.first_contact_atlas_readability_guard.atlas_frame_ids | index("marker_objective") != null)
+  and (.first_contact_atlas_readability_guard.atlas_family_frame_ids | index("actor_worker_carry") != null)
+  and (.first_contact_atlas_readability_guard.atlas_family_frame_ids | index("actor_guard_attack") != null)
+  and (.first_contact_atlas_readability_guard.atlas_family_frame_ids | index("model_town_hall") != null)
+  and (.first_contact_atlas_readability_guard.atlas_family_frame_ids | index("model_waygate") != null)
+  and (.first_contact_atlas_readability_guard.atlas_family_frame_ids | index("rts_command_destination_marker") != null)
+  and (.first_contact_atlas_readability_guard.atlas_family_override_frame_ids | index("actor_worker_carry") != null)
+  and (.first_contact_atlas_readability_guard.atlas_family_override_frame_ids | index("actor_guard_attack") != null)
+  and (.first_contact_atlas_readability_guard.atlas_family_override_frame_ids | index("model_town_hall") != null)
+  and (.first_contact_atlas_readability_guard.atlas_family_override_frame_ids | index("model_waygate") != null)
+  and (.first_contact_atlas_readability_guard.atlas_family_override_frame_ids | index("rts_command_destination_marker") != null)
   and (.first_contact_atlas_readability_guard.atlas_signatures | index("worker_walk_atlas_frame") != null)
   and (.first_contact_atlas_readability_guard.atlas_signatures | index("command_core_workbench_frame") != null)
   and (.first_contact_atlas_readability_guard.atlas_signatures | index("beacon_objective_atlas_frame") != null)
+  and (.first_contact_atlas_readability_guard.atlas_family_signatures | index("worker_carry_frame_family") != null)
+  and (.first_contact_atlas_readability_guard.atlas_family_signatures | index("warden_guard_attack_frame_family") != null)
+  and (.first_contact_atlas_readability_guard.atlas_family_signatures | index("command_core_town_hall_frame_family") != null)
+  and (.first_contact_atlas_readability_guard.atlas_family_signatures | index("relay_waygate_frame_family") != null)
+  and (.first_contact_atlas_readability_guard.atlas_family_signatures | index("beacon_destination_marker_frame_family") != null)
   and .first_contact_atlas_readability_guard.terrain_frame_count == 6
   and .first_contact_atlas_readability_guard.unit_frame_count == 4
   and .first_contact_atlas_readability_guard.structure_frame_count == 4
   and .first_contact_atlas_readability_guard.objective_frame_count == 2
+  and .first_contact_atlas_readability_guard.worker_family_frame_count == 2
+  and .first_contact_atlas_readability_guard.scout_family_frame_count == 2
+  and .first_contact_atlas_readability_guard.warden_family_frame_count == 2
+  and .first_contact_atlas_readability_guard.relay_unit_family_frame_count == 1
+  and .first_contact_atlas_readability_guard.command_core_family_frame_count == 2
+  and .first_contact_atlas_readability_guard.relay_structure_family_frame_count == 2
+  and .first_contact_atlas_readability_guard.beacon_family_frame_count == 3
   and .first_contact_atlas_readability_guard.unique_frame_count >= 14
   and .first_contact_atlas_readability_guard.unique_signature_count >= 12
+  and .first_contact_atlas_readability_guard.atlas_family_unique_frame_count >= 14
+  and .first_contact_atlas_readability_guard.atlas_family_unique_signature_count >= 14
   and .first_contact_atlas_readability_guard.atlas_frame_pixel_budget >= 11776
+  and .first_contact_atlas_readability_guard.atlas_family_frame_pixel_budget >= 42496
   and .first_contact_atlas_readability_guard.manifest_frame_gate == true
+  and .first_contact_atlas_readability_guard.family_frame_available_gate == true
   and .first_contact_atlas_readability_guard.atlas_manifest_gate == true
   and .first_contact_atlas_readability_guard.terrain_atlas_frame_gate == true
   and .first_contact_atlas_readability_guard.unit_atlas_sprite_gate == true
   and .first_contact_atlas_readability_guard.structure_atlas_sprite_gate == true
   and .first_contact_atlas_readability_guard.objective_atlas_sprite_gate == true
+  and .first_contact_atlas_readability_guard.worker_frame_family_gate == true
+  and .first_contact_atlas_readability_guard.scout_frame_family_gate == true
+  and .first_contact_atlas_readability_guard.warden_frame_family_gate == true
+  and .first_contact_atlas_readability_guard.relay_unit_frame_family_gate == true
+  and .first_contact_atlas_readability_guard.command_core_frame_family_gate == true
+  and .first_contact_atlas_readability_guard.relay_structure_frame_family_gate == true
+  and .first_contact_atlas_readability_guard.beacon_frame_family_gate == true
+  and .first_contact_atlas_readability_guard.override_frame_family_gate == true
   and .first_contact_atlas_readability_guard.atlas_composition_gate == true
+  and .first_contact_atlas_readability_guard.atlas_frame_family_gate == true
   and .first_contact_atlas_readability_guard.no_copy_boundary_gate == true
   and .first_contact_atlas_readability_guard.first_contact_atlas_readability_gate == true
   and .first_contact_atlas_readability_guard_gate == true
