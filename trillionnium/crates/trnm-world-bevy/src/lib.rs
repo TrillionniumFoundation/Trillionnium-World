@@ -277,6 +277,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_MOTION_READABILITY_C
     "trillionnium_world_bevy_classic_rts_first_contact_motion_readability_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_ATLAS_READABILITY_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_first_contact_atlas_readability_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_VISUAL_HIERARCHY_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_first_contact_visual_hierarchy_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_SELECTION_COMBAT_FOCUS_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_first_contact_selection_combat_focus_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_OPENING_LOOP_CONTRACT: &str =
@@ -29813,6 +29815,12 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         .get("green")
         .and_then(Value::as_bool)
         == Some(true);
+    let first_contact_visual_hierarchy_guard =
+        classic_first_contact_visual_hierarchy_guard(&player_screen_runtime);
+    let first_contact_visual_hierarchy_guard_gate = first_contact_visual_hierarchy_guard
+        .get("green")
+        .and_then(Value::as_bool)
+        == Some(true);
     let first_contact_selection_combat_focus_guard =
         classic_first_contact_selection_combat_focus_readability_guard(&player_screen_runtime);
     let first_contact_selection_combat_focus_guard_gate = first_contact_selection_combat_focus_guard
@@ -29852,6 +29860,7 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         && first_contact_art_readability_guard_gate
         && first_contact_motion_readability_guard_gate
         && first_contact_atlas_readability_guard_gate
+        && first_contact_visual_hierarchy_guard_gate
         && first_contact_selection_combat_focus_guard_gate
         && ui_runtime_gate;
     serde_json::to_string_pretty(&json!({
@@ -29975,6 +29984,9 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         "first_contact_atlas_readability_contract": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_ATLAS_READABILITY_CONTRACT,
         "first_contact_atlas_readability_guard": first_contact_atlas_readability_guard,
         "first_contact_atlas_readability_guard_gate": first_contact_atlas_readability_guard_gate,
+        "first_contact_visual_hierarchy_contract": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_VISUAL_HIERARCHY_CONTRACT,
+        "first_contact_visual_hierarchy_guard": first_contact_visual_hierarchy_guard,
+        "first_contact_visual_hierarchy_guard_gate": first_contact_visual_hierarchy_guard_gate,
         "first_contact_selection_combat_focus_contract": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_SELECTION_COMBAT_FOCUS_CONTRACT,
         "first_contact_selection_combat_focus_guard": first_contact_selection_combat_focus_guard,
         "first_contact_selection_combat_focus_guard_gate": first_contact_selection_combat_focus_guard_gate,
@@ -29984,7 +29996,7 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         "source_mod_map": "TrillionniumRTS/mods/trnm/maps/first-contact-basin/map.yaml",
         "source_mod_rules": "TrillionniumRTS/mods/trnm/rules/trnm.yaml",
         "source_policy": "Trillionnium-owned runtime now consumes the Bevy-free trnm-rts-data map model derived from the internal TrillionniumRTS seed; OpenRA engine code and third-party/proprietary RTS assets are not copied.",
-        "source_of_truth": "This spec evidence locks the trnm-rts-data First Contact Basin map/rule/player-screen vocabulary that the Bevy desktop RTS UI consumes: 39 map actors, 4 spawns, 11 Flux blooms, 4 Beacons, 4 expansions, unit status overlays, tactical tracks, live player-screen camera/visibility/command defaults, player-screen layout/chrome dimensions, player-facing HUD panel labels, role-specific command-grid glyphs, bottom-panel squad/status readability, terrain/unit/structure silhouettes, authored terrain material and building facade details, unit/building motion readability cues, animation-cycle frame signatures, project-owned atlas frame usage for terrain/unit/structure/objective sprites, screenshot-informed selection/combat focus brackets for the opening command route, source manifest tracking, the initial unit/structure rules surfaced in the command and rules panels, and a no-socket offline adapter contract that reaches actual local player-screen/session handoff consumption plus Bevy-free session-transition and lobby-ready reviews through retained/pruned control-group command history."
+        "source_of_truth": "This spec evidence locks the trnm-rts-data First Contact Basin map/rule/player-screen vocabulary that the Bevy desktop RTS UI consumes: 39 map actors, 4 spawns, 11 Flux blooms, 4 Beacons, 4 expansions, unit status overlays, tactical tracks, live player-screen camera/visibility/command defaults, player-screen layout/chrome dimensions, player-facing HUD panel labels, role-specific command-grid glyphs, bottom-panel squad/status readability, terrain/unit/structure silhouettes, authored terrain material and building facade details, unit/building motion readability cues, animation-cycle frame signatures, project-owned atlas frame usage for terrain/unit/structure/objective sprites, screenshot-informed visual hierarchy de-emphasis for the opening command corridor, screenshot-informed selection/combat focus brackets for the opening command route, source manifest tracking, the initial unit/structure rules surfaced in the command and rules panels, and a no-socket offline adapter contract that reaches actual local player-screen/session handoff consumption plus Bevy-free session-transition and lobby-ready reviews through retained/pruned control-group command history."
     }))
     .expect("first contact basin spec evidence serializes")
 }
@@ -98701,6 +98713,146 @@ fn classic_first_contact_selection_combat_focus_route_tiles(
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_first_contact_visual_hierarchy_corridor_tiles(
+    runtime: &NativeFirstPlayableRuntime,
+) -> Vec<(i32, i32)> {
+    let feedback = classic_first_contact_command_feedback();
+    let mut tiles = classic_first_contact_selection_combat_focus_route_tiles(runtime);
+    tiles.extend(
+        runtime
+            .rts_selection_box_tile_ids
+            .iter()
+            .filter_map(|tile_id| classic_parse_rts_tile(tile_id)),
+    );
+    if let Some(tile) = runtime
+        .rts_command_destination_tile
+        .as_deref()
+        .and_then(classic_parse_rts_tile)
+    {
+        tiles.push(tile);
+    } else {
+        tiles.push(classic_first_contact_tile_tuple(feedback.target_tile));
+    }
+    tiles.push(classic_first_contact_tile_tuple(feedback.blocked_tile));
+    tiles.sort_unstable();
+    tiles.dedup();
+    tiles
+}
+
+#[cfg(not(target_os = "android"))]
+#[allow(clippy::too_many_arguments)]
+fn classic_draw_first_contact_visual_hierarchy_layer(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    runtime: &NativeFirstPlayableRuntime,
+    map_x: i32,
+    map_y: i32,
+    cell_w: i32,
+    cell_h: i32,
+) {
+    let corridor_color =
+        classic_mix_color(CLASSIC_RTS_TACTICAL_VIEWPORT_TILE_COLOR, 0x020705, 3, 4);
+    for tile in classic_first_contact_visual_hierarchy_corridor_tiles(runtime) {
+        let (tile_x, tile_y) =
+            classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, tile);
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            tile_x + 1,
+            tile_y + cell_h / 2 - 5,
+            cell_w - 2,
+            (cell_h / 2 + 8).max(8),
+            corridor_color,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            tile_x + 3,
+            tile_y + cell_h / 2 + 2,
+            cell_w - 6,
+            2,
+            CLASSIC_RTS_TACTICAL_VIEWPORT_SHADOW_COLOR,
+        );
+    }
+
+    let route_tiles = classic_first_contact_selection_combat_focus_route_tiles(runtime);
+    for pair in route_tiles.windows(2) {
+        for step in rts_bevy_runtime::rts_runtime_tile_line(pair[0], pair[1]) {
+            let (tile_x, tile_y) = classic_first_contact_tile_screen(
+                map_x,
+                map_y,
+                cell_w,
+                cell_h,
+                (step.tile_x, step.tile_y),
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                tile_x + cell_w / 2 - 8,
+                tile_y + cell_h / 2 - 4,
+                18,
+                8,
+                CLASSIC_RTS_TACTICAL_VIEWPORT_SHADOW_COLOR,
+            );
+        }
+    }
+
+    for tile_id in runtime.rts_selection_box_tile_ids.iter().take(4) {
+        if let Some(tile) = classic_parse_rts_tile(tile_id) {
+            let (tile_x, tile_y) =
+                classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, tile);
+            classic_draw_iso_ellipse(
+                buffer,
+                width,
+                height,
+                tile_x + cell_w / 2,
+                tile_y + cell_h,
+                (cell_w / 2 + 10).max(12),
+                (cell_h / 3 + 5).max(6),
+                corridor_color,
+            );
+        }
+    }
+
+    let feedback = classic_first_contact_command_feedback();
+    let target_tile = runtime
+        .rts_command_destination_tile
+        .as_deref()
+        .and_then(classic_parse_rts_tile)
+        .unwrap_or_else(|| classic_first_contact_tile_tuple(feedback.target_tile));
+    let (target_x, target_y) =
+        classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, target_tile);
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        target_x - 6,
+        target_y + cell_h / 2 - 10,
+        cell_w + 12,
+        cell_h + 12,
+        classic_mix_color(CLASSIC_RTS_COMMAND_SURFACE_TARGET_COLOR, 0x050a08, 1, 5),
+    );
+
+    let blocked_tile = classic_first_contact_tile_tuple(feedback.blocked_tile);
+    let (blocked_x, blocked_y) =
+        classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, blocked_tile);
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        blocked_x + 2,
+        blocked_y + cell_h / 2 - 6,
+        cell_w - 4,
+        cell_h + 4,
+        classic_mix_color(CLASSIC_RTS_SELECTION_FEEDBACK_ERROR_COLOR, 0x050a08, 1, 6),
+    );
+}
+
+#[cfg(not(target_os = "android"))]
 #[allow(clippy::too_many_arguments)]
 fn classic_draw_first_contact_focus_corner_brackets(
     buffer: &mut [u32],
@@ -99811,6 +99963,9 @@ fn classic_draw_first_contact_basin_scene(
     }
     classic_draw_first_contact_opening_actions(buffer, width, height, map_x, map_y, cell_w, cell_h);
     classic_draw_first_contact_readability_overlays(
+        buffer, width, height, runtime, map_x, map_y, cell_w, cell_h,
+    );
+    classic_draw_first_contact_visual_hierarchy_layer(
         buffer, width, height, runtime, map_x, map_y, cell_w, cell_h,
     );
     classic_draw_first_contact_selection_combat_focus_layer(
@@ -112966,6 +113121,154 @@ fn classic_first_contact_atlas_readability_guard() -> Value {
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_first_contact_visual_hierarchy_guard(runtime: &NativeFirstPlayableRuntime) -> Value {
+    let feedback = classic_first_contact_command_feedback();
+    let selected_focus_tiles = runtime
+        .rts_selection_box_tile_ids
+        .iter()
+        .filter_map(|tile_id| classic_parse_rts_tile(tile_id).map(classic_rts_tile_id))
+        .collect::<Vec<_>>();
+    let route_focus_tile_pairs = classic_first_contact_selection_combat_focus_route_tiles(runtime);
+    let route_focus_tiles = route_focus_tile_pairs
+        .iter()
+        .copied()
+        .map(classic_rts_tile_id)
+        .collect::<Vec<_>>();
+    let corridor_tiles = classic_first_contact_visual_hierarchy_corridor_tiles(runtime)
+        .into_iter()
+        .map(classic_rts_tile_id)
+        .collect::<Vec<_>>();
+    let target_focus_tile = runtime
+        .rts_command_destination_tile
+        .as_deref()
+        .and_then(classic_parse_rts_tile)
+        .map(classic_rts_tile_id)
+        .unwrap_or_else(|| classic_first_contact_tile_id(feedback.target_tile));
+    let blocked_focus_tile = classic_first_contact_tile_id(feedback.blocked_tile);
+    let route_line_step_count = route_focus_tile_pairs
+        .windows(2)
+        .map(|pair| rts_bevy_runtime::rts_runtime_tile_line(pair[0], pair[1]).len())
+        .sum::<usize>()
+        + route_focus_tile_pairs.len();
+    let atlas_family_gallery_lanes = classic_first_contact_atlas_frame_family_samples()
+        .iter()
+        .map(|(tile, _, _, _, _)| {
+            classic_first_contact_atlas_family_gallery_lane(*tile).to_string()
+        })
+        .collect::<Vec<_>>();
+    let atlas_family_busy_core_tiles = classic_first_contact_atlas_frame_family_samples()
+        .into_iter()
+        .filter_map(|(tile, _, _, _, _)| {
+            classic_first_contact_atlas_family_busy_core_tile(tile)
+                .then(|| classic_rts_tile_id(tile))
+        })
+        .collect::<Vec<_>>();
+    let mut unique_gallery_lanes = atlas_family_gallery_lanes.clone();
+    unique_gallery_lanes.sort();
+    unique_gallery_lanes.dedup();
+    let hierarchy_signatures = string_vec([
+        "route_corridor_deemphasis",
+        "route_spine_shadow",
+        "selected_halo_backplates",
+        "attack_target_backplate",
+        "blocked_warning_backplate",
+        "perimeter_gallery_preserved",
+    ]);
+    let corridor_deemphasis_pixel_budget = corridor_tiles.len() * 78;
+    let route_spine_shadow_pixel_budget = route_line_step_count * 18;
+    let selected_halo_pixel_budget = selected_focus_tiles.len() * 96;
+    let target_backplate_pixel_budget = 192;
+    let blocked_backplate_pixel_budget = 132;
+    let corridor_tile_gate = corridor_tiles
+        == string_vec(["14,11", "15,11", "15,12", "15,16", "16,9", "16,10", "17,12"])
+        && corridor_deemphasis_pixel_budget >= 546;
+    let route_spine_gate = route_focus_tiles == string_vec(["14,11", "15,11", "16,10", "16,9"])
+        && route_line_step_count >= 10
+        && route_spine_shadow_pixel_budget >= 180;
+    let selected_halo_gate = selected_focus_tiles.len() == 4 && selected_halo_pixel_budget >= 384;
+    let combat_backplate_gate = target_focus_tile == "16,9"
+        && blocked_focus_tile == "15,16"
+        && target_backplate_pixel_budget >= 180
+        && blocked_backplate_pixel_budget >= 120;
+    let gallery_preservation_gate = atlas_family_busy_core_tiles.is_empty()
+        && unique_gallery_lanes == string_vec(["east_gallery", "north_gallery", "west_gallery"]);
+    let hierarchy_signature_gate = hierarchy_signatures.len() == 6
+        && hierarchy_signatures
+            .iter()
+            .any(|signature| signature == "route_corridor_deemphasis")
+        && hierarchy_signatures
+            .iter()
+            .any(|signature| signature == "perimeter_gallery_preserved");
+    let hierarchy_layer_draw_order = string_vec([
+        "terrain",
+        "actors",
+        "model_identity",
+        "silhouette_readability",
+        "art_readability",
+        "animation_readability",
+        "atlas_readability",
+        "unit_state",
+        "combat_phase",
+        "command_feedback",
+        "runtime_core",
+        "tactical_tracks",
+        "opening_actions",
+        "readability_overlays",
+        "visual_hierarchy_deemphasis",
+        "selection_combat_focus",
+    ]);
+    let hierarchy_layer_order_gate = hierarchy_layer_draw_order
+        .iter()
+        .position(|layer| layer == "readability_overlays")
+        < hierarchy_layer_draw_order
+            .iter()
+            .position(|layer| layer == "visual_hierarchy_deemphasis")
+        && hierarchy_layer_draw_order
+            .iter()
+            .position(|layer| layer == "visual_hierarchy_deemphasis")
+            < hierarchy_layer_draw_order
+                .iter()
+                .position(|layer| layer == "selection_combat_focus");
+    let visual_hierarchy_gate = corridor_tile_gate
+        && route_spine_gate
+        && selected_halo_gate
+        && combat_backplate_gate
+        && gallery_preservation_gate
+        && hierarchy_signature_gate
+        && hierarchy_layer_order_gate;
+
+    json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_VISUAL_HIERARCHY_CONTRACT,
+        "green": visual_hierarchy_gate,
+        "source_path": "trnm-world-bevy classic_draw_first_contact_visual_hierarchy_layer between readability overlays and selection/combat focus",
+        "corridor_tiles": corridor_tiles,
+        "selected_focus_tiles": selected_focus_tiles,
+        "route_focus_tiles": route_focus_tiles,
+        "target_focus_tile": target_focus_tile,
+        "blocked_focus_tile": blocked_focus_tile,
+        "route_line_step_count": route_line_step_count,
+        "atlas_family_gallery_lanes": atlas_family_gallery_lanes,
+        "atlas_family_busy_core_tiles": atlas_family_busy_core_tiles,
+        "unique_gallery_lanes": unique_gallery_lanes,
+        "hierarchy_signatures": hierarchy_signatures,
+        "corridor_deemphasis_pixel_budget": corridor_deemphasis_pixel_budget,
+        "route_spine_shadow_pixel_budget": route_spine_shadow_pixel_budget,
+        "selected_halo_pixel_budget": selected_halo_pixel_budget,
+        "target_backplate_pixel_budget": target_backplate_pixel_budget,
+        "blocked_backplate_pixel_budget": blocked_backplate_pixel_budget,
+        "corridor_tile_gate": corridor_tile_gate,
+        "route_spine_gate": route_spine_gate,
+        "selected_halo_gate": selected_halo_gate,
+        "combat_backplate_gate": combat_backplate_gate,
+        "gallery_preservation_gate": gallery_preservation_gate,
+        "hierarchy_signature_gate": hierarchy_signature_gate,
+        "hierarchy_layer_draw_order": hierarchy_layer_draw_order,
+        "hierarchy_layer_order_gate": hierarchy_layer_order_gate,
+        "visual_hierarchy_gate": visual_hierarchy_gate,
+    })
+}
+
+#[cfg(not(target_os = "android"))]
 fn classic_first_contact_selection_combat_focus_readability_guard(
     runtime: &NativeFirstPlayableRuntime,
 ) -> Value {
@@ -113040,6 +113343,7 @@ fn classic_first_contact_selection_combat_focus_readability_guard(
         "tactical_tracks",
         "opening_actions",
         "readability_overlays",
+        "visual_hierarchy_deemphasis",
         "selection_combat_focus",
     ]);
     let focus_layer_order_gate = focus_layer_draw_order
@@ -113051,6 +113355,12 @@ fn classic_first_contact_selection_combat_focus_readability_guard(
         && focus_layer_draw_order
             .iter()
             .position(|layer| layer == "readability_overlays")
+            < focus_layer_draw_order
+                .iter()
+                .position(|layer| layer == "visual_hierarchy_deemphasis")
+        && focus_layer_draw_order
+            .iter()
+            .position(|layer| layer == "visual_hierarchy_deemphasis")
             < focus_layer_draw_order
                 .iter()
                 .position(|layer| layer == "selection_combat_focus")
@@ -160609,6 +160919,79 @@ mod tests {
 
     #[cfg(not(target_os = "android"))]
     #[test]
+    fn classic_first_contact_visual_hierarchy_guard_preserves_route_readability() {
+        let runtime = classic_first_contact_player_screen_runtime();
+        let guard = classic_first_contact_visual_hierarchy_guard(&runtime);
+
+        assert_eq!(
+            guard.get("contract_version").and_then(Value::as_str),
+            Some(TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_VISUAL_HIERARCHY_CONTRACT)
+        );
+        assert_eq!(
+            guard.get("green").and_then(Value::as_bool),
+            Some(true),
+            "{guard:#}"
+        );
+        assert_eq!(
+            guard.get("corridor_tiles").cloned(),
+            Some(json!([
+                "14,11", "15,11", "15,12", "15,16", "16,9", "16,10", "17,12"
+            ]))
+        );
+        assert_eq!(
+            guard.get("route_focus_tiles").cloned(),
+            Some(json!(["14,11", "15,11", "16,10", "16,9"]))
+        );
+        assert_eq!(
+            guard.get("unique_gallery_lanes").cloned(),
+            Some(json!(["east_gallery", "north_gallery", "west_gallery"]))
+        );
+        assert_eq!(
+            guard.get("atlas_family_busy_core_tiles").cloned(),
+            Some(json!([]))
+        );
+        assert_eq!(
+            guard
+                .get("hierarchy_signatures")
+                .and_then(Value::as_array)
+                .map(|signatures| {
+                    signatures
+                        .iter()
+                        .any(|value| value.as_str() == Some("route_corridor_deemphasis"))
+                        && signatures
+                            .iter()
+                            .any(|value| value.as_str() == Some("perimeter_gallery_preserved"))
+                }),
+            Some(true)
+        );
+        assert_eq!(
+            guard
+                .get("corridor_deemphasis_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(546)
+        );
+        assert_eq!(
+            guard
+                .get("route_spine_shadow_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(180)
+        );
+        for gate in [
+            "corridor_tile_gate",
+            "route_spine_gate",
+            "selected_halo_gate",
+            "combat_backplate_gate",
+            "gallery_preservation_gate",
+            "hierarchy_signature_gate",
+            "hierarchy_layer_order_gate",
+            "visual_hierarchy_gate",
+        ] {
+            assert_eq!(guard.get(gate).and_then(Value::as_bool), Some(true));
+        }
+    }
+
+    #[cfg(not(target_os = "android"))]
+    #[test]
     fn classic_first_contact_selection_combat_focus_guard_tracks_opening_route() {
         let runtime = classic_first_contact_player_screen_runtime();
         let guard = classic_first_contact_selection_combat_focus_readability_guard(&runtime);
@@ -160670,6 +161053,17 @@ mod tests {
                 .get("route_focus_pixel_budget")
                 .and_then(Value::as_u64),
             Some(312)
+        );
+        assert_eq!(
+            guard
+                .get("focus_layer_draw_order")
+                .and_then(Value::as_array)
+                .map(|order| {
+                    order
+                        .iter()
+                        .any(|layer| layer.as_str() == Some("visual_hierarchy_deemphasis"))
+                }),
+            Some(true)
         );
         assert_eq!(
             guard

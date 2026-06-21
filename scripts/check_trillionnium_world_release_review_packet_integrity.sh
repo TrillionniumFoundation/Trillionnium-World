@@ -848,6 +848,34 @@ require_artifact_json_expr first_contact_basin_spec_semantics native_bevy_classi
   and .first_contact_atlas_readability_guard.no_copy_boundary_gate == true
   and .first_contact_atlas_readability_guard.first_contact_atlas_readability_gate == true
   and .first_contact_atlas_readability_guard_gate == true
+  and .first_contact_visual_hierarchy_contract == "trillionnium_world_bevy_classic_rts_first_contact_visual_hierarchy_v1"
+  and .first_contact_visual_hierarchy_guard.contract_version == "trillionnium_world_bevy_classic_rts_first_contact_visual_hierarchy_v1"
+  and .first_contact_visual_hierarchy_guard.green == true
+  and .first_contact_visual_hierarchy_guard.source_path == "trnm-world-bevy classic_draw_first_contact_visual_hierarchy_layer between readability overlays and selection/combat focus"
+  and .first_contact_visual_hierarchy_guard.corridor_tiles == ["14,11","15,11","15,12","15,16","16,9","16,10","17,12"]
+  and .first_contact_visual_hierarchy_guard.route_focus_tiles == ["14,11","15,11","16,10","16,9"]
+  and .first_contact_visual_hierarchy_guard.target_focus_tile == "16,9"
+  and .first_contact_visual_hierarchy_guard.blocked_focus_tile == "15,16"
+  and .first_contact_visual_hierarchy_guard.unique_gallery_lanes == ["east_gallery","north_gallery","west_gallery"]
+  and .first_contact_visual_hierarchy_guard.atlas_family_busy_core_tiles == []
+  and (.first_contact_visual_hierarchy_guard.hierarchy_signatures | index("route_corridor_deemphasis") != null)
+  and (.first_contact_visual_hierarchy_guard.hierarchy_signatures | index("perimeter_gallery_preserved") != null)
+  and .first_contact_visual_hierarchy_guard.corridor_deemphasis_pixel_budget >= 546
+  and .first_contact_visual_hierarchy_guard.route_spine_shadow_pixel_budget >= 180
+  and .first_contact_visual_hierarchy_guard.selected_halo_pixel_budget >= 384
+  and .first_contact_visual_hierarchy_guard.target_backplate_pixel_budget >= 180
+  and .first_contact_visual_hierarchy_guard.blocked_backplate_pixel_budget >= 120
+  and .first_contact_visual_hierarchy_guard.corridor_tile_gate == true
+  and .first_contact_visual_hierarchy_guard.route_spine_gate == true
+  and .first_contact_visual_hierarchy_guard.selected_halo_gate == true
+  and .first_contact_visual_hierarchy_guard.combat_backplate_gate == true
+  and .first_contact_visual_hierarchy_guard.gallery_preservation_gate == true
+  and .first_contact_visual_hierarchy_guard.hierarchy_signature_gate == true
+  and (.first_contact_visual_hierarchy_guard.hierarchy_layer_draw_order | index("visual_hierarchy_deemphasis")) == 14
+  and (.first_contact_visual_hierarchy_guard.hierarchy_layer_draw_order | index("selection_combat_focus")) == 15
+  and .first_contact_visual_hierarchy_guard.hierarchy_layer_order_gate == true
+  and .first_contact_visual_hierarchy_guard.visual_hierarchy_gate == true
+  and .first_contact_visual_hierarchy_guard_gate == true
   and .first_contact_selection_combat_focus_contract == "trillionnium_world_bevy_classic_rts_first_contact_selection_combat_focus_v1"
   and .first_contact_selection_combat_focus_guard.contract_version == "trillionnium_world_bevy_classic_rts_first_contact_selection_combat_focus_v1"
   and .first_contact_selection_combat_focus_guard.green == true
@@ -874,7 +902,8 @@ require_artifact_json_expr first_contact_basin_spec_semantics native_bevy_classi
   and .first_contact_selection_combat_focus_guard.focus_signature_gate == true
   and (.first_contact_selection_combat_focus_guard.focus_layer_draw_order | index("atlas_readability")) == 6
   and (.first_contact_selection_combat_focus_guard.focus_layer_draw_order | index("readability_overlays")) == 13
-  and (.first_contact_selection_combat_focus_guard.focus_layer_draw_order | index("selection_combat_focus")) == 14
+  and (.first_contact_selection_combat_focus_guard.focus_layer_draw_order | index("visual_hierarchy_deemphasis")) == 14
+  and (.first_contact_selection_combat_focus_guard.focus_layer_draw_order | index("selection_combat_focus")) == 15
   and .first_contact_selection_combat_focus_guard.focus_layer_order_gate == true
   and .first_contact_selection_combat_focus_guard.selection_combat_focus_readability_gate == true
   and .first_contact_selection_combat_focus_guard_gate == true
