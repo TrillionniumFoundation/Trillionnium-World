@@ -848,6 +848,36 @@ require_artifact_json_expr first_contact_basin_spec_semantics native_bevy_classi
   and .first_contact_atlas_readability_guard.no_copy_boundary_gate == true
   and .first_contact_atlas_readability_guard.first_contact_atlas_readability_gate == true
   and .first_contact_atlas_readability_guard_gate == true
+  and .first_contact_selection_combat_focus_contract == "trillionnium_world_bevy_classic_rts_first_contact_selection_combat_focus_v1"
+  and .first_contact_selection_combat_focus_guard.contract_version == "trillionnium_world_bevy_classic_rts_first_contact_selection_combat_focus_v1"
+  and .first_contact_selection_combat_focus_guard.green == true
+  and .first_contact_selection_combat_focus_guard.source_path == "trnm-world-bevy classic_draw_first_contact_selection_combat_focus_layer after atlas/motion/readability overlays"
+  and .first_contact_selection_combat_focus_guard.selected_focus_tiles == ["14,11","15,11","15,12","17,12"]
+  and .first_contact_selection_combat_focus_guard.route_focus_tiles == ["14,11","15,11","16,10","16,9"]
+  and .first_contact_selection_combat_focus_guard.target_focus_tile == "16,9"
+  and .first_contact_selection_combat_focus_guard.blocked_focus_tile == "15,16"
+  and (.first_contact_selection_combat_focus_guard.focus_signatures | index("selected_corner_brackets") != null)
+  and (.first_contact_selection_combat_focus_guard.focus_signatures | index("wide_route_dashes") != null)
+  and (.first_contact_selection_combat_focus_guard.focus_signatures | index("attack_target_lock_brackets") != null)
+  and (.first_contact_selection_combat_focus_guard.focus_signatures | index("blocked_warning_cross") != null)
+  and .first_contact_selection_combat_focus_guard.route_dash_count >= 4
+  and .first_contact_selection_combat_focus_guard.route_ack_tick_count >= 6
+  and .first_contact_selection_combat_focus_guard.route_line_step_count >= 10
+  and .first_contact_selection_combat_focus_guard.selected_focus_pixel_budget >= 368
+  and .first_contact_selection_combat_focus_guard.route_focus_pixel_budget >= 312
+  and .first_contact_selection_combat_focus_guard.combat_target_pixel_budget >= 180
+  and .first_contact_selection_combat_focus_guard.blocked_warning_pixel_budget >= 72
+  and .first_contact_selection_combat_focus_guard.selected_focus_gate == true
+  and .first_contact_selection_combat_focus_guard.route_focus_gate == true
+  and .first_contact_selection_combat_focus_guard.combat_target_focus_gate == true
+  and .first_contact_selection_combat_focus_guard.blocked_warning_focus_gate == true
+  and .first_contact_selection_combat_focus_guard.focus_signature_gate == true
+  and (.first_contact_selection_combat_focus_guard.focus_layer_draw_order | index("atlas_readability")) == 6
+  and (.first_contact_selection_combat_focus_guard.focus_layer_draw_order | index("readability_overlays")) == 13
+  and (.first_contact_selection_combat_focus_guard.focus_layer_draw_order | index("selection_combat_focus")) == 14
+  and .first_contact_selection_combat_focus_guard.focus_layer_order_gate == true
+  and .first_contact_selection_combat_focus_guard.selection_combat_focus_readability_gate == true
+  and .first_contact_selection_combat_focus_guard_gate == true
   and .rts_online_protocol_fixture.transport.contract_version == "trnm_rts_online_loopback_transport_v1"
   and .rts_online_protocol_fixture.transport.green == true
   and .rts_online_protocol_fixture.transport.socket_opened == false

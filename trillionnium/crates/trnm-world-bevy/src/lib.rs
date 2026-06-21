@@ -277,6 +277,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_MOTION_READABILITY_C
     "trillionnium_world_bevy_classic_rts_first_contact_motion_readability_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_ATLAS_READABILITY_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_first_contact_atlas_readability_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_SELECTION_COMBAT_FOCUS_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_first_contact_selection_combat_focus_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_OPENING_LOOP_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_first_contact_opening_loop_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_LIKE_CORE_CONTRACT: &str =
@@ -29811,6 +29813,12 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         .get("green")
         .and_then(Value::as_bool)
         == Some(true);
+    let first_contact_selection_combat_focus_guard =
+        classic_first_contact_selection_combat_focus_readability_guard(&player_screen_runtime);
+    let first_contact_selection_combat_focus_guard_gate = first_contact_selection_combat_focus_guard
+        .get("green")
+        .and_then(Value::as_bool)
+        == Some(true);
     let green = map_actor_gate
         && map_topology_gate
         && rules_gate
@@ -29844,6 +29852,7 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         && first_contact_art_readability_guard_gate
         && first_contact_motion_readability_guard_gate
         && first_contact_atlas_readability_guard_gate
+        && first_contact_selection_combat_focus_guard_gate
         && ui_runtime_gate;
     serde_json::to_string_pretty(&json!({
         "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_BASIN_SPEC_CONTRACT,
@@ -29966,13 +29975,16 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         "first_contact_atlas_readability_contract": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_ATLAS_READABILITY_CONTRACT,
         "first_contact_atlas_readability_guard": first_contact_atlas_readability_guard,
         "first_contact_atlas_readability_guard_gate": first_contact_atlas_readability_guard_gate,
+        "first_contact_selection_combat_focus_contract": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_SELECTION_COMBAT_FOCUS_CONTRACT,
+        "first_contact_selection_combat_focus_guard": first_contact_selection_combat_focus_guard,
+        "first_contact_selection_combat_focus_guard_gate": first_contact_selection_combat_focus_guard_gate,
         "bevy_data_actor_parity_gate": bevy_data_actor_parity_gate,
         "bevy_map_model_adapter_gate": bevy_map_model_adapter_gate,
         "ui_runtime_gate": ui_runtime_gate,
         "source_mod_map": "TrillionniumRTS/mods/trnm/maps/first-contact-basin/map.yaml",
         "source_mod_rules": "TrillionniumRTS/mods/trnm/rules/trnm.yaml",
         "source_policy": "Trillionnium-owned runtime now consumes the Bevy-free trnm-rts-data map model derived from the internal TrillionniumRTS seed; OpenRA engine code and third-party/proprietary RTS assets are not copied.",
-        "source_of_truth": "This spec evidence locks the trnm-rts-data First Contact Basin map/rule/player-screen vocabulary that the Bevy desktop RTS UI consumes: 39 map actors, 4 spawns, 11 Flux blooms, 4 Beacons, 4 expansions, unit status overlays, tactical tracks, live player-screen camera/visibility/command defaults, player-screen layout/chrome dimensions, player-facing HUD panel labels, role-specific command-grid glyphs, bottom-panel squad/status readability, terrain/unit/structure silhouettes, authored terrain material and building facade details, unit/building motion readability cues, animation-cycle frame signatures, project-owned atlas frame usage for terrain/unit/structure/objective sprites, source manifest tracking, the initial unit/structure rules surfaced in the command and rules panels, and a no-socket offline adapter contract that reaches actual local player-screen/session handoff consumption plus Bevy-free session-transition and lobby-ready reviews through retained/pruned control-group command history."
+        "source_of_truth": "This spec evidence locks the trnm-rts-data First Contact Basin map/rule/player-screen vocabulary that the Bevy desktop RTS UI consumes: 39 map actors, 4 spawns, 11 Flux blooms, 4 Beacons, 4 expansions, unit status overlays, tactical tracks, live player-screen camera/visibility/command defaults, player-screen layout/chrome dimensions, player-facing HUD panel labels, role-specific command-grid glyphs, bottom-panel squad/status readability, terrain/unit/structure silhouettes, authored terrain material and building facade details, unit/building motion readability cues, animation-cycle frame signatures, project-owned atlas frame usage for terrain/unit/structure/objective sprites, screenshot-informed selection/combat focus brackets for the opening command route, source manifest tracking, the initial unit/structure rules surfaced in the command and rules panels, and a no-socket offline adapter contract that reaches actual local player-screen/session handoff consumption plus Bevy-free session-transition and lobby-ready reviews through retained/pruned control-group command history."
     }))
     .expect("first contact basin spec evidence serializes")
 }
@@ -98678,6 +98690,237 @@ fn classic_draw_first_contact_atlas_readability_layer(
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_first_contact_selection_combat_focus_route_tiles(
+    runtime: &NativeFirstPlayableRuntime,
+) -> Vec<(i32, i32)> {
+    runtime
+        .rts_group_route_tile_ids
+        .iter()
+        .filter_map(|tile_id| classic_parse_rts_tile(tile_id))
+        .collect()
+}
+
+#[cfg(not(target_os = "android"))]
+#[allow(clippy::too_many_arguments)]
+fn classic_draw_first_contact_focus_corner_brackets(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    cx: i32,
+    cy: i32,
+    half_w: i32,
+    half_h: i32,
+    color: u32,
+) {
+    let arm_w = (half_w / 2).max(7);
+    let arm_h = (half_h / 2).max(5);
+    for (sx, sy) in [(-1, -1), (1, -1), (-1, 1), (1, 1)] {
+        let x = cx + sx * half_w;
+        let y = cy + sy * half_h;
+        let horizontal_x = if sx < 0 { x } else { x - arm_w };
+        let vertical_y = if sy < 0 { y } else { y - arm_h };
+        classic_draw_rect(buffer, width, height, horizontal_x, y, arm_w, 3, color);
+        classic_draw_rect(buffer, width, height, x, vertical_y, 3, arm_h, color);
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+#[allow(clippy::too_many_arguments)]
+fn classic_draw_first_contact_selection_combat_focus_layer(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    runtime: &NativeFirstPlayableRuntime,
+    map_x: i32,
+    map_y: i32,
+    cell_w: i32,
+    cell_h: i32,
+) {
+    let feedback = classic_first_contact_command_feedback();
+    let route_tiles = classic_first_contact_selection_combat_focus_route_tiles(runtime);
+    let target_tile = runtime
+        .rts_command_destination_tile
+        .as_deref()
+        .and_then(classic_parse_rts_tile)
+        .unwrap_or_else(|| classic_first_contact_tile_tuple(feedback.target_tile));
+    let blocked_tile = classic_first_contact_tile_tuple(feedback.blocked_tile);
+
+    for (index, tile) in route_tiles.iter().enumerate() {
+        let (tile_x, tile_y) =
+            classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, *tile);
+        let cx = tile_x + cell_w / 2;
+        let cy = tile_y + cell_h / 2;
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            cx - cell_w / 2,
+            cy + cell_h / 2 + 1,
+            cell_w,
+            5,
+            CLASSIC_RTS_TACTICAL_VIEWPORT_SHADOW_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            cx - cell_w / 3,
+            cy + cell_h / 2 - 2,
+            (cell_w * 2 / 3).max(8),
+            4,
+            if index + 1 == route_tiles.len() {
+                CLASSIC_RTS_SELECTION_FEEDBACK_ATTACK_COLOR
+            } else {
+                CLASSIC_RTS_SELECTION_FEEDBACK_MOVE_COLOR
+            },
+        );
+    }
+
+    for pair in route_tiles.windows(2) {
+        for step in rts_bevy_runtime::rts_runtime_tile_line(pair[0], pair[1]) {
+            let (tile_x, tile_y) = classic_first_contact_tile_screen(
+                map_x,
+                map_y,
+                cell_w,
+                cell_h,
+                (step.tile_x, step.tile_y),
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                tile_x + cell_w / 2 - 4,
+                tile_y + cell_h / 2 - 2,
+                12,
+                4,
+                CLASSIC_RTS_SELECTION_FEEDBACK_ACK_COLOR,
+            );
+        }
+    }
+
+    for (index, tile_id) in runtime
+        .rts_selection_box_tile_ids
+        .iter()
+        .take(4)
+        .enumerate()
+    {
+        if let Some(tile) = classic_parse_rts_tile(tile_id) {
+            let (tile_x, tile_y) =
+                classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, tile);
+            let cx = tile_x + cell_w / 2;
+            let cy = tile_y + cell_h / 2;
+            classic_draw_iso_ellipse(
+                buffer,
+                width,
+                height,
+                cx,
+                cy + cell_h / 2,
+                (cell_w / 2 + 8).max(10),
+                (cell_h / 4 + 4).max(5),
+                CLASSIC_RTS_TACTICAL_VIEWPORT_SHADOW_COLOR,
+            );
+            classic_draw_first_contact_focus_corner_brackets(
+                buffer,
+                width,
+                height,
+                cx,
+                cy,
+                cell_w / 2 + 6,
+                cell_h / 2 + 5,
+                CLASSIC_RTS_SELECTION_FEEDBACK_CONFIRM_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                cx - 5,
+                cy - cell_h - 12,
+                10,
+                8,
+                match index {
+                    0 => CLASSIC_RTS_STATUS_HEALTH_BAR_COLOR,
+                    1 => CLASSIC_RTS_STATUS_MANA_BAR_COLOR,
+                    2 => CLASSIC_RTS_SELECTION_FEEDBACK_ATTACK_COLOR,
+                    _ => CLASSIC_RTS_SELECTION_FEEDBACK_ACK_COLOR,
+                },
+            );
+        }
+    }
+
+    let (target_x, target_y) =
+        classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, target_tile);
+    let target_cx = target_x + cell_w / 2;
+    let target_cy = target_y + cell_h / 2;
+    classic_draw_first_contact_focus_corner_brackets(
+        buffer,
+        width,
+        height,
+        target_cx,
+        target_cy,
+        cell_w + 12,
+        cell_h + 8,
+        CLASSIC_RTS_SELECTION_FEEDBACK_ATTACK_COLOR,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        target_cx - 18,
+        target_cy - 2,
+        36,
+        4,
+        CLASSIC_RTS_SELECTION_FEEDBACK_ATTACK_COLOR,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        target_cx - 2,
+        target_cy - 18,
+        4,
+        36,
+        CLASSIC_RTS_SELECTION_FEEDBACK_ATTACK_COLOR,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        target_cx - 11,
+        target_cy + cell_h + 14,
+        22,
+        5,
+        CLASSIC_RTS_SELECTION_FEEDBACK_ACK_COLOR,
+    );
+
+    let (blocked_x, blocked_y) =
+        classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, blocked_tile);
+    let blocked_cx = blocked_x + cell_w / 2;
+    let blocked_cy = blocked_y + cell_h / 2;
+    for slash in 0..6 {
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            blocked_cx - 16 + slash * 6,
+            blocked_cy - 16 + slash * 5,
+            7,
+            4,
+            CLASSIC_RTS_SELECTION_FEEDBACK_ERROR_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            blocked_cx + 16 - slash * 6,
+            blocked_cy - 16 + slash * 5,
+            7,
+            4,
+            CLASSIC_RTS_SELECTION_FEEDBACK_ERROR_COLOR,
+        );
+    }
+}
+
+#[cfg(not(target_os = "android"))]
 #[allow(clippy::too_many_arguments)]
 fn classic_draw_first_contact_tactical_viewport(
     buffer: &mut [u32],
@@ -99568,6 +99811,9 @@ fn classic_draw_first_contact_basin_scene(
     }
     classic_draw_first_contact_opening_actions(buffer, width, height, map_x, map_y, cell_w, cell_h);
     classic_draw_first_contact_readability_overlays(
+        buffer, width, height, runtime, map_x, map_y, cell_w, cell_h,
+    );
+    classic_draw_first_contact_selection_combat_focus_layer(
         buffer, width, height, runtime, map_x, map_y, cell_w, cell_h,
     );
     if !player_screen {
@@ -112716,6 +112962,130 @@ fn classic_first_contact_atlas_readability_guard() -> Value {
         "warcraft_iii_asset_copied": false,
         "openra_asset_copied": false,
         "third_party_asset_copied": false,
+    })
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_first_contact_selection_combat_focus_readability_guard(
+    runtime: &NativeFirstPlayableRuntime,
+) -> Value {
+    let feedback = classic_first_contact_command_feedback();
+    let selected_focus_tiles = runtime
+        .rts_selection_box_tile_ids
+        .iter()
+        .filter_map(|tile_id| classic_parse_rts_tile(tile_id).map(classic_rts_tile_id))
+        .collect::<Vec<_>>();
+    let route_focus_tile_pairs = classic_first_contact_selection_combat_focus_route_tiles(runtime);
+    let route_focus_tiles = route_focus_tile_pairs
+        .iter()
+        .copied()
+        .into_iter()
+        .map(classic_rts_tile_id)
+        .collect::<Vec<_>>();
+    let target_focus_tile = runtime
+        .rts_command_destination_tile
+        .as_deref()
+        .and_then(classic_parse_rts_tile)
+        .map(classic_rts_tile_id)
+        .unwrap_or_else(|| classic_first_contact_tile_id(feedback.target_tile));
+    let blocked_focus_tile = classic_first_contact_tile_id(feedback.blocked_tile);
+    let focus_signatures = string_vec([
+        "selected_corner_brackets",
+        "selected_role_badge_ticks",
+        "wide_route_dashes",
+        "route_ack_step_ticks",
+        "attack_target_lock_brackets",
+        "blocked_warning_cross",
+    ]);
+    let route_dash_count = route_focus_tiles.len();
+    let route_ack_tick_count = route_focus_tile_pairs
+        .windows(2)
+        .map(|pair| rts_bevy_runtime::rts_runtime_tile_line(pair[0], pair[1]).len())
+        .sum::<usize>();
+    let route_line_step_count = route_dash_count + route_ack_tick_count;
+    let selected_focus_pixel_budget = selected_focus_tiles.len() * 92;
+    let route_focus_pixel_budget = route_focus_tiles.len() * 48 + route_line_step_count * 12;
+    let combat_target_pixel_budget = 192;
+    let blocked_warning_pixel_budget = 84;
+    let selected_focus_gate = selected_focus_tiles
+        == string_vec(["14,11", "15,11", "15,12", "17,12"])
+        && selected_focus_pixel_budget >= 368;
+    let route_focus_gate = route_focus_tiles == string_vec(["14,11", "15,11", "16,10", "16,9"])
+        && route_dash_count >= 4
+        && route_ack_tick_count >= 6
+        && route_line_step_count >= 10
+        && route_focus_pixel_budget >= 312;
+    let combat_target_focus_gate = target_focus_tile == "16,9" && combat_target_pixel_budget >= 180;
+    let blocked_warning_focus_gate =
+        blocked_focus_tile == "15,16" && blocked_warning_pixel_budget >= 72;
+    let focus_signature_gate = focus_signatures.len() == 6
+        && focus_signatures
+            .iter()
+            .any(|signature| signature.as_str() == "attack_target_lock_brackets")
+        && focus_signatures
+            .iter()
+            .any(|signature| signature.as_str() == "blocked_warning_cross");
+    let focus_layer_draw_order = string_vec([
+        "terrain",
+        "actors",
+        "model_identity",
+        "silhouette_readability",
+        "art_readability",
+        "animation_readability",
+        "atlas_readability",
+        "unit_state",
+        "combat_phase",
+        "command_feedback",
+        "runtime_core",
+        "tactical_tracks",
+        "opening_actions",
+        "readability_overlays",
+        "selection_combat_focus",
+    ]);
+    let focus_layer_order_gate = focus_layer_draw_order
+        .iter()
+        .position(|layer| layer == "atlas_readability")
+        < focus_layer_draw_order
+            .iter()
+            .position(|layer| layer == "selection_combat_focus")
+        && focus_layer_draw_order
+            .iter()
+            .position(|layer| layer == "readability_overlays")
+            < focus_layer_draw_order
+                .iter()
+                .position(|layer| layer == "selection_combat_focus")
+        && focus_layer_draw_order.last().map(String::as_str) == Some("selection_combat_focus");
+    let selection_combat_focus_readability_gate = selected_focus_gate
+        && route_focus_gate
+        && combat_target_focus_gate
+        && blocked_warning_focus_gate
+        && focus_signature_gate
+        && focus_layer_order_gate;
+
+    json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_SELECTION_COMBAT_FOCUS_CONTRACT,
+        "green": selection_combat_focus_readability_gate,
+        "source_path": "trnm-world-bevy classic_draw_first_contact_selection_combat_focus_layer after atlas/motion/readability overlays",
+        "selected_focus_tiles": selected_focus_tiles,
+        "route_focus_tiles": route_focus_tiles,
+        "target_focus_tile": target_focus_tile,
+        "blocked_focus_tile": blocked_focus_tile,
+        "focus_signatures": focus_signatures,
+        "route_dash_count": route_dash_count,
+        "route_ack_tick_count": route_ack_tick_count,
+        "route_line_step_count": route_line_step_count,
+        "selected_focus_pixel_budget": selected_focus_pixel_budget,
+        "route_focus_pixel_budget": route_focus_pixel_budget,
+        "combat_target_pixel_budget": combat_target_pixel_budget,
+        "blocked_warning_pixel_budget": blocked_warning_pixel_budget,
+        "selected_focus_gate": selected_focus_gate,
+        "route_focus_gate": route_focus_gate,
+        "combat_target_focus_gate": combat_target_focus_gate,
+        "blocked_warning_focus_gate": blocked_warning_focus_gate,
+        "focus_signature_gate": focus_signature_gate,
+        "focus_layer_draw_order": focus_layer_draw_order,
+        "focus_layer_order_gate": focus_layer_order_gate,
+        "selection_combat_focus_readability_gate": selection_combat_focus_readability_gate,
     })
 }
 
@@ -160232,6 +160602,91 @@ mod tests {
             "atlas_frame_family_gate",
             "no_copy_boundary_gate",
             "first_contact_atlas_readability_gate",
+        ] {
+            assert_eq!(guard.get(gate).and_then(Value::as_bool), Some(true));
+        }
+    }
+
+    #[cfg(not(target_os = "android"))]
+    #[test]
+    fn classic_first_contact_selection_combat_focus_guard_tracks_opening_route() {
+        let runtime = classic_first_contact_player_screen_runtime();
+        let guard = classic_first_contact_selection_combat_focus_readability_guard(&runtime);
+
+        assert_eq!(
+            guard.get("contract_version").and_then(Value::as_str),
+            Some(TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_SELECTION_COMBAT_FOCUS_CONTRACT)
+        );
+        assert_eq!(
+            guard.get("green").and_then(Value::as_bool),
+            Some(true),
+            "{guard:#}"
+        );
+        assert_eq!(
+            guard.get("selected_focus_tiles").cloned(),
+            Some(json!(["14,11", "15,11", "15,12", "17,12"]))
+        );
+        assert_eq!(
+            guard.get("route_focus_tiles").cloned(),
+            Some(json!(["14,11", "15,11", "16,10", "16,9"]))
+        );
+        assert_eq!(
+            guard.get("target_focus_tile").and_then(Value::as_str),
+            Some("16,9")
+        );
+        assert_eq!(
+            guard.get("blocked_focus_tile").and_then(Value::as_str),
+            Some("15,16")
+        );
+        assert_eq!(
+            guard
+                .get("focus_signatures")
+                .and_then(Value::as_array)
+                .map(|signatures| {
+                    signatures
+                        .iter()
+                        .any(|value| value.as_str() == Some("selected_corner_brackets"))
+                        && signatures
+                            .iter()
+                            .any(|value| value.as_str() == Some("attack_target_lock_brackets"))
+                        && signatures
+                            .iter()
+                            .any(|value| value.as_str() == Some("blocked_warning_cross"))
+                }),
+            Some(true)
+        );
+        assert_eq!(
+            guard.get("route_line_step_count").and_then(Value::as_u64),
+            Some(10)
+        );
+        assert_eq!(
+            guard
+                .get("selected_focus_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(368)
+        );
+        assert_eq!(
+            guard
+                .get("route_focus_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(312)
+        );
+        assert_eq!(
+            guard
+                .get("focus_layer_draw_order")
+                .and_then(Value::as_array)
+                .and_then(|order| order.last())
+                .and_then(Value::as_str),
+            Some("selection_combat_focus")
+        );
+        for gate in [
+            "selected_focus_gate",
+            "route_focus_gate",
+            "combat_target_focus_gate",
+            "blocked_warning_focus_gate",
+            "focus_signature_gate",
+            "focus_layer_order_gate",
+            "selection_combat_focus_readability_gate",
         ] {
             assert_eq!(guard.get(gate).and_then(Value::as_bool), Some(true));
         }

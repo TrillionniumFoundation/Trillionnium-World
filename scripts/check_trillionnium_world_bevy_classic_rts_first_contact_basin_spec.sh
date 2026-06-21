@@ -140,6 +140,9 @@ required_source_lines=(
   'fn classic_first_contact_atlas_readability_guard'
   'fn classic_first_contact_atlas_frame_family_samples'
   'fn classic_draw_first_contact_atlas_readability_layer'
+  'TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_SELECTION_COMBAT_FOCUS_CONTRACT'
+  'fn classic_first_contact_selection_combat_focus_readability_guard'
+  'fn classic_draw_first_contact_selection_combat_focus_layer'
   'fn classic_first_contact_rendered_production_slot_labels'
   'fn classic_first_contact_rendered_order_queue_labels'
   'let first_contact_player_screen_label_guard_gate'
@@ -151,6 +154,7 @@ required_source_lines=(
   'let first_contact_art_readability_guard_gate'
   'let first_contact_motion_readability_guard_gate'
   'let first_contact_atlas_readability_guard_gate'
+  'let first_contact_selection_combat_focus_guard_gate'
   'trnm_rts_evidence::first_contact_bevy_runtime_adapter_evidence()'
   'rts_evidence_bevy_runtime_adapter.first_contact_online_protocol_fixture'
   'rts_evidence_bevy_runtime_adapter.first_contact_online_local_handoff'
@@ -366,7 +370,10 @@ done
 
 "$ROOT/scripts/run_trillionnium_world_bevy_artifact_command.sh" classic-rts-first-contact-basin-spec >"$OUT"
 
-jq -e '
+JQ_FILTER="$(mktemp)"
+trap 'rm -f "$JQ_FILTER"' EXIT
+
+cat >"$JQ_FILTER" <<'JQ'
   .contract_version == "trillionnium_world_bevy_classic_rts_first_contact_basin_spec_v1"
   and .green == true
   and .map_id == "first_contact_basin"
@@ -938,6 +945,36 @@ jq -e '
   and .first_contact_atlas_readability_guard.no_copy_boundary_gate == true
   and .first_contact_atlas_readability_guard.first_contact_atlas_readability_gate == true
   and .first_contact_atlas_readability_guard_gate == true
+  and .first_contact_selection_combat_focus_contract == "trillionnium_world_bevy_classic_rts_first_contact_selection_combat_focus_v1"
+  and .first_contact_selection_combat_focus_guard.contract_version == "trillionnium_world_bevy_classic_rts_first_contact_selection_combat_focus_v1"
+  and .first_contact_selection_combat_focus_guard.green == true
+  and .first_contact_selection_combat_focus_guard.source_path == "trnm-world-bevy classic_draw_first_contact_selection_combat_focus_layer after atlas/motion/readability overlays"
+  and .first_contact_selection_combat_focus_guard.selected_focus_tiles == ["14,11","15,11","15,12","17,12"]
+  and .first_contact_selection_combat_focus_guard.route_focus_tiles == ["14,11","15,11","16,10","16,9"]
+  and .first_contact_selection_combat_focus_guard.target_focus_tile == "16,9"
+  and .first_contact_selection_combat_focus_guard.blocked_focus_tile == "15,16"
+  and (.first_contact_selection_combat_focus_guard.focus_signatures | index("selected_corner_brackets") != null)
+  and (.first_contact_selection_combat_focus_guard.focus_signatures | index("wide_route_dashes") != null)
+  and (.first_contact_selection_combat_focus_guard.focus_signatures | index("attack_target_lock_brackets") != null)
+  and (.first_contact_selection_combat_focus_guard.focus_signatures | index("blocked_warning_cross") != null)
+  and .first_contact_selection_combat_focus_guard.route_dash_count >= 4
+  and .first_contact_selection_combat_focus_guard.route_ack_tick_count >= 6
+  and .first_contact_selection_combat_focus_guard.route_line_step_count >= 10
+  and .first_contact_selection_combat_focus_guard.selected_focus_pixel_budget >= 368
+  and .first_contact_selection_combat_focus_guard.route_focus_pixel_budget >= 312
+  and .first_contact_selection_combat_focus_guard.combat_target_pixel_budget >= 180
+  and .first_contact_selection_combat_focus_guard.blocked_warning_pixel_budget >= 72
+  and .first_contact_selection_combat_focus_guard.selected_focus_gate == true
+  and .first_contact_selection_combat_focus_guard.route_focus_gate == true
+  and .first_contact_selection_combat_focus_guard.combat_target_focus_gate == true
+  and .first_contact_selection_combat_focus_guard.blocked_warning_focus_gate == true
+  and .first_contact_selection_combat_focus_guard.focus_signature_gate == true
+  and (.first_contact_selection_combat_focus_guard.focus_layer_draw_order | index("atlas_readability")) == 6
+  and (.first_contact_selection_combat_focus_guard.focus_layer_draw_order | index("readability_overlays")) == 13
+  and (.first_contact_selection_combat_focus_guard.focus_layer_draw_order | index("selection_combat_focus")) == 14
+  and .first_contact_selection_combat_focus_guard.focus_layer_order_gate == true
+  and .first_contact_selection_combat_focus_guard.selection_combat_focus_readability_gate == true
+  and .first_contact_selection_combat_focus_guard_gate == true
   and .rts_data_player_screen_chrome_profile.group_summary_prefix == "GROUP"
   and .rts_data_player_screen_chrome_profile.group_summary_suffix == "UNITS SELECTED"
   and .rts_data_player_screen_chrome_profile.production_slot_visible_count == 4
@@ -1660,6 +1697,8 @@ jq -e '
   and (.rules[] | select(.id == "trnm.forge.warden" and .hp == 18000))
   and (.rules[] | select(.id == "trnm.command.core" and .cost == 1600))
   and (.rules[] | select(.id == "trnm.flux.relay" and .cost == 500))
-' "$OUT" >/dev/null
+JQ
+
+jq -e -f "$JQ_FILTER" "$OUT" >/dev/null
 
 printf 'TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_BASIN_SPEC_GREEN %s\n' "$OUT"
