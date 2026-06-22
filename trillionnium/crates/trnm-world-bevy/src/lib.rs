@@ -98794,6 +98794,12 @@ const CLASSIC_FIRST_CONTACT_LOWER_LANE_GALLERY_DARKEN_NUMERATOR: u32 = 4;
 const CLASSIC_FIRST_CONTACT_LOWER_LANE_GALLERY_DARKEN_DENOMINATOR: u32 = 5;
 
 #[cfg(not(target_os = "android"))]
+const CLASSIC_FIRST_CONTACT_LOWER_LANE_SLOT_CUE_PIXELS_PER_SAMPLE: usize = 6;
+
+#[cfg(not(target_os = "android"))]
+const CLASSIC_FIRST_CONTACT_LOWER_LANE_GHOST_ANCHOR_COUNT: usize = 2;
+
+#[cfg(not(target_os = "android"))]
 const CLASSIC_FIRST_CONTACT_SECONDARY_TRACK_DARKEN_NUMERATOR: u32 = 2;
 
 #[cfg(not(target_os = "android"))]
@@ -98970,22 +98976,37 @@ fn classic_draw_first_contact_atlas_family_slot_cue(
     let (tile_x, tile_y) = classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, tile);
     let lower_lane = classic_first_contact_atlas_family_lower_lane_tile(tile);
     let color = classic_first_contact_atlas_family_slot_color(role, tile);
-    let top_h = if lower_lane { 1 } else { 2 };
-    let cue_w = if lower_lane {
-        (cell_w / 6).max(3)
-    } else {
-        (cell_w - 4).max(4)
-    };
-    let cue_x = if lower_lane {
-        tile_x + cell_w / 2 - cue_w / 2
-    } else {
-        tile_x + 2
-    };
-    let lane_h = if lower_lane {
-        (cell_h / 5).max(2)
-    } else {
-        (cell_h - 7).max(3)
-    };
+    if lower_lane {
+        let anchor_w = (cell_w / 10).max(2);
+        let anchor_color = classic_darken(color, 1, 3);
+        let anchor_x = tile_x + cell_w / 2 - anchor_w / 2;
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            anchor_x,
+            tile_y + 2,
+            anchor_w,
+            1,
+            anchor_color,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            anchor_x,
+            tile_y + cell_h - 3,
+            anchor_w,
+            1,
+            classic_darken(anchor_color, 1, 4),
+        );
+        return;
+    }
+
+    let top_h = 2;
+    let cue_w = (cell_w - 4).max(4);
+    let cue_x = tile_x + 2;
+    let lane_h = (cell_h - 7).max(3);
     classic_draw_rect(
         buffer,
         width,
@@ -99004,14 +99025,14 @@ fn classic_draw_first_contact_atlas_family_slot_cue(
         tile_y + cell_h - 3,
         cue_w,
         1,
-        classic_darken(color, 1, if lower_lane { 5 } else { 3 }),
+        classic_darken(color, 1, 3),
     );
     let lane_x = match classic_first_contact_atlas_family_gallery_lane(tile) {
         "west_gallery" => tile_x + 1,
         "east_gallery" => tile_x + cell_w - 3,
         _ => tile_x + cell_w / 2 - 1,
     };
-    let lane_w = if lower_lane { 1 } else { 2 };
+    let lane_w = 2;
     classic_draw_rect(
         buffer,
         width,
@@ -115187,7 +115208,10 @@ fn classic_first_contact_marker_budget_guard(runtime: &NativeFirstPlayableRuntim
     let gallery_slot_cue_pixel_budget = family_samples.len() * 72;
     let lower_lane_gallery_sample_count = lower_lane_gallery_tiles.len();
     let lower_lane_mute_overlay_pixel_budget = lower_lane_gallery_sample_count * 384;
-    let lower_lane_slot_cue_pixel_budget = lower_lane_gallery_sample_count * 12;
+    let lower_lane_slot_cue_pixel_budget = lower_lane_gallery_sample_count
+        * CLASSIC_FIRST_CONTACT_LOWER_LANE_SLOT_CUE_PIXELS_PER_SAMPLE;
+    let lower_lane_ghost_anchor_count =
+        lower_lane_gallery_sample_count * CLASSIC_FIRST_CONTACT_LOWER_LANE_GHOST_ANCHOR_COUNT;
     let lower_lane_gallery_darken_numerator =
         CLASSIC_FIRST_CONTACT_LOWER_LANE_GALLERY_DARKEN_NUMERATOR as usize;
     let lower_lane_gallery_darken_denominator =
@@ -115206,6 +115230,7 @@ fn classic_first_contact_marker_budget_guard(runtime: &NativeFirstPlayableRuntim
         "lower_lane_dim_silhouettes",
         "lower_lane_shadow_suppressed",
         "lower_lane_ghost_anchors",
+        "lower_lane_two_point_ghost_anchors",
         "perimeter_gallery_lane_budget",
         "interactive_focus_kept_hot",
     ]);
@@ -115258,7 +115283,8 @@ fn classic_first_contact_marker_budget_guard(runtime: &NativeFirstPlayableRuntim
         == string_vec(["29,22", "29,24", "29,26"])
         && lower_lane_gallery_sample_count == 3
         && lower_lane_mute_overlay_pixel_budget >= 1_152
-        && lower_lane_slot_cue_pixel_budget <= 36
+        && lower_lane_slot_cue_pixel_budget <= 18
+        && lower_lane_ghost_anchor_count == 6
         && lower_lane_gallery_darken_numerator == 4
         && lower_lane_gallery_darken_denominator == 5
         && lower_lane_dim_silhouette_pixel_budget <= 1_152
@@ -115278,7 +115304,10 @@ fn classic_first_contact_marker_budget_guard(runtime: &NativeFirstPlayableRuntim
             .any(|signature| signature == "lower_lane_shadow_suppressed")
         && gallery_presentation_signatures
             .iter()
-            .any(|signature| signature == "lower_lane_ghost_anchors");
+            .any(|signature| signature == "lower_lane_ghost_anchors")
+        && gallery_presentation_signatures
+            .iter()
+            .any(|signature| signature == "lower_lane_two_point_ghost_anchors");
     let interactive_focus_preservation_gate = selected_focus_tiles
         == string_vec(["14,11", "15,11", "15,12", "17,12"])
         && route_focus_tiles == string_vec(["14,11", "15,11", "16,10", "16,9"])
@@ -115334,6 +115363,7 @@ fn classic_first_contact_marker_budget_guard(runtime: &NativeFirstPlayableRuntim
         "lower_lane_gallery_sample_count": lower_lane_gallery_sample_count,
         "lower_lane_mute_overlay_pixel_budget": lower_lane_mute_overlay_pixel_budget,
         "lower_lane_slot_cue_pixel_budget": lower_lane_slot_cue_pixel_budget,
+        "lower_lane_ghost_anchor_count": lower_lane_ghost_anchor_count,
         "lower_lane_gallery_darken_numerator": lower_lane_gallery_darken_numerator,
         "lower_lane_gallery_darken_denominator": lower_lane_gallery_darken_denominator,
         "lower_lane_dim_silhouette_pixel_budget": lower_lane_dim_silhouette_pixel_budget,
@@ -163697,7 +163727,13 @@ mod tests {
             guard
                 .get("lower_lane_slot_cue_pixel_budget")
                 .and_then(Value::as_u64),
-            Some(36)
+            Some(18)
+        );
+        assert_eq!(
+            guard
+                .get("lower_lane_ghost_anchor_count")
+                .and_then(Value::as_u64),
+            Some(6)
         );
         assert_eq!(
             guard
@@ -163773,6 +163809,9 @@ mod tests {
                         && signatures
                             .iter()
                             .any(|value| value.as_str() == Some("lower_lane_ghost_anchors"))
+                        && signatures.iter().any(|value| {
+                            value.as_str() == Some("lower_lane_two_point_ghost_anchors")
+                        })
                 }),
             Some(true)
         );
