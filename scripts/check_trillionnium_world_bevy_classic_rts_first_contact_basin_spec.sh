@@ -661,6 +661,8 @@ cat >"$JQ_FILTER" <<'JQ'
   and .first_contact_player_screen_label_guard.green == true
   and .first_contact_player_screen_label_guard.resource_labels == ["CREDITS","POWER","SUPPLY","VISION"]
   and .first_contact_player_screen_label_guard.production_slot_labels == ["GUARD","WORKER","SIGNAL","TRAINING"]
+  and .first_contact_player_screen_label_guard.production_slot_badge_labels == ["GRD","WRK","SIG","TRN"]
+  and (.first_contact_player_screen_label_guard.production_slot_badge_widths | all(. <= 18))
   and .first_contact_player_screen_label_guard.production_slot_status_labels == ["Q1 64 R","Q2 42 R","Q3 64 R","B2 42 R"]
   and .first_contact_player_screen_label_guard.production_empty_slot_status_labels == ["ADD UNIT","ADD UNIT","ADD BUILD","ADD BUILD"]
   and .first_contact_player_screen_label_guard.build_palette_labels == ["POWER","TRAIN","REFINE","TOWER","COMMAND","RADAR","WALL","SIGNAL"]
@@ -798,6 +800,9 @@ cat >"$JQ_FILTER" <<'JQ'
   and .first_contact_sidebar_density_guard.production_slot_status_badge_labels == ["Q1","Q2","Q3","B2"]
   and .first_contact_sidebar_density_guard.production_empty_slot_status_badge_labels == ["ADD","ADD","ADD","ADD"]
   and .first_contact_sidebar_density_guard.production_empty_slot_badge_label == "RDY"
+  and .first_contact_sidebar_density_guard.production_slot_labels == ["GUARD","WORKER","SIGNAL","TRAINING"]
+  and .first_contact_sidebar_density_guard.production_slot_badge_labels == ["GRD","WRK","SIG","TRN"]
+  and (.first_contact_sidebar_density_guard.production_slot_badge_widths | all(. <= 18))
   and (.first_contact_sidebar_density_guard.production_slot_status_badge_widths | all(. <= 18))
   and (.first_contact_sidebar_density_guard.production_empty_slot_status_badge_widths | all(. <= 18))
   and .first_contact_sidebar_density_guard.production_to_palette_gap_px >= 16

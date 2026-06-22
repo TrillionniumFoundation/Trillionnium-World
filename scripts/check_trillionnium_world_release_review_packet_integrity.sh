@@ -536,6 +536,8 @@ require_artifact_json_expr first_contact_basin_spec_semantics native_bevy_classi
   and .first_contact_player_screen_label_guard.green == true
   and .first_contact_player_screen_label_guard.resource_labels == ["CREDITS","POWER","SUPPLY","VISION"]
   and .first_contact_player_screen_label_guard.production_slot_labels == ["GUARD","WORKER","SIGNAL","TRAINING"]
+  and .first_contact_player_screen_label_guard.production_slot_badge_labels == ["GRD","WRK","SIG","TRN"]
+  and (.first_contact_player_screen_label_guard.production_slot_badge_widths | all(. <= 18))
   and .first_contact_player_screen_label_guard.production_slot_status_labels == ["Q1 64 R","Q2 42 R","Q3 64 R","B2 42 R"]
   and .first_contact_player_screen_label_guard.production_empty_slot_status_labels == ["ADD UNIT","ADD UNIT","ADD BUILD","ADD BUILD"]
   and .first_contact_player_screen_label_guard.build_palette_labels == ["POWER","TRAIN","REFINE","TOWER","COMMAND","RADAR","WALL","SIGNAL"]
@@ -678,6 +680,9 @@ require_artifact_json_expr first_contact_basin_spec_semantics native_bevy_classi
   and .first_contact_sidebar_density_guard.production_to_palette_gap_px >= 16
   and .first_contact_sidebar_density_guard.build_palette_visible_count == 8
   and .first_contact_sidebar_density_guard.build_palette_column_count == 4
+  and .first_contact_sidebar_density_guard.production_slot_labels == ["GUARD","WORKER","SIGNAL","TRAINING"]
+  and .first_contact_sidebar_density_guard.production_slot_badge_labels == ["GRD","WRK","SIG","TRN"]
+  and (.first_contact_sidebar_density_guard.production_slot_badge_widths | all(. <= 18))
   and .first_contact_sidebar_density_guard.build_palette_row_count == 2
   and .first_contact_sidebar_density_guard.build_palette_slot_width_px == 46
   and .first_contact_sidebar_density_guard.build_palette_slot_height_px == 40

@@ -85870,8 +85870,16 @@ fn classic_first_contact_palette_state_badge_label(state_label: &str) -> String 
 #[cfg(not(target_os = "android"))]
 fn classic_first_contact_production_slot_badge_label(slot_label: &str) -> String {
     match slot_label.to_ascii_uppercase().as_str() {
+        "GUARD" => "GRD".to_string(),
         "READY" => "RDY".to_string(),
-        label => classic_catalog_text_label(label, 8),
+        "SIGNAL" => "SIG".to_string(),
+        "TRAINING" => "TRN".to_string(),
+        "WORKER" => "WRK".to_string(),
+        "COMMAND" => "CMD".to_string(),
+        "RADAR" => "RAD".to_string(),
+        "RELAY" => "RLY".to_string(),
+        "TOWER" => "TWR".to_string(),
+        label => classic_catalog_text_label(label, 3),
     }
 }
 
@@ -112432,6 +112440,14 @@ fn classic_first_contact_player_screen_label_guard(
         .collect::<Vec<_>>();
     let production_slot_labels =
         classic_first_contact_rendered_production_slot_labels(runtime, chrome);
+    let production_slot_badge_labels = production_slot_labels
+        .iter()
+        .map(|label| classic_first_contact_production_slot_badge_label(label))
+        .collect::<Vec<_>>();
+    let production_slot_badge_widths = production_slot_badge_labels
+        .iter()
+        .map(|label| classic_text_advance_px(label, 1))
+        .collect::<Vec<_>>();
     let production_slot_status_labels =
         classic_first_contact_rendered_production_slot_status_labels(runtime, chrome);
     let production_empty_slot_status_labels =
@@ -112565,6 +112581,7 @@ fn classic_first_contact_player_screen_label_guard(
     let expected_label_gate = resource_labels
         == string_vec(["CREDITS", "POWER", "SUPPLY", "VISION"])
         && production_slot_labels == string_vec(["GUARD", "WORKER", "SIGNAL", "TRAINING"])
+        && production_slot_badge_labels == string_vec(["GRD", "WRK", "SIG", "TRN"])
         && production_slot_status_labels
             == string_vec(["Q1 64 R", "Q2 42 R", "Q3 64 R", "B2 42 R"])
         && production_empty_slot_status_labels
@@ -112626,9 +112643,9 @@ fn classic_first_contact_player_screen_label_guard(
     let resource_spacing_gate = resource_spacing_samples
         .iter()
         .all(|sample| sample.get("value_spacing_gate").and_then(Value::as_bool) == Some(true));
-    let production_slot_width_gate = production_slot_labels
+    let production_slot_width_gate = production_slot_badge_labels
         .iter()
-        .all(|label| classic_text_advance_px(label, 1) <= 52);
+        .all(|label| classic_text_advance_px(label, 1) <= 18);
     let production_slot_status_width_gate = production_slot_status_labels
         .iter()
         .chain(production_empty_slot_status_labels.iter())
@@ -112695,6 +112712,8 @@ fn classic_first_contact_player_screen_label_guard(
         "resource_labels": resource_labels,
         "resource_spacing_samples": resource_spacing_samples,
         "production_slot_labels": production_slot_labels,
+        "production_slot_badge_labels": production_slot_badge_labels,
+        "production_slot_badge_widths": production_slot_badge_widths,
         "production_slot_status_labels": production_slot_status_labels,
         "production_empty_slot_status_labels": production_empty_slot_status_labels,
         "build_palette_labels": build_palette_labels,
@@ -112871,6 +112890,16 @@ fn classic_first_contact_sidebar_density_guard(
         / production_slot_column_count;
     let production_slot_status_labels =
         classic_first_contact_rendered_production_slot_status_labels(runtime, chrome);
+    let production_slot_labels =
+        classic_first_contact_rendered_production_slot_labels(runtime, chrome);
+    let production_slot_badge_labels = production_slot_labels
+        .iter()
+        .map(|label| classic_first_contact_production_slot_badge_label(label))
+        .collect::<Vec<_>>();
+    let production_slot_badge_widths = production_slot_badge_labels
+        .iter()
+        .map(|label| classic_text_advance_px(label, 1))
+        .collect::<Vec<_>>();
     let production_slot_status_badge_labels =
         classic_first_contact_production_status_badge_labels(&production_slot_status_labels);
     let production_empty_slot_status_labels =
@@ -112939,11 +112968,16 @@ fn classic_first_contact_sidebar_density_guard(
         && production_slot_column_count == 2
         && production_row_count == 2
         && production_to_palette_gap_px >= 12
+        && production_slot_labels == string_vec(["GUARD", "WORKER", "SIGNAL", "TRAINING"])
+        && production_slot_badge_labels == string_vec(["GRD", "WRK", "SIG", "TRN"])
         && production_slot_status_labels
             == string_vec(["Q1 64 R", "Q2 42 R", "Q3 64 R", "B2 42 R"])
         && production_slot_status_badge_labels == string_vec(["Q1", "Q2", "Q3", "B2"])
         && production_empty_slot_status_badge_labels == string_vec(["ADD", "ADD", "ADD", "ADD"])
         && production_empty_slot_badge_label == "RDY"
+        && production_slot_badge_widths
+            .iter()
+            .all(|width| *width <= 18)
         && production_slot_status_badge_widths
             .iter()
             .chain(production_empty_slot_status_badge_widths.iter())
@@ -113003,6 +113037,9 @@ fn classic_first_contact_sidebar_density_guard(
         "production_slot_visible_count": production_slot_visible_count,
         "production_slot_column_count": production_slot_column_count,
         "production_row_count": production_row_count,
+        "production_slot_labels": production_slot_labels,
+        "production_slot_badge_labels": production_slot_badge_labels,
+        "production_slot_badge_widths": production_slot_badge_widths,
         "production_slot_status_labels": production_slot_status_labels,
         "production_slot_status_badge_labels": production_slot_status_badge_labels,
         "production_slot_status_badge_widths": production_slot_status_badge_widths,
@@ -162261,6 +162298,10 @@ mod tests {
             Some(json!(["GUARD", "WORKER", "SIGNAL", "TRAINING"]))
         );
         assert_eq!(
+            guard.get("production_slot_badge_labels").cloned(),
+            Some(json!(["GRD", "WRK", "SIG", "TRN"]))
+        );
+        assert_eq!(
             guard.get("production_slot_status_labels").cloned(),
             Some(json!(["Q1 64 R", "Q2 42 R", "Q3 64 R", "B2 42 R"]))
         );
@@ -162554,6 +162595,10 @@ mod tests {
             Some(json!([
                 "RDY", "QUE", "RDY", "QUE", "RDY", "RDY", "RDY", "QUE"
             ]))
+        );
+        assert_eq!(
+            guard.get("production_slot_badge_labels").cloned(),
+            Some(json!(["GRD", "WRK", "SIG", "TRN"]))
         );
         assert_eq!(
             guard.get("production_slot_status_badge_labels").cloned(),

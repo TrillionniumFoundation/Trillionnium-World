@@ -522,6 +522,8 @@ add_first_contact_basin_source_manifest_packet_fixtures() {
         {label: "VISION", text_width_px: 36, value_x_delta_px: 60, value_spacing_gate: true}
       ],
       production_slot_labels: ["GUARD", "WORKER", "SIGNAL", "TRAINING"],
+      production_slot_badge_labels: ["GRD", "WRK", "SIG", "TRN"],
+      production_slot_badge_widths: [18, 18, 18, 18],
       production_slot_status_labels: ["Q1 64 R", "Q2 42 R", "Q3 64 R", "B2 42 R"],
       production_empty_slot_status_labels: ["ADD UNIT", "ADD UNIT", "ADD BUILD", "ADD BUILD"],
       build_palette_labels: ["POWER", "TRAIN", "REFINE", "TOWER", "COMMAND", "RADAR", "WALL", "SIGNAL"],
@@ -700,6 +702,9 @@ add_first_contact_basin_source_manifest_packet_fixtures() {
       production_slot_visible_count: 4,
       production_slot_column_count: 2,
       production_row_count: 2,
+      production_slot_labels: ["GUARD", "WORKER", "SIGNAL", "TRAINING"],
+      production_slot_badge_labels: ["GRD", "WRK", "SIG", "TRN"],
+      production_slot_badge_widths: [18, 18, 18, 18],
       production_slot_status_labels: ["Q1 64 R", "Q2 42 R", "Q3 64 R", "B2 42 R"],
       production_slot_status_badge_labels: ["Q1", "Q2", "Q3", "B2"],
       production_slot_status_badge_widths: [12, 12, 12, 12],
