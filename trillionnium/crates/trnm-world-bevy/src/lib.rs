@@ -98840,6 +98840,28 @@ fn classic_first_contact_selection_combat_focus_route_tiles(
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_first_contact_route_clearance_tiles(
+    runtime: &NativeFirstPlayableRuntime,
+) -> Vec<(i32, i32)> {
+    let focus_tiles = classic_first_contact_visual_hierarchy_corridor_tiles(runtime);
+    let mut tiles = Vec::new();
+    for (tile_x, tile_y) in classic_first_contact_selection_combat_focus_route_tiles(runtime) {
+        for candidate in [
+            (tile_x - 1, tile_y),
+            (tile_x + 1, tile_y),
+            (tile_x, tile_y - 1),
+            (tile_x, tile_y + 1),
+        ] {
+            if !focus_tiles.contains(&candidate) && !tiles.contains(&candidate) {
+                tiles.push(candidate);
+            }
+        }
+    }
+    tiles.sort_unstable();
+    tiles
+}
+
+#[cfg(not(target_os = "android"))]
 fn classic_first_contact_visual_hierarchy_corridor_tiles(
     runtime: &NativeFirstPlayableRuntime,
 ) -> Vec<(i32, i32)> {
@@ -99130,6 +99152,46 @@ fn classic_draw_first_contact_terminal_legibility_layer(
 
 #[cfg(not(target_os = "android"))]
 #[allow(clippy::too_many_arguments)]
+fn classic_draw_first_contact_route_clearance_gutters(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    runtime: &NativeFirstPlayableRuntime,
+    map_x: i32,
+    map_y: i32,
+    cell_w: i32,
+    cell_h: i32,
+) {
+    let gutter_fill = classic_mix_color(CLASSIC_RTS_TACTICAL_VIEWPORT_TILE_COLOR, 0x010302, 1, 3);
+    let gutter_edge = classic_darken(CLASSIC_RTS_SELECTION_FEEDBACK_ACK_COLOR, 1, 6);
+    for tile in classic_first_contact_route_clearance_tiles(runtime) {
+        let (tile_x, tile_y) =
+            classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, tile);
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            tile_x + 4,
+            tile_y + 4,
+            (cell_w - 8).max(8),
+            (cell_h - 8).max(6),
+            gutter_fill,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            tile_x + cell_w / 2 - 8,
+            tile_y + cell_h / 2 - 1,
+            16,
+            2,
+            gutter_edge,
+        );
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+#[allow(clippy::too_many_arguments)]
 fn classic_draw_first_contact_focus_corner_brackets(
     buffer: &mut [u32],
     width: usize,
@@ -99294,6 +99356,10 @@ fn classic_draw_first_contact_selection_combat_focus_layer(
         .and_then(classic_parse_rts_tile)
         .unwrap_or_else(|| classic_first_contact_tile_tuple(feedback.target_tile));
     let blocked_tile = classic_first_contact_tile_tuple(feedback.blocked_tile);
+
+    classic_draw_first_contact_route_clearance_gutters(
+        buffer, width, height, runtime, map_x, map_y, cell_w, cell_h,
+    );
 
     for (index, tile) in route_tiles.iter().enumerate() {
         let (tile_x, tile_y) =
@@ -114256,11 +114322,25 @@ fn classic_first_contact_selection_combat_focus_readability_guard(
         .map(classic_rts_tile_id)
         .unwrap_or_else(|| classic_first_contact_tile_id(feedback.target_tile));
     let blocked_focus_tile = classic_first_contact_tile_id(feedback.blocked_tile);
+    let route_clearance_tiles = classic_first_contact_route_clearance_tiles(runtime);
+    let route_clearance_tile_ids = route_clearance_tiles
+        .iter()
+        .copied()
+        .map(classic_rts_tile_id)
+        .collect::<Vec<_>>();
+    let focus_corridor_tiles = classic_first_contact_visual_hierarchy_corridor_tiles(runtime);
+    let route_clearance_overlap_tiles = route_clearance_tiles
+        .iter()
+        .filter(|tile| focus_corridor_tiles.contains(tile))
+        .copied()
+        .map(classic_rts_tile_id)
+        .collect::<Vec<_>>();
     let focus_signatures = string_vec([
         "selected_corner_brackets",
         "selected_role_badge_ticks",
         "wide_route_dashes",
         "route_ack_step_ticks",
+        "route_clearance_gutters",
         "attack_target_lock_brackets",
         "blocked_warning_cross",
     ]);
@@ -114272,6 +114352,8 @@ fn classic_first_contact_selection_combat_focus_readability_guard(
     let route_line_step_count = route_dash_count + route_ack_tick_count;
     let selected_focus_pixel_budget = selected_focus_tiles.len() * 92;
     let route_focus_pixel_budget = route_focus_tiles.len() * 48 + route_line_step_count * 12;
+    let route_clearance_pixel_budget = route_clearance_tiles.len() * 88;
+    let route_clearance_edge_pixel_budget = route_clearance_tiles.len() * 16;
     let combat_target_pixel_budget = 192;
     let blocked_warning_pixel_budget = 84;
     let selected_focus_gate = selected_focus_tiles
@@ -114282,13 +114364,23 @@ fn classic_first_contact_selection_combat_focus_readability_guard(
         && route_ack_tick_count >= 6
         && route_line_step_count >= 10
         && route_focus_pixel_budget >= 312;
+    let route_clearance_gate = route_clearance_tile_ids
+        == string_vec([
+            "13,11", "14,10", "14,12", "15,9", "15,10", "16,8", "16,11", "17,9", "17,10",
+        ])
+        && route_clearance_overlap_tiles.is_empty()
+        && route_clearance_pixel_budget >= 792
+        && route_clearance_edge_pixel_budget >= 144;
     let combat_target_focus_gate = target_focus_tile == "16,9" && combat_target_pixel_budget >= 180;
     let blocked_warning_focus_gate =
         blocked_focus_tile == "15,16" && blocked_warning_pixel_budget >= 72;
-    let focus_signature_gate = focus_signatures.len() == 6
+    let focus_signature_gate = focus_signatures.len() == 7
         && focus_signatures
             .iter()
             .any(|signature| signature.as_str() == "attack_target_lock_brackets")
+        && focus_signatures
+            .iter()
+            .any(|signature| signature.as_str() == "route_clearance_gutters")
         && focus_signatures
             .iter()
             .any(|signature| signature.as_str() == "blocked_warning_cross");
@@ -114345,6 +114437,7 @@ fn classic_first_contact_selection_combat_focus_readability_guard(
         && focus_layer_draw_order.last().map(String::as_str) == Some("selection_combat_focus");
     let selection_combat_focus_readability_gate = selected_focus_gate
         && route_focus_gate
+        && route_clearance_gate
         && combat_target_focus_gate
         && blocked_warning_focus_gate
         && focus_signature_gate
@@ -114358,16 +114451,21 @@ fn classic_first_contact_selection_combat_focus_readability_guard(
         "route_focus_tiles": route_focus_tiles,
         "target_focus_tile": target_focus_tile,
         "blocked_focus_tile": blocked_focus_tile,
+        "route_clearance_tiles": route_clearance_tile_ids,
+        "route_clearance_overlap_tiles": route_clearance_overlap_tiles,
         "focus_signatures": focus_signatures,
         "route_dash_count": route_dash_count,
         "route_ack_tick_count": route_ack_tick_count,
         "route_line_step_count": route_line_step_count,
         "selected_focus_pixel_budget": selected_focus_pixel_budget,
         "route_focus_pixel_budget": route_focus_pixel_budget,
+        "route_clearance_pixel_budget": route_clearance_pixel_budget,
+        "route_clearance_edge_pixel_budget": route_clearance_edge_pixel_budget,
         "combat_target_pixel_budget": combat_target_pixel_budget,
         "blocked_warning_pixel_budget": blocked_warning_pixel_budget,
         "selected_focus_gate": selected_focus_gate,
         "route_focus_gate": route_focus_gate,
+        "route_clearance_gate": route_clearance_gate,
         "combat_target_focus_gate": combat_target_focus_gate,
         "blocked_warning_focus_gate": blocked_warning_focus_gate,
         "focus_signature_gate": focus_signature_gate,
@@ -162577,6 +162675,16 @@ mod tests {
             Some(json!(["14,11", "15,11", "16,10", "16,9"]))
         );
         assert_eq!(
+            guard.get("route_clearance_tiles").cloned(),
+            Some(json!([
+                "13,11", "14,10", "14,12", "15,9", "15,10", "16,8", "16,11", "17,9", "17,10"
+            ]))
+        );
+        assert_eq!(
+            guard.get("route_clearance_overlap_tiles").cloned(),
+            Some(json!([]))
+        );
+        assert_eq!(
             guard.get("target_focus_tile").and_then(Value::as_str),
             Some("16,9")
         );
@@ -162595,6 +162703,9 @@ mod tests {
                         && signatures
                             .iter()
                             .any(|value| value.as_str() == Some("attack_target_lock_brackets"))
+                        && signatures
+                            .iter()
+                            .any(|value| value.as_str() == Some("route_clearance_gutters"))
                         && signatures
                             .iter()
                             .any(|value| value.as_str() == Some("blocked_warning_cross"))
@@ -162616,6 +162727,12 @@ mod tests {
                 .get("route_focus_pixel_budget")
                 .and_then(Value::as_u64),
             Some(312)
+        );
+        assert_eq!(
+            guard
+                .get("route_clearance_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(792)
         );
         assert_eq!(
             guard
@@ -162646,6 +162763,7 @@ mod tests {
         for gate in [
             "selected_focus_gate",
             "route_focus_gate",
+            "route_clearance_gate",
             "combat_target_focus_gate",
             "blocked_warning_focus_gate",
             "focus_signature_gate",

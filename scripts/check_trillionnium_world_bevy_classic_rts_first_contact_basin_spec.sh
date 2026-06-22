@@ -151,6 +151,8 @@ required_source_lines=(
   'fn classic_draw_first_contact_terminal_legibility_layer'
   'TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_SELECTION_COMBAT_FOCUS_CONTRACT'
   'fn classic_first_contact_selection_combat_focus_readability_guard'
+  'fn classic_first_contact_route_clearance_tiles'
+  'fn classic_draw_first_contact_route_clearance_gutters'
   'fn classic_draw_first_contact_selection_combat_focus_layer'
   'TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_TARGET_CALLOUT_CONTRACT'
   'fn classic_first_contact_target_callout_guard'
@@ -1106,10 +1108,13 @@ cat >"$JQ_FILTER" <<'JQ'
   and .first_contact_selection_combat_focus_guard.source_path == "trnm-world-bevy classic_draw_first_contact_selection_combat_focus_layer after atlas/motion/readability overlays"
   and .first_contact_selection_combat_focus_guard.selected_focus_tiles == ["14,11","15,11","15,12","17,12"]
   and .first_contact_selection_combat_focus_guard.route_focus_tiles == ["14,11","15,11","16,10","16,9"]
+  and .first_contact_selection_combat_focus_guard.route_clearance_tiles == ["13,11","14,10","14,12","15,9","15,10","16,8","16,11","17,9","17,10"]
+  and .first_contact_selection_combat_focus_guard.route_clearance_overlap_tiles == []
   and .first_contact_selection_combat_focus_guard.target_focus_tile == "16,9"
   and .first_contact_selection_combat_focus_guard.blocked_focus_tile == "15,16"
   and (.first_contact_selection_combat_focus_guard.focus_signatures | index("selected_corner_brackets") != null)
   and (.first_contact_selection_combat_focus_guard.focus_signatures | index("wide_route_dashes") != null)
+  and (.first_contact_selection_combat_focus_guard.focus_signatures | index("route_clearance_gutters") != null)
   and (.first_contact_selection_combat_focus_guard.focus_signatures | index("attack_target_lock_brackets") != null)
   and (.first_contact_selection_combat_focus_guard.focus_signatures | index("blocked_warning_cross") != null)
   and .first_contact_selection_combat_focus_guard.route_dash_count >= 4
@@ -1117,10 +1122,13 @@ cat >"$JQ_FILTER" <<'JQ'
   and .first_contact_selection_combat_focus_guard.route_line_step_count >= 10
   and .first_contact_selection_combat_focus_guard.selected_focus_pixel_budget >= 368
   and .first_contact_selection_combat_focus_guard.route_focus_pixel_budget >= 312
+  and .first_contact_selection_combat_focus_guard.route_clearance_pixel_budget >= 792
+  and .first_contact_selection_combat_focus_guard.route_clearance_edge_pixel_budget >= 144
   and .first_contact_selection_combat_focus_guard.combat_target_pixel_budget >= 180
   and .first_contact_selection_combat_focus_guard.blocked_warning_pixel_budget >= 72
   and .first_contact_selection_combat_focus_guard.selected_focus_gate == true
   and .first_contact_selection_combat_focus_guard.route_focus_gate == true
+  and .first_contact_selection_combat_focus_guard.route_clearance_gate == true
   and .first_contact_selection_combat_focus_guard.combat_target_focus_gate == true
   and .first_contact_selection_combat_focus_guard.blocked_warning_focus_gate == true
   and .first_contact_selection_combat_focus_guard.focus_signature_gate == true
