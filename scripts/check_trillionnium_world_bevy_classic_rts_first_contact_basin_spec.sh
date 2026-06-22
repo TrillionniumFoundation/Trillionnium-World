@@ -666,6 +666,8 @@ cat >"$JQ_FILTER" <<'JQ'
   and .first_contact_player_screen_label_guard.production_slot_status_labels == ["Q1 64 R","Q2 42 R","Q3 64 R","B2 42 R"]
   and .first_contact_player_screen_label_guard.production_empty_slot_status_labels == ["ADD UNIT","ADD UNIT","ADD BUILD","ADD BUILD"]
   and .first_contact_player_screen_label_guard.build_palette_labels == ["POWER","TRAIN","REFINE","TOWER","COMMAND","RADAR","WALL","SIGNAL"]
+  and .first_contact_player_screen_label_guard.build_palette_badge_labels == ["PWR","TRN","REF","TWR","CMD","RAD","WAL","SIG"]
+  and (.first_contact_player_screen_label_guard.build_palette_badge_widths | all(. <= 18))
   and .first_contact_player_screen_label_guard.build_palette_state_labels == ["READY","QUEUE","READY","QUEUE","READY","READY","READY","QUEUE"]
   and .first_contact_player_screen_label_guard.order_queue_labels == ["ATTACK BEACON","TRAIN WORKER","BUILD RELAY","MOVE 16/9"]
   and .first_contact_player_screen_label_guard.completion_event_labels == ["WORKER READY","SIGNAL READY","TOWER READY","TRAINING READY"]
@@ -815,6 +817,8 @@ cat >"$JQ_FILTER" <<'JQ'
   and .first_contact_sidebar_density_guard.build_palette_inter_row_gap_px >= 8
   and .first_contact_sidebar_density_guard.build_palette_to_tactics_gap_px >= 16
   and .first_contact_sidebar_density_guard.build_palette_labels == ["POWER","TRAIN","REFINE","TOWER","COMMAND","RADAR","WALL","SIGNAL"]
+  and .first_contact_sidebar_density_guard.build_palette_badge_labels == ["PWR","TRN","REF","TWR","CMD","RAD","WAL","SIG"]
+  and (.first_contact_sidebar_density_guard.build_palette_badge_widths | all(. <= 18))
   and .first_contact_sidebar_density_guard.build_palette_state_labels == ["READY","QUEUE","READY","QUEUE","READY","READY","READY","QUEUE"]
   and .first_contact_sidebar_density_guard.build_palette_state_badge_labels == ["RDY","QUE","RDY","QUE","RDY","RDY","RDY","QUE"]
   and (.first_contact_sidebar_density_guard.build_palette_state_badge_widths | all(. <= 18))

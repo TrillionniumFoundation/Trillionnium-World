@@ -527,6 +527,8 @@ add_first_contact_basin_source_manifest_packet_fixtures() {
       production_slot_status_labels: ["Q1 64 R", "Q2 42 R", "Q3 64 R", "B2 42 R"],
       production_empty_slot_status_labels: ["ADD UNIT", "ADD UNIT", "ADD BUILD", "ADD BUILD"],
       build_palette_labels: ["POWER", "TRAIN", "REFINE", "TOWER", "COMMAND", "RADAR", "WALL", "SIGNAL"],
+      build_palette_badge_labels: ["PWR", "TRN", "REF", "TWR", "CMD", "RAD", "WAL", "SIG"],
+      build_palette_badge_widths: [18, 18, 18, 18, 18, 18, 18, 18],
       build_palette_state_labels: ["READY", "QUEUE", "READY", "QUEUE", "READY", "READY", "READY", "QUEUE"],
       build_palette_fit_samples: [
         {label: "POWER", label_x: 108, right_x: 138, fits_tile_gate: true},
@@ -537,6 +539,16 @@ add_first_contact_basin_source_manifest_packet_fixtures() {
         {label: "RADAR", label_x: 108, right_x: 138, fits_tile_gate: true},
         {label: "WALL", label_x: 111, right_x: 135, fits_tile_gate: true},
         {label: "SIGNAL", label_x: 105, right_x: 141, fits_tile_gate: true}
+      ],
+      build_palette_badge_fit_samples: [
+        {label: "PWR", label_x: 114, right_x: 132, fits_tile_gate: true},
+        {label: "TRN", label_x: 114, right_x: 132, fits_tile_gate: true},
+        {label: "REF", label_x: 114, right_x: 132, fits_tile_gate: true},
+        {label: "TWR", label_x: 114, right_x: 132, fits_tile_gate: true},
+        {label: "CMD", label_x: 114, right_x: 132, fits_tile_gate: true},
+        {label: "RAD", label_x: 114, right_x: 132, fits_tile_gate: true},
+        {label: "WAL", label_x: 114, right_x: 132, fits_tile_gate: true},
+        {label: "SIG", label_x: 114, right_x: 132, fits_tile_gate: true}
       ],
       order_queue_labels: ["ATTACK BEACON", "TRAIN WORKER", "BUILD RELAY", "MOVE 16/9"],
       completion_event_labels: ["WORKER READY", "SIGNAL READY", "TOWER READY", "TRAINING READY"],
@@ -721,6 +733,8 @@ add_first_contact_basin_source_manifest_packet_fixtures() {
       build_palette_inter_row_gap_px: 8,
       build_palette_to_tactics_gap_px: 16,
       build_palette_labels: ["POWER", "TRAIN", "REFINE", "TOWER", "COMMAND", "RADAR", "WALL", "SIGNAL"],
+      build_palette_badge_labels: ["PWR", "TRN", "REF", "TWR", "CMD", "RAD", "WAL", "SIG"],
+      build_palette_badge_widths: [18, 18, 18, 18, 18, 18, 18, 18],
       build_palette_state_labels: ["READY", "QUEUE", "READY", "QUEUE", "READY", "READY", "READY", "QUEUE"],
       build_palette_state_badge_labels: ["RDY", "QUE", "RDY", "QUE", "RDY", "RDY", "RDY", "QUE"],
       build_palette_state_badge_widths: [18, 18, 18, 18, 18, 18, 18, 18],

@@ -85868,6 +85868,21 @@ fn classic_first_contact_palette_state_badge_label(state_label: &str) -> String 
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_first_contact_build_palette_badge_label(slot_label: &str) -> String {
+    match slot_label.to_ascii_uppercase().as_str() {
+        "COMMAND" => "CMD".to_string(),
+        "POWER" => "PWR".to_string(),
+        "RADAR" => "RAD".to_string(),
+        "REFINE" => "REF".to_string(),
+        "SIGNAL" => "SIG".to_string(),
+        "TOWER" => "TWR".to_string(),
+        "TRAIN" | "TRAINING" => "TRN".to_string(),
+        "WALL" => "WAL".to_string(),
+        label => classic_catalog_text_label(label, 3),
+    }
+}
+
+#[cfg(not(target_os = "android"))]
 fn classic_first_contact_production_slot_badge_label(slot_label: &str) -> String {
     match slot_label.to_ascii_uppercase().as_str() {
         "GUARD" => "GRD".to_string(),
@@ -112352,6 +112367,16 @@ fn classic_first_contact_rendered_build_palette_labels(
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_first_contact_rendered_build_palette_badge_labels(
+    chrome: &RtsFirstContactPlayerScreenChromeProfile,
+) -> Vec<String> {
+    classic_first_contact_rendered_build_palette_labels(chrome)
+        .iter()
+        .map(|label| classic_first_contact_build_palette_badge_label(label))
+        .collect()
+}
+
+#[cfg(not(target_os = "android"))]
 fn classic_first_contact_rendered_build_palette_state_labels(
     runtime: &NativeFirstPlayableRuntime,
     chrome: &RtsFirstContactPlayerScreenChromeProfile,
@@ -112453,9 +112478,28 @@ fn classic_first_contact_player_screen_label_guard(
     let production_empty_slot_status_labels =
         classic_first_contact_empty_production_slot_status_labels(chrome);
     let build_palette_labels = classic_first_contact_rendered_build_palette_labels(chrome);
+    let build_palette_badge_labels =
+        classic_first_contact_rendered_build_palette_badge_labels(chrome);
+    let build_palette_badge_widths = build_palette_badge_labels
+        .iter()
+        .map(|label| classic_text_advance_px(label, 1))
+        .collect::<Vec<_>>();
     let build_palette_state_labels =
         classic_first_contact_rendered_build_palette_state_labels(runtime, chrome);
     let build_palette_fit_samples = build_palette_labels
+        .iter()
+        .map(|label| {
+            let label_x = classic_build_palette_label_x(100, 46, label);
+            let right_x = label_x + classic_text_advance_px(label, 1);
+            json!({
+                "label": label,
+                "label_x": label_x,
+                "right_x": right_x,
+                "fits_tile_gate": label_x >= 102 && right_x <= 146,
+            })
+        })
+        .collect::<Vec<_>>();
+    let build_palette_badge_fit_samples = build_palette_badge_labels
         .iter()
         .map(|label| {
             let label_x = classic_build_palette_label_x(100, 46, label);
@@ -112560,6 +112604,7 @@ fn classic_first_contact_player_screen_label_guard(
     all_display_labels.extend(production_slot_status_labels.iter().cloned());
     all_display_labels.extend(production_empty_slot_status_labels.iter().cloned());
     all_display_labels.extend(build_palette_labels.iter().cloned());
+    all_display_labels.extend(build_palette_badge_labels.iter().cloned());
     all_display_labels.extend(build_palette_state_labels.iter().cloned());
     all_display_labels.extend(order_queue_labels.iter().cloned());
     all_display_labels.extend(order_queue_badge_labels.iter().cloned());
@@ -112590,6 +112635,8 @@ fn classic_first_contact_player_screen_label_guard(
             == string_vec([
                 "POWER", "TRAIN", "REFINE", "TOWER", "COMMAND", "RADAR", "WALL", "SIGNAL",
             ])
+        && build_palette_badge_labels
+            == string_vec(["PWR", "TRN", "REF", "TWR", "CMD", "RAD", "WAL", "SIG"])
         && build_palette_state_labels
             == string_vec([
                 "READY", "QUEUE", "READY", "QUEUE", "READY", "READY", "READY", "QUEUE",
@@ -112650,7 +112697,7 @@ fn classic_first_contact_player_screen_label_guard(
         .iter()
         .chain(production_empty_slot_status_labels.iter())
         .all(|label| classic_text_advance_px(label, 1) <= 52);
-    let build_palette_width_gate = build_palette_fit_samples
+    let build_palette_width_gate = build_palette_badge_fit_samples
         .iter()
         .all(|sample| sample.get("fits_tile_gate").and_then(Value::as_bool) == Some(true));
     let build_palette_state_width_gate = build_palette_state_labels
@@ -112717,8 +112764,11 @@ fn classic_first_contact_player_screen_label_guard(
         "production_slot_status_labels": production_slot_status_labels,
         "production_empty_slot_status_labels": production_empty_slot_status_labels,
         "build_palette_labels": build_palette_labels,
+        "build_palette_badge_labels": build_palette_badge_labels,
+        "build_palette_badge_widths": build_palette_badge_widths,
         "build_palette_state_labels": build_palette_state_labels,
         "build_palette_fit_samples": build_palette_fit_samples,
+        "build_palette_badge_fit_samples": build_palette_badge_fit_samples,
         "order_queue_labels": order_queue_labels,
         "order_queue_badge_labels": order_queue_badge_labels,
         "completion_event_labels": completion_event_labels,
@@ -112931,6 +112981,8 @@ fn classic_first_contact_sidebar_density_guard(
     let build_palette_row_count =
         (build_palette_visible_count + build_palette_column_count - 1) / build_palette_column_count;
     let build_palette_labels = classic_first_contact_rendered_build_palette_labels(chrome);
+    let build_palette_badge_labels =
+        classic_first_contact_rendered_build_palette_badge_labels(chrome);
     let build_palette_state_labels =
         classic_first_contact_rendered_build_palette_state_labels(runtime, chrome);
     let build_palette_state_badge_labels =
@@ -112943,6 +112995,10 @@ fn classic_first_contact_sidebar_density_guard(
                 * CLASSIC_FIRST_CONTACT_BUILD_PALETTE_ROW_GAP_PX)
             + CLASSIC_FIRST_CONTACT_BUILD_PALETTE_SLOT_H_PX);
     let build_palette_state_badge_widths = build_palette_state_badge_labels
+        .iter()
+        .map(|label| classic_text_advance_px(label, 1))
+        .collect::<Vec<_>>();
+    let build_palette_badge_widths = build_palette_badge_labels
         .iter()
         .map(|label| classic_text_advance_px(label, 1))
         .collect::<Vec<_>>();
@@ -113003,9 +113059,12 @@ fn classic_first_contact_sidebar_density_guard(
         == string_vec([
             "POWER", "TRAIN", "REFINE", "TOWER", "COMMAND", "RADAR", "WALL", "SIGNAL",
         ])
+        && build_palette_badge_labels
+            == string_vec(["PWR", "TRN", "REF", "TWR", "CMD", "RAD", "WAL", "SIG"])
         && build_palette_labels
             .iter()
-            .all(|label| classic_text_advance_px(label, 1) <= 42);
+            .all(|label| classic_text_advance_px(label, 1) <= 42)
+        && build_palette_badge_widths.iter().all(|width| *width <= 18);
     let tactics_density_gate = tactics_row_count == 5
         && tactics_row_gap_px >= 4
         && tactics_detail_labels
@@ -113056,6 +113115,8 @@ fn classic_first_contact_sidebar_density_guard(
         "build_palette_inter_row_gap_px": palette_row_gap_px,
         "build_palette_to_tactics_gap_px": palette_to_tactics_gap_px,
         "build_palette_labels": build_palette_labels,
+        "build_palette_badge_labels": build_palette_badge_labels,
+        "build_palette_badge_widths": build_palette_badge_widths,
         "build_palette_state_labels": build_palette_state_labels,
         "build_palette_state_badge_labels": build_palette_state_badge_labels,
         "build_palette_state_badge_widths": build_palette_state_badge_widths,
@@ -116509,7 +116570,7 @@ fn classic_draw_openra_style_rts_shell(
         );
         classic_draw_rect(buffer, width, height, x + 8, y + 8, 30, 14, 0x314532);
         classic_draw_rect(buffer, width, height, x + 12, y + 5, 22, 4, 0x719566);
-        let label = data_slot
+        let raw_label = data_slot
             .map(|slot| slot.label.as_str())
             .unwrap_or_else(|| {
                 [
@@ -116519,13 +116580,18 @@ fn classic_draw_openra_style_rts_shell(
                 .copied()
                 .unwrap_or("SIGNAL")
             });
+        let label = if first_contact_player_chrome.is_some() {
+            classic_first_contact_build_palette_badge_label(raw_label)
+        } else {
+            raw_label.to_string()
+        };
         classic_draw_text(
             buffer,
             width,
             height,
-            classic_build_palette_label_x(x, CLASSIC_FIRST_CONTACT_BUILD_PALETTE_SLOT_W_PX, label),
+            classic_build_palette_label_x(x, CLASSIC_FIRST_CONTACT_BUILD_PALETTE_SLOT_W_PX, &label),
             y + 23,
-            label,
+            &label,
             1,
             CLASSIC_HUD_TEXT_COLOR,
         );
@@ -162062,6 +162128,22 @@ mod tests {
             assert!(label_x + classic_text_advance_px(label, 1) <= 146);
         }
         assert_eq!(classic_build_palette_label_x(100, 46, "COMMAND"), 102);
+        assert_eq!(
+            classic_first_contact_build_palette_badge_label("POWER"),
+            "PWR"
+        );
+        assert_eq!(
+            classic_first_contact_build_palette_badge_label("TRAIN"),
+            "TRN"
+        );
+        assert_eq!(
+            classic_first_contact_build_palette_badge_label("COMMAND"),
+            "CMD"
+        );
+        assert_eq!(
+            classic_first_contact_build_palette_badge_label("SIGNAL"),
+            "SIG"
+        );
     }
 
     #[cfg(not(target_os = "android"))]
@@ -162313,6 +162395,12 @@ mod tests {
             guard.get("build_palette_labels").cloned(),
             Some(json!([
                 "POWER", "TRAIN", "REFINE", "TOWER", "COMMAND", "RADAR", "WALL", "SIGNAL"
+            ]))
+        );
+        assert_eq!(
+            guard.get("build_palette_badge_labels").cloned(),
+            Some(json!([
+                "PWR", "TRN", "REF", "TWR", "CMD", "RAD", "WAL", "SIG"
             ]))
         );
         assert_eq!(
@@ -162594,6 +162682,12 @@ mod tests {
             guard.get("build_palette_state_badge_labels").cloned(),
             Some(json!([
                 "RDY", "QUE", "RDY", "QUE", "RDY", "RDY", "RDY", "QUE"
+            ]))
+        );
+        assert_eq!(
+            guard.get("build_palette_badge_labels").cloned(),
+            Some(json!([
+                "PWR", "TRN", "REF", "TWR", "CMD", "RAD", "WAL", "SIG"
             ]))
         );
         assert_eq!(
