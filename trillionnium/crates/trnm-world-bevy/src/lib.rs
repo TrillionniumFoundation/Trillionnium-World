@@ -85861,6 +85861,38 @@ fn classic_first_contact_palette_state_badge_label(state_label: &str) -> String 
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_first_contact_production_slot_badge_label(slot_label: &str) -> String {
+    match slot_label.to_ascii_uppercase().as_str() {
+        "READY" => "RDY".to_string(),
+        label => classic_catalog_text_label(label, 8),
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_first_contact_production_status_badge_label(status_label: &str) -> String {
+    let upper = status_label.to_ascii_uppercase();
+    if let Some(queue_id) = upper
+        .strip_prefix('Q')
+        .and_then(|rest| rest.split_whitespace().next())
+    {
+        return classic_catalog_text_label(&format!("Q{queue_id}"), 3);
+    }
+    if let Some(build_id) = upper
+        .strip_prefix('B')
+        .and_then(|rest| rest.split_whitespace().next())
+    {
+        return classic_catalog_text_label(&format!("B{build_id}"), 3);
+    }
+    match upper.as_str() {
+        "ADD UNIT" | "ADD BUILD" => "ADD".to_string(),
+        "LOCK" => "LCK".to_string(),
+        "READY" => "RDY".to_string(),
+        "QUEUE" => "QUE".to_string(),
+        label => classic_catalog_text_label(label, 3),
+    }
+}
+
+#[cfg(not(target_os = "android"))]
 fn classic_rts_sidebar_queue_summary(runtime: &NativeFirstPlayableRuntime) -> String {
     rts_bevy_runtime::rts_sidebar_queue_summary(
         &runtime.rts_production_queue,
@@ -111994,6 +112026,14 @@ fn classic_first_contact_empty_production_slot_status_labels(
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_first_contact_production_status_badge_labels(status_labels: &[String]) -> Vec<String> {
+    status_labels
+        .iter()
+        .map(|label| classic_first_contact_production_status_badge_label(label))
+        .collect()
+}
+
+#[cfg(not(target_os = "android"))]
 fn classic_first_contact_rendered_build_palette_labels(
     chrome: &RtsFirstContactPlayerScreenChromeProfile,
 ) -> Vec<String> {
@@ -112480,6 +112520,23 @@ fn classic_first_contact_sidebar_density_guard(
         / production_slot_column_count;
     let production_slot_status_labels =
         classic_first_contact_rendered_production_slot_status_labels(runtime, chrome);
+    let production_slot_status_badge_labels =
+        classic_first_contact_production_status_badge_labels(&production_slot_status_labels);
+    let production_empty_slot_status_labels =
+        classic_first_contact_empty_production_slot_status_labels(chrome);
+    let production_empty_slot_status_badge_labels =
+        classic_first_contact_production_status_badge_labels(&production_empty_slot_status_labels);
+    let production_empty_slot_badge_label = classic_first_contact_production_slot_badge_label(
+        &classic_rts_queue_slot_label(&chrome.production_empty_label),
+    );
+    let production_slot_status_badge_widths = production_slot_status_badge_labels
+        .iter()
+        .map(|label| classic_text_advance_px(label, 1))
+        .collect::<Vec<_>>();
+    let production_empty_slot_status_badge_widths = production_empty_slot_status_badge_labels
+        .iter()
+        .map(|label| classic_text_advance_px(label, 1))
+        .collect::<Vec<_>>();
     let production_slot_y_offset_px = 18_i32;
     let production_slot_row_gap_px = 34_i32;
     let production_status_bottom_offset_px = 30_i32;
@@ -112522,7 +112579,14 @@ fn classic_first_contact_sidebar_density_guard(
         && production_row_count == 2
         && production_to_palette_gap_px >= 12
         && production_slot_status_labels
-            == string_vec(["Q1 64 R", "Q2 42 R", "Q3 64 R", "B2 42 R"]);
+            == string_vec(["Q1 64 R", "Q2 42 R", "Q3 64 R", "B2 42 R"])
+        && production_slot_status_badge_labels == string_vec(["Q1", "Q2", "Q3", "B2"])
+        && production_empty_slot_status_badge_labels == string_vec(["ADD", "ADD", "ADD", "ADD"])
+        && production_empty_slot_badge_label == "RDY"
+        && production_slot_status_badge_widths
+            .iter()
+            .chain(production_empty_slot_status_badge_widths.iter())
+            .all(|width| *width <= 18);
     let palette_geometry_gate = build_palette_visible_count == 8
         && build_palette_column_count == 4
         && build_palette_row_count == 2
@@ -112574,6 +112638,11 @@ fn classic_first_contact_sidebar_density_guard(
         "production_slot_column_count": production_slot_column_count,
         "production_row_count": production_row_count,
         "production_slot_status_labels": production_slot_status_labels,
+        "production_slot_status_badge_labels": production_slot_status_badge_labels,
+        "production_slot_status_badge_widths": production_slot_status_badge_widths,
+        "production_empty_slot_status_badge_labels": production_empty_slot_status_badge_labels,
+        "production_empty_slot_status_badge_widths": production_empty_slot_status_badge_widths,
+        "production_empty_slot_badge_label": production_empty_slot_badge_label,
         "production_to_palette_gap_px": production_to_palette_gap_px,
         "build_palette_visible_count": build_palette_visible_count,
         "build_palette_column_count": build_palette_column_count,
@@ -115731,6 +115800,12 @@ fn classic_draw_openra_style_rts_shell(
             .or_else(|| runtime.rts_build_queue.get(index.saturating_sub(2)))
             .map(String::as_str)
             .unwrap_or(production_empty_label);
+        let slot_label = classic_rts_queue_slot_label(label);
+        let slot_label = if first_contact_player_chrome.is_some() {
+            classic_first_contact_production_slot_badge_label(&slot_label)
+        } else {
+            slot_label
+        };
         let queue_id = classic_rts_production_slot_queue_id(runtime, index);
         let progress = if index % 2 == 0 {
             runtime.rts_training_progress_percent
@@ -115743,7 +115818,7 @@ fn classic_draw_openra_style_rts_shell(
             height,
             x,
             y,
-            label,
+            &slot_label,
             progress,
             if index % 2 == 0 {
                 CLASSIC_RTS_PRODUCTION_PROGRESS_COLOR
@@ -115763,13 +115838,20 @@ fn classic_draw_openra_style_rts_shell(
             CLASSIC_RTS_QUEUE_PREVIEW_WAYPOINT_COLOR
         };
         classic_draw_rect(buffer, width, height, x, y + 20, 56, 3, state_color);
+        let status_label =
+            classic_rts_sidebar_slot_status_label(runtime, index, progress, &queue_id);
+        let status_label = if first_contact_player_chrome.is_some() {
+            classic_first_contact_production_status_badge_label(&status_label)
+        } else {
+            status_label
+        };
         classic_draw_text(
             buffer,
             width,
             height,
             x + 2,
             y + 25,
-            &classic_rts_sidebar_slot_status_label(runtime, index, progress, &queue_id),
+            &status_label,
             1,
             if !classic_rts_queue_is_affordable(runtime, &queue_id) {
                 CLASSIC_RTS_QUEUE_PREVIEW_CANCEL_COLOR
@@ -161880,6 +161962,22 @@ mod tests {
             Some(json!([
                 "RDY", "QUE", "RDY", "QUE", "RDY", "RDY", "RDY", "QUE"
             ]))
+        );
+        assert_eq!(
+            guard.get("production_slot_status_badge_labels").cloned(),
+            Some(json!(["Q1", "Q2", "Q3", "B2"]))
+        );
+        assert_eq!(
+            guard
+                .get("production_empty_slot_status_badge_labels")
+                .cloned(),
+            Some(json!(["ADD", "ADD", "ADD", "ADD"]))
+        );
+        assert_eq!(
+            guard
+                .get("production_empty_slot_badge_label")
+                .and_then(Value::as_str),
+            Some("RDY")
         );
         assert_eq!(
             guard

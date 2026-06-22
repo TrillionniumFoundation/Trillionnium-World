@@ -163,6 +163,8 @@ required_source_lines=(
   'TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_SIDEBAR_DENSITY_CONTRACT'
   'fn classic_first_contact_sidebar_density_guard'
   'fn classic_first_contact_palette_state_badge_label'
+  'fn classic_first_contact_production_slot_badge_label'
+  'fn classic_first_contact_production_status_badge_label'
   'fn classic_first_contact_rendered_production_slot_labels'
   'fn classic_first_contact_rendered_order_queue_labels'
   'let first_contact_player_screen_label_guard_gate'
@@ -790,6 +792,11 @@ cat >"$JQ_FILTER" <<'JQ'
   and .first_contact_sidebar_density_guard.production_slot_column_count == 2
   and .first_contact_sidebar_density_guard.production_row_count == 2
   and .first_contact_sidebar_density_guard.production_slot_status_labels == ["Q1 64 R","Q2 42 R","Q3 64 R","B2 42 R"]
+  and .first_contact_sidebar_density_guard.production_slot_status_badge_labels == ["Q1","Q2","Q3","B2"]
+  and .first_contact_sidebar_density_guard.production_empty_slot_status_badge_labels == ["ADD","ADD","ADD","ADD"]
+  and .first_contact_sidebar_density_guard.production_empty_slot_badge_label == "RDY"
+  and (.first_contact_sidebar_density_guard.production_slot_status_badge_widths | all(. <= 18))
+  and (.first_contact_sidebar_density_guard.production_empty_slot_status_badge_widths | all(. <= 18))
   and .first_contact_sidebar_density_guard.production_to_palette_gap_px >= 16
   and .first_contact_sidebar_density_guard.build_palette_visible_count == 8
   and .first_contact_sidebar_density_guard.build_palette_column_count == 4
