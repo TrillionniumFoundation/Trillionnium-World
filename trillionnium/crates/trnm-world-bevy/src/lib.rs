@@ -111254,14 +111254,18 @@ fn classic_first_contact_order_queue_badge_detail(label: &str) -> String {
         .skip(1)
         .collect::<Vec<_>>()
         .join(" ");
-    classic_catalog_text_label(
-        if detail.is_empty() {
-            "READY"
-        } else {
-            detail.as_str()
-        },
-        12,
-    )
+    let compact_detail = match detail.as_str() {
+        "" => "READY",
+        "BEACON" | "RELAY BEACON" => "BCN",
+        "GUARD" => "GRD",
+        "RELAY" => "RLY",
+        "SIGNAL" | "SIGNAL BLADE" => "SIG",
+        "TOWER" | "WATCH TOWER" => "TWR",
+        "TRAINING" | "TRAINING HALL" => "TRN",
+        "WORKER" => "WRK",
+        _ => detail.as_str(),
+    };
+    classic_catalog_text_label(compact_detail, 12)
 }
 
 #[cfg(not(target_os = "android"))]
@@ -112700,8 +112704,7 @@ fn classic_first_contact_player_screen_label_guard(
             ])
         && order_queue_labels
             == string_vec(["ATTACK BEACON", "TRAIN WORKER", "BUILD RELAY", "MOVE 16/9"])
-        && order_queue_badge_labels
-            == string_vec(["ATK BEACON", "TRN WORKER", "BLD RELAY", "MOV 16/9"])
+        && order_queue_badge_labels == string_vec(["ATK BCN", "TRN WRK", "BLD RLY", "MOV 16/9"])
         && completion_event_labels
             == string_vec([
                 "WORKER READY",
@@ -112769,7 +112772,7 @@ fn classic_first_contact_player_screen_label_guard(
     let order_queue_badge_width_gate = order_queue_badge_labels
         .iter()
         .chain(completion_event_badge_labels.iter())
-        .all(|label| classic_text_advance_px(label, 1) <= 76);
+        .all(|label| classic_text_advance_px(label, 1) <= 48);
     let tactics_summary_width_gate = classic_text_advance_px(&tactics_queue_summary, 1) <= 120;
     let tactics_detail_width_gate = tactics_detail_labels
         .iter()
@@ -113397,13 +113400,13 @@ fn classic_first_contact_bottom_panel_readability_guard(
     let squad_chip_edge_clearance_gate =
         squad_chip_bottom_margin_px >= CLASSIC_FIRST_CONTACT_SQUAD_CHIP_BOTTOM_MARGIN_MIN_PX;
     let order_queue_badge_gate = order_queue_badge_labels
-        == string_vec(["ATK BEACON", "TRN WORKER", "BLD RELAY", "MOV 16/9"])
+        == string_vec(["ATK BCN", "TRN WRK", "BLD RLY", "MOV 16/9"])
         && completion_event_badge_labels
             == string_vec(["WRK RDY", "SIG RDY", "TWR RDY", "TRN RDY"])
         && order_queue_badge_labels
             .iter()
             .chain(completion_event_badge_labels.iter())
-            .all(|label| classic_text_advance_px(label, 1) <= 76);
+            .all(|label| classic_text_advance_px(label, 1) <= 48);
     let selection_density_gate = selected_unit_display_count >= 4
         && squad_role_labels.len() >= 4
         && group_summary == "GROUP 1  4 UNITS SELECTED";
@@ -162467,7 +162470,15 @@ mod tests {
         );
         assert_eq!(
             classic_first_contact_order_queue_badge_label("attack:trnm.flux.beacon"),
-            "ATK BEACON"
+            "ATK BCN"
+        );
+        assert_eq!(
+            classic_first_contact_order_queue_badge_label("train:trnm.worker"),
+            "TRN WRK"
+        );
+        assert_eq!(
+            classic_first_contact_order_queue_badge_label("build:trnm.flux.relay"),
+            "BLD RLY"
         );
         assert_eq!(
             classic_first_contact_order_queue_badge_label("move:16,9"),
@@ -162550,7 +162561,7 @@ mod tests {
         );
         assert_eq!(
             guard.get("order_queue_badge_labels").cloned(),
-            Some(json!(["ATK BEACON", "TRN WORKER", "BLD RELAY", "MOV 16/9"]))
+            Some(json!(["ATK BCN", "TRN WRK", "BLD RLY", "MOV 16/9"]))
         );
         assert_eq!(
             guard.get("completion_event_labels").cloned(),
@@ -162935,7 +162946,7 @@ mod tests {
         );
         assert_eq!(
             guard.get("order_queue_badge_labels").cloned(),
-            Some(json!(["ATK BEACON", "TRN WORKER", "BLD RELAY", "MOV 16/9"]))
+            Some(json!(["ATK BCN", "TRN WRK", "BLD RLY", "MOV 16/9"]))
         );
         assert_eq!(
             guard.get("completion_event_badge_labels").cloned(),
