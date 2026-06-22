@@ -677,6 +677,8 @@ cat >"$JQ_FILTER" <<'JQ'
   and .first_contact_player_screen_label_guard.tactics_detail_labels == ["SECURE RELAY BEACON","RELAY BEACON","16/16","GUARD 64% TOWER 42%","IDLE"]
   and .first_contact_player_screen_label_guard.tactics_compact_badge_labels == ["SECURE","BEACON","16/16","G64/T42","IDLE"]
   and (.first_contact_player_screen_label_guard.tactics_compact_badge_widths | all(. <= 48))
+  and .first_contact_player_screen_label_guard.tactics_queue_fallback_badge_labels == ["TRN SIG","TRN SIG","BLD RLY","ATK BCN","RDY"]
+  and (.first_contact_player_screen_label_guard.tactics_queue_fallback_badge_widths | all(. <= 42))
   and .first_contact_player_screen_label_guard.field_status_title == "FIELD STATUS"
   and .first_contact_player_screen_label_guard.live_status_labels == ["SQUAD READY","RALLY 16/9","QUEUE GUARD 64%","SCOUTING 76%","CAMERA 16/16","SUPPLY 12/22","SAVE ROUTE READY"]
   and .first_contact_player_screen_label_guard.live_state_labels == ["ORDER SECURE RELAY BEACON","TARGET RELAY BEACON","BUILD IDLE","QUEUE GUARD 64%","CAM 16/16","DRAG NONE","HOVER NONE","RES UPGRADE 210 CREDITS"]
@@ -709,6 +711,7 @@ cat >"$JQ_FILTER" <<'JQ'
   and .first_contact_player_screen_label_guard.tactics_summary_width_gate == true
   and .first_contact_player_screen_label_guard.tactics_detail_width_gate == true
   and .first_contact_player_screen_label_guard.tactics_compact_badge_width_gate == true
+  and .first_contact_player_screen_label_guard.tactics_queue_fallback_badge_width_gate == true
   and .first_contact_player_screen_label_guard.live_status_width_gate == true
   and .first_contact_player_screen_label_guard.live_state_width_gate == true
   and .first_contact_player_screen_label_guard.tactical_header_title_order_width_gate == true
@@ -829,6 +832,8 @@ cat >"$JQ_FILTER" <<'JQ'
   and .first_contact_sidebar_density_guard.tactics_detail_labels == ["SECURE RELAY BEACON","RELAY BEACON","16/16","GUARD 64% TOWER 42%","IDLE"]
   and .first_contact_sidebar_density_guard.tactics_compact_badge_labels == ["SECURE","BEACON","16/16","G64/T42","IDLE"]
   and (.first_contact_sidebar_density_guard.tactics_compact_badge_widths | all(. <= 48))
+  and .first_contact_sidebar_density_guard.tactics_queue_fallback_badge_labels == ["TRN SIG","TRN SIG","BLD RLY","ATK BCN","RDY"]
+  and (.first_contact_sidebar_density_guard.tactics_queue_fallback_badge_widths | all(. <= 48))
   and .first_contact_sidebar_density_guard.production_density_gate == true
   and .first_contact_sidebar_density_guard.palette_geometry_gate == true
   and .first_contact_sidebar_density_guard.palette_state_badge_gate == true
