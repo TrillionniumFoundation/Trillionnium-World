@@ -98861,10 +98861,10 @@ const CLASSIC_FIRST_CONTACT_LOWER_LANE_GALLERY_DARKEN_NUMERATOR: u32 = 4;
 const CLASSIC_FIRST_CONTACT_LOWER_LANE_GALLERY_DARKEN_DENOMINATOR: u32 = 5;
 
 #[cfg(not(target_os = "android"))]
-const CLASSIC_FIRST_CONTACT_LOWER_LANE_SLOT_CUE_PIXELS_PER_SAMPLE: usize = 6;
+const CLASSIC_FIRST_CONTACT_LOWER_LANE_SLOT_CUE_PIXELS_PER_SAMPLE: usize = 1;
 
 #[cfg(not(target_os = "android"))]
-const CLASSIC_FIRST_CONTACT_LOWER_LANE_GHOST_ANCHOR_COUNT: usize = 2;
+const CLASSIC_FIRST_CONTACT_LOWER_LANE_GHOST_ANCHOR_COUNT: usize = 1;
 
 #[cfg(not(target_os = "android"))]
 const CLASSIC_FIRST_CONTACT_SECONDARY_TRACK_DARKEN_NUMERATOR: u32 = 2;
@@ -99044,26 +99044,14 @@ fn classic_draw_first_contact_atlas_family_slot_cue(
     let lower_lane = classic_first_contact_atlas_family_lower_lane_tile(tile);
     let color = classic_first_contact_atlas_family_slot_color(role, tile);
     if lower_lane {
-        let anchor_w = (cell_w / 10).max(2);
-        let anchor_color = classic_darken(color, 1, 3);
-        let anchor_x = tile_x + cell_w / 2 - anchor_w / 2;
+        let anchor_color = classic_darken(color, 1, 5);
         classic_draw_rect(
             buffer,
             width,
             height,
-            anchor_x,
-            tile_y + 2,
-            anchor_w,
-            1,
-            anchor_color,
-        );
-        classic_draw_rect(
-            buffer,
-            width,
-            height,
-            anchor_x,
+            tile_x + cell_w / 2,
             tile_y + cell_h - 3,
-            anchor_w,
+            1,
             1,
             classic_darken(anchor_color, 1, 4),
         );
@@ -115458,7 +115446,7 @@ fn classic_first_contact_marker_budget_guard(runtime: &NativeFirstPlayableRuntim
         "lower_lane_dim_silhouettes",
         "lower_lane_shadow_suppressed",
         "lower_lane_ghost_anchors",
-        "lower_lane_two_point_ghost_anchors",
+        "lower_lane_single_point_ghost_anchors",
         "compact_route_ack_ticks",
         "perimeter_gallery_lane_budget",
         "interactive_focus_kept_hot",
@@ -115521,8 +115509,8 @@ fn classic_first_contact_marker_budget_guard(runtime: &NativeFirstPlayableRuntim
         == string_vec(["29,22", "29,24", "29,26"])
         && lower_lane_gallery_sample_count == 3
         && lower_lane_mute_overlay_pixel_budget >= 1_152
-        && lower_lane_slot_cue_pixel_budget <= 18
-        && lower_lane_ghost_anchor_count == 6
+        && lower_lane_slot_cue_pixel_budget <= 3
+        && lower_lane_ghost_anchor_count == 3
         && lower_lane_gallery_darken_numerator == 4
         && lower_lane_gallery_darken_denominator == 5
         && lower_lane_dim_silhouette_pixel_budget <= 1_152
@@ -115545,7 +115533,7 @@ fn classic_first_contact_marker_budget_guard(runtime: &NativeFirstPlayableRuntim
             .any(|signature| signature == "lower_lane_ghost_anchors")
         && gallery_presentation_signatures
             .iter()
-            .any(|signature| signature == "lower_lane_two_point_ghost_anchors");
+            .any(|signature| signature == "lower_lane_single_point_ghost_anchors");
     let interactive_focus_preservation_gate = selected_focus_tiles
         == string_vec(["14,11", "15,11", "15,12", "17,12"])
         && route_focus_tiles == string_vec(["14,11", "15,11", "16,10", "16,9"])
@@ -164101,13 +164089,13 @@ mod tests {
             guard
                 .get("lower_lane_slot_cue_pixel_budget")
                 .and_then(Value::as_u64),
-            Some(18)
+            Some(3)
         );
         assert_eq!(
             guard
                 .get("lower_lane_ghost_anchor_count")
                 .and_then(Value::as_u64),
-            Some(6)
+            Some(3)
         );
         assert_eq!(
             guard
@@ -164187,7 +164175,7 @@ mod tests {
                             .iter()
                             .any(|value| value.as_str() == Some("lower_lane_ghost_anchors"))
                         && signatures.iter().any(|value| {
-                            value.as_str() == Some("lower_lane_two_point_ghost_anchors")
+                            value.as_str() == Some("lower_lane_single_point_ghost_anchors")
                         })
                 }),
             Some(true)
