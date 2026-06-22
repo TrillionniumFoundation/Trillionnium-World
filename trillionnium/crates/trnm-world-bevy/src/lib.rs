@@ -754,6 +754,13 @@ const CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_X_OFFSET_PX: i32 = 42;
 const CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_Y_OFFSET_PX: i32 = -42;
 const CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_HEALTH_BAR_W_PX: i32 = 54;
 const CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_HEALTH_BAR_H_PX: i32 = 3;
+const CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_CLEARANCE_PAD_PX: i32 = 5;
+const CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_LEADER_CLEARANCE_W_PX: i32 = 34;
+const CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_LEADER_CLEARANCE_H_PX: i32 = 6;
+const CLASSIC_FIRST_CONTACT_TARGET_PREFLIGHT_RING_COUNT: i32 = 2;
+const CLASSIC_FIRST_CONTACT_TARGET_PREFLIGHT_RING_THICKNESS_PX: i32 = 2;
+const CLASSIC_FIRST_CONTACT_TARGET_PREFLIGHT_CROSS_LONG_PX: i32 = 16;
+const CLASSIC_FIRST_CONTACT_TARGET_PREFLIGHT_CROSS_THICKNESS_PX: i32 = 2;
 const CLASSIC_RTS_PRODUCT_MODEL_VOLUME_COLOR: u32 = 0x6e89a8;
 const CLASSIC_RTS_MODEL_IDENTITY_CORE_COLOR: u32 = 0xb7c8ff;
 const CLASSIC_RTS_MODEL_IDENTITY_RELAY_COLOR: u32 = 0x8fffd2;
@@ -96197,7 +96204,13 @@ fn classic_draw_first_contact_command_feedback_layers(
 
     let target_cx = target.0 + cell_w / 2;
     let target_cy = target.1 + cell_h / 2;
-    for ring in 0..4 {
+    let prefocus_target_color = classic_mix_color(
+        CLASSIC_RTS_COMMAND_SURFACE_TARGET_COLOR,
+        CLASSIC_RTS_TACTICAL_VIEWPORT_SHADOW_COLOR,
+        1,
+        3,
+    );
+    for ring in 0..CLASSIC_FIRST_CONTACT_TARGET_PREFLIGHT_RING_COUNT {
         let inset = ring * 4;
         classic_draw_rect(
             buffer,
@@ -96206,8 +96219,8 @@ fn classic_draw_first_contact_command_feedback_layers(
             target.0 - cell_w / 2 - inset,
             target.1 - cell_h / 2 - inset,
             cell_w * 2 + inset * 2,
-            3,
-            CLASSIC_RTS_COMMAND_SURFACE_TARGET_COLOR,
+            CLASSIC_FIRST_CONTACT_TARGET_PREFLIGHT_RING_THICKNESS_PX,
+            prefocus_target_color,
         );
         classic_draw_rect(
             buffer,
@@ -96216,8 +96229,8 @@ fn classic_draw_first_contact_command_feedback_layers(
             target.0 - cell_w / 2 - inset,
             target.1 + cell_h + inset,
             cell_w * 2 + inset * 2,
-            3,
-            CLASSIC_RTS_COMMAND_SURFACE_TARGET_COLOR,
+            CLASSIC_FIRST_CONTACT_TARGET_PREFLIGHT_RING_THICKNESS_PX,
+            prefocus_target_color,
         );
         classic_draw_rect(
             buffer,
@@ -96225,9 +96238,9 @@ fn classic_draw_first_contact_command_feedback_layers(
             height,
             target.0 - cell_w / 2 - inset,
             target.1 - cell_h / 2 - inset,
-            3,
+            CLASSIC_FIRST_CONTACT_TARGET_PREFLIGHT_RING_THICKNESS_PX,
             cell_h * 2 + inset * 2,
-            CLASSIC_RTS_COMMAND_SURFACE_TARGET_COLOR,
+            prefocus_target_color,
         );
         classic_draw_rect(
             buffer,
@@ -96235,30 +96248,30 @@ fn classic_draw_first_contact_command_feedback_layers(
             height,
             target.0 + cell_w + inset,
             target.1 - cell_h / 2 - inset,
-            3,
+            CLASSIC_FIRST_CONTACT_TARGET_PREFLIGHT_RING_THICKNESS_PX,
             cell_h * 2 + inset * 2,
-            CLASSIC_RTS_COMMAND_SURFACE_TARGET_COLOR,
+            prefocus_target_color,
         );
     }
     classic_draw_rect(
         buffer,
         width,
         height,
-        target_cx - 12,
-        target_cy - 2,
-        24,
-        4,
-        CLASSIC_RTS_SELECTION_FEEDBACK_ACK_COLOR,
+        target_cx - CLASSIC_FIRST_CONTACT_TARGET_PREFLIGHT_CROSS_LONG_PX / 2,
+        target_cy - CLASSIC_FIRST_CONTACT_TARGET_PREFLIGHT_CROSS_THICKNESS_PX / 2,
+        CLASSIC_FIRST_CONTACT_TARGET_PREFLIGHT_CROSS_LONG_PX,
+        CLASSIC_FIRST_CONTACT_TARGET_PREFLIGHT_CROSS_THICKNESS_PX,
+        classic_darken(CLASSIC_RTS_SELECTION_FEEDBACK_ACK_COLOR, 1, 4),
     );
     classic_draw_rect(
         buffer,
         width,
         height,
-        target_cx - 2,
-        target_cy - 12,
-        4,
-        24,
-        CLASSIC_RTS_SELECTION_FEEDBACK_ACK_COLOR,
+        target_cx - CLASSIC_FIRST_CONTACT_TARGET_PREFLIGHT_CROSS_THICKNESS_PX / 2,
+        target_cy - CLASSIC_FIRST_CONTACT_TARGET_PREFLIGHT_CROSS_LONG_PX / 2,
+        CLASSIC_FIRST_CONTACT_TARGET_PREFLIGHT_CROSS_THICKNESS_PX,
+        CLASSIC_FIRST_CONTACT_TARGET_PREFLIGHT_CROSS_LONG_PX,
+        classic_darken(CLASSIC_RTS_SELECTION_FEEDBACK_ACK_COLOR, 1, 4),
     );
 
     for origin in [selected_origin, scout_origin] {
@@ -99474,6 +99487,30 @@ fn classic_draw_first_contact_target_callout(
     let label = classic_first_contact_target_callout_label(runtime);
     let callout_x = target_cx + CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_X_OFFSET_PX;
     let callout_y = target_cy + CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_Y_OFFSET_PX;
+    let clearance_fill =
+        classic_mix_color(CLASSIC_RTS_TACTICAL_VIEWPORT_TILE_COLOR, 0x010302, 1, 2);
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        callout_x - CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_CLEARANCE_PAD_PX,
+        callout_y - CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_CLEARANCE_PAD_PX,
+        CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_W_PX
+            + CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_CLEARANCE_PAD_PX * 2,
+        CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_H_PX
+            + CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_CLEARANCE_PAD_PX * 2,
+        clearance_fill,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        target_cx + 10,
+        target_cy - 10,
+        CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_LEADER_CLEARANCE_W_PX,
+        CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_LEADER_CLEARANCE_H_PX,
+        clearance_fill,
+    );
     classic_draw_rect(
         buffer,
         width,
@@ -114963,10 +115000,25 @@ fn classic_first_contact_target_callout_guard(runtime: &NativeFirstPlayableRunti
     let target_callout_pixel_budget = (CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_W_PX
         * CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_H_PX) as usize;
     let target_callout_leader_pixel_budget = 64_usize;
+    let target_callout_clearance_pixel_budget = ((CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_W_PX
+        + CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_CLEARANCE_PAD_PX * 2)
+        * (CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_H_PX
+            + CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_CLEARANCE_PAD_PX * 2)
+        + CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_LEADER_CLEARANCE_W_PX
+            * CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_LEADER_CLEARANCE_H_PX)
+        as usize;
+    let target_prefocus_ring_count = CLASSIC_FIRST_CONTACT_TARGET_PREFLIGHT_RING_COUNT as usize;
+    let target_prefocus_marker_pixel_budget = target_prefocus_ring_count * 96
+        + (CLASSIC_FIRST_CONTACT_TARGET_PREFLIGHT_CROSS_LONG_PX
+            * CLASSIC_FIRST_CONTACT_TARGET_PREFLIGHT_CROSS_THICKNESS_PX
+            * 2) as usize;
     let target_callout_signatures = string_vec([
+        "target_callout_clearance_gutter",
         "target_subject_label",
         "target_health_strip",
         "short_leader_ticks",
+        "prefocus_target_rings_capped",
+        "prefocus_target_cross_thinned",
         "target_lock_preserved",
     ]);
     let target_callout_layer_draw_order = string_vec([
@@ -115003,10 +115055,25 @@ fn classic_first_contact_target_callout_guard(runtime: &NativeFirstPlayableRunti
         && CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_Y_OFFSET_PX == -42
         && target_callout_pixel_budget >= 1_560;
     let target_leader_gate = target_callout_leader_pixel_budget >= 64;
-    let target_signature_gate = target_callout_signatures.len() == 4
+    let target_callout_clearance_gate = CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_CLEARANCE_PAD_PX == 5
+        && CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_LEADER_CLEARANCE_W_PX == 34
+        && CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_LEADER_CLEARANCE_H_PX == 6
+        && target_callout_clearance_pixel_budget >= 2_844;
+    let target_prefocus_marker_gate = target_prefocus_ring_count == 2
+        && CLASSIC_FIRST_CONTACT_TARGET_PREFLIGHT_RING_THICKNESS_PX == 2
+        && CLASSIC_FIRST_CONTACT_TARGET_PREFLIGHT_CROSS_LONG_PX == 16
+        && CLASSIC_FIRST_CONTACT_TARGET_PREFLIGHT_CROSS_THICKNESS_PX == 2
+        && target_prefocus_marker_pixel_budget <= 256;
+    let target_signature_gate = target_callout_signatures.len() == 7
+        && target_callout_signatures
+            .iter()
+            .any(|signature| signature == "target_callout_clearance_gutter")
         && target_callout_signatures
             .iter()
             .any(|signature| signature == "target_subject_label")
+        && target_callout_signatures
+            .iter()
+            .any(|signature| signature == "prefocus_target_rings_capped")
         && target_callout_signatures
             .iter()
             .any(|signature| signature == "target_lock_preserved");
@@ -115022,13 +115089,15 @@ fn classic_first_contact_target_callout_guard(runtime: &NativeFirstPlayableRunti
         && target_health_gate
         && target_geometry_gate
         && target_leader_gate
+        && target_callout_clearance_gate
+        && target_prefocus_marker_gate
         && target_signature_gate
         && target_layer_order_gate;
 
     json!({
         "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_TARGET_CALLOUT_CONTRACT,
         "green": target_callout_gate,
-        "source_path": "trnm-world-bevy classic_draw_first_contact_selection_combat_focus_layer target callout inside final focus layer",
+        "source_path": "trnm-world-bevy classic_draw_first_contact_selection_combat_focus_layer target callout with clearance gutter inside final focus layer",
         "target_tile": target_tile,
         "target_subject": target_subject,
         "target_label": target_label,
@@ -115043,12 +115112,23 @@ fn classic_first_contact_target_callout_guard(runtime: &NativeFirstPlayableRunti
         "target_callout_health_bar_height_px": CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_HEALTH_BAR_H_PX,
         "target_callout_pixel_budget": target_callout_pixel_budget,
         "target_callout_leader_pixel_budget": target_callout_leader_pixel_budget,
+        "target_callout_clearance_pad_px": CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_CLEARANCE_PAD_PX,
+        "target_callout_leader_clearance_width_px": CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_LEADER_CLEARANCE_W_PX,
+        "target_callout_leader_clearance_height_px": CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_LEADER_CLEARANCE_H_PX,
+        "target_callout_clearance_pixel_budget": target_callout_clearance_pixel_budget,
+        "target_prefocus_ring_count": target_prefocus_ring_count,
+        "target_prefocus_ring_thickness_px": CLASSIC_FIRST_CONTACT_TARGET_PREFLIGHT_RING_THICKNESS_PX,
+        "target_prefocus_cross_long_px": CLASSIC_FIRST_CONTACT_TARGET_PREFLIGHT_CROSS_LONG_PX,
+        "target_prefocus_cross_thickness_px": CLASSIC_FIRST_CONTACT_TARGET_PREFLIGHT_CROSS_THICKNESS_PX,
+        "target_prefocus_marker_pixel_budget": target_prefocus_marker_pixel_budget,
         "target_callout_signatures": target_callout_signatures,
         "target_callout_layer_draw_order": target_callout_layer_draw_order,
         "target_label_gate": target_label_gate,
         "target_health_gate": target_health_gate,
         "target_geometry_gate": target_geometry_gate,
         "target_leader_gate": target_leader_gate,
+        "target_callout_clearance_gate": target_callout_clearance_gate,
+        "target_prefocus_marker_gate": target_prefocus_marker_gate,
         "target_signature_gate": target_signature_gate,
         "target_layer_order_gate": target_layer_order_gate,
         "target_callout_gate": target_callout_gate,
@@ -163524,6 +163604,38 @@ mod tests {
         );
         assert_eq!(
             guard
+                .get("target_callout_clearance_pad_px")
+                .and_then(Value::as_i64),
+            Some(5)
+        );
+        assert_eq!(
+            guard
+                .get("target_prefocus_ring_count")
+                .and_then(Value::as_u64),
+            Some(2)
+        );
+        assert_eq!(
+            guard
+                .get("target_prefocus_marker_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(256)
+        );
+        assert_eq!(
+            guard
+                .get("target_callout_signatures")
+                .and_then(Value::as_array)
+                .map(|signatures| {
+                    signatures
+                        .iter()
+                        .any(|value| value.as_str() == Some("target_callout_clearance_gutter"))
+                        && signatures
+                            .iter()
+                            .any(|value| value.as_str() == Some("prefocus_target_rings_capped"))
+                }),
+            Some(true)
+        );
+        assert_eq!(
+            guard
                 .get("target_callout_layer_draw_order")
                 .and_then(Value::as_array)
                 .and_then(|order| order.last())
@@ -163535,6 +163647,8 @@ mod tests {
             "target_health_gate",
             "target_geometry_gate",
             "target_leader_gate",
+            "target_callout_clearance_gate",
+            "target_prefocus_marker_gate",
             "target_signature_gate",
             "target_layer_order_gate",
             "target_callout_gate",
