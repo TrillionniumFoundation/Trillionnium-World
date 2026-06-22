@@ -287,6 +287,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_TERMINAL_LEGIBILITY_
     "trillionnium_world_bevy_classic_rts_first_contact_terminal_legibility_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_SELECTION_COMBAT_FOCUS_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_first_contact_selection_combat_focus_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_TARGET_CALLOUT_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_first_contact_target_callout_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_MARKER_BUDGET_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_first_contact_marker_budget_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_OPENING_LOOP_CONTRACT: &str =
@@ -746,6 +748,12 @@ const CLASSIC_FIRST_CONTACT_BUILD_PALETTE_TITLE_TO_SLOT_Y_PX: i32 = 18;
 const CLASSIC_FIRST_CONTACT_BUILD_PALETTE_TO_TACTICS_Y_PX: i32 = 122;
 const CLASSIC_FIRST_CONTACT_BUILD_PALETTE_STATE_BADGE_W_PX: i32 = 24;
 const CLASSIC_FIRST_CONTACT_BUILD_PALETTE_STATE_BADGE_H_PX: i32 = 9;
+const CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_W_PX: i32 = 78;
+const CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_H_PX: i32 = 20;
+const CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_X_OFFSET_PX: i32 = 42;
+const CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_Y_OFFSET_PX: i32 = -42;
+const CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_HEALTH_BAR_W_PX: i32 = 54;
+const CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_HEALTH_BAR_H_PX: i32 = 3;
 const CLASSIC_RTS_PRODUCT_MODEL_VOLUME_COLOR: u32 = 0x6e89a8;
 const CLASSIC_RTS_MODEL_IDENTITY_CORE_COLOR: u32 = 0xb7c8ff;
 const CLASSIC_RTS_MODEL_IDENTITY_RELAY_COLOR: u32 = 0x8fffd2;
@@ -29865,6 +29873,12 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         .get("green")
         .and_then(Value::as_bool)
         == Some(true);
+    let first_contact_target_callout_guard =
+        classic_first_contact_target_callout_guard(&player_screen_runtime);
+    let first_contact_target_callout_guard_gate = first_contact_target_callout_guard
+        .get("green")
+        .and_then(Value::as_bool)
+        == Some(true);
     let first_contact_marker_budget_guard =
         classic_first_contact_marker_budget_guard(&player_screen_runtime);
     let first_contact_marker_budget_guard_gate = first_contact_marker_budget_guard
@@ -29909,6 +29923,7 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         && first_contact_central_clarity_guard_gate
         && first_contact_terminal_legibility_guard_gate
         && first_contact_selection_combat_focus_guard_gate
+        && first_contact_target_callout_guard_gate
         && first_contact_marker_budget_guard_gate
         && ui_runtime_gate;
     serde_json::to_string_pretty(&json!({
@@ -30047,6 +30062,9 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         "first_contact_selection_combat_focus_contract": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_SELECTION_COMBAT_FOCUS_CONTRACT,
         "first_contact_selection_combat_focus_guard": first_contact_selection_combat_focus_guard,
         "first_contact_selection_combat_focus_guard_gate": first_contact_selection_combat_focus_guard_gate,
+        "first_contact_target_callout_contract": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_TARGET_CALLOUT_CONTRACT,
+        "first_contact_target_callout_guard": first_contact_target_callout_guard,
+        "first_contact_target_callout_guard_gate": first_contact_target_callout_guard_gate,
         "first_contact_marker_budget_contract": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_MARKER_BUDGET_CONTRACT,
         "first_contact_marker_budget_guard": first_contact_marker_budget_guard,
         "first_contact_marker_budget_guard_gate": first_contact_marker_budget_guard_gate,
@@ -30056,7 +30074,7 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         "source_mod_map": "TrillionniumRTS/mods/trnm/maps/first-contact-basin/map.yaml",
         "source_mod_rules": "TrillionniumRTS/mods/trnm/rules/trnm.yaml",
         "source_policy": "Trillionnium-owned runtime now consumes the Bevy-free trnm-rts-data map model derived from the internal TrillionniumRTS seed; OpenRA engine code and third-party/proprietary RTS assets are not copied.",
-        "source_of_truth": "This spec evidence locks the trnm-rts-data First Contact Basin map/rule/player-screen vocabulary that the Bevy desktop RTS UI consumes: 39 map actors, 4 spawns, 11 Flux blooms, 4 Beacons, 4 expansions, unit status overlays, tactical tracks, live player-screen camera/visibility/command defaults, player-screen layout/chrome dimensions, player-facing HUD panel labels, role-specific command-grid glyphs, compact right-sidebar production/build-palette/tactics density, bottom-panel squad/status readability, terrain/unit/structure silhouettes, authored terrain material and building facade details, unit/building motion readability cues, animation-cycle frame signatures, project-owned atlas frame usage for terrain/unit/structure/objective sprites, screenshot-informed visual hierarchy de-emphasis for the opening command corridor, screenshot-informed central combat clutter reduction around non-focus core tiles, screenshot-informed target/blocked terminal quiet bands that keep route endpoints readable, screenshot-informed selection/combat focus brackets for the opening command route, muted non-interactive gallery marker/color budgets and compact build-palette status badges that keep the focus layer visually hot, source manifest tracking, the initial unit/structure rules surfaced in the command and rules panels, and a no-socket offline adapter contract that reaches actual local player-screen/session handoff consumption plus Bevy-free session-transition and lobby-ready reviews through retained/pruned control-group command history."
+        "source_of_truth": "This spec evidence locks the trnm-rts-data First Contact Basin map/rule/player-screen vocabulary that the Bevy desktop RTS UI consumes: 39 map actors, 4 spawns, 11 Flux blooms, 4 Beacons, 4 expansions, unit status overlays, tactical tracks, live player-screen camera/visibility/command defaults, player-screen layout/chrome dimensions, player-facing HUD panel labels, role-specific command-grid glyphs, compact right-sidebar production/build-palette/tactics density, bottom-panel squad/status readability, terrain/unit/structure silhouettes, authored terrain material and building facade details, unit/building motion readability cues, animation-cycle frame signatures, project-owned atlas frame usage for terrain/unit/structure/objective sprites, screenshot-informed visual hierarchy de-emphasis for the opening command corridor, screenshot-informed central combat clutter reduction around non-focus core tiles, screenshot-informed target/blocked terminal quiet bands that keep route endpoints readable, screenshot-informed selection/combat focus brackets for the opening command route, a compact BEACON target callout with health strip inside the final focus layer, muted non-interactive gallery marker/color budgets and compact build-palette status badges that keep the focus layer visually hot, source manifest tracking, the initial unit/structure rules surfaced in the command and rules panels, and a no-socket offline adapter contract that reaches actual local player-screen/session handoff consumption plus Bevy-free session-transition and lobby-ready reviews through retained/pruned control-group command history."
     }))
     .expect("first contact basin spec evidence serializes")
 }
@@ -99135,6 +99153,128 @@ fn classic_draw_first_contact_focus_corner_brackets(
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_first_contact_target_callout_tile(runtime: &NativeFirstPlayableRuntime) -> (i32, i32) {
+    let feedback = classic_first_contact_command_feedback();
+    runtime
+        .rts_command_destination_tile
+        .as_deref()
+        .and_then(classic_parse_rts_tile)
+        .unwrap_or_else(|| classic_first_contact_tile_tuple(feedback.target_tile))
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_first_contact_target_callout_subject(runtime: &NativeFirstPlayableRuntime) -> String {
+    let target_id = runtime
+        .rts_attack_target_id
+        .as_deref()
+        .unwrap_or("trnm.flux.beacon");
+    let normalized = target_id.to_ascii_lowercase();
+    if normalized.contains("beacon") {
+        "BEACON".to_string()
+    } else if normalized.contains("relay") {
+        "RELAY".to_string()
+    } else {
+        classic_rts_live_subject_label(target_id, 8)
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_first_contact_target_callout_label(runtime: &NativeFirstPlayableRuntime) -> String {
+    format!(
+        "{} {}%",
+        classic_first_contact_target_callout_subject(runtime),
+        runtime.rts_target_health_percent.min(100)
+    )
+}
+
+#[cfg(not(target_os = "android"))]
+#[allow(clippy::too_many_arguments)]
+fn classic_draw_first_contact_target_callout(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    runtime: &NativeFirstPlayableRuntime,
+    target_cx: i32,
+    target_cy: i32,
+) {
+    let label = classic_first_contact_target_callout_label(runtime);
+    let callout_x = target_cx + CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_X_OFFSET_PX;
+    let callout_y = target_cy + CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_Y_OFFSET_PX;
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        callout_x,
+        callout_y,
+        CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_W_PX,
+        CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_H_PX,
+        classic_mix_color(CLASSIC_RTS_TACTICAL_VIEWPORT_TILE_COLOR, 0x020403, 1, 3),
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        callout_x,
+        callout_y,
+        3,
+        CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_H_PX,
+        CLASSIC_RTS_SELECTION_FEEDBACK_ATTACK_COLOR,
+    );
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        callout_x + 7,
+        callout_y + 3,
+        &label,
+        1,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        callout_x + 7,
+        callout_y + CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_H_PX - 5,
+        CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_HEALTH_BAR_W_PX,
+        CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_HEALTH_BAR_H_PX,
+        CLASSIC_RTS_STRUCTURE_FOUNDATION_SHADOW_COLOR,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        callout_x + 7,
+        callout_y + CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_H_PX - 5,
+        (i32::from(runtime.rts_target_health_percent.min(100))
+            * CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_HEALTH_BAR_W_PX)
+            / 100,
+        CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_HEALTH_BAR_H_PX,
+        CLASSIC_RTS_STATUS_HEALTH_BAR_COLOR,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        target_cx + 15,
+        target_cy - 8,
+        24,
+        2,
+        CLASSIC_RTS_SELECTION_FEEDBACK_ATTACK_COLOR,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        callout_x - 5,
+        callout_y + CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_H_PX / 2,
+        8,
+        2,
+        classic_darken(CLASSIC_RTS_SELECTION_FEEDBACK_ATTACK_COLOR, 1, 3),
+    );
+}
+
+#[cfg(not(target_os = "android"))]
 #[allow(clippy::too_many_arguments)]
 fn classic_draw_first_contact_selection_combat_focus_layer(
     buffer: &mut [u32],
@@ -99301,6 +99441,7 @@ fn classic_draw_first_contact_selection_combat_focus_layer(
         5,
         CLASSIC_RTS_SELECTION_FEEDBACK_ACK_COLOR,
     );
+    classic_draw_first_contact_target_callout(buffer, width, height, runtime, target_cx, target_cy);
 
     let (blocked_x, blocked_y) =
         classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, blocked_tile);
@@ -114233,6 +114374,111 @@ fn classic_first_contact_selection_combat_focus_readability_guard(
         "focus_layer_draw_order": focus_layer_draw_order,
         "focus_layer_order_gate": focus_layer_order_gate,
         "selection_combat_focus_readability_gate": selection_combat_focus_readability_gate,
+    })
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_first_contact_target_callout_guard(runtime: &NativeFirstPlayableRuntime) -> Value {
+    let target_tile = classic_rts_tile_id(classic_first_contact_target_callout_tile(runtime));
+    let target_subject = classic_first_contact_target_callout_subject(runtime);
+    let target_label = classic_first_contact_target_callout_label(runtime);
+    let target_label_width_px = classic_text_advance_px(&target_label, 1);
+    let target_health_percent = runtime.rts_target_health_percent.min(100);
+    let target_health_fill_px = (i32::from(target_health_percent)
+        * CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_HEALTH_BAR_W_PX)
+        / 100;
+    let target_callout_pixel_budget = (CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_W_PX
+        * CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_H_PX) as usize;
+    let target_callout_leader_pixel_budget = 64_usize;
+    let target_callout_signatures = string_vec([
+        "target_subject_label",
+        "target_health_strip",
+        "short_leader_ticks",
+        "target_lock_preserved",
+    ]);
+    let target_callout_layer_draw_order = string_vec([
+        "terrain",
+        "actors",
+        "model_identity",
+        "silhouette_readability",
+        "art_readability",
+        "animation_readability",
+        "atlas_readability",
+        "unit_state",
+        "combat_phase",
+        "command_feedback",
+        "runtime_core",
+        "tactical_tracks",
+        "opening_actions",
+        "readability_overlays",
+        "visual_hierarchy_deemphasis",
+        "central_clarity_deemphasis",
+        "terminal_legibility_deemphasis",
+        "selection_combat_focus",
+    ]);
+    let target_label_gate = target_tile == "16,9"
+        && target_subject == "BEACON"
+        && target_label == "BEACON 38%"
+        && target_label_width_px <= CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_W_PX - 10;
+    let target_health_gate = target_health_percent == 38
+        && target_health_fill_px == 20
+        && CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_HEALTH_BAR_W_PX == 54
+        && CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_HEALTH_BAR_H_PX == 3;
+    let target_geometry_gate = CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_W_PX == 78
+        && CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_H_PX == 20
+        && CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_X_OFFSET_PX == 42
+        && CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_Y_OFFSET_PX == -42
+        && target_callout_pixel_budget >= 1_560;
+    let target_leader_gate = target_callout_leader_pixel_budget >= 64;
+    let target_signature_gate = target_callout_signatures.len() == 4
+        && target_callout_signatures
+            .iter()
+            .any(|signature| signature == "target_subject_label")
+        && target_callout_signatures
+            .iter()
+            .any(|signature| signature == "target_lock_preserved");
+    let target_layer_order_gate = target_callout_layer_draw_order
+        .iter()
+        .position(|layer| layer == "terminal_legibility_deemphasis")
+        < target_callout_layer_draw_order
+            .iter()
+            .position(|layer| layer == "selection_combat_focus")
+        && target_callout_layer_draw_order.last().map(String::as_str)
+            == Some("selection_combat_focus");
+    let target_callout_gate = target_label_gate
+        && target_health_gate
+        && target_geometry_gate
+        && target_leader_gate
+        && target_signature_gate
+        && target_layer_order_gate;
+
+    json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_TARGET_CALLOUT_CONTRACT,
+        "green": target_callout_gate,
+        "source_path": "trnm-world-bevy classic_draw_first_contact_selection_combat_focus_layer target callout inside final focus layer",
+        "target_tile": target_tile,
+        "target_subject": target_subject,
+        "target_label": target_label,
+        "target_label_width_px": target_label_width_px,
+        "target_health_percent": target_health_percent,
+        "target_health_fill_px": target_health_fill_px,
+        "target_callout_width_px": CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_W_PX,
+        "target_callout_height_px": CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_H_PX,
+        "target_callout_x_offset_px": CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_X_OFFSET_PX,
+        "target_callout_y_offset_px": CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_Y_OFFSET_PX,
+        "target_callout_health_bar_width_px": CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_HEALTH_BAR_W_PX,
+        "target_callout_health_bar_height_px": CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_HEALTH_BAR_H_PX,
+        "target_callout_pixel_budget": target_callout_pixel_budget,
+        "target_callout_leader_pixel_budget": target_callout_leader_pixel_budget,
+        "target_callout_signatures": target_callout_signatures,
+        "target_callout_layer_draw_order": target_callout_layer_draw_order,
+        "target_label_gate": target_label_gate,
+        "target_health_gate": target_health_gate,
+        "target_geometry_gate": target_geometry_gate,
+        "target_leader_gate": target_leader_gate,
+        "target_signature_gate": target_signature_gate,
+        "target_layer_order_gate": target_layer_order_gate,
+        "target_callout_gate": target_callout_gate,
     })
 }
 
@@ -162405,6 +162651,66 @@ mod tests {
             "focus_signature_gate",
             "focus_layer_order_gate",
             "selection_combat_focus_readability_gate",
+        ] {
+            assert_eq!(guard.get(gate).and_then(Value::as_bool), Some(true));
+        }
+    }
+
+    #[cfg(not(target_os = "android"))]
+    #[test]
+    fn classic_first_contact_target_callout_guard_labels_combat_target() {
+        let runtime = classic_first_contact_player_screen_runtime();
+        let guard = classic_first_contact_target_callout_guard(&runtime);
+
+        assert_eq!(
+            guard.get("contract_version").and_then(Value::as_str),
+            Some(TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_TARGET_CALLOUT_CONTRACT)
+        );
+        assert_eq!(
+            guard.get("green").and_then(Value::as_bool),
+            Some(true),
+            "{guard:#}"
+        );
+        assert_eq!(
+            guard.get("target_tile").and_then(Value::as_str),
+            Some("16,9")
+        );
+        assert_eq!(
+            guard.get("target_subject").and_then(Value::as_str),
+            Some("BEACON")
+        );
+        assert_eq!(
+            guard.get("target_label").and_then(Value::as_str),
+            Some("BEACON 38%")
+        );
+        assert_eq!(
+            guard.get("target_health_percent").and_then(Value::as_u64),
+            Some(38)
+        );
+        assert_eq!(
+            guard.get("target_health_fill_px").and_then(Value::as_i64),
+            Some(20)
+        );
+        assert_eq!(
+            guard.get("target_callout_width_px").and_then(Value::as_i64),
+            Some(78)
+        );
+        assert_eq!(
+            guard
+                .get("target_callout_layer_draw_order")
+                .and_then(Value::as_array)
+                .and_then(|order| order.last())
+                .and_then(Value::as_str),
+            Some("selection_combat_focus")
+        );
+        for gate in [
+            "target_label_gate",
+            "target_health_gate",
+            "target_geometry_gate",
+            "target_leader_gate",
+            "target_signature_gate",
+            "target_layer_order_gate",
+            "target_callout_gate",
         ] {
             assert_eq!(guard.get(gate).and_then(Value::as_bool), Some(true));
         }

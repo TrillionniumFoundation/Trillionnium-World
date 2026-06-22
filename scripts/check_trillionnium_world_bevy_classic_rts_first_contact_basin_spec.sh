@@ -152,6 +152,9 @@ required_source_lines=(
   'TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_SELECTION_COMBAT_FOCUS_CONTRACT'
   'fn classic_first_contact_selection_combat_focus_readability_guard'
   'fn classic_draw_first_contact_selection_combat_focus_layer'
+  'TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_TARGET_CALLOUT_CONTRACT'
+  'fn classic_first_contact_target_callout_guard'
+  'fn classic_draw_first_contact_target_callout'
   'TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_MARKER_BUDGET_CONTRACT'
   'fn classic_first_contact_marker_budget_guard'
   'TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_SIDEBAR_DENSITY_CONTRACT'
@@ -173,6 +176,7 @@ required_source_lines=(
   'let first_contact_central_clarity_guard_gate'
   'let first_contact_terminal_legibility_guard_gate'
   'let first_contact_selection_combat_focus_guard_gate'
+  'let first_contact_target_callout_guard_gate'
   'let first_contact_marker_budget_guard_gate'
   'trnm_rts_evidence::first_contact_bevy_runtime_adapter_evidence()'
   'rts_evidence_bevy_runtime_adapter.first_contact_online_protocol_fixture'
@@ -1129,6 +1133,37 @@ cat >"$JQ_FILTER" <<'JQ'
   and .first_contact_selection_combat_focus_guard.focus_layer_order_gate == true
   and .first_contact_selection_combat_focus_guard.selection_combat_focus_readability_gate == true
   and .first_contact_selection_combat_focus_guard_gate == true
+  and .first_contact_target_callout_contract == "trillionnium_world_bevy_classic_rts_first_contact_target_callout_v1"
+  and .first_contact_target_callout_guard.contract_version == "trillionnium_world_bevy_classic_rts_first_contact_target_callout_v1"
+  and .first_contact_target_callout_guard.green == true
+  and .first_contact_target_callout_guard.source_path == "trnm-world-bevy classic_draw_first_contact_selection_combat_focus_layer target callout inside final focus layer"
+  and .first_contact_target_callout_guard.target_tile == "16,9"
+  and .first_contact_target_callout_guard.target_subject == "BEACON"
+  and .first_contact_target_callout_guard.target_label == "BEACON 38%"
+  and .first_contact_target_callout_guard.target_label_width_px <= 68
+  and .first_contact_target_callout_guard.target_health_percent == 38
+  and .first_contact_target_callout_guard.target_health_fill_px == 20
+  and .first_contact_target_callout_guard.target_callout_width_px == 78
+  and .first_contact_target_callout_guard.target_callout_height_px == 20
+  and .first_contact_target_callout_guard.target_callout_x_offset_px == 42
+  and .first_contact_target_callout_guard.target_callout_y_offset_px == -42
+  and .first_contact_target_callout_guard.target_callout_health_bar_width_px == 54
+  and .first_contact_target_callout_guard.target_callout_health_bar_height_px == 3
+  and .first_contact_target_callout_guard.target_callout_pixel_budget >= 1560
+  and .first_contact_target_callout_guard.target_callout_leader_pixel_budget >= 64
+  and (.first_contact_target_callout_guard.target_callout_signatures | index("target_subject_label") != null)
+  and (.first_contact_target_callout_guard.target_callout_signatures | index("target_health_strip") != null)
+  and (.first_contact_target_callout_guard.target_callout_signatures | index("target_lock_preserved") != null)
+  and (.first_contact_target_callout_guard.target_callout_layer_draw_order | index("terminal_legibility_deemphasis")) == 16
+  and (.first_contact_target_callout_guard.target_callout_layer_draw_order | index("selection_combat_focus")) == 17
+  and .first_contact_target_callout_guard.target_label_gate == true
+  and .first_contact_target_callout_guard.target_health_gate == true
+  and .first_contact_target_callout_guard.target_geometry_gate == true
+  and .first_contact_target_callout_guard.target_leader_gate == true
+  and .first_contact_target_callout_guard.target_signature_gate == true
+  and .first_contact_target_callout_guard.target_layer_order_gate == true
+  and .first_contact_target_callout_guard.target_callout_gate == true
+  and .first_contact_target_callout_guard_gate == true
   and .first_contact_marker_budget_contract == "trillionnium_world_bevy_classic_rts_first_contact_marker_budget_v1"
   and .first_contact_marker_budget_guard.contract_version == "trillionnium_world_bevy_classic_rts_first_contact_marker_budget_v1"
   and .first_contact_marker_budget_guard.green == true
