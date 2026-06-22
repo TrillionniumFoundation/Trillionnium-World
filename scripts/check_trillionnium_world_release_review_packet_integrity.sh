@@ -659,6 +659,39 @@ require_artifact_json_expr first_contact_basin_spec_semantics native_bevy_classi
   and .first_contact_command_grid_readability_guard.cooldown_badge_gate == true
   and .first_contact_command_grid_readability_guard.player_screen_symbol_gate == true
   and .first_contact_command_grid_readability_guard_gate == true
+  and .first_contact_sidebar_density_contract == "trillionnium_world_bevy_classic_rts_first_contact_sidebar_density_v1"
+  and .first_contact_sidebar_density_guard.contract_version == "trillionnium_world_bevy_classic_rts_first_contact_sidebar_density_v1"
+  and .first_contact_sidebar_density_guard.green == true
+  and .first_contact_sidebar_density_guard.source_path == "trnm-world-bevy classic_draw_openra_style_rts_shell right sidebar production/build palette/tactics density"
+  and .first_contact_sidebar_density_guard.production_slot_visible_count == 4
+  and .first_contact_sidebar_density_guard.production_slot_column_count == 2
+  and .first_contact_sidebar_density_guard.production_row_count == 2
+  and .first_contact_sidebar_density_guard.production_slot_status_labels == ["Q1 64 R","Q2 42 R","Q3 64 R","B2 42 R"]
+  and .first_contact_sidebar_density_guard.production_to_palette_gap_px >= 16
+  and .first_contact_sidebar_density_guard.build_palette_visible_count == 8
+  and .first_contact_sidebar_density_guard.build_palette_column_count == 4
+  and .first_contact_sidebar_density_guard.build_palette_row_count == 2
+  and .first_contact_sidebar_density_guard.build_palette_slot_width_px == 46
+  and .first_contact_sidebar_density_guard.build_palette_slot_height_px == 40
+  and .first_contact_sidebar_density_guard.build_palette_row_gap_px == 48
+  and .first_contact_sidebar_density_guard.build_palette_inter_row_gap_px >= 8
+  and .first_contact_sidebar_density_guard.build_palette_to_tactics_gap_px >= 16
+  and .first_contact_sidebar_density_guard.build_palette_labels == ["POWER","TRAIN","REFINE","TOWER","COMMAND","RADAR","WALL","SIGNAL"]
+  and .first_contact_sidebar_density_guard.build_palette_state_labels == ["READY","QUEUE","READY","QUEUE","READY","READY","READY","QUEUE"]
+  and .first_contact_sidebar_density_guard.build_palette_state_badge_labels == ["RDY","QUE","RDY","QUE","RDY","RDY","RDY","QUE"]
+  and (.first_contact_sidebar_density_guard.build_palette_state_badge_widths | all(. <= 18))
+  and .first_contact_sidebar_density_guard.build_palette_state_badge_width_px == 24
+  and .first_contact_sidebar_density_guard.build_palette_state_badge_height_px == 9
+  and .first_contact_sidebar_density_guard.tactics_row_count == 5
+  and .first_contact_sidebar_density_guard.tactics_row_gap_px >= 4
+  and .first_contact_sidebar_density_guard.tactics_detail_labels == ["SECURE RELAY BEACON","RELAY BEACON","16/16","GUARD 64% TOWER 42%","IDLE"]
+  and .first_contact_sidebar_density_guard.production_density_gate == true
+  and .first_contact_sidebar_density_guard.palette_geometry_gate == true
+  and .first_contact_sidebar_density_guard.palette_state_badge_gate == true
+  and .first_contact_sidebar_density_guard.palette_label_gate == true
+  and .first_contact_sidebar_density_guard.tactics_density_gate == true
+  and .first_contact_sidebar_density_guard.right_sidebar_density_gate == true
+  and .first_contact_sidebar_density_guard_gate == true
   and .first_contact_bottom_panel_readability_contract == "trillionnium_world_bevy_classic_rts_first_contact_bottom_panel_readability_v1"
   and .first_contact_bottom_panel_readability_guard.contract_version == "trillionnium_world_bevy_classic_rts_first_contact_bottom_panel_readability_v1"
   and .first_contact_bottom_panel_readability_guard.green == true

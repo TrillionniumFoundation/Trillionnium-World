@@ -267,6 +267,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_RADAR_READABILITY_CO
     "trillionnium_world_bevy_classic_rts_first_contact_radar_readability_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_COMMAND_GRID_READABILITY_CONTRACT:
     &str = "trillionnium_world_bevy_classic_rts_first_contact_command_grid_readability_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_SIDEBAR_DENSITY_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_first_contact_sidebar_density_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_BOTTOM_PANEL_READABILITY_CONTRACT:
     &str = "trillionnium_world_bevy_classic_rts_first_contact_bottom_panel_readability_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_SILHOUETTE_READABILITY_CONTRACT: &str =
@@ -736,6 +738,14 @@ const CLASSIC_FIRST_CONTACT_BOTTOM_PANEL_HEIGHT_PX: i32 = 148;
 const CLASSIC_FIRST_CONTACT_SQUAD_CHIP_Y_OFFSET_PX: i32 = 124;
 const CLASSIC_FIRST_CONTACT_SQUAD_CHIP_HEIGHT_PX: i32 = 11;
 const CLASSIC_FIRST_CONTACT_SQUAD_CHIP_BOTTOM_MARGIN_MIN_PX: i32 = 12;
+const CLASSIC_FIRST_CONTACT_BUILD_PALETTE_SLOT_W_PX: i32 = 46;
+const CLASSIC_FIRST_CONTACT_BUILD_PALETTE_SLOT_H_PX: i32 = 40;
+const CLASSIC_FIRST_CONTACT_BUILD_PALETTE_COLUMN_GAP_PX: i32 = 58;
+const CLASSIC_FIRST_CONTACT_BUILD_PALETTE_ROW_GAP_PX: i32 = 48;
+const CLASSIC_FIRST_CONTACT_BUILD_PALETTE_TITLE_TO_SLOT_Y_PX: i32 = 18;
+const CLASSIC_FIRST_CONTACT_BUILD_PALETTE_TO_TACTICS_Y_PX: i32 = 122;
+const CLASSIC_FIRST_CONTACT_BUILD_PALETTE_STATE_BADGE_W_PX: i32 = 24;
+const CLASSIC_FIRST_CONTACT_BUILD_PALETTE_STATE_BADGE_H_PX: i32 = 9;
 const CLASSIC_RTS_PRODUCT_MODEL_VOLUME_COLOR: u32 = 0x6e89a8;
 const CLASSIC_RTS_MODEL_IDENTITY_CORE_COLOR: u32 = 0xb7c8ff;
 const CLASSIC_RTS_MODEL_IDENTITY_RELAY_COLOR: u32 = 0x8fffd2;
@@ -29794,6 +29804,12 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
             .get("green")
             .and_then(Value::as_bool)
             == Some(true);
+    let first_contact_sidebar_density_guard =
+        classic_first_contact_sidebar_density_guard(&player_screen_runtime, player_screen_chrome);
+    let first_contact_sidebar_density_guard_gate = first_contact_sidebar_density_guard
+        .get("green")
+        .and_then(Value::as_bool)
+        == Some(true);
     let first_contact_bottom_panel_readability_guard =
         classic_first_contact_bottom_panel_readability_guard(
             &player_screen_runtime,
@@ -29883,6 +29899,7 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         && first_contact_visual_readability_guard_gate
         && first_contact_radar_readability_guard_gate
         && first_contact_command_grid_readability_guard_gate
+        && first_contact_sidebar_density_guard_gate
         && first_contact_bottom_panel_readability_guard_gate
         && first_contact_silhouette_readability_guard_gate
         && first_contact_art_readability_guard_gate
@@ -30000,6 +30017,9 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         "first_contact_command_grid_readability_contract": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_COMMAND_GRID_READABILITY_CONTRACT,
         "first_contact_command_grid_readability_guard": first_contact_command_grid_readability_guard,
         "first_contact_command_grid_readability_guard_gate": first_contact_command_grid_readability_guard_gate,
+        "first_contact_sidebar_density_contract": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_SIDEBAR_DENSITY_CONTRACT,
+        "first_contact_sidebar_density_guard": first_contact_sidebar_density_guard,
+        "first_contact_sidebar_density_guard_gate": first_contact_sidebar_density_guard_gate,
         "first_contact_bottom_panel_readability_contract": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_BOTTOM_PANEL_READABILITY_CONTRACT,
         "first_contact_bottom_panel_readability_guard": first_contact_bottom_panel_readability_guard,
         "first_contact_bottom_panel_readability_guard_gate": first_contact_bottom_panel_readability_guard_gate,
@@ -30036,7 +30056,7 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         "source_mod_map": "TrillionniumRTS/mods/trnm/maps/first-contact-basin/map.yaml",
         "source_mod_rules": "TrillionniumRTS/mods/trnm/rules/trnm.yaml",
         "source_policy": "Trillionnium-owned runtime now consumes the Bevy-free trnm-rts-data map model derived from the internal TrillionniumRTS seed; OpenRA engine code and third-party/proprietary RTS assets are not copied.",
-        "source_of_truth": "This spec evidence locks the trnm-rts-data First Contact Basin map/rule/player-screen vocabulary that the Bevy desktop RTS UI consumes: 39 map actors, 4 spawns, 11 Flux blooms, 4 Beacons, 4 expansions, unit status overlays, tactical tracks, live player-screen camera/visibility/command defaults, player-screen layout/chrome dimensions, player-facing HUD panel labels, role-specific command-grid glyphs, bottom-panel squad/status readability, terrain/unit/structure silhouettes, authored terrain material and building facade details, unit/building motion readability cues, animation-cycle frame signatures, project-owned atlas frame usage for terrain/unit/structure/objective sprites, screenshot-informed visual hierarchy de-emphasis for the opening command corridor, screenshot-informed central combat clutter reduction around non-focus core tiles, screenshot-informed target/blocked terminal quiet bands that keep route endpoints readable, screenshot-informed selection/combat focus brackets for the opening command route, muted non-interactive gallery marker/color budgets that keep the focus layer visually hot, source manifest tracking, the initial unit/structure rules surfaced in the command and rules panels, and a no-socket offline adapter contract that reaches actual local player-screen/session handoff consumption plus Bevy-free session-transition and lobby-ready reviews through retained/pruned control-group command history."
+        "source_of_truth": "This spec evidence locks the trnm-rts-data First Contact Basin map/rule/player-screen vocabulary that the Bevy desktop RTS UI consumes: 39 map actors, 4 spawns, 11 Flux blooms, 4 Beacons, 4 expansions, unit status overlays, tactical tracks, live player-screen camera/visibility/command defaults, player-screen layout/chrome dimensions, player-facing HUD panel labels, role-specific command-grid glyphs, compact right-sidebar production/build-palette/tactics density, bottom-panel squad/status readability, terrain/unit/structure silhouettes, authored terrain material and building facade details, unit/building motion readability cues, animation-cycle frame signatures, project-owned atlas frame usage for terrain/unit/structure/objective sprites, screenshot-informed visual hierarchy de-emphasis for the opening command corridor, screenshot-informed central combat clutter reduction around non-focus core tiles, screenshot-informed target/blocked terminal quiet bands that keep route endpoints readable, screenshot-informed selection/combat focus brackets for the opening command route, muted non-interactive gallery marker/color budgets and compact build-palette status badges that keep the focus layer visually hot, source manifest tracking, the initial unit/structure rules surfaced in the command and rules panels, and a no-socket offline adapter contract that reaches actual local player-screen/session handoff consumption plus Bevy-free session-transition and lobby-ready reviews through retained/pruned control-group command history."
     }))
     .expect("first contact basin spec evidence serializes")
 }
@@ -85812,6 +85832,17 @@ fn classic_rts_palette_state_label(runtime: &NativeFirstPlayableRuntime, queue_i
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_first_contact_palette_state_badge_label(state_label: &str) -> String {
+    match state_label.to_ascii_uppercase().as_str() {
+        "ACTIVE" => "ACT".to_string(),
+        "QUEUE" => "QUE".to_string(),
+        "READY" => "RDY".to_string(),
+        "LOCK" => "LCK".to_string(),
+        state => classic_catalog_text_label(state, 3),
+    }
+}
+
+#[cfg(not(target_os = "android"))]
 fn classic_rts_sidebar_queue_summary(runtime: &NativeFirstPlayableRuntime) -> String {
     rts_bevy_runtime::rts_sidebar_queue_summary(
         &runtime.rts_production_queue,
@@ -111771,6 +111802,17 @@ fn classic_first_contact_rendered_build_palette_state_labels(
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_first_contact_rendered_build_palette_state_badge_labels(
+    runtime: &NativeFirstPlayableRuntime,
+    chrome: &RtsFirstContactPlayerScreenChromeProfile,
+) -> Vec<String> {
+    classic_first_contact_rendered_build_palette_state_labels(runtime, chrome)
+        .iter()
+        .map(|label| classic_first_contact_palette_state_badge_label(label))
+        .collect()
+}
+
+#[cfg(not(target_os = "android"))]
 fn classic_first_contact_rendered_order_queue_labels(
     runtime: &NativeFirstPlayableRuntime,
     chrome: &RtsFirstContactPlayerScreenChromeProfile,
@@ -112193,6 +112235,138 @@ fn classic_first_contact_command_grid_readability_guard(
         "active_slot_gate": active_slot_gate,
         "cooldown_badge_gate": cooldown_badge_gate,
         "player_screen_symbol_gate": player_screen_symbol_gate,
+    })
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_first_contact_sidebar_density_guard(
+    runtime: &NativeFirstPlayableRuntime,
+    chrome: &RtsFirstContactPlayerScreenChromeProfile,
+) -> Value {
+    let production_slot_visible_count = chrome.production_slot_visible_count.max(1) as usize;
+    let production_slot_column_count = chrome.production_slot_column_count.max(1) as usize;
+    let production_row_count = (production_slot_visible_count + production_slot_column_count - 1)
+        / production_slot_column_count;
+    let production_slot_status_labels =
+        classic_first_contact_rendered_production_slot_status_labels(runtime, chrome);
+    let production_slot_y_offset_px = 18_i32;
+    let production_slot_row_gap_px = 34_i32;
+    let production_status_bottom_offset_px = 30_i32;
+    let production_to_palette_y_px = 98_i32;
+    let production_to_palette_gap_px = production_to_palette_y_px
+        - (production_slot_y_offset_px
+            + (production_row_count.saturating_sub(1) as i32 * production_slot_row_gap_px)
+            + production_status_bottom_offset_px);
+
+    let build_palette_visible_count = chrome.build_palette_visible_count.max(1) as usize;
+    let build_palette_column_count = chrome.build_palette_column_count.max(1) as usize;
+    let build_palette_row_count =
+        (build_palette_visible_count + build_palette_column_count - 1) / build_palette_column_count;
+    let build_palette_labels = classic_first_contact_rendered_build_palette_labels(chrome);
+    let build_palette_state_labels =
+        classic_first_contact_rendered_build_palette_state_labels(runtime, chrome);
+    let build_palette_state_badge_labels =
+        classic_first_contact_rendered_build_palette_state_badge_labels(runtime, chrome);
+    let palette_row_gap_px = CLASSIC_FIRST_CONTACT_BUILD_PALETTE_ROW_GAP_PX
+        - CLASSIC_FIRST_CONTACT_BUILD_PALETTE_SLOT_H_PX;
+    let palette_to_tactics_gap_px = CLASSIC_FIRST_CONTACT_BUILD_PALETTE_TO_TACTICS_Y_PX
+        - (CLASSIC_FIRST_CONTACT_BUILD_PALETTE_TITLE_TO_SLOT_Y_PX
+            + (build_palette_row_count.saturating_sub(1) as i32
+                * CLASSIC_FIRST_CONTACT_BUILD_PALETTE_ROW_GAP_PX)
+            + CLASSIC_FIRST_CONTACT_BUILD_PALETTE_SLOT_H_PX);
+    let build_palette_state_badge_widths = build_palette_state_badge_labels
+        .iter()
+        .map(|label| classic_text_advance_px(label, 1))
+        .collect::<Vec<_>>();
+    let tactics_row_count = chrome.tactics_rows.len();
+    let tactics_row_gap_px = 22_i32 - 18_i32;
+    let tactics_detail_labels = chrome
+        .tactics_rows
+        .iter()
+        .map(|row| classic_first_contact_tactics_row_value(runtime, row))
+        .collect::<Vec<_>>();
+
+    let production_density_gate = production_slot_visible_count == 4
+        && production_slot_column_count == 2
+        && production_row_count == 2
+        && production_to_palette_gap_px >= 12
+        && production_slot_status_labels
+            == string_vec(["Q1 64 R", "Q2 42 R", "Q3 64 R", "B2 42 R"]);
+    let palette_geometry_gate = build_palette_visible_count == 8
+        && build_palette_column_count == 4
+        && build_palette_row_count == 2
+        && CLASSIC_FIRST_CONTACT_BUILD_PALETTE_SLOT_W_PX == 46
+        && CLASSIC_FIRST_CONTACT_BUILD_PALETTE_SLOT_H_PX == 40
+        && palette_row_gap_px >= 8
+        && palette_to_tactics_gap_px >= 12;
+    let palette_state_badge_gate = build_palette_state_labels
+        == string_vec([
+            "READY", "QUEUE", "READY", "QUEUE", "READY", "READY", "READY", "QUEUE",
+        ])
+        && build_palette_state_badge_labels
+            == string_vec(["RDY", "QUE", "RDY", "QUE", "RDY", "RDY", "RDY", "QUE"])
+        && build_palette_state_badge_widths
+            .iter()
+            .all(|width| *width <= CLASSIC_FIRST_CONTACT_BUILD_PALETTE_STATE_BADGE_W_PX - 6)
+        && CLASSIC_FIRST_CONTACT_BUILD_PALETTE_STATE_BADGE_H_PX >= 9;
+    let palette_label_gate = build_palette_labels
+        == string_vec([
+            "POWER", "TRAIN", "REFINE", "TOWER", "COMMAND", "RADAR", "WALL", "SIGNAL",
+        ])
+        && build_palette_labels
+            .iter()
+            .all(|label| classic_text_advance_px(label, 1) <= 42);
+    let tactics_density_gate = tactics_row_count == 5
+        && tactics_row_gap_px >= 4
+        && tactics_detail_labels
+            == string_vec([
+                "SECURE RELAY BEACON",
+                "RELAY BEACON",
+                "16/16",
+                "GUARD 64% TOWER 42%",
+                "IDLE",
+            ])
+        && tactics_detail_labels
+            .iter()
+            .all(|label| classic_text_advance_px(label, 1) <= 132);
+    let right_sidebar_density_gate = production_density_gate
+        && palette_geometry_gate
+        && palette_state_badge_gate
+        && palette_label_gate
+        && tactics_density_gate;
+
+    json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_SIDEBAR_DENSITY_CONTRACT,
+        "green": right_sidebar_density_gate,
+        "source_path": "trnm-world-bevy classic_draw_openra_style_rts_shell right sidebar production/build palette/tactics density",
+        "production_slot_visible_count": production_slot_visible_count,
+        "production_slot_column_count": production_slot_column_count,
+        "production_row_count": production_row_count,
+        "production_slot_status_labels": production_slot_status_labels,
+        "production_to_palette_gap_px": production_to_palette_gap_px,
+        "build_palette_visible_count": build_palette_visible_count,
+        "build_palette_column_count": build_palette_column_count,
+        "build_palette_row_count": build_palette_row_count,
+        "build_palette_slot_width_px": CLASSIC_FIRST_CONTACT_BUILD_PALETTE_SLOT_W_PX,
+        "build_palette_slot_height_px": CLASSIC_FIRST_CONTACT_BUILD_PALETTE_SLOT_H_PX,
+        "build_palette_row_gap_px": CLASSIC_FIRST_CONTACT_BUILD_PALETTE_ROW_GAP_PX,
+        "build_palette_inter_row_gap_px": palette_row_gap_px,
+        "build_palette_to_tactics_gap_px": palette_to_tactics_gap_px,
+        "build_palette_labels": build_palette_labels,
+        "build_palette_state_labels": build_palette_state_labels,
+        "build_palette_state_badge_labels": build_palette_state_badge_labels,
+        "build_palette_state_badge_widths": build_palette_state_badge_widths,
+        "build_palette_state_badge_width_px": CLASSIC_FIRST_CONTACT_BUILD_PALETTE_STATE_BADGE_W_PX,
+        "build_palette_state_badge_height_px": CLASSIC_FIRST_CONTACT_BUILD_PALETTE_STATE_BADGE_H_PX,
+        "tactics_row_count": tactics_row_count,
+        "tactics_row_gap_px": tactics_row_gap_px,
+        "tactics_detail_labels": tactics_detail_labels,
+        "production_density_gate": production_density_gate,
+        "palette_geometry_gate": palette_geometry_gate,
+        "palette_state_badge_gate": palette_state_badge_gate,
+        "palette_label_gate": palette_label_gate,
+        "tactics_density_gate": tactics_density_gate,
+        "right_sidebar_density_gate": right_sidebar_density_gate,
     })
 }
 
@@ -115238,8 +115412,14 @@ fn classic_draw_openra_style_rts_shell(
         .map(|chrome| chrome.build_palette_column_count.max(1) as usize)
         .unwrap_or(4);
     for index in 0..build_palette_visible_count {
-        let x = sidebar_x + 12 + (index % build_palette_column_count) as i32 * 58;
-        let y = palette_y + 18 + (index / build_palette_column_count) as i32 * 46;
+        let x = sidebar_x
+            + 12
+            + (index % build_palette_column_count) as i32
+                * CLASSIC_FIRST_CONTACT_BUILD_PALETTE_COLUMN_GAP_PX;
+        let y = palette_y
+            + CLASSIC_FIRST_CONTACT_BUILD_PALETTE_TITLE_TO_SLOT_Y_PX
+            + (index / build_palette_column_count) as i32
+                * CLASSIC_FIRST_CONTACT_BUILD_PALETTE_ROW_GAP_PX;
         let data_slot = classic_first_contact_build_palette_slot(build_palette_slots, index);
         let queue_id = data_slot
             .map(|slot| slot.queue_id.clone())
@@ -115258,8 +115438,8 @@ fn classic_draw_openra_style_rts_shell(
             height,
             x,
             y,
-            46,
-            36,
+            CLASSIC_FIRST_CONTACT_BUILD_PALETTE_SLOT_W_PX,
+            CLASSIC_FIRST_CONTACT_BUILD_PALETTE_SLOT_H_PX,
             if active {
                 classic_mix_color(
                     CLASSIC_RTS_ABILITY_SLOT_COLOR,
@@ -115279,7 +115459,7 @@ fn classic_draw_openra_style_rts_shell(
             height,
             x,
             y,
-            46,
+            CLASSIC_FIRST_CONTACT_BUILD_PALETTE_SLOT_W_PX,
             3,
             if active {
                 CLASSIC_RTS_BUILD_BLUEPRINT_COLOR
@@ -115307,8 +115487,8 @@ fn classic_draw_openra_style_rts_shell(
             buffer,
             width,
             height,
-            classic_build_palette_label_x(x, 46, label),
-            y + 25,
+            classic_build_palette_label_x(x, CLASSIC_FIRST_CONTACT_BUILD_PALETTE_SLOT_W_PX, label),
+            y + 23,
             label,
             1,
             CLASSIC_HUD_TEXT_COLOR,
@@ -115327,13 +115507,39 @@ fn classic_draw_openra_style_rts_shell(
                 CLASSIC_RTS_QUEUE_PREVIEW_CANCEL_COLOR
             },
         );
+        let state_label = classic_rts_palette_state_label(runtime, &queue_id);
+        let badge_label = classic_first_contact_palette_state_badge_label(&state_label);
+        let badge_x = x + CLASSIC_FIRST_CONTACT_BUILD_PALETTE_SLOT_W_PX
+            - CLASSIC_FIRST_CONTACT_BUILD_PALETTE_STATE_BADGE_W_PX
+            - 2;
+        let badge_y = y + CLASSIC_FIRST_CONTACT_BUILD_PALETTE_SLOT_H_PX
+            - CLASSIC_FIRST_CONTACT_BUILD_PALETTE_STATE_BADGE_H_PX
+            - 2;
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            badge_x,
+            badge_y,
+            CLASSIC_FIRST_CONTACT_BUILD_PALETTE_STATE_BADGE_W_PX,
+            CLASSIC_FIRST_CONTACT_BUILD_PALETTE_STATE_BADGE_H_PX,
+            if active {
+                classic_darken(CLASSIC_RTS_BUILD_BLUEPRINT_COLOR, 1, 4)
+            } else if queued {
+                classic_darken(CLASSIC_RTS_BUILD_PROGRESS_COLOR, 1, 4)
+            } else if !affordable {
+                0x211514
+            } else {
+                0x142119
+            },
+        );
         classic_draw_text(
             buffer,
             width,
             height,
-            x + 6,
-            y + 37,
-            &classic_rts_palette_state_label(runtime, &queue_id),
+            badge_x + 3,
+            badge_y + 2,
+            &badge_label,
             1,
             if affordable {
                 CLASSIC_HUD_MUTED_TEXT_COLOR
@@ -115343,7 +115549,7 @@ fn classic_draw_openra_style_rts_shell(
         );
     }
 
-    let input_y = palette_y + 118;
+    let input_y = palette_y + CLASSIC_FIRST_CONTACT_BUILD_PALETTE_TO_TACTICS_Y_PX;
     if classic_player_screen_mode_enabled() {
         if let Some(chrome) = first_contact_player_chrome.as_ref() {
             classic_draw_text(
@@ -161254,6 +161460,58 @@ mod tests {
             "active_slot_gate",
             "cooldown_badge_gate",
             "player_screen_symbol_gate",
+        ] {
+            assert_eq!(guard.get(gate).and_then(Value::as_bool), Some(true));
+        }
+    }
+
+    #[cfg(not(target_os = "android"))]
+    #[test]
+    fn classic_first_contact_sidebar_density_guard_compacts_palette_status_badges() {
+        let runtime = classic_first_contact_player_screen_runtime();
+        let profile = trnm_rts_data::first_contact_player_screen_profile();
+        let guard = classic_first_contact_sidebar_density_guard(&runtime, &profile.chrome);
+
+        assert_eq!(
+            guard.get("contract_version").and_then(Value::as_str),
+            Some(TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_SIDEBAR_DENSITY_CONTRACT)
+        );
+        assert_eq!(
+            guard.get("green").and_then(Value::as_bool),
+            Some(true),
+            "{guard:#}"
+        );
+        assert_eq!(
+            guard.get("build_palette_state_badge_labels").cloned(),
+            Some(json!([
+                "RDY", "QUE", "RDY", "QUE", "RDY", "RDY", "RDY", "QUE"
+            ]))
+        );
+        assert_eq!(
+            guard
+                .get("build_palette_slot_height_px")
+                .and_then(Value::as_i64),
+            Some(40)
+        );
+        assert_eq!(
+            guard
+                .get("build_palette_to_tactics_gap_px")
+                .and_then(Value::as_i64),
+            Some(16)
+        );
+        assert_eq!(
+            guard
+                .get("production_to_palette_gap_px")
+                .and_then(Value::as_i64),
+            Some(16)
+        );
+        for gate in [
+            "production_density_gate",
+            "palette_geometry_gate",
+            "palette_state_badge_gate",
+            "palette_label_gate",
+            "tactics_density_gate",
+            "right_sidebar_density_gate",
         ] {
             assert_eq!(guard.get(gate).and_then(Value::as_bool), Some(true));
         }
