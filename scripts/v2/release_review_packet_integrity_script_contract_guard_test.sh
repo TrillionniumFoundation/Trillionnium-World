@@ -187,6 +187,8 @@ required_lines=(
   'first_contact_bottom_panel_readability_guard.raw_marker_gate == true'
   'first_contact_bottom_panel_readability_guard.feedback_expected_gate == true'
   'first_contact_bottom_panel_readability_guard.squad_strip_gate == true'
+  'first_contact_bottom_panel_readability_guard.squad_chip_bottom_margin_px >= 12'
+  'first_contact_bottom_panel_readability_guard.squad_chip_edge_clearance_gate == true'
   'first_contact_bottom_panel_readability_guard.selection_density_gate == true'
   'first_contact_bottom_panel_readability_guard_gate == true'
   'first_contact_silhouette_readability_contract == "trillionnium_world_bevy_classic_rts_first_contact_silhouette_readability_v1"'

@@ -730,6 +730,10 @@ const CLASSIC_RTS_PRODUCT_LANE_COLOR: u32 = 0xd3b66a;
 const CLASSIC_RTS_PRODUCT_RESOURCE_COLOR: u32 = 0x8be8ff;
 const CLASSIC_RTS_PRODUCT_UI_CHROME_COLOR: u32 = 0x27362d;
 const CLASSIC_RTS_PRODUCT_UI_ACCENT_COLOR: u32 = 0xe6d36b;
+const CLASSIC_FIRST_CONTACT_BOTTOM_PANEL_HEIGHT_PX: i32 = 148;
+const CLASSIC_FIRST_CONTACT_SQUAD_CHIP_Y_OFFSET_PX: i32 = 124;
+const CLASSIC_FIRST_CONTACT_SQUAD_CHIP_HEIGHT_PX: i32 = 11;
+const CLASSIC_FIRST_CONTACT_SQUAD_CHIP_BOTTOM_MARGIN_MIN_PX: i32 = 12;
 const CLASSIC_RTS_PRODUCT_MODEL_VOLUME_COLOR: u32 = 0x6e89a8;
 const CLASSIC_RTS_MODEL_IDENTITY_CORE_COLOR: u32 = 0xb7c8ff;
 const CLASSIC_RTS_MODEL_IDENTITY_RELAY_COLOR: u32 = 0x8fffd2;
@@ -112238,6 +112242,11 @@ fn classic_first_contact_bottom_panel_readability_guard(
     let squad_chip_width_gate = squad_role_labels
         .iter()
         .all(|label| classic_text_advance_px(label, 1) <= 52);
+    let squad_chip_bottom_margin_px = CLASSIC_FIRST_CONTACT_BOTTOM_PANEL_HEIGHT_PX
+        - (CLASSIC_FIRST_CONTACT_SQUAD_CHIP_Y_OFFSET_PX
+            + CLASSIC_FIRST_CONTACT_SQUAD_CHIP_HEIGHT_PX);
+    let squad_chip_edge_clearance_gate =
+        squad_chip_bottom_margin_px >= CLASSIC_FIRST_CONTACT_SQUAD_CHIP_BOTTOM_MARGIN_MIN_PX;
     let selection_density_gate = selected_unit_display_count >= 4
         && squad_role_labels.len() >= 4
         && group_summary == "GROUP 1  4 UNITS SELECTED";
@@ -112246,6 +112255,7 @@ fn classic_first_contact_bottom_panel_readability_guard(
         && feedback_width_gate
         && squad_strip_gate
         && squad_chip_width_gate
+        && squad_chip_edge_clearance_gate
         && selection_density_gate;
 
     json!({
@@ -112264,6 +112274,8 @@ fn classic_first_contact_bottom_panel_readability_guard(
         "feedback_width_gate": feedback_width_gate,
         "squad_strip_gate": squad_strip_gate,
         "squad_chip_width_gate": squad_chip_width_gate,
+        "squad_chip_bottom_margin_px": squad_chip_bottom_margin_px,
+        "squad_chip_edge_clearance_gate": squad_chip_edge_clearance_gate,
         "selection_density_gate": selection_density_gate,
     })
 }
@@ -114387,7 +114399,7 @@ fn classic_draw_openra_style_rts_shell(
     let width_i = width as i32;
     let height_i = height as i32;
     let sidebar_w = 264;
-    let bottom_h = 148;
+    let bottom_h = CLASSIC_FIRST_CONTACT_BOTTOM_PANEL_HEIGHT_PX;
     let top_h = 34;
     let sidebar_x = width_i - sidebar_w - 8;
     let viewport_x = 8;
@@ -115302,8 +115314,17 @@ fn classic_draw_openra_style_rts_shell(
             .enumerate()
     {
         let x = 20 + index as i32 * 70;
-        let y = bottom_y + 128;
-        classic_draw_rect(buffer, width, height, x, y, 62, 11, 0x111b14);
+        let y = bottom_y + CLASSIC_FIRST_CONTACT_SQUAD_CHIP_Y_OFFSET_PX;
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            x,
+            y,
+            62,
+            CLASSIC_FIRST_CONTACT_SQUAD_CHIP_HEIGHT_PX,
+            0x111b14,
+        );
         classic_draw_rect(
             buffer,
             width,
@@ -115311,7 +115332,7 @@ fn classic_draw_openra_style_rts_shell(
             x,
             y,
             4,
-            11,
+            CLASSIC_FIRST_CONTACT_SQUAD_CHIP_HEIGHT_PX,
             classic_first_contact_bottom_panel_role_color(role),
         );
         classic_draw_text(
@@ -160998,10 +161019,17 @@ mod tests {
             "feedback_width_gate",
             "squad_strip_gate",
             "squad_chip_width_gate",
+            "squad_chip_edge_clearance_gate",
             "selection_density_gate",
         ] {
             assert_eq!(guard.get(gate).and_then(Value::as_bool), Some(true));
         }
+        assert_eq!(
+            guard
+                .get("squad_chip_bottom_margin_px")
+                .and_then(Value::as_i64),
+            Some(13)
+        );
     }
 
     #[cfg(not(target_os = "android"))]
