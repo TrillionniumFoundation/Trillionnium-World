@@ -158,6 +158,7 @@ required_source_lines=(
   'fn classic_first_contact_target_callout_guard'
   'fn classic_draw_first_contact_target_callout'
   'TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_MARKER_BUDGET_CONTRACT'
+  'fn classic_first_contact_atlas_family_lower_lane_tile'
   'fn classic_first_contact_marker_budget_guard'
   'TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_SIDEBAR_DENSITY_CONTRACT'
   'fn classic_first_contact_sidebar_density_guard'
@@ -1179,22 +1180,29 @@ cat >"$JQ_FILTER" <<'JQ'
   and .first_contact_marker_budget_guard.gallery_sample_count == 14
   and .first_contact_marker_budget_guard.muted_gallery_sample_count == 14
   and .first_contact_marker_budget_guard.busy_core_tiles == []
+  and .first_contact_marker_budget_guard.lower_lane_gallery_tiles == ["29,22","29,24","29,26"]
   and .first_contact_marker_budget_guard.west_gallery_frame_count == 4
   and .first_contact_marker_budget_guard.north_gallery_frame_count == 4
   and .first_contact_marker_budget_guard.east_gallery_frame_count == 6
   and .first_contact_marker_budget_guard.max_gallery_lane_frame_count == 6
   and .first_contact_marker_budget_guard.gallery_mute_overlay_pixel_budget >= 21248
   and .first_contact_marker_budget_guard.gallery_slot_cue_pixel_budget <= 1008
+  and .first_contact_marker_budget_guard.lower_lane_gallery_sample_count == 3
+  and .first_contact_marker_budget_guard.lower_lane_mute_overlay_pixel_budget >= 1152
+  and .first_contact_marker_budget_guard.lower_lane_slot_cue_pixel_budget <= 114
   and .first_contact_marker_budget_guard.gallery_hot_marker_color_count == 0
+  and .first_contact_marker_budget_guard.lower_lane_hot_marker_color_count == 0
   and .first_contact_marker_budget_guard.interactive_hot_marker_role_count >= 5
   and .first_contact_marker_budget_guard.interactive_focus_pixel_budget >= 956
   and .first_contact_marker_budget_guard.selected_focus_tiles == ["14,11","15,11","15,12","17,12"]
   and .first_contact_marker_budget_guard.route_focus_tiles == ["14,11","15,11","16,10","16,9"]
   and (.first_contact_marker_budget_guard.gallery_presentation_signatures | index("darkened_gallery_frames") != null)
+  and (.first_contact_marker_budget_guard.gallery_presentation_signatures | index("lower_lane_gallery_deemphasis") != null)
   and (.first_contact_marker_budget_guard.gallery_presentation_signatures | index("interactive_focus_kept_hot") != null)
   and .first_contact_marker_budget_guard.marker_budget_layer_draw_order == ["atlas_readability","atlas_gallery_muted","visual_hierarchy_deemphasis","central_clarity_deemphasis","terminal_legibility_deemphasis","selection_combat_focus"]
   and .first_contact_marker_budget_guard.gallery_lane_budget_gate == true
   and .first_contact_marker_budget_guard.gallery_mute_gate == true
+  and .first_contact_marker_budget_guard.lower_lane_gallery_deemphasis_gate == true
   and .first_contact_marker_budget_guard.interactive_focus_preservation_gate == true
   and .first_contact_marker_budget_guard.marker_budget_layer_order_gate == true
   and .first_contact_marker_budget_guard.first_contact_marker_budget_gate == true

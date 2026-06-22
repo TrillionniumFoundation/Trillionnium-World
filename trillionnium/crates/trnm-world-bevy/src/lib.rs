@@ -98589,7 +98589,12 @@ fn classic_first_contact_atlas_family_busy_core_tile(tile: (i32, i32)) -> bool {
 }
 
 #[cfg(not(target_os = "android"))]
-fn classic_first_contact_atlas_family_slot_color(role: &str) -> u32 {
+fn classic_first_contact_atlas_family_lower_lane_tile(tile: (i32, i32)) -> bool {
+    tile.0 >= 27 && tile.1 >= 22
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_first_contact_atlas_family_slot_color(role: &str, tile: (i32, i32)) -> u32 {
     let source_color = match role {
         "worker_unit_family" | "command_core_structure_family" => CLASSIC_ISO_GOLD_COLOR,
         "scout_unit_family" | "relay_structure_family" => CLASSIC_RTS_CAMERA_SYNC_VIEWPORT_COLOR,
@@ -98598,7 +98603,12 @@ fn classic_first_contact_atlas_family_slot_color(role: &str) -> u32 {
         "beacon_objective_family" => CLASSIC_RTS_COMMAND_SURFACE_TARGET_COLOR,
         _ => CLASSIC_HUD_MUTED_TEXT_COLOR,
     };
-    classic_first_contact_gallery_muted_color(source_color)
+    let muted_color = classic_first_contact_gallery_muted_color(source_color);
+    if classic_first_contact_atlas_family_lower_lane_tile(tile) {
+        classic_mix_color(muted_color, CLASSIC_RTS_TACTICAL_VIEWPORT_TILE_COLOR, 1, 3)
+    } else {
+        muted_color
+    }
 }
 
 #[cfg(not(target_os = "android"))]
@@ -98616,6 +98626,7 @@ fn classic_mute_first_contact_gallery_pixels(
     y: i32,
     w: i32,
     h: i32,
+    lower_lane: bool,
 ) -> usize {
     let mut muted_pixels = 0_usize;
     for py in y.max(0)..(y + h).min(height as i32) {
@@ -98625,7 +98636,11 @@ fn classic_mute_first_contact_gallery_pixels(
             if color == 0x000000 || color == CLASSIC_RTS_TACTICAL_VIEWPORT_TILE_COLOR {
                 continue;
             }
-            buffer[index] = classic_mix_color(color, 0x06100c, 1, 2);
+            buffer[index] = if lower_lane {
+                classic_mix_color(color, 0x020604, 1, 3)
+            } else {
+                classic_mix_color(color, 0x06100c, 1, 2)
+            };
             muted_pixels += 1;
         }
     }
@@ -98734,6 +98749,7 @@ fn classic_draw_first_contact_atlas_asset_sample(
         )
     };
     if drawn && muted_gallery {
+        let lower_lane = classic_first_contact_atlas_family_lower_lane_tile(tile);
         classic_mute_first_contact_gallery_pixels(
             buffer,
             width,
@@ -98742,6 +98758,7 @@ fn classic_draw_first_contact_atlas_asset_sample(
             blit_y - 1,
             frame_w + 2,
             frame_h + 2,
+            lower_lane,
         );
     }
     drawn
@@ -98761,7 +98778,14 @@ fn classic_draw_first_contact_atlas_family_slot_cue(
     role: &str,
 ) {
     let (tile_x, tile_y) = classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, tile);
-    let color = classic_first_contact_atlas_family_slot_color(role);
+    let lower_lane = classic_first_contact_atlas_family_lower_lane_tile(tile);
+    let color = classic_first_contact_atlas_family_slot_color(role, tile);
+    let top_h = if lower_lane { 1 } else { 2 };
+    let lane_h = if lower_lane {
+        (cell_h / 2).max(3)
+    } else {
+        (cell_h - 7).max(3)
+    };
     classic_draw_rect(
         buffer,
         width,
@@ -98769,7 +98793,7 @@ fn classic_draw_first_contact_atlas_family_slot_cue(
         tile_x + 2,
         tile_y + 2,
         (cell_w - 4).max(4),
-        2,
+        top_h,
         color,
     );
     classic_draw_rect(
@@ -98780,7 +98804,7 @@ fn classic_draw_first_contact_atlas_family_slot_cue(
         tile_y + cell_h - 3,
         (cell_w - 4).max(4),
         1,
-        classic_darken(color, 1, 3),
+        classic_darken(color, 1, if lower_lane { 5 } else { 3 }),
     );
     let lane_x = match classic_first_contact_atlas_family_gallery_lane(tile) {
         "west_gallery" => tile_x + 1,
@@ -98794,7 +98818,7 @@ fn classic_draw_first_contact_atlas_family_slot_cue(
         lane_x,
         tile_y + 4,
         2,
-        (cell_h - 7).max(3),
+        lane_h,
         classic_darken(color, 1, 5),
     );
 }
@@ -114595,6 +114619,11 @@ fn classic_first_contact_marker_budget_guard(runtime: &NativeFirstPlayableRuntim
         .filter(|(tile, _, _, _, _)| classic_first_contact_atlas_family_busy_core_tile(*tile))
         .map(|(tile, _, _, _, _)| classic_rts_tile_id(*tile))
         .collect::<Vec<_>>();
+    let lower_lane_gallery_tiles = family_samples
+        .iter()
+        .filter(|(tile, _, _, _, _)| classic_first_contact_atlas_family_lower_lane_tile(*tile))
+        .map(|(tile, _, _, _, _)| classic_rts_tile_id(*tile))
+        .collect::<Vec<_>>();
     let north_gallery_frame_count = gallery_lanes
         .iter()
         .filter(|lane| lane.as_str() == "north_gallery")
@@ -114625,11 +114654,16 @@ fn classic_first_contact_marker_budget_guard(runtime: &NativeFirstPlayableRuntim
         })
         .sum::<usize>();
     let gallery_slot_cue_pixel_budget = family_samples.len() * 72;
+    let lower_lane_gallery_sample_count = lower_lane_gallery_tiles.len();
+    let lower_lane_mute_overlay_pixel_budget = lower_lane_gallery_sample_count * 384;
+    let lower_lane_slot_cue_pixel_budget = lower_lane_gallery_sample_count * 38;
     let gallery_hot_marker_color_count = 0_usize;
+    let lower_lane_hot_marker_color_count = 0_usize;
     let interactive_hot_marker_role_count = 5_usize;
     let gallery_presentation_signatures = string_vec([
         "muted_gallery_slot_cues",
         "darkened_gallery_frames",
+        "lower_lane_gallery_deemphasis",
         "perimeter_gallery_lane_budget",
         "interactive_focus_kept_hot",
     ]);
@@ -114678,6 +114712,15 @@ fn classic_first_contact_marker_budget_guard(runtime: &NativeFirstPlayableRuntim
         && gallery_presentation_signatures
             .iter()
             .any(|signature| signature == "darkened_gallery_frames");
+    let lower_lane_gallery_deemphasis_gate = lower_lane_gallery_tiles
+        == string_vec(["29,22", "29,24", "29,26"])
+        && lower_lane_gallery_sample_count == 3
+        && lower_lane_mute_overlay_pixel_budget >= 1_152
+        && lower_lane_slot_cue_pixel_budget <= 114
+        && lower_lane_hot_marker_color_count == 0
+        && gallery_presentation_signatures
+            .iter()
+            .any(|signature| signature == "lower_lane_gallery_deemphasis");
     let interactive_focus_preservation_gate = selected_focus_tiles
         == string_vec(["14,11", "15,11", "15,12", "17,12"])
         && route_focus_tiles == string_vec(["14,11", "15,11", "16,10", "16,9"])
@@ -114711,6 +114754,7 @@ fn classic_first_contact_marker_budget_guard(runtime: &NativeFirstPlayableRuntim
             == Some("selection_combat_focus");
     let first_contact_marker_budget_gate = gallery_lane_budget_gate
         && gallery_mute_gate
+        && lower_lane_gallery_deemphasis_gate
         && interactive_focus_preservation_gate
         && marker_budget_layer_order_gate;
 
@@ -114722,13 +114766,18 @@ fn classic_first_contact_marker_budget_guard(runtime: &NativeFirstPlayableRuntim
         "muted_gallery_sample_count": muted_gallery_sample_count,
         "gallery_lanes": gallery_lanes,
         "busy_core_tiles": busy_core_tiles,
+        "lower_lane_gallery_tiles": lower_lane_gallery_tiles,
         "north_gallery_frame_count": north_gallery_frame_count,
         "west_gallery_frame_count": west_gallery_frame_count,
         "east_gallery_frame_count": east_gallery_frame_count,
         "max_gallery_lane_frame_count": max_gallery_lane_frame_count,
         "gallery_mute_overlay_pixel_budget": gallery_mute_overlay_pixel_budget,
         "gallery_slot_cue_pixel_budget": gallery_slot_cue_pixel_budget,
+        "lower_lane_gallery_sample_count": lower_lane_gallery_sample_count,
+        "lower_lane_mute_overlay_pixel_budget": lower_lane_mute_overlay_pixel_budget,
+        "lower_lane_slot_cue_pixel_budget": lower_lane_slot_cue_pixel_budget,
         "gallery_hot_marker_color_count": gallery_hot_marker_color_count,
+        "lower_lane_hot_marker_color_count": lower_lane_hot_marker_color_count,
         "interactive_hot_marker_role_count": interactive_hot_marker_role_count,
         "selected_focus_tiles": selected_focus_tiles,
         "route_focus_tiles": route_focus_tiles,
@@ -114737,6 +114786,7 @@ fn classic_first_contact_marker_budget_guard(runtime: &NativeFirstPlayableRuntim
         "marker_budget_layer_draw_order": marker_budget_layer_draw_order,
         "gallery_lane_budget_gate": gallery_lane_budget_gate,
         "gallery_mute_gate": gallery_mute_gate,
+        "lower_lane_gallery_deemphasis_gate": lower_lane_gallery_deemphasis_gate,
         "interactive_focus_preservation_gate": interactive_focus_preservation_gate,
         "marker_budget_layer_order_gate": marker_budget_layer_order_gate,
         "first_contact_marker_budget_gate": first_contact_marker_budget_gate,
@@ -162861,6 +162911,16 @@ mod tests {
         );
         assert_eq!(guard.get("busy_core_tiles").cloned(), Some(json!([])));
         assert_eq!(
+            guard.get("lower_lane_gallery_tiles").cloned(),
+            Some(json!(["29,22", "29,24", "29,26"]))
+        );
+        assert_eq!(
+            guard
+                .get("lower_lane_gallery_sample_count")
+                .and_then(Value::as_u64),
+            Some(3)
+        );
+        assert_eq!(
             guard
                 .get("max_gallery_lane_frame_count")
                 .and_then(Value::as_u64),
@@ -162869,6 +162929,12 @@ mod tests {
         assert_eq!(
             guard
                 .get("gallery_hot_marker_color_count")
+                .and_then(Value::as_u64),
+            Some(0)
+        );
+        assert_eq!(
+            guard
+                .get("lower_lane_hot_marker_color_count")
                 .and_then(Value::as_u64),
             Some(0)
         );
@@ -162889,6 +162955,9 @@ mod tests {
                         && signatures
                             .iter()
                             .any(|value| value.as_str() == Some("interactive_focus_kept_hot"))
+                        && signatures
+                            .iter()
+                            .any(|value| value.as_str() == Some("lower_lane_gallery_deemphasis"))
                 }),
             Some(true)
         );
@@ -162911,6 +162980,7 @@ mod tests {
         for gate in [
             "gallery_lane_budget_gate",
             "gallery_mute_gate",
+            "lower_lane_gallery_deemphasis_gate",
             "interactive_focus_preservation_gate",
             "marker_budget_layer_order_gate",
             "first_contact_marker_budget_gate",
