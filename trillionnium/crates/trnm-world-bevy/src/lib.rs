@@ -98813,8 +98813,18 @@ fn classic_draw_first_contact_atlas_family_slot_cue(
     let lower_lane = classic_first_contact_atlas_family_lower_lane_tile(tile);
     let color = classic_first_contact_atlas_family_slot_color(role, tile);
     let top_h = if lower_lane { 1 } else { 2 };
+    let cue_w = if lower_lane {
+        (cell_w / 3).max(7)
+    } else {
+        (cell_w - 4).max(4)
+    };
+    let cue_x = if lower_lane {
+        tile_x + cell_w / 2 - cue_w / 2
+    } else {
+        tile_x + 2
+    };
     let lane_h = if lower_lane {
-        (cell_h / 2).max(3)
+        (cell_h / 3).max(3)
     } else {
         (cell_h - 7).max(3)
     };
@@ -98822,9 +98832,9 @@ fn classic_draw_first_contact_atlas_family_slot_cue(
         buffer,
         width,
         height,
-        tile_x + 2,
+        cue_x,
         tile_y + 2,
-        (cell_w - 4).max(4),
+        cue_w,
         top_h,
         color,
     );
@@ -98832,9 +98842,9 @@ fn classic_draw_first_contact_atlas_family_slot_cue(
         buffer,
         width,
         height,
-        tile_x + 2,
+        cue_x,
         tile_y + cell_h - 3,
-        (cell_w - 4).max(4),
+        cue_w,
         1,
         classic_darken(color, 1, if lower_lane { 5 } else { 3 }),
     );
@@ -98843,13 +98853,14 @@ fn classic_draw_first_contact_atlas_family_slot_cue(
         "east_gallery" => tile_x + cell_w - 3,
         _ => tile_x + cell_w / 2 - 1,
     };
+    let lane_w = if lower_lane { 1 } else { 2 };
     classic_draw_rect(
         buffer,
         width,
         height,
         lane_x,
         tile_y + 4,
-        2,
+        lane_w,
         lane_h,
         classic_darken(color, 1, 5),
     );
@@ -114864,7 +114875,7 @@ fn classic_first_contact_marker_budget_guard(runtime: &NativeFirstPlayableRuntim
     let gallery_slot_cue_pixel_budget = family_samples.len() * 72;
     let lower_lane_gallery_sample_count = lower_lane_gallery_tiles.len();
     let lower_lane_mute_overlay_pixel_budget = lower_lane_gallery_sample_count * 384;
-    let lower_lane_slot_cue_pixel_budget = lower_lane_gallery_sample_count * 38;
+    let lower_lane_slot_cue_pixel_budget = lower_lane_gallery_sample_count * 24;
     let gallery_hot_marker_color_count = 0_usize;
     let lower_lane_hot_marker_color_count = 0_usize;
     let interactive_hot_marker_role_count = 5_usize;
@@ -114872,6 +114883,7 @@ fn classic_first_contact_marker_budget_guard(runtime: &NativeFirstPlayableRuntim
         "muted_gallery_slot_cues",
         "darkened_gallery_frames",
         "lower_lane_gallery_deemphasis",
+        "lower_lane_micro_slot_cues",
         "perimeter_gallery_lane_budget",
         "interactive_focus_kept_hot",
     ]);
@@ -114924,11 +114936,14 @@ fn classic_first_contact_marker_budget_guard(runtime: &NativeFirstPlayableRuntim
         == string_vec(["29,22", "29,24", "29,26"])
         && lower_lane_gallery_sample_count == 3
         && lower_lane_mute_overlay_pixel_budget >= 1_152
-        && lower_lane_slot_cue_pixel_budget <= 114
+        && lower_lane_slot_cue_pixel_budget <= 72
         && lower_lane_hot_marker_color_count == 0
         && gallery_presentation_signatures
             .iter()
-            .any(|signature| signature == "lower_lane_gallery_deemphasis");
+            .any(|signature| signature == "lower_lane_gallery_deemphasis")
+        && gallery_presentation_signatures
+            .iter()
+            .any(|signature| signature == "lower_lane_micro_slot_cues");
     let interactive_focus_preservation_gate = selected_focus_tiles
         == string_vec(["14,11", "15,11", "15,12", "17,12"])
         && route_focus_tiles == string_vec(["14,11", "15,11", "16,10", "16,9"])
@@ -163207,6 +163222,12 @@ mod tests {
         );
         assert_eq!(
             guard
+                .get("lower_lane_slot_cue_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(72)
+        );
+        assert_eq!(
+            guard
                 .get("max_gallery_lane_frame_count")
                 .and_then(Value::as_u64),
             Some(6)
@@ -163243,6 +163264,9 @@ mod tests {
                         && signatures
                             .iter()
                             .any(|value| value.as_str() == Some("lower_lane_gallery_deemphasis"))
+                        && signatures
+                            .iter()
+                            .any(|value| value.as_str() == Some("lower_lane_micro_slot_cues"))
                 }),
             Some(true)
         );

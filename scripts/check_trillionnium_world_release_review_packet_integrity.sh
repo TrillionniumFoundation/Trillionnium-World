@@ -1074,7 +1074,7 @@ require_artifact_json_expr first_contact_basin_spec_semantics native_bevy_classi
   and .first_contact_marker_budget_guard.gallery_slot_cue_pixel_budget <= 1008
   and .first_contact_marker_budget_guard.lower_lane_gallery_sample_count == 3
   and .first_contact_marker_budget_guard.lower_lane_mute_overlay_pixel_budget >= 1152
-  and .first_contact_marker_budget_guard.lower_lane_slot_cue_pixel_budget <= 114
+  and .first_contact_marker_budget_guard.lower_lane_slot_cue_pixel_budget <= 72
   and .first_contact_marker_budget_guard.gallery_hot_marker_color_count == 0
   and .first_contact_marker_budget_guard.lower_lane_hot_marker_color_count == 0
   and .first_contact_marker_budget_guard.interactive_hot_marker_role_count >= 5
@@ -1083,6 +1083,7 @@ require_artifact_json_expr first_contact_basin_spec_semantics native_bevy_classi
   and .first_contact_marker_budget_guard.route_focus_tiles == ["14,11","15,11","16,10","16,9"]
   and (.first_contact_marker_budget_guard.gallery_presentation_signatures | index("darkened_gallery_frames") != null)
   and (.first_contact_marker_budget_guard.gallery_presentation_signatures | index("lower_lane_gallery_deemphasis") != null)
+  and (.first_contact_marker_budget_guard.gallery_presentation_signatures | index("lower_lane_micro_slot_cues") != null)
   and (.first_contact_marker_budget_guard.gallery_presentation_signatures | index("interactive_focus_kept_hot") != null)
   and .first_contact_marker_budget_guard.marker_budget_layer_draw_order == ["atlas_readability","atlas_gallery_muted","visual_hierarchy_deemphasis","central_clarity_deemphasis","terminal_legibility_deemphasis","selection_combat_focus"]
   and .first_contact_marker_budget_guard.gallery_lane_budget_gate == true
