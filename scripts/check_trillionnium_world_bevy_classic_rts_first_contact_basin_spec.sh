@@ -1200,6 +1200,9 @@ cat >"$JQ_FILTER" <<'JQ'
   and .first_contact_marker_budget_guard.lower_lane_gallery_sample_count == 3
   and .first_contact_marker_budget_guard.lower_lane_mute_overlay_pixel_budget >= 1152
   and .first_contact_marker_budget_guard.lower_lane_slot_cue_pixel_budget <= 72
+  and .first_contact_marker_budget_guard.lower_lane_gallery_darken_numerator == 2
+  and .first_contact_marker_budget_guard.lower_lane_gallery_darken_denominator == 3
+  and .first_contact_marker_budget_guard.lower_lane_dim_silhouette_pixel_budget >= 1728
   and .first_contact_marker_budget_guard.gallery_hot_marker_color_count == 0
   and .first_contact_marker_budget_guard.lower_lane_hot_marker_color_count == 0
   and .first_contact_marker_budget_guard.interactive_hot_marker_role_count >= 5
@@ -1209,6 +1212,7 @@ cat >"$JQ_FILTER" <<'JQ'
   and (.first_contact_marker_budget_guard.gallery_presentation_signatures | index("darkened_gallery_frames") != null)
   and (.first_contact_marker_budget_guard.gallery_presentation_signatures | index("lower_lane_gallery_deemphasis") != null)
   and (.first_contact_marker_budget_guard.gallery_presentation_signatures | index("lower_lane_micro_slot_cues") != null)
+  and (.first_contact_marker_budget_guard.gallery_presentation_signatures | index("lower_lane_dim_silhouettes") != null)
   and (.first_contact_marker_budget_guard.gallery_presentation_signatures | index("interactive_focus_kept_hot") != null)
   and .first_contact_marker_budget_guard.marker_budget_layer_draw_order == ["atlas_readability","atlas_gallery_muted","visual_hierarchy_deemphasis","central_clarity_deemphasis","terminal_legibility_deemphasis","selection_combat_focus"]
   and .first_contact_marker_budget_guard.gallery_lane_budget_gate == true

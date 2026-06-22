@@ -98649,6 +98649,12 @@ fn classic_first_contact_gallery_muted_color(color: u32) -> u32 {
 }
 
 #[cfg(not(target_os = "android"))]
+const CLASSIC_FIRST_CONTACT_LOWER_LANE_GALLERY_DARKEN_NUMERATOR: u32 = 2;
+
+#[cfg(not(target_os = "android"))]
+const CLASSIC_FIRST_CONTACT_LOWER_LANE_GALLERY_DARKEN_DENOMINATOR: u32 = 3;
+
+#[cfg(not(target_os = "android"))]
 #[allow(clippy::too_many_arguments)]
 fn classic_mute_first_contact_gallery_pixels(
     buffer: &mut [u32],
@@ -98669,7 +98675,12 @@ fn classic_mute_first_contact_gallery_pixels(
                 continue;
             }
             buffer[index] = if lower_lane {
-                classic_mix_color(color, 0x020604, 1, 3)
+                classic_mix_color(
+                    color,
+                    0x020604,
+                    CLASSIC_FIRST_CONTACT_LOWER_LANE_GALLERY_DARKEN_NUMERATOR,
+                    CLASSIC_FIRST_CONTACT_LOWER_LANE_GALLERY_DARKEN_DENOMINATOR,
+                )
             } else {
                 classic_mix_color(color, 0x06100c, 1, 2)
             };
@@ -114876,6 +114887,12 @@ fn classic_first_contact_marker_budget_guard(runtime: &NativeFirstPlayableRuntim
     let lower_lane_gallery_sample_count = lower_lane_gallery_tiles.len();
     let lower_lane_mute_overlay_pixel_budget = lower_lane_gallery_sample_count * 384;
     let lower_lane_slot_cue_pixel_budget = lower_lane_gallery_sample_count * 24;
+    let lower_lane_gallery_darken_numerator =
+        CLASSIC_FIRST_CONTACT_LOWER_LANE_GALLERY_DARKEN_NUMERATOR as usize;
+    let lower_lane_gallery_darken_denominator =
+        CLASSIC_FIRST_CONTACT_LOWER_LANE_GALLERY_DARKEN_DENOMINATOR as usize;
+    let lower_lane_dim_silhouette_pixel_budget =
+        lower_lane_gallery_sample_count * lower_lane_gallery_darken_numerator * 288;
     let gallery_hot_marker_color_count = 0_usize;
     let lower_lane_hot_marker_color_count = 0_usize;
     let interactive_hot_marker_role_count = 5_usize;
@@ -114884,6 +114901,7 @@ fn classic_first_contact_marker_budget_guard(runtime: &NativeFirstPlayableRuntim
         "darkened_gallery_frames",
         "lower_lane_gallery_deemphasis",
         "lower_lane_micro_slot_cues",
+        "lower_lane_dim_silhouettes",
         "perimeter_gallery_lane_budget",
         "interactive_focus_kept_hot",
     ]);
@@ -114937,13 +114955,19 @@ fn classic_first_contact_marker_budget_guard(runtime: &NativeFirstPlayableRuntim
         && lower_lane_gallery_sample_count == 3
         && lower_lane_mute_overlay_pixel_budget >= 1_152
         && lower_lane_slot_cue_pixel_budget <= 72
+        && lower_lane_gallery_darken_numerator == 2
+        && lower_lane_gallery_darken_denominator == 3
+        && lower_lane_dim_silhouette_pixel_budget >= 1_728
         && lower_lane_hot_marker_color_count == 0
         && gallery_presentation_signatures
             .iter()
             .any(|signature| signature == "lower_lane_gallery_deemphasis")
         && gallery_presentation_signatures
             .iter()
-            .any(|signature| signature == "lower_lane_micro_slot_cues");
+            .any(|signature| signature == "lower_lane_micro_slot_cues")
+        && gallery_presentation_signatures
+            .iter()
+            .any(|signature| signature == "lower_lane_dim_silhouettes");
     let interactive_focus_preservation_gate = selected_focus_tiles
         == string_vec(["14,11", "15,11", "15,12", "17,12"])
         && route_focus_tiles == string_vec(["14,11", "15,11", "16,10", "16,9"])
@@ -114999,6 +115023,9 @@ fn classic_first_contact_marker_budget_guard(runtime: &NativeFirstPlayableRuntim
         "lower_lane_gallery_sample_count": lower_lane_gallery_sample_count,
         "lower_lane_mute_overlay_pixel_budget": lower_lane_mute_overlay_pixel_budget,
         "lower_lane_slot_cue_pixel_budget": lower_lane_slot_cue_pixel_budget,
+        "lower_lane_gallery_darken_numerator": lower_lane_gallery_darken_numerator,
+        "lower_lane_gallery_darken_denominator": lower_lane_gallery_darken_denominator,
+        "lower_lane_dim_silhouette_pixel_budget": lower_lane_dim_silhouette_pixel_budget,
         "gallery_hot_marker_color_count": gallery_hot_marker_color_count,
         "lower_lane_hot_marker_color_count": lower_lane_hot_marker_color_count,
         "interactive_hot_marker_role_count": interactive_hot_marker_role_count,
@@ -163228,6 +163255,24 @@ mod tests {
         );
         assert_eq!(
             guard
+                .get("lower_lane_gallery_darken_numerator")
+                .and_then(Value::as_u64),
+            Some(2)
+        );
+        assert_eq!(
+            guard
+                .get("lower_lane_gallery_darken_denominator")
+                .and_then(Value::as_u64),
+            Some(3)
+        );
+        assert_eq!(
+            guard
+                .get("lower_lane_dim_silhouette_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(1728)
+        );
+        assert_eq!(
+            guard
                 .get("max_gallery_lane_frame_count")
                 .and_then(Value::as_u64),
             Some(6)
@@ -163267,6 +163312,9 @@ mod tests {
                         && signatures
                             .iter()
                             .any(|value| value.as_str() == Some("lower_lane_micro_slot_cues"))
+                        && signatures
+                            .iter()
+                            .any(|value| value.as_str() == Some("lower_lane_dim_silhouettes"))
                 }),
             Some(true)
         );
