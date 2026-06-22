@@ -761,6 +761,10 @@ const CLASSIC_FIRST_CONTACT_TARGET_PREFLIGHT_RING_COUNT: i32 = 2;
 const CLASSIC_FIRST_CONTACT_TARGET_PREFLIGHT_RING_THICKNESS_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_TARGET_PREFLIGHT_CROSS_LONG_PX: i32 = 16;
 const CLASSIC_FIRST_CONTACT_TARGET_PREFLIGHT_CROSS_THICKNESS_PX: i32 = 2;
+const CLASSIC_FIRST_CONTACT_ROUTE_DASH_WIDTH_PX: i32 = 16;
+const CLASSIC_FIRST_CONTACT_ROUTE_DASH_HEIGHT_PX: i32 = 3;
+const CLASSIC_FIRST_CONTACT_ROUTE_ACK_TICK_WIDTH_PX: i32 = 8;
+const CLASSIC_FIRST_CONTACT_ROUTE_ACK_TICK_HEIGHT_PX: i32 = 2;
 const CLASSIC_RTS_PRODUCT_MODEL_VOLUME_COLOR: u32 = 0x6e89a8;
 const CLASSIC_RTS_MODEL_IDENTITY_CORE_COLOR: u32 = 0xb7c8ff;
 const CLASSIC_RTS_MODEL_IDENTITY_RELAY_COLOR: u32 = 0x8fffd2;
@@ -30081,7 +30085,7 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         "source_mod_map": "TrillionniumRTS/mods/trnm/maps/first-contact-basin/map.yaml",
         "source_mod_rules": "TrillionniumRTS/mods/trnm/rules/trnm.yaml",
         "source_policy": "Trillionnium-owned runtime now consumes the Bevy-free trnm-rts-data map model derived from the internal TrillionniumRTS seed; OpenRA engine code and third-party/proprietary RTS assets are not copied.",
-        "source_of_truth": "This spec evidence locks the trnm-rts-data First Contact Basin map/rule/player-screen vocabulary that the Bevy desktop RTS UI consumes: 39 map actors, 4 spawns, 11 Flux blooms, 4 Beacons, 4 expansions, unit status overlays, tactical tracks, live player-screen camera/visibility/command defaults, player-screen layout/chrome dimensions, player-facing HUD panel labels, role-specific command-grid glyphs, compact right-sidebar production/build-palette/tactics density, bottom-panel squad/status readability, terrain/unit/structure silhouettes, authored terrain material and building facade details, unit/building motion readability cues, animation-cycle frame signatures, project-owned atlas frame usage for terrain/unit/structure/objective sprites, screenshot-informed visual hierarchy de-emphasis for the opening command corridor, screenshot-informed central combat clutter reduction around non-focus core tiles, screenshot-informed target/blocked terminal quiet bands that keep route endpoints readable, screenshot-informed selection/combat focus brackets for the opening command route, a compact BEACON target callout with health strip inside the final focus layer, muted non-interactive gallery marker/color budgets and compact build-palette status badges that keep the focus layer visually hot, source manifest tracking, the initial unit/structure rules surfaced in the command and rules panels, and a no-socket offline adapter contract that reaches actual local player-screen/session handoff consumption plus Bevy-free session-transition and lobby-ready reviews through retained/pruned control-group command history."
+        "source_of_truth": "This spec evidence locks the trnm-rts-data First Contact Basin map/rule/player-screen vocabulary that the Bevy desktop RTS UI consumes: 39 map actors, 4 spawns, 11 Flux blooms, 4 Beacons, 4 expansions, unit status overlays, tactical tracks, live player-screen camera/visibility/command defaults, player-screen layout/chrome dimensions, player-facing HUD panel labels, role-specific command-grid glyphs, compact right-sidebar production/build-palette/tactics density, bottom-panel squad/status readability, terrain/unit/structure silhouettes, authored terrain material and building facade details, unit/building motion readability cues, animation-cycle frame signatures, project-owned atlas frame usage for terrain/unit/structure/objective sprites, screenshot-informed visual hierarchy de-emphasis for the opening command corridor, screenshot-informed central combat clutter reduction around non-focus core tiles, screenshot-informed target/blocked terminal quiet bands that keep route endpoints readable, screenshot-informed selection/combat focus brackets and compact route ACK ticks for the opening command route, a compact BEACON target callout with health strip inside the final focus layer, muted non-interactive gallery marker/color budgets and compact build-palette status badges that keep the focus layer visually hot, source manifest tracking, the initial unit/structure rules surfaced in the command and rules panels, and a no-socket offline adapter contract that reaches actual local player-screen/session handoff consumption plus Bevy-free session-transition and lobby-ready reviews through retained/pruned control-group command history."
     }))
     .expect("first contact basin spec evidence serializes")
 }
@@ -99710,10 +99714,10 @@ fn classic_draw_first_contact_selection_combat_focus_layer(
             buffer,
             width,
             height,
-            cx - cell_w / 3,
-            cy + cell_h / 2 - 2,
-            (cell_w * 2 / 3).max(8),
-            4,
+            cx - CLASSIC_FIRST_CONTACT_ROUTE_DASH_WIDTH_PX / 2,
+            cy + cell_h / 2 - CLASSIC_FIRST_CONTACT_ROUTE_DASH_HEIGHT_PX / 2,
+            CLASSIC_FIRST_CONTACT_ROUTE_DASH_WIDTH_PX,
+            CLASSIC_FIRST_CONTACT_ROUTE_DASH_HEIGHT_PX,
             if index + 1 == route_tiles.len() {
                 CLASSIC_RTS_SELECTION_FEEDBACK_ATTACK_COLOR
             } else {
@@ -99735,10 +99739,10 @@ fn classic_draw_first_contact_selection_combat_focus_layer(
                 buffer,
                 width,
                 height,
-                tile_x + cell_w / 2 - 4,
-                tile_y + cell_h / 2 - 2,
-                12,
-                4,
+                tile_x + cell_w / 2 - CLASSIC_FIRST_CONTACT_ROUTE_ACK_TICK_WIDTH_PX / 2,
+                tile_y + cell_h / 2 - CLASSIC_FIRST_CONTACT_ROUTE_ACK_TICK_HEIGHT_PX / 2,
+                CLASSIC_FIRST_CONTACT_ROUTE_ACK_TICK_WIDTH_PX,
+                CLASSIC_FIRST_CONTACT_ROUTE_ACK_TICK_HEIGHT_PX,
                 CLASSIC_RTS_SELECTION_FEEDBACK_ACK_COLOR,
             );
         }
@@ -115055,6 +115059,7 @@ fn classic_first_contact_selection_combat_focus_readability_guard(
         "selected_role_badge_ticks",
         "wide_route_dashes",
         "route_ack_step_ticks",
+        "compact_route_ack_ticks",
         "route_clearance_gutters",
         "attack_target_lock_brackets",
         "blocked_warning_cross",
@@ -115066,7 +115071,13 @@ fn classic_first_contact_selection_combat_focus_readability_guard(
         .sum::<usize>();
     let route_line_step_count = route_dash_count + route_ack_tick_count;
     let selected_focus_pixel_budget = selected_focus_tiles.len() * 92;
-    let route_focus_pixel_budget = route_focus_tiles.len() * 48 + route_line_step_count * 12;
+    let route_dash_pixel_budget = route_focus_tiles.len()
+        * (CLASSIC_FIRST_CONTACT_ROUTE_DASH_WIDTH_PX as usize)
+        * (CLASSIC_FIRST_CONTACT_ROUTE_DASH_HEIGHT_PX as usize);
+    let route_ack_tick_pixel_budget = route_ack_tick_count
+        * (CLASSIC_FIRST_CONTACT_ROUTE_ACK_TICK_WIDTH_PX as usize)
+        * (CLASSIC_FIRST_CONTACT_ROUTE_ACK_TICK_HEIGHT_PX as usize);
+    let route_focus_pixel_budget = route_dash_pixel_budget + route_ack_tick_pixel_budget;
     let route_clearance_pixel_budget = route_clearance_tiles.len() * 88;
     let route_clearance_edge_pixel_budget = route_clearance_tiles.len() * 16;
     let combat_target_pixel_budget = 192;
@@ -115078,7 +115089,12 @@ fn classic_first_contact_selection_combat_focus_readability_guard(
         && route_dash_count >= 4
         && route_ack_tick_count >= 6
         && route_line_step_count >= 10
-        && route_focus_pixel_budget >= 312;
+        && CLASSIC_FIRST_CONTACT_ROUTE_DASH_WIDTH_PX == 16
+        && CLASSIC_FIRST_CONTACT_ROUTE_DASH_HEIGHT_PX == 3
+        && CLASSIC_FIRST_CONTACT_ROUTE_ACK_TICK_WIDTH_PX == 8
+        && CLASSIC_FIRST_CONTACT_ROUTE_ACK_TICK_HEIGHT_PX == 2
+        && route_ack_tick_pixel_budget <= 96
+        && route_focus_pixel_budget <= 288;
     let route_clearance_gate = route_clearance_tile_ids
         == string_vec([
             "13,11", "14,10", "14,12", "15,9", "15,10", "16,8", "16,11", "17,9", "17,10",
@@ -115089,13 +115105,16 @@ fn classic_first_contact_selection_combat_focus_readability_guard(
     let combat_target_focus_gate = target_focus_tile == "16,9" && combat_target_pixel_budget >= 180;
     let blocked_warning_focus_gate =
         blocked_focus_tile == "15,16" && blocked_warning_pixel_budget >= 72;
-    let focus_signature_gate = focus_signatures.len() == 7
+    let focus_signature_gate = focus_signatures.len() == 8
         && focus_signatures
             .iter()
             .any(|signature| signature.as_str() == "attack_target_lock_brackets")
         && focus_signatures
             .iter()
             .any(|signature| signature.as_str() == "route_clearance_gutters")
+        && focus_signatures
+            .iter()
+            .any(|signature| signature.as_str() == "compact_route_ack_ticks")
         && focus_signatures
             .iter()
             .any(|signature| signature.as_str() == "blocked_warning_cross");
@@ -115172,7 +115191,13 @@ fn classic_first_contact_selection_combat_focus_readability_guard(
         "route_dash_count": route_dash_count,
         "route_ack_tick_count": route_ack_tick_count,
         "route_line_step_count": route_line_step_count,
+        "route_dash_width_px": CLASSIC_FIRST_CONTACT_ROUTE_DASH_WIDTH_PX,
+        "route_dash_height_px": CLASSIC_FIRST_CONTACT_ROUTE_DASH_HEIGHT_PX,
+        "route_ack_tick_width_px": CLASSIC_FIRST_CONTACT_ROUTE_ACK_TICK_WIDTH_PX,
+        "route_ack_tick_height_px": CLASSIC_FIRST_CONTACT_ROUTE_ACK_TICK_HEIGHT_PX,
         "selected_focus_pixel_budget": selected_focus_pixel_budget,
+        "route_dash_pixel_budget": route_dash_pixel_budget,
+        "route_ack_tick_pixel_budget": route_ack_tick_pixel_budget,
         "route_focus_pixel_budget": route_focus_pixel_budget,
         "route_clearance_pixel_budget": route_clearance_pixel_budget,
         "route_clearance_edge_pixel_budget": route_clearance_edge_pixel_budget,
@@ -115413,6 +115438,7 @@ fn classic_first_contact_marker_budget_guard(runtime: &NativeFirstPlayableRuntim
         "lower_lane_shadow_suppressed",
         "lower_lane_ghost_anchors",
         "lower_lane_two_point_ghost_anchors",
+        "compact_route_ack_ticks",
         "perimeter_gallery_lane_budget",
         "interactive_focus_kept_hot",
     ]);
@@ -115432,8 +115458,12 @@ fn classic_first_contact_marker_budget_guard(runtime: &NativeFirstPlayableRuntim
         .map(|pair| rts_bevy_runtime::rts_runtime_tile_line(pair[0], pair[1]).len())
         .sum::<usize>();
     let selected_focus_pixel_budget = selected_focus_tiles.len() * 92;
-    let route_focus_pixel_budget =
-        route_focus_tiles.len() * 48 + (route_focus_tiles.len() + route_ack_tick_count) * 12;
+    let route_focus_pixel_budget = route_focus_tiles.len()
+        * (CLASSIC_FIRST_CONTACT_ROUTE_DASH_WIDTH_PX as usize)
+        * (CLASSIC_FIRST_CONTACT_ROUTE_DASH_HEIGHT_PX as usize)
+        + route_ack_tick_count
+            * (CLASSIC_FIRST_CONTACT_ROUTE_ACK_TICK_WIDTH_PX as usize)
+            * (CLASSIC_FIRST_CONTACT_ROUTE_ACK_TICK_HEIGHT_PX as usize);
     let combat_target_pixel_budget = 192_usize;
     let blocked_warning_pixel_budget = 84_usize;
     let interactive_focus_pixel_budget = selected_focus_pixel_budget
@@ -115494,7 +115524,7 @@ fn classic_first_contact_marker_budget_guard(runtime: &NativeFirstPlayableRuntim
         == string_vec(["14,11", "15,11", "15,12", "17,12"])
         && route_focus_tiles == string_vec(["14,11", "15,11", "16,10", "16,9"])
         && interactive_hot_marker_role_count >= 5
-        && interactive_focus_pixel_budget >= 950;
+        && interactive_focus_pixel_budget >= 930;
     let marker_budget_layer_order_gate = marker_budget_layer_draw_order
         .iter()
         .position(|layer| layer == "atlas_gallery_muted")
@@ -163787,6 +163817,9 @@ mod tests {
                             .any(|value| value.as_str() == Some("route_clearance_gutters"))
                         && signatures
                             .iter()
+                            .any(|value| value.as_str() == Some("compact_route_ack_ticks"))
+                        && signatures
+                            .iter()
                             .any(|value| value.as_str() == Some("blocked_warning_cross"))
                 }),
             Some(true)
@@ -163802,10 +163835,34 @@ mod tests {
             Some(368)
         );
         assert_eq!(
+            guard.get("route_dash_width_px").and_then(Value::as_u64),
+            Some(16)
+        );
+        assert_eq!(
+            guard.get("route_dash_height_px").and_then(Value::as_u64),
+            Some(3)
+        );
+        assert_eq!(
+            guard.get("route_ack_tick_width_px").and_then(Value::as_u64),
+            Some(8)
+        );
+        assert_eq!(
+            guard
+                .get("route_ack_tick_height_px")
+                .and_then(Value::as_u64),
+            Some(2)
+        );
+        assert_eq!(
+            guard
+                .get("route_ack_tick_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(96)
+        );
+        assert_eq!(
             guard
                 .get("route_focus_pixel_budget")
                 .and_then(Value::as_u64),
-            Some(312)
+            Some(288)
         );
         assert_eq!(
             guard
@@ -164054,6 +164111,9 @@ mod tests {
                         && signatures
                             .iter()
                             .any(|value| value.as_str() == Some("interactive_focus_kept_hot"))
+                        && signatures
+                            .iter()
+                            .any(|value| value.as_str() == Some("compact_route_ack_ticks"))
                         && signatures
                             .iter()
                             .any(|value| value.as_str() == Some("lower_lane_gallery_deemphasis"))

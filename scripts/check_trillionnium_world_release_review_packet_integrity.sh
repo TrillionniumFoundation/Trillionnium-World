@@ -1029,14 +1029,20 @@ require_artifact_json_expr first_contact_basin_spec_semantics native_bevy_classi
   and .first_contact_selection_combat_focus_guard.blocked_focus_tile == "15,16"
   and (.first_contact_selection_combat_focus_guard.focus_signatures | index("selected_corner_brackets") != null)
   and (.first_contact_selection_combat_focus_guard.focus_signatures | index("wide_route_dashes") != null)
+  and (.first_contact_selection_combat_focus_guard.focus_signatures | index("compact_route_ack_ticks") != null)
   and (.first_contact_selection_combat_focus_guard.focus_signatures | index("route_clearance_gutters") != null)
   and (.first_contact_selection_combat_focus_guard.focus_signatures | index("attack_target_lock_brackets") != null)
   and (.first_contact_selection_combat_focus_guard.focus_signatures | index("blocked_warning_cross") != null)
   and .first_contact_selection_combat_focus_guard.route_dash_count >= 4
   and .first_contact_selection_combat_focus_guard.route_ack_tick_count >= 6
   and .first_contact_selection_combat_focus_guard.route_line_step_count >= 10
+  and .first_contact_selection_combat_focus_guard.route_dash_width_px == 16
+  and .first_contact_selection_combat_focus_guard.route_dash_height_px == 3
+  and .first_contact_selection_combat_focus_guard.route_ack_tick_width_px == 8
+  and .first_contact_selection_combat_focus_guard.route_ack_tick_height_px == 2
   and .first_contact_selection_combat_focus_guard.selected_focus_pixel_budget >= 368
-  and .first_contact_selection_combat_focus_guard.route_focus_pixel_budget >= 312
+  and .first_contact_selection_combat_focus_guard.route_ack_tick_pixel_budget <= 96
+  and .first_contact_selection_combat_focus_guard.route_focus_pixel_budget <= 288
   and .first_contact_selection_combat_focus_guard.route_clearance_pixel_budget >= 792
   and .first_contact_selection_combat_focus_guard.route_clearance_edge_pixel_budget >= 144
   and .first_contact_selection_combat_focus_guard.combat_target_pixel_budget >= 180
@@ -1126,7 +1132,7 @@ require_artifact_json_expr first_contact_basin_spec_semantics native_bevy_classi
   and .first_contact_marker_budget_guard.gallery_hot_marker_color_count == 0
   and .first_contact_marker_budget_guard.lower_lane_hot_marker_color_count == 0
   and .first_contact_marker_budget_guard.interactive_hot_marker_role_count >= 5
-  and .first_contact_marker_budget_guard.interactive_focus_pixel_budget >= 956
+  and .first_contact_marker_budget_guard.interactive_focus_pixel_budget >= 930
   and .first_contact_marker_budget_guard.selected_focus_tiles == ["14,11","15,11","15,12","17,12"]
   and .first_contact_marker_budget_guard.route_focus_tiles == ["14,11","15,11","16,10","16,9"]
   and (.first_contact_marker_budget_guard.gallery_presentation_signatures | index("darkened_gallery_frames") != null)
@@ -1136,6 +1142,7 @@ require_artifact_json_expr first_contact_basin_spec_semantics native_bevy_classi
   and (.first_contact_marker_budget_guard.gallery_presentation_signatures | index("lower_lane_shadow_suppressed") != null)
   and (.first_contact_marker_budget_guard.gallery_presentation_signatures | index("lower_lane_ghost_anchors") != null)
   and (.first_contact_marker_budget_guard.gallery_presentation_signatures | index("lower_lane_two_point_ghost_anchors") != null)
+  and (.first_contact_marker_budget_guard.gallery_presentation_signatures | index("compact_route_ack_ticks") != null)
   and (.first_contact_marker_budget_guard.gallery_presentation_signatures | index("interactive_focus_kept_hot") != null)
   and .first_contact_marker_budget_guard.marker_budget_layer_draw_order == ["atlas_readability","atlas_gallery_muted","visual_hierarchy_deemphasis","central_clarity_deemphasis","terminal_legibility_deemphasis","selection_combat_focus"]
   and .first_contact_marker_budget_guard.gallery_lane_budget_gate == true
