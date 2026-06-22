@@ -939,7 +939,17 @@ cat >"$JQ_FILTER" <<'JQ'
   and (.first_contact_motion_readability_guard.combat_event_log | index("secure_beacon:16,9") != null)
   and .first_contact_motion_readability_guard.progress_meter_pixel_budget >= 200
   and .first_contact_motion_readability_guard.unit_status_pixel_budget >= 256
-  and .first_contact_motion_readability_guard.tactical_track_pixel_budget >= 288
+  and .first_contact_motion_readability_guard.primary_tactical_track_count == 1
+  and .first_contact_motion_readability_guard.secondary_tactical_track_count == 5
+  and .first_contact_motion_readability_guard.primary_tactical_track_pixel_budget >= 48
+  and .first_contact_motion_readability_guard.secondary_tactical_track_pixel_budget <= 80
+  and .first_contact_motion_readability_guard.tactical_track_pixel_budget <= 128
+  and .first_contact_motion_readability_guard.secondary_tactical_track_height_px == 1
+  and .first_contact_motion_readability_guard.secondary_tactical_track_darken_numerator == 2
+  and .first_contact_motion_readability_guard.secondary_tactical_track_darken_denominator == 3
+  and (.first_contact_motion_readability_guard.tactical_track_density_signatures | index("primary_relay_beacon_track_kept_hot") != null)
+  and (.first_contact_motion_readability_guard.tactical_track_density_signatures | index("secondary_tracks_dimmed") != null)
+  and (.first_contact_motion_readability_guard.tactical_track_density_signatures | index("secondary_tracks_one_pixel") != null)
   and .first_contact_motion_readability_guard.feedback_pixel_budget >= 190
   and .first_contact_motion_readability_guard.animation_frame_pixel_budget >= 1144
   and .first_contact_motion_readability_guard.opening_action_gate == true

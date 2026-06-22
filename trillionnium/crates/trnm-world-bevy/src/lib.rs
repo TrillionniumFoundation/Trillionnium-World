@@ -49,8 +49,8 @@ use trnm_rts_data::{
     RtsPlayerScreenBuildPaletteSlotProfile, RtsPlayerScreenResourceReadoutKind,
     RtsPlayerScreenResourceReadoutProfile, RtsPlayerScreenTacticsRowKind,
     RtsPlayerScreenTacticsRowProfile, RtsPlayerStartupProfile, RtsRule, RtsRuleKind,
-    RtsTerrainRole, RtsTerrainTileProfile, RtsVisualTelemetryColorRole, TRNM_RTS_DATA_CONTRACT,
-    TRNM_RTS_DATA_FIRST_CONTACT_ACTOR_GLYPH_CONTRACT,
+    RtsTacticalTrackProfile, RtsTerrainRole, RtsTerrainTileProfile, RtsVisualTelemetryColorRole,
+    TRNM_RTS_DATA_CONTRACT, TRNM_RTS_DATA_FIRST_CONTACT_ACTOR_GLYPH_CONTRACT,
     TRNM_RTS_DATA_FIRST_CONTACT_ACTOR_PRESENTATION_CONTRACT,
     TRNM_RTS_DATA_FIRST_CONTACT_COMMAND_FEEDBACK_CONTRACT,
     TRNM_RTS_DATA_FIRST_CONTACT_OPENING_PROFILE_CONTRACT,
@@ -87839,6 +87839,63 @@ fn classic_first_contact_visual_telemetry_color(role: RtsVisualTelemetryColorRol
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_first_contact_primary_tactical_track(track: &RtsTacticalTrackProfile) -> bool {
+    let opening = classic_first_contact_opening_loop();
+    track.from_tile == opening.active_relay_tile
+        && track.to_tile == opening.active_beacon_tile
+        && track.color_role == RtsVisualTelemetryColorRole::ActionTrail
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_first_contact_tactical_track_render_color(track: &RtsTacticalTrackProfile) -> u32 {
+    let color = classic_first_contact_visual_telemetry_color(track.color_role);
+    if classic_first_contact_primary_tactical_track(track) {
+        color
+    } else {
+        classic_mix_color(
+            color,
+            CLASSIC_RTS_TACTICAL_VIEWPORT_TILE_COLOR,
+            CLASSIC_FIRST_CONTACT_SECONDARY_TRACK_DARKEN_NUMERATOR,
+            CLASSIC_FIRST_CONTACT_SECONDARY_TRACK_DARKEN_DENOMINATOR,
+        )
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_first_contact_tactical_track_render_height(track: &RtsTacticalTrackProfile) -> i32 {
+    if classic_first_contact_primary_tactical_track(track) {
+        3
+    } else {
+        1
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_first_contact_tactical_track_render_width(
+    cell_w: i32,
+    track: &RtsTacticalTrackProfile,
+) -> i32 {
+    if classic_first_contact_primary_tactical_track(track) {
+        (cell_w / 2).max(5)
+    } else {
+        (cell_w / 3).max(4)
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_first_contact_tactical_track_render_offset(
+    cell_w: i32,
+    cell_h: i32,
+    track: &RtsTacticalTrackProfile,
+) -> (i32, i32) {
+    if classic_first_contact_primary_tactical_track(track) {
+        (cell_w / 4, cell_h / 2)
+    } else {
+        (cell_w / 3, cell_h / 2 + 1)
+    }
+}
+
+#[cfg(not(target_os = "android"))]
 fn classic_first_contact_tactics_row_color(kind: RtsPlayerScreenTacticsRowKind) -> u32 {
     match kind {
         RtsPlayerScreenTacticsRowKind::Order => CLASSIC_ISO_CONTROL_GROUP_COLOR,
@@ -98655,6 +98712,12 @@ const CLASSIC_FIRST_CONTACT_LOWER_LANE_GALLERY_DARKEN_NUMERATOR: u32 = 2;
 const CLASSIC_FIRST_CONTACT_LOWER_LANE_GALLERY_DARKEN_DENOMINATOR: u32 = 3;
 
 #[cfg(not(target_os = "android"))]
+const CLASSIC_FIRST_CONTACT_SECONDARY_TRACK_DARKEN_NUMERATOR: u32 = 2;
+
+#[cfg(not(target_os = "android"))]
+const CLASSIC_FIRST_CONTACT_SECONDARY_TRACK_DARKEN_DENOMINATOR: u32 = 3;
+
+#[cfg(not(target_os = "android"))]
 #[allow(clippy::too_many_arguments)]
 fn classic_mute_first_contact_gallery_pixels(
     buffer: &mut [u32],
@@ -100483,7 +100546,11 @@ fn classic_draw_first_contact_basin_scene(
     for track in classic_first_contact_visual_telemetry().tactical_tracks {
         let from = classic_first_contact_tile_tuple(track.from_tile);
         let to = classic_first_contact_tile_tuple(track.to_tile);
-        let color = classic_first_contact_visual_telemetry_color(track.color_role);
+        let color = classic_first_contact_tactical_track_render_color(&track);
+        let (track_x, track_y) =
+            classic_first_contact_tactical_track_render_offset(cell_w, cell_h, &track);
+        let track_w = classic_first_contact_tactical_track_render_width(cell_w, &track);
+        let track_h = classic_first_contact_tactical_track_render_height(&track);
         for step in rts_bevy_runtime::rts_runtime_tile_line(from, to) {
             let (tile_x, tile_y) = classic_first_contact_tile_screen(
                 map_x,
@@ -100496,10 +100563,10 @@ fn classic_draw_first_contact_basin_scene(
                 buffer,
                 width,
                 height,
-                tile_x + cell_w / 4,
-                tile_y + cell_h / 2,
-                (cell_w / 2).max(5),
-                3,
+                tile_x + track_x,
+                tile_y + track_y,
+                track_w,
+                track_h,
                 color,
             );
         }
@@ -113528,10 +113595,32 @@ fn classic_first_contact_motion_readability_guard() -> Value {
         .iter()
         .filter(|track| track.color_role == RtsVisualTelemetryColorRole::NpcAction)
         .count();
+    let primary_tactical_track_count = telemetry
+        .tactical_tracks
+        .iter()
+        .filter(|track| classic_first_contact_primary_tactical_track(track))
+        .count();
+    let secondary_tactical_track_count = telemetry
+        .tactical_tracks
+        .len()
+        .saturating_sub(primary_tactical_track_count);
+    let primary_tactical_track_pixel_budget = primary_tactical_track_count * 48;
+    let secondary_tactical_track_pixel_budget = secondary_tactical_track_count * 16;
+    let secondary_tactical_track_height_px = 1_usize;
+    let secondary_tactical_track_darken_numerator =
+        CLASSIC_FIRST_CONTACT_SECONDARY_TRACK_DARKEN_NUMERATOR as usize;
+    let secondary_tactical_track_darken_denominator =
+        CLASSIC_FIRST_CONTACT_SECONDARY_TRACK_DARKEN_DENOMINATOR as usize;
+    let tactical_track_density_signatures = string_vec([
+        "primary_relay_beacon_track_kept_hot",
+        "secondary_tracks_dimmed",
+        "secondary_tracks_one_pixel",
+    ]);
     let route_tile_ids = runtime.rts_group_route_tile_ids.clone();
     let combat_event_log = runtime.rts_combat_event_log.clone();
     let unit_status_pixel_budget = telemetry.unit_statuses.len() * 64;
-    let tactical_track_pixel_budget = telemetry.tactical_tracks.len() * 48;
+    let tactical_track_pixel_budget =
+        primary_tactical_track_pixel_budget + secondary_tactical_track_pixel_budget;
     let progress_meter_pixel_budget = usize::from(opening.worker_train_progress)
         + usize::from(opening.scout_train_progress)
         + usize::from(opening.relay_build_progress)
@@ -113560,12 +113649,28 @@ fn classic_first_contact_motion_readability_guard() -> Value {
     let tactical_track_motion_gate = telemetry.tactical_tracks.len() == 6
         && action_trail_count == 3
         && npc_action_count == 3
+        && primary_tactical_track_count == 1
+        && secondary_tactical_track_count == 5
         && telemetry.tactical_tracks.iter().any(|track| {
             track.from_tile == opening.active_relay_tile
                 && track.to_tile == opening.active_beacon_tile
                 && track.color_role == RtsVisualTelemetryColorRole::ActionTrail
         })
-        && tactical_track_pixel_budget >= 288;
+        && primary_tactical_track_pixel_budget >= 48
+        && secondary_tactical_track_pixel_budget <= 80
+        && tactical_track_pixel_budget <= 128
+        && secondary_tactical_track_height_px == 1
+        && secondary_tactical_track_darken_numerator == 2
+        && secondary_tactical_track_darken_denominator == 3
+        && tactical_track_density_signatures
+            .iter()
+            .any(|signature| signature.as_str() == "primary_relay_beacon_track_kept_hot")
+        && tactical_track_density_signatures
+            .iter()
+            .any(|signature| signature.as_str() == "secondary_tracks_dimmed")
+        && tactical_track_density_signatures
+            .iter()
+            .any(|signature| signature.as_str() == "secondary_tracks_one_pixel");
     let command_feedback_motion_gate = feedback.selected_group == "GROUP 1"
         && feedback.active_order == "SECURE BEACON"
         && feedback.target_tile == opening.active_beacon_tile
@@ -113648,6 +113753,14 @@ fn classic_first_contact_motion_readability_guard() -> Value {
         "track_samples": track_sample_objects,
         "action_trail_count": action_trail_count,
         "npc_action_count": npc_action_count,
+        "primary_tactical_track_count": primary_tactical_track_count,
+        "secondary_tactical_track_count": secondary_tactical_track_count,
+        "primary_tactical_track_pixel_budget": primary_tactical_track_pixel_budget,
+        "secondary_tactical_track_pixel_budget": secondary_tactical_track_pixel_budget,
+        "secondary_tactical_track_height_px": secondary_tactical_track_height_px,
+        "secondary_tactical_track_darken_numerator": secondary_tactical_track_darken_numerator,
+        "secondary_tactical_track_darken_denominator": secondary_tactical_track_darken_denominator,
+        "tactical_track_density_signatures": tactical_track_density_signatures,
         "tactical_track_pixel_budget": tactical_track_pixel_budget,
         "tactical_track_motion_gate": tactical_track_motion_gate,
         "feedback_selected_group": feedback.selected_group,
@@ -162575,6 +162688,65 @@ mod tests {
                 "action_trail",
                 "npc_action"
             ]))
+        );
+        assert_eq!(
+            guard
+                .get("primary_tactical_track_count")
+                .and_then(Value::as_u64),
+            Some(1)
+        );
+        assert_eq!(
+            guard
+                .get("secondary_tactical_track_count")
+                .and_then(Value::as_u64),
+            Some(5)
+        );
+        assert_eq!(
+            guard
+                .get("tactical_track_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(128)
+        );
+        assert_eq!(
+            guard
+                .get("secondary_tactical_track_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(80)
+        );
+        assert_eq!(
+            guard
+                .get("secondary_tactical_track_height_px")
+                .and_then(Value::as_u64),
+            Some(1)
+        );
+        assert_eq!(
+            guard
+                .get("secondary_tactical_track_darken_numerator")
+                .and_then(Value::as_u64),
+            Some(2)
+        );
+        assert_eq!(
+            guard
+                .get("secondary_tactical_track_darken_denominator")
+                .and_then(Value::as_u64),
+            Some(3)
+        );
+        assert_eq!(
+            guard
+                .get("tactical_track_density_signatures")
+                .and_then(Value::as_array)
+                .map(|signatures| {
+                    signatures
+                        .iter()
+                        .any(|value| value.as_str() == Some("primary_relay_beacon_track_kept_hot"))
+                        && signatures
+                            .iter()
+                            .any(|value| value.as_str() == Some("secondary_tracks_dimmed"))
+                        && signatures
+                            .iter()
+                            .any(|value| value.as_str() == Some("secondary_tracks_one_pixel"))
+                }),
+            Some(true)
         );
         assert_eq!(
             guard.get("unit_status_badges").cloned(),
