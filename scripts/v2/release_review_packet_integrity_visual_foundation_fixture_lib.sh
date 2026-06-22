@@ -741,6 +741,8 @@ add_first_contact_basin_source_manifest_packet_fixtures() {
       upgrade_feedback_label: "SIGNAL BLADE READY",
       build_feedback_label: "WATCH TOWER READY",
       squad_role_labels: ["WORKER", "SCOUT", "GUARD", "RELAY"],
+      order_queue_badge_labels: ["ATK BEACON", "TRN WORKER", "BLD RELAY", "MOV 16/9"],
+      completion_event_badge_labels: ["WRK RDY", "SIG RDY", "TWR RDY", "TRN RDY"],
       raw_marker_gate: true,
       feedback_expected_gate: true,
       feedback_width_gate: true,
@@ -748,6 +750,7 @@ add_first_contact_basin_source_manifest_packet_fixtures() {
       squad_chip_width_gate: true,
       squad_chip_bottom_margin_px: 13,
       squad_chip_edge_clearance_gate: true,
+      order_queue_badge_gate: true,
       selection_density_gate: true
     },
     first_contact_bottom_panel_readability_guard_gate: true,

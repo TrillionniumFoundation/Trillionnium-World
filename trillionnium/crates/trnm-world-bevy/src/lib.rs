@@ -110923,6 +110923,76 @@ fn classic_rts_order_queue_label(order: &str) -> String {
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_first_contact_order_queue_badge_code(label: &str) -> String {
+    let upper = label.to_ascii_uppercase();
+    if upper.contains("BLOCKED") {
+        return "BLK".to_string();
+    }
+    let head = upper.split_whitespace().next().unwrap_or("ORDER");
+    match head {
+        "ATTACK" => "ATK",
+        "BUILD" => "BLD",
+        "GUARD" => "GRD",
+        "MOVE" => "MOV",
+        "SIGNAL" => "SIG",
+        "TOWER" => "TWR",
+        "TRAIN" | "TRAINING" => "TRN",
+        "UPGRADE" => "UPG",
+        "WORKER" => "WRK",
+        "READY" => "RDY",
+        _ => head.get(..head.len().min(3)).unwrap_or("ORD"),
+    }
+    .to_string()
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_first_contact_order_queue_badge_detail(label: &str) -> String {
+    let upper = label.to_ascii_uppercase();
+    if upper.ends_with(" READY") {
+        return "RDY".to_string();
+    }
+    if upper.contains("BLOCKED") {
+        let blocked_subject = upper
+            .replace("BLOCKED", "")
+            .split_whitespace()
+            .take(2)
+            .collect::<Vec<_>>()
+            .join(" ");
+        return classic_catalog_text_label(
+            if blocked_subject.is_empty() {
+                "PATH"
+            } else {
+                blocked_subject.as_str()
+            },
+            10,
+        );
+    }
+    let detail = upper
+        .split_whitespace()
+        .skip(1)
+        .collect::<Vec<_>>()
+        .join(" ");
+    classic_catalog_text_label(
+        if detail.is_empty() {
+            "READY"
+        } else {
+            detail.as_str()
+        },
+        12,
+    )
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_first_contact_order_queue_badge_label(order: &str) -> String {
+    let label = classic_rts_order_queue_label(order);
+    format!(
+        "{} {}",
+        classic_first_contact_order_queue_badge_code(&label),
+        classic_first_contact_order_queue_badge_detail(&label)
+    )
+}
+
+#[cfg(not(target_os = "android"))]
 #[allow(clippy::too_many_arguments)]
 fn classic_draw_rts_command_glyph(
     buffer: &mut [u32],
@@ -112105,6 +112175,21 @@ fn classic_first_contact_rendered_order_queue_labels(
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_first_contact_rendered_order_queue_badge_labels(
+    runtime: &NativeFirstPlayableRuntime,
+    chrome: &RtsFirstContactPlayerScreenChromeProfile,
+) -> Vec<String> {
+    let order_queue_visible_count = chrome.order_queue_visible_count.max(1) as usize;
+    runtime
+        .rts_command_queue
+        .iter()
+        .rev()
+        .take(order_queue_visible_count)
+        .map(|order| classic_first_contact_order_queue_badge_label(order))
+        .collect()
+}
+
+#[cfg(not(target_os = "android"))]
 fn classic_first_contact_player_screen_label_guard(
     runtime: &NativeFirstPlayableRuntime,
     chrome: &RtsFirstContactPlayerScreenChromeProfile,
@@ -112150,11 +112235,25 @@ fn classic_first_contact_player_screen_label_guard(
         })
         .collect::<Vec<_>>();
     let order_queue_labels = classic_first_contact_rendered_order_queue_labels(runtime, chrome);
+    let order_queue_badge_labels =
+        classic_first_contact_rendered_order_queue_badge_labels(runtime, chrome);
     let completion_event_labels = vec![
         classic_rts_order_queue_label("production_complete:train:worker->worker_03"),
         classic_rts_order_queue_label("upgrade_complete:signal_blade"),
         classic_rts_order_queue_label("build_complete:build:watch_tower@7,4->watch_tower"),
         classic_rts_order_queue_label("build_complete:upgrade:training_hall->training_hall"),
+    ];
+    let completion_event_badge_labels = vec![
+        classic_first_contact_order_queue_badge_label(
+            "production_complete:train:worker->worker_03",
+        ),
+        classic_first_contact_order_queue_badge_label("upgrade_complete:signal_blade"),
+        classic_first_contact_order_queue_badge_label(
+            "build_complete:build:watch_tower@7,4->watch_tower",
+        ),
+        classic_first_contact_order_queue_badge_label(
+            "build_complete:upgrade:training_hall->training_hall",
+        ),
     ];
     let tactics_queue_summary = chrome
         .tactics_rows
@@ -112219,7 +112318,9 @@ fn classic_first_contact_player_screen_label_guard(
     all_display_labels.extend(build_palette_labels.iter().cloned());
     all_display_labels.extend(build_palette_state_labels.iter().cloned());
     all_display_labels.extend(order_queue_labels.iter().cloned());
+    all_display_labels.extend(order_queue_badge_labels.iter().cloned());
     all_display_labels.extend(completion_event_labels.iter().cloned());
+    all_display_labels.extend(completion_event_badge_labels.iter().cloned());
     all_display_labels.extend(tactics_detail_labels.iter().cloned());
     all_display_labels.push(field_status_title.clone());
     all_display_labels.extend(live_status_labels.iter().cloned());
@@ -112249,6 +112350,8 @@ fn classic_first_contact_player_screen_label_guard(
             ])
         && order_queue_labels
             == string_vec(["ATTACK BEACON", "TRAIN WORKER", "BUILD RELAY", "MOVE 16/9"])
+        && order_queue_badge_labels
+            == string_vec(["ATK BEACON", "TRN WORKER", "BLD RELAY", "MOV 16/9"])
         && completion_event_labels
             == string_vec([
                 "WORKER READY",
@@ -112256,6 +112359,8 @@ fn classic_first_contact_player_screen_label_guard(
                 "TOWER READY",
                 "TRAINING READY",
             ])
+        && completion_event_badge_labels
+            == string_vec(["WRK RDY", "SIG RDY", "TWR RDY", "TRN RDY"])
         && tactics_queue_summary == "GUARD 64% TOWER 42%"
         && tactics_target_label == "RELAY BEACON"
         && tactics_build_label == "IDLE"
@@ -112307,6 +112412,10 @@ fn classic_first_contact_player_screen_label_guard(
         .iter()
         .chain(completion_event_labels.iter())
         .all(|label| classic_text_advance_px(label, 1) <= 210);
+    let order_queue_badge_width_gate = order_queue_badge_labels
+        .iter()
+        .chain(completion_event_badge_labels.iter())
+        .all(|label| classic_text_advance_px(label, 1) <= 76);
     let tactics_summary_width_gate = classic_text_advance_px(&tactics_queue_summary, 1) <= 120;
     let tactics_detail_width_gate = tactics_detail_labels
         .iter()
@@ -112333,6 +112442,7 @@ fn classic_first_contact_player_screen_label_guard(
         && build_palette_width_gate
         && build_palette_state_width_gate
         && order_queue_width_gate
+        && order_queue_badge_width_gate
         && tactics_summary_width_gate
         && tactics_detail_width_gate
         && live_status_width_gate
@@ -112356,7 +112466,9 @@ fn classic_first_contact_player_screen_label_guard(
         "build_palette_state_labels": build_palette_state_labels,
         "build_palette_fit_samples": build_palette_fit_samples,
         "order_queue_labels": order_queue_labels,
+        "order_queue_badge_labels": order_queue_badge_labels,
         "completion_event_labels": completion_event_labels,
+        "completion_event_badge_labels": completion_event_badge_labels,
         "tactics_queue_summary": tactics_queue_summary,
         "tactics_target_label": tactics_target_label,
         "tactics_build_label": tactics_build_label,
@@ -112383,6 +112495,7 @@ fn classic_first_contact_player_screen_label_guard(
         "build_palette_width_gate": build_palette_width_gate,
         "build_palette_state_width_gate": build_palette_state_width_gate,
         "order_queue_width_gate": order_queue_width_gate,
+        "order_queue_badge_width_gate": order_queue_badge_width_gate,
         "tactics_summary_width_gate": tactics_summary_width_gate,
         "tactics_detail_width_gate": tactics_detail_width_gate,
         "live_status_width_gate": live_status_width_gate,
@@ -112803,6 +112916,20 @@ fn classic_first_contact_bottom_panel_readability_guard(
     );
     let squad_role_labels =
         classic_first_contact_bottom_panel_squad_roles(runtime, selected_unit_display_count);
+    let order_queue_badge_labels =
+        classic_first_contact_rendered_order_queue_badge_labels(runtime, chrome);
+    let completion_event_badge_labels = vec![
+        classic_first_contact_order_queue_badge_label(
+            "production_complete:train:worker->worker_03",
+        ),
+        classic_first_contact_order_queue_badge_label("upgrade_complete:signal_blade"),
+        classic_first_contact_order_queue_badge_label(
+            "build_complete:build:watch_tower@7,4->watch_tower",
+        ),
+        classic_first_contact_order_queue_badge_label(
+            "build_complete:upgrade:training_hall->training_hall",
+        ),
+    ];
     let feedback_labels = vec![
         runtime_feedback_label.clone(),
         upgrade_feedback_label.clone(),
@@ -112828,6 +112955,14 @@ fn classic_first_contact_bottom_panel_readability_guard(
             + CLASSIC_FIRST_CONTACT_SQUAD_CHIP_HEIGHT_PX);
     let squad_chip_edge_clearance_gate =
         squad_chip_bottom_margin_px >= CLASSIC_FIRST_CONTACT_SQUAD_CHIP_BOTTOM_MARGIN_MIN_PX;
+    let order_queue_badge_gate = order_queue_badge_labels
+        == string_vec(["ATK BEACON", "TRN WORKER", "BLD RELAY", "MOV 16/9"])
+        && completion_event_badge_labels
+            == string_vec(["WRK RDY", "SIG RDY", "TWR RDY", "TRN RDY"])
+        && order_queue_badge_labels
+            .iter()
+            .chain(completion_event_badge_labels.iter())
+            .all(|label| classic_text_advance_px(label, 1) <= 76);
     let selection_density_gate = selected_unit_display_count >= 4
         && squad_role_labels.len() >= 4
         && group_summary == "GROUP 1  4 UNITS SELECTED";
@@ -112837,6 +112972,7 @@ fn classic_first_contact_bottom_panel_readability_guard(
         && squad_strip_gate
         && squad_chip_width_gate
         && squad_chip_edge_clearance_gate
+        && order_queue_badge_gate
         && selection_density_gate;
 
     json!({
@@ -112850,6 +112986,8 @@ fn classic_first_contact_bottom_panel_readability_guard(
         "upgrade_feedback_label": upgrade_feedback_label,
         "build_feedback_label": build_feedback_label,
         "squad_role_labels": squad_role_labels,
+        "order_queue_badge_labels": order_queue_badge_labels,
+        "completion_event_badge_labels": completion_event_badge_labels,
         "raw_marker_gate": raw_marker_gate,
         "feedback_expected_gate": feedback_expected_gate,
         "feedback_width_gate": feedback_width_gate,
@@ -112857,6 +112995,7 @@ fn classic_first_contact_bottom_panel_readability_guard(
         "squad_chip_width_gate": squad_chip_width_gate,
         "squad_chip_bottom_margin_px": squad_chip_bottom_margin_px,
         "squad_chip_edge_clearance_gate": squad_chip_edge_clearance_gate,
+        "order_queue_badge_gate": order_queue_badge_gate,
         "selection_density_gate": selection_density_gate,
     })
 }
@@ -116526,13 +116665,26 @@ fn classic_draw_openra_style_rts_shell(
         );
         classic_draw_rect(buffer, width, height, queue_x, y, 4, 14, chip_color);
         let order_label = classic_rts_order_queue_label(order);
+        let order_badge_code = classic_first_contact_order_queue_badge_code(&order_label);
+        let order_badge_detail = classic_first_contact_order_queue_badge_detail(&order_label);
+        classic_draw_rect(buffer, width, height, queue_x + 8, y + 3, 28, 8, 0x203020);
         classic_draw_text(
             buffer,
             width,
             height,
-            queue_x + 10,
+            queue_x + 11,
+            y + 5,
+            &order_badge_code,
+            1,
+            chip_color,
+        );
+        classic_draw_text(
+            buffer,
+            width,
+            height,
+            queue_x + 44,
             y + 4,
-            &classic_catalog_text_label(&order_label, order_queue_label_max_chars),
+            &classic_catalog_text_label(&order_badge_detail, order_queue_label_max_chars),
             1,
             if order.starts_with("feedback:blocked:") {
                 CLASSIC_RTS_BLOCKED_FEEDBACK_CHIP_COLOR
@@ -161660,6 +161812,24 @@ mod tests {
             classic_rts_order_queue_label("build_complete:upgrade:training_hall->training_hall"),
             "TRAINING READY"
         );
+        assert_eq!(
+            classic_first_contact_order_queue_badge_label("attack:trnm.flux.beacon"),
+            "ATK BEACON"
+        );
+        assert_eq!(
+            classic_first_contact_order_queue_badge_label("move:16,9"),
+            "MOV 16/9"
+        );
+        assert_eq!(
+            classic_first_contact_order_queue_badge_label("upgrade_complete:signal_blade"),
+            "SIG RDY"
+        );
+        assert_eq!(
+            classic_first_contact_order_queue_badge_label(
+                "build_complete:upgrade:training_hall->training_hall"
+            ),
+            "TRN RDY"
+        );
     }
 
     #[cfg(not(target_os = "android"))]
@@ -161716,6 +161886,10 @@ mod tests {
             ]))
         );
         assert_eq!(
+            guard.get("order_queue_badge_labels").cloned(),
+            Some(json!(["ATK BEACON", "TRN WORKER", "BLD RELAY", "MOV 16/9"]))
+        );
+        assert_eq!(
             guard.get("completion_event_labels").cloned(),
             Some(json!([
                 "WORKER READY",
@@ -161723,6 +161897,10 @@ mod tests {
                 "TOWER READY",
                 "TRAINING READY"
             ]))
+        );
+        assert_eq!(
+            guard.get("completion_event_badge_labels").cloned(),
+            Some(json!(["WRK RDY", "SIG RDY", "TWR RDY", "TRN RDY"]))
         );
         assert_eq!(
             guard.get("tactics_queue_summary").and_then(Value::as_str),
@@ -162040,6 +162218,14 @@ mod tests {
             guard.get("squad_role_labels").cloned(),
             Some(json!(["WORKER", "SCOUT", "GUARD", "RELAY"]))
         );
+        assert_eq!(
+            guard.get("order_queue_badge_labels").cloned(),
+            Some(json!(["ATK BEACON", "TRN WORKER", "BLD RELAY", "MOV 16/9"]))
+        );
+        assert_eq!(
+            guard.get("completion_event_badge_labels").cloned(),
+            Some(json!(["WRK RDY", "SIG RDY", "TWR RDY", "TRN RDY"]))
+        );
         for gate in [
             "raw_marker_gate",
             "feedback_expected_gate",
@@ -162047,6 +162233,7 @@ mod tests {
             "squad_strip_gate",
             "squad_chip_width_gate",
             "squad_chip_edge_clearance_gate",
+            "order_queue_badge_gate",
             "selection_density_gate",
         ] {
             assert_eq!(guard.get(gate).and_then(Value::as_bool), Some(true));
