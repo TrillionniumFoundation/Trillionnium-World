@@ -889,7 +889,8 @@ require_artifact_json_expr first_contact_basin_spec_semantics native_bevy_classi
   and .first_contact_visual_hierarchy_guard.hierarchy_signature_gate == true
   and (.first_contact_visual_hierarchy_guard.hierarchy_layer_draw_order | index("visual_hierarchy_deemphasis")) == 14
   and (.first_contact_visual_hierarchy_guard.hierarchy_layer_draw_order | index("central_clarity_deemphasis")) == 15
-  and (.first_contact_visual_hierarchy_guard.hierarchy_layer_draw_order | index("selection_combat_focus")) == 16
+  and (.first_contact_visual_hierarchy_guard.hierarchy_layer_draw_order | index("terminal_legibility_deemphasis")) == 16
+  and (.first_contact_visual_hierarchy_guard.hierarchy_layer_draw_order | index("selection_combat_focus")) == 17
   and .first_contact_visual_hierarchy_guard.hierarchy_layer_order_gate == true
   and .first_contact_visual_hierarchy_guard.visual_hierarchy_gate == true
   and .first_contact_visual_hierarchy_guard_gate == true
@@ -909,7 +910,8 @@ require_artifact_json_expr first_contact_basin_spec_semantics native_bevy_classi
   and (.first_contact_central_clarity_guard.clarity_signatures | index("focus_corridor_not_muted") != null)
   and (.first_contact_central_clarity_guard.clarity_layer_draw_order | index("visual_hierarchy_deemphasis")) == 14
   and (.first_contact_central_clarity_guard.clarity_layer_draw_order | index("central_clarity_deemphasis")) == 15
-  and (.first_contact_central_clarity_guard.clarity_layer_draw_order | index("selection_combat_focus")) == 16
+  and (.first_contact_central_clarity_guard.clarity_layer_draw_order | index("terminal_legibility_deemphasis")) == 16
+  and (.first_contact_central_clarity_guard.clarity_layer_draw_order | index("selection_combat_focus")) == 17
   and .first_contact_central_clarity_guard.central_quiet_tile_gate == true
   and .first_contact_central_clarity_guard.focus_overlap_gate == true
   and .first_contact_central_clarity_guard.quiet_edge_gate == true
@@ -917,6 +919,34 @@ require_artifact_json_expr first_contact_basin_spec_semantics native_bevy_classi
   and .first_contact_central_clarity_guard.clarity_layer_order_gate == true
   and .first_contact_central_clarity_guard.central_clarity_gate == true
   and .first_contact_central_clarity_guard_gate == true
+  and .first_contact_terminal_legibility_contract == "trillionnium_world_bevy_classic_rts_first_contact_terminal_legibility_v1"
+  and .first_contact_terminal_legibility_guard.contract_version == "trillionnium_world_bevy_classic_rts_first_contact_terminal_legibility_v1"
+  and .first_contact_terminal_legibility_guard.green == true
+  and .first_contact_terminal_legibility_guard.source_path == "trnm-world-bevy classic_draw_first_contact_terminal_legibility_layer between central clarity and selection/combat focus"
+  and .first_contact_terminal_legibility_guard.terminal_quiet_tile_count == 13
+  and .first_contact_terminal_legibility_guard.target_quiet_tiles == ["15,8","16,8","17,8","15,9","17,9"]
+  and .first_contact_terminal_legibility_guard.blocked_quiet_tiles == ["14,15","15,15","16,15","14,16","16,16","14,17","15,17","16,17"]
+  and .first_contact_terminal_legibility_guard.terminal_focus_tiles == ["15,16","16,9","16,10"]
+  and .first_contact_terminal_legibility_guard.focus_overlap_tiles == []
+  and .first_contact_terminal_legibility_guard.target_focus_tile == "16,9"
+  and .first_contact_terminal_legibility_guard.blocked_focus_tile == "15,16"
+  and .first_contact_terminal_legibility_guard.target_quiet_pixel_budget >= 480
+  and .first_contact_terminal_legibility_guard.blocked_quiet_pixel_budget >= 768
+  and .first_contact_terminal_legibility_guard.target_edge_pixel_budget >= 90
+  and .first_contact_terminal_legibility_guard.blocked_edge_pixel_budget >= 144
+  and (.first_contact_terminal_legibility_guard.terminal_signatures | index("target_terminal_quiet_band") != null)
+  and (.first_contact_terminal_legibility_guard.terminal_signatures | index("route_terminal_focus_preserved") != null)
+  and (.first_contact_terminal_legibility_guard.terminal_layer_draw_order | index("central_clarity_deemphasis")) == 15
+  and (.first_contact_terminal_legibility_guard.terminal_layer_draw_order | index("terminal_legibility_deemphasis")) == 16
+  and (.first_contact_terminal_legibility_guard.terminal_layer_draw_order | index("selection_combat_focus")) == 17
+  and .first_contact_terminal_legibility_guard.target_terminal_quiet_gate == true
+  and .first_contact_terminal_legibility_guard.blocked_terminal_quiet_gate == true
+  and .first_contact_terminal_legibility_guard.terminal_focus_preservation_gate == true
+  and .first_contact_terminal_legibility_guard.terminal_edge_budget_gate == true
+  and .first_contact_terminal_legibility_guard.terminal_signature_gate == true
+  and .first_contact_terminal_legibility_guard.terminal_layer_order_gate == true
+  and .first_contact_terminal_legibility_guard.terminal_legibility_gate == true
+  and .first_contact_terminal_legibility_guard_gate == true
   and .first_contact_selection_combat_focus_contract == "trillionnium_world_bevy_classic_rts_first_contact_selection_combat_focus_v1"
   and .first_contact_selection_combat_focus_guard.contract_version == "trillionnium_world_bevy_classic_rts_first_contact_selection_combat_focus_v1"
   and .first_contact_selection_combat_focus_guard.green == true
@@ -945,7 +975,8 @@ require_artifact_json_expr first_contact_basin_spec_semantics native_bevy_classi
   and (.first_contact_selection_combat_focus_guard.focus_layer_draw_order | index("readability_overlays")) == 13
   and (.first_contact_selection_combat_focus_guard.focus_layer_draw_order | index("visual_hierarchy_deemphasis")) == 14
   and (.first_contact_selection_combat_focus_guard.focus_layer_draw_order | index("central_clarity_deemphasis")) == 15
-  and (.first_contact_selection_combat_focus_guard.focus_layer_draw_order | index("selection_combat_focus")) == 16
+  and (.first_contact_selection_combat_focus_guard.focus_layer_draw_order | index("terminal_legibility_deemphasis")) == 16
+  and (.first_contact_selection_combat_focus_guard.focus_layer_draw_order | index("selection_combat_focus")) == 17
   and .first_contact_selection_combat_focus_guard.focus_layer_order_gate == true
   and .first_contact_selection_combat_focus_guard.selection_combat_focus_readability_gate == true
   and .first_contact_selection_combat_focus_guard_gate == true
@@ -969,7 +1000,7 @@ require_artifact_json_expr first_contact_basin_spec_semantics native_bevy_classi
   and .first_contact_marker_budget_guard.route_focus_tiles == ["14,11","15,11","16,10","16,9"]
   and (.first_contact_marker_budget_guard.gallery_presentation_signatures | index("darkened_gallery_frames") != null)
   and (.first_contact_marker_budget_guard.gallery_presentation_signatures | index("interactive_focus_kept_hot") != null)
-  and .first_contact_marker_budget_guard.marker_budget_layer_draw_order == ["atlas_readability","atlas_gallery_muted","visual_hierarchy_deemphasis","central_clarity_deemphasis","selection_combat_focus"]
+  and .first_contact_marker_budget_guard.marker_budget_layer_draw_order == ["atlas_readability","atlas_gallery_muted","visual_hierarchy_deemphasis","central_clarity_deemphasis","terminal_legibility_deemphasis","selection_combat_focus"]
   and .first_contact_marker_budget_guard.gallery_lane_budget_gate == true
   and .first_contact_marker_budget_guard.gallery_mute_gate == true
   and .first_contact_marker_budget_guard.interactive_focus_preservation_gate == true
