@@ -548,6 +548,8 @@ add_first_contact_basin_source_manifest_packet_fixtures() {
         "GUARD 64% TOWER 42%",
         "IDLE"
       ],
+      tactics_compact_badge_labels: ["SECURE", "BEACON", "16/16", "G64/T42", "IDLE"],
+      tactics_compact_badge_widths: [36, 36, 30, 42, 24],
       field_status_title: "FIELD STATUS",
       live_status_labels: [
         "SQUAD READY",
@@ -589,6 +591,7 @@ add_first_contact_basin_source_manifest_packet_fixtures() {
       order_queue_width_gate: true,
       tactics_summary_width_gate: true,
       tactics_detail_width_gate: true,
+      tactics_compact_badge_width_gate: true,
       live_status_width_gate: true,
       live_state_width_gate: true,
       tactical_header_title_order_width_gate: true,
@@ -721,6 +724,8 @@ add_first_contact_basin_source_manifest_packet_fixtures() {
       tactics_row_count: 5,
       tactics_row_gap_px: 4,
       tactics_detail_labels: ["SECURE RELAY BEACON", "RELAY BEACON", "16/16", "GUARD 64% TOWER 42%", "IDLE"],
+      tactics_compact_badge_labels: ["SECURE", "BEACON", "16/16", "G64/T42", "IDLE"],
+      tactics_compact_badge_widths: [36, 36, 30, 42, 24],
       production_density_gate: true,
       palette_geometry_gate: true,
       palette_state_badge_gate: true,

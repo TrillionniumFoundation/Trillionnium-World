@@ -88004,6 +88004,75 @@ fn classic_first_contact_tactics_row_value(
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_first_contact_tactics_queue_badge_label(value: &str) -> String {
+    let tokens = value.split_whitespace().collect::<Vec<_>>();
+    let mut badges = Vec::new();
+    for pair in tokens.chunks(2) {
+        if pair.len() != 2 || !pair[1].ends_with('%') {
+            continue;
+        }
+        let code = match pair[0] {
+            "GUARD" => "G",
+            "TOWER" => "T",
+            "WORKER" => "W",
+            "TRAIN" | "TRAINING" => "TRN",
+            "RELAY" => "R",
+            "SIGNAL" => "S",
+            other => other.get(0..1).unwrap_or("Q"),
+        };
+        badges.push(format!("{code}{}", pair[1].trim_end_matches('%')));
+    }
+    if badges.is_empty() {
+        let fallback = match value {
+            "READY" => "RDY",
+            "IDLE" => "IDLE",
+            _ => value,
+        };
+        classic_catalog_text_label(fallback, 8)
+    } else {
+        classic_catalog_text_label(&badges.join("/"), 9)
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_first_contact_tactics_row_badge_label(
+    kind: RtsPlayerScreenTacticsRowKind,
+    value: &str,
+) -> String {
+    match kind {
+        RtsPlayerScreenTacticsRowKind::Order => {
+            if value.contains("SECURE") {
+                "SECURE".to_string()
+            } else if value == "READY" {
+                "RDY".to_string()
+            } else {
+                classic_catalog_text_label(value, 6)
+            }
+        }
+        RtsPlayerScreenTacticsRowKind::Target => {
+            if value.contains("BEACON") {
+                "BEACON".to_string()
+            } else if value == "NONE" {
+                "NONE".to_string()
+            } else {
+                classic_catalog_text_label(value, 6)
+            }
+        }
+        RtsPlayerScreenTacticsRowKind::Camera => value.to_string(),
+        RtsPlayerScreenTacticsRowKind::Queue => {
+            classic_first_contact_tactics_queue_badge_label(value)
+        }
+        RtsPlayerScreenTacticsRowKind::Build => {
+            if value == "IDLE" {
+                "IDLE".to_string()
+            } else {
+                classic_catalog_text_label(value, 8)
+            }
+        }
+    }
+}
+
+#[cfg(not(target_os = "android"))]
 fn classic_first_contact_target_label(target_id: &str) -> String {
     match target_id {
         "trnm.flux.beacon" | "flux.beacon" | "beacon" => "RELAY BEACON".to_string(),
@@ -112357,6 +112426,16 @@ fn classic_first_contact_player_screen_label_guard(
         .iter()
         .map(|row| classic_first_contact_tactics_row_value(runtime, row))
         .collect::<Vec<_>>();
+    let tactics_compact_badge_labels = chrome
+        .tactics_rows
+        .iter()
+        .zip(tactics_detail_labels.iter())
+        .map(|(row, value)| classic_first_contact_tactics_row_badge_label(row.kind, value))
+        .collect::<Vec<_>>();
+    let tactics_compact_badge_widths = tactics_compact_badge_labels
+        .iter()
+        .map(|label| classic_text_advance_px(label, 1))
+        .collect::<Vec<_>>();
     let tactics_target_label = chrome
         .tactics_rows
         .iter()
@@ -112413,6 +112492,7 @@ fn classic_first_contact_player_screen_label_guard(
     all_display_labels.extend(completion_event_labels.iter().cloned());
     all_display_labels.extend(completion_event_badge_labels.iter().cloned());
     all_display_labels.extend(tactics_detail_labels.iter().cloned());
+    all_display_labels.extend(tactics_compact_badge_labels.iter().cloned());
     all_display_labels.push(field_status_title.clone());
     all_display_labels.extend(live_status_labels.iter().cloned());
     all_display_labels.extend(live_state_labels.iter().cloned());
@@ -112453,6 +112533,8 @@ fn classic_first_contact_player_screen_label_guard(
         && completion_event_badge_labels
             == string_vec(["WRK RDY", "SIG RDY", "TWR RDY", "TRN RDY"])
         && tactics_queue_summary == "GUARD 64% TOWER 42%"
+        && tactics_compact_badge_labels
+            == string_vec(["SECURE", "BEACON", "16/16", "G64/T42", "IDLE"])
         && tactics_target_label == "RELAY BEACON"
         && tactics_build_label == "IDLE"
         && field_status_title == "FIELD STATUS"
@@ -112511,6 +112593,9 @@ fn classic_first_contact_player_screen_label_guard(
     let tactics_detail_width_gate = tactics_detail_labels
         .iter()
         .all(|label| classic_text_advance_px(label, 1) <= 132);
+    let tactics_compact_badge_width_gate = tactics_compact_badge_widths
+        .iter()
+        .all(|width| *width <= 48);
     let live_status_width_gate = live_status_labels
         .iter()
         .all(|label| classic_text_advance_px(label, 1) <= 132);
@@ -112536,6 +112621,7 @@ fn classic_first_contact_player_screen_label_guard(
         && order_queue_badge_width_gate
         && tactics_summary_width_gate
         && tactics_detail_width_gate
+        && tactics_compact_badge_width_gate
         && live_status_width_gate
         && live_state_width_gate
         && tactical_header_title_order_width_gate
@@ -112564,6 +112650,8 @@ fn classic_first_contact_player_screen_label_guard(
         "tactics_target_label": tactics_target_label,
         "tactics_build_label": tactics_build_label,
         "tactics_detail_labels": tactics_detail_labels,
+        "tactics_compact_badge_labels": tactics_compact_badge_labels,
+        "tactics_compact_badge_widths": tactics_compact_badge_widths,
         "field_status_title": field_status_title,
         "live_status_labels": live_status_labels,
         "live_state_labels": live_state_labels,
@@ -112589,6 +112677,7 @@ fn classic_first_contact_player_screen_label_guard(
         "order_queue_badge_width_gate": order_queue_badge_width_gate,
         "tactics_summary_width_gate": tactics_summary_width_gate,
         "tactics_detail_width_gate": tactics_detail_width_gate,
+        "tactics_compact_badge_width_gate": tactics_compact_badge_width_gate,
         "live_status_width_gate": live_status_width_gate,
         "live_state_width_gate": live_state_width_gate,
         "tactical_header_title_order_width_gate": tactical_header_title_order_width_gate,
@@ -112777,6 +112866,16 @@ fn classic_first_contact_sidebar_density_guard(
         .iter()
         .map(|row| classic_first_contact_tactics_row_value(runtime, row))
         .collect::<Vec<_>>();
+    let tactics_compact_badge_labels = chrome
+        .tactics_rows
+        .iter()
+        .zip(tactics_detail_labels.iter())
+        .map(|(row, value)| classic_first_contact_tactics_row_badge_label(row.kind, value))
+        .collect::<Vec<_>>();
+    let tactics_compact_badge_widths = tactics_compact_badge_labels
+        .iter()
+        .map(|label| classic_text_advance_px(label, 1))
+        .collect::<Vec<_>>();
 
     let production_density_gate = production_slot_visible_count == 4
         && production_slot_column_count == 2
@@ -112825,9 +112924,14 @@ fn classic_first_contact_sidebar_density_guard(
                 "GUARD 64% TOWER 42%",
                 "IDLE",
             ])
+        && tactics_compact_badge_labels
+            == string_vec(["SECURE", "BEACON", "16/16", "G64/T42", "IDLE"])
         && tactics_detail_labels
             .iter()
-            .all(|label| classic_text_advance_px(label, 1) <= 132);
+            .all(|label| classic_text_advance_px(label, 1) <= 132)
+        && tactics_compact_badge_widths
+            .iter()
+            .all(|width| *width <= 48);
     let right_sidebar_density_gate = production_density_gate
         && palette_geometry_gate
         && palette_state_badge_gate
@@ -112865,6 +112969,8 @@ fn classic_first_contact_sidebar_density_guard(
         "tactics_row_count": tactics_row_count,
         "tactics_row_gap_px": tactics_row_gap_px,
         "tactics_detail_labels": tactics_detail_labels,
+        "tactics_compact_badge_labels": tactics_compact_badge_labels,
+        "tactics_compact_badge_widths": tactics_compact_badge_widths,
         "production_density_gate": production_density_gate,
         "palette_geometry_gate": palette_geometry_gate,
         "palette_state_badge_gate": palette_state_badge_gate,
@@ -116349,6 +116455,9 @@ fn classic_draw_openra_style_rts_shell(
                 let y = input_y + 18 + index as i32 * 22;
                 let color = classic_first_contact_tactics_row_color(row.kind);
                 let value = classic_first_contact_tactics_row_value(runtime, row);
+                let value_badge = classic_first_contact_tactics_row_badge_label(row.kind, &value);
+                let value_badge_width =
+                    (classic_text_advance_px(&value_badge, 1) + 8).clamp(30, sidebar_w - 96);
                 classic_draw_rect(
                     buffer,
                     width,
@@ -116370,13 +116479,23 @@ fn classic_draw_openra_style_rts_shell(
                     1,
                     CLASSIC_HUD_MUTED_TEXT_COLOR,
                 );
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    sidebar_x + 74,
+                    y + 3,
+                    value_badge_width,
+                    12,
+                    classic_darken(color, 3, 4),
+                );
                 classic_draw_text(
                     buffer,
                     width,
                     height,
-                    sidebar_x + 76,
+                    sidebar_x + 78,
                     y + 5,
-                    &value,
+                    &value_badge,
                     1,
                     CLASSIC_HUD_TEXT_COLOR,
                 );
@@ -161855,6 +161974,13 @@ mod tests {
             classic_first_contact_tactics_row_value(&runtime, queue_row),
             "WORKER 42% TOWER 66%"
         );
+        assert_eq!(
+            classic_first_contact_tactics_row_badge_label(
+                queue_row.kind,
+                &classic_first_contact_tactics_row_value(&runtime, queue_row)
+            ),
+            "W42/T66"
+        );
         assert!(!classic_first_contact_tactics_row_value(&runtime, queue_row).contains(':'));
         assert!(!classic_first_contact_tactics_row_value(&runtime, queue_row).contains('@'));
         assert!(!classic_first_contact_tactics_row_value(&runtime, queue_row).contains('_'));
@@ -162093,6 +162219,10 @@ mod tests {
             ]))
         );
         assert_eq!(
+            guard.get("tactics_compact_badge_labels").cloned(),
+            Some(json!(["SECURE", "BEACON", "16/16", "G64/T42", "IDLE"]))
+        );
+        assert_eq!(
             guard.get("field_status_title").and_then(Value::as_str),
             Some("FIELD STATUS")
         );
@@ -162162,6 +162292,12 @@ mod tests {
         assert_eq!(
             guard
                 .get("tactics_detail_width_gate")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            guard
+                .get("tactics_compact_badge_width_gate")
                 .and_then(Value::as_bool),
             Some(true)
         );
@@ -162337,6 +162473,17 @@ mod tests {
                 .and_then(Value::as_i64),
             Some(16)
         );
+        assert_eq!(
+            guard.get("tactics_compact_badge_labels").cloned(),
+            Some(json!(["SECURE", "BEACON", "16/16", "G64/T42", "IDLE"]))
+        );
+        let tactics_badge_widths = guard
+            .get("tactics_compact_badge_widths")
+            .and_then(Value::as_array)
+            .expect("tactics compact badge widths");
+        assert!(tactics_badge_widths
+            .iter()
+            .all(|width| width.as_i64().unwrap_or_default() <= 48));
         assert_eq!(
             guard
                 .get("production_to_palette_gap_px")
