@@ -761,6 +761,9 @@ const CLASSIC_FIRST_CONTACT_TARGET_PREFLIGHT_RING_COUNT: i32 = 2;
 const CLASSIC_FIRST_CONTACT_TARGET_PREFLIGHT_RING_THICKNESS_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_TARGET_PREFLIGHT_CROSS_LONG_PX: i32 = 16;
 const CLASSIC_FIRST_CONTACT_TARGET_PREFLIGHT_CROSS_THICKNESS_PX: i32 = 2;
+const CLASSIC_FIRST_CONTACT_SELECTED_ROLE_BADGE_TICK_W_PX: i32 = 6;
+const CLASSIC_FIRST_CONTACT_SELECTED_ROLE_BADGE_TICK_H_PX: i32 = 3;
+const CLASSIC_FIRST_CONTACT_SELECTED_FOCUS_BRACKET_PIXELS_PER_TILE: usize = 64;
 const CLASSIC_FIRST_CONTACT_ROUTE_DASH_WIDTH_PX: i32 = 16;
 const CLASSIC_FIRST_CONTACT_ROUTE_DASH_HEIGHT_PX: i32 = 3;
 const CLASSIC_FIRST_CONTACT_ROUTE_ACK_TICK_WIDTH_PX: i32 = 8;
@@ -99783,10 +99786,10 @@ fn classic_draw_first_contact_selection_combat_focus_layer(
                 buffer,
                 width,
                 height,
-                cx - 5,
-                cy - cell_h - 12,
-                10,
-                8,
+                cx - CLASSIC_FIRST_CONTACT_SELECTED_ROLE_BADGE_TICK_W_PX / 2,
+                cy - cell_h - 8,
+                CLASSIC_FIRST_CONTACT_SELECTED_ROLE_BADGE_TICK_W_PX,
+                CLASSIC_FIRST_CONTACT_SELECTED_ROLE_BADGE_TICK_H_PX,
                 match index {
                     0 => CLASSIC_RTS_STATUS_HEALTH_BAR_COLOR,
                     1 => CLASSIC_RTS_STATUS_MANA_BAR_COLOR,
@@ -115060,6 +115063,7 @@ fn classic_first_contact_selection_combat_focus_readability_guard(
     let focus_signatures = string_vec([
         "selected_corner_brackets",
         "selected_role_badge_ticks",
+        "compact_selected_role_badge_ticks",
         "wide_route_dashes",
         "route_ack_step_ticks",
         "compact_route_ack_ticks",
@@ -115073,7 +115077,12 @@ fn classic_first_contact_selection_combat_focus_readability_guard(
         .map(|pair| rts_bevy_runtime::rts_runtime_tile_line(pair[0], pair[1]).len())
         .sum::<usize>();
     let route_line_step_count = route_dash_count + route_ack_tick_count;
-    let selected_focus_pixel_budget = selected_focus_tiles.len() * 92;
+    let selected_role_badge_tick_pixel_budget = selected_focus_tiles.len()
+        * (CLASSIC_FIRST_CONTACT_SELECTED_ROLE_BADGE_TICK_W_PX as usize)
+        * (CLASSIC_FIRST_CONTACT_SELECTED_ROLE_BADGE_TICK_H_PX as usize);
+    let selected_focus_pixel_budget = selected_focus_tiles.len()
+        * CLASSIC_FIRST_CONTACT_SELECTED_FOCUS_BRACKET_PIXELS_PER_TILE
+        + selected_role_badge_tick_pixel_budget;
     let route_dash_pixel_budget = route_focus_tiles.len()
         * (CLASSIC_FIRST_CONTACT_ROUTE_DASH_WIDTH_PX as usize)
         * (CLASSIC_FIRST_CONTACT_ROUTE_DASH_HEIGHT_PX as usize);
@@ -115087,7 +115096,10 @@ fn classic_first_contact_selection_combat_focus_readability_guard(
     let blocked_warning_pixel_budget = 84;
     let selected_focus_gate = selected_focus_tiles
         == string_vec(["14,11", "15,11", "15,12", "17,12"])
-        && selected_focus_pixel_budget >= 368;
+        && CLASSIC_FIRST_CONTACT_SELECTED_ROLE_BADGE_TICK_W_PX == 6
+        && CLASSIC_FIRST_CONTACT_SELECTED_ROLE_BADGE_TICK_H_PX == 3
+        && selected_role_badge_tick_pixel_budget <= 72
+        && (320..=328).contains(&selected_focus_pixel_budget);
     let route_focus_gate = route_focus_tiles == string_vec(["14,11", "15,11", "16,10", "16,9"])
         && route_dash_count >= 4
         && route_ack_tick_count >= 6
@@ -115108,10 +115120,13 @@ fn classic_first_contact_selection_combat_focus_readability_guard(
     let combat_target_focus_gate = target_focus_tile == "16,9" && combat_target_pixel_budget >= 180;
     let blocked_warning_focus_gate =
         blocked_focus_tile == "15,16" && blocked_warning_pixel_budget >= 72;
-    let focus_signature_gate = focus_signatures.len() == 8
+    let focus_signature_gate = focus_signatures.len() == 9
         && focus_signatures
             .iter()
             .any(|signature| signature.as_str() == "attack_target_lock_brackets")
+        && focus_signatures
+            .iter()
+            .any(|signature| signature.as_str() == "compact_selected_role_badge_ticks")
         && focus_signatures
             .iter()
             .any(|signature| signature.as_str() == "route_clearance_gutters")
@@ -115198,6 +115213,9 @@ fn classic_first_contact_selection_combat_focus_readability_guard(
         "route_dash_height_px": CLASSIC_FIRST_CONTACT_ROUTE_DASH_HEIGHT_PX,
         "route_ack_tick_width_px": CLASSIC_FIRST_CONTACT_ROUTE_ACK_TICK_WIDTH_PX,
         "route_ack_tick_height_px": CLASSIC_FIRST_CONTACT_ROUTE_ACK_TICK_HEIGHT_PX,
+        "selected_role_badge_tick_width_px": CLASSIC_FIRST_CONTACT_SELECTED_ROLE_BADGE_TICK_W_PX,
+        "selected_role_badge_tick_height_px": CLASSIC_FIRST_CONTACT_SELECTED_ROLE_BADGE_TICK_H_PX,
+        "selected_role_badge_tick_pixel_budget": selected_role_badge_tick_pixel_budget,
         "selected_focus_pixel_budget": selected_focus_pixel_budget,
         "route_dash_pixel_budget": route_dash_pixel_budget,
         "route_ack_tick_pixel_budget": route_ack_tick_pixel_budget,
@@ -115460,7 +115478,12 @@ fn classic_first_contact_marker_budget_guard(runtime: &NativeFirstPlayableRuntim
         .windows(2)
         .map(|pair| rts_bevy_runtime::rts_runtime_tile_line(pair[0], pair[1]).len())
         .sum::<usize>();
-    let selected_focus_pixel_budget = selected_focus_tiles.len() * 92;
+    let selected_role_badge_tick_pixel_budget = selected_focus_tiles.len()
+        * (CLASSIC_FIRST_CONTACT_SELECTED_ROLE_BADGE_TICK_W_PX as usize)
+        * (CLASSIC_FIRST_CONTACT_SELECTED_ROLE_BADGE_TICK_H_PX as usize);
+    let selected_focus_pixel_budget = selected_focus_tiles.len()
+        * CLASSIC_FIRST_CONTACT_SELECTED_FOCUS_BRACKET_PIXELS_PER_TILE
+        + selected_role_badge_tick_pixel_budget;
     let route_focus_pixel_budget = route_focus_tiles.len()
         * (CLASSIC_FIRST_CONTACT_ROUTE_DASH_WIDTH_PX as usize)
         * (CLASSIC_FIRST_CONTACT_ROUTE_DASH_HEIGHT_PX as usize)
@@ -115527,7 +115550,8 @@ fn classic_first_contact_marker_budget_guard(runtime: &NativeFirstPlayableRuntim
         == string_vec(["14,11", "15,11", "15,12", "17,12"])
         && route_focus_tiles == string_vec(["14,11", "15,11", "16,10", "16,9"])
         && interactive_hot_marker_role_count >= 5
-        && interactive_focus_pixel_budget >= 930;
+        && selected_role_badge_tick_pixel_budget <= 72
+        && interactive_focus_pixel_budget >= 890;
     let marker_budget_layer_order_gate = marker_budget_layer_draw_order
         .iter()
         .position(|layer| layer == "atlas_gallery_muted")
@@ -115586,6 +115610,7 @@ fn classic_first_contact_marker_budget_guard(runtime: &NativeFirstPlayableRuntim
         "gallery_hot_marker_color_count": gallery_hot_marker_color_count,
         "lower_lane_hot_marker_color_count": lower_lane_hot_marker_color_count,
         "interactive_hot_marker_role_count": interactive_hot_marker_role_count,
+        "selected_role_badge_tick_pixel_budget": selected_role_badge_tick_pixel_budget,
         "selected_focus_tiles": selected_focus_tiles,
         "route_focus_tiles": route_focus_tiles,
         "interactive_focus_pixel_budget": interactive_focus_pixel_budget,
@@ -163820,6 +163845,9 @@ mod tests {
                     signatures
                         .iter()
                         .any(|value| value.as_str() == Some("selected_corner_brackets"))
+                        && signatures.iter().any(|value| {
+                            value.as_str() == Some("compact_selected_role_badge_ticks")
+                        })
                         && signatures
                             .iter()
                             .any(|value| value.as_str() == Some("attack_target_lock_brackets"))
@@ -163843,7 +163871,25 @@ mod tests {
             guard
                 .get("selected_focus_pixel_budget")
                 .and_then(Value::as_u64),
-            Some(368)
+            Some(328)
+        );
+        assert_eq!(
+            guard
+                .get("selected_role_badge_tick_width_px")
+                .and_then(Value::as_u64),
+            Some(6)
+        );
+        assert_eq!(
+            guard
+                .get("selected_role_badge_tick_height_px")
+                .and_then(Value::as_u64),
+            Some(3)
+        );
+        assert_eq!(
+            guard
+                .get("selected_role_badge_tick_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(72)
         );
         assert_eq!(
             guard.get("route_dash_width_px").and_then(Value::as_u64),
