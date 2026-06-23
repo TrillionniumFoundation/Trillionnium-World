@@ -77,6 +77,8 @@ mod first_contact_bottom_panel;
 mod first_contact_command_grid;
 mod first_contact_labels;
 #[cfg(not(target_os = "android"))]
+mod first_contact_marker_budget;
+#[cfg(not(target_os = "android"))]
 mod first_contact_palette;
 #[cfg(not(target_os = "android"))]
 mod first_contact_readouts;
@@ -98600,18 +98602,6 @@ fn classic_first_contact_atlas_family_slot_color(role: &str, tile: (i32, i32)) -
 }
 
 #[cfg(not(target_os = "android"))]
-const CLASSIC_FIRST_CONTACT_LOWER_LANE_GALLERY_DARKEN_NUMERATOR: u32 = 5;
-
-#[cfg(not(target_os = "android"))]
-const CLASSIC_FIRST_CONTACT_LOWER_LANE_GALLERY_DARKEN_DENOMINATOR: u32 = 6;
-
-#[cfg(not(target_os = "android"))]
-const CLASSIC_FIRST_CONTACT_LOWER_LANE_SLOT_CUE_PIXELS_PER_SAMPLE: usize = 1;
-
-#[cfg(not(target_os = "android"))]
-const CLASSIC_FIRST_CONTACT_LOWER_LANE_GHOST_ANCHOR_COUNT: usize = 1;
-
-#[cfg(not(target_os = "android"))]
 const CLASSIC_FIRST_CONTACT_SECONDARY_TRACK_DARKEN_NUMERATOR: u32 = 3;
 
 #[cfg(not(target_os = "android"))]
@@ -98641,8 +98631,8 @@ fn classic_mute_first_contact_gallery_pixels(
                 classic_mix_color(
                     color,
                     0x020604,
-                    CLASSIC_FIRST_CONTACT_LOWER_LANE_GALLERY_DARKEN_NUMERATOR,
-                    CLASSIC_FIRST_CONTACT_LOWER_LANE_GALLERY_DARKEN_DENOMINATOR,
+                    first_contact_marker_budget::LOWER_LANE_GALLERY_DARKEN_NUMERATOR,
+                    first_contact_marker_budget::LOWER_LANE_GALLERY_DARKEN_DENOMINATOR,
                 )
             } else {
                 classic_mix_color(color, 0x06100c, 1, 2)
@@ -115039,82 +115029,54 @@ fn classic_first_contact_target_callout_guard(runtime: &NativeFirstPlayableRunti
 fn classic_first_contact_marker_budget_guard(runtime: &NativeFirstPlayableRuntime) -> Value {
     let assets = classic_first_contact_atlas_readability_assets();
     let family_samples = classic_first_contact_atlas_frame_family_samples();
-    let gallery_lanes = family_samples
-        .iter()
-        .map(|(tile, _, _, _, _)| {
-            classic_first_contact_atlas_family_gallery_lane(*tile).to_string()
-        })
-        .collect::<Vec<_>>();
-    let busy_core_tiles = family_samples
-        .iter()
-        .filter(|(tile, _, _, _, _)| classic_first_contact_atlas_family_busy_core_tile(*tile))
-        .map(|(tile, _, _, _, _)| classic_rts_tile_id(*tile))
-        .collect::<Vec<_>>();
-    let lower_lane_gallery_tiles = family_samples
-        .iter()
-        .filter(|(tile, _, _, _, _)| classic_first_contact_atlas_family_lower_lane_tile(*tile))
-        .map(|(tile, _, _, _, _)| classic_rts_tile_id(*tile))
-        .collect::<Vec<_>>();
-    let north_gallery_frame_count = gallery_lanes
-        .iter()
-        .filter(|lane| lane.as_str() == "north_gallery")
-        .count();
-    let west_gallery_frame_count = gallery_lanes
-        .iter()
-        .filter(|lane| lane.as_str() == "west_gallery")
-        .count();
-    let east_gallery_frame_count = gallery_lanes
-        .iter()
-        .filter(|lane| lane.as_str() == "east_gallery")
-        .count();
-    let max_gallery_lane_frame_count = [
-        north_gallery_frame_count,
-        west_gallery_frame_count,
-        east_gallery_frame_count,
-    ]
-    .into_iter()
-    .max()
-    .unwrap_or(0);
-    let muted_gallery_sample_count = family_samples.len();
-    let gallery_mute_overlay_pixel_budget = family_samples
-        .iter()
-        .map(|(_, _, frame_id, _, scale)| {
+    let gallery_summary =
+        first_contact_marker_budget::gallery_budget_summary(&family_samples, |frame_id, scale| {
             let (frame_w, frame_h) =
-                classic_first_contact_atlas_asset_frame_size(&assets, frame_id, *scale);
-            ((frame_w.max(0) as usize) * (frame_h.max(0) as usize)) / 2
-        })
-        .sum::<usize>();
-    let gallery_slot_cue_pixel_budget = family_samples.len() * 72;
-    let lower_lane_gallery_sample_count = lower_lane_gallery_tiles.len();
-    let lower_lane_mute_overlay_pixel_budget = lower_lane_gallery_sample_count * 384;
-    let lower_lane_slot_cue_pixel_budget = lower_lane_gallery_sample_count
-        * CLASSIC_FIRST_CONTACT_LOWER_LANE_SLOT_CUE_PIXELS_PER_SAMPLE;
-    let lower_lane_ghost_anchor_count =
-        lower_lane_gallery_sample_count * CLASSIC_FIRST_CONTACT_LOWER_LANE_GHOST_ANCHOR_COUNT;
-    let lower_lane_gallery_darken_numerator =
-        CLASSIC_FIRST_CONTACT_LOWER_LANE_GALLERY_DARKEN_NUMERATOR as usize;
+                classic_first_contact_atlas_asset_frame_size(&assets, frame_id, scale);
+            (frame_w.max(0) as usize) * (frame_h.max(0) as usize)
+        });
+    let gallery_lanes = gallery_summary
+        .gallery_lanes
+        .iter()
+        .map(|lane| (*lane).to_string())
+        .collect::<Vec<_>>();
+    let busy_core_tiles = gallery_summary
+        .busy_core_tiles
+        .iter()
+        .copied()
+        .map(classic_rts_tile_id)
+        .collect::<Vec<_>>();
+    let lower_lane_gallery_tiles = gallery_summary
+        .lower_lane_gallery_tiles
+        .iter()
+        .copied()
+        .map(classic_rts_tile_id)
+        .collect::<Vec<_>>();
+    let north_gallery_frame_count = gallery_summary.north_gallery_frame_count;
+    let west_gallery_frame_count = gallery_summary.west_gallery_frame_count;
+    let east_gallery_frame_count = gallery_summary.east_gallery_frame_count;
+    let max_gallery_lane_frame_count = gallery_summary.max_gallery_lane_frame_count;
+    let muted_gallery_sample_count = gallery_summary.muted_gallery_sample_count;
+    let gallery_mute_overlay_pixel_budget = gallery_summary.gallery_mute_overlay_pixel_budget;
+    let gallery_slot_cue_pixel_budget = gallery_summary.gallery_slot_cue_pixel_budget;
+    let lower_lane_gallery_sample_count = gallery_summary.lower_lane_gallery_sample_count;
+    let lower_lane_mute_overlay_pixel_budget = gallery_summary.lower_lane_mute_overlay_pixel_budget;
+    let lower_lane_slot_cue_pixel_budget = gallery_summary.lower_lane_slot_cue_pixel_budget;
+    let lower_lane_ghost_anchor_count = gallery_summary.lower_lane_ghost_anchor_count;
+    let lower_lane_gallery_darken_numerator = gallery_summary.lower_lane_gallery_darken_numerator;
     let lower_lane_gallery_darken_denominator =
-        CLASSIC_FIRST_CONTACT_LOWER_LANE_GALLERY_DARKEN_DENOMINATOR as usize;
+        gallery_summary.lower_lane_gallery_darken_denominator;
     let lower_lane_dim_silhouette_pixel_budget =
-        lower_lane_gallery_sample_count * lower_lane_gallery_darken_numerator * 96;
-    let lower_lane_shadow_suppressed_count = lower_lane_gallery_sample_count;
-    let gallery_hot_marker_color_count = 0_usize;
-    let lower_lane_hot_marker_color_count = 0_usize;
-    let interactive_hot_marker_role_count = 5_usize;
-    let gallery_presentation_signatures = string_vec([
-        "muted_gallery_slot_cues",
-        "darkened_gallery_frames",
-        "lower_lane_gallery_deemphasis",
-        "lower_lane_micro_slot_cues",
-        "lower_lane_dim_silhouettes",
-        "lower_lane_stronger_dim_silhouettes",
-        "lower_lane_shadow_suppressed",
-        "lower_lane_ghost_anchors",
-        "lower_lane_single_point_ghost_anchors",
-        "compact_route_ack_ticks",
-        "perimeter_gallery_lane_budget",
-        "interactive_focus_kept_hot",
-    ]);
+        gallery_summary.lower_lane_dim_silhouette_pixel_budget;
+    let lower_lane_shadow_suppressed_count = gallery_summary.lower_lane_shadow_suppressed_count;
+    let gallery_hot_marker_color_count = gallery_summary.gallery_hot_marker_color_count;
+    let lower_lane_hot_marker_color_count = gallery_summary.lower_lane_hot_marker_color_count;
+    let interactive_hot_marker_role_count = gallery_summary.interactive_hot_marker_role_count;
+    let gallery_presentation_signatures = gallery_summary
+        .gallery_presentation_signatures
+        .iter()
+        .map(|signature| (*signature).to_string())
+        .collect::<Vec<_>>();
     let selected_focus_tiles = runtime
         .rts_selection_box_tile_ids
         .iter()
