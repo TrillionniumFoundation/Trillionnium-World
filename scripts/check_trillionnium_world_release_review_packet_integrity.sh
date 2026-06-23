@@ -796,9 +796,17 @@ require_artifact_json_expr first_contact_basin_spec_semantics native_bevy_classi
   and .first_contact_art_readability_guard.terrain_material_pixel_budget >= 432
   and .first_contact_art_readability_guard.building_facade_pixel_budget >= 860
   and .first_contact_art_readability_guard.map_landmark_pixel_budget >= 1152
+  and .first_contact_art_readability_guard.runtime_actor_depth_source_path == "trnm-world-bevy classic_draw_first_contact_actor_glyph"
+  and (.first_contact_art_readability_guard.runtime_actor_depth_signatures | index("runtime_structure_roof_rim") != null)
+  and (.first_contact_art_readability_guard.runtime_actor_depth_signatures | index("runtime_structure_side_shadow") != null)
+  and (.first_contact_art_readability_guard.runtime_actor_depth_signatures | index("runtime_command_window_pips") != null)
+  and (.first_contact_art_readability_guard.runtime_actor_depth_signatures | index("runtime_relay_mast_braces") != null)
+  and (.first_contact_art_readability_guard.runtime_actor_depth_signatures | index("runtime_beacon_core_glow_rungs") != null)
+  and .first_contact_art_readability_guard.runtime_actor_depth_pixel_budget >= 480
   and .first_contact_art_readability_guard.terrain_material_gate == true
   and .first_contact_art_readability_guard.building_facade_gate == true
   and .first_contact_art_readability_guard.map_landmark_detail_gate == true
+  and .first_contact_art_readability_guard.runtime_actor_depth_gate == true
   and .first_contact_art_readability_guard.authored_map_art_gate == true
   and .first_contact_art_readability_guard_gate == true
   and .first_contact_motion_readability_contract == "trillionnium_world_bevy_classic_rts_first_contact_motion_readability_v1"

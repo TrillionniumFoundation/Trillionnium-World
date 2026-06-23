@@ -95232,6 +95232,149 @@ fn classic_draw_first_contact_actor_health_bar(
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_first_contact_runtime_actor_depth_signatures() -> Vec<&'static str> {
+    vec![
+        "runtime_structure_roof_rim",
+        "runtime_structure_side_shadow",
+        "runtime_command_window_pips",
+        "runtime_relay_mast_braces",
+        "runtime_beacon_core_glow_rungs",
+    ]
+}
+
+#[cfg(not(target_os = "android"))]
+#[allow(clippy::too_many_arguments)]
+fn classic_draw_first_contact_actor_depth_detail(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    glyph_accent: RtsActorGlyphAccent,
+    center_x: i32,
+    base_x: i32,
+    base_y: i32,
+    size_w: i32,
+    size_h: i32,
+    color: u32,
+) {
+    let rim = classic_lighten(color, 1, 5);
+    let side_shadow = classic_darken(color, 1, 3);
+    let contact_shadow = classic_darken(color, 1, 2);
+    let facade_y = base_y + size_h / 3 + 2;
+    let facade_h = ((size_h * 2 / 3).max(5) - 4).max(4);
+    let facade_w = (size_w - 4).max(6);
+
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        base_x + 3,
+        base_y + size_h - 2,
+        size_w - 6,
+        2,
+        contact_shadow,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        base_x + 2,
+        facade_y,
+        2,
+        facade_h,
+        side_shadow,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        base_x + facade_w,
+        facade_y + 2,
+        2,
+        facade_h - 2,
+        classic_darken(side_shadow, 1, 4),
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        center_x + size_w / 4 - size_w / 4,
+        base_y + 2,
+        (size_w / 2).max(8),
+        2,
+        rim,
+    );
+
+    match glyph_accent {
+        RtsActorGlyphAccent::CommandSpire => {
+            let window_y = facade_y + 8;
+            for row in 0..2 {
+                for col in [-6, 0, 6] {
+                    classic_draw_rect(
+                        buffer,
+                        width,
+                        height,
+                        center_x + col,
+                        window_y + row * 5,
+                        3,
+                        2,
+                        rim,
+                    );
+                }
+            }
+        }
+        RtsActorGlyphAccent::RelayMast => {
+            let brace = classic_lighten(CLASSIC_RTS_RALLY_LINE_COLOR, 1, 5);
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x - 9,
+                base_y + size_h / 4,
+                2,
+                (size_h / 2).max(8),
+                brace,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x + 7,
+                base_y + size_h / 4,
+                2,
+                (size_h / 2).max(8),
+                brace,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x - 12,
+                base_y + size_h / 2,
+                24,
+                2,
+                classic_darken(brace, 1, 4),
+            );
+        }
+        RtsActorGlyphAccent::BeaconCore => {
+            let core_glow = classic_lighten(CLASSIC_RTS_OBJECTIVE_COLOR, 1, 4);
+            for step in 0..3 {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    center_x + size_w / 4 - 5,
+                    base_y + 6 + step * ((size_h / 4).max(5)),
+                    10,
+                    2,
+                    core_glow,
+                );
+            }
+        }
+        _ => {}
+    }
+}
+
+#[cfg(not(target_os = "android"))]
 #[allow(clippy::too_many_arguments)]
 fn classic_draw_first_contact_actor_glyph(
     buffer: &mut [u32],
@@ -95282,6 +95425,18 @@ fn classic_draw_first_contact_actor_glyph(
             base_y,
             size_w.max(10),
             size_h.max(8),
+            color,
+        );
+        classic_draw_first_contact_actor_depth_detail(
+            buffer,
+            width,
+            height,
+            glyph_accent,
+            center_x,
+            base_x,
+            base_y,
+            size_w,
+            size_h,
             color,
         );
         match glyph_accent {
@@ -113674,6 +113829,10 @@ fn classic_first_contact_art_readability_guard() -> Value {
     let terrain_samples = classic_first_contact_art_terrain_samples();
     let building_samples = classic_first_contact_art_building_samples();
     let landmark_samples = classic_first_contact_art_landmark_samples();
+    let runtime_actor_depth_signatures = classic_first_contact_runtime_actor_depth_signatures()
+        .iter()
+        .map(|signature| (*signature).to_string())
+        .collect::<Vec<_>>();
     let terrain_sample_tiles = terrain_samples
         .iter()
         .map(|(tile, _, _)| classic_rts_tile_id(*tile))
@@ -113791,6 +113950,7 @@ fn classic_first_contact_art_readability_guard() -> Value {
     let terrain_material_pixel_budget = terrain_samples.len() * 48;
     let building_facade_pixel_budget = building_samples.len() * 86;
     let map_landmark_pixel_budget = landmark_samples.len() * 72;
+    let runtime_actor_depth_pixel_budget = runtime_actor_depth_signatures.len() * 96;
     let terrain_material_gate = terrain_material_roles
         == string_vec([
             "base_concrete",
@@ -113818,8 +113978,19 @@ fn classic_first_contact_art_readability_guard() -> Value {
         && beacon_landmark_count == 4
         && unique_landmark_signature_count >= 6
         && map_landmark_pixel_budget >= 1152;
-    let authored_map_art_gate =
-        terrain_material_gate && building_facade_gate && map_landmark_detail_gate;
+    let runtime_actor_depth_gate = runtime_actor_depth_signatures
+        == string_vec([
+            "runtime_structure_roof_rim",
+            "runtime_structure_side_shadow",
+            "runtime_command_window_pips",
+            "runtime_relay_mast_braces",
+            "runtime_beacon_core_glow_rungs",
+        ])
+        && runtime_actor_depth_pixel_budget >= 480;
+    let authored_map_art_gate = terrain_material_gate
+        && building_facade_gate
+        && map_landmark_detail_gate
+        && runtime_actor_depth_gate;
     let green = authored_map_art_gate;
 
     json!({
@@ -113853,6 +114024,10 @@ fn classic_first_contact_art_readability_guard() -> Value {
         "beacon_landmark_count": beacon_landmark_count,
         "map_landmark_pixel_budget": map_landmark_pixel_budget,
         "map_landmark_detail_gate": map_landmark_detail_gate,
+        "runtime_actor_depth_source_path": "trnm-world-bevy classic_draw_first_contact_actor_glyph",
+        "runtime_actor_depth_signatures": runtime_actor_depth_signatures,
+        "runtime_actor_depth_pixel_budget": runtime_actor_depth_pixel_budget,
+        "runtime_actor_depth_gate": runtime_actor_depth_gate,
         "authored_map_art_gate": authored_map_art_gate,
     })
 }
@@ -163244,6 +163419,32 @@ mod tests {
         );
         assert_eq!(
             guard
+                .get("runtime_actor_depth_signatures")
+                .and_then(Value::as_array)
+                .map(|signatures| {
+                    signatures
+                        .iter()
+                        .any(|value| value.as_str() == Some("runtime_structure_roof_rim"))
+                        && signatures
+                            .iter()
+                            .any(|value| value.as_str() == Some("runtime_command_window_pips"))
+                        && signatures
+                            .iter()
+                            .any(|value| value.as_str() == Some("runtime_relay_mast_braces"))
+                        && signatures
+                            .iter()
+                            .any(|value| value.as_str() == Some("runtime_beacon_core_glow_rungs"))
+                }),
+            Some(true)
+        );
+        assert_eq!(
+            guard
+                .get("runtime_actor_depth_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(480)
+        );
+        assert_eq!(
+            guard
                 .get("command_core_facade_count")
                 .and_then(Value::as_u64),
             Some(4)
@@ -163268,6 +163469,7 @@ mod tests {
             "terrain_material_gate",
             "building_facade_gate",
             "map_landmark_detail_gate",
+            "runtime_actor_depth_gate",
             "authored_map_art_gate",
         ] {
             assert_eq!(guard.get(gate).and_then(Value::as_bool), Some(true));

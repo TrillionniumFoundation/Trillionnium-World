@@ -912,6 +912,16 @@ add_first_contact_basin_source_manifest_packet_fixtures() {
       beacon_landmark_count: 4,
       map_landmark_pixel_budget: 1152,
       map_landmark_detail_gate: true,
+      runtime_actor_depth_source_path: "trnm-world-bevy classic_draw_first_contact_actor_glyph",
+      runtime_actor_depth_signatures: [
+        "runtime_structure_roof_rim",
+        "runtime_structure_side_shadow",
+        "runtime_command_window_pips",
+        "runtime_relay_mast_braces",
+        "runtime_beacon_core_glow_rungs"
+      ],
+      runtime_actor_depth_pixel_budget: 480,
+      runtime_actor_depth_gate: true,
       authored_map_art_gate: true
     },
     first_contact_art_readability_guard_gate: true,
