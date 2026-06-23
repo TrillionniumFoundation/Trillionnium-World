@@ -49,7 +49,7 @@ use trnm_rts_data::{
     RtsPlayerScreenBuildPaletteSlotProfile, RtsPlayerScreenResourceReadoutKind,
     RtsPlayerScreenResourceReadoutProfile, RtsPlayerScreenTacticsRowKind,
     RtsPlayerScreenTacticsRowProfile, RtsPlayerStartupProfile, RtsRule, RtsRuleKind,
-    RtsTacticalTrackProfile, RtsTerrainRole, RtsTerrainTileProfile, RtsVisualTelemetryColorRole,
+    RtsTacticalTrackProfile, RtsTerrainTileProfile, RtsVisualTelemetryColorRole,
     TRNM_RTS_DATA_CONTRACT, TRNM_RTS_DATA_FIRST_CONTACT_ACTOR_GLYPH_CONTRACT,
     TRNM_RTS_DATA_FIRST_CONTACT_ACTOR_PRESENTATION_CONTRACT,
     TRNM_RTS_DATA_FIRST_CONTACT_COMMAND_FEEDBACK_CONTRACT,
@@ -74,6 +74,8 @@ use trnm_world_projection::world_full_split_projection_json;
 #[cfg(not(target_os = "android"))]
 mod first_contact_bottom_panel;
 mod first_contact_labels;
+#[cfg(not(target_os = "android"))]
+mod first_contact_palette;
 #[cfg(not(target_os = "android"))]
 mod first_contact_readouts;
 #[cfg(not(target_os = "android"))]
@@ -87772,16 +87774,7 @@ struct ClassicIsoEntity {
 
 #[cfg(not(target_os = "android"))]
 fn classic_first_contact_actor_owner_from_rts_data(owner: &str) -> &'static str {
-    match owner {
-        "Multi0" => "Multi0",
-        "Multi1" => "Multi1",
-        "Multi2" => "Multi2",
-        "Multi3" => "Multi3",
-        "Multi4" => "Multi4",
-        "Multi5" => "Multi5",
-        "Neutral" => "Neutral",
-        _ => "Neutral",
-    }
+    first_contact_palette::owner_from_rts_data(owner)
 }
 
 #[cfg(not(target_os = "android"))]
@@ -87831,37 +87824,17 @@ fn classic_first_contact_visual_telemetry() -> RtsFirstContactVisualTelemetryPro
 
 #[cfg(not(target_os = "android"))]
 fn classic_first_contact_visual_telemetry_color(role: RtsVisualTelemetryColorRole) -> u32 {
-    match role {
-        RtsVisualTelemetryColorRole::Health => CLASSIC_RTS_STATUS_HEALTH_BAR_COLOR,
-        RtsVisualTelemetryColorRole::Mana => CLASSIC_RTS_STATUS_MANA_BAR_COLOR,
-        RtsVisualTelemetryColorRole::Attack => CLASSIC_RTS_SELECTION_FEEDBACK_ATTACK_COLOR,
-        RtsVisualTelemetryColorRole::Confirm => CLASSIC_RTS_SELECTION_FEEDBACK_CONFIRM_COLOR,
-        RtsVisualTelemetryColorRole::ActionTrail => CLASSIC_RTS_FIDELITY_ACTION_TRAIL_COLOR,
-        RtsVisualTelemetryColorRole::NpcAction => CLASSIC_RTS_FIDELITY_NPC_ACTION_COLOR,
-    }
+    first_contact_palette::visual_telemetry_color(role)
 }
 
 #[cfg(not(target_os = "android"))]
 fn classic_first_contact_primary_tactical_track(track: &RtsTacticalTrackProfile) -> bool {
-    let opening = classic_first_contact_opening_loop();
-    track.from_tile == opening.active_relay_tile
-        && track.to_tile == opening.active_beacon_tile
-        && track.color_role == RtsVisualTelemetryColorRole::ActionTrail
+    first_contact_palette::primary_tactical_track(track)
 }
 
 #[cfg(not(target_os = "android"))]
 fn classic_first_contact_tactical_track_render_color(track: &RtsTacticalTrackProfile) -> u32 {
-    let color = classic_first_contact_visual_telemetry_color(track.color_role);
-    if classic_first_contact_primary_tactical_track(track) {
-        color
-    } else {
-        classic_mix_color(
-            color,
-            CLASSIC_RTS_TACTICAL_VIEWPORT_TILE_COLOR,
-            CLASSIC_FIRST_CONTACT_SECONDARY_TRACK_DARKEN_NUMERATOR,
-            CLASSIC_FIRST_CONTACT_SECONDARY_TRACK_DARKEN_DENOMINATOR,
-        )
-    }
+    first_contact_palette::tactical_track_render_color(track)
 }
 
 #[cfg(not(target_os = "android"))]
@@ -94869,17 +94842,7 @@ fn classic_openra_like_world_snapshot_json(world: &TrnmOpenRaLikeWorld) -> Value
 
 #[cfg(not(target_os = "android"))]
 fn classic_first_contact_actor_color_role_color(role: RtsActorColorRole) -> u32 {
-    match role {
-        RtsActorColorRole::Worker => CLASSIC_RTS_HARVEST_ANIMATION_CARRY_LOAD_COLOR,
-        RtsActorColorRole::Scout => CLASSIC_RTS_FIDELITY_ACTION_TRAIL_COLOR,
-        RtsActorColorRole::Warden => CLASSIC_RTS_FIDELITY_NPC_ACTION_COLOR,
-        RtsActorColorRole::Striker => CLASSIC_RTS_DAMAGE_TICK_COLOR,
-        RtsActorColorRole::CommandCore => CLASSIC_RTS_TECH_BASE_COLOR,
-        RtsActorColorRole::FluxRelay => CLASSIC_RTS_STRUCTURE_SCAFFOLD_COLOR,
-        RtsActorColorRole::Objective => CLASSIC_RTS_OBJECTIVE_COLOR,
-        RtsActorColorRole::Resource => CLASSIC_RTS_HARVEST_NODE_COLOR,
-        RtsActorColorRole::MapDetail => CLASSIC_RTS_PRODUCT_UI_ACCENT_COLOR,
-    }
+    first_contact_palette::actor_color_role_color(role)
 }
 
 #[cfg(not(target_os = "android"))]
@@ -95616,33 +95579,7 @@ fn classic_first_contact_tile_color(tile: (i32, i32)) -> u32 {
 
 #[cfg(not(target_os = "android"))]
 fn classic_first_contact_tile_profile_color(terrain: RtsTerrainTileProfile) -> u32 {
-    if !terrain.playable {
-        return 0x111812;
-    }
-    let x = terrain.tile.x;
-    let y = terrain.tile.y;
-    let mut color = match terrain.role {
-        RtsTerrainRole::Border => 0x111812,
-        RtsTerrainRole::Lane => classic_darken(CLASSIC_RTS_PRODUCT_LANE_COLOR, 1, 4),
-        RtsTerrainRole::CentralBasin => 0x203f39,
-        RtsTerrainRole::BasePad => 0x243326,
-        RtsTerrainRole::ResourceZone => 0x21392d,
-        RtsTerrainRole::Field => {
-            if (x + y) % 2 == 0 {
-                0x18251d
-            } else {
-                0x1d2d22
-            }
-        }
-    };
-    let tile = (terrain.tile.x, terrain.tile.y);
-    let surface_seed = rts_bevy_runtime::rts_runtime_terrain_seeds(tile).surface_seed;
-    if surface_seed == 0 {
-        color = classic_lighten(color, 1, 10);
-    } else if surface_seed == 1 || surface_seed == 9 {
-        color = classic_darken(color, 1, 10);
-    }
-    color
+    first_contact_palette::tile_profile_color(terrain)
 }
 
 #[cfg(not(target_os = "android"))]
@@ -97249,34 +97186,17 @@ fn classic_first_contact_silhouette_terrain_samples(
 
 #[cfg(not(target_os = "android"))]
 fn classic_first_contact_silhouette_unit_color(role: &str) -> u32 {
-    match role {
-        "worker" => CLASSIC_RTS_HARVEST_ANIMATION_CARRY_LOAD_COLOR,
-        "scout" => CLASSIC_RTS_SCOUT_REVEAL_COLOR,
-        "warden" => CLASSIC_RTS_DEFENSE_READY_COLOR,
-        "relay" => CLASSIC_RTS_MODEL_IDENTITY_RELAY_COLOR,
-        _ => CLASSIC_RTS_MODEL_IDENTITY_UNIT_COLOR,
-    }
+    first_contact_palette::silhouette_unit_color(role)
 }
 
 #[cfg(not(target_os = "android"))]
 fn classic_first_contact_silhouette_structure_color(kind: &str) -> u32 {
-    match kind {
-        "command_core" => CLASSIC_RTS_MODEL_IDENTITY_CORE_COLOR,
-        "relay" => CLASSIC_RTS_MODEL_IDENTITY_RELAY_COLOR,
-        "beacon" => CLASSIC_RTS_MODEL_IDENTITY_BEACON_COLOR,
-        _ => CLASSIC_RTS_PRODUCT_MODEL_VOLUME_COLOR,
-    }
+    first_contact_palette::silhouette_structure_color(kind)
 }
 
 #[cfg(not(target_os = "android"))]
 fn classic_first_contact_silhouette_terrain_color(kind: &str) -> u32 {
-    match kind {
-        "base_pad" => CLASSIC_RTS_STRUCTURE_FOUNDATION_SHADOW_COLOR,
-        "resource_zone" => CLASSIC_RTS_ENVIRONMENT_RESOURCE_GLINT_COLOR,
-        "objective_lane" => CLASSIC_RTS_OBJECTIVE_COLOR,
-        "central_basin" => CLASSIC_RTS_PRODUCT_LANE_COLOR,
-        _ => CLASSIC_RTS_PRODUCT_MAP_DENSITY_COLOR,
-    }
+    first_contact_palette::silhouette_terrain_color(kind)
 }
 
 #[cfg(not(target_os = "android"))]
@@ -97712,36 +97632,17 @@ fn classic_first_contact_art_landmark_samples() -> Vec<((i32, i32), &'static str
 
 #[cfg(not(target_os = "android"))]
 fn classic_first_contact_art_terrain_color(role: &str) -> u32 {
-    match role {
-        "base_concrete" => CLASSIC_RTS_STRUCTURE_FOUNDATION_SHADOW_COLOR,
-        "resource_crystal" => CLASSIC_RTS_ENVIRONMENT_RESOURCE_GLINT_COLOR,
-        "beacon_lane" => CLASSIC_RTS_OBJECTIVE_COLOR,
-        "basin_floor" => CLASSIC_RTS_PRODUCT_LANE_COLOR,
-        _ => CLASSIC_RTS_PRODUCT_MAP_DENSITY_COLOR,
-    }
+    first_contact_palette::art_terrain_color(role)
 }
 
 #[cfg(not(target_os = "android"))]
 fn classic_first_contact_art_building_color(role: &str) -> u32 {
-    match role {
-        "command_core" => CLASSIC_RTS_MODEL_IDENTITY_FACTION_COLOR,
-        "relay" => CLASSIC_RTS_STRUCTURE_REPAIR_BEAM_COLOR,
-        "beacon" => CLASSIC_RTS_ENVIRONMENT_RESOURCE_GLINT_COLOR,
-        _ => CLASSIC_RTS_PRODUCT_UI_ACCENT_COLOR,
-    }
+    first_contact_palette::art_building_color(role)
 }
 
 #[cfg(not(target_os = "android"))]
 fn classic_first_contact_art_landmark_color(role: &str) -> u32 {
-    match role {
-        "base_gate" => CLASSIC_RTS_MODEL_IDENTITY_FACTION_COLOR,
-        "resource_cluster" => CLASSIC_RTS_ENVIRONMENT_RESOURCE_GLINT_COLOR,
-        "beacon_lane" => CLASSIC_RTS_OBJECTIVE_COLOR,
-        "basin_scar" => CLASSIC_RTS_PRODUCT_LANE_COLOR,
-        "relay_cable" => CLASSIC_RTS_STRUCTURE_REPAIR_BEAM_COLOR,
-        "beacon_ring" => CLASSIC_RTS_COMMAND_SURFACE_TARGET_COLOR,
-        _ => CLASSIC_RTS_PRODUCT_UI_ACCENT_COLOR,
-    }
+    first_contact_palette::art_landmark_color(role)
 }
 
 #[cfg(not(target_os = "android"))]
@@ -99012,25 +98913,10 @@ fn classic_first_contact_atlas_family_lower_lane_tile(tile: (i32, i32)) -> bool 
 
 #[cfg(not(target_os = "android"))]
 fn classic_first_contact_atlas_family_slot_color(role: &str, tile: (i32, i32)) -> u32 {
-    let source_color = match role {
-        "worker_unit_family" | "command_core_structure_family" => CLASSIC_ISO_GOLD_COLOR,
-        "scout_unit_family" | "relay_structure_family" => CLASSIC_RTS_CAMERA_SYNC_VIEWPORT_COLOR,
-        "warden_unit_family" => CLASSIC_RTS_SELECTION_FEEDBACK_ATTACK_COLOR,
-        "relay_unit_family" => CLASSIC_RTS_FIDELITY_NPC_ACTION_COLOR,
-        "beacon_objective_family" => CLASSIC_RTS_COMMAND_SURFACE_TARGET_COLOR,
-        _ => CLASSIC_HUD_MUTED_TEXT_COLOR,
-    };
-    let muted_color = classic_first_contact_gallery_muted_color(source_color);
-    if classic_first_contact_atlas_family_lower_lane_tile(tile) {
-        classic_mix_color(muted_color, CLASSIC_RTS_TACTICAL_VIEWPORT_TILE_COLOR, 2, 3)
-    } else {
-        muted_color
-    }
-}
-
-#[cfg(not(target_os = "android"))]
-fn classic_first_contact_gallery_muted_color(color: u32) -> u32 {
-    classic_mix_color(color, CLASSIC_RTS_TACTICAL_VIEWPORT_TILE_COLOR, 3, 5)
+    first_contact_palette::atlas_family_slot_color(
+        role,
+        classic_first_contact_atlas_family_lower_lane_tile(tile),
+    )
 }
 
 #[cfg(not(target_os = "android"))]
