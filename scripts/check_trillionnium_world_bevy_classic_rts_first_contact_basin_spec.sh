@@ -1254,9 +1254,9 @@ cat >"$JQ_FILTER" <<'JQ'
   and .first_contact_marker_budget_guard.lower_lane_mute_overlay_pixel_budget >= 1152
   and .first_contact_marker_budget_guard.lower_lane_slot_cue_pixel_budget <= 3
   and .first_contact_marker_budget_guard.lower_lane_ghost_anchor_count == 3
-  and .first_contact_marker_budget_guard.lower_lane_gallery_darken_numerator == 4
-  and .first_contact_marker_budget_guard.lower_lane_gallery_darken_denominator == 5
-  and .first_contact_marker_budget_guard.lower_lane_dim_silhouette_pixel_budget <= 1152
+  and .first_contact_marker_budget_guard.lower_lane_gallery_darken_numerator == 5
+  and .first_contact_marker_budget_guard.lower_lane_gallery_darken_denominator == 6
+  and .first_contact_marker_budget_guard.lower_lane_dim_silhouette_pixel_budget <= 1440
   and .first_contact_marker_budget_guard.lower_lane_shadow_suppressed_count == 3
   and .first_contact_marker_budget_guard.gallery_hot_marker_color_count == 0
   and .first_contact_marker_budget_guard.lower_lane_hot_marker_color_count == 0
@@ -1269,6 +1269,7 @@ cat >"$JQ_FILTER" <<'JQ'
   and (.first_contact_marker_budget_guard.gallery_presentation_signatures | index("lower_lane_gallery_deemphasis") != null)
   and (.first_contact_marker_budget_guard.gallery_presentation_signatures | index("lower_lane_micro_slot_cues") != null)
   and (.first_contact_marker_budget_guard.gallery_presentation_signatures | index("lower_lane_dim_silhouettes") != null)
+  and (.first_contact_marker_budget_guard.gallery_presentation_signatures | index("lower_lane_stronger_dim_silhouettes") != null)
   and (.first_contact_marker_budget_guard.gallery_presentation_signatures | index("lower_lane_shadow_suppressed") != null)
   and (.first_contact_marker_budget_guard.gallery_presentation_signatures | index("lower_lane_ghost_anchors") != null)
   and (.first_contact_marker_budget_guard.gallery_presentation_signatures | index("lower_lane_single_point_ghost_anchors") != null)

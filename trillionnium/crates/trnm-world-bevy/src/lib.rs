@@ -98855,10 +98855,10 @@ fn classic_first_contact_gallery_muted_color(color: u32) -> u32 {
 }
 
 #[cfg(not(target_os = "android"))]
-const CLASSIC_FIRST_CONTACT_LOWER_LANE_GALLERY_DARKEN_NUMERATOR: u32 = 4;
+const CLASSIC_FIRST_CONTACT_LOWER_LANE_GALLERY_DARKEN_NUMERATOR: u32 = 5;
 
 #[cfg(not(target_os = "android"))]
-const CLASSIC_FIRST_CONTACT_LOWER_LANE_GALLERY_DARKEN_DENOMINATOR: u32 = 5;
+const CLASSIC_FIRST_CONTACT_LOWER_LANE_GALLERY_DARKEN_DENOMINATOR: u32 = 6;
 
 #[cfg(not(target_os = "android"))]
 const CLASSIC_FIRST_CONTACT_LOWER_LANE_SLOT_CUE_PIXELS_PER_SAMPLE: usize = 1;
@@ -115444,6 +115444,7 @@ fn classic_first_contact_marker_budget_guard(runtime: &NativeFirstPlayableRuntim
         "lower_lane_gallery_deemphasis",
         "lower_lane_micro_slot_cues",
         "lower_lane_dim_silhouettes",
+        "lower_lane_stronger_dim_silhouettes",
         "lower_lane_shadow_suppressed",
         "lower_lane_ghost_anchors",
         "lower_lane_single_point_ghost_anchors",
@@ -115511,9 +115512,9 @@ fn classic_first_contact_marker_budget_guard(runtime: &NativeFirstPlayableRuntim
         && lower_lane_mute_overlay_pixel_budget >= 1_152
         && lower_lane_slot_cue_pixel_budget <= 3
         && lower_lane_ghost_anchor_count == 3
-        && lower_lane_gallery_darken_numerator == 4
-        && lower_lane_gallery_darken_denominator == 5
-        && lower_lane_dim_silhouette_pixel_budget <= 1_152
+        && lower_lane_gallery_darken_numerator == 5
+        && lower_lane_gallery_darken_denominator == 6
+        && lower_lane_dim_silhouette_pixel_budget <= 1_440
         && lower_lane_shadow_suppressed_count == 3
         && lower_lane_hot_marker_color_count == 0
         && gallery_presentation_signatures
@@ -115525,6 +115526,9 @@ fn classic_first_contact_marker_budget_guard(runtime: &NativeFirstPlayableRuntim
         && gallery_presentation_signatures
             .iter()
             .any(|signature| signature == "lower_lane_dim_silhouettes")
+        && gallery_presentation_signatures
+            .iter()
+            .any(|signature| signature == "lower_lane_stronger_dim_silhouettes")
         && gallery_presentation_signatures
             .iter()
             .any(|signature| signature == "lower_lane_shadow_suppressed")
@@ -164101,19 +164105,19 @@ mod tests {
             guard
                 .get("lower_lane_gallery_darken_numerator")
                 .and_then(Value::as_u64),
-            Some(4)
+            Some(5)
         );
         assert_eq!(
             guard
                 .get("lower_lane_gallery_darken_denominator")
                 .and_then(Value::as_u64),
-            Some(5)
+            Some(6)
         );
         assert_eq!(
             guard
                 .get("lower_lane_dim_silhouette_pixel_budget")
                 .and_then(Value::as_u64),
-            Some(1152)
+            Some(1440)
         );
         assert_eq!(
             guard
@@ -164168,6 +164172,9 @@ mod tests {
                         && signatures
                             .iter()
                             .any(|value| value.as_str() == Some("lower_lane_dim_silhouettes"))
+                        && signatures.iter().any(|value| {
+                            value.as_str() == Some("lower_lane_stronger_dim_silhouettes")
+                        })
                         && signatures
                             .iter()
                             .any(|value| value.as_str() == Some("lower_lane_shadow_suppressed"))
