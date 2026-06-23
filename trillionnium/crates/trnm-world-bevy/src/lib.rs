@@ -761,6 +761,10 @@ const CLASSIC_FIRST_CONTACT_TARGET_PREFLIGHT_RING_COUNT: i32 = 2;
 const CLASSIC_FIRST_CONTACT_TARGET_PREFLIGHT_RING_THICKNESS_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_TARGET_PREFLIGHT_CROSS_LONG_PX: i32 = 16;
 const CLASSIC_FIRST_CONTACT_TARGET_PREFLIGHT_CROSS_THICKNESS_PX: i32 = 2;
+const CLASSIC_FIRST_CONTACT_TARGET_LOCK_CROSS_LONG_PX: i32 = 28;
+const CLASSIC_FIRST_CONTACT_TARGET_LOCK_CROSS_THICKNESS_PX: i32 = 3;
+const CLASSIC_FIRST_CONTACT_TARGET_LOCK_ACK_TICK_W_PX: i32 = 18;
+const CLASSIC_FIRST_CONTACT_TARGET_LOCK_ACK_TICK_H_PX: i32 = 4;
 const CLASSIC_FIRST_CONTACT_SELECTED_ROLE_BADGE_TICK_W_PX: i32 = 6;
 const CLASSIC_FIRST_CONTACT_SELECTED_ROLE_BADGE_TICK_H_PX: i32 = 3;
 const CLASSIC_FIRST_CONTACT_SELECTED_FOCUS_BRACKET_PIXELS_PER_TILE: usize = 64;
@@ -99806,30 +99810,30 @@ fn classic_draw_first_contact_selection_combat_focus_layer(
         buffer,
         width,
         height,
-        target_cx - 18,
-        target_cy - 2,
-        36,
-        4,
+        target_cx - CLASSIC_FIRST_CONTACT_TARGET_LOCK_CROSS_LONG_PX / 2,
+        target_cy - CLASSIC_FIRST_CONTACT_TARGET_LOCK_CROSS_THICKNESS_PX / 2,
+        CLASSIC_FIRST_CONTACT_TARGET_LOCK_CROSS_LONG_PX,
+        CLASSIC_FIRST_CONTACT_TARGET_LOCK_CROSS_THICKNESS_PX,
         CLASSIC_RTS_SELECTION_FEEDBACK_ATTACK_COLOR,
     );
     classic_draw_rect(
         buffer,
         width,
         height,
-        target_cx - 2,
-        target_cy - 18,
-        4,
-        36,
+        target_cx - CLASSIC_FIRST_CONTACT_TARGET_LOCK_CROSS_THICKNESS_PX / 2,
+        target_cy - CLASSIC_FIRST_CONTACT_TARGET_LOCK_CROSS_LONG_PX / 2,
+        CLASSIC_FIRST_CONTACT_TARGET_LOCK_CROSS_THICKNESS_PX,
+        CLASSIC_FIRST_CONTACT_TARGET_LOCK_CROSS_LONG_PX,
         CLASSIC_RTS_SELECTION_FEEDBACK_ATTACK_COLOR,
     );
     classic_draw_rect(
         buffer,
         width,
         height,
-        target_cx - 11,
+        target_cx - CLASSIC_FIRST_CONTACT_TARGET_LOCK_ACK_TICK_W_PX / 2,
         target_cy + cell_h + 14,
-        22,
-        5,
+        CLASSIC_FIRST_CONTACT_TARGET_LOCK_ACK_TICK_W_PX,
+        CLASSIC_FIRST_CONTACT_TARGET_LOCK_ACK_TICK_H_PX,
         CLASSIC_RTS_SELECTION_FEEDBACK_ACK_COLOR,
     );
     classic_draw_first_contact_target_callout(buffer, width, height, runtime, target_cx, target_cy);
@@ -115061,6 +115065,7 @@ fn classic_first_contact_selection_combat_focus_readability_guard(
         "compact_route_ack_ticks",
         "route_clearance_gutters",
         "attack_target_lock_brackets",
+        "compact_target_lock_cross",
         "blocked_warning_cross",
     ]);
     let route_dash_count = route_focus_tiles.len();
@@ -115084,7 +115089,14 @@ fn classic_first_contact_selection_combat_focus_readability_guard(
     let route_focus_pixel_budget = route_dash_pixel_budget + route_ack_tick_pixel_budget;
     let route_clearance_pixel_budget = route_clearance_tiles.len() * 88;
     let route_clearance_edge_pixel_budget = route_clearance_tiles.len() * 16;
-    let combat_target_pixel_budget = 192;
+    let combat_target_cross_pixel_budget = (CLASSIC_FIRST_CONTACT_TARGET_LOCK_CROSS_LONG_PX
+        * CLASSIC_FIRST_CONTACT_TARGET_LOCK_CROSS_THICKNESS_PX
+        * 2) as usize;
+    let combat_target_ack_tick_pixel_budget = (CLASSIC_FIRST_CONTACT_TARGET_LOCK_ACK_TICK_W_PX
+        * CLASSIC_FIRST_CONTACT_TARGET_LOCK_ACK_TICK_H_PX)
+        as usize;
+    let combat_target_pixel_budget =
+        combat_target_cross_pixel_budget + combat_target_ack_tick_pixel_budget;
     let blocked_warning_pixel_budget = 84;
     let selected_focus_gate = selected_focus_tiles
         == string_vec(["14,11", "15,11", "15,12", "17,12"])
@@ -115109,10 +115121,17 @@ fn classic_first_contact_selection_combat_focus_readability_guard(
         && route_clearance_overlap_tiles.is_empty()
         && route_clearance_pixel_budget >= 792
         && route_clearance_edge_pixel_budget >= 144;
-    let combat_target_focus_gate = target_focus_tile == "16,9" && combat_target_pixel_budget >= 180;
+    let combat_target_focus_gate = target_focus_tile == "16,9"
+        && CLASSIC_FIRST_CONTACT_TARGET_LOCK_CROSS_LONG_PX == 28
+        && CLASSIC_FIRST_CONTACT_TARGET_LOCK_CROSS_THICKNESS_PX == 3
+        && CLASSIC_FIRST_CONTACT_TARGET_LOCK_ACK_TICK_W_PX == 18
+        && CLASSIC_FIRST_CONTACT_TARGET_LOCK_ACK_TICK_H_PX == 4
+        && (160..=168).contains(&combat_target_cross_pixel_budget)
+        && combat_target_ack_tick_pixel_budget <= 72
+        && combat_target_pixel_budget <= 240;
     let blocked_warning_focus_gate =
         blocked_focus_tile == "15,16" && blocked_warning_pixel_budget >= 72;
-    let focus_signature_gate = focus_signatures.len() == 9
+    let focus_signature_gate = focus_signatures.len() == 10
         && focus_signatures
             .iter()
             .any(|signature| signature.as_str() == "attack_target_lock_brackets")
@@ -115125,6 +115144,9 @@ fn classic_first_contact_selection_combat_focus_readability_guard(
         && focus_signatures
             .iter()
             .any(|signature| signature.as_str() == "compact_route_ack_ticks")
+        && focus_signatures
+            .iter()
+            .any(|signature| signature.as_str() == "compact_target_lock_cross")
         && focus_signatures
             .iter()
             .any(|signature| signature.as_str() == "blocked_warning_cross");
@@ -115214,6 +115236,12 @@ fn classic_first_contact_selection_combat_focus_readability_guard(
         "route_focus_pixel_budget": route_focus_pixel_budget,
         "route_clearance_pixel_budget": route_clearance_pixel_budget,
         "route_clearance_edge_pixel_budget": route_clearance_edge_pixel_budget,
+        "combat_target_cross_long_px": CLASSIC_FIRST_CONTACT_TARGET_LOCK_CROSS_LONG_PX,
+        "combat_target_cross_thickness_px": CLASSIC_FIRST_CONTACT_TARGET_LOCK_CROSS_THICKNESS_PX,
+        "combat_target_ack_tick_width_px": CLASSIC_FIRST_CONTACT_TARGET_LOCK_ACK_TICK_W_PX,
+        "combat_target_ack_tick_height_px": CLASSIC_FIRST_CONTACT_TARGET_LOCK_ACK_TICK_H_PX,
+        "combat_target_cross_pixel_budget": combat_target_cross_pixel_budget,
+        "combat_target_ack_tick_pixel_budget": combat_target_ack_tick_pixel_budget,
         "combat_target_pixel_budget": combat_target_pixel_budget,
         "blocked_warning_pixel_budget": blocked_warning_pixel_budget,
         "selected_focus_gate": selected_focus_gate,
@@ -163852,6 +163880,9 @@ mod tests {
                             .any(|value| value.as_str() == Some("attack_target_lock_brackets"))
                         && signatures
                             .iter()
+                            .any(|value| value.as_str() == Some("compact_target_lock_cross"))
+                        && signatures
+                            .iter()
                             .any(|value| value.as_str() == Some("route_clearance_gutters"))
                         && signatures
                             .iter()
@@ -163925,6 +163956,48 @@ mod tests {
                 .get("route_clearance_pixel_budget")
                 .and_then(Value::as_u64),
             Some(792)
+        );
+        assert_eq!(
+            guard
+                .get("combat_target_cross_long_px")
+                .and_then(Value::as_u64),
+            Some(28)
+        );
+        assert_eq!(
+            guard
+                .get("combat_target_cross_thickness_px")
+                .and_then(Value::as_u64),
+            Some(3)
+        );
+        assert_eq!(
+            guard
+                .get("combat_target_ack_tick_width_px")
+                .and_then(Value::as_u64),
+            Some(18)
+        );
+        assert_eq!(
+            guard
+                .get("combat_target_ack_tick_height_px")
+                .and_then(Value::as_u64),
+            Some(4)
+        );
+        assert_eq!(
+            guard
+                .get("combat_target_cross_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(168)
+        );
+        assert_eq!(
+            guard
+                .get("combat_target_ack_tick_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(72)
+        );
+        assert_eq!(
+            guard
+                .get("combat_target_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(240)
         );
         assert_eq!(
             guard
