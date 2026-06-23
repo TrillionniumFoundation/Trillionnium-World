@@ -72,6 +72,8 @@ use trnm_world_domain::{
 use trnm_world_projection::world_full_split_projection_json;
 
 mod first_contact_labels;
+#[cfg(not(target_os = "android"))]
+mod first_contact_tiles;
 
 pub const TRILLIONNIUM_WORLD_BEVY_NATIVE_CLIENT_CONTRACT: &str =
     "trillionnium_world_bevy_native_client_v1";
@@ -87785,12 +87787,12 @@ fn classic_first_contact_map_actors_from_rts_data() -> Vec<RtsFirstContactPrevie
 
 #[cfg(not(target_os = "android"))]
 fn classic_first_contact_tile_tuple(tile: RtsTile) -> (i32, i32) {
-    (tile.x, tile.y)
+    first_contact_tiles::tile_tuple(tile)
 }
 
 #[cfg(not(target_os = "android"))]
 fn classic_first_contact_tile_id(tile: RtsTile) -> String {
-    classic_rts_tile_id(classic_first_contact_tile_tuple(tile))
+    first_contact_tiles::tile_id(tile)
 }
 
 #[cfg(not(target_os = "android"))]
@@ -99514,33 +99516,15 @@ fn classic_draw_first_contact_atlas_readability_layer(
 fn classic_first_contact_selection_combat_focus_route_tiles(
     runtime: &NativeFirstPlayableRuntime,
 ) -> Vec<(i32, i32)> {
-    runtime
-        .rts_group_route_tile_ids
-        .iter()
-        .filter_map(|tile_id| classic_parse_rts_tile(tile_id))
-        .collect()
+    first_contact_tiles::selection_combat_focus_route_tiles(runtime)
 }
 
 #[cfg(not(target_os = "android"))]
 fn classic_first_contact_route_clearance_tiles(
     runtime: &NativeFirstPlayableRuntime,
 ) -> Vec<(i32, i32)> {
-    let focus_tiles = classic_first_contact_visual_hierarchy_corridor_tiles(runtime);
-    let mut tiles = Vec::new();
-    for (tile_x, tile_y) in classic_first_contact_selection_combat_focus_route_tiles(runtime) {
-        for candidate in [
-            (tile_x - 1, tile_y),
-            (tile_x + 1, tile_y),
-            (tile_x, tile_y - 1),
-            (tile_x, tile_y + 1),
-        ] {
-            if !focus_tiles.contains(&candidate) && !tiles.contains(&candidate) {
-                tiles.push(candidate);
-            }
-        }
-    }
-    tiles.sort_unstable();
-    tiles
+    let feedback = classic_first_contact_command_feedback();
+    first_contact_tiles::route_clearance_tiles(runtime, feedback.target_tile, feedback.blocked_tile)
 }
 
 #[cfg(not(target_os = "android"))]
@@ -99548,26 +99532,11 @@ fn classic_first_contact_visual_hierarchy_corridor_tiles(
     runtime: &NativeFirstPlayableRuntime,
 ) -> Vec<(i32, i32)> {
     let feedback = classic_first_contact_command_feedback();
-    let mut tiles = classic_first_contact_selection_combat_focus_route_tiles(runtime);
-    tiles.extend(
-        runtime
-            .rts_selection_box_tile_ids
-            .iter()
-            .filter_map(|tile_id| classic_parse_rts_tile(tile_id)),
-    );
-    if let Some(tile) = runtime
-        .rts_command_destination_tile
-        .as_deref()
-        .and_then(classic_parse_rts_tile)
-    {
-        tiles.push(tile);
-    } else {
-        tiles.push(classic_first_contact_tile_tuple(feedback.target_tile));
-    }
-    tiles.push(classic_first_contact_tile_tuple(feedback.blocked_tile));
-    tiles.sort_unstable();
-    tiles.dedup();
-    tiles
+    first_contact_tiles::visual_hierarchy_corridor_tiles(
+        runtime,
+        feedback.target_tile,
+        feedback.blocked_tile,
+    )
 }
 
 #[cfg(not(target_os = "android"))]
@@ -99687,17 +99656,12 @@ fn classic_draw_first_contact_visual_hierarchy_layer(
 fn classic_first_contact_central_clarity_quiet_tiles(
     runtime: &NativeFirstPlayableRuntime,
 ) -> Vec<(i32, i32)> {
-    let focus_tiles = classic_first_contact_visual_hierarchy_corridor_tiles(runtime);
-    let mut tiles = Vec::new();
-    for y in 10..=12 {
-        for x in 13..=18 {
-            let tile = (x, y);
-            if !focus_tiles.contains(&tile) {
-                tiles.push(tile);
-            }
-        }
-    }
-    tiles
+    let feedback = classic_first_contact_command_feedback();
+    first_contact_tiles::central_clarity_quiet_tiles(
+        runtime,
+        feedback.target_tile,
+        feedback.blocked_tile,
+    )
 }
 
 #[cfg(not(target_os = "android"))]
@@ -99742,28 +99706,17 @@ fn classic_draw_first_contact_central_clarity_layer(
 
 #[cfg(not(target_os = "android"))]
 fn classic_first_contact_terminal_legibility_target_quiet_tiles() -> Vec<(i32, i32)> {
-    vec![(15, 8), (16, 8), (17, 8), (15, 9), (17, 9)]
+    first_contact_tiles::terminal_legibility_target_quiet_tiles()
 }
 
 #[cfg(not(target_os = "android"))]
 fn classic_first_contact_terminal_legibility_blocked_quiet_tiles() -> Vec<(i32, i32)> {
-    vec![
-        (14, 15),
-        (15, 15),
-        (16, 15),
-        (14, 16),
-        (16, 16),
-        (14, 17),
-        (15, 17),
-        (16, 17),
-    ]
+    first_contact_tiles::terminal_legibility_blocked_quiet_tiles()
 }
 
 #[cfg(not(target_os = "android"))]
 fn classic_first_contact_terminal_legibility_quiet_tiles() -> Vec<(i32, i32)> {
-    let mut tiles = classic_first_contact_terminal_legibility_target_quiet_tiles();
-    tiles.extend(classic_first_contact_terminal_legibility_blocked_quiet_tiles());
-    tiles
+    first_contact_tiles::terminal_legibility_quiet_tiles()
 }
 
 #[cfg(not(target_os = "android"))]
@@ -99899,11 +99852,7 @@ fn classic_draw_first_contact_focus_corner_brackets(
 #[cfg(not(target_os = "android"))]
 fn classic_first_contact_target_callout_tile(runtime: &NativeFirstPlayableRuntime) -> (i32, i32) {
     let feedback = classic_first_contact_command_feedback();
-    runtime
-        .rts_command_destination_tile
-        .as_deref()
-        .and_then(classic_parse_rts_tile)
-        .unwrap_or_else(|| classic_first_contact_tile_tuple(feedback.target_tile))
+    first_contact_tiles::target_callout_tile(runtime, feedback.target_tile)
 }
 
 #[cfg(not(target_os = "android"))]
@@ -116063,38 +116012,27 @@ fn classic_first_contact_marker_budget_guard(runtime: &NativeFirstPlayableRuntim
 
 #[cfg(not(target_os = "android"))]
 fn classic_first_contact_radar_objective_tiles() -> Vec<(i32, i32)> {
-    vec![(16, 9), (16, 24), (9, 16), (24, 16)]
+    first_contact_tiles::radar_objective_tiles()
 }
 
 #[cfg(not(target_os = "android"))]
 fn classic_first_contact_radar_structure_tiles() -> Vec<(i32, i32)> {
-    vec![(8, 8), (25, 8), (25, 25), (8, 25), (11, 8), (22, 25)]
+    first_contact_tiles::radar_structure_tiles()
 }
 
 #[cfg(not(target_os = "android"))]
 fn classic_first_contact_radar_pressure_tiles() -> Vec<(i32, i32)> {
-    vec![(25, 25), (25, 8), (24, 16)]
+    first_contact_tiles::radar_pressure_tiles()
 }
 
 #[cfg(not(target_os = "android"))]
 fn classic_first_contact_radar_lane_sample_tiles() -> Vec<(i32, i32)> {
-    let mut tiles = Vec::new();
-    for tile_y in (4..=30).step_by(2) {
-        tiles.push((16, tile_y));
-    }
-    for tile_x in (6..=28).step_by(2) {
-        tiles.push((tile_x, 16));
-    }
-    tiles
+    first_contact_tiles::radar_lane_sample_tiles()
 }
 
 #[cfg(not(target_os = "android"))]
 fn classic_first_contact_radar_focus_tile(runtime: &NativeFirstPlayableRuntime) -> (i32, i32) {
-    runtime
-        .rts_camera_focus_tile_id
-        .as_deref()
-        .and_then(classic_parse_rts_tile)
-        .unwrap_or((16, 16))
+    first_contact_tiles::radar_focus_tile(runtime)
 }
 
 #[cfg(not(target_os = "android"))]
