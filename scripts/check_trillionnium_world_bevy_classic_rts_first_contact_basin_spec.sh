@@ -1047,6 +1047,14 @@ cat >"$JQ_FILTER" <<'JQ'
   and .first_contact_atlas_readability_guard.east_gallery_frame_count == 6
   and .first_contact_atlas_readability_guard.atlas_frame_pixel_budget >= 11776
   and .first_contact_atlas_readability_guard.atlas_family_frame_pixel_budget >= 42496
+  and .first_contact_atlas_readability_guard.atlas_runtime_depth_source_path == "trnm-world-bevy classic_draw_first_contact_atlas_asset_sample"
+  and (.first_contact_atlas_readability_guard.atlas_runtime_depth_signatures | index("atlas_unit_grounding_shadow") != null)
+  and (.first_contact_atlas_readability_guard.atlas_runtime_depth_signatures | index("atlas_structure_footprint_rim") != null)
+  and (.first_contact_atlas_readability_guard.atlas_runtime_depth_signatures | index("atlas_objective_capture_underlay") != null)
+  and (.first_contact_atlas_readability_guard.atlas_runtime_depth_signatures | index("atlas_lower_lane_depth_suppressed") != null)
+  and .first_contact_atlas_readability_guard.atlas_runtime_depth_sample_count >= 21
+  and .first_contact_atlas_readability_guard.atlas_lower_lane_depth_suppressed_count == 3
+  and .first_contact_atlas_readability_guard.atlas_runtime_depth_pixel_budget >= 1344
   and .first_contact_atlas_readability_guard.manifest_frame_gate == true
   and .first_contact_atlas_readability_guard.family_frame_available_gate == true
   and .first_contact_atlas_readability_guard.atlas_manifest_gate == true
@@ -1065,6 +1073,7 @@ cat >"$JQ_FILTER" <<'JQ'
   and .first_contact_atlas_readability_guard.atlas_family_perimeter_placement_gate == true
   and .first_contact_atlas_readability_guard.atlas_composition_gate == true
   and .first_contact_atlas_readability_guard.atlas_frame_family_gate == true
+  and .first_contact_atlas_readability_guard.atlas_runtime_depth_gate == true
   and .first_contact_atlas_readability_guard.no_copy_boundary_gate == true
   and .first_contact_atlas_readability_guard.first_contact_atlas_readability_gate == true
   and .first_contact_atlas_readability_guard_gate == true

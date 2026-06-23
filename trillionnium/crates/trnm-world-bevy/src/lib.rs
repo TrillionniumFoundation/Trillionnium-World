@@ -99100,6 +99100,146 @@ fn classic_first_contact_atlas_asset_frame_size(
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_first_contact_atlas_runtime_depth_role(role: &str) -> bool {
+    matches!(
+        role,
+        "unit_sprite"
+            | "structure_sprite"
+            | "objective_sprite"
+            | "worker_unit_family"
+            | "scout_unit_family"
+            | "warden_unit_family"
+            | "relay_unit_family"
+            | "command_core_structure_family"
+            | "relay_structure_family"
+            | "beacon_objective_family"
+    )
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_first_contact_atlas_runtime_depth_signatures() -> Vec<&'static str> {
+    vec![
+        "atlas_unit_grounding_shadow",
+        "atlas_structure_footprint_rim",
+        "atlas_objective_capture_underlay",
+        "atlas_lower_lane_depth_suppressed",
+    ]
+}
+
+#[cfg(not(target_os = "android"))]
+#[allow(clippy::too_many_arguments)]
+fn classic_draw_first_contact_atlas_runtime_depth(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    role: &str,
+    cx: i32,
+    cy: i32,
+    cell_w: i32,
+    cell_h: i32,
+    lower_lane_gallery: bool,
+) {
+    if lower_lane_gallery || !classic_first_contact_atlas_runtime_depth_role(role) {
+        return;
+    }
+
+    match role {
+        "unit_sprite"
+        | "worker_unit_family"
+        | "scout_unit_family"
+        | "warden_unit_family"
+        | "relay_unit_family" => {
+            classic_draw_iso_ellipse(
+                buffer,
+                width,
+                height,
+                cx,
+                cy + cell_h / 2 + 2,
+                (cell_w / 2 + 5).max(8),
+                (cell_h / 4 + 2).max(4),
+                CLASSIC_RTS_TACTICAL_VIEWPORT_SHADOW_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                cx - cell_w / 3,
+                cy + cell_h / 2 + 2,
+                (cell_w * 2 / 3).max(8),
+                2,
+                classic_darken(CLASSIC_RTS_TACTICAL_VIEWPORT_SHADOW_COLOR, 1, 4),
+            );
+        }
+        "structure_sprite" | "command_core_structure_family" | "relay_structure_family" => {
+            classic_draw_iso_ellipse(
+                buffer,
+                width,
+                height,
+                cx,
+                cy + cell_h / 2 + 3,
+                (cell_w + 6).max(14),
+                (cell_h / 3 + 3).max(5),
+                CLASSIC_RTS_TACTICAL_VIEWPORT_SHADOW_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                cx - cell_w,
+                cy + cell_h / 2 + 2,
+                cell_w * 2,
+                3,
+                classic_darken(CLASSIC_RTS_STRUCTURE_FOUNDATION_SHADOW_COLOR, 1, 4),
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                cx - cell_w + 4,
+                cy + cell_h / 2 - 2,
+                cell_w * 2 - 8,
+                2,
+                CLASSIC_RTS_STRUCTURE_FOUNDATION_SHADOW_COLOR,
+            );
+        }
+        "objective_sprite" | "beacon_objective_family" => {
+            let underlay = classic_darken(CLASSIC_RTS_COMMAND_SURFACE_TARGET_COLOR, 1, 6);
+            classic_draw_iso_ellipse(
+                buffer,
+                width,
+                height,
+                cx,
+                cy + cell_h / 2 + 2,
+                (cell_w + 4).max(12),
+                (cell_h / 3 + 2).max(4),
+                classic_darken(underlay, 1, 3),
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                cx - cell_w / 2,
+                cy + cell_h / 2 + 1,
+                cell_w,
+                2,
+                underlay,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                cx - 2,
+                cy,
+                4,
+                cell_h / 2,
+                classic_darken(underlay, 1, 4),
+            );
+        }
+        _ => {}
+    }
+}
+
+#[cfg(not(target_os = "android"))]
 #[allow(clippy::too_many_arguments)]
 fn classic_draw_first_contact_atlas_asset_sample(
     buffer: &mut [u32],
@@ -99124,29 +99264,17 @@ fn classic_draw_first_contact_atlas_asset_sample(
     let (frame_w, frame_h) = classic_first_contact_atlas_asset_frame_size(assets, frame_id, scale);
     let (offset_x, offset_y) =
         classic_first_contact_atlas_asset_offset(role, frame_h.max(frame_w), cell_h);
-    if matches!(
-        role,
-        "unit_sprite"
-            | "structure_sprite"
-            | "objective_sprite"
-            | "worker_unit_family"
-            | "scout_unit_family"
-            | "warden_unit_family"
-            | "relay_unit_family"
-            | "command_core_structure_family"
-            | "relay_structure_family"
-            | "beacon_objective_family"
-    ) && !lower_lane_gallery
-    {
-        classic_draw_iso_ellipse(
+    if classic_first_contact_atlas_runtime_depth_role(role) {
+        classic_draw_first_contact_atlas_runtime_depth(
             buffer,
             width,
             height,
+            role,
             cx,
-            cy + cell_h / 2 + 2,
-            (cell_w / 2 + 5).max(8),
-            (cell_h / 4 + 2).max(4),
-            CLASSIC_RTS_TACTICAL_VIEWPORT_SHADOW_COLOR,
+            cy,
+            cell_w,
+            cell_h,
+            lower_lane_gallery,
         );
     }
     let has_override_frame = assets.frame_override_pixels.contains_key(frame_id);
@@ -114357,6 +114485,10 @@ fn classic_first_contact_atlas_readability_guard() -> Value {
     let assets = classic_first_contact_atlas_readability_assets();
     let samples = classic_first_contact_atlas_asset_samples();
     let family_samples = classic_first_contact_atlas_frame_family_samples();
+    let atlas_runtime_depth_signatures = classic_first_contact_atlas_runtime_depth_signatures()
+        .iter()
+        .map(|signature| (*signature).to_string())
+        .collect::<Vec<_>>();
     let sample_tiles = samples
         .iter()
         .map(|(tile, _, _, _, _)| classic_rts_tile_id(*tile))
@@ -114538,6 +114670,24 @@ fn classic_first_contact_atlas_readability_guard() -> Value {
         .iter()
         .filter(|role| role.as_str() == "beacon_objective_family")
         .count();
+    let atlas_runtime_depth_sample_count = samples
+        .iter()
+        .filter(|(_, role, _, _, _)| classic_first_contact_atlas_runtime_depth_role(role))
+        .count()
+        + family_samples
+            .iter()
+            .filter(|(tile, role, _, _, _)| {
+                classic_first_contact_atlas_runtime_depth_role(role)
+                    && !classic_first_contact_atlas_family_lower_lane_tile(*tile)
+            })
+            .count();
+    let atlas_lower_lane_depth_suppressed_count = family_samples
+        .iter()
+        .filter(|(tile, role, _, _, _)| {
+            classic_first_contact_atlas_runtime_depth_role(role)
+                && classic_first_contact_atlas_family_lower_lane_tile(*tile)
+        })
+        .count();
     let atlas_frame_pixel_budget = samples
         .iter()
         .map(|(_, _, _, _, scale)| 16_usize * 16_usize * (*scale as usize).pow(2))
@@ -114552,6 +114702,7 @@ fn classic_first_contact_atlas_readability_guard() -> Value {
             }
         })
         .sum::<usize>();
+    let atlas_runtime_depth_pixel_budget = atlas_runtime_depth_sample_count * 64;
     let atlas_manifest_gate = assets.manifest.contract_version
         == TRILLIONNIUM_WORLD_BEVY_CLASSIC_ASSET_PACK_CONTRACT
         && assets.atlas_parse_gate
@@ -114691,6 +114842,16 @@ fn classic_first_contact_atlas_readability_guard() -> Value {
         && beacon_frame_family_gate
         && override_frame_family_gate
         && atlas_family_perimeter_placement_gate;
+    let atlas_runtime_depth_gate = atlas_runtime_depth_signatures
+        == string_vec([
+            "atlas_unit_grounding_shadow",
+            "atlas_structure_footprint_rim",
+            "atlas_objective_capture_underlay",
+            "atlas_lower_lane_depth_suppressed",
+        ])
+        && atlas_runtime_depth_sample_count >= 21
+        && atlas_lower_lane_depth_suppressed_count == 3
+        && atlas_runtime_depth_pixel_budget >= 1_344;
     let no_copy_boundary_gate =
         !assets.manifest.cex_runtime_player_client_allowed && !assets.manifest.wgpu_required;
     let first_contact_atlas_readability_gate = atlas_manifest_gate
@@ -114700,6 +114861,7 @@ fn classic_first_contact_atlas_readability_guard() -> Value {
         && objective_atlas_sprite_gate
         && atlas_composition_gate
         && atlas_frame_family_gate
+        && atlas_runtime_depth_gate
         && no_copy_boundary_gate;
     let green = first_contact_atlas_readability_gate;
 
@@ -114746,6 +114908,11 @@ fn classic_first_contact_atlas_readability_guard() -> Value {
         "east_gallery_frame_count": east_gallery_frame_count,
         "atlas_frame_pixel_budget": atlas_frame_pixel_budget,
         "atlas_family_frame_pixel_budget": atlas_family_frame_pixel_budget,
+        "atlas_runtime_depth_source_path": "trnm-world-bevy classic_draw_first_contact_atlas_asset_sample",
+        "atlas_runtime_depth_signatures": atlas_runtime_depth_signatures,
+        "atlas_runtime_depth_sample_count": atlas_runtime_depth_sample_count,
+        "atlas_lower_lane_depth_suppressed_count": atlas_lower_lane_depth_suppressed_count,
+        "atlas_runtime_depth_pixel_budget": atlas_runtime_depth_pixel_budget,
         "manifest_frame_gate": manifest_frame_gate,
         "family_frame_available_gate": family_frame_available_gate,
         "atlas_manifest_gate": atlas_manifest_gate,
@@ -114764,6 +114931,7 @@ fn classic_first_contact_atlas_readability_guard() -> Value {
         "atlas_family_perimeter_placement_gate": atlas_family_perimeter_placement_gate,
         "atlas_composition_gate": atlas_composition_gate,
         "atlas_frame_family_gate": atlas_frame_family_gate,
+        "atlas_runtime_depth_gate": atlas_runtime_depth_gate,
         "no_copy_boundary_gate": no_copy_boundary_gate,
         "first_contact_atlas_readability_gate": first_contact_atlas_readability_gate,
         "warcraft_iii_asset_copied": false,
@@ -163799,6 +163967,44 @@ mod tests {
                 .and_then(Value::as_u64),
             Some(42496)
         );
+        assert_eq!(
+            guard
+                .get("atlas_runtime_depth_signatures")
+                .and_then(Value::as_array)
+                .map(|signatures| {
+                    signatures
+                        .iter()
+                        .any(|value| value.as_str() == Some("atlas_unit_grounding_shadow"))
+                        && signatures
+                            .iter()
+                            .any(|value| value.as_str() == Some("atlas_structure_footprint_rim"))
+                        && signatures.iter().any(|value| {
+                            value.as_str() == Some("atlas_objective_capture_underlay")
+                        })
+                        && signatures.iter().any(|value| {
+                            value.as_str() == Some("atlas_lower_lane_depth_suppressed")
+                        })
+                }),
+            Some(true)
+        );
+        assert_eq!(
+            guard
+                .get("atlas_runtime_depth_sample_count")
+                .and_then(Value::as_u64),
+            Some(21)
+        );
+        assert_eq!(
+            guard
+                .get("atlas_lower_lane_depth_suppressed_count")
+                .and_then(Value::as_u64),
+            Some(3)
+        );
+        assert_eq!(
+            guard
+                .get("atlas_runtime_depth_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(1344)
+        );
         for gate in [
             "manifest_frame_gate",
             "family_frame_available_gate",
@@ -163818,6 +164024,7 @@ mod tests {
             "atlas_family_perimeter_placement_gate",
             "atlas_composition_gate",
             "atlas_frame_family_gate",
+            "atlas_runtime_depth_gate",
             "no_copy_boundary_gate",
             "first_contact_atlas_readability_gate",
         ] {
