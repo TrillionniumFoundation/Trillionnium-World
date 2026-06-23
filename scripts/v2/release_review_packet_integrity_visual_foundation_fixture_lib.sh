@@ -863,6 +863,16 @@ add_first_contact_basin_source_manifest_packet_fixtures() {
       ],
       terrain_material_pixel_budget: 432,
       terrain_material_gate: true,
+      terrain_material_depth_source_path: "trnm-world-bevy classic_draw_first_contact_terrain_material_depth_detail",
+      terrain_material_depth_signatures: [
+        "terrain_foundation_beveled_edges",
+        "terrain_crystal_cast_shadows",
+        "terrain_lane_recessed_rails",
+        "terrain_basin_fracture_shadows"
+      ],
+      terrain_material_depth_sample_count: 9,
+      terrain_material_depth_pixel_budget: 576,
+      terrain_material_depth_gate: true,
       building_sample_tiles: ["8,8", "25,8", "25,25", "8,25", "11,8", "22,25", "16,9", "16,24", "9,16", "24,16"],
       building_roles: ["command_core", "command_core", "command_core", "command_core", "relay", "relay", "beacon", "beacon", "beacon", "beacon"],
       building_facade_signatures: ["lit_window_rows", "lit_window_rows", "lit_window_rows", "lit_window_rows", "antenna_band_panels", "antenna_band_panels", "glowing_spire_panels", "glowing_spire_panels", "glowing_spire_panels", "glowing_spire_panels"],

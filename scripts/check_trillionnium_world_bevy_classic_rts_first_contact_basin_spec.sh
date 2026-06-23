@@ -900,6 +900,11 @@ cat >"$JQ_FILTER" <<'JQ'
   and (.first_contact_art_readability_guard.terrain_material_signatures | index("flux_crystal_shards") != null)
   and (.first_contact_art_readability_guard.terrain_material_signatures | index("painted_lane_chevrons") != null)
   and (.first_contact_art_readability_guard.terrain_material_signatures | index("cracked_plaza_cross") != null)
+  and .first_contact_art_readability_guard.terrain_material_depth_source_path == "trnm-world-bevy classic_draw_first_contact_terrain_material_depth_detail"
+  and (.first_contact_art_readability_guard.terrain_material_depth_signatures | index("terrain_foundation_beveled_edges") != null)
+  and (.first_contact_art_readability_guard.terrain_material_depth_signatures | index("terrain_crystal_cast_shadows") != null)
+  and (.first_contact_art_readability_guard.terrain_material_depth_signatures | index("terrain_lane_recessed_rails") != null)
+  and (.first_contact_art_readability_guard.terrain_material_depth_signatures | index("terrain_basin_fracture_shadows") != null)
   and (.first_contact_art_readability_guard.building_facade_signatures | index("lit_window_rows") != null)
   and (.first_contact_art_readability_guard.building_facade_signatures | index("antenna_band_panels") != null)
   and (.first_contact_art_readability_guard.building_facade_signatures | index("glowing_spire_panels") != null)
@@ -919,6 +924,8 @@ cat >"$JQ_FILTER" <<'JQ'
   and .first_contact_art_readability_guard.relay_landmark_count == 2
   and .first_contact_art_readability_guard.beacon_landmark_count == 4
   and .first_contact_art_readability_guard.terrain_material_pixel_budget >= 432
+  and .first_contact_art_readability_guard.terrain_material_depth_sample_count >= 9
+  and .first_contact_art_readability_guard.terrain_material_depth_pixel_budget >= 576
   and .first_contact_art_readability_guard.building_facade_pixel_budget >= 860
   and .first_contact_art_readability_guard.map_landmark_pixel_budget >= 1152
   and .first_contact_art_readability_guard.runtime_actor_depth_source_path == "trnm-world-bevy classic_draw_first_contact_actor_glyph"
@@ -929,6 +936,7 @@ cat >"$JQ_FILTER" <<'JQ'
   and (.first_contact_art_readability_guard.runtime_actor_depth_signatures | index("runtime_beacon_core_glow_rungs") != null)
   and .first_contact_art_readability_guard.runtime_actor_depth_pixel_budget >= 480
   and .first_contact_art_readability_guard.terrain_material_gate == true
+  and .first_contact_art_readability_guard.terrain_material_depth_gate == true
   and .first_contact_art_readability_guard.building_facade_gate == true
   and .first_contact_art_readability_guard.map_landmark_detail_gate == true
   and .first_contact_art_readability_guard.runtime_actor_depth_gate == true

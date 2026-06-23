@@ -97959,6 +97959,124 @@ fn classic_first_contact_art_landmark_color(role: &str) -> u32 {
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_first_contact_terrain_material_depth_signatures() -> Vec<&'static str> {
+    vec![
+        "terrain_foundation_beveled_edges",
+        "terrain_crystal_cast_shadows",
+        "terrain_lane_recessed_rails",
+        "terrain_basin_fracture_shadows",
+    ]
+}
+
+#[cfg(not(target_os = "android"))]
+#[allow(clippy::too_many_arguments)]
+fn classic_draw_first_contact_terrain_material_depth_detail(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    map_x: i32,
+    map_y: i32,
+    cell_w: i32,
+    cell_h: i32,
+    tile: (i32, i32),
+    role: &str,
+) {
+    let (tile_x, tile_y) = classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, tile);
+    let cx = tile_x + cell_w / 2;
+    let cy = tile_y + cell_h / 2;
+    let color = classic_first_contact_art_terrain_color(role);
+    match role {
+        "base_concrete" => {
+            let bevel = classic_darken(CLASSIC_RTS_STRUCTURE_FOUNDATION_SHADOW_COLOR, 1, 3);
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                cx - cell_w,
+                cy + cell_h - 3,
+                cell_w * 2,
+                3,
+                bevel,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                cx + cell_w - 3,
+                cy - cell_h,
+                3,
+                cell_h * 2,
+                classic_darken(color, 1, 4),
+            );
+        }
+        "resource_crystal" => {
+            classic_draw_iso_ellipse(
+                buffer,
+                width,
+                height,
+                cx + 3,
+                cy + cell_h / 3,
+                (cell_w / 2 + 3).max(8),
+                (cell_h / 5 + 2).max(4),
+                classic_darken(color, 1, 6),
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                cx - cell_w / 2,
+                cy + cell_h / 3,
+                cell_w,
+                2,
+                classic_darken(CLASSIC_RTS_TACTICAL_VIEWPORT_SHADOW_COLOR, 1, 3),
+            );
+        }
+        "beacon_lane" => {
+            let rail = classic_darken(CLASSIC_RTS_OBJECTIVE_COLOR, 1, 5);
+            for offset in [-cell_h / 2, cell_h / 2] {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    cx - cell_w,
+                    cy + offset - 1,
+                    cell_w * 2,
+                    2,
+                    rail,
+                );
+            }
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                cx - cell_w / 2,
+                cy - 1,
+                cell_w,
+                2,
+                classic_darken(CLASSIC_RTS_PRODUCT_LANE_COLOR, 1, 4),
+            );
+        }
+        "basin_floor" => {
+            let fracture = classic_darken(CLASSIC_RTS_PRODUCT_LANE_COLOR, 1, 4);
+            for (dx, dy, w) in [(-18, -10, 12), (-7, -2, 18), (8, 7, 14), (-2, 14, 10)] {
+                classic_draw_rect(buffer, width, height, cx + dx, cy + dy, w, 2, fracture);
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    cx + dx + w / 2,
+                    cy + dy - 3,
+                    2,
+                    7,
+                    classic_darken(fracture, 1, 4),
+                );
+            }
+        }
+        _ => {}
+    }
+}
+
+#[cfg(not(target_os = "android"))]
 #[allow(clippy::too_many_arguments)]
 fn classic_draw_first_contact_art_terrain_detail(
     buffer: &mut [u32],
@@ -98375,6 +98493,11 @@ fn classic_draw_first_contact_art_readability_layer(
     cell_w: i32,
     cell_h: i32,
 ) {
+    for (tile, role, _) in classic_first_contact_art_terrain_samples() {
+        classic_draw_first_contact_terrain_material_depth_detail(
+            buffer, width, height, map_x, map_y, cell_w, cell_h, tile, role,
+        );
+    }
     for (tile, role, signature) in classic_first_contact_art_terrain_samples() {
         classic_draw_first_contact_art_terrain_detail(
             buffer, width, height, map_x, map_y, cell_w, cell_h, tile, role, signature,
@@ -113961,6 +114084,11 @@ fn classic_first_contact_art_readability_guard() -> Value {
         .iter()
         .map(|signature| (*signature).to_string())
         .collect::<Vec<_>>();
+    let terrain_material_depth_signatures =
+        classic_first_contact_terrain_material_depth_signatures()
+            .iter()
+            .map(|signature| (*signature).to_string())
+            .collect::<Vec<_>>();
     let terrain_sample_tiles = terrain_samples
         .iter()
         .map(|(tile, _, _)| classic_rts_tile_id(*tile))
@@ -114076,6 +114204,8 @@ fn classic_first_contact_art_readability_guard() -> Value {
         .filter(|role| role.as_str() == "beacon_ring")
         .count();
     let terrain_material_pixel_budget = terrain_samples.len() * 48;
+    let terrain_material_depth_sample_count = terrain_samples.len();
+    let terrain_material_depth_pixel_budget = terrain_material_depth_sample_count * 64;
     let building_facade_pixel_budget = building_samples.len() * 86;
     let map_landmark_pixel_budget = landmark_samples.len() * 72;
     let runtime_actor_depth_pixel_budget = runtime_actor_depth_signatures.len() * 96;
@@ -114093,6 +114223,15 @@ fn classic_first_contact_art_readability_guard() -> Value {
         ])
         && unique_terrain_signature_count >= 4
         && terrain_material_pixel_budget >= 432;
+    let terrain_material_depth_gate = terrain_material_depth_signatures
+        == string_vec([
+            "terrain_foundation_beveled_edges",
+            "terrain_crystal_cast_shadows",
+            "terrain_lane_recessed_rails",
+            "terrain_basin_fracture_shadows",
+        ])
+        && terrain_material_depth_sample_count >= 9
+        && terrain_material_depth_pixel_budget >= 576;
     let building_facade_gate = command_core_count == 4
         && relay_count == 2
         && beacon_count == 4
@@ -114116,6 +114255,7 @@ fn classic_first_contact_art_readability_guard() -> Value {
         ])
         && runtime_actor_depth_pixel_budget >= 480;
     let authored_map_art_gate = terrain_material_gate
+        && terrain_material_depth_gate
         && building_facade_gate
         && map_landmark_detail_gate
         && runtime_actor_depth_gate;
@@ -114131,6 +114271,11 @@ fn classic_first_contact_art_readability_guard() -> Value {
         "terrain_material_samples": terrain_sample_objects,
         "terrain_material_pixel_budget": terrain_material_pixel_budget,
         "terrain_material_gate": terrain_material_gate,
+        "terrain_material_depth_source_path": "trnm-world-bevy classic_draw_first_contact_terrain_material_depth_detail",
+        "terrain_material_depth_signatures": terrain_material_depth_signatures,
+        "terrain_material_depth_sample_count": terrain_material_depth_sample_count,
+        "terrain_material_depth_pixel_budget": terrain_material_depth_pixel_budget,
+        "terrain_material_depth_gate": terrain_material_depth_gate,
         "building_sample_tiles": building_sample_tiles,
         "building_roles": building_roles,
         "building_facade_signatures": building_facade_signatures,
@@ -163562,6 +163707,37 @@ mod tests {
         );
         assert_eq!(
             guard
+                .get("terrain_material_depth_signatures")
+                .and_then(Value::as_array)
+                .map(|signatures| {
+                    signatures.iter().any(|value| {
+                        value.as_str() == Some("terrain_foundation_beveled_edges")
+                    }) && signatures
+                        .iter()
+                        .any(|value| value.as_str() == Some("terrain_crystal_cast_shadows"))
+                        && signatures.iter().any(|value| {
+                            value.as_str() == Some("terrain_lane_recessed_rails")
+                        })
+                        && signatures.iter().any(|value| {
+                            value.as_str() == Some("terrain_basin_fracture_shadows")
+                        })
+                }),
+            Some(true)
+        );
+        assert_eq!(
+            guard
+                .get("terrain_material_depth_sample_count")
+                .and_then(Value::as_u64),
+            Some(9)
+        );
+        assert_eq!(
+            guard
+                .get("terrain_material_depth_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(576)
+        );
+        assert_eq!(
+            guard
                 .get("building_facade_signatures")
                 .and_then(Value::as_array)
                 .map(|signatures| {
@@ -163635,6 +163811,7 @@ mod tests {
         );
         for gate in [
             "terrain_material_gate",
+            "terrain_material_depth_gate",
             "building_facade_gate",
             "map_landmark_detail_gate",
             "runtime_actor_depth_gate",
