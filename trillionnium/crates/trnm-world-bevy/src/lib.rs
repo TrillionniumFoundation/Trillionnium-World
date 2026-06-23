@@ -73,6 +73,8 @@ use trnm_world_projection::world_full_split_projection_json;
 
 #[cfg(not(target_os = "android"))]
 mod first_contact_bottom_panel;
+#[cfg(not(target_os = "android"))]
+mod first_contact_command_grid;
 mod first_contact_labels;
 #[cfg(not(target_os = "android"))]
 mod first_contact_palette;
@@ -27176,22 +27178,6 @@ pub fn native_classic_rts_full_game_visual_ui_replication_evidence_json(
         .map(classic_first_contact_command_glyph_role)
         .unwrap_or("generic")
         .to_string();
-    let command_slot_sent = |ability: &str, role: &str| -> bool {
-        runtime.rts_command_queue.iter().any(|order| {
-            let order = order.to_ascii_lowercase();
-            order.contains(ability)
-                || order.contains(role)
-                || match role {
-                    "signal" => order.contains("ability") || order.contains("focus"),
-                    "warden" => order.contains("control_group") || order.contains("selection"),
-                    "relay" => order.contains("waypoint") || order.contains("move"),
-                    "core" => order.contains("formation") || order.contains("build"),
-                    "worker" => order.contains("worker") || order.contains("harvest"),
-                    "scout" => order.contains("scout") || order.contains("recon"),
-                    _ => false,
-                }
-        })
-    };
     let command_grid_state_samples = command_grid_slot_ids
         .iter()
         .map(|ability| {
@@ -27199,7 +27185,7 @@ pub fn native_classic_rts_full_game_visual_ui_replication_evidence_json(
             let signature = classic_first_contact_command_glyph_signature(role);
             let active = runtime.rts_active_ability_id.as_deref() == Some(ability.as_str())
                 || role == active_command_role;
-            let sent = command_slot_sent(ability, role);
+            let sent = classic_first_contact_command_slot_sent(&runtime, ability, role);
             let available = classic_rts_command_slot_available(&runtime, ability);
             json!({
                 "ability": ability,
@@ -27252,7 +27238,7 @@ pub fn native_classic_rts_full_game_visual_ui_replication_evidence_json(
         let role = classic_first_contact_command_glyph_role(ability);
         let active = runtime.rts_active_ability_id.as_deref() == Some(ability)
             || role == active_command_role;
-        let sent = command_slot_sent(ability, role);
+        let sent = classic_first_contact_command_slot_sent(&runtime, ability, role);
         let available = classic_rts_command_slot_available(&runtime, ability);
         classic_draw_rect(
             &mut pixels,
@@ -111656,58 +111642,26 @@ fn classic_draw_rts_command_glyph(
 
 #[cfg(not(target_os = "android"))]
 fn classic_first_contact_command_glyph_role(ability: &str) -> &'static str {
-    let normalized = ability.replace('_', "-").to_ascii_lowercase();
-    if normalized.contains("worker") || normalized.contains("harvest") {
-        "worker"
-    } else if normalized.contains("scout") || normalized.contains("recon") {
-        "scout"
-    } else if normalized.contains("warden")
-        || normalized.contains("guard")
-        || normalized.contains("hold")
-    {
-        "warden"
-    } else if normalized.contains("relay") || normalized.contains("rally") {
-        "relay"
-    } else if normalized.contains("core") || normalized.contains("build") {
-        "core"
-    } else if normalized.contains("signal")
-        || normalized.contains("ability")
-        || normalized.contains("focus")
-    {
-        "signal"
-    } else if normalized.contains("attack") || normalized.contains("strike") {
-        "attack"
-    } else {
-        "generic"
-    }
+    first_contact_command_grid::command_glyph_role(ability)
 }
 
 #[cfg(not(target_os = "android"))]
 fn classic_first_contact_command_glyph_signature(role: &str) -> &'static str {
-    match role {
-        "worker" => "unit_pickaxe_ore",
-        "scout" => "diamond_eye_crosshair",
-        "warden" => "shield_barrier",
-        "relay" => "mast_broadcast",
-        "core" => "stepped_base",
-        "signal" => "pulse_spire",
-        "attack" => "target_cross",
-        _ => "fallback_diamond",
-    }
+    first_contact_command_grid::command_glyph_signature(role)
 }
 
 #[cfg(not(target_os = "android"))]
 fn classic_first_contact_command_role_backdrop(role: &str) -> u32 {
-    match role {
-        "worker" => 0x2d3b24,
-        "scout" => 0x213743,
-        "warden" => 0x352d3f,
-        "relay" => 0x24383a,
-        "core" => 0x3a3325,
-        "signal" => 0x2e2944,
-        "attack" => 0x3f2626,
-        _ => 0x263b2e,
-    }
+    first_contact_command_grid::command_role_backdrop(role)
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_first_contact_command_slot_sent(
+    runtime: &NativeFirstPlayableRuntime,
+    ability: &str,
+    role: &str,
+) -> bool {
+    first_contact_command_grid::command_slot_sent(&runtime.rts_command_queue, ability, role)
 }
 
 #[cfg(not(target_os = "android"))]
@@ -112880,18 +112834,7 @@ fn classic_first_contact_player_screen_label_guard(
 fn classic_first_contact_command_grid_slot_ids(
     chrome: &RtsFirstContactPlayerScreenChromeProfile,
 ) -> Vec<String> {
-    let slot_count = chrome.command_grid_slot_count.max(1) as usize;
-    let fallback = chrome.command_slot_fallback_id.as_str();
-    (0..slot_count)
-        .map(|index| {
-            chrome
-                .command_grid_slot_ids
-                .get(index % chrome.command_grid_slot_ids.len().max(1))
-                .map(String::as_str)
-                .unwrap_or(fallback)
-                .to_string()
-        })
-        .collect()
+    first_contact_command_grid::command_grid_slot_ids(chrome)
 }
 
 #[cfg(not(target_os = "android"))]
