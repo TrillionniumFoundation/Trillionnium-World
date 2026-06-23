@@ -83,6 +83,8 @@ mod first_contact_marker_budget;
 #[cfg(not(target_os = "android"))]
 mod first_contact_palette;
 #[cfg(not(target_os = "android"))]
+mod first_contact_radar_readability;
+#[cfg(not(target_os = "android"))]
 mod first_contact_readouts;
 #[cfg(not(target_os = "android"))]
 mod first_contact_samples;
@@ -114406,144 +114408,15 @@ fn classic_first_contact_radar_lane_sample_tiles() -> Vec<(i32, i32)> {
 }
 
 #[cfg(not(target_os = "android"))]
-fn classic_first_contact_radar_focus_tile(runtime: &NativeFirstPlayableRuntime) -> (i32, i32) {
-    first_contact_tiles::radar_focus_tile(runtime)
-}
-
-#[cfg(not(target_os = "android"))]
-fn classic_first_contact_radar_zoom(runtime: &NativeFirstPlayableRuntime) -> f32 {
-    (runtime.rts_camera_zoom_percent.max(1) as f32 / 100.0).clamp(0.25, 3.0)
-}
-
-#[cfg(not(target_os = "android"))]
 fn classic_first_contact_radar_viewport_rect(
     runtime: &NativeFirstPlayableRuntime,
 ) -> RtsCameraMinimapViewportRect {
-    runtime.rts_camera_viewport_rect.unwrap_or_else(|| {
-        let camera_state = classic_rts_camera_state_for_focus_tile(
-            classic_first_contact_radar_focus_tile(runtime),
-            classic_first_contact_radar_zoom(runtime),
-        );
-        rts_camera_minimap_viewport_rect(camera_state, 117, 56)
-    })
+    first_contact_radar_readability::radar_viewport_rect(runtime)
 }
 
 #[cfg(not(target_os = "android"))]
 fn classic_first_contact_radar_readability_guard(runtime: &NativeFirstPlayableRuntime) -> Value {
-    let selected_tile_ids = runtime
-        .rts_selection_box_tile_ids
-        .iter()
-        .filter_map(|tile_id| classic_parse_rts_tile(tile_id).map(classic_rts_tile_id))
-        .collect::<Vec<_>>();
-    let route_tile_ids = runtime
-        .rts_group_route_tile_ids
-        .iter()
-        .filter_map(|tile_id| classic_parse_rts_tile(tile_id).map(classic_rts_tile_id))
-        .collect::<Vec<_>>();
-    let visible_tile_ids = runtime
-        .rts_visible_tile_ids
-        .iter()
-        .filter_map(|tile_id| classic_parse_rts_tile(tile_id).map(classic_rts_tile_id))
-        .collect::<Vec<_>>();
-    let objective_tiles = classic_first_contact_radar_objective_tiles()
-        .into_iter()
-        .map(classic_rts_tile_id)
-        .collect::<Vec<_>>();
-    let structure_tiles = classic_first_contact_radar_structure_tiles()
-        .into_iter()
-        .map(classic_rts_tile_id)
-        .collect::<Vec<_>>();
-    let pressure_tiles = classic_first_contact_radar_pressure_tiles()
-        .into_iter()
-        .map(classic_rts_tile_id)
-        .collect::<Vec<_>>();
-    let lane_sample_tiles = classic_first_contact_radar_lane_sample_tiles()
-        .into_iter()
-        .map(classic_rts_tile_id)
-        .collect::<Vec<_>>();
-    let command_destination_tile = runtime
-        .rts_command_destination_tile
-        .as_deref()
-        .and_then(classic_parse_rts_tile)
-        .map(classic_rts_tile_id)
-        .unwrap_or_else(|| "16,9".to_string());
-    let known_terrain_cell_count = (CLASSIC_RTS_LARGE_MAP_MAX_X - CLASSIC_RTS_LARGE_MAP_MIN_TILE
-        + 1)
-        * (CLASSIC_RTS_LARGE_MAP_MAX_Y - CLASSIC_RTS_LARGE_MAP_MIN_TILE + 1);
-    let fog_context_cell_count =
-        known_terrain_cell_count.saturating_sub(visible_tile_ids.len() as i32);
-    let terrain_context_pixel_budget = known_terrain_cell_count * 2;
-    let visible_tile_pixel_budget = visible_tile_ids.len() * 3;
-    let selected_blip_pixel_budget = selected_tile_ids.len() * 16;
-    let route_trace_pixel_budget = route_tile_ids.len() * 12;
-    let objective_blip_pixel_budget = objective_tiles.len() * 32;
-    let structure_blip_pixel_budget = structure_tiles.len() * 24;
-    let pressure_blip_pixel_budget = pressure_tiles.len() * 18;
-    let lane_context_pixel_budget = lane_sample_tiles.len() * 6;
-    let known_terrain_gate =
-        known_terrain_cell_count >= 1024 && terrain_context_pixel_budget >= 2048;
-    let fog_context_gate = fog_context_cell_count >= 900;
-    let visible_tile_gate = visible_tile_ids.len() >= 64 && visible_tile_pixel_budget >= 192;
-    let selected_blip_gate = selected_tile_ids.len() >= 4 && selected_blip_pixel_budget >= 64;
-    let route_trace_gate = route_tile_ids.len() >= 4
-        && route_tile_ids
-            .iter()
-            .any(|tile| tile == &command_destination_tile)
-        && route_trace_pixel_budget >= 48;
-    let objective_blip_gate = objective_tiles.len() == 4 && objective_blip_pixel_budget >= 128;
-    let structure_blip_gate = structure_tiles.len() >= 6 && structure_blip_pixel_budget >= 144;
-    let pressure_blip_gate = pressure_tiles.len() >= 3 && pressure_blip_pixel_budget >= 54;
-    let lane_context_gate = lane_sample_tiles.len() >= 24 && lane_context_pixel_budget >= 144;
-    let viewport_rect = classic_first_contact_radar_viewport_rect(runtime);
-    let viewport_frame_gate = viewport_rect.width >= 18 && viewport_rect.height >= 14;
-    let command_destination_gate = command_destination_tile == "16,9";
-    let green = known_terrain_gate
-        && fog_context_gate
-        && visible_tile_gate
-        && selected_blip_gate
-        && route_trace_gate
-        && objective_blip_gate
-        && structure_blip_gate
-        && pressure_blip_gate
-        && lane_context_gate
-        && viewport_frame_gate
-        && command_destination_gate;
-
-    json!({
-        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_RADAR_READABILITY_CONTRACT,
-        "green": green,
-        "source_path": "trnm-world-bevy classic_draw_first_contact_radar_context",
-        "known_terrain_cell_count": known_terrain_cell_count,
-        "fog_context_cell_count": fog_context_cell_count,
-        "terrain_context_pixel_budget": terrain_context_pixel_budget,
-        "known_terrain_gate": known_terrain_gate,
-        "fog_context_gate": fog_context_gate,
-        "visible_tile_ids": visible_tile_ids,
-        "visible_tile_pixel_budget": visible_tile_pixel_budget,
-        "visible_tile_gate": visible_tile_gate,
-        "selected_tile_ids": selected_tile_ids,
-        "selected_blip_pixel_budget": selected_blip_pixel_budget,
-        "selected_blip_gate": selected_blip_gate,
-        "route_tile_ids": route_tile_ids,
-        "route_trace_pixel_budget": route_trace_pixel_budget,
-        "route_trace_gate": route_trace_gate,
-        "command_destination_tile": command_destination_tile,
-        "command_destination_gate": command_destination_gate,
-        "objective_tiles": objective_tiles,
-        "objective_blip_pixel_budget": objective_blip_pixel_budget,
-        "objective_blip_gate": objective_blip_gate,
-        "structure_tiles": structure_tiles,
-        "structure_blip_pixel_budget": structure_blip_pixel_budget,
-        "structure_blip_gate": structure_blip_gate,
-        "pressure_tiles": pressure_tiles,
-        "pressure_blip_pixel_budget": pressure_blip_pixel_budget,
-        "pressure_blip_gate": pressure_blip_gate,
-        "lane_sample_tiles": lane_sample_tiles,
-        "lane_context_pixel_budget": lane_context_pixel_budget,
-        "lane_context_gate": lane_context_gate,
-        "viewport_frame_gate": viewport_frame_gate,
-        "viewport_rect": viewport_rect,
-    })
+    first_contact_radar_readability::radar_readability_guard(runtime)
 }
 
 #[cfg(not(target_os = "android"))]
