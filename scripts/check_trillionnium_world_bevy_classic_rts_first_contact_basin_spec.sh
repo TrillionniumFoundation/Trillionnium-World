@@ -964,10 +964,11 @@ cat >"$JQ_FILTER" <<'JQ'
   and .first_contact_motion_readability_guard.secondary_tactical_track_pixel_budget <= 80
   and .first_contact_motion_readability_guard.tactical_track_pixel_budget <= 128
   and .first_contact_motion_readability_guard.secondary_tactical_track_height_px == 1
-  and .first_contact_motion_readability_guard.secondary_tactical_track_darken_numerator == 2
-  and .first_contact_motion_readability_guard.secondary_tactical_track_darken_denominator == 3
+  and .first_contact_motion_readability_guard.secondary_tactical_track_darken_numerator == 3
+  and .first_contact_motion_readability_guard.secondary_tactical_track_darken_denominator == 4
   and (.first_contact_motion_readability_guard.tactical_track_density_signatures | index("primary_relay_beacon_track_kept_hot") != null)
   and (.first_contact_motion_readability_guard.tactical_track_density_signatures | index("secondary_tracks_dimmed") != null)
+  and (.first_contact_motion_readability_guard.tactical_track_density_signatures | index("secondary_tracks_faded_into_terrain") != null)
   and (.first_contact_motion_readability_guard.tactical_track_density_signatures | index("secondary_tracks_one_pixel") != null)
   and .first_contact_motion_readability_guard.feedback_pixel_budget >= 190
   and .first_contact_motion_readability_guard.animation_frame_pixel_budget >= 1144

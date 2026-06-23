@@ -973,11 +973,12 @@ add_first_contact_basin_source_manifest_packet_fixtures() {
       primary_tactical_track_pixel_budget: 48,
       secondary_tactical_track_pixel_budget: 80,
       secondary_tactical_track_height_px: 1,
-      secondary_tactical_track_darken_numerator: 2,
-      secondary_tactical_track_darken_denominator: 3,
+      secondary_tactical_track_darken_numerator: 3,
+      secondary_tactical_track_darken_denominator: 4,
       tactical_track_density_signatures: [
         "primary_relay_beacon_track_kept_hot",
         "secondary_tracks_dimmed",
+        "secondary_tracks_faded_into_terrain",
         "secondary_tracks_one_pixel"
       ],
       tactical_track_pixel_budget: 128,

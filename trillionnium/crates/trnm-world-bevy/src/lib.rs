@@ -98867,10 +98867,10 @@ const CLASSIC_FIRST_CONTACT_LOWER_LANE_SLOT_CUE_PIXELS_PER_SAMPLE: usize = 1;
 const CLASSIC_FIRST_CONTACT_LOWER_LANE_GHOST_ANCHOR_COUNT: usize = 1;
 
 #[cfg(not(target_os = "android"))]
-const CLASSIC_FIRST_CONTACT_SECONDARY_TRACK_DARKEN_NUMERATOR: u32 = 2;
+const CLASSIC_FIRST_CONTACT_SECONDARY_TRACK_DARKEN_NUMERATOR: u32 = 3;
 
 #[cfg(not(target_os = "android"))]
-const CLASSIC_FIRST_CONTACT_SECONDARY_TRACK_DARKEN_DENOMINATOR: u32 = 3;
+const CLASSIC_FIRST_CONTACT_SECONDARY_TRACK_DARKEN_DENOMINATOR: u32 = 4;
 
 #[cfg(not(target_os = "android"))]
 #[allow(clippy::too_many_arguments)]
@@ -113960,6 +113960,7 @@ fn classic_first_contact_motion_readability_guard() -> Value {
     let tactical_track_density_signatures = string_vec([
         "primary_relay_beacon_track_kept_hot",
         "secondary_tracks_dimmed",
+        "secondary_tracks_faded_into_terrain",
         "secondary_tracks_one_pixel",
     ]);
     let route_tile_ids = runtime.rts_group_route_tile_ids.clone();
@@ -114006,14 +114007,17 @@ fn classic_first_contact_motion_readability_guard() -> Value {
         && secondary_tactical_track_pixel_budget <= 80
         && tactical_track_pixel_budget <= 128
         && secondary_tactical_track_height_px == 1
-        && secondary_tactical_track_darken_numerator == 2
-        && secondary_tactical_track_darken_denominator == 3
+        && secondary_tactical_track_darken_numerator == 3
+        && secondary_tactical_track_darken_denominator == 4
         && tactical_track_density_signatures
             .iter()
             .any(|signature| signature.as_str() == "primary_relay_beacon_track_kept_hot")
         && tactical_track_density_signatures
             .iter()
             .any(|signature| signature.as_str() == "secondary_tracks_dimmed")
+        && tactical_track_density_signatures
+            .iter()
+            .any(|signature| signature.as_str() == "secondary_tracks_faded_into_terrain")
         && tactical_track_density_signatures
             .iter()
             .any(|signature| signature.as_str() == "secondary_tracks_one_pixel");
@@ -163311,13 +163315,13 @@ mod tests {
             guard
                 .get("secondary_tactical_track_darken_numerator")
                 .and_then(Value::as_u64),
-            Some(2)
+            Some(3)
         );
         assert_eq!(
             guard
                 .get("secondary_tactical_track_darken_denominator")
                 .and_then(Value::as_u64),
-            Some(3)
+            Some(4)
         );
         assert_eq!(
             guard
@@ -163330,6 +163334,9 @@ mod tests {
                         && signatures
                             .iter()
                             .any(|value| value.as_str() == Some("secondary_tracks_dimmed"))
+                        && signatures.iter().any(|value| {
+                            value.as_str() == Some("secondary_tracks_faded_into_terrain")
+                        })
                         && signatures
                             .iter()
                             .any(|value| value.as_str() == Some("secondary_tracks_one_pixel"))
