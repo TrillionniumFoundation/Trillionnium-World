@@ -954,6 +954,15 @@ add_first_contact_basin_source_manifest_packet_fixtures() {
       animation_sample_tiles: ["12,16", "10,12", "14,11", "25,8", "24,10", "8,25", "10,23", "11,8", "8,8", "9,9", "11,8", "16,9", "16,10"],
       animation_roles: ["worker", "worker", "worker", "scout", "scout", "warden", "warden", "relay", "command_core", "command_core", "relay_structure", "beacon", "beacon"],
       animation_signatures: ["harvest_tool_swing_frame", "carry_bob_frame", "locomotion_footfall_pair", "sensor_sweep_arc", "turn_arc_frame", "shield_charge_flash", "attack_recoil_ticks", "relay_packet_pulse", "training_tick_lane", "spawn_door_open_frame", "construction_spark_ladder", "capture_pulse_frame", "rally_flag_flutter"],
+      animation_frame_richness_source_path: "trnm-world-bevy classic_draw_first_contact_animation_frame_richness_detail",
+      animation_frame_richness_signatures: [
+        "animation_secondary_pose_offsets",
+        "animation_contact_smear_ticks",
+        "animation_structure_shutter_frames",
+        "animation_objective_afterglow_frames"
+      ],
+      animation_frame_richness_sample_count: 13,
+      animation_frame_richness_pixel_budget: 520,
       animation_samples: [
         {tile: "12,16", role: "worker", signature: "harvest_tool_swing_frame"},
         {tile: "10,12", role: "worker", signature: "carry_bob_frame"},
@@ -978,6 +987,7 @@ add_first_contact_basin_source_manifest_packet_fixtures() {
       building_animation_frame_gate: true,
       objective_animation_frame_gate: true,
       animation_cycle_detail_gate: true,
+      animation_frame_richness_gate: true,
       track_samples: [
         {from_tile: "8,8", to_tile: "12,16", role: "action_trail"},
         {from_tile: "25,25", to_tile: "21,16", role: "npc_action"},

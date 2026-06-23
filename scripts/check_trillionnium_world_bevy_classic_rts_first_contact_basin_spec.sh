@@ -956,6 +956,11 @@ cat >"$JQ_FILTER" <<'JQ'
   and (.first_contact_motion_readability_guard.animation_signatures | index("sensor_sweep_arc") != null)
   and (.first_contact_motion_readability_guard.animation_signatures | index("spawn_door_open_frame") != null)
   and (.first_contact_motion_readability_guard.animation_signatures | index("capture_pulse_frame") != null)
+  and .first_contact_motion_readability_guard.animation_frame_richness_source_path == "trnm-world-bevy classic_draw_first_contact_animation_frame_richness_detail"
+  and (.first_contact_motion_readability_guard.animation_frame_richness_signatures | index("animation_secondary_pose_offsets") != null)
+  and (.first_contact_motion_readability_guard.animation_frame_richness_signatures | index("animation_contact_smear_ticks") != null)
+  and (.first_contact_motion_readability_guard.animation_frame_richness_signatures | index("animation_structure_shutter_frames") != null)
+  and (.first_contact_motion_readability_guard.animation_frame_richness_signatures | index("animation_objective_afterglow_frames") != null)
   and .first_contact_motion_readability_guard.action_trail_count == 3
   and .first_contact_motion_readability_guard.npc_action_count == 3
   and .first_contact_motion_readability_guard.unit_animation_frame_count == 8
@@ -988,6 +993,8 @@ cat >"$JQ_FILTER" <<'JQ'
   and (.first_contact_motion_readability_guard.tactical_track_density_signatures | index("secondary_tracks_one_pixel") != null)
   and .first_contact_motion_readability_guard.feedback_pixel_budget >= 190
   and .first_contact_motion_readability_guard.animation_frame_pixel_budget >= 1144
+  and .first_contact_motion_readability_guard.animation_frame_richness_sample_count >= 13
+  and .first_contact_motion_readability_guard.animation_frame_richness_pixel_budget >= 520
   and .first_contact_motion_readability_guard.opening_action_gate == true
   and .first_contact_motion_readability_guard.unit_state_motion_gate == true
   and .first_contact_motion_readability_guard.tactical_track_motion_gate == true
@@ -997,6 +1004,7 @@ cat >"$JQ_FILTER" <<'JQ'
   and .first_contact_motion_readability_guard.building_animation_frame_gate == true
   and .first_contact_motion_readability_guard.objective_animation_frame_gate == true
   and .first_contact_motion_readability_guard.animation_cycle_detail_gate == true
+  and .first_contact_motion_readability_guard.animation_frame_richness_gate == true
   and .first_contact_motion_readability_guard_gate == true
   and .first_contact_atlas_readability_contract == "trillionnium_world_bevy_classic_rts_first_contact_atlas_readability_v1"
   and .first_contact_atlas_readability_guard.contract_version == "trillionnium_world_bevy_classic_rts_first_contact_atlas_readability_v1"

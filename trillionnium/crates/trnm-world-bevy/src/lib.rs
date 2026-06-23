@@ -98536,6 +98536,112 @@ fn classic_first_contact_animation_cycle_samples() -> Vec<((i32, i32), &'static 
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_first_contact_animation_frame_richness_signatures() -> Vec<&'static str> {
+    vec![
+        "animation_secondary_pose_offsets",
+        "animation_contact_smear_ticks",
+        "animation_structure_shutter_frames",
+        "animation_objective_afterglow_frames",
+    ]
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_first_contact_unit_animation_role(role: &str) -> bool {
+    matches!(role, "worker" | "scout" | "warden" | "relay")
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_first_contact_structure_animation_role(role: &str) -> bool {
+    matches!(role, "command_core" | "relay_structure")
+}
+
+#[cfg(not(target_os = "android"))]
+#[allow(clippy::too_many_arguments)]
+fn classic_draw_first_contact_animation_frame_richness_detail(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    map_x: i32,
+    map_y: i32,
+    cell_w: i32,
+    cell_h: i32,
+    tile: (i32, i32),
+    role: &str,
+) {
+    let (tile_x, tile_y) = classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, tile);
+    let cx = tile_x + cell_w / 2;
+    let cy = tile_y + cell_h / 2;
+    if classic_first_contact_unit_animation_role(role) {
+        for (dx, dy) in [(-13, 9), (-4, 12), (8, 10)] {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                cx + dx,
+                cy + cell_h / 2 + dy,
+                7,
+                2,
+                classic_darken(CLASSIC_RTS_ACTION_CADENCE_SHADOW_SMEAR_COLOR, 1, 4),
+            );
+        }
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            cx - 4,
+            cy - cell_h - 18,
+            8,
+            3,
+            CLASSIC_RTS_SELECTION_FEEDBACK_CONFIRM_COLOR,
+        );
+    } else if classic_first_contact_structure_animation_role(role) {
+        for frame in 0..3 {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                cx - cell_w + 6 + frame * 14,
+                cy - cell_h * 2 - 2 + frame * 2,
+                10,
+                3,
+                classic_lighten(CLASSIC_RTS_STRUCTURE_FOUNDATION_SHADOW_COLOR, 1, 5),
+            );
+        }
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            cx - cell_w / 2,
+            cy + cell_h + 4,
+            cell_w,
+            2,
+            classic_darken(CLASSIC_RTS_STRUCTURE_SCAFFOLD_COLOR, 1, 4),
+        );
+    } else if role == "beacon" {
+        classic_draw_iso_ellipse(
+            buffer,
+            width,
+            height,
+            cx,
+            cy + 3,
+            (cell_w + 10).max(14),
+            (cell_h / 2 + 4).max(6),
+            classic_darken(CLASSIC_RTS_ABILITY_TELEGRAPH_RANGE_COLOR, 1, 5),
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            cx - cell_w / 2,
+            cy - cell_h * 2 - 5,
+            cell_w,
+            2,
+            classic_lighten(CLASSIC_RTS_ENVIRONMENT_RESOURCE_GLINT_COLOR, 1, 5),
+        );
+    }
+}
+
+#[cfg(not(target_os = "android"))]
 #[allow(clippy::too_many_arguments)]
 fn classic_draw_first_contact_animation_cycle_detail(
     buffer: &mut [u32],
@@ -98862,6 +98968,11 @@ fn classic_draw_first_contact_animation_readability_layer(
     for (tile, _, signature) in classic_first_contact_animation_cycle_samples() {
         classic_draw_first_contact_animation_cycle_detail(
             buffer, width, height, map_x, map_y, cell_w, cell_h, tile, signature,
+        );
+    }
+    for (tile, role, _) in classic_first_contact_animation_cycle_samples() {
+        classic_draw_first_contact_animation_frame_richness_detail(
+            buffer, width, height, map_x, map_y, cell_w, cell_h, tile, role,
         );
     }
 }
@@ -114357,6 +114468,11 @@ fn classic_first_contact_motion_readability_guard() -> Value {
         .iter()
         .map(|(_, _, signature)| (*signature).to_string())
         .collect::<Vec<_>>();
+    let animation_frame_richness_signatures =
+        classic_first_contact_animation_frame_richness_signatures()
+            .iter()
+            .map(|signature| (*signature).to_string())
+            .collect::<Vec<_>>();
     let animation_sample_objects = animation_samples
         .iter()
         .map(|(tile, role, signature)| {
@@ -114428,6 +114544,8 @@ fn classic_first_contact_motion_readability_guard() -> Value {
         + usize::from(feedback.cooldown_progress)
         + usize::from(feedback.queued_after) * 24;
     let animation_frame_pixel_budget = animation_samples.len() * 88;
+    let animation_frame_richness_sample_count = animation_samples.len();
+    let animation_frame_richness_pixel_budget = animation_frame_richness_sample_count * 40;
     let opening_action_gate = opening_action_ids
         == string_vec([
             "worker_harvest_flux",
@@ -114535,7 +114653,16 @@ fn classic_first_contact_motion_readability_guard() -> Value {
         && objective_animation_frame_gate
         && unique_animation_signature_count >= 13
         && animation_frame_pixel_budget >= 1_144;
-    let green = green && animation_cycle_detail_gate;
+    let animation_frame_richness_gate = animation_frame_richness_signatures
+        == string_vec([
+            "animation_secondary_pose_offsets",
+            "animation_contact_smear_ticks",
+            "animation_structure_shutter_frames",
+            "animation_objective_afterglow_frames",
+        ])
+        && animation_frame_richness_sample_count >= 13
+        && animation_frame_richness_pixel_budget >= 520;
+    let green = green && animation_cycle_detail_gate && animation_frame_richness_gate;
 
     json!({
         "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_MOTION_READABILITY_CONTRACT,
@@ -114586,6 +114713,10 @@ fn classic_first_contact_motion_readability_guard() -> Value {
         "animation_sample_tiles": animation_sample_tiles,
         "animation_roles": animation_roles,
         "animation_signatures": animation_signatures,
+        "animation_frame_richness_source_path": "trnm-world-bevy classic_draw_first_contact_animation_frame_richness_detail",
+        "animation_frame_richness_signatures": animation_frame_richness_signatures,
+        "animation_frame_richness_sample_count": animation_frame_richness_sample_count,
+        "animation_frame_richness_pixel_budget": animation_frame_richness_pixel_budget,
         "animation_samples": animation_sample_objects,
         "unit_animation_frame_count": unit_animation_frame_count,
         "building_animation_frame_count": building_animation_frame_count,
@@ -114596,6 +114727,7 @@ fn classic_first_contact_motion_readability_guard() -> Value {
         "building_animation_frame_gate": building_animation_frame_gate,
         "objective_animation_frame_gate": objective_animation_frame_gate,
         "animation_cycle_detail_gate": animation_cycle_detail_gate,
+        "animation_frame_richness_gate": animation_frame_richness_gate,
     })
 }
 
@@ -163958,6 +164090,37 @@ mod tests {
             Some(true)
         );
         assert_eq!(
+            guard
+                .get("animation_frame_richness_signatures")
+                .and_then(Value::as_array)
+                .map(|signatures| {
+                    signatures.iter().any(|value| {
+                        value.as_str() == Some("animation_secondary_pose_offsets")
+                    }) && signatures
+                        .iter()
+                        .any(|value| value.as_str() == Some("animation_contact_smear_ticks"))
+                        && signatures.iter().any(|value| {
+                            value.as_str() == Some("animation_structure_shutter_frames")
+                        })
+                        && signatures.iter().any(|value| {
+                            value.as_str() == Some("animation_objective_afterglow_frames")
+                        })
+                }),
+            Some(true)
+        );
+        assert_eq!(
+            guard
+                .get("animation_frame_richness_sample_count")
+                .and_then(Value::as_u64),
+            Some(13)
+        );
+        assert_eq!(
+            guard
+                .get("animation_frame_richness_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(520)
+        );
+        assert_eq!(
             guard.get("route_tile_ids").cloned(),
             Some(json!(["14,11", "15,11", "16,10", "16,9"]))
         );
@@ -163985,6 +164148,7 @@ mod tests {
             "building_animation_frame_gate",
             "objective_animation_frame_gate",
             "animation_cycle_detail_gate",
+            "animation_frame_richness_gate",
         ] {
             assert_eq!(guard.get(gate).and_then(Value::as_bool), Some(true));
         }
