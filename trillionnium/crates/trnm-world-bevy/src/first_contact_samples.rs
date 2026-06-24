@@ -100,6 +100,16 @@ pub(crate) fn terrain_material_depth_signatures() -> Vec<&'static str> {
     ]
 }
 
+pub(crate) fn runtime_actor_depth_signatures() -> Vec<&'static str> {
+    vec![
+        "runtime_structure_roof_rim",
+        "runtime_structure_side_shadow",
+        "runtime_command_window_pips",
+        "runtime_relay_mast_braces",
+        "runtime_beacon_core_glow_rungs",
+    ]
+}
+
 pub(crate) fn animation_cycle_samples() -> Vec<TileRoleSignature> {
     vec![
         ((12, 16), "worker", "harvest_tool_swing_frame"),
@@ -420,6 +430,16 @@ mod tests {
                 "terrain_crystal_cast_shadows",
                 "terrain_lane_recessed_rails",
                 "terrain_basin_fracture_shadows"
+            ]
+        );
+        assert_eq!(
+            runtime_actor_depth_signatures(),
+            vec![
+                "runtime_structure_roof_rim",
+                "runtime_structure_side_shadow",
+                "runtime_command_window_pips",
+                "runtime_relay_mast_braces",
+                "runtime_beacon_core_glow_rungs"
             ]
         );
         assert_eq!(animation_cycle_samples().len(), 13);
