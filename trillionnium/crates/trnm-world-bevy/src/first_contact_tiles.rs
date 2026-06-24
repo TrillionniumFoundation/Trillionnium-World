@@ -106,6 +106,7 @@ pub(crate) fn terminal_legibility_blocked_quiet_tiles() -> Vec<(i32, i32)> {
     ]
 }
 
+#[cfg(test)]
 pub(crate) fn terminal_legibility_quiet_tiles() -> Vec<(i32, i32)> {
     let mut tiles = terminal_legibility_target_quiet_tiles();
     tiles.extend(terminal_legibility_blocked_quiet_tiles());

@@ -89,8 +89,6 @@ mod first_contact_player_screen_labels;
 mod first_contact_readouts;
 mod first_contact_sidebar_density;
 #[cfg(not(target_os = "android"))]
-mod first_contact_spatial_readability;
-#[cfg(not(target_os = "android"))]
 mod first_contact_tiles;
 
 pub const TRILLIONNIUM_WORLD_BEVY_NATIVE_CLIENT_CONTRACT: &str =
@@ -302,11 +300,11 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_MOTION_READABILITY_C
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_ATLAS_READABILITY_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_first_contact_atlas_readability_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_VISUAL_HIERARCHY_CONTRACT: &str =
-    "trillionnium_world_bevy_classic_rts_first_contact_visual_hierarchy_v1";
+    trnm_rts_evidence::TRNM_RTS_EVIDENCE_FIRST_CONTACT_VISUAL_HIERARCHY_CONTRACT;
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_CENTRAL_CLARITY_CONTRACT: &str =
-    "trillionnium_world_bevy_classic_rts_first_contact_central_clarity_v1";
+    trnm_rts_evidence::TRNM_RTS_EVIDENCE_FIRST_CONTACT_CENTRAL_CLARITY_CONTRACT;
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_TERMINAL_LEGIBILITY_CONTRACT: &str =
-    "trillionnium_world_bevy_classic_rts_first_contact_terminal_legibility_v1";
+    trnm_rts_evidence::TRNM_RTS_EVIDENCE_FIRST_CONTACT_TERMINAL_LEGIBILITY_CONTRACT;
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_SELECTION_COMBAT_FOCUS_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_first_contact_selection_combat_focus_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_TARGET_CALLOUT_CONTRACT: &str =
@@ -112393,33 +112391,62 @@ fn classic_first_contact_atlas_readability_guard() -> Value {
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_first_contact_spatial_readability_runtime(
+    runtime: &NativeFirstPlayableRuntime,
+    fallback_target_tile: RtsTile,
+    blocked_tile: RtsTile,
+) -> trnm_rts_evidence::RtsFirstContactSpatialReadabilityRuntime {
+    trnm_rts_evidence::RtsFirstContactSpatialReadabilityRuntime {
+        selected_tiles: runtime
+            .rts_selection_box_tile_ids
+            .iter()
+            .filter_map(|tile_id| classic_parse_rts_tile(tile_id))
+            .collect(),
+        route_tiles: runtime
+            .rts_group_route_tile_ids
+            .iter()
+            .filter_map(|tile_id| classic_parse_rts_tile(tile_id))
+            .collect(),
+        command_destination_tile: runtime
+            .rts_command_destination_tile
+            .as_deref()
+            .and_then(classic_parse_rts_tile),
+        fallback_target_tile: first_contact_tiles::tile_tuple(fallback_target_tile),
+        blocked_tile: first_contact_tiles::tile_tuple(blocked_tile),
+    }
+}
+
+#[cfg(not(target_os = "android"))]
 fn classic_first_contact_visual_hierarchy_guard(runtime: &NativeFirstPlayableRuntime) -> Value {
     let feedback = classic_first_contact_command_feedback();
-    first_contact_spatial_readability::visual_hierarchy_guard(
+    let spatial_runtime = classic_first_contact_spatial_readability_runtime(
         runtime,
         feedback.target_tile,
         feedback.blocked_tile,
-    )
+    );
+    trnm_rts_evidence::first_contact_visual_hierarchy_guard(&spatial_runtime)
 }
 
 #[cfg(not(target_os = "android"))]
 fn classic_first_contact_central_clarity_guard(runtime: &NativeFirstPlayableRuntime) -> Value {
     let feedback = classic_first_contact_command_feedback();
-    first_contact_spatial_readability::central_clarity_guard(
+    let spatial_runtime = classic_first_contact_spatial_readability_runtime(
         runtime,
         feedback.target_tile,
         feedback.blocked_tile,
-    )
+    );
+    trnm_rts_evidence::first_contact_central_clarity_guard(&spatial_runtime)
 }
 
 #[cfg(not(target_os = "android"))]
 fn classic_first_contact_terminal_legibility_guard(runtime: &NativeFirstPlayableRuntime) -> Value {
     let feedback = classic_first_contact_command_feedback();
-    first_contact_spatial_readability::terminal_legibility_guard(
+    let spatial_runtime = classic_first_contact_spatial_readability_runtime(
         runtime,
         feedback.target_tile,
         feedback.blocked_tile,
-    )
+    );
+    trnm_rts_evidence::first_contact_terminal_legibility_guard(&spatial_runtime)
 }
 
 #[cfg(not(target_os = "android"))]
