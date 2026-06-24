@@ -1,33 +1,30 @@
 #![cfg(not(target_os = "android"))]
 
 use serde_json::{json, Value};
+use trnm_rts_bevy_runtime::rts_runtime_tile_id;
 use trnm_rts_data::{first_contact_basin_map, first_contact_map_renderer_model};
 
-use crate::{
-    classic_parse_rts_tile, classic_rts_tile_id, first_contact_tiles, NativeFirstPlayableRuntime,
-    TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_VISUAL_READABILITY_CONTRACT,
-};
+use crate::TRNM_RTS_EVIDENCE_FIRST_CONTACT_VISUAL_READABILITY_CONTRACT;
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RtsFirstContactVisualReadabilityRuntime {
+    pub selected_tile_ids: Vec<String>,
+    pub route_tile_ids: Vec<String>,
+    pub command_destination_tile: Option<String>,
+}
 
 fn string_vec<const N: usize>(values: [&str; N]) -> Vec<String> {
     values.into_iter().map(str::to_string).collect()
 }
 
-pub(crate) fn visual_readability_guard(runtime: &NativeFirstPlayableRuntime) -> Value {
-    let selected_tile_ids = runtime
-        .rts_selection_box_tile_ids
-        .iter()
-        .filter_map(|tile_id| classic_parse_rts_tile(tile_id).map(classic_rts_tile_id))
-        .collect::<Vec<_>>();
-    let route_tile_ids = runtime
-        .rts_group_route_tile_ids
-        .iter()
-        .filter_map(|tile_id| classic_parse_rts_tile(tile_id).map(classic_rts_tile_id))
-        .collect::<Vec<_>>();
+pub fn first_contact_visual_readability_guard(
+    runtime: &RtsFirstContactVisualReadabilityRuntime,
+) -> Value {
+    let selected_tile_ids = runtime.selected_tile_ids.clone();
+    let route_tile_ids = runtime.route_tile_ids.clone();
     let command_destination_tile = runtime
-        .rts_command_destination_tile
-        .as_deref()
-        .and_then(classic_parse_rts_tile)
-        .map(classic_rts_tile_id)
+        .command_destination_tile
+        .clone()
         .unwrap_or_else(|| "16,9".to_string());
     let structure_anchor_tiles = string_vec(["8,8", "25,8", "25,25", "8,25", "11,8", "22,25"]);
     let objective_focus_tiles = string_vec(["16,9", "16,24", "9,16", "24,16"]);
@@ -35,7 +32,7 @@ pub(crate) fn visual_readability_guard(runtime: &NativeFirstPlayableRuntime) -> 
         .lane_tiles
         .iter()
         .take(16)
-        .map(|tile| first_contact_tiles::tile_id(*tile))
+        .map(|tile| rts_runtime_tile_id((tile.x, tile.y)))
         .collect::<Vec<_>>();
     let selected_marker_pixel_budget = selected_tile_ids.len() * 56;
     let route_marker_pixel_budget = route_tile_ids.len() * 18;
@@ -59,7 +56,7 @@ pub(crate) fn visual_readability_guard(runtime: &NativeFirstPlayableRuntime) -> 
         && terrain_lane_edge_gate;
 
     json!({
-        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_VISUAL_READABILITY_CONTRACT,
+        "contract_version": TRNM_RTS_EVIDENCE_FIRST_CONTACT_VISUAL_READABILITY_CONTRACT,
         "green": green,
         "source_path": "trnm-world-bevy classic_draw_first_contact_readability_overlays",
         "selected_tile_ids": selected_tile_ids,
@@ -86,22 +83,21 @@ pub(crate) fn visual_readability_guard(runtime: &NativeFirstPlayableRuntime) -> 
 mod tests {
     use super::*;
 
-    fn first_contact_focus_runtime() -> NativeFirstPlayableRuntime {
-        NativeFirstPlayableRuntime {
-            rts_selection_box_tile_ids: string_vec(["14,11", "15,11", "15,12", "17,12"]),
-            rts_group_route_tile_ids: string_vec(["14,11", "15,11", "16,10", "16,9"]),
-            rts_command_destination_tile: Some("16,9".to_string()),
-            ..Default::default()
+    fn first_contact_focus_runtime() -> RtsFirstContactVisualReadabilityRuntime {
+        RtsFirstContactVisualReadabilityRuntime {
+            selected_tile_ids: string_vec(["14,11", "15,11", "15,12", "17,12"]),
+            route_tile_ids: string_vec(["14,11", "15,11", "16,10", "16,9"]),
+            command_destination_tile: Some("16,9".to_string()),
         }
     }
 
     #[test]
     fn first_contact_visual_readability_helpers_preserve_overlay_contracts() {
-        let guard = visual_readability_guard(&first_contact_focus_runtime());
+        let guard = first_contact_visual_readability_guard(&first_contact_focus_runtime());
 
         assert_eq!(
             guard.get("contract_version").and_then(Value::as_str),
-            Some(TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_VISUAL_READABILITY_CONTRACT)
+            Some(TRNM_RTS_EVIDENCE_FIRST_CONTACT_VISUAL_READABILITY_CONTRACT)
         );
         assert_eq!(guard.get("green").and_then(Value::as_bool), Some(true));
         assert_eq!(

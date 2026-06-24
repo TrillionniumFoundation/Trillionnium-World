@@ -94,8 +94,6 @@ mod first_contact_sidebar_density;
 mod first_contact_spatial_readability;
 #[cfg(not(target_os = "android"))]
 mod first_contact_tiles;
-#[cfg(not(target_os = "android"))]
-mod first_contact_visual_readability;
 
 pub const TRILLIONNIUM_WORLD_BEVY_NATIVE_CLIENT_CONTRACT: &str =
     "trillionnium_world_bevy_native_client_v1";
@@ -288,7 +286,7 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_BASIN_SPEC_CONTRACT:
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_LABEL_GUARD_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_first_contact_label_guard_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_VISUAL_READABILITY_CONTRACT: &str =
-    "trillionnium_world_bevy_classic_rts_first_contact_visual_readability_v1";
+    trnm_rts_evidence::TRNM_RTS_EVIDENCE_FIRST_CONTACT_VISUAL_READABILITY_CONTRACT;
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_RADAR_READABILITY_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_first_contact_radar_readability_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_COMMAND_GRID_READABILITY_CONTRACT:
@@ -112310,7 +112308,24 @@ fn classic_first_contact_bottom_panel_readability_guard(
 
 #[cfg(not(target_os = "android"))]
 fn classic_first_contact_visual_readability_guard(runtime: &NativeFirstPlayableRuntime) -> Value {
-    first_contact_visual_readability::visual_readability_guard(runtime)
+    let visual_runtime = trnm_rts_evidence::RtsFirstContactVisualReadabilityRuntime {
+        selected_tile_ids: runtime
+            .rts_selection_box_tile_ids
+            .iter()
+            .filter_map(|tile_id| classic_parse_rts_tile(tile_id).map(classic_rts_tile_id))
+            .collect(),
+        route_tile_ids: runtime
+            .rts_group_route_tile_ids
+            .iter()
+            .filter_map(|tile_id| classic_parse_rts_tile(tile_id).map(classic_rts_tile_id))
+            .collect(),
+        command_destination_tile: runtime
+            .rts_command_destination_tile
+            .as_deref()
+            .and_then(classic_parse_rts_tile)
+            .map(classic_rts_tile_id),
+    };
+    trnm_rts_evidence::first_contact_visual_readability_guard(&visual_runtime)
 }
 
 #[cfg(not(target_os = "android"))]

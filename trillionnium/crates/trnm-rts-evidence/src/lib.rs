@@ -107,6 +107,8 @@ mod first_contact_art_readability;
 mod first_contact_motion_readability;
 #[cfg(not(target_os = "android"))]
 mod first_contact_silhouette_readability;
+#[cfg(not(target_os = "android"))]
+mod first_contact_visual_readability;
 
 #[cfg(not(target_os = "android"))]
 pub use first_contact_art_readability::first_contact_art_readability_guard;
@@ -116,6 +118,10 @@ pub use first_contact_motion_readability::{
 };
 #[cfg(not(target_os = "android"))]
 pub use first_contact_silhouette_readability::first_contact_silhouette_readability_guard;
+#[cfg(not(target_os = "android"))]
+pub use first_contact_visual_readability::{
+    first_contact_visual_readability_guard, RtsFirstContactVisualReadabilityRuntime,
+};
 
 pub const TRNM_RTS_EVIDENCE_CONTRACT: &str = "trnm_rts_evidence_v1";
 pub const TRNM_RTS_EVIDENCE_FIRST_CONTACT_ART_READABILITY_CONTRACT: &str =
@@ -124,6 +130,8 @@ pub const TRNM_RTS_EVIDENCE_FIRST_CONTACT_MOTION_READABILITY_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_first_contact_motion_readability_v1";
 pub const TRNM_RTS_EVIDENCE_FIRST_CONTACT_SILHOUETTE_READABILITY_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_first_contact_silhouette_readability_v1";
+pub const TRNM_RTS_EVIDENCE_FIRST_CONTACT_VISUAL_READABILITY_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_first_contact_visual_readability_v1";
 pub const TRNM_RTS_EVIDENCE_FIRST_CONTACT_SECONDARY_TRACK_DARKEN_NUMERATOR: usize = 3;
 pub const TRNM_RTS_EVIDENCE_FIRST_CONTACT_SECONDARY_TRACK_DARKEN_DENOMINATOR: usize = 4;
 pub const TRNM_RTS_EVIDENCE_BEVY_RUNTIME_ADAPTER_CONTRACT: &str =
