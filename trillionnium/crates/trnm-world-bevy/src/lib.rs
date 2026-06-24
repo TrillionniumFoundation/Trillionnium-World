@@ -286,7 +286,7 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_COMMAND_GRID_READABI
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_SIDEBAR_DENSITY_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_first_contact_sidebar_density_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_BOTTOM_PANEL_READABILITY_CONTRACT:
-    &str = "trillionnium_world_bevy_classic_rts_first_contact_bottom_panel_readability_v1";
+    &str = trnm_rts_evidence::TRNM_RTS_EVIDENCE_FIRST_CONTACT_BOTTOM_PANEL_READABILITY_CONTRACT;
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_SILHOUETTE_READABILITY_CONTRACT: &str =
     trnm_rts_evidence::TRNM_RTS_EVIDENCE_FIRST_CONTACT_SILHOUETTE_READABILITY_CONTRACT;
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_ART_READABILITY_CONTRACT: &str =
@@ -112110,12 +112110,7 @@ fn classic_first_contact_bottom_panel_readability_guard(
 ) -> Value {
     let selection_feedback_max_chars =
         usize::from(chrome.selection_feedback_label_max_chars.max(1));
-    let group_id = runtime.rts_control_group_id.as_deref().unwrap_or("-");
     let selected_unit_display_count = runtime.rts_selected_unit_ids.len().max(4);
-    let group_summary = format!(
-        "{} {group_id}  {} {}",
-        chrome.group_summary_prefix, selected_unit_display_count, chrome.group_summary_suffix
-    );
     let runtime_feedback_label = classic_first_contact_bottom_panel_feedback_label(
         &runtime.last_feedback,
         selection_feedback_max_chars,
@@ -112149,69 +112144,39 @@ fn classic_first_contact_bottom_panel_readability_guard(
         upgrade_feedback_label.clone(),
         build_feedback_label.clone(),
     ];
-    let raw_marker_gate = feedback_labels.iter().all(|label| {
-        !classic_first_contact_label_has_raw_marker(label)
-            && !classic_rts_live_label_has_raw_marker(label)
-            && !label.to_ascii_uppercase().contains("RTS ")
-    });
-    let feedback_expected_gate = upgrade_feedback_label == "SIGNAL BLADE READY"
-        && build_feedback_label == "WATCH TOWER READY"
-        && !runtime_feedback_label.is_empty();
-    let feedback_width_gate = feedback_labels
-        .iter()
-        .all(|label| classic_text_advance_px(label, 1) <= 268);
-    let squad_strip_gate = squad_role_labels == string_vec(["WORKER", "SCOUT", "GUARD", "RELAY"]);
-    let squad_chip_width_gate = squad_role_labels
-        .iter()
-        .all(|label| classic_text_advance_px(label, 1) <= 52);
-    let squad_chip_bottom_margin_px = CLASSIC_FIRST_CONTACT_BOTTOM_PANEL_HEIGHT_PX
-        - (CLASSIC_FIRST_CONTACT_SQUAD_CHIP_Y_OFFSET_PX
-            + CLASSIC_FIRST_CONTACT_SQUAD_CHIP_HEIGHT_PX);
-    let squad_chip_edge_clearance_gate =
-        squad_chip_bottom_margin_px >= CLASSIC_FIRST_CONTACT_SQUAD_CHIP_BOTTOM_MARGIN_MIN_PX;
-    let order_queue_badge_gate = order_queue_badge_labels
-        == string_vec(["ATK BCN", "TRN WRK", "BLD RLY", "MOV 16/9"])
-        && completion_event_badge_labels
-            == string_vec(["WRK RDY", "SIG RDY", "TWR RDY", "TRN RDY"])
-        && order_queue_badge_labels
+    let bottom_panel_runtime = trnm_rts_evidence::RtsFirstContactBottomPanelRuntime {
+        control_group_id: runtime.rts_control_group_id.clone(),
+        selected_unit_ids: runtime.rts_selected_unit_ids.clone(),
+        last_feedback: runtime.last_feedback.clone(),
+        selection_feedback_max_chars,
+        group_summary_prefix: chrome.group_summary_prefix.clone(),
+        group_summary_suffix: chrome.group_summary_suffix.clone(),
+        feedback_label_widths_px: feedback_labels
             .iter()
-            .chain(completion_event_badge_labels.iter())
-            .all(|label| classic_text_advance_px(label, 1) <= 48);
-    let selection_density_gate = selected_unit_display_count >= 4
-        && squad_role_labels.len() >= 4
-        && group_summary == "GROUP 1  4 UNITS SELECTED";
-    let green = raw_marker_gate
-        && feedback_expected_gate
-        && feedback_width_gate
-        && squad_strip_gate
-        && squad_chip_width_gate
-        && squad_chip_edge_clearance_gate
-        && order_queue_badge_gate
-        && selection_density_gate;
-
-    json!({
-        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_BOTTOM_PANEL_READABILITY_CONTRACT,
-        "green": green,
-        "source_path": "trnm-world-bevy classic_draw_openra_style_rts_shell bottom selection/status panel",
-        "group_summary": group_summary,
-        "selected_unit_display_count": selected_unit_display_count,
-        "feedback_labels": feedback_labels,
-        "runtime_feedback_label": runtime_feedback_label,
-        "upgrade_feedback_label": upgrade_feedback_label,
-        "build_feedback_label": build_feedback_label,
-        "squad_role_labels": squad_role_labels,
-        "order_queue_badge_labels": order_queue_badge_labels,
-        "completion_event_badge_labels": completion_event_badge_labels,
-        "raw_marker_gate": raw_marker_gate,
-        "feedback_expected_gate": feedback_expected_gate,
-        "feedback_width_gate": feedback_width_gate,
-        "squad_strip_gate": squad_strip_gate,
-        "squad_chip_width_gate": squad_chip_width_gate,
-        "squad_chip_bottom_margin_px": squad_chip_bottom_margin_px,
-        "squad_chip_edge_clearance_gate": squad_chip_edge_clearance_gate,
-        "order_queue_badge_gate": order_queue_badge_gate,
-        "selection_density_gate": selection_density_gate,
-    })
+            .map(|label| classic_text_advance_px(label, 1))
+            .collect(),
+        squad_role_label_widths_px: squad_role_labels
+            .iter()
+            .map(|label| classic_text_advance_px(label, 1))
+            .collect(),
+        order_queue_badge_widths_px: order_queue_badge_labels
+            .iter()
+            .map(|label| classic_text_advance_px(label, 1))
+            .collect(),
+        completion_event_badge_widths_px: completion_event_badge_labels
+            .iter()
+            .map(|label| classic_text_advance_px(label, 1))
+            .collect(),
+        order_queue_badge_labels,
+        completion_event_badge_labels,
+        geometry: trnm_rts_evidence::RtsFirstContactBottomPanelGeometrySnapshot {
+            bottom_panel_height_px: CLASSIC_FIRST_CONTACT_BOTTOM_PANEL_HEIGHT_PX,
+            squad_chip_y_offset_px: CLASSIC_FIRST_CONTACT_SQUAD_CHIP_Y_OFFSET_PX,
+            squad_chip_height_px: CLASSIC_FIRST_CONTACT_SQUAD_CHIP_HEIGHT_PX,
+            squad_chip_bottom_margin_min_px: CLASSIC_FIRST_CONTACT_SQUAD_CHIP_BOTTOM_MARGIN_MIN_PX,
+        },
+    };
+    trnm_rts_evidence::first_contact_bottom_panel_readability_guard(&bottom_panel_runtime)
 }
 
 #[cfg(not(target_os = "android"))]
