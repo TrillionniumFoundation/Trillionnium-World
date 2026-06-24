@@ -82,8 +82,6 @@ mod first_contact_focus_readability;
 #[cfg(not(target_os = "android"))]
 mod first_contact_marker_budget;
 #[cfg(not(target_os = "android"))]
-mod first_contact_motion_readability;
-#[cfg(not(target_os = "android"))]
 mod first_contact_palette;
 #[cfg(not(target_os = "android"))]
 mod first_contact_player_screen_labels;
@@ -304,7 +302,7 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_SILHOUETTE_READABILI
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_ART_READABILITY_CONTRACT: &str =
     trnm_rts_evidence::TRNM_RTS_EVIDENCE_FIRST_CONTACT_ART_READABILITY_CONTRACT;
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_MOTION_READABILITY_CONTRACT: &str =
-    "trillionnium_world_bevy_classic_rts_first_contact_motion_readability_v1";
+    trnm_rts_evidence::TRNM_RTS_EVIDENCE_FIRST_CONTACT_MOTION_READABILITY_CONTRACT;
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_ATLAS_READABILITY_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_first_contact_atlas_readability_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_VISUAL_HIERARCHY_CONTRACT: &str =
@@ -112331,8 +112329,21 @@ fn classic_first_contact_motion_readability_guard() -> Value {
     let feedback = classic_first_contact_command_feedback();
     let telemetry = classic_first_contact_visual_telemetry();
     let runtime = classic_first_contact_player_screen_runtime();
-    first_contact_motion_readability::motion_readability_guard(
-        &opening, &feedback, &telemetry, &runtime,
+    let motion_runtime = trnm_rts_evidence::RtsFirstContactMotionReadabilityRuntime {
+        walk_cycle_frame: runtime.walk_cycle_frame,
+        combat_turn: runtime.combat_turn,
+        training_progress_percent: runtime.rts_training_progress_percent,
+        build_progress_percent: runtime.rts_build_progress_percent,
+        command_destination_tile: runtime.rts_command_destination_tile.clone(),
+        route_tile_ids: runtime.rts_group_route_tile_ids.clone(),
+        attack_target_id: runtime.rts_attack_target_id.clone(),
+        combat_event_log: runtime.rts_combat_event_log.clone(),
+    };
+    trnm_rts_evidence::first_contact_motion_readability_guard(
+        &opening,
+        &feedback,
+        &telemetry,
+        &motion_runtime,
     )
 }
 

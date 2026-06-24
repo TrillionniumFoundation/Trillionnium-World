@@ -1,32 +1,60 @@
-#![cfg(not(target_os = "android"))]
-
 use serde_json::{json, Value};
 use std::collections::BTreeSet;
+use trnm_rts_bevy_runtime::rts_runtime_tile_id;
+use trnm_rts_core::RtsTile;
 use trnm_rts_data::{
     first_contact_samples, RtsCommandFeedbackProfile, RtsFirstContactVisualTelemetryProfile,
-    RtsOpeningLoopProfile,
+    RtsOpeningLoopProfile, RtsTacticalTrackProfile, RtsVisualTelemetryColorRole,
 };
 
 use crate::{
-    classic_first_contact_tile_id, classic_rts_tile_id, first_contact_palette,
-    NativeFirstPlayableRuntime, CLASSIC_FIRST_CONTACT_SECONDARY_TRACK_DARKEN_DENOMINATOR,
-    CLASSIC_FIRST_CONTACT_SECONDARY_TRACK_DARKEN_NUMERATOR,
-    TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_MOTION_READABILITY_CONTRACT,
+    TRNM_RTS_EVIDENCE_FIRST_CONTACT_MOTION_READABILITY_CONTRACT,
+    TRNM_RTS_EVIDENCE_FIRST_CONTACT_SECONDARY_TRACK_DARKEN_DENOMINATOR,
+    TRNM_RTS_EVIDENCE_FIRST_CONTACT_SECONDARY_TRACK_DARKEN_NUMERATOR,
 };
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RtsFirstContactMotionReadabilityRuntime {
+    pub walk_cycle_frame: u8,
+    pub combat_turn: u8,
+    pub training_progress_percent: u8,
+    pub build_progress_percent: u8,
+    pub command_destination_tile: Option<String>,
+    pub route_tile_ids: Vec<String>,
+    pub attack_target_id: Option<String>,
+    pub combat_event_log: Vec<String>,
+}
 
 fn string_vec<const N: usize>(values: [&str; N]) -> Vec<String> {
     values.into_iter().map(str::to_string).collect()
 }
 
-pub(crate) fn motion_readability_guard(
+fn first_contact_tile_id(tile: RtsTile) -> String {
+    rts_runtime_tile_id((tile.x, tile.y))
+}
+
+fn tile_id(tile: (i32, i32)) -> String {
+    rts_runtime_tile_id(tile)
+}
+
+fn primary_tactical_track(
+    track: &RtsTacticalTrackProfile,
+    opening: &RtsOpeningLoopProfile,
+) -> bool {
+    track.from_tile == opening.active_relay_tile
+        && track.to_tile == opening.active_beacon_tile
+        && track.color_role == RtsVisualTelemetryColorRole::ActionTrail
+}
+
+pub fn first_contact_motion_readability_guard(
     opening: &RtsOpeningLoopProfile,
     feedback: &RtsCommandFeedbackProfile,
     telemetry: &RtsFirstContactVisualTelemetryProfile,
-    runtime: &NativeFirstPlayableRuntime,
+    runtime: &RtsFirstContactMotionReadabilityRuntime,
 ) -> Value {
     let animation_samples = first_contact_samples::animation_cycle_samples();
-    let active_beacon_tile_id = classic_first_contact_tile_id(opening.active_beacon_tile);
-    let active_relay_tile_id = classic_first_contact_tile_id(opening.active_relay_tile);
+    let active_beacon_tile_id = first_contact_tile_id(opening.active_beacon_tile);
+    let active_relay_tile_id = first_contact_tile_id(opening.active_relay_tile);
     let opening_action_ids = opening.opening_actions.clone();
     let action_verbs = opening_action_ids
         .iter()
@@ -52,15 +80,15 @@ pub(crate) fn motion_readability_guard(
         .iter()
         .map(|track| {
             json!({
-                "from_tile": classic_first_contact_tile_id(track.from_tile),
-                "to_tile": classic_first_contact_tile_id(track.to_tile),
+                "from_tile": first_contact_tile_id(track.from_tile),
+                "to_tile": first_contact_tile_id(track.to_tile),
                 "role": track.color_role.as_str(),
             })
         })
         .collect::<Vec<_>>();
     let animation_sample_tiles = animation_samples
         .iter()
-        .map(|(tile, _, _)| classic_rts_tile_id(*tile))
+        .map(|(tile, _, _)| tile_id(*tile))
         .collect::<Vec<_>>();
     let animation_roles = animation_samples
         .iter()
@@ -79,7 +107,7 @@ pub(crate) fn motion_readability_guard(
         .iter()
         .map(|(tile, role, signature)| {
             json!({
-                "tile": classic_rts_tile_id(*tile),
+                "tile": tile_id(*tile),
                 "role": role,
                 "signature": signature,
             })
@@ -112,7 +140,7 @@ pub(crate) fn motion_readability_guard(
     let primary_tactical_track_count = telemetry
         .tactical_tracks
         .iter()
-        .filter(|track| first_contact_palette::primary_tactical_track(track))
+        .filter(|track| primary_tactical_track(track, opening))
         .count();
     let secondary_tactical_track_count = telemetry
         .tactical_tracks
@@ -122,17 +150,17 @@ pub(crate) fn motion_readability_guard(
     let secondary_tactical_track_pixel_budget = secondary_tactical_track_count * 16;
     let secondary_tactical_track_height_px = 1_usize;
     let secondary_tactical_track_darken_numerator =
-        CLASSIC_FIRST_CONTACT_SECONDARY_TRACK_DARKEN_NUMERATOR as usize;
+        TRNM_RTS_EVIDENCE_FIRST_CONTACT_SECONDARY_TRACK_DARKEN_NUMERATOR;
     let secondary_tactical_track_darken_denominator =
-        CLASSIC_FIRST_CONTACT_SECONDARY_TRACK_DARKEN_DENOMINATOR as usize;
+        TRNM_RTS_EVIDENCE_FIRST_CONTACT_SECONDARY_TRACK_DARKEN_DENOMINATOR;
     let tactical_track_density_signatures = string_vec([
         "primary_relay_beacon_track_kept_hot",
         "secondary_tracks_dimmed",
         "secondary_tracks_faded_into_terrain",
         "secondary_tracks_one_pixel",
     ]);
-    let route_tile_ids = runtime.rts_group_route_tile_ids.clone();
-    let combat_event_log = runtime.rts_combat_event_log.clone();
+    let route_tile_ids = runtime.route_tile_ids.clone();
+    let combat_event_log = runtime.combat_event_log.clone();
     let unit_status_pixel_budget = telemetry.unit_statuses.len() * 64;
     let tactical_track_pixel_budget =
         primary_tactical_track_pixel_budget + secondary_tactical_track_pixel_budget;
@@ -199,13 +227,13 @@ pub(crate) fn motion_readability_guard(
         && feedback_pixel_budget >= 190;
     let runtime_motion_gate = runtime.walk_cycle_frame >= 2
         && runtime.combat_turn >= 3
-        && runtime.rts_training_progress_percent >= 60
-        && runtime.rts_build_progress_percent >= 40
-        && runtime.rts_training_progress_percent >= runtime.rts_build_progress_percent
-        && runtime.rts_command_destination_tile.as_deref() == Some(active_beacon_tile_id.as_str())
+        && runtime.training_progress_percent >= 60
+        && runtime.build_progress_percent >= 40
+        && runtime.training_progress_percent >= runtime.build_progress_percent
+        && runtime.command_destination_tile.as_deref() == Some(active_beacon_tile_id.as_str())
         && route_tile_ids.len() >= 4
         && route_tile_ids.last().map(|tile| tile.as_str()) == Some(active_beacon_tile_id.as_str())
-        && runtime.rts_attack_target_id.as_deref() == Some("trnm.flux.beacon")
+        && runtime.attack_target_id.as_deref() == Some("trnm.flux.beacon")
         && combat_event_log
             .iter()
             .any(|event| event == "worker_carry_supply")
@@ -265,7 +293,7 @@ pub(crate) fn motion_readability_guard(
     let green = green && animation_cycle_detail_gate && animation_frame_richness_gate;
 
     json!({
-        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_MOTION_READABILITY_CONTRACT,
+        "contract_version": TRNM_RTS_EVIDENCE_FIRST_CONTACT_MOTION_READABILITY_CONTRACT,
         "green": green,
         "source_path": "trnm-world-bevy classic_draw_first_contact_opening_actions + classic_draw_first_contact_unit_state_layers + classic_draw_first_contact_command_feedback_layers + classic_draw_first_contact_animation_readability_layer",
         "active_relay_tile": active_relay_tile_id,
@@ -294,7 +322,7 @@ pub(crate) fn motion_readability_guard(
         "tactical_track_motion_gate": tactical_track_motion_gate,
         "feedback_selected_group": feedback.selected_group.clone(),
         "feedback_active_order": feedback.active_order.clone(),
-        "feedback_target_tile": classic_first_contact_tile_id(feedback.target_tile),
+        "feedback_target_tile": first_contact_tile_id(feedback.target_tile),
         "feedback_queued_before": feedback.queued_before,
         "feedback_queued_after": feedback.queued_after,
         "feedback_command_ack_progress": feedback.command_ack_progress,
@@ -304,11 +332,11 @@ pub(crate) fn motion_readability_guard(
         "walk_cycle_frame": runtime.walk_cycle_frame,
         "combat_turn": runtime.combat_turn,
         "route_tile_ids": route_tile_ids,
-        "command_destination_tile": runtime.rts_command_destination_tile.clone(),
-        "attack_target_id": runtime.rts_attack_target_id.clone(),
+        "command_destination_tile": runtime.command_destination_tile.clone(),
+        "attack_target_id": runtime.attack_target_id.clone(),
         "combat_event_log": combat_event_log,
-        "training_progress_percent": runtime.rts_training_progress_percent,
-        "build_progress_percent": runtime.rts_build_progress_percent,
+        "training_progress_percent": runtime.training_progress_percent,
+        "build_progress_percent": runtime.build_progress_percent,
         "runtime_motion_gate": runtime_motion_gate,
         "animation_sample_tiles": animation_sample_tiles,
         "animation_roles": animation_roles,
@@ -337,16 +365,34 @@ mod tests {
 
     #[test]
     fn first_contact_motion_readability_helpers_preserve_activity_contracts() {
-        let guard = motion_readability_guard(
-            &crate::classic_first_contact_opening_loop(),
-            &crate::classic_first_contact_command_feedback(),
-            &crate::classic_first_contact_visual_telemetry(),
-            &crate::classic_first_contact_player_screen_runtime(),
+        let runtime = RtsFirstContactMotionReadabilityRuntime {
+            walk_cycle_frame: 2,
+            combat_turn: 3,
+            training_progress_percent: 60,
+            build_progress_percent: 40,
+            command_destination_tile: Some("16,9".to_string()),
+            route_tile_ids: vec![
+                "14,11".to_string(),
+                "15,11".to_string(),
+                "16,10".to_string(),
+                "16,9".to_string(),
+            ],
+            attack_target_id: Some("trnm.flux.beacon".to_string()),
+            combat_event_log: vec![
+                "worker_carry_supply".to_string(),
+                "secure_beacon:16,9".to_string(),
+            ],
+        };
+        let guard = first_contact_motion_readability_guard(
+            &trnm_rts_data::first_contact_opening_loop_profile(),
+            &trnm_rts_data::first_contact_command_feedback_profile(),
+            &trnm_rts_data::first_contact_visual_telemetry_profile(),
+            &runtime,
         );
 
         assert_eq!(
             guard.get("contract_version").and_then(Value::as_str),
-            Some(TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_MOTION_READABILITY_CONTRACT)
+            Some(TRNM_RTS_EVIDENCE_FIRST_CONTACT_MOTION_READABILITY_CONTRACT)
         );
         assert_eq!(guard.get("green").and_then(Value::as_bool), Some(true));
         assert_eq!(
