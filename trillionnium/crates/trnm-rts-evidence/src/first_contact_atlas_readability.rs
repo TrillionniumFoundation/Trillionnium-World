@@ -2,18 +2,56 @@
 
 use serde_json::{json, Value};
 use std::collections::BTreeSet;
+use trnm_rts_bevy_runtime::rts_runtime_tile_id;
 use trnm_rts_data::first_contact_samples;
 
-use crate::{
-    ClassicRuntimeAssets, TRILLIONNIUM_WORLD_BEVY_CLASSIC_ASSET_PACK_CONTRACT,
-    TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_ATLAS_READABILITY_CONTRACT,
-};
+use crate::TRNM_RTS_EVIDENCE_FIRST_CONTACT_ATLAS_READABILITY_CONTRACT;
+
+const CLASSIC_ASSET_PACK_CONTRACT: &str = "trillionnium_world_bevy_classic_asset_pack_v1";
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RtsFirstContactAtlasReadabilityRuntime {
+    pub asset_pack_contract: String,
+    pub asset_boundary: String,
+    pub atlas_parse_gate: bool,
+    pub cex_runtime_player_client_allowed: bool,
+    pub wgpu_required: bool,
+    pub atlas_available_frame_ids: Vec<String>,
+    pub atlas_manifest_roles: Vec<String>,
+    pub atlas_family_available_frame_ids: Vec<String>,
+    pub atlas_family_manifest_roles: Vec<String>,
+    pub atlas_family_override_frame_ids: Vec<String>,
+    pub atlas_family_frame_pixel_areas: Vec<(String, usize)>,
+}
 
 fn string_vec<const N: usize>(items: [&str; N]) -> Vec<String> {
     items.into_iter().map(str::to_string).collect()
 }
 
-pub(crate) fn atlas_readability_guard(assets: &ClassicRuntimeAssets) -> Value {
+fn frame_available(frame_ids: &[String], frame_id: &str) -> bool {
+    frame_ids
+        .iter()
+        .any(|available_id| available_id == frame_id)
+}
+
+fn runtime_family_frame_pixel_area(
+    runtime: &RtsFirstContactAtlasReadabilityRuntime,
+    frame_id: &str,
+    scale: u32,
+) -> usize {
+    runtime
+        .atlas_family_frame_pixel_areas
+        .iter()
+        .find_map(|(id, area)| (id == frame_id).then_some(*area))
+        .unwrap_or_else(|| {
+            let frame_px = 16_usize * scale.max(1) as usize;
+            frame_px * frame_px
+        })
+}
+
+pub fn first_contact_atlas_readability_guard(
+    runtime: &RtsFirstContactAtlasReadabilityRuntime,
+) -> Value {
     let samples = first_contact_samples::atlas_asset_samples();
     let family_samples = first_contact_samples::atlas_frame_family_samples();
     let atlas_runtime_depth_signatures = first_contact_samples::atlas_runtime_depth_signatures()
@@ -22,7 +60,7 @@ pub(crate) fn atlas_readability_guard(assets: &ClassicRuntimeAssets) -> Value {
         .collect::<Vec<_>>();
     let sample_tiles = samples
         .iter()
-        .map(|(tile, _, _, _, _)| crate::classic_rts_tile_id(*tile))
+        .map(|(tile, _, _, _, _)| rts_runtime_tile_id(*tile))
         .collect::<Vec<_>>();
     let atlas_roles = samples
         .iter()
@@ -40,7 +78,7 @@ pub(crate) fn atlas_readability_guard(assets: &ClassicRuntimeAssets) -> Value {
         .iter()
         .map(|(tile, role, frame_id, signature, scale)| {
             json!({
-                "tile": crate::classic_rts_tile_id(*tile),
+                "tile": rts_runtime_tile_id(*tile),
                 "role": role,
                 "frame_id": frame_id,
                 "signature": signature,
@@ -48,19 +86,10 @@ pub(crate) fn atlas_readability_guard(assets: &ClassicRuntimeAssets) -> Value {
             })
         })
         .collect::<Vec<_>>();
-    let atlas_manifest_roles = samples
-        .iter()
-        .map(|(_, _, frame_id, _, _)| {
-            assets
-                .frame_by_id
-                .get(*frame_id)
-                .map(|frame| frame.role.clone())
-                .unwrap_or_else(|| "missing".to_string())
-        })
-        .collect::<Vec<_>>();
+    let atlas_manifest_roles = runtime.atlas_manifest_roles.clone();
     let atlas_family_sample_tiles = family_samples
         .iter()
-        .map(|(tile, _, _, _, _)| crate::classic_rts_tile_id(*tile))
+        .map(|(tile, _, _, _, _)| rts_runtime_tile_id(*tile))
         .collect::<Vec<_>>();
     let atlas_family_roles = family_samples
         .iter()
@@ -78,7 +107,7 @@ pub(crate) fn atlas_readability_guard(assets: &ClassicRuntimeAssets) -> Value {
         .iter()
         .map(|(tile, role, frame_id, signature, scale)| {
             json!({
-                "tile": crate::classic_rts_tile_id(*tile),
+                "tile": rts_runtime_tile_id(*tile),
                 "role": role,
                 "frame_id": frame_id,
                 "signature": signature,
@@ -95,36 +124,16 @@ pub(crate) fn atlas_readability_guard(assets: &ClassicRuntimeAssets) -> Value {
     let atlas_family_busy_core_tiles = family_samples
         .iter()
         .filter(|(tile, _, _, _, _)| first_contact_samples::atlas_family_busy_core_tile(*tile))
-        .map(|(tile, _, _, _, _)| crate::classic_rts_tile_id(*tile))
+        .map(|(tile, _, _, _, _)| rts_runtime_tile_id(*tile))
         .collect::<Vec<_>>();
-    let atlas_family_manifest_roles = family_samples
-        .iter()
-        .map(|(_, _, frame_id, _, _)| {
-            assets
-                .frame_by_id
-                .get(*frame_id)
-                .map(|frame| frame.role.clone())
-                .unwrap_or_else(|| {
-                    if assets.frame_override_pixels.contains_key(*frame_id) {
-                        "override_frame".to_string()
-                    } else {
-                        "missing".to_string()
-                    }
-                })
-        })
-        .collect::<Vec<_>>();
-    let atlas_family_override_frame_ids = atlas_family_frame_ids
-        .iter()
-        .filter(|frame_id| assets.frame_override_pixels.contains_key(frame_id.as_str()))
-        .cloned()
-        .collect::<Vec<_>>();
+    let atlas_family_manifest_roles = runtime.atlas_family_manifest_roles.clone();
+    let atlas_family_override_frame_ids = runtime.atlas_family_override_frame_ids.clone();
     let manifest_frame_gate = atlas_frame_ids
         .iter()
-        .all(|frame_id| assets.frame_by_id.contains_key(frame_id));
-    let family_frame_available_gate = atlas_family_frame_ids.iter().all(|frame_id| {
-        assets.frame_by_id.contains_key(frame_id)
-            || assets.frame_override_pixels.contains_key(frame_id)
-    });
+        .all(|frame_id| frame_available(&runtime.atlas_available_frame_ids, frame_id));
+    let family_frame_available_gate = atlas_family_frame_ids
+        .iter()
+        .all(|frame_id| frame_available(&runtime.atlas_family_available_frame_ids, frame_id));
     let unique_frame_count = atlas_frame_ids.iter().collect::<BTreeSet<_>>().len();
     let unique_signature_count = atlas_signatures.iter().collect::<BTreeSet<_>>().len();
     let atlas_family_unique_frame_count =
@@ -218,20 +227,15 @@ pub(crate) fn atlas_readability_guard(assets: &ClassicRuntimeAssets) -> Value {
     let atlas_family_frame_pixel_budget = family_samples
         .iter()
         .map(|(_, _, frame_id, _, scale)| {
-            if let Some(frame) = assets.frame_override_pixels.get(*frame_id) {
-                (frame.width as usize) * (frame.height as usize)
-            } else {
-                16_usize * 16_usize * (*scale as usize).pow(2)
-            }
+            runtime_family_frame_pixel_area(runtime, frame_id, *scale)
         })
         .sum::<usize>();
     let atlas_runtime_depth_pixel_budget = atlas_runtime_depth_sample_count * 64;
-    let atlas_manifest_gate = assets.manifest.contract_version
-        == TRILLIONNIUM_WORLD_BEVY_CLASSIC_ASSET_PACK_CONTRACT
-        && assets.atlas_parse_gate
-        && assets.manifest.asset_boundary.contains("project_owned")
-        && !assets.manifest.cex_runtime_player_client_allowed
-        && !assets.manifest.wgpu_required;
+    let atlas_manifest_gate = runtime.asset_pack_contract == CLASSIC_ASSET_PACK_CONTRACT
+        && runtime.atlas_parse_gate
+        && runtime.asset_boundary.contains("project_owned")
+        && !runtime.cex_runtime_player_client_allowed
+        && !runtime.wgpu_required;
     let terrain_atlas_frame_gate = terrain_frame_count >= 6
         && atlas_frame_ids
             .iter()
@@ -376,7 +380,7 @@ pub(crate) fn atlas_readability_guard(assets: &ClassicRuntimeAssets) -> Value {
         && atlas_lower_lane_depth_suppressed_count == 3
         && atlas_runtime_depth_pixel_budget >= 1_344;
     let no_copy_boundary_gate =
-        !assets.manifest.cex_runtime_player_client_allowed && !assets.manifest.wgpu_required;
+        !runtime.cex_runtime_player_client_allowed && !runtime.wgpu_required;
     let first_contact_atlas_readability_gate = atlas_manifest_gate
         && terrain_atlas_frame_gate
         && unit_atlas_sprite_gate
@@ -389,12 +393,12 @@ pub(crate) fn atlas_readability_guard(assets: &ClassicRuntimeAssets) -> Value {
     let green = first_contact_atlas_readability_gate;
 
     json!({
-        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_ATLAS_READABILITY_CONTRACT,
+        "contract_version": TRNM_RTS_EVIDENCE_FIRST_CONTACT_ATLAS_READABILITY_CONTRACT,
         "green": green,
         "source_path": "trnm-world-bevy classic_draw_first_contact_atlas_readability_layer",
-        "asset_pack_contract": assets.manifest.contract_version,
-        "asset_boundary": assets.manifest.asset_boundary,
-        "atlas_parse_gate": assets.atlas_parse_gate,
+        "asset_pack_contract": runtime.asset_pack_contract,
+        "asset_boundary": runtime.asset_boundary,
+        "atlas_parse_gate": runtime.atlas_parse_gate,
         "sample_tiles": sample_tiles,
         "atlas_roles": atlas_roles,
         "atlas_frame_ids": atlas_frame_ids,
@@ -467,10 +471,74 @@ pub(crate) fn atlas_readability_guard(assets: &ClassicRuntimeAssets) -> Value {
 mod tests {
     use super::*;
 
+    fn fixture_runtime() -> RtsFirstContactAtlasReadabilityRuntime {
+        let atlas_available_frame_ids = first_contact_samples::atlas_asset_samples()
+            .iter()
+            .map(|(_, _, frame_id, _, _)| (*frame_id).to_string())
+            .collect::<Vec<_>>();
+        let atlas_manifest_roles = first_contact_samples::atlas_asset_samples()
+            .iter()
+            .map(|(_, role, _, _, _)| (*role).to_string())
+            .collect::<Vec<_>>();
+        let atlas_family_available_frame_ids = first_contact_samples::atlas_frame_family_samples()
+            .iter()
+            .map(|(_, _, frame_id, _, _)| (*frame_id).to_string())
+            .collect::<Vec<_>>();
+        let atlas_family_manifest_roles = first_contact_samples::atlas_frame_family_samples()
+            .iter()
+            .map(|(_, role, frame_id, _, _)| {
+                if matches!(
+                    *frame_id,
+                    "model_town_hall"
+                        | "model_training_hall"
+                        | "model_waygate"
+                        | "rts_command_destination_marker"
+                ) {
+                    "override_frame".to_string()
+                } else {
+                    (*role).to_string()
+                }
+            })
+            .collect::<Vec<_>>();
+        let atlas_family_override_frame_ids = atlas_family_available_frame_ids.clone();
+        let atlas_family_frame_pixel_areas = vec![
+            ("actor_worker_idle".to_string(), 1_536),
+            ("actor_worker_carry".to_string(), 1_920),
+            ("actor_player_walk_east_1".to_string(), 256),
+            ("actor_player_walk_east_2".to_string(), 256),
+            ("actor_guard_idle".to_string(), 1_536),
+            ("actor_guard_attack".to_string(), 1_920),
+            ("actor_mentor_talk".to_string(), 1_536),
+            ("model_town_hall".to_string(), 9_216),
+            ("model_training_hall".to_string(), 9_216),
+            ("model_waygate".to_string(), 9_216),
+            ("prop_banner".to_string(), 1_536),
+            ("marker_objective".to_string(), 1_024),
+            ("rts_command_destination_marker".to_string(), 2_304),
+            ("marker_interaction".to_string(), 1_024),
+        ];
+
+        RtsFirstContactAtlasReadabilityRuntime {
+            asset_pack_contract: CLASSIC_ASSET_PACK_CONTRACT.to_string(),
+            asset_boundary:
+                "project_owned_manifest_ppm_atlas_for_classic_low_spec_renderer_not_cex_runtime"
+                    .to_string(),
+            atlas_parse_gate: true,
+            cex_runtime_player_client_allowed: false,
+            wgpu_required: false,
+            atlas_available_frame_ids,
+            atlas_manifest_roles,
+            atlas_family_available_frame_ids,
+            atlas_family_manifest_roles,
+            atlas_family_override_frame_ids,
+            atlas_family_frame_pixel_areas,
+        }
+    }
+
     #[test]
     fn first_contact_atlas_readability_helpers_preserve_frame_family_contracts() {
-        let assets = crate::classic_first_contact_atlas_readability_assets();
-        let guard = atlas_readability_guard(&assets);
+        let runtime = fixture_runtime();
+        let guard = first_contact_atlas_readability_guard(&runtime);
 
         assert_eq!(guard.get("green").and_then(Value::as_bool), Some(true));
         assert_eq!(

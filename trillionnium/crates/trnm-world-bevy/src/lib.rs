@@ -72,8 +72,6 @@ use trnm_world_domain::{
 use trnm_world_projection::world_full_split_projection_json;
 
 #[cfg(not(target_os = "android"))]
-mod first_contact_atlas_readability;
-#[cfg(not(target_os = "android"))]
 mod first_contact_bottom_panel;
 #[cfg(not(target_os = "android"))]
 mod first_contact_command_grid;
@@ -296,7 +294,7 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_ART_READABILITY_CONT
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_MOTION_READABILITY_CONTRACT: &str =
     trnm_rts_evidence::TRNM_RTS_EVIDENCE_FIRST_CONTACT_MOTION_READABILITY_CONTRACT;
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_ATLAS_READABILITY_CONTRACT: &str =
-    "trillionnium_world_bevy_classic_rts_first_contact_atlas_readability_v1";
+    trnm_rts_evidence::TRNM_RTS_EVIDENCE_FIRST_CONTACT_ATLAS_READABILITY_CONTRACT;
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_VISUAL_HIERARCHY_CONTRACT: &str =
     trnm_rts_evidence::TRNM_RTS_EVIDENCE_FIRST_CONTACT_VISUAL_HIERARCHY_CONTRACT;
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_CENTRAL_CLARITY_CONTRACT: &str =
@@ -112385,7 +112383,83 @@ fn classic_first_contact_atlas_readability_assets() -> ClassicRuntimeAssets {
 #[cfg(not(target_os = "android"))]
 fn classic_first_contact_atlas_readability_guard() -> Value {
     let assets = classic_first_contact_atlas_readability_assets();
-    first_contact_atlas_readability::atlas_readability_guard(&assets)
+    let atlas_available_frame_ids = first_contact_samples::atlas_asset_samples()
+        .iter()
+        .filter_map(|(_, _, frame_id, _, _)| {
+            assets
+                .frame_by_id
+                .contains_key(*frame_id)
+                .then(|| (*frame_id).to_string())
+        })
+        .collect::<Vec<_>>();
+    let atlas_manifest_roles = first_contact_samples::atlas_asset_samples()
+        .iter()
+        .map(|(_, _, frame_id, _, _)| {
+            assets
+                .frame_by_id
+                .get(*frame_id)
+                .map(|frame| frame.role.clone())
+                .unwrap_or_else(|| "missing".to_string())
+        })
+        .collect::<Vec<_>>();
+    let atlas_family_available_frame_ids = first_contact_samples::atlas_frame_family_samples()
+        .iter()
+        .filter_map(|(_, _, frame_id, _, _)| {
+            (assets.frame_by_id.contains_key(*frame_id)
+                || assets.frame_override_pixels.contains_key(*frame_id))
+            .then(|| (*frame_id).to_string())
+        })
+        .collect::<Vec<_>>();
+    let atlas_family_manifest_roles = first_contact_samples::atlas_frame_family_samples()
+        .iter()
+        .map(|(_, _, frame_id, _, _)| {
+            assets
+                .frame_by_id
+                .get(*frame_id)
+                .map(|frame| frame.role.clone())
+                .unwrap_or_else(|| {
+                    if assets.frame_override_pixels.contains_key(*frame_id) {
+                        "override_frame".to_string()
+                    } else {
+                        "missing".to_string()
+                    }
+                })
+        })
+        .collect::<Vec<_>>();
+    let atlas_family_override_frame_ids = first_contact_samples::atlas_frame_family_samples()
+        .iter()
+        .filter_map(|(_, _, frame_id, _, _)| {
+            assets
+                .frame_override_pixels
+                .contains_key(*frame_id)
+                .then(|| (*frame_id).to_string())
+        })
+        .collect::<Vec<_>>();
+    let atlas_family_frame_pixel_areas = first_contact_samples::atlas_frame_family_samples()
+        .iter()
+        .map(|(_, _, frame_id, _, scale)| {
+            let (frame_w, frame_h) =
+                classic_first_contact_atlas_asset_frame_size(&assets, frame_id, *scale);
+            (
+                (*frame_id).to_string(),
+                (frame_w.max(0) as usize) * (frame_h.max(0) as usize),
+            )
+        })
+        .collect::<Vec<_>>();
+    let atlas_runtime = trnm_rts_evidence::RtsFirstContactAtlasReadabilityRuntime {
+        asset_pack_contract: assets.manifest.contract_version.clone(),
+        asset_boundary: assets.manifest.asset_boundary.clone(),
+        atlas_parse_gate: assets.atlas_parse_gate,
+        cex_runtime_player_client_allowed: assets.manifest.cex_runtime_player_client_allowed,
+        wgpu_required: assets.manifest.wgpu_required,
+        atlas_available_frame_ids,
+        atlas_manifest_roles,
+        atlas_family_available_frame_ids,
+        atlas_family_manifest_roles,
+        atlas_family_override_frame_ids,
+        atlas_family_frame_pixel_areas,
+    };
+    trnm_rts_evidence::first_contact_atlas_readability_guard(&atlas_runtime)
 }
 
 #[cfg(not(target_os = "android"))]
