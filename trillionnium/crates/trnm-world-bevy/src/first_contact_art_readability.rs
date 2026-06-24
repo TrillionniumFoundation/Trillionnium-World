@@ -2,10 +2,10 @@
 
 use serde_json::{json, Value};
 use std::collections::BTreeSet;
+use trnm_rts_data::first_contact_samples;
 
 use crate::{
-    classic_rts_tile_id, first_contact_samples,
-    TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_ART_READABILITY_CONTRACT,
+    classic_rts_tile_id, TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_ART_READABILITY_CONTRACT,
 };
 
 fn string_vec<const N: usize>(values: [&str; N]) -> Vec<String> {

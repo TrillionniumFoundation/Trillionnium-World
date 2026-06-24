@@ -1,9 +1,9 @@
 #![cfg(not(target_os = "android"))]
 
-pub(crate) type TileRoleSignature = ((i32, i32), &'static str, &'static str);
-pub(crate) type AtlasSample = ((i32, i32), &'static str, &'static str, &'static str, u32);
+pub type TileRoleSignature = ((i32, i32), &'static str, &'static str);
+pub type AtlasSample = ((i32, i32), &'static str, &'static str, &'static str, u32);
 
-pub(crate) fn silhouette_unit_samples() -> Vec<TileRoleSignature> {
+pub fn silhouette_unit_samples() -> Vec<TileRoleSignature> {
     vec![
         ((14, 11), "worker", "cargo_pack"),
         ((15, 11), "scout", "sensor_mast"),
@@ -12,7 +12,7 @@ pub(crate) fn silhouette_unit_samples() -> Vec<TileRoleSignature> {
     ]
 }
 
-pub(crate) fn silhouette_structure_samples() -> Vec<TileRoleSignature> {
+pub fn silhouette_structure_samples() -> Vec<TileRoleSignature> {
     vec![
         ((8, 8), "command_core", "stepped_roof_core"),
         ((25, 8), "command_core", "stepped_roof_core"),
@@ -27,7 +27,7 @@ pub(crate) fn silhouette_structure_samples() -> Vec<TileRoleSignature> {
     ]
 }
 
-pub(crate) fn silhouette_terrain_samples() -> Vec<TileRoleSignature> {
+pub fn silhouette_terrain_samples() -> Vec<TileRoleSignature> {
     vec![
         ((8, 8), "base_pad", "base_corner_frame"),
         ((25, 8), "base_pad", "base_corner_frame"),
@@ -41,7 +41,7 @@ pub(crate) fn silhouette_terrain_samples() -> Vec<TileRoleSignature> {
     ]
 }
 
-pub(crate) fn art_terrain_samples() -> Vec<TileRoleSignature> {
+pub fn art_terrain_samples() -> Vec<TileRoleSignature> {
     vec![
         ((8, 8), "base_concrete", "foundation_panel_seams"),
         ((25, 8), "base_concrete", "foundation_panel_seams"),
@@ -55,7 +55,7 @@ pub(crate) fn art_terrain_samples() -> Vec<TileRoleSignature> {
     ]
 }
 
-pub(crate) fn art_building_samples() -> Vec<TileRoleSignature> {
+pub fn art_building_samples() -> Vec<TileRoleSignature> {
     vec![
         ((8, 8), "command_core", "lit_window_rows"),
         ((25, 8), "command_core", "lit_window_rows"),
@@ -70,7 +70,7 @@ pub(crate) fn art_building_samples() -> Vec<TileRoleSignature> {
     ]
 }
 
-pub(crate) fn art_landmark_samples() -> Vec<TileRoleSignature> {
+pub fn art_landmark_samples() -> Vec<TileRoleSignature> {
     vec![
         ((8, 9), "base_gate", "base_gate_lamps"),
         ((25, 9), "base_gate", "base_gate_lamps"),
@@ -91,7 +91,7 @@ pub(crate) fn art_landmark_samples() -> Vec<TileRoleSignature> {
     ]
 }
 
-pub(crate) fn terrain_material_depth_signatures() -> Vec<&'static str> {
+pub fn terrain_material_depth_signatures() -> Vec<&'static str> {
     vec![
         "terrain_foundation_beveled_edges",
         "terrain_crystal_cast_shadows",
@@ -100,7 +100,7 @@ pub(crate) fn terrain_material_depth_signatures() -> Vec<&'static str> {
     ]
 }
 
-pub(crate) fn runtime_actor_depth_signatures() -> Vec<&'static str> {
+pub fn runtime_actor_depth_signatures() -> Vec<&'static str> {
     vec![
         "runtime_structure_roof_rim",
         "runtime_structure_side_shadow",
@@ -110,7 +110,7 @@ pub(crate) fn runtime_actor_depth_signatures() -> Vec<&'static str> {
     ]
 }
 
-pub(crate) fn animation_cycle_samples() -> Vec<TileRoleSignature> {
+pub fn animation_cycle_samples() -> Vec<TileRoleSignature> {
     vec![
         ((12, 16), "worker", "harvest_tool_swing_frame"),
         ((10, 12), "worker", "carry_bob_frame"),
@@ -128,7 +128,7 @@ pub(crate) fn animation_cycle_samples() -> Vec<TileRoleSignature> {
     ]
 }
 
-pub(crate) fn animation_frame_richness_signatures() -> Vec<&'static str> {
+pub fn animation_frame_richness_signatures() -> Vec<&'static str> {
     vec![
         "animation_secondary_pose_offsets",
         "animation_contact_smear_ticks",
@@ -137,15 +137,15 @@ pub(crate) fn animation_frame_richness_signatures() -> Vec<&'static str> {
     ]
 }
 
-pub(crate) fn unit_animation_role(role: &str) -> bool {
+pub fn unit_animation_role(role: &str) -> bool {
     matches!(role, "worker" | "scout" | "warden" | "relay")
 }
 
-pub(crate) fn structure_animation_role(role: &str) -> bool {
+pub fn structure_animation_role(role: &str) -> bool {
     matches!(role, "command_core" | "relay_structure")
 }
 
-pub(crate) fn atlas_asset_samples() -> Vec<AtlasSample> {
+pub fn atlas_asset_samples() -> Vec<AtlasSample> {
     vec![
         (
             (8, 8),
@@ -262,7 +262,7 @@ pub(crate) fn atlas_asset_samples() -> Vec<AtlasSample> {
     ]
 }
 
-pub(crate) fn atlas_frame_family_samples() -> Vec<AtlasSample> {
+pub fn atlas_frame_family_samples() -> Vec<AtlasSample> {
     vec![
         (
             (4, 14),
@@ -365,7 +365,7 @@ pub(crate) fn atlas_frame_family_samples() -> Vec<AtlasSample> {
     ]
 }
 
-pub(crate) fn atlas_family_gallery_lane(tile: (i32, i32)) -> &'static str {
+pub fn atlas_family_gallery_lane(tile: (i32, i32)) -> &'static str {
     if tile.1 <= 6 {
         "north_gallery"
     } else if tile.0 <= 6 {
@@ -377,15 +377,15 @@ pub(crate) fn atlas_family_gallery_lane(tile: (i32, i32)) -> &'static str {
     }
 }
 
-pub(crate) fn atlas_family_busy_core_tile(tile: (i32, i32)) -> bool {
+pub fn atlas_family_busy_core_tile(tile: (i32, i32)) -> bool {
     (12..=19).contains(&tile.0) && (9..=13).contains(&tile.1)
 }
 
-pub(crate) fn atlas_family_lower_lane_tile(tile: (i32, i32)) -> bool {
+pub fn atlas_family_lower_lane_tile(tile: (i32, i32)) -> bool {
     tile.0 >= 27 && tile.1 >= 22
 }
 
-pub(crate) fn atlas_runtime_depth_role(role: &str) -> bool {
+pub fn atlas_runtime_depth_role(role: &str) -> bool {
     matches!(
         role,
         "unit_sprite"
@@ -401,7 +401,7 @@ pub(crate) fn atlas_runtime_depth_role(role: &str) -> bool {
     )
 }
 
-pub(crate) fn atlas_runtime_depth_signatures() -> Vec<&'static str> {
+pub fn atlas_runtime_depth_signatures() -> Vec<&'static str> {
     vec![
         "atlas_unit_grounding_shadow",
         "atlas_structure_footprint_rim",

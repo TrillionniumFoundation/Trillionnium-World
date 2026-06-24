@@ -8,6 +8,9 @@ use sha2::{Digest, Sha256};
 use std::collections::BTreeSet;
 use trnm_rts_core::RtsTile;
 
+#[cfg(not(target_os = "android"))]
+pub mod first_contact_samples;
+
 pub const TRNM_RTS_DATA_CONTRACT: &str = "trnm_rts_data_map_model_v1";
 pub const TRNM_RTS_DATA_SOURCE_MANIFEST_CONTRACT: &str = "trnm_rts_data_source_manifest_v1";
 pub const TRNM_RTS_DATA_FIRST_CONTACT_OPENING_PROFILE_CONTRACT: &str =

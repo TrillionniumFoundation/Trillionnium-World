@@ -3,13 +3,13 @@
 use serde_json::{json, Value};
 use std::collections::BTreeSet;
 use trnm_rts_data::{
-    RtsCommandFeedbackProfile, RtsFirstContactVisualTelemetryProfile, RtsOpeningLoopProfile,
+    first_contact_samples, RtsCommandFeedbackProfile, RtsFirstContactVisualTelemetryProfile,
+    RtsOpeningLoopProfile,
 };
 
 use crate::{
     classic_first_contact_tile_id, classic_rts_tile_id, first_contact_palette,
-    first_contact_samples, NativeFirstPlayableRuntime,
-    CLASSIC_FIRST_CONTACT_SECONDARY_TRACK_DARKEN_DENOMINATOR,
+    NativeFirstPlayableRuntime, CLASSIC_FIRST_CONTACT_SECONDARY_TRACK_DARKEN_DENOMINATOR,
     CLASSIC_FIRST_CONTACT_SECONDARY_TRACK_DARKEN_NUMERATOR,
     TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_MOTION_READABILITY_CONTRACT,
 };

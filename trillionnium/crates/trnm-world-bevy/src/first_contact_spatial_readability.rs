@@ -3,14 +3,15 @@
 use serde_json::{json, Value};
 use trnm_rts_bevy_runtime as rts_bevy_runtime;
 use trnm_rts_core::RtsTile;
+use trnm_rts_data::first_contact_samples;
 
+use crate::first_contact_tiles;
 use crate::{
     classic_parse_rts_tile, classic_rts_tile_id, NativeFirstPlayableRuntime,
     TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_CENTRAL_CLARITY_CONTRACT,
     TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_TERMINAL_LEGIBILITY_CONTRACT,
     TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_VISUAL_HIERARCHY_CONTRACT,
 };
-use crate::{first_contact_samples, first_contact_tiles};
 
 fn string_vec<const N: usize>(values: [&str; N]) -> Vec<String> {
     values.into_iter().map(str::to_string).collect()

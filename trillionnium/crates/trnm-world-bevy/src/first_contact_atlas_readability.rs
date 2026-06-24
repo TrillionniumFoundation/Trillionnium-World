@@ -2,8 +2,8 @@
 
 use serde_json::{json, Value};
 use std::collections::BTreeSet;
+use trnm_rts_data::first_contact_samples;
 
-use crate::first_contact_samples;
 use crate::{
     ClassicRuntimeAssets, TRILLIONNIUM_WORLD_BEVY_CLASSIC_ASSET_PACK_CONTRACT,
     TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_ATLAS_READABILITY_CONTRACT,

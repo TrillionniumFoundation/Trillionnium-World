@@ -2,11 +2,10 @@
 
 use serde_json::{json, Value};
 use trnm_rts_bevy_runtime as rts_bevy_runtime;
+use trnm_rts_data::first_contact_samples::{self, AtlasSample};
 
 use crate::{
-    classic_parse_rts_tile, classic_rts_tile_id,
-    first_contact_samples::{self, AtlasSample},
-    first_contact_tiles, NativeFirstPlayableRuntime,
+    classic_parse_rts_tile, classic_rts_tile_id, first_contact_tiles, NativeFirstPlayableRuntime,
     CLASSIC_FIRST_CONTACT_ROUTE_ACK_TICK_HEIGHT_PX, CLASSIC_FIRST_CONTACT_ROUTE_ACK_TICK_WIDTH_PX,
     CLASSIC_FIRST_CONTACT_ROUTE_DASH_HEIGHT_PX, CLASSIC_FIRST_CONTACT_ROUTE_DASH_WIDTH_PX,
     CLASSIC_FIRST_CONTACT_SELECTED_FOCUS_BRACKET_PIXELS_PER_TILE,
