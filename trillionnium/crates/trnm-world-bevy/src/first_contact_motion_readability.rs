@@ -1,0 +1,437 @@
+#![cfg(not(target_os = "android"))]
+
+use serde_json::{json, Value};
+use std::collections::BTreeSet;
+use trnm_rts_data::{
+    RtsCommandFeedbackProfile, RtsFirstContactVisualTelemetryProfile, RtsOpeningLoopProfile,
+};
+
+use crate::{
+    classic_first_contact_tile_id, classic_rts_tile_id, first_contact_palette,
+    first_contact_samples, NativeFirstPlayableRuntime,
+    CLASSIC_FIRST_CONTACT_SECONDARY_TRACK_DARKEN_DENOMINATOR,
+    CLASSIC_FIRST_CONTACT_SECONDARY_TRACK_DARKEN_NUMERATOR,
+    TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_MOTION_READABILITY_CONTRACT,
+};
+
+fn string_vec<const N: usize>(values: [&str; N]) -> Vec<String> {
+    values.into_iter().map(str::to_string).collect()
+}
+
+pub(crate) fn motion_readability_guard(
+    opening: &RtsOpeningLoopProfile,
+    feedback: &RtsCommandFeedbackProfile,
+    telemetry: &RtsFirstContactVisualTelemetryProfile,
+    runtime: &NativeFirstPlayableRuntime,
+) -> Value {
+    let animation_samples = first_contact_samples::animation_cycle_samples();
+    let active_beacon_tile_id = classic_first_contact_tile_id(opening.active_beacon_tile);
+    let active_relay_tile_id = classic_first_contact_tile_id(opening.active_relay_tile);
+    let opening_action_ids = opening.opening_actions.clone();
+    let action_verbs = opening_action_ids
+        .iter()
+        .map(|action| action.split('_').next().unwrap_or_default().to_string())
+        .collect::<Vec<_>>();
+    let unit_status_badges = telemetry
+        .unit_statuses
+        .iter()
+        .map(|status| status.role_badge.clone())
+        .collect::<Vec<_>>();
+    let unit_status_color_roles = telemetry
+        .unit_statuses
+        .iter()
+        .map(|status| status.role_color.as_str().to_string())
+        .collect::<Vec<_>>();
+    let track_roles = telemetry
+        .tactical_tracks
+        .iter()
+        .map(|track| track.color_role.as_str().to_string())
+        .collect::<Vec<_>>();
+    let track_sample_objects = telemetry
+        .tactical_tracks
+        .iter()
+        .map(|track| {
+            json!({
+                "from_tile": classic_first_contact_tile_id(track.from_tile),
+                "to_tile": classic_first_contact_tile_id(track.to_tile),
+                "role": track.color_role.as_str(),
+            })
+        })
+        .collect::<Vec<_>>();
+    let animation_sample_tiles = animation_samples
+        .iter()
+        .map(|(tile, _, _)| classic_rts_tile_id(*tile))
+        .collect::<Vec<_>>();
+    let animation_roles = animation_samples
+        .iter()
+        .map(|(_, role, _)| (*role).to_string())
+        .collect::<Vec<_>>();
+    let animation_signatures = animation_samples
+        .iter()
+        .map(|(_, _, signature)| (*signature).to_string())
+        .collect::<Vec<_>>();
+    let animation_frame_richness_signatures =
+        first_contact_samples::animation_frame_richness_signatures()
+            .iter()
+            .map(|signature| (*signature).to_string())
+            .collect::<Vec<_>>();
+    let animation_sample_objects = animation_samples
+        .iter()
+        .map(|(tile, role, signature)| {
+            json!({
+                "tile": classic_rts_tile_id(*tile),
+                "role": role,
+                "signature": signature,
+            })
+        })
+        .collect::<Vec<_>>();
+    let unique_animation_signature_count =
+        animation_signatures.iter().collect::<BTreeSet<_>>().len();
+    let unit_animation_frame_count = animation_roles
+        .iter()
+        .filter(|role| first_contact_samples::unit_animation_role(role))
+        .count();
+    let building_animation_frame_count = animation_roles
+        .iter()
+        .filter(|role| first_contact_samples::structure_animation_role(role))
+        .count();
+    let objective_animation_frame_count = animation_roles
+        .iter()
+        .filter(|role| role.as_str() == "beacon")
+        .count();
+    let action_trail_count = telemetry
+        .tactical_tracks
+        .iter()
+        .filter(|track| track.color_role.as_str() == "action_trail")
+        .count();
+    let npc_action_count = telemetry
+        .tactical_tracks
+        .iter()
+        .filter(|track| track.color_role.as_str() == "npc_action")
+        .count();
+    let primary_tactical_track_count = telemetry
+        .tactical_tracks
+        .iter()
+        .filter(|track| first_contact_palette::primary_tactical_track(track))
+        .count();
+    let secondary_tactical_track_count = telemetry
+        .tactical_tracks
+        .len()
+        .saturating_sub(primary_tactical_track_count);
+    let primary_tactical_track_pixel_budget = primary_tactical_track_count * 48;
+    let secondary_tactical_track_pixel_budget = secondary_tactical_track_count * 16;
+    let secondary_tactical_track_height_px = 1_usize;
+    let secondary_tactical_track_darken_numerator =
+        CLASSIC_FIRST_CONTACT_SECONDARY_TRACK_DARKEN_NUMERATOR as usize;
+    let secondary_tactical_track_darken_denominator =
+        CLASSIC_FIRST_CONTACT_SECONDARY_TRACK_DARKEN_DENOMINATOR as usize;
+    let tactical_track_density_signatures = string_vec([
+        "primary_relay_beacon_track_kept_hot",
+        "secondary_tracks_dimmed",
+        "secondary_tracks_faded_into_terrain",
+        "secondary_tracks_one_pixel",
+    ]);
+    let route_tile_ids = runtime.rts_group_route_tile_ids.clone();
+    let combat_event_log = runtime.rts_combat_event_log.clone();
+    let unit_status_pixel_budget = telemetry.unit_statuses.len() * 64;
+    let tactical_track_pixel_budget =
+        primary_tactical_track_pixel_budget + secondary_tactical_track_pixel_budget;
+    let progress_meter_pixel_budget = usize::from(opening.worker_train_progress)
+        + usize::from(opening.scout_train_progress)
+        + usize::from(opening.relay_build_progress)
+        + usize::from(opening.beacon_capture_progress);
+    let feedback_pixel_budget = usize::from(feedback.command_ack_progress)
+        + usize::from(feedback.cooldown_progress)
+        + usize::from(feedback.queued_after) * 24;
+    let animation_frame_pixel_budget = animation_samples.len() * 88;
+    let animation_frame_richness_sample_count = animation_samples.len();
+    let animation_frame_richness_pixel_budget = animation_frame_richness_sample_count * 40;
+    let opening_action_gate = opening_action_ids
+        == string_vec([
+            "worker_harvest_flux",
+            "build_flux_relay",
+            "train_worker",
+            "train_horizon_scout",
+            "secure_flux_beacon",
+        ])
+        && action_verbs == string_vec(["worker", "build", "train", "train", "secure"])
+        && progress_meter_pixel_budget >= 200;
+    let unit_state_motion_gate = unit_status_badges == string_vec(["W", "S", "R", "G"])
+        && unit_status_color_roles == string_vec(["health", "mana", "attack", "confirm"])
+        && telemetry
+            .unit_statuses
+            .iter()
+            .all(|status| status.health_percent >= 60 && status.shield_percent > 0)
+        && unit_status_pixel_budget >= 256;
+    let tactical_track_motion_gate = telemetry.tactical_tracks.len() == 6
+        && action_trail_count == 3
+        && npc_action_count == 3
+        && primary_tactical_track_count == 1
+        && secondary_tactical_track_count == 5
+        && telemetry.tactical_tracks.iter().any(|track| {
+            track.from_tile == opening.active_relay_tile
+                && track.to_tile == opening.active_beacon_tile
+                && track.color_role.as_str() == "action_trail"
+        })
+        && primary_tactical_track_pixel_budget >= 48
+        && secondary_tactical_track_pixel_budget <= 80
+        && tactical_track_pixel_budget <= 128
+        && secondary_tactical_track_height_px == 1
+        && secondary_tactical_track_darken_numerator == 3
+        && secondary_tactical_track_darken_denominator == 4
+        && tactical_track_density_signatures
+            .iter()
+            .any(|signature| signature.as_str() == "primary_relay_beacon_track_kept_hot")
+        && tactical_track_density_signatures
+            .iter()
+            .any(|signature| signature.as_str() == "secondary_tracks_dimmed")
+        && tactical_track_density_signatures
+            .iter()
+            .any(|signature| signature.as_str() == "secondary_tracks_faded_into_terrain")
+        && tactical_track_density_signatures
+            .iter()
+            .any(|signature| signature.as_str() == "secondary_tracks_one_pixel");
+    let command_feedback_motion_gate = feedback.selected_group.as_str() == "GROUP 1"
+        && feedback.active_order.as_str() == "SECURE BEACON"
+        && feedback.target_tile == opening.active_beacon_tile
+        && feedback.queued_after > feedback.queued_before
+        && feedback.command_ack_progress > feedback.cooldown_progress
+        && feedback_pixel_budget >= 190;
+    let runtime_motion_gate = runtime.walk_cycle_frame >= 2
+        && runtime.combat_turn >= 3
+        && runtime.rts_training_progress_percent >= 60
+        && runtime.rts_build_progress_percent >= 40
+        && runtime.rts_training_progress_percent >= runtime.rts_build_progress_percent
+        && runtime.rts_command_destination_tile.as_deref() == Some(active_beacon_tile_id.as_str())
+        && route_tile_ids.len() >= 4
+        && route_tile_ids.last().map(|tile| tile.as_str()) == Some(active_beacon_tile_id.as_str())
+        && runtime.rts_attack_target_id.as_deref() == Some("trnm.flux.beacon")
+        && combat_event_log
+            .iter()
+            .any(|event| event == "worker_carry_supply")
+        && combat_event_log
+            .iter()
+            .any(|event| event == "secure_beacon:16,9");
+    let green = opening_action_gate
+        && unit_state_motion_gate
+        && tactical_track_motion_gate
+        && command_feedback_motion_gate
+        && runtime_motion_gate;
+    let unit_animation_frame_gate = unit_animation_frame_count >= 8
+        && animation_roles.iter().any(|role| role.as_str() == "worker")
+        && animation_roles.iter().any(|role| role.as_str() == "scout")
+        && animation_roles.iter().any(|role| role.as_str() == "warden")
+        && animation_roles.iter().any(|role| role.as_str() == "relay")
+        && animation_signatures
+            .iter()
+            .any(|signature| signature.as_str() == "harvest_tool_swing_frame")
+        && animation_signatures
+            .iter()
+            .any(|signature| signature.as_str() == "sensor_sweep_arc")
+        && animation_signatures
+            .iter()
+            .any(|signature| signature.as_str() == "attack_recoil_ticks");
+    let building_animation_frame_gate = building_animation_frame_count >= 3
+        && animation_signatures
+            .iter()
+            .any(|signature| signature.as_str() == "training_tick_lane")
+        && animation_signatures
+            .iter()
+            .any(|signature| signature.as_str() == "spawn_door_open_frame")
+        && animation_signatures
+            .iter()
+            .any(|signature| signature.as_str() == "construction_spark_ladder");
+    let objective_animation_frame_gate = objective_animation_frame_count >= 2
+        && animation_signatures
+            .iter()
+            .any(|signature| signature.as_str() == "capture_pulse_frame")
+        && animation_signatures
+            .iter()
+            .any(|signature| signature.as_str() == "rally_flag_flutter");
+    let animation_cycle_detail_gate = unit_animation_frame_gate
+        && building_animation_frame_gate
+        && objective_animation_frame_gate
+        && unique_animation_signature_count >= 13
+        && animation_frame_pixel_budget >= 1_144;
+    let animation_frame_richness_gate = animation_frame_richness_signatures
+        == string_vec([
+            "animation_secondary_pose_offsets",
+            "animation_contact_smear_ticks",
+            "animation_structure_shutter_frames",
+            "animation_objective_afterglow_frames",
+        ])
+        && animation_frame_richness_sample_count >= 13
+        && animation_frame_richness_pixel_budget >= 520;
+    let green = green && animation_cycle_detail_gate && animation_frame_richness_gate;
+
+    json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_MOTION_READABILITY_CONTRACT,
+        "green": green,
+        "source_path": "trnm-world-bevy classic_draw_first_contact_opening_actions + classic_draw_first_contact_unit_state_layers + classic_draw_first_contact_command_feedback_layers + classic_draw_first_contact_animation_readability_layer",
+        "active_relay_tile": active_relay_tile_id,
+        "active_beacon_tile": active_beacon_tile_id,
+        "opening_action_ids": opening_action_ids,
+        "action_verbs": action_verbs,
+        "progress_meter_pixel_budget": progress_meter_pixel_budget,
+        "opening_action_gate": opening_action_gate,
+        "unit_status_badges": unit_status_badges,
+        "unit_status_color_roles": unit_status_color_roles,
+        "unit_status_pixel_budget": unit_status_pixel_budget,
+        "unit_state_motion_gate": unit_state_motion_gate,
+        "track_roles": track_roles,
+        "track_samples": track_sample_objects,
+        "action_trail_count": action_trail_count,
+        "npc_action_count": npc_action_count,
+        "primary_tactical_track_count": primary_tactical_track_count,
+        "secondary_tactical_track_count": secondary_tactical_track_count,
+        "primary_tactical_track_pixel_budget": primary_tactical_track_pixel_budget,
+        "secondary_tactical_track_pixel_budget": secondary_tactical_track_pixel_budget,
+        "secondary_tactical_track_height_px": secondary_tactical_track_height_px,
+        "secondary_tactical_track_darken_numerator": secondary_tactical_track_darken_numerator,
+        "secondary_tactical_track_darken_denominator": secondary_tactical_track_darken_denominator,
+        "tactical_track_density_signatures": tactical_track_density_signatures,
+        "tactical_track_pixel_budget": tactical_track_pixel_budget,
+        "tactical_track_motion_gate": tactical_track_motion_gate,
+        "feedback_selected_group": feedback.selected_group.clone(),
+        "feedback_active_order": feedback.active_order.clone(),
+        "feedback_target_tile": classic_first_contact_tile_id(feedback.target_tile),
+        "feedback_queued_before": feedback.queued_before,
+        "feedback_queued_after": feedback.queued_after,
+        "feedback_command_ack_progress": feedback.command_ack_progress,
+        "feedback_cooldown_progress": feedback.cooldown_progress,
+        "feedback_pixel_budget": feedback_pixel_budget,
+        "command_feedback_motion_gate": command_feedback_motion_gate,
+        "walk_cycle_frame": runtime.walk_cycle_frame,
+        "combat_turn": runtime.combat_turn,
+        "route_tile_ids": route_tile_ids,
+        "command_destination_tile": runtime.rts_command_destination_tile.clone(),
+        "attack_target_id": runtime.rts_attack_target_id.clone(),
+        "combat_event_log": combat_event_log,
+        "training_progress_percent": runtime.rts_training_progress_percent,
+        "build_progress_percent": runtime.rts_build_progress_percent,
+        "runtime_motion_gate": runtime_motion_gate,
+        "animation_sample_tiles": animation_sample_tiles,
+        "animation_roles": animation_roles,
+        "animation_signatures": animation_signatures,
+        "animation_frame_richness_source_path": "trnm-world-bevy classic_draw_first_contact_animation_frame_richness_detail",
+        "animation_frame_richness_signatures": animation_frame_richness_signatures,
+        "animation_frame_richness_sample_count": animation_frame_richness_sample_count,
+        "animation_frame_richness_pixel_budget": animation_frame_richness_pixel_budget,
+        "animation_samples": animation_sample_objects,
+        "unit_animation_frame_count": unit_animation_frame_count,
+        "building_animation_frame_count": building_animation_frame_count,
+        "objective_animation_frame_count": objective_animation_frame_count,
+        "unique_animation_signature_count": unique_animation_signature_count,
+        "animation_frame_pixel_budget": animation_frame_pixel_budget,
+        "unit_animation_frame_gate": unit_animation_frame_gate,
+        "building_animation_frame_gate": building_animation_frame_gate,
+        "objective_animation_frame_gate": objective_animation_frame_gate,
+        "animation_cycle_detail_gate": animation_cycle_detail_gate,
+        "animation_frame_richness_gate": animation_frame_richness_gate,
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn first_contact_motion_readability_helpers_preserve_activity_contracts() {
+        let guard = motion_readability_guard(
+            &crate::classic_first_contact_opening_loop(),
+            &crate::classic_first_contact_command_feedback(),
+            &crate::classic_first_contact_visual_telemetry(),
+            &crate::classic_first_contact_player_screen_runtime(),
+        );
+
+        assert_eq!(
+            guard.get("contract_version").and_then(Value::as_str),
+            Some(TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_MOTION_READABILITY_CONTRACT)
+        );
+        assert_eq!(guard.get("green").and_then(Value::as_bool), Some(true));
+        assert_eq!(
+            guard.get("opening_action_ids").cloned(),
+            Some(json!([
+                "worker_harvest_flux",
+                "build_flux_relay",
+                "train_worker",
+                "train_horizon_scout",
+                "secure_flux_beacon"
+            ]))
+        );
+        assert_eq!(
+            guard.get("track_roles").cloned(),
+            Some(json!([
+                "action_trail",
+                "npc_action",
+                "action_trail",
+                "npc_action",
+                "action_trail",
+                "npc_action"
+            ]))
+        );
+        assert_eq!(
+            guard
+                .get("primary_tactical_track_count")
+                .and_then(Value::as_u64),
+            Some(1)
+        );
+        assert_eq!(
+            guard
+                .get("secondary_tactical_track_count")
+                .and_then(Value::as_u64),
+            Some(5)
+        );
+        assert_eq!(
+            guard
+                .get("tactical_track_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(128)
+        );
+        assert_eq!(
+            guard
+                .get("animation_frame_richness_signatures")
+                .and_then(Value::as_array)
+                .map(|signatures| signatures.len()),
+            Some(4)
+        );
+        assert_eq!(
+            guard
+                .get("animation_frame_richness_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(520)
+        );
+        assert_eq!(
+            guard
+                .get("unit_animation_frame_count")
+                .and_then(Value::as_u64),
+            Some(8)
+        );
+        assert_eq!(
+            guard
+                .get("building_animation_frame_count")
+                .and_then(Value::as_u64),
+            Some(3)
+        );
+        assert_eq!(
+            guard
+                .get("objective_animation_frame_count")
+                .and_then(Value::as_u64),
+            Some(2)
+        );
+        for gate in [
+            "opening_action_gate",
+            "unit_state_motion_gate",
+            "tactical_track_motion_gate",
+            "command_feedback_motion_gate",
+            "runtime_motion_gate",
+            "unit_animation_frame_gate",
+            "building_animation_frame_gate",
+            "objective_animation_frame_gate",
+            "animation_cycle_detail_gate",
+            "animation_frame_richness_gate",
+        ] {
+            assert_eq!(guard.get(gate).and_then(Value::as_bool), Some(true));
+        }
+    }
+}
