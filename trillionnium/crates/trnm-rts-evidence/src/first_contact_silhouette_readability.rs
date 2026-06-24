@@ -1,25 +1,25 @@
-#![cfg(not(target_os = "android"))]
-
 use serde_json::{json, Value};
 use std::collections::BTreeSet;
+use trnm_rts_bevy_runtime::rts_runtime_tile_id;
 use trnm_rts_data::first_contact_samples;
 
-use crate::{
-    classic_rts_tile_id,
-    TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_SILHOUETTE_READABILITY_CONTRACT,
-};
+use crate::TRNM_RTS_EVIDENCE_FIRST_CONTACT_SILHOUETTE_READABILITY_CONTRACT;
 
 fn string_vec<const N: usize>(values: [&str; N]) -> Vec<String> {
     values.into_iter().map(str::to_string).collect()
 }
 
-pub(crate) fn silhouette_readability_guard() -> Value {
+fn tile_id(tile: (i32, i32)) -> String {
+    rts_runtime_tile_id(tile)
+}
+
+pub fn first_contact_silhouette_readability_guard() -> Value {
     let terrain_samples = first_contact_samples::silhouette_terrain_samples();
     let unit_samples = first_contact_samples::silhouette_unit_samples();
     let structure_samples = first_contact_samples::silhouette_structure_samples();
     let terrain_sample_tiles = terrain_samples
         .iter()
-        .map(|(tile, _, _)| classic_rts_tile_id(*tile))
+        .map(|(tile, _, _)| tile_id(*tile))
         .collect::<Vec<_>>();
     let terrain_sample_roles = terrain_samples
         .iter()
@@ -31,7 +31,7 @@ pub(crate) fn silhouette_readability_guard() -> Value {
         .collect::<Vec<_>>();
     let unit_sample_tiles = unit_samples
         .iter()
-        .map(|(tile, _, _)| classic_rts_tile_id(*tile))
+        .map(|(tile, _, _)| tile_id(*tile))
         .collect::<Vec<_>>();
     let unit_roles = unit_samples
         .iter()
@@ -43,7 +43,7 @@ pub(crate) fn silhouette_readability_guard() -> Value {
         .collect::<Vec<_>>();
     let structure_sample_tiles = structure_samples
         .iter()
-        .map(|(tile, _, _)| classic_rts_tile_id(*tile))
+        .map(|(tile, _, _)| tile_id(*tile))
         .collect::<Vec<_>>();
     let structure_roles = structure_samples
         .iter()
@@ -57,7 +57,7 @@ pub(crate) fn silhouette_readability_guard() -> Value {
         .iter()
         .map(|(tile, role, signature)| {
             json!({
-                "tile": classic_rts_tile_id(*tile),
+                "tile": tile_id(*tile),
                 "role": role,
                 "signature": signature,
             })
@@ -67,7 +67,7 @@ pub(crate) fn silhouette_readability_guard() -> Value {
         .iter()
         .map(|(tile, role, signature)| {
             json!({
-                "tile": classic_rts_tile_id(*tile),
+                "tile": tile_id(*tile),
                 "role": role,
                 "signature": signature,
             })
@@ -77,7 +77,7 @@ pub(crate) fn silhouette_readability_guard() -> Value {
         .iter()
         .map(|(tile, role, signature)| {
             json!({
-                "tile": classic_rts_tile_id(*tile),
+                "tile": tile_id(*tile),
                 "role": role,
                 "signature": signature,
             })
@@ -133,7 +133,7 @@ pub(crate) fn silhouette_readability_guard() -> Value {
     let green = map_object_silhouette_gate;
 
     json!({
-        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_SILHOUETTE_READABILITY_CONTRACT,
+        "contract_version": TRNM_RTS_EVIDENCE_FIRST_CONTACT_SILHOUETTE_READABILITY_CONTRACT,
         "green": green,
         "source_path": "trnm-world-bevy classic_draw_first_contact_silhouette_readability_layer",
         "terrain_sample_tiles": terrain_sample_tiles,
@@ -169,11 +169,11 @@ mod tests {
 
     #[test]
     fn first_contact_silhouette_readability_helpers_preserve_shape_contracts() {
-        let guard = silhouette_readability_guard();
+        let guard = first_contact_silhouette_readability_guard();
 
         assert_eq!(
             guard.get("contract_version").and_then(Value::as_str),
-            Some(TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_SILHOUETTE_READABILITY_CONTRACT)
+            Some(TRNM_RTS_EVIDENCE_FIRST_CONTACT_SILHOUETTE_READABILITY_CONTRACT)
         );
         assert_eq!(guard.get("green").and_then(Value::as_bool), Some(true));
         assert_eq!(

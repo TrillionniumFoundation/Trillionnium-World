@@ -95,8 +95,6 @@ mod first_contact_radar_readability;
 mod first_contact_readouts;
 mod first_contact_sidebar_density;
 #[cfg(not(target_os = "android"))]
-mod first_contact_silhouette_readability;
-#[cfg(not(target_os = "android"))]
 mod first_contact_spatial_readability;
 #[cfg(not(target_os = "android"))]
 mod first_contact_tiles;
@@ -304,7 +302,7 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_SIDEBAR_DENSITY_CONT
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_BOTTOM_PANEL_READABILITY_CONTRACT:
     &str = "trillionnium_world_bevy_classic_rts_first_contact_bottom_panel_readability_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_SILHOUETTE_READABILITY_CONTRACT: &str =
-    "trillionnium_world_bevy_classic_rts_first_contact_silhouette_readability_v1";
+    trnm_rts_evidence::TRNM_RTS_EVIDENCE_FIRST_CONTACT_SILHOUETTE_READABILITY_CONTRACT;
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_ART_READABILITY_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_first_contact_art_readability_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_MOTION_READABILITY_CONTRACT: &str =
@@ -112321,7 +112319,7 @@ fn classic_first_contact_visual_readability_guard(runtime: &NativeFirstPlayableR
 
 #[cfg(not(target_os = "android"))]
 fn classic_first_contact_silhouette_readability_guard() -> Value {
-    first_contact_silhouette_readability::silhouette_readability_guard()
+    trnm_rts_evidence::first_contact_silhouette_readability_guard()
 }
 
 #[cfg(not(target_os = "android"))]
