@@ -104,6 +104,8 @@ use trnm_rts_bevy_runtime::{
 #[cfg(not(target_os = "android"))]
 mod first_contact_art_readability;
 #[cfg(not(target_os = "android"))]
+mod first_contact_focus_readability;
+#[cfg(not(target_os = "android"))]
 mod first_contact_marker_budget;
 #[cfg(not(target_os = "android"))]
 mod first_contact_motion_readability;
@@ -118,6 +120,11 @@ mod first_contact_visual_readability;
 
 #[cfg(not(target_os = "android"))]
 pub use first_contact_art_readability::first_contact_art_readability_guard;
+#[cfg(not(target_os = "android"))]
+pub use first_contact_focus_readability::{
+    first_contact_selection_combat_focus_guard, first_contact_target_callout_guard,
+    RtsFirstContactFocusReadabilityGeometrySnapshot, RtsFirstContactFocusReadabilityRuntime,
+};
 #[cfg(not(target_os = "android"))]
 pub use first_contact_marker_budget::{
     first_contact_marker_budget_guard, RtsFirstContactFocusGeometrySnapshot,
@@ -154,8 +161,12 @@ pub const TRNM_RTS_EVIDENCE_FIRST_CONTACT_MARKER_BUDGET_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_first_contact_marker_budget_v1";
 pub const TRNM_RTS_EVIDENCE_FIRST_CONTACT_RADAR_READABILITY_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_first_contact_radar_readability_v1";
+pub const TRNM_RTS_EVIDENCE_FIRST_CONTACT_SELECTION_COMBAT_FOCUS_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_first_contact_selection_combat_focus_v1";
 pub const TRNM_RTS_EVIDENCE_FIRST_CONTACT_SILHOUETTE_READABILITY_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_first_contact_silhouette_readability_v1";
+pub const TRNM_RTS_EVIDENCE_FIRST_CONTACT_TARGET_CALLOUT_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_first_contact_target_callout_v1";
 pub const TRNM_RTS_EVIDENCE_FIRST_CONTACT_TERMINAL_LEGIBILITY_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_first_contact_terminal_legibility_v1";
 pub const TRNM_RTS_EVIDENCE_FIRST_CONTACT_VISUAL_READABILITY_CONTRACT: &str =
