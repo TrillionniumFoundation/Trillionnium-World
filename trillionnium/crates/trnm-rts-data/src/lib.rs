@@ -9,6 +9,8 @@ use std::collections::BTreeSet;
 use trnm_rts_core::RtsTile;
 
 #[cfg(not(target_os = "android"))]
+pub mod first_contact_labels;
+#[cfg(not(target_os = "android"))]
 pub mod first_contact_samples;
 
 pub const TRNM_RTS_DATA_CONTRACT: &str = "trnm_rts_data_map_model_v1";

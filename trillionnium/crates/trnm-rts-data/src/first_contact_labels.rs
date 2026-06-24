@@ -1,4 +1,4 @@
-use trnm_rts_data::RtsPlayerScreenTacticsRowKind;
+use crate::RtsPlayerScreenTacticsRowKind;
 
 fn catalog_text_label(text: &str, max_chars: usize) -> String {
     text.replace('_', " ")
@@ -11,7 +11,7 @@ fn catalog_text_label(text: &str, max_chars: usize) -> String {
         .collect()
 }
 
-pub(crate) fn palette_state_badge_label(state_label: &str) -> String {
+pub fn palette_state_badge_label(state_label: &str) -> String {
     match state_label.to_ascii_uppercase().as_str() {
         "ACTIVE" => "ACT".to_string(),
         "QUEUE" => "QUE".to_string(),
@@ -21,7 +21,7 @@ pub(crate) fn palette_state_badge_label(state_label: &str) -> String {
     }
 }
 
-pub(crate) fn build_palette_badge_label(slot_label: &str) -> String {
+pub fn build_palette_badge_label(slot_label: &str) -> String {
     match slot_label.to_ascii_uppercase().as_str() {
         "COMMAND" => "CMD".to_string(),
         "POWER" => "PWR".to_string(),
@@ -35,7 +35,7 @@ pub(crate) fn build_palette_badge_label(slot_label: &str) -> String {
     }
 }
 
-pub(crate) fn production_slot_badge_label(slot_label: &str) -> String {
+pub fn production_slot_badge_label(slot_label: &str) -> String {
     match slot_label.to_ascii_uppercase().as_str() {
         "GUARD" => "GRD".to_string(),
         "READY" => "RDY".to_string(),
@@ -50,7 +50,7 @@ pub(crate) fn production_slot_badge_label(slot_label: &str) -> String {
     }
 }
 
-pub(crate) fn production_status_badge_label(status_label: &str) -> String {
+pub fn production_status_badge_label(status_label: &str) -> String {
     let upper = status_label.to_ascii_uppercase();
     if let Some(queue_id) = upper
         .strip_prefix('Q')
@@ -73,7 +73,7 @@ pub(crate) fn production_status_badge_label(status_label: &str) -> String {
     }
 }
 
-pub(crate) fn tactics_queue_badge_label(value: &str) -> String {
+pub fn tactics_queue_badge_label(value: &str) -> String {
     let tokens = value.split_whitespace().collect::<Vec<_>>();
     let mut badges = Vec::new();
     for pair in tokens.chunks(2) {
@@ -120,7 +120,7 @@ fn tactics_queue_word_badge(token: &str) -> Option<&'static str> {
     }
 }
 
-pub(crate) fn tactics_queue_fallback_badge_label(value: &str) -> String {
+pub fn tactics_queue_fallback_badge_label(value: &str) -> String {
     match value {
         "READY" => return "RDY".to_string(),
         "IDLE" => return "IDLE".to_string(),
@@ -138,7 +138,7 @@ pub(crate) fn tactics_queue_fallback_badge_label(value: &str) -> String {
     }
 }
 
-pub(crate) fn tactics_row_badge_label(kind: RtsPlayerScreenTacticsRowKind, value: &str) -> String {
+pub fn tactics_row_badge_label(kind: RtsPlayerScreenTacticsRowKind, value: &str) -> String {
     match kind {
         RtsPlayerScreenTacticsRowKind::Order => {
             if value.contains("SECURE") {
@@ -170,7 +170,7 @@ pub(crate) fn tactics_row_badge_label(kind: RtsPlayerScreenTacticsRowKind, value
     }
 }
 
-pub(crate) fn order_queue_badge_code_from_display_label(label: &str) -> String {
+pub fn order_queue_badge_code_from_display_label(label: &str) -> String {
     let upper = label.to_ascii_uppercase();
     if upper.contains("BLOCKED") {
         return "BLK".to_string();
@@ -192,7 +192,7 @@ pub(crate) fn order_queue_badge_code_from_display_label(label: &str) -> String {
     .to_string()
 }
 
-pub(crate) fn order_queue_badge_detail_from_display_label(label: &str) -> String {
+pub fn order_queue_badge_detail_from_display_label(label: &str) -> String {
     let upper = label.to_ascii_uppercase();
     if upper.ends_with(" READY") {
         return "RDY".to_string();
@@ -232,7 +232,7 @@ pub(crate) fn order_queue_badge_detail_from_display_label(label: &str) -> String
     catalog_text_label(compact_detail, 12)
 }
 
-pub(crate) fn order_queue_badge_label_from_display_label(label: &str) -> String {
+pub fn order_queue_badge_label_from_display_label(label: &str) -> String {
     format!(
         "{} {}",
         order_queue_badge_code_from_display_label(label),

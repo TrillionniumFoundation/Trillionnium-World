@@ -38,7 +38,7 @@ use trnm_rts_core::{
 #[cfg(not(target_os = "android"))]
 use trnm_rts_data::{
     first_contact_actor_presentation_profile, first_contact_basin_map,
-    first_contact_command_feedback_profile, first_contact_map_renderer_model,
+    first_contact_command_feedback_profile, first_contact_labels, first_contact_map_renderer_model,
     first_contact_opening_loop_profile, first_contact_player_screen_profile,
     first_contact_player_startup_profiles, first_contact_preview_actors, first_contact_samples,
     first_contact_terrain_profile, first_contact_visual_telemetry_profile, RtsActorColorRole,
@@ -81,7 +81,6 @@ mod first_contact_bottom_panel;
 mod first_contact_command_grid;
 #[cfg(not(target_os = "android"))]
 mod first_contact_focus_readability;
-mod first_contact_labels;
 #[cfg(not(target_os = "android"))]
 mod first_contact_marker_budget;
 #[cfg(not(target_os = "android"))]
