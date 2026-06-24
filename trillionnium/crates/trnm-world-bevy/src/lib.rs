@@ -86,8 +86,6 @@ mod first_contact_palette;
 #[cfg(not(target_os = "android"))]
 mod first_contact_player_screen_labels;
 #[cfg(not(target_os = "android"))]
-mod first_contact_radar_readability;
-#[cfg(not(target_os = "android"))]
 mod first_contact_readouts;
 mod first_contact_sidebar_density;
 #[cfg(not(target_os = "android"))]
@@ -288,7 +286,7 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_LABEL_GUARD_CONTRACT
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_VISUAL_READABILITY_CONTRACT: &str =
     trnm_rts_evidence::TRNM_RTS_EVIDENCE_FIRST_CONTACT_VISUAL_READABILITY_CONTRACT;
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_RADAR_READABILITY_CONTRACT: &str =
-    "trillionnium_world_bevy_classic_rts_first_contact_radar_readability_v1";
+    trnm_rts_evidence::TRNM_RTS_EVIDENCE_FIRST_CONTACT_RADAR_READABILITY_CONTRACT;
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_COMMAND_GRID_READABILITY_CONTRACT:
     &str = "trillionnium_world_bevy_classic_rts_first_contact_command_grid_readability_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_SIDEBAR_DENSITY_CONTRACT: &str =
@@ -112473,15 +112471,49 @@ fn classic_first_contact_radar_lane_sample_tiles() -> Vec<(i32, i32)> {
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_first_contact_radar_zoom(runtime: &NativeFirstPlayableRuntime) -> f32 {
+    (runtime.rts_camera_zoom_percent.max(1) as f32 / 100.0).clamp(0.25, 3.0)
+}
+
+#[cfg(not(target_os = "android"))]
 fn classic_first_contact_radar_viewport_rect(
     runtime: &NativeFirstPlayableRuntime,
 ) -> RtsCameraMinimapViewportRect {
-    first_contact_radar_readability::radar_viewport_rect(runtime)
+    runtime.rts_camera_viewport_rect.unwrap_or_else(|| {
+        let camera_state = classic_rts_camera_state_for_focus_tile(
+            first_contact_tiles::radar_focus_tile(runtime),
+            classic_first_contact_radar_zoom(runtime),
+        );
+        rts_camera_minimap_viewport_rect(camera_state, 117, 56)
+    })
 }
 
 #[cfg(not(target_os = "android"))]
 fn classic_first_contact_radar_readability_guard(runtime: &NativeFirstPlayableRuntime) -> Value {
-    first_contact_radar_readability::radar_readability_guard(runtime)
+    let radar_runtime = trnm_rts_evidence::RtsFirstContactRadarReadabilityRuntime {
+        selected_tile_ids: runtime
+            .rts_selection_box_tile_ids
+            .iter()
+            .filter_map(|tile_id| classic_parse_rts_tile(tile_id).map(classic_rts_tile_id))
+            .collect(),
+        route_tile_ids: runtime
+            .rts_group_route_tile_ids
+            .iter()
+            .filter_map(|tile_id| classic_parse_rts_tile(tile_id).map(classic_rts_tile_id))
+            .collect(),
+        visible_tile_ids: runtime
+            .rts_visible_tile_ids
+            .iter()
+            .filter_map(|tile_id| classic_parse_rts_tile(tile_id).map(classic_rts_tile_id))
+            .collect(),
+        command_destination_tile: runtime
+            .rts_command_destination_tile
+            .as_deref()
+            .and_then(classic_parse_rts_tile)
+            .map(classic_rts_tile_id),
+        viewport_rect: classic_first_contact_radar_viewport_rect(runtime),
+    };
+    trnm_rts_evidence::first_contact_radar_readability_guard(&radar_runtime)
 }
 
 #[cfg(not(target_os = "android"))]
