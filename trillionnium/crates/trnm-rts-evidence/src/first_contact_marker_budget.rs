@@ -1,50 +1,63 @@
 #![cfg(not(target_os = "android"))]
 
 use serde_json::{json, Value};
-use trnm_rts_bevy_runtime as rts_bevy_runtime;
+use trnm_rts_bevy_runtime::{self as rts_bevy_runtime, rts_runtime_tile_id};
 use trnm_rts_data::first_contact_samples::{self, AtlasSample};
 
 use crate::{
-    classic_parse_rts_tile, classic_rts_tile_id, first_contact_tiles, NativeFirstPlayableRuntime,
-    CLASSIC_FIRST_CONTACT_ROUTE_ACK_TICK_HEIGHT_PX, CLASSIC_FIRST_CONTACT_ROUTE_ACK_TICK_WIDTH_PX,
-    CLASSIC_FIRST_CONTACT_ROUTE_DASH_HEIGHT_PX, CLASSIC_FIRST_CONTACT_ROUTE_DASH_WIDTH_PX,
-    CLASSIC_FIRST_CONTACT_SELECTED_FOCUS_BRACKET_PIXELS_PER_TILE,
-    CLASSIC_FIRST_CONTACT_SELECTED_ROLE_BADGE_TICK_H_PX,
-    CLASSIC_FIRST_CONTACT_SELECTED_ROLE_BADGE_TICK_W_PX,
-    TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_MARKER_BUDGET_CONTRACT,
+    TRNM_RTS_EVIDENCE_FIRST_CONTACT_LOWER_LANE_GALLERY_DARKEN_DENOMINATOR,
+    TRNM_RTS_EVIDENCE_FIRST_CONTACT_LOWER_LANE_GALLERY_DARKEN_NUMERATOR,
+    TRNM_RTS_EVIDENCE_FIRST_CONTACT_MARKER_BUDGET_CONTRACT,
 };
 
-pub(crate) const LOWER_LANE_GALLERY_DARKEN_NUMERATOR: u32 = 5;
-pub(crate) const LOWER_LANE_GALLERY_DARKEN_DENOMINATOR: u32 = 6;
-pub(crate) const LOWER_LANE_SLOT_CUE_PIXELS_PER_SAMPLE: usize = 1;
-pub(crate) const LOWER_LANE_GHOST_ANCHOR_COUNT: usize = 1;
+const LOWER_LANE_SLOT_CUE_PIXELS_PER_SAMPLE: usize = 1;
+const LOWER_LANE_GHOST_ANCHOR_COUNT: usize = 1;
 
-pub(crate) struct GalleryBudgetSummary {
-    pub(crate) gallery_lanes: Vec<&'static str>,
-    pub(crate) busy_core_tiles: Vec<(i32, i32)>,
-    pub(crate) lower_lane_gallery_tiles: Vec<(i32, i32)>,
-    pub(crate) north_gallery_frame_count: usize,
-    pub(crate) west_gallery_frame_count: usize,
-    pub(crate) east_gallery_frame_count: usize,
-    pub(crate) max_gallery_lane_frame_count: usize,
-    pub(crate) muted_gallery_sample_count: usize,
-    pub(crate) gallery_mute_overlay_pixel_budget: usize,
-    pub(crate) gallery_slot_cue_pixel_budget: usize,
-    pub(crate) lower_lane_gallery_sample_count: usize,
-    pub(crate) lower_lane_mute_overlay_pixel_budget: usize,
-    pub(crate) lower_lane_slot_cue_pixel_budget: usize,
-    pub(crate) lower_lane_ghost_anchor_count: usize,
-    pub(crate) lower_lane_gallery_darken_numerator: usize,
-    pub(crate) lower_lane_gallery_darken_denominator: usize,
-    pub(crate) lower_lane_dim_silhouette_pixel_budget: usize,
-    pub(crate) lower_lane_shadow_suppressed_count: usize,
-    pub(crate) gallery_hot_marker_color_count: usize,
-    pub(crate) lower_lane_hot_marker_color_count: usize,
-    pub(crate) interactive_hot_marker_role_count: usize,
-    pub(crate) gallery_presentation_signatures: Vec<&'static str>,
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct RtsFirstContactFocusGeometrySnapshot {
+    pub selected_role_badge_tick_width_px: usize,
+    pub selected_role_badge_tick_height_px: usize,
+    pub selected_focus_bracket_pixels_per_tile: usize,
+    pub route_dash_width_px: usize,
+    pub route_dash_height_px: usize,
+    pub route_ack_tick_width_px: usize,
+    pub route_ack_tick_height_px: usize,
 }
 
-pub(crate) fn gallery_budget_summary<F>(
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RtsFirstContactMarkerBudgetRuntime {
+    pub selected_tiles: Vec<(i32, i32)>,
+    pub route_tiles: Vec<(i32, i32)>,
+    pub frame_pixel_areas: Vec<(String, usize)>,
+    pub focus_geometry: RtsFirstContactFocusGeometrySnapshot,
+}
+
+struct GalleryBudgetSummary {
+    gallery_lanes: Vec<&'static str>,
+    busy_core_tiles: Vec<(i32, i32)>,
+    lower_lane_gallery_tiles: Vec<(i32, i32)>,
+    north_gallery_frame_count: usize,
+    west_gallery_frame_count: usize,
+    east_gallery_frame_count: usize,
+    max_gallery_lane_frame_count: usize,
+    muted_gallery_sample_count: usize,
+    gallery_mute_overlay_pixel_budget: usize,
+    gallery_slot_cue_pixel_budget: usize,
+    lower_lane_gallery_sample_count: usize,
+    lower_lane_mute_overlay_pixel_budget: usize,
+    lower_lane_slot_cue_pixel_budget: usize,
+    lower_lane_ghost_anchor_count: usize,
+    lower_lane_gallery_darken_numerator: usize,
+    lower_lane_gallery_darken_denominator: usize,
+    lower_lane_dim_silhouette_pixel_budget: usize,
+    lower_lane_shadow_suppressed_count: usize,
+    gallery_hot_marker_color_count: usize,
+    lower_lane_hot_marker_color_count: usize,
+    interactive_hot_marker_role_count: usize,
+    gallery_presentation_signatures: Vec<&'static str>,
+}
+
+fn gallery_budget_summary<F>(
     family_samples: &[AtlasSample],
     mut frame_pixel_area: F,
 ) -> GalleryBudgetSummary
@@ -97,8 +110,10 @@ where
         lower_lane_gallery_sample_count * LOWER_LANE_SLOT_CUE_PIXELS_PER_SAMPLE;
     let lower_lane_ghost_anchor_count =
         lower_lane_gallery_sample_count * LOWER_LANE_GHOST_ANCHOR_COUNT;
-    let lower_lane_gallery_darken_numerator = LOWER_LANE_GALLERY_DARKEN_NUMERATOR as usize;
-    let lower_lane_gallery_darken_denominator = LOWER_LANE_GALLERY_DARKEN_DENOMINATOR as usize;
+    let lower_lane_gallery_darken_numerator =
+        TRNM_RTS_EVIDENCE_FIRST_CONTACT_LOWER_LANE_GALLERY_DARKEN_NUMERATOR as usize;
+    let lower_lane_gallery_darken_denominator =
+        TRNM_RTS_EVIDENCE_FIRST_CONTACT_LOWER_LANE_GALLERY_DARKEN_DENOMINATOR as usize;
     let lower_lane_dim_silhouette_pixel_budget =
         lower_lane_gallery_sample_count * lower_lane_gallery_darken_numerator * 96;
 
@@ -146,19 +161,28 @@ fn string_vec<const N: usize>(values: [&str; N]) -> Vec<String> {
 }
 
 fn tile_ids(tiles: &[(i32, i32)]) -> Vec<String> {
-    tiles.iter().copied().map(classic_rts_tile_id).collect()
+    tiles.iter().copied().map(rts_runtime_tile_id).collect()
 }
 
-pub(crate) fn marker_budget_guard<F>(
-    runtime: &NativeFirstPlayableRuntime,
-    mut frame_pixel_area: F,
-) -> Value
-where
-    F: FnMut(&str, u32) -> usize,
-{
+fn runtime_frame_pixel_area(
+    runtime: &RtsFirstContactMarkerBudgetRuntime,
+    frame_id: &str,
+    scale: u32,
+) -> usize {
+    runtime
+        .frame_pixel_areas
+        .iter()
+        .find_map(|(id, area)| (id == frame_id).then_some(*area))
+        .unwrap_or_else(|| {
+            let frame_px = 16_usize * scale.max(1) as usize;
+            frame_px * frame_px
+        })
+}
+
+pub fn first_contact_marker_budget_guard(runtime: &RtsFirstContactMarkerBudgetRuntime) -> Value {
     let family_samples = first_contact_samples::atlas_frame_family_samples();
     let gallery_summary = gallery_budget_summary(&family_samples, |frame_id, scale| {
-        frame_pixel_area(frame_id, scale)
+        runtime_frame_pixel_area(runtime, frame_id, scale)
     });
     let gallery_lanes = gallery_summary
         .gallery_lanes
@@ -192,29 +216,27 @@ where
         .iter()
         .map(|signature| (*signature).to_string())
         .collect::<Vec<_>>();
-    let selected_focus_tiles = runtime
-        .rts_selection_box_tile_ids
-        .iter()
-        .filter_map(|tile_id| classic_parse_rts_tile(tile_id).map(classic_rts_tile_id))
-        .collect::<Vec<_>>();
-    let route_focus_tile_pairs = first_contact_tiles::selection_combat_focus_route_tiles(runtime);
+    let selected_focus_tiles = tile_ids(&runtime.selected_tiles);
+    let route_focus_tile_pairs = runtime.route_tiles.clone();
     let route_focus_tiles = tile_ids(&route_focus_tile_pairs);
     let route_ack_tick_count = route_focus_tile_pairs
         .windows(2)
         .map(|pair| rts_bevy_runtime::rts_runtime_tile_line(pair[0], pair[1]).len())
         .sum::<usize>();
     let selected_role_badge_tick_pixel_budget = selected_focus_tiles.len()
-        * (CLASSIC_FIRST_CONTACT_SELECTED_ROLE_BADGE_TICK_W_PX as usize)
-        * (CLASSIC_FIRST_CONTACT_SELECTED_ROLE_BADGE_TICK_H_PX as usize);
+        * runtime.focus_geometry.selected_role_badge_tick_width_px
+        * runtime.focus_geometry.selected_role_badge_tick_height_px;
     let selected_focus_pixel_budget = selected_focus_tiles.len()
-        * CLASSIC_FIRST_CONTACT_SELECTED_FOCUS_BRACKET_PIXELS_PER_TILE
+        * runtime
+            .focus_geometry
+            .selected_focus_bracket_pixels_per_tile
         + selected_role_badge_tick_pixel_budget;
     let route_focus_pixel_budget = route_focus_tiles.len()
-        * (CLASSIC_FIRST_CONTACT_ROUTE_DASH_WIDTH_PX as usize)
-        * (CLASSIC_FIRST_CONTACT_ROUTE_DASH_HEIGHT_PX as usize)
+        * runtime.focus_geometry.route_dash_width_px
+        * runtime.focus_geometry.route_dash_height_px
         + route_ack_tick_count
-            * (CLASSIC_FIRST_CONTACT_ROUTE_ACK_TICK_WIDTH_PX as usize)
-            * (CLASSIC_FIRST_CONTACT_ROUTE_ACK_TICK_HEIGHT_PX as usize);
+            * runtime.focus_geometry.route_ack_tick_width_px
+            * runtime.focus_geometry.route_ack_tick_height_px;
     let combat_target_pixel_budget = 192_usize;
     let blocked_warning_pixel_budget = 84_usize;
     let interactive_focus_pixel_budget = selected_focus_pixel_budget
@@ -313,7 +335,7 @@ where
         && marker_budget_layer_order_gate;
 
     json!({
-        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_MARKER_BUDGET_CONTRACT,
+        "contract_version": TRNM_RTS_EVIDENCE_FIRST_CONTACT_MARKER_BUDGET_CONTRACT,
         "green": first_contact_marker_budget_gate,
         "source_path": "trnm-world-bevy muted First Contact atlas gallery presentation plus final selection/combat focus layer",
         "gallery_sample_count": family_samples.len(),
@@ -357,6 +379,34 @@ where
 mod tests {
     use super::*;
 
+    fn focus_geometry() -> RtsFirstContactFocusGeometrySnapshot {
+        RtsFirstContactFocusGeometrySnapshot {
+            selected_role_badge_tick_width_px: 6,
+            selected_role_badge_tick_height_px: 3,
+            selected_focus_bracket_pixels_per_tile: 64,
+            route_dash_width_px: 16,
+            route_dash_height_px: 3,
+            route_ack_tick_width_px: 8,
+            route_ack_tick_height_px: 2,
+        }
+    }
+
+    fn marker_budget_runtime() -> RtsFirstContactMarkerBudgetRuntime {
+        let mut frame_pixel_areas = first_contact_samples::atlas_frame_family_samples()
+            .iter()
+            .map(|(_, _, frame_id, _, _)| ((*frame_id).to_string(), 3_000_usize))
+            .collect::<Vec<_>>();
+        if let Some((_, area)) = frame_pixel_areas.last_mut() {
+            *area = 3_496;
+        }
+        RtsFirstContactMarkerBudgetRuntime {
+            selected_tiles: vec![(14, 11), (15, 11), (15, 12), (17, 12)],
+            route_tiles: vec![(14, 11), (15, 11), (16, 10), (16, 9)],
+            frame_pixel_areas,
+            focus_geometry: focus_geometry(),
+        }
+    }
+
     #[test]
     fn first_contact_marker_budget_helpers_preserve_gallery_contracts() {
         let samples = first_contact_samples::atlas_frame_family_samples();
@@ -396,15 +446,13 @@ mod tests {
 
     #[test]
     fn first_contact_marker_budget_guard_preserves_gallery_and_focus_contracts() {
-        let runtime = crate::classic_first_contact_player_screen_runtime();
-        let assets = crate::classic_first_contact_atlas_readability_assets();
-        let guard = marker_budget_guard(&runtime, |frame_id, scale| {
-            let (frame_w, frame_h) =
-                crate::classic_first_contact_atlas_asset_frame_size(&assets, frame_id, scale);
-            (frame_w.max(0) as usize) * (frame_h.max(0) as usize)
-        });
+        let guard = first_contact_marker_budget_guard(&marker_budget_runtime());
 
         assert_eq!(guard.get("green").and_then(Value::as_bool), Some(true));
+        assert_eq!(
+            guard.get("contract_version").and_then(Value::as_str),
+            Some(TRNM_RTS_EVIDENCE_FIRST_CONTACT_MARKER_BUDGET_CONTRACT)
+        );
         assert_eq!(
             guard.get("gallery_sample_count").and_then(Value::as_u64),
             Some(14)

@@ -104,6 +104,8 @@ use trnm_rts_bevy_runtime::{
 #[cfg(not(target_os = "android"))]
 mod first_contact_art_readability;
 #[cfg(not(target_os = "android"))]
+mod first_contact_marker_budget;
+#[cfg(not(target_os = "android"))]
 mod first_contact_motion_readability;
 #[cfg(not(target_os = "android"))]
 mod first_contact_radar_readability;
@@ -116,6 +118,11 @@ mod first_contact_visual_readability;
 
 #[cfg(not(target_os = "android"))]
 pub use first_contact_art_readability::first_contact_art_readability_guard;
+#[cfg(not(target_os = "android"))]
+pub use first_contact_marker_budget::{
+    first_contact_marker_budget_guard, RtsFirstContactFocusGeometrySnapshot,
+    RtsFirstContactMarkerBudgetRuntime,
+};
 #[cfg(not(target_os = "android"))]
 pub use first_contact_motion_readability::{
     first_contact_motion_readability_guard, RtsFirstContactMotionReadabilityRuntime,
@@ -143,6 +150,8 @@ pub const TRNM_RTS_EVIDENCE_FIRST_CONTACT_CENTRAL_CLARITY_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_first_contact_central_clarity_v1";
 pub const TRNM_RTS_EVIDENCE_FIRST_CONTACT_MOTION_READABILITY_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_first_contact_motion_readability_v1";
+pub const TRNM_RTS_EVIDENCE_FIRST_CONTACT_MARKER_BUDGET_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_first_contact_marker_budget_v1";
 pub const TRNM_RTS_EVIDENCE_FIRST_CONTACT_RADAR_READABILITY_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_first_contact_radar_readability_v1";
 pub const TRNM_RTS_EVIDENCE_FIRST_CONTACT_SILHOUETTE_READABILITY_CONTRACT: &str =
@@ -153,6 +162,8 @@ pub const TRNM_RTS_EVIDENCE_FIRST_CONTACT_VISUAL_READABILITY_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_first_contact_visual_readability_v1";
 pub const TRNM_RTS_EVIDENCE_FIRST_CONTACT_VISUAL_HIERARCHY_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_first_contact_visual_hierarchy_v1";
+pub const TRNM_RTS_EVIDENCE_FIRST_CONTACT_LOWER_LANE_GALLERY_DARKEN_NUMERATOR: u32 = 5;
+pub const TRNM_RTS_EVIDENCE_FIRST_CONTACT_LOWER_LANE_GALLERY_DARKEN_DENOMINATOR: u32 = 6;
 pub const TRNM_RTS_EVIDENCE_FIRST_CONTACT_SECONDARY_TRACK_DARKEN_NUMERATOR: usize = 3;
 pub const TRNM_RTS_EVIDENCE_FIRST_CONTACT_SECONDARY_TRACK_DARKEN_DENOMINATOR: usize = 4;
 pub const TRNM_RTS_EVIDENCE_BEVY_RUNTIME_ADAPTER_CONTRACT: &str =

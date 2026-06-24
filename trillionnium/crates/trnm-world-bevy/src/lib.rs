@@ -80,8 +80,6 @@ mod first_contact_command_grid;
 #[cfg(not(target_os = "android"))]
 mod first_contact_focus_readability;
 #[cfg(not(target_os = "android"))]
-mod first_contact_marker_budget;
-#[cfg(not(target_os = "android"))]
 mod first_contact_palette;
 #[cfg(not(target_os = "android"))]
 mod first_contact_player_screen_labels;
@@ -310,7 +308,7 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_SELECTION_COMBAT_FOC
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_TARGET_CALLOUT_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_first_contact_target_callout_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_MARKER_BUDGET_CONTRACT: &str =
-    "trillionnium_world_bevy_classic_rts_first_contact_marker_budget_v1";
+    trnm_rts_evidence::TRNM_RTS_EVIDENCE_FIRST_CONTACT_MARKER_BUDGET_CONTRACT;
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_OPENING_LOOP_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_first_contact_opening_loop_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_LIKE_CORE_CONTRACT: &str =
@@ -98609,8 +98607,8 @@ fn classic_mute_first_contact_gallery_pixels(
                 classic_mix_color(
                     color,
                     0x020604,
-                    first_contact_marker_budget::LOWER_LANE_GALLERY_DARKEN_NUMERATOR,
-                    first_contact_marker_budget::LOWER_LANE_GALLERY_DARKEN_DENOMINATOR,
+                    trnm_rts_evidence::TRNM_RTS_EVIDENCE_FIRST_CONTACT_LOWER_LANE_GALLERY_DARKEN_NUMERATOR,
+                    trnm_rts_evidence::TRNM_RTS_EVIDENCE_FIRST_CONTACT_LOWER_LANE_GALLERY_DARKEN_DENOMINATOR,
                 )
             } else {
                 classic_mix_color(color, 0x06100c, 1, 2)
@@ -112470,11 +112468,40 @@ fn classic_first_contact_target_callout_guard(runtime: &NativeFirstPlayableRunti
 #[cfg(not(target_os = "android"))]
 fn classic_first_contact_marker_budget_guard(runtime: &NativeFirstPlayableRuntime) -> Value {
     let assets = classic_first_contact_atlas_readability_assets();
-    first_contact_marker_budget::marker_budget_guard(runtime, |frame_id, scale| {
-        let (frame_w, frame_h) =
-            classic_first_contact_atlas_asset_frame_size(&assets, frame_id, scale);
-        (frame_w.max(0) as usize) * (frame_h.max(0) as usize)
-    })
+    let frame_pixel_areas = first_contact_samples::atlas_frame_family_samples()
+        .iter()
+        .map(|(_, _, frame_id, _, scale)| {
+            let (frame_w, frame_h) =
+                classic_first_contact_atlas_asset_frame_size(&assets, frame_id, *scale);
+            (
+                (*frame_id).to_string(),
+                (frame_w.max(0) as usize) * (frame_h.max(0) as usize),
+            )
+        })
+        .collect::<Vec<_>>();
+    let selected_tiles = runtime
+        .rts_selection_box_tile_ids
+        .iter()
+        .filter_map(|tile_id| classic_parse_rts_tile(tile_id))
+        .collect::<Vec<_>>();
+    let marker_runtime = trnm_rts_evidence::RtsFirstContactMarkerBudgetRuntime {
+        selected_tiles,
+        route_tiles: first_contact_tiles::selection_combat_focus_route_tiles(runtime),
+        frame_pixel_areas,
+        focus_geometry: trnm_rts_evidence::RtsFirstContactFocusGeometrySnapshot {
+            selected_role_badge_tick_width_px: CLASSIC_FIRST_CONTACT_SELECTED_ROLE_BADGE_TICK_W_PX
+                as usize,
+            selected_role_badge_tick_height_px: CLASSIC_FIRST_CONTACT_SELECTED_ROLE_BADGE_TICK_H_PX
+                as usize,
+            selected_focus_bracket_pixels_per_tile:
+                CLASSIC_FIRST_CONTACT_SELECTED_FOCUS_BRACKET_PIXELS_PER_TILE,
+            route_dash_width_px: CLASSIC_FIRST_CONTACT_ROUTE_DASH_WIDTH_PX as usize,
+            route_dash_height_px: CLASSIC_FIRST_CONTACT_ROUTE_DASH_HEIGHT_PX as usize,
+            route_ack_tick_width_px: CLASSIC_FIRST_CONTACT_ROUTE_ACK_TICK_WIDTH_PX as usize,
+            route_ack_tick_height_px: CLASSIC_FIRST_CONTACT_ROUTE_ACK_TICK_HEIGHT_PX as usize,
+        },
+    };
+    trnm_rts_evidence::first_contact_marker_budget_guard(&marker_runtime)
 }
 
 #[cfg(not(target_os = "android"))]
