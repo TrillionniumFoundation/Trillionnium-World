@@ -72,8 +72,6 @@ use trnm_world_domain::{
 use trnm_world_projection::world_full_split_projection_json;
 
 #[cfg(not(target_os = "android"))]
-mod first_contact_art_readability;
-#[cfg(not(target_os = "android"))]
 mod first_contact_atlas_readability;
 #[cfg(not(target_os = "android"))]
 mod first_contact_bottom_panel;
@@ -304,7 +302,7 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_BOTTOM_PANEL_READABI
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_SILHOUETTE_READABILITY_CONTRACT: &str =
     trnm_rts_evidence::TRNM_RTS_EVIDENCE_FIRST_CONTACT_SILHOUETTE_READABILITY_CONTRACT;
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_ART_READABILITY_CONTRACT: &str =
-    "trillionnium_world_bevy_classic_rts_first_contact_art_readability_v1";
+    trnm_rts_evidence::TRNM_RTS_EVIDENCE_FIRST_CONTACT_ART_READABILITY_CONTRACT;
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_MOTION_READABILITY_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_first_contact_motion_readability_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_ATLAS_READABILITY_CONTRACT: &str =
@@ -112324,7 +112322,7 @@ fn classic_first_contact_silhouette_readability_guard() -> Value {
 
 #[cfg(not(target_os = "android"))]
 fn classic_first_contact_art_readability_guard() -> Value {
-    first_contact_art_readability::art_readability_guard()
+    trnm_rts_evidence::first_contact_art_readability_guard()
 }
 
 #[cfg(not(target_os = "android"))]

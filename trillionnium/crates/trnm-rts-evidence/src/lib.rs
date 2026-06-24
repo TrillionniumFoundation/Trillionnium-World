@@ -102,12 +102,18 @@ use trnm_rts_bevy_runtime::{
 };
 
 #[cfg(not(target_os = "android"))]
+mod first_contact_art_readability;
+#[cfg(not(target_os = "android"))]
 mod first_contact_silhouette_readability;
 
+#[cfg(not(target_os = "android"))]
+pub use first_contact_art_readability::first_contact_art_readability_guard;
 #[cfg(not(target_os = "android"))]
 pub use first_contact_silhouette_readability::first_contact_silhouette_readability_guard;
 
 pub const TRNM_RTS_EVIDENCE_CONTRACT: &str = "trnm_rts_evidence_v1";
+pub const TRNM_RTS_EVIDENCE_FIRST_CONTACT_ART_READABILITY_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_first_contact_art_readability_v1";
 pub const TRNM_RTS_EVIDENCE_FIRST_CONTACT_SILHOUETTE_READABILITY_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_first_contact_silhouette_readability_v1";
 pub const TRNM_RTS_EVIDENCE_BEVY_RUNTIME_ADAPTER_CONTRACT: &str =
