@@ -106,6 +106,8 @@ mod first_contact_art_readability;
 #[cfg(not(target_os = "android"))]
 mod first_contact_atlas_readability;
 #[cfg(not(target_os = "android"))]
+mod first_contact_command_grid_readability;
+#[cfg(not(target_os = "android"))]
 mod first_contact_focus_readability;
 #[cfg(not(target_os = "android"))]
 mod first_contact_marker_budget;
@@ -125,6 +127,12 @@ pub use first_contact_art_readability::first_contact_art_readability_guard;
 #[cfg(not(target_os = "android"))]
 pub use first_contact_atlas_readability::{
     first_contact_atlas_readability_guard, RtsFirstContactAtlasReadabilityRuntime,
+};
+#[cfg(not(target_os = "android"))]
+pub use first_contact_command_grid_readability::{
+    first_contact_command_glyph_role, first_contact_command_glyph_signature,
+    first_contact_command_grid_readability_guard, first_contact_command_grid_slot_ids,
+    first_contact_command_slot_sent, RtsFirstContactCommandGridRuntime,
 };
 #[cfg(not(target_os = "android"))]
 pub use first_contact_focus_readability::{
@@ -163,6 +171,8 @@ pub const TRNM_RTS_EVIDENCE_FIRST_CONTACT_ATLAS_READABILITY_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_first_contact_atlas_readability_v1";
 pub const TRNM_RTS_EVIDENCE_FIRST_CONTACT_CENTRAL_CLARITY_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_first_contact_central_clarity_v1";
+pub const TRNM_RTS_EVIDENCE_FIRST_CONTACT_COMMAND_GRID_READABILITY_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_first_contact_command_grid_readability_v1";
 pub const TRNM_RTS_EVIDENCE_FIRST_CONTACT_MOTION_READABILITY_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_first_contact_motion_readability_v1";
 pub const TRNM_RTS_EVIDENCE_FIRST_CONTACT_MARKER_BUDGET_CONTRACT: &str =

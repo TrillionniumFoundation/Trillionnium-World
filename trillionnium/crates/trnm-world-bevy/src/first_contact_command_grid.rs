@@ -3,43 +3,11 @@
 use trnm_rts_data::RtsFirstContactPlayerScreenChromeProfile;
 
 pub(crate) fn command_glyph_role(ability: &str) -> &'static str {
-    let normalized = ability.replace('_', "-").to_ascii_lowercase();
-    if normalized.contains("worker") || normalized.contains("harvest") {
-        "worker"
-    } else if normalized.contains("scout") || normalized.contains("recon") {
-        "scout"
-    } else if normalized.contains("warden")
-        || normalized.contains("guard")
-        || normalized.contains("hold")
-    {
-        "warden"
-    } else if normalized.contains("relay") || normalized.contains("rally") {
-        "relay"
-    } else if normalized.contains("core") || normalized.contains("build") {
-        "core"
-    } else if normalized.contains("signal")
-        || normalized.contains("ability")
-        || normalized.contains("focus")
-    {
-        "signal"
-    } else if normalized.contains("attack") || normalized.contains("strike") {
-        "attack"
-    } else {
-        "generic"
-    }
+    trnm_rts_evidence::first_contact_command_glyph_role(ability)
 }
 
 pub(crate) fn command_glyph_signature(role: &str) -> &'static str {
-    match role {
-        "worker" => "unit_pickaxe_ore",
-        "scout" => "diamond_eye_crosshair",
-        "warden" => "shield_barrier",
-        "relay" => "mast_broadcast",
-        "core" => "stepped_base",
-        "signal" => "pulse_spire",
-        "attack" => "target_cross",
-        _ => "fallback_diamond",
-    }
+    trnm_rts_evidence::first_contact_command_glyph_signature(role)
 }
 
 pub(crate) fn command_role_backdrop(role: &str) -> u32 {
@@ -58,35 +26,11 @@ pub(crate) fn command_role_backdrop(role: &str) -> u32 {
 pub(crate) fn command_grid_slot_ids(
     chrome: &RtsFirstContactPlayerScreenChromeProfile,
 ) -> Vec<String> {
-    let slot_count = chrome.command_grid_slot_count.max(1) as usize;
-    let fallback = chrome.command_slot_fallback_id.as_str();
-    (0..slot_count)
-        .map(|index| {
-            chrome
-                .command_grid_slot_ids
-                .get(index % chrome.command_grid_slot_ids.len().max(1))
-                .map(String::as_str)
-                .unwrap_or(fallback)
-                .to_string()
-        })
-        .collect()
+    trnm_rts_evidence::first_contact_command_grid_slot_ids(chrome)
 }
 
 pub(crate) fn command_slot_sent(command_queue: &[String], ability: &str, role: &str) -> bool {
-    command_queue.iter().any(|order| {
-        let order = order.to_ascii_lowercase();
-        order.contains(ability)
-            || order.contains(role)
-            || match role {
-                "signal" => order.contains("ability") || order.contains("focus"),
-                "warden" => order.contains("control_group") || order.contains("selection"),
-                "relay" => order.contains("waypoint") || order.contains("move"),
-                "core" => order.contains("formation") || order.contains("build"),
-                "worker" => order.contains("worker") || order.contains("harvest"),
-                "scout" => order.contains("scout") || order.contains("recon"),
-                _ => false,
-            }
-    })
+    trnm_rts_evidence::first_contact_command_slot_sent(command_queue, ability, role)
 }
 
 #[cfg(test)]

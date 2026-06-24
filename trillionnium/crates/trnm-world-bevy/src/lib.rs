@@ -282,7 +282,7 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_VISUAL_READABILITY_C
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_RADAR_READABILITY_CONTRACT: &str =
     trnm_rts_evidence::TRNM_RTS_EVIDENCE_FIRST_CONTACT_RADAR_READABILITY_CONTRACT;
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_COMMAND_GRID_READABILITY_CONTRACT:
-    &str = "trillionnium_world_bevy_classic_rts_first_contact_command_grid_readability_v1";
+    &str = trnm_rts_evidence::TRNM_RTS_EVIDENCE_FIRST_CONTACT_COMMAND_GRID_READABILITY_CONTRACT;
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_SIDEBAR_DENSITY_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_first_contact_sidebar_density_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_BOTTOM_PANEL_READABILITY_CONTRACT:
@@ -112070,95 +112070,11 @@ fn classic_first_contact_command_grid_readability_guard(
     runtime: &NativeFirstPlayableRuntime,
     chrome: &RtsFirstContactPlayerScreenChromeProfile,
 ) -> Value {
-    let command_slot_ids = classic_first_contact_command_grid_slot_ids(chrome);
-    let command_icon_roles = command_slot_ids
-        .iter()
-        .map(|slot| classic_first_contact_command_glyph_role(slot).to_string())
-        .collect::<Vec<_>>();
-    let command_icon_signatures = command_icon_roles
-        .iter()
-        .map(|role| classic_first_contact_command_glyph_signature(role).to_string())
-        .collect::<Vec<_>>();
-    let unique_icon_role_count = command_icon_roles
-        .iter()
-        .collect::<std::collections::BTreeSet<_>>()
-        .len();
-    let unique_icon_signature_count = command_icon_signatures
-        .iter()
-        .collect::<std::collections::BTreeSet<_>>()
-        .len();
-    let column_count = chrome.command_grid_column_count.max(1) as usize;
-    let top_row_roles = command_icon_roles
-        .iter()
-        .take(column_count)
-        .cloned()
-        .collect::<Vec<_>>();
-    let bottom_row_roles = command_icon_roles
-        .iter()
-        .skip(column_count)
-        .take(column_count)
-        .cloned()
-        .collect::<Vec<_>>();
-    let active_slot_role = runtime
-        .rts_active_ability_id
-        .as_deref()
-        .map(classic_first_contact_command_glyph_role)
-        .unwrap_or("generic")
-        .to_string();
-    let cooldown_badge_samples = chrome
-        .command_grid_slot_ids
-        .iter()
-        .enumerate()
-        .map(|(index, slot)| {
-            json!({
-                "slot": slot,
-                "role": classic_first_contact_command_glyph_role(slot),
-                "cooldown_percent": runtime.rts_ability_cooldown_percents.get(index).copied().unwrap_or(0),
-            })
-        })
-        .collect::<Vec<_>>();
-    let expected_roles = string_vec([
-        "worker", "scout", "warden", "relay", "core", "signal", "worker", "scout", "warden",
-        "relay", "core", "signal",
-    ]);
-    let role_sequence_gate = command_icon_roles == expected_roles;
-    let repeated_rows_gate = !top_row_roles.is_empty() && top_row_roles == bottom_row_roles;
-    let unique_icon_gate = unique_icon_role_count >= 6 && unique_icon_signature_count >= 6;
-    let active_slot_gate = active_slot_role == "worker";
-    let cooldown_badge_gate = runtime.rts_ability_cooldown_percents == vec![0, 0, 16, 0, 42, 25];
-    let slot_badge_pixel_budget = command_slot_ids.len() * 12;
-    let glyph_shape_pixel_budget = command_slot_ids.len() * 96;
-    let player_screen_symbol_gate =
-        slot_badge_pixel_budget >= 144 && glyph_shape_pixel_budget >= 1_152;
-    let green = role_sequence_gate
-        && repeated_rows_gate
-        && unique_icon_gate
-        && active_slot_gate
-        && cooldown_badge_gate
-        && player_screen_symbol_gate;
-
-    json!({
-        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_COMMAND_GRID_READABILITY_CONTRACT,
-        "green": green,
-        "source_path": "trnm-world-bevy classic_draw_rts_command_glyph role-specific First Contact command buttons",
-        "command_slot_ids": command_slot_ids,
-        "command_icon_roles": command_icon_roles,
-        "command_icon_signatures": command_icon_signatures,
-        "unique_icon_role_count": unique_icon_role_count,
-        "unique_icon_signature_count": unique_icon_signature_count,
-        "top_row_roles": top_row_roles,
-        "bottom_row_roles": bottom_row_roles,
-        "active_slot_role": active_slot_role,
-        "cooldown_badge_samples": cooldown_badge_samples,
-        "slot_badge_pixel_budget": slot_badge_pixel_budget,
-        "glyph_shape_pixel_budget": glyph_shape_pixel_budget,
-        "role_sequence_gate": role_sequence_gate,
-        "repeated_rows_gate": repeated_rows_gate,
-        "unique_icon_gate": unique_icon_gate,
-        "active_slot_gate": active_slot_gate,
-        "cooldown_badge_gate": cooldown_badge_gate,
-        "player_screen_symbol_gate": player_screen_symbol_gate,
-    })
+    let command_grid_runtime = trnm_rts_evidence::RtsFirstContactCommandGridRuntime {
+        active_ability_id: runtime.rts_active_ability_id.clone(),
+        ability_cooldown_percents: runtime.rts_ability_cooldown_percents.clone(),
+    };
+    trnm_rts_evidence::first_contact_command_grid_readability_guard(&command_grid_runtime, chrome)
 }
 
 #[cfg(not(target_os = "android"))]
