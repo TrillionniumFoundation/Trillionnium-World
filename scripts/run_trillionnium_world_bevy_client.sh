@@ -38,7 +38,7 @@ fi
 
 PROFILE="${TRNM_WORLD_BEVY_PROFILE:-release}"
 if [[ "$PROFILE" == "release" ]]; then
-  CARGO_BUILD_JOBS="${CARGO_BUILD_JOBS:-1}" cargo build -p trnm-world-bevy --release
+  CARGO_BUILD_JOBS="${CARGO_BUILD_JOBS:-1}" cargo build --release -p trnm-world-bevy --bin trnm-world-bevy
   exec "$ROOT_DIR/target/release/trnm-world-bevy" run
 fi
 
