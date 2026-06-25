@@ -135,6 +135,15 @@ Follow-up slices have also landed enough to change the plan:
 5. Use the live-window capture/readiness diagnostics to identify whether the slow path is window startup, xwd/ffmpeg capture, frame-change settling, or repeated key attempts. Do not reduce frames or settle retries until the diagnostics show a cheaper path preserves the same evidence.
 6. Keep public launch blocked until the six external evidence items are real and validator-green; templates, synthetic fixtures, local drills, and handoff manifests remain no-credit.
 
+### Renderer Ownership / Codegen Plan - 2026-06-26
+
+1. Stop taking First Contact extraction slices unless the candidate has a named Bevy-free contract, at least two consumers or a clear drift source, and a focused guard that proves the player-facing behavior did not change. The recent tile/readout/command-grid/bottom-panel/subject surfaces meet that bar; remaining color, palette, measurement, placement, glyph, and atlas-placement helpers usually do not.
+2. Treat `trnm-world-bevy` as the renderer adapter for now. It should keep `NativeFirstPlayableRuntime` field extraction, blocked-feedback composition, HUD tile formatting, text measurement, layout constants, colors, hit testing, asset loading/sizing, glyph drawing, atlas placement, and draw-path ordering until a real renderer adapter boundary exists.
+3. Treat `trnm-rts-bevy-runtime` as deterministic runtime math and player-facing semantic normalization only. Good future candidates are duplicated queue/state semantics, command-surface state machines, or adapter inputs that can be tested without Bevy; bad candidates are anything that needs pixel positions, color roles, font advance, or frame placement to be meaningful.
+4. Treat `trnm-rts-evidence` as snapshot and review-contract ownership. It may record data/runtime contract IDs and evaluate Bevy-free snapshots, but it should not grow live closures, renderer callbacks, or hidden copies of draw geometry.
+5. Measure every Bevy-touching slice with the binary-only release build wall time and max RSS. If a change only deletes a few Bevy lines and still pays a 7-11 minute release rebuild, prefer batching it behind a clearer ownership boundary or switching to visible screenshot polish.
+6. If no clean renderer-neutral drift remains, switch from extraction to product review: inspect the live-window final frame/contact sheet, pick one visible player-screen readability issue, change renderer-owned pixels deliberately, then guard only the regression that the screenshot actually exposed.
+
 ## Release Boundary
 
 Internal development may use direct AGPL/GPL imports. Public distribution, external beta, hosted network service, commercial launch, or public source release require a fresh component review:
