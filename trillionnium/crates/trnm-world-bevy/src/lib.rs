@@ -276,7 +276,7 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_MAP_UI_MODELING_READINESS_CONTRACT
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_BASIN_SPEC_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_first_contact_basin_spec_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_LABEL_GUARD_CONTRACT: &str =
-    "trillionnium_world_bevy_classic_rts_first_contact_label_guard_v1";
+    trnm_rts_evidence::TRNM_RTS_EVIDENCE_FIRST_CONTACT_LABEL_GUARD_CONTRACT;
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_VISUAL_READABILITY_CONTRACT: &str =
     trnm_rts_evidence::TRNM_RTS_EVIDENCE_FIRST_CONTACT_VISUAL_READABILITY_CONTRACT;
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_RADAR_READABILITY_CONTRACT: &str =
@@ -110799,7 +110799,7 @@ fn classic_first_contact_build_placement_status_label(
     first_contact_readouts::build_placement_status_label(runtime)
 }
 
-#[cfg(not(target_os = "android"))]
+#[cfg(all(not(target_os = "android"), test))]
 fn classic_rts_live_label_has_raw_marker(label: &str) -> bool {
     let upper = label.to_ascii_uppercase();
     label.contains(':')
@@ -111883,7 +111883,7 @@ fn classic_hud_tile_label(tile_id: &str) -> String {
         .unwrap_or_else(|| tile_id.replace(',', "/"))
 }
 
-#[cfg(not(target_os = "android"))]
+#[cfg(all(not(target_os = "android"), test))]
 fn classic_first_contact_label_has_raw_marker(label: &str) -> bool {
     let upper = label.to_ascii_uppercase();
     upper.contains("TRNM")

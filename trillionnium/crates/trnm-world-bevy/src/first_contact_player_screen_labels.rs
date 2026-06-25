@@ -1,12 +1,16 @@
 #![cfg(not(target_os = "android"))]
 
-use serde_json::{json, Value};
+use serde_json::Value;
 use trnm_rts_data::{RtsFirstContactPlayerScreenChromeProfile, RtsPlayerScreenTacticsRowKind};
+use trnm_rts_evidence::{
+    RtsFirstContactBuildPaletteFitSnapshot, RtsFirstContactPlayerScreenLabelGeometrySnapshot,
+    RtsFirstContactPlayerScreenLabelRuntime, RtsFirstContactResourceSpacingSnapshot,
+};
 
 use crate::{
     classic_build_palette_label_x, classic_first_contact_build_placement_status_label,
     classic_first_contact_empty_production_slot_status_labels,
-    classic_first_contact_label_has_raw_marker, classic_first_contact_order_queue_badge_label,
+    classic_first_contact_order_queue_badge_label,
     classic_first_contact_production_slot_badge_label,
     classic_first_contact_rendered_build_palette_badge_labels,
     classic_first_contact_rendered_build_palette_labels,
@@ -19,14 +23,33 @@ use crate::{
     classic_first_contact_tactical_header_order_label, classic_first_contact_tactical_header_title,
     classic_first_contact_tactics_queue_fallback_badge_label,
     classic_first_contact_tactics_row_badge_label, classic_first_contact_tactics_row_value,
-    classic_resource_readout_value_x, classic_rts_live_label_has_raw_marker,
-    classic_rts_live_state_lines, classic_rts_live_status_labels, classic_rts_order_queue_label,
-    classic_text_advance_px, NativeFirstPlayableRuntime,
-    TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_LABEL_GUARD_CONTRACT,
+    classic_resource_readout_value_x, classic_rts_live_state_lines, classic_rts_live_status_labels,
+    classic_rts_order_queue_label, classic_text_advance_px, NativeFirstPlayableRuntime,
 };
 
 fn string_vec<const N: usize>(values: [&str; N]) -> Vec<String> {
     values.into_iter().map(str::to_string).collect()
+}
+
+fn label_widths(labels: &[String]) -> Vec<i32> {
+    labels
+        .iter()
+        .map(|label| classic_text_advance_px(label, 1))
+        .collect()
+}
+
+fn build_palette_fit_snapshots(labels: &[String]) -> Vec<RtsFirstContactBuildPaletteFitSnapshot> {
+    labels
+        .iter()
+        .map(|label| {
+            let label_x = classic_build_palette_label_x(100, 46, label);
+            RtsFirstContactBuildPaletteFitSnapshot {
+                label: label.clone(),
+                label_x,
+                right_x: label_x + classic_text_advance_px(label, 1),
+            }
+        })
+        .collect()
 }
 
 pub(crate) fn player_screen_label_guard(
@@ -43,12 +66,11 @@ pub(crate) fn player_screen_label_guard(
         .map(|label| {
             let text_width_px = classic_text_advance_px(label, 1);
             let value_x_delta_px = classic_resource_readout_value_x(120, label) - 120;
-            json!({
-                "label": label,
-                "text_width_px": text_width_px,
-                "value_x_delta_px": value_x_delta_px,
-                "value_spacing_gate": value_x_delta_px >= text_width_px + 24,
-            })
+            RtsFirstContactResourceSpacingSnapshot {
+                label: label.clone(),
+                text_width_px,
+                value_x_delta_px,
+            }
         })
         .collect::<Vec<_>>();
     let production_slot_labels =
@@ -57,58 +79,34 @@ pub(crate) fn player_screen_label_guard(
         .iter()
         .map(|label| classic_first_contact_production_slot_badge_label(label))
         .collect::<Vec<_>>();
-    let production_slot_badge_widths = production_slot_badge_labels
-        .iter()
-        .map(|label| classic_text_advance_px(label, 1))
-        .collect::<Vec<_>>();
+    let production_slot_badge_widths = label_widths(&production_slot_badge_labels);
     let production_slot_status_labels =
         classic_first_contact_rendered_production_slot_status_labels(runtime, chrome);
+    let production_slot_status_widths = label_widths(&production_slot_status_labels);
     let production_empty_slot_status_labels =
         classic_first_contact_empty_production_slot_status_labels(chrome);
+    let production_empty_slot_status_widths = label_widths(&production_empty_slot_status_labels);
     let build_palette_labels = classic_first_contact_rendered_build_palette_labels(chrome);
     let build_palette_badge_labels =
         classic_first_contact_rendered_build_palette_badge_labels(chrome);
-    let build_palette_badge_widths = build_palette_badge_labels
-        .iter()
-        .map(|label| classic_text_advance_px(label, 1))
-        .collect::<Vec<_>>();
+    let build_palette_badge_widths = label_widths(&build_palette_badge_labels);
     let build_palette_state_labels =
         classic_first_contact_rendered_build_palette_state_labels(runtime, chrome);
-    let build_palette_fit_samples = build_palette_labels
-        .iter()
-        .map(|label| {
-            let label_x = classic_build_palette_label_x(100, 46, label);
-            let right_x = label_x + classic_text_advance_px(label, 1);
-            json!({
-                "label": label,
-                "label_x": label_x,
-                "right_x": right_x,
-                "fits_tile_gate": label_x >= 102 && right_x <= 146,
-            })
-        })
-        .collect::<Vec<_>>();
-    let build_palette_badge_fit_samples = build_palette_badge_labels
-        .iter()
-        .map(|label| {
-            let label_x = classic_build_palette_label_x(100, 46, label);
-            let right_x = label_x + classic_text_advance_px(label, 1);
-            json!({
-                "label": label,
-                "label_x": label_x,
-                "right_x": right_x,
-                "fits_tile_gate": label_x >= 102 && right_x <= 146,
-            })
-        })
-        .collect::<Vec<_>>();
+    let build_palette_state_widths = label_widths(&build_palette_state_labels);
+    let build_palette_fit_samples = build_palette_fit_snapshots(&build_palette_labels);
+    let build_palette_badge_fit_samples = build_palette_fit_snapshots(&build_palette_badge_labels);
     let order_queue_labels = classic_first_contact_rendered_order_queue_labels(runtime, chrome);
+    let order_queue_label_widths = label_widths(&order_queue_labels);
     let order_queue_badge_labels =
         classic_first_contact_rendered_order_queue_badge_labels(runtime, chrome);
+    let order_queue_badge_widths = label_widths(&order_queue_badge_labels);
     let completion_event_labels = vec![
         classic_rts_order_queue_label("production_complete:train:worker->worker_03"),
         classic_rts_order_queue_label("upgrade_complete:signal_blade"),
         classic_rts_order_queue_label("build_complete:build:watch_tower@7,4->watch_tower"),
         classic_rts_order_queue_label("build_complete:upgrade:training_hall->training_hall"),
     ];
+    let completion_event_label_widths = label_widths(&completion_event_labels);
     let completion_event_badge_labels = vec![
         classic_first_contact_order_queue_badge_label(
             "production_complete:train:worker->worker_03",
@@ -121,6 +119,7 @@ pub(crate) fn player_screen_label_guard(
             "build_complete:upgrade:training_hall->training_hall",
         ),
     ];
+    let completion_event_badge_widths = label_widths(&completion_event_badge_labels);
     let tactics_queue_summary = chrome
         .tactics_rows
         .iter()
@@ -138,10 +137,8 @@ pub(crate) fn player_screen_label_guard(
         .zip(tactics_detail_labels.iter())
         .map(|(row, value)| classic_first_contact_tactics_row_badge_label(row.kind, value))
         .collect::<Vec<_>>();
-    let tactics_compact_badge_widths = tactics_compact_badge_labels
-        .iter()
-        .map(|label| classic_text_advance_px(label, 1))
-        .collect::<Vec<_>>();
+    let tactics_detail_widths = label_widths(&tactics_detail_labels);
+    let tactics_compact_badge_widths = label_widths(&tactics_compact_badge_labels);
     let tactics_queue_fallback_values = string_vec([
         "TRAIN SIGNAL",
         "TRAIN SI",
@@ -153,10 +150,7 @@ pub(crate) fn player_screen_label_guard(
         .iter()
         .map(|label| classic_first_contact_tactics_queue_fallback_badge_label(label))
         .collect::<Vec<_>>();
-    let tactics_queue_fallback_badge_widths = tactics_queue_fallback_badge_labels
-        .iter()
-        .map(|label| classic_text_advance_px(label, 1))
-        .collect::<Vec<_>>();
+    let tactics_queue_fallback_badge_widths = label_widths(&tactics_queue_fallback_badge_labels);
     let tactics_target_label = chrome
         .tactics_rows
         .iter()
@@ -171,7 +165,9 @@ pub(crate) fn player_screen_label_guard(
         .unwrap_or_else(|| "IDLE".to_string());
     let field_status_title = "FIELD STATUS".to_string();
     let live_status_labels = classic_rts_live_status_labels(runtime);
+    let live_status_widths = label_widths(&live_status_labels);
     let live_state_labels = classic_rts_live_state_lines(runtime);
+    let live_state_widths = label_widths(&live_state_labels);
     let tactical_header_title = classic_first_contact_tactical_header_title(chrome);
     let tactical_header_order_label =
         classic_first_contact_tactical_header_order_label(runtime, chrome);
@@ -201,236 +197,71 @@ pub(crate) fn player_screen_label_guard(
     let build_placement_status_width_px = classic_text_advance_px(&build_placement_status_label, 1);
     let upgrade_placement_status_width_px =
         classic_text_advance_px(&upgrade_placement_status_label, 1);
-    let mut all_display_labels = Vec::new();
-    all_display_labels.extend(resource_labels.iter().cloned());
-    all_display_labels.extend(production_slot_labels.iter().cloned());
-    all_display_labels.extend(production_slot_status_labels.iter().cloned());
-    all_display_labels.extend(production_empty_slot_status_labels.iter().cloned());
-    all_display_labels.extend(build_palette_labels.iter().cloned());
-    all_display_labels.extend(build_palette_badge_labels.iter().cloned());
-    all_display_labels.extend(build_palette_state_labels.iter().cloned());
-    all_display_labels.extend(order_queue_labels.iter().cloned());
-    all_display_labels.extend(order_queue_badge_labels.iter().cloned());
-    all_display_labels.extend(completion_event_labels.iter().cloned());
-    all_display_labels.extend(completion_event_badge_labels.iter().cloned());
-    all_display_labels.extend(tactics_detail_labels.iter().cloned());
-    all_display_labels.extend(tactics_compact_badge_labels.iter().cloned());
-    all_display_labels.extend(tactics_queue_fallback_badge_labels.iter().cloned());
-    all_display_labels.push(field_status_title.clone());
-    all_display_labels.extend(live_status_labels.iter().cloned());
-    all_display_labels.extend(live_state_labels.iter().cloned());
-    all_display_labels.extend([
-        tactical_header_title.clone(),
-        tactical_header_order_label.clone(),
-        tactical_header_camera_label.clone(),
-        build_placement_status_label.clone(),
-        upgrade_placement_status_label.clone(),
-    ]);
-
-    let expected_label_gate = resource_labels
-        == string_vec(["CREDITS", "POWER", "SUPPLY", "VISION"])
-        && production_slot_labels == string_vec(["GUARD", "WORKER", "SIGNAL", "TRAINING"])
-        && production_slot_badge_labels == string_vec(["GRD", "WRK", "SIG", "TRN"])
-        && production_slot_status_labels
-            == string_vec(["Q1 64 R", "Q2 42 R", "Q3 64 R", "B2 42 R"])
-        && production_empty_slot_status_labels
-            == string_vec(["ADD UNIT", "ADD UNIT", "ADD BUILD", "ADD BUILD"])
-        && build_palette_labels
-            == string_vec([
-                "POWER", "TRAIN", "REFINE", "TOWER", "COMMAND", "RADAR", "WALL", "SIGNAL",
-            ])
-        && build_palette_badge_labels
-            == string_vec(["PWR", "TRN", "REF", "TWR", "CMD", "RAD", "WAL", "SIG"])
-        && build_palette_state_labels
-            == string_vec([
-                "READY", "QUEUE", "READY", "QUEUE", "READY", "READY", "READY", "QUEUE",
-            ])
-        && order_queue_labels
-            == string_vec(["ATTACK BEACON", "TRAIN WORKER", "BUILD RELAY", "MOVE 16/9"])
-        && order_queue_badge_labels == string_vec(["ATK BCN", "TRN WRK", "BLD RLY", "MOV 16/9"])
-        && completion_event_labels
-            == string_vec([
-                "WORKER READY",
-                "SIGNAL READY",
-                "TOWER READY",
-                "TRAINING READY",
-            ])
-        && completion_event_badge_labels
-            == string_vec(["WRK RDY", "SIG RDY", "TWR RDY", "TRN RDY"])
-        && tactics_queue_summary == "GUARD 64% TOWER 42%"
-        && tactics_compact_badge_labels
-            == string_vec(["SECURE", "BEACON", "16/16", "G64/T42", "IDLE"])
-        && tactics_queue_fallback_badge_labels
-            == string_vec(["TRN SIG", "TRN SIG", "BLD RLY", "ATK BCN", "RDY"])
-        && tactics_target_label == "RELAY BEACON"
-        && tactics_build_label == "IDLE"
-        && field_status_title == "FIELD STATUS"
-        && live_status_labels
-            == string_vec([
-                "SQUAD READY",
-                "RALLY 16/9",
-                "QUEUE GUARD 64%",
-                "SCOUTING 76%",
-                "CAMERA 16/16",
-                "SUPPLY 12/22",
-                "SAVE ROUTE READY",
-            ])
-        && live_state_labels
-            == string_vec([
-                "ORDER SECURE RELAY BEACON",
-                "TARGET RELAY BEACON",
-                "BUILD IDLE",
-                "QUEUE GUARD 64%",
-                "CAM 16/16",
-                "DRAG NONE",
-                "HOVER NONE",
-                "RES UPGRADE 210 CREDITS",
-            ])
-        && tactical_header_title == "TACTICAL VIEW"
-        && tactical_header_order_label == "SECURE RELAY BEACON"
-        && tactical_header_camera_label == "CAM 16/16 Z100"
-        && build_placement_status_label.starts_with("PLACE ")
-        && build_placement_status_label.contains("TOWER")
-        && upgrade_placement_status_label.contains("TRAINING");
-    let resource_spacing_gate = resource_spacing_samples
-        .iter()
-        .all(|sample| sample.get("value_spacing_gate").and_then(Value::as_bool) == Some(true));
-    let production_slot_width_gate = production_slot_badge_labels
-        .iter()
-        .all(|label| classic_text_advance_px(label, 1) <= 18);
-    let production_slot_status_width_gate = production_slot_status_labels
-        .iter()
-        .chain(production_empty_slot_status_labels.iter())
-        .all(|label| classic_text_advance_px(label, 1) <= 52);
-    let build_palette_width_gate = build_palette_badge_fit_samples
-        .iter()
-        .all(|sample| sample.get("fits_tile_gate").and_then(Value::as_bool) == Some(true));
-    let build_palette_state_width_gate = build_palette_state_labels
-        .iter()
-        .all(|label| classic_text_advance_px(label, 1) <= 42);
-    let order_queue_width_gate = order_queue_labels
-        .iter()
-        .chain(completion_event_labels.iter())
-        .all(|label| classic_text_advance_px(label, 1) <= 210);
-    let order_queue_badge_width_gate = order_queue_badge_labels
-        .iter()
-        .chain(completion_event_badge_labels.iter())
-        .all(|label| classic_text_advance_px(label, 1) <= 48);
-    let tactics_summary_width_gate = classic_text_advance_px(&tactics_queue_summary, 1) <= 120;
-    let tactics_detail_width_gate = tactics_detail_labels
-        .iter()
-        .all(|label| classic_text_advance_px(label, 1) <= 132);
-    let tactics_compact_badge_width_gate = tactics_compact_badge_widths
-        .iter()
-        .all(|width| *width <= 48);
-    let tactics_queue_fallback_badge_width_gate = tactics_queue_fallback_badge_widths
-        .iter()
-        .all(|width| *width <= 42);
-    let live_status_width_gate = live_status_labels
-        .iter()
-        .all(|label| classic_text_advance_px(label, 1) <= 132);
-    let live_state_width_gate = live_state_labels
-        .iter()
-        .all(|label| classic_text_advance_px(label, 1) <= 180);
-    let tactical_header_title_order_width_gate = tactical_header_title_order_width_px <= 310;
-    let tactical_header_camera_width_gate = tactical_header_camera_width_px <= 96;
-    let build_placement_status_width_gate =
-        build_placement_status_width_px <= 240 && upgrade_placement_status_width_px <= 240;
-    let tactical_header_vertical_separation_gate = 18 + 4 <= 30;
-    let raw_marker_gate = all_display_labels.iter().all(|label| {
-        !classic_first_contact_label_has_raw_marker(label)
-            && !classic_rts_live_label_has_raw_marker(label)
-    });
-    let green = expected_label_gate
-        && resource_spacing_gate
-        && production_slot_width_gate
-        && production_slot_status_width_gate
-        && build_palette_width_gate
-        && build_palette_state_width_gate
-        && order_queue_width_gate
-        && order_queue_badge_width_gate
-        && tactics_summary_width_gate
-        && tactics_detail_width_gate
-        && tactics_compact_badge_width_gate
-        && tactics_queue_fallback_badge_width_gate
-        && live_status_width_gate
-        && live_state_width_gate
-        && tactical_header_title_order_width_gate
-        && tactical_header_camera_width_gate
-        && build_placement_status_width_gate
-        && tactical_header_vertical_separation_gate
-        && raw_marker_gate;
-
-    json!({
-        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_LABEL_GUARD_CONTRACT,
-        "green": green,
-        "source_path": "trnm-world-bevy classic_draw_openra_style_rts_shell display-label helpers",
-        "resource_labels": resource_labels,
-        "resource_spacing_samples": resource_spacing_samples,
-        "production_slot_labels": production_slot_labels,
-        "production_slot_badge_labels": production_slot_badge_labels,
-        "production_slot_badge_widths": production_slot_badge_widths,
-        "production_slot_status_labels": production_slot_status_labels,
-        "production_empty_slot_status_labels": production_empty_slot_status_labels,
-        "build_palette_labels": build_palette_labels,
-        "build_palette_badge_labels": build_palette_badge_labels,
-        "build_palette_badge_widths": build_palette_badge_widths,
-        "build_palette_state_labels": build_palette_state_labels,
-        "build_palette_fit_samples": build_palette_fit_samples,
-        "build_palette_badge_fit_samples": build_palette_badge_fit_samples,
-        "order_queue_labels": order_queue_labels,
-        "order_queue_badge_labels": order_queue_badge_labels,
-        "completion_event_labels": completion_event_labels,
-        "completion_event_badge_labels": completion_event_badge_labels,
-        "tactics_queue_summary": tactics_queue_summary,
-        "tactics_target_label": tactics_target_label,
-        "tactics_build_label": tactics_build_label,
-        "tactics_detail_labels": tactics_detail_labels,
-        "tactics_compact_badge_labels": tactics_compact_badge_labels,
-        "tactics_compact_badge_widths": tactics_compact_badge_widths,
-        "tactics_queue_fallback_values": tactics_queue_fallback_values,
-        "tactics_queue_fallback_badge_labels": tactics_queue_fallback_badge_labels,
-        "tactics_queue_fallback_badge_widths": tactics_queue_fallback_badge_widths,
-        "field_status_title": field_status_title,
-        "live_status_labels": live_status_labels,
-        "live_state_labels": live_state_labels,
-        "tactical_header_title": tactical_header_title,
-        "tactical_header_order_label": tactical_header_order_label,
-        "tactical_header_camera_label": tactical_header_camera_label,
-        "tactical_header_title_width_px": tactical_header_title_width_px,
-        "tactical_header_order_width_px": tactical_header_order_width_px,
-        "tactical_header_camera_width_px": tactical_header_camera_width_px,
-        "tactical_header_title_order_width_px": tactical_header_title_order_width_px,
-        "build_placement_status_label": build_placement_status_label,
-        "upgrade_placement_status_label": upgrade_placement_status_label,
-        "build_placement_status_width_px": build_placement_status_width_px,
-        "upgrade_placement_status_width_px": upgrade_placement_status_width_px,
-        "forbidden_display_fragments": ["TRNM", "PRODUCTION COMPLETE", "BUILD COMPLETE", "UPGRADE COMPLETE", "LIVE INPUT", "LMB", "WASD", "CTRL", "SHIFT", "PROD ", ":", ".", "@", "_", "->"],
-        "expected_label_gate": expected_label_gate,
-        "resource_spacing_gate": resource_spacing_gate,
-        "production_slot_width_gate": production_slot_width_gate,
-        "production_slot_status_width_gate": production_slot_status_width_gate,
-        "build_palette_width_gate": build_palette_width_gate,
-        "build_palette_state_width_gate": build_palette_state_width_gate,
-        "order_queue_width_gate": order_queue_width_gate,
-        "order_queue_badge_width_gate": order_queue_badge_width_gate,
-        "tactics_summary_width_gate": tactics_summary_width_gate,
-        "tactics_detail_width_gate": tactics_detail_width_gate,
-        "tactics_compact_badge_width_gate": tactics_compact_badge_width_gate,
-        "tactics_queue_fallback_badge_width_gate": tactics_queue_fallback_badge_width_gate,
-        "live_status_width_gate": live_status_width_gate,
-        "live_state_width_gate": live_state_width_gate,
-        "tactical_header_title_order_width_gate": tactical_header_title_order_width_gate,
-        "tactical_header_camera_width_gate": tactical_header_camera_width_gate,
-        "build_placement_status_width_gate": build_placement_status_width_gate,
-        "tactical_header_vertical_separation_gate": tactical_header_vertical_separation_gate,
-        "raw_marker_gate": raw_marker_gate,
-    })
+    let label_runtime = RtsFirstContactPlayerScreenLabelRuntime {
+        resource_labels,
+        resource_spacing_samples,
+        production_slot_labels,
+        production_slot_badge_labels,
+        production_slot_badge_widths_px: production_slot_badge_widths,
+        production_slot_status_labels,
+        production_slot_status_widths_px: production_slot_status_widths,
+        production_empty_slot_status_labels,
+        production_empty_slot_status_widths_px: production_empty_slot_status_widths,
+        build_palette_labels,
+        build_palette_badge_labels,
+        build_palette_badge_widths_px: build_palette_badge_widths,
+        build_palette_state_labels,
+        build_palette_state_widths_px: build_palette_state_widths,
+        build_palette_fit_samples,
+        build_palette_badge_fit_samples,
+        order_queue_labels,
+        order_queue_label_widths_px: order_queue_label_widths,
+        order_queue_badge_labels,
+        order_queue_badge_widths_px: order_queue_badge_widths,
+        completion_event_labels,
+        completion_event_label_widths_px: completion_event_label_widths,
+        completion_event_badge_labels,
+        completion_event_badge_widths_px: completion_event_badge_widths,
+        tactics_queue_summary_width_px: classic_text_advance_px(&tactics_queue_summary, 1),
+        tactics_queue_summary,
+        tactics_target_label,
+        tactics_build_label,
+        tactics_detail_labels,
+        tactics_detail_widths_px: tactics_detail_widths,
+        tactics_compact_badge_labels,
+        tactics_compact_badge_widths_px: tactics_compact_badge_widths,
+        tactics_queue_fallback_values,
+        tactics_queue_fallback_badge_labels,
+        tactics_queue_fallback_badge_widths_px: tactics_queue_fallback_badge_widths,
+        field_status_title,
+        live_status_labels,
+        live_status_widths_px: live_status_widths,
+        live_state_labels,
+        live_state_widths_px: live_state_widths,
+        tactical_header_title,
+        tactical_header_order_label,
+        tactical_header_camera_label,
+        tactical_header_title_width_px,
+        tactical_header_order_width_px,
+        tactical_header_camera_width_px,
+        tactical_header_title_order_width_px,
+        build_placement_status_label,
+        upgrade_placement_status_label,
+        build_placement_status_width_px,
+        upgrade_placement_status_width_px,
+        geometry: RtsFirstContactPlayerScreenLabelGeometrySnapshot {
+            tactical_header_title_y_offset_px: 18,
+            tactical_header_label_gap_px: 4,
+            tactical_header_status_y_offset_px: 30,
+        },
+    };
+    trnm_rts_evidence::first_contact_player_screen_label_guard(&label_runtime)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json::json;
 
     #[test]
     fn first_contact_player_screen_label_helpers_preserve_display_contracts() {

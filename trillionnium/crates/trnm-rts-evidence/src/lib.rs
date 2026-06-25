@@ -116,6 +116,8 @@ mod first_contact_marker_budget;
 #[cfg(not(target_os = "android"))]
 mod first_contact_motion_readability;
 #[cfg(not(target_os = "android"))]
+mod first_contact_player_screen_labels;
+#[cfg(not(target_os = "android"))]
 mod first_contact_radar_readability;
 #[cfg(not(target_os = "android"))]
 mod first_contact_sidebar_density;
@@ -159,6 +161,12 @@ pub use first_contact_motion_readability::{
     first_contact_motion_readability_guard, RtsFirstContactMotionReadabilityRuntime,
 };
 #[cfg(not(target_os = "android"))]
+pub use first_contact_player_screen_labels::{
+    first_contact_player_screen_label_guard, RtsFirstContactBuildPaletteFitSnapshot,
+    RtsFirstContactPlayerScreenLabelGeometrySnapshot, RtsFirstContactPlayerScreenLabelRuntime,
+    RtsFirstContactResourceSpacingSnapshot,
+};
+#[cfg(not(target_os = "android"))]
 pub use first_contact_radar_readability::{
     first_contact_radar_readability_guard, RtsFirstContactRadarReadabilityRuntime,
 };
@@ -190,6 +198,8 @@ pub const TRNM_RTS_EVIDENCE_FIRST_CONTACT_CENTRAL_CLARITY_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_first_contact_central_clarity_v1";
 pub const TRNM_RTS_EVIDENCE_FIRST_CONTACT_COMMAND_GRID_READABILITY_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_first_contact_command_grid_readability_v1";
+pub const TRNM_RTS_EVIDENCE_FIRST_CONTACT_LABEL_GUARD_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_first_contact_label_guard_v1";
 pub const TRNM_RTS_EVIDENCE_FIRST_CONTACT_MOTION_READABILITY_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_first_contact_motion_readability_v1";
 pub const TRNM_RTS_EVIDENCE_FIRST_CONTACT_MARKER_BUDGET_CONTRACT: &str =
