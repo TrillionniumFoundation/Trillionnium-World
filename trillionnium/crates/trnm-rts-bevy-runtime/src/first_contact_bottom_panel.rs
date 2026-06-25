@@ -21,7 +21,7 @@ pub fn rts_first_contact_bottom_panel_feedback_label(feedback: &str, max_chars: 
             .split_once(':')
             .map(|(_, subject)| subject)
             .unwrap_or(subject_fallback.as_str());
-        let subject = rts_first_contact_completion_subject_label(subject.trim());
+        let subject = crate::rts_first_contact_feedback_completion_subject_label(subject.trim());
         return crate::rts_catalog_text_label(&format!("{subject} READY"), max_chars);
     }
     if upper.contains("GROUP 1") && upper.contains("SECUR") && upper.contains("RELAY") {
@@ -71,51 +71,6 @@ fn rts_first_contact_bottom_panel_role_for_unit(unit_id: &str, index: usize) -> 
             .get(index)
             .copied()
             .unwrap_or("UNIT")
-    }
-}
-
-fn rts_first_contact_order_subject_label(subject: &str) -> String {
-    let subject = subject.strip_prefix("trnm.").unwrap_or(subject);
-    let subject = subject.strip_prefix("flux.").unwrap_or(subject);
-    crate::rts_catalog_text_label(&subject.replace(['_', '.', ':', '-'], " "), 18)
-}
-
-fn rts_first_contact_order_completion_subject_label(subject: &str) -> String {
-    let subject = subject.split("->").next().unwrap_or(subject);
-    let subject = subject.split('@').next().unwrap_or(subject);
-    let subject = subject
-        .strip_prefix("train:")
-        .or_else(|| subject.strip_prefix("build:"))
-        .or_else(|| subject.strip_prefix("upgrade:"))
-        .unwrap_or(subject);
-    let subject = subject.strip_prefix("trnm.").unwrap_or(subject);
-    match subject {
-        "guard" => "GUARD".to_string(),
-        "worker" => "WORKER".to_string(),
-        "signal_blade" => "SIGNAL".to_string(),
-        "training_hall" => "TRAINING".to_string(),
-        "watch_tower" => "TOWER".to_string(),
-        "power_node" => "POWER".to_string(),
-        "refinery" => "REFINE".to_string(),
-        "command_post" => "COMMAND".to_string(),
-        "radar_spire" => "RADAR".to_string(),
-        "wall" => "WALL".to_string(),
-        _ => rts_first_contact_order_subject_label(subject),
-    }
-}
-
-fn rts_first_contact_completion_subject_label(subject: &str) -> String {
-    let subject = subject.split("->").next().unwrap_or(subject);
-    let subject = subject.split('@').next().unwrap_or(subject);
-    let subject = subject
-        .strip_prefix("train:")
-        .or_else(|| subject.strip_prefix("build:"))
-        .or_else(|| subject.strip_prefix("upgrade:"))
-        .unwrap_or(subject);
-    match subject {
-        "signal_blade" => "SIGNAL BLADE".to_string(),
-        "watch_tower" => "WATCH TOWER".to_string(),
-        _ => rts_first_contact_order_completion_subject_label(subject),
     }
 }
 

@@ -1,6 +1,7 @@
 #![cfg(not(target_os = "android"))]
 
 use serde_json::{json, Value};
+use trnm_rts_bevy_runtime::TRNM_RTS_BEVY_RUNTIME_FIRST_CONTACT_SUBJECT_SURFACE_CONTRACT;
 use trnm_rts_data::TRNM_RTS_DATA_FIRST_CONTACT_LABEL_SURFACE_CONTRACT;
 
 use crate::TRNM_RTS_EVIDENCE_FIRST_CONTACT_LABEL_GUARD_CONTRACT;
@@ -327,6 +328,7 @@ pub fn first_contact_player_screen_label_guard(
     json!({
         "contract_version": TRNM_RTS_EVIDENCE_FIRST_CONTACT_LABEL_GUARD_CONTRACT,
         "label_surface_contract": TRNM_RTS_DATA_FIRST_CONTACT_LABEL_SURFACE_CONTRACT,
+        "subject_surface_contract": TRNM_RTS_BEVY_RUNTIME_FIRST_CONTACT_SUBJECT_SURFACE_CONTRACT,
         "green": green,
         "source_path": "trnm-world-bevy classic_draw_openra_style_rts_shell display-label helpers",
         "resource_labels": runtime.resource_labels,
@@ -580,6 +582,12 @@ mod tests {
         assert_eq!(
             guard.get("label_surface_contract").and_then(Value::as_str),
             Some(TRNM_RTS_DATA_FIRST_CONTACT_LABEL_SURFACE_CONTRACT)
+        );
+        assert_eq!(
+            guard
+                .get("subject_surface_contract")
+                .and_then(Value::as_str),
+            Some(TRNM_RTS_BEVY_RUNTIME_FIRST_CONTACT_SUBJECT_SURFACE_CONTRACT)
         );
         assert_eq!(guard.get("green").and_then(Value::as_bool), Some(true));
         assert_eq!(

@@ -83,7 +83,7 @@ pub fn rts_first_contact_target_label(target_id: &str) -> String {
     match target_id {
         "trnm.flux.beacon" | "flux.beacon" | "beacon" => "RELAY BEACON".to_string(),
         "trnm.flux.relay" | "flux.relay" | "relay" => "RELAY".to_string(),
-        _ => rts_first_contact_order_subject_label(target_id),
+        _ => crate::rts_first_contact_subject_label(target_id),
     }
 }
 
@@ -130,7 +130,7 @@ pub fn rts_first_contact_tactics_row_value(
                 crate::rts_catalog_text_label(
                     &format!(
                         "{} {}%",
-                        rts_first_contact_order_completion_subject_label(id),
+                        crate::rts_first_contact_order_completion_subject_label(id),
                         runtime.building_progress_percent.min(100)
                     ),
                     max_chars,
@@ -150,7 +150,7 @@ pub fn rts_first_contact_target_callout_subject(
     } else if normalized.contains("relay") {
         "RELAY".to_string()
     } else {
-        rts_first_contact_live_subject_label(target_id, 8)
+        crate::rts_first_contact_live_subject_label(target_id, 8)
     }
 }
 
@@ -225,7 +225,7 @@ pub fn rts_first_contact_build_placement_status_label(
     let blueprint_id = runtime.building_blueprint_id?;
     let primary_tile_id = runtime.build_site_tile_ids.first()?;
     let placement_queue_id = format!("build:{blueprint_id}@{primary_tile_id}");
-    let subject = rts_first_contact_order_completion_subject_label(blueprint_id);
+    let subject = crate::rts_first_contact_order_completion_subject_label(blueprint_id);
     let state = if crate::rts_queue_is_affordable(
         runtime.coins,
         runtime.resource_spend_log,
@@ -250,72 +250,6 @@ pub fn rts_first_contact_hud_tile_label(tile_id: &str) -> String {
     parse_tile_id(tile_id)
         .map(|(x, y)| format!("{x}/{y}"))
         .unwrap_or_else(|| tile_id.replace(',', "/"))
-}
-
-fn rts_first_contact_order_subject_label(subject: &str) -> String {
-    let subject = subject.strip_prefix("trnm.").unwrap_or(subject);
-    let subject = subject.strip_prefix("flux.").unwrap_or(subject);
-    crate::rts_catalog_text_label(&subject.replace(['_', '.', ':', '-'], " "), 18)
-}
-
-fn rts_first_contact_order_completion_subject_label(subject: &str) -> String {
-    let subject = subject.split("->").next().unwrap_or(subject);
-    let subject = subject.split('@').next().unwrap_or(subject);
-    let subject = subject
-        .strip_prefix("train:")
-        .or_else(|| subject.strip_prefix("build:"))
-        .or_else(|| subject.strip_prefix("upgrade:"))
-        .unwrap_or(subject);
-    let subject = subject.strip_prefix("trnm.").unwrap_or(subject);
-    match subject {
-        "guard" => "GUARD".to_string(),
-        "worker" => "WORKER".to_string(),
-        "signal_blade" => "SIGNAL".to_string(),
-        "training_hall" => "TRAINING".to_string(),
-        "watch_tower" => "TOWER".to_string(),
-        "power_node" => "POWER".to_string(),
-        "refinery" => "REFINE".to_string(),
-        "command_post" => "COMMAND".to_string(),
-        "radar_spire" => "RADAR".to_string(),
-        "wall" => "WALL".to_string(),
-        _ => rts_first_contact_order_subject_label(subject),
-    }
-}
-
-fn rts_first_contact_live_subject_label(subject: &str, max_chars: usize) -> String {
-    let subject = subject.split("->").next().unwrap_or(subject);
-    let subject = subject.split('@').next().unwrap_or(subject);
-    let subject = subject
-        .strip_prefix("train:")
-        .or_else(|| subject.strip_prefix("build:"))
-        .or_else(|| subject.strip_prefix("upgrade:"))
-        .or_else(|| subject.strip_prefix("attack:"))
-        .or_else(|| subject.strip_prefix("objective:claim:"))
-        .or_else(|| subject.strip_prefix("objective:extract:"))
-        .unwrap_or(subject);
-    let subject = subject.strip_prefix("trnm.").unwrap_or(subject);
-    let normalized = subject.to_ascii_lowercase();
-    let label = if normalized.contains("flux.beacon")
-        || normalized.contains("relay_beacon")
-        || normalized == "beacon"
-    {
-        "RELAY BEACON".to_string()
-    } else if normalized.contains("flux.relay") || normalized.contains("relay_outpost") {
-        "RELAY".to_string()
-    } else if normalized.contains("ai_skirmish") || normalized.contains("skirmish_wave") {
-        "SKIRMISH".to_string()
-    } else if normalized.contains("ridge_sentries") {
-        "RIDGE SENTRIES".to_string()
-    } else if normalized.contains("scout") {
-        "SCOUT CREW".to_string()
-    } else if normalized.contains("tier_two") || normalized.contains("tier2") {
-        "TIER2".to_string()
-    } else if normalized.contains("open_world") || normalized.contains("resume") {
-        "RESUME".to_string()
-    } else {
-        rts_first_contact_order_completion_subject_label(subject)
-    };
-    crate::rts_catalog_text_label(&label, max_chars)
 }
 
 fn parse_tile_id(value: &str) -> Option<(i32, i32)> {

@@ -10,6 +10,7 @@ use trnm_rts_data::RtsFirstContactPlayerScreenProfile;
 mod first_contact_bottom_panel;
 mod first_contact_command_grid;
 mod first_contact_readouts;
+mod first_contact_subjects;
 mod first_contact_tiles;
 
 pub use first_contact_bottom_panel::{
@@ -30,6 +31,11 @@ pub use first_contact_readouts::{
     rts_first_contact_target_callout_label, rts_first_contact_target_callout_subject,
     rts_first_contact_target_label, RtsFirstContactReadoutRuntime,
     TRNM_RTS_BEVY_RUNTIME_FIRST_CONTACT_READOUT_SURFACE_CONTRACT,
+};
+pub use first_contact_subjects::{
+    rts_first_contact_feedback_completion_subject_label, rts_first_contact_live_subject_label,
+    rts_first_contact_order_completion_subject_label, rts_first_contact_subject_label,
+    TRNM_RTS_BEVY_RUNTIME_FIRST_CONTACT_SUBJECT_SURFACE_CONTRACT,
 };
 pub use first_contact_tiles::{
     rts_first_contact_central_clarity_quiet_tiles, rts_first_contact_radar_focus_tile,

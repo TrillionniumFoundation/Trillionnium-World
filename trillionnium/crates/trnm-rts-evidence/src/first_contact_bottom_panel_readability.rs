@@ -4,6 +4,7 @@ use serde_json::{json, Value};
 use trnm_rts_bevy_runtime::{
     rts_first_contact_bottom_panel_feedback_label as first_contact_bottom_panel_feedback_label,
     rts_first_contact_bottom_panel_squad_roles as first_contact_bottom_panel_squad_roles,
+    TRNM_RTS_BEVY_RUNTIME_FIRST_CONTACT_SUBJECT_SURFACE_CONTRACT,
 };
 
 use crate::TRNM_RTS_EVIDENCE_FIRST_CONTACT_BOTTOM_PANEL_READABILITY_CONTRACT;
@@ -146,6 +147,7 @@ pub fn first_contact_bottom_panel_readability_guard(
 
     json!({
         "contract_version": TRNM_RTS_EVIDENCE_FIRST_CONTACT_BOTTOM_PANEL_READABILITY_CONTRACT,
+        "subject_surface_contract": TRNM_RTS_BEVY_RUNTIME_FIRST_CONTACT_SUBJECT_SURFACE_CONTRACT,
         "green": green,
         "source_path": "trnm-world-bevy classic_draw_openra_style_rts_shell bottom selection/status panel",
         "group_summary": group_summary,
@@ -269,6 +271,12 @@ mod tests {
         assert_eq!(
             guard.get("contract_version").and_then(Value::as_str),
             Some(TRNM_RTS_EVIDENCE_FIRST_CONTACT_BOTTOM_PANEL_READABILITY_CONTRACT)
+        );
+        assert_eq!(
+            guard
+                .get("subject_surface_contract")
+                .and_then(Value::as_str),
+            Some(TRNM_RTS_BEVY_RUNTIME_FIRST_CONTACT_SUBJECT_SURFACE_CONTRACT)
         );
         assert_eq!(guard.get("green").and_then(Value::as_bool), Some(true));
         assert_eq!(

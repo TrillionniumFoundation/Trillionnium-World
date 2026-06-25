@@ -4,6 +4,7 @@ use serde_json::{json, Value};
 use trnm_rts_bevy_runtime::{
     rts_runtime_tile_id, rts_runtime_tile_line,
     TRNM_RTS_BEVY_RUNTIME_FIRST_CONTACT_READOUT_SURFACE_CONTRACT,
+    TRNM_RTS_BEVY_RUNTIME_FIRST_CONTACT_SUBJECT_SURFACE_CONTRACT,
     TRNM_RTS_BEVY_RUNTIME_FIRST_CONTACT_TILE_SURFACE_CONTRACT,
 };
 
@@ -366,6 +367,7 @@ pub fn first_contact_target_callout_guard(
         "contract_version": TRNM_RTS_EVIDENCE_FIRST_CONTACT_TARGET_CALLOUT_CONTRACT,
         "tile_surface_contract": TRNM_RTS_BEVY_RUNTIME_FIRST_CONTACT_TILE_SURFACE_CONTRACT,
         "readout_surface_contract": TRNM_RTS_BEVY_RUNTIME_FIRST_CONTACT_READOUT_SURFACE_CONTRACT,
+        "subject_surface_contract": TRNM_RTS_BEVY_RUNTIME_FIRST_CONTACT_SUBJECT_SURFACE_CONTRACT,
         "green": target_callout_gate,
         "source_path": "trnm-world-bevy classic_draw_first_contact_selection_combat_focus_layer target callout with clearance gutter inside final focus layer",
         "target_tile": target_tile,
@@ -507,6 +509,12 @@ mod tests {
                 .get("readout_surface_contract")
                 .and_then(Value::as_str),
             Some(TRNM_RTS_BEVY_RUNTIME_FIRST_CONTACT_READOUT_SURFACE_CONTRACT)
+        );
+        assert_eq!(
+            guard
+                .get("subject_surface_contract")
+                .and_then(Value::as_str),
+            Some(TRNM_RTS_BEVY_RUNTIME_FIRST_CONTACT_SUBJECT_SURFACE_CONTRACT)
         );
         assert_eq!(guard.get("green").and_then(Value::as_bool), Some(true));
         assert_eq!(
