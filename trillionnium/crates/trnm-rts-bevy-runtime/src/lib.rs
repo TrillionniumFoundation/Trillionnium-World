@@ -7,10 +7,15 @@ use serde::{Deserialize, Serialize};
 use trnm_rts_core::RtsTile;
 use trnm_rts_data::RtsFirstContactPlayerScreenProfile;
 
+mod first_contact_bottom_panel;
 mod first_contact_command_grid;
 mod first_contact_readouts;
 mod first_contact_tiles;
 
+pub use first_contact_bottom_panel::{
+    rts_first_contact_bottom_panel_feedback_label, rts_first_contact_bottom_panel_squad_roles,
+    TRNM_RTS_BEVY_RUNTIME_FIRST_CONTACT_BOTTOM_PANEL_SURFACE_CONTRACT,
+};
 pub use first_contact_command_grid::{
     rts_first_contact_command_glyph_role, rts_first_contact_command_glyph_signature,
     rts_first_contact_command_grid_slot_ids, rts_first_contact_command_slot_sent,

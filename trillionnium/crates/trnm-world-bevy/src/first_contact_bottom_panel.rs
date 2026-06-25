@@ -8,14 +8,14 @@ use crate::{
 };
 
 pub(crate) fn feedback_label(feedback: &str, max_chars: usize) -> String {
-    trnm_rts_evidence::first_contact_bottom_panel_feedback_label(feedback, max_chars)
+    trnm_rts_bevy_runtime::rts_first_contact_bottom_panel_feedback_label(feedback, max_chars)
 }
 
 pub(crate) fn squad_roles(
     runtime: &NativeFirstPlayableRuntime,
     selected_unit_display_count: usize,
 ) -> Vec<String> {
-    trnm_rts_evidence::first_contact_bottom_panel_squad_roles(
+    trnm_rts_bevy_runtime::rts_first_contact_bottom_panel_squad_roles(
         &runtime.rts_selected_unit_ids,
         selected_unit_display_count,
     )

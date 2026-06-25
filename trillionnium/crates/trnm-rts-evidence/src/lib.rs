@@ -136,8 +136,7 @@ pub use first_contact_atlas_readability::{
 };
 #[cfg(not(target_os = "android"))]
 pub use first_contact_bottom_panel_readability::{
-    first_contact_bottom_panel_feedback_label, first_contact_bottom_panel_readability_guard,
-    first_contact_bottom_panel_squad_roles, RtsFirstContactBottomPanelGeometrySnapshot,
+    first_contact_bottom_panel_readability_guard, RtsFirstContactBottomPanelGeometrySnapshot,
     RtsFirstContactBottomPanelRuntime,
 };
 #[cfg(not(target_os = "android"))]
@@ -181,6 +180,11 @@ pub use first_contact_spatial_readability::{
 #[cfg(not(target_os = "android"))]
 pub use first_contact_visual_readability::{
     first_contact_visual_readability_guard, RtsFirstContactVisualReadabilityRuntime,
+};
+#[cfg(not(target_os = "android"))]
+pub use trnm_rts_bevy_runtime::{
+    rts_first_contact_bottom_panel_feedback_label as first_contact_bottom_panel_feedback_label,
+    rts_first_contact_bottom_panel_squad_roles as first_contact_bottom_panel_squad_roles,
 };
 #[cfg(not(target_os = "android"))]
 pub use trnm_rts_bevy_runtime::{

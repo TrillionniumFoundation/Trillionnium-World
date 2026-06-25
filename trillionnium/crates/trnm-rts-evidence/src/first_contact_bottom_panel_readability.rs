@@ -1,6 +1,10 @@
 #![cfg(not(target_os = "android"))]
 
 use serde_json::{json, Value};
+use trnm_rts_bevy_runtime::{
+    rts_first_contact_bottom_panel_feedback_label as first_contact_bottom_panel_feedback_label,
+    rts_first_contact_bottom_panel_squad_roles as first_contact_bottom_panel_squad_roles,
+};
 
 use crate::TRNM_RTS_EVIDENCE_FIRST_CONTACT_BOTTOM_PANEL_READABILITY_CONTRACT;
 
@@ -27,135 +31,6 @@ pub struct RtsFirstContactBottomPanelRuntime {
     pub order_queue_badge_widths_px: Vec<i32>,
     pub completion_event_badge_widths_px: Vec<i32>,
     pub geometry: RtsFirstContactBottomPanelGeometrySnapshot,
-}
-
-fn catalog_text_label(text: &str, max_chars: usize) -> String {
-    text.replace('_', " ")
-        .split_whitespace()
-        .collect::<Vec<_>>()
-        .join(" ")
-        .to_ascii_uppercase()
-        .chars()
-        .take(max_chars)
-        .collect()
-}
-
-fn order_subject_label(subject: &str) -> String {
-    let subject = subject.strip_prefix("trnm.").unwrap_or(subject);
-    let subject = subject.strip_prefix("flux.").unwrap_or(subject);
-    catalog_text_label(&subject.replace(['_', '.', ':', '-'], " "), 18)
-}
-
-fn order_completion_subject_label(subject: &str) -> String {
-    let subject = subject.split("->").next().unwrap_or(subject);
-    let subject = subject.split('@').next().unwrap_or(subject);
-    let subject = subject
-        .strip_prefix("train:")
-        .or_else(|| subject.strip_prefix("build:"))
-        .or_else(|| subject.strip_prefix("upgrade:"))
-        .unwrap_or(subject);
-    let subject = subject.strip_prefix("trnm.").unwrap_or(subject);
-    match subject {
-        "guard" => "GUARD".to_string(),
-        "worker" => "WORKER".to_string(),
-        "signal_blade" => "SIGNAL".to_string(),
-        "training_hall" => "TRAINING".to_string(),
-        "watch_tower" => "TOWER".to_string(),
-        "power_node" => "POWER".to_string(),
-        "refinery" => "REFINE".to_string(),
-        "command_post" => "COMMAND".to_string(),
-        "radar_spire" => "RADAR".to_string(),
-        "wall" => "WALL".to_string(),
-        _ => order_subject_label(subject),
-    }
-}
-
-fn completion_subject_label(subject: &str) -> String {
-    let subject = subject.split("->").next().unwrap_or(subject);
-    let subject = subject.split('@').next().unwrap_or(subject);
-    let subject = subject
-        .strip_prefix("train:")
-        .or_else(|| subject.strip_prefix("build:"))
-        .or_else(|| subject.strip_prefix("upgrade:"))
-        .unwrap_or(subject);
-    match subject {
-        "signal_blade" => "SIGNAL BLADE".to_string(),
-        "watch_tower" => "WATCH TOWER".to_string(),
-        _ => order_completion_subject_label(subject),
-    }
-}
-
-pub fn first_contact_bottom_panel_feedback_label(feedback: &str, max_chars: usize) -> String {
-    let trimmed = feedback
-        .trim()
-        .strip_prefix("RTS ")
-        .unwrap_or(feedback.trim())
-        .trim();
-    let upper = trimmed.to_ascii_uppercase();
-    if upper.starts_with("UPGRADE COMPLETE")
-        || upper.starts_with("BUILD COMPLETE")
-        || upper.starts_with("PRODUCTION COMPLETE")
-    {
-        let subject_fallback = trimmed
-            .split_whitespace()
-            .skip(2)
-            .collect::<Vec<_>>()
-            .join(" ");
-        let subject = trimmed
-            .split_once(':')
-            .map(|(_, subject)| subject)
-            .unwrap_or(subject_fallback.as_str());
-        let subject = completion_subject_label(subject.trim());
-        return catalog_text_label(&format!("{subject} READY"), max_chars);
-    }
-    if upper.contains("GROUP 1") && upper.contains("SECUR") && upper.contains("RELAY") {
-        return catalog_text_label("GROUP 1 SECURING RELAY", max_chars);
-    }
-    let cleaned = trimmed
-        .replace("->", " ")
-        .replace([':', '_', '.', '@'], " ");
-    catalog_text_label(&cleaned, max_chars)
-}
-
-fn role_for_unit(unit_id: &str, index: usize) -> &'static str {
-    let normalized = unit_id.to_ascii_lowercase();
-    if normalized.contains("player") || normalized.contains("lead") {
-        "LEAD"
-    } else if normalized.contains("guard") || normalized.contains("warden") {
-        "GUARD"
-    } else if normalized.contains("worker") || normalized.contains("harvest") {
-        "WORKER"
-    } else if normalized.contains("scout") || normalized.contains("creep") {
-        "SCOUT"
-    } else if normalized.contains("relay") {
-        "RELAY"
-    } else if normalized.contains("signal") {
-        "SIGNAL"
-    } else {
-        ["LEAD", "GUARD", "WORKER", "SCOUT"]
-            .get(index)
-            .copied()
-            .unwrap_or("UNIT")
-    }
-}
-
-pub fn first_contact_bottom_panel_squad_roles(
-    selected_unit_ids: &[String],
-    selected_unit_display_count: usize,
-) -> Vec<String> {
-    let fallback = ["LEAD", "GUARD", "WORKER", "SCOUT"];
-    let count = selected_unit_display_count
-        .max(selected_unit_ids.len())
-        .min(4);
-    (0..count)
-        .map(|index| {
-            selected_unit_ids
-                .get(index)
-                .map(|unit_id| role_for_unit(unit_id, index))
-                .unwrap_or_else(|| fallback.get(index).copied().unwrap_or("UNIT"))
-                .to_string()
-        })
-        .collect()
 }
 
 fn first_contact_label_has_raw_marker(label: &str) -> bool {
