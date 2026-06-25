@@ -98599,7 +98599,12 @@ fn classic_mute_first_contact_gallery_pixels(
                     trnm_rts_evidence::TRNM_RTS_EVIDENCE_FIRST_CONTACT_LOWER_LANE_GALLERY_DARKEN_DENOMINATOR,
                 )
             } else {
-                classic_mix_color(color, 0x06100c, 1, 2)
+                classic_mix_color(
+                    color,
+                    0x06100c,
+                    trnm_rts_evidence::TRNM_RTS_EVIDENCE_FIRST_CONTACT_GALLERY_DARKEN_NUMERATOR,
+                    trnm_rts_evidence::TRNM_RTS_EVIDENCE_FIRST_CONTACT_GALLERY_DARKEN_DENOMINATOR,
+                )
             };
             muted_pixels += 1;
         }
@@ -98860,45 +98865,47 @@ fn classic_draw_first_contact_atlas_family_slot_cue(
         return;
     }
 
-    let top_h = 2;
-    let cue_w = (cell_w - 4).max(4);
-    let cue_x = tile_x + 2;
-    let lane_h = (cell_h - 7).max(3);
+    let tick_w = 5.min((cell_w - 4).max(3));
+    let cue_x = match classic_first_contact_atlas_family_gallery_lane(tile) {
+        "west_gallery" => tile_x + 2,
+        "east_gallery" => tile_x + cell_w - tick_w - 2,
+        _ => tile_x + cell_w / 2 - tick_w / 2,
+    };
+    let tick_color = classic_darken(color, 1, 3);
     classic_draw_rect(
         buffer,
         width,
         height,
         cue_x,
-        tile_y + 2,
-        cue_w,
-        top_h,
-        color,
+        tile_y + 3,
+        tick_w,
+        1,
+        tick_color,
     );
     classic_draw_rect(
         buffer,
         width,
         height,
         cue_x,
-        tile_y + cell_h - 3,
-        cue_w,
+        tile_y + cell_h - 4,
+        tick_w,
         1,
-        classic_darken(color, 1, 3),
+        classic_darken(color, 1, 2),
     );
     let lane_x = match classic_first_contact_atlas_family_gallery_lane(tile) {
         "west_gallery" => tile_x + 1,
         "east_gallery" => tile_x + cell_w - 3,
         _ => tile_x + cell_w / 2 - 1,
     };
-    let lane_w = 2;
     classic_draw_rect(
         buffer,
         width,
         height,
         lane_x,
-        tile_y + 4,
-        lane_w,
-        lane_h,
-        classic_darken(color, 1, 5),
+        tile_y + cell_h / 2 - 2,
+        1,
+        4,
+        classic_darken(color, 2, 3),
     );
 }
 
@@ -160951,6 +160958,24 @@ mod tests {
         );
         assert_eq!(
             guard
+                .get("gallery_slot_cue_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(252)
+        );
+        assert_eq!(
+            guard
+                .get("gallery_darken_numerator")
+                .and_then(Value::as_u64),
+            Some(2)
+        );
+        assert_eq!(
+            guard
+                .get("gallery_darken_denominator")
+                .and_then(Value::as_u64),
+            Some(3)
+        );
+        assert_eq!(
+            guard
                 .get("lower_lane_ghost_anchor_count")
                 .and_then(Value::as_u64),
             Some(3)
@@ -161011,6 +161036,12 @@ mod tests {
                     signatures
                         .iter()
                         .any(|value| value.as_str() == Some("darkened_gallery_frames"))
+                        && signatures.iter().any(|value| {
+                            value.as_str() == Some("perimeter_gallery_stronger_deemphasis")
+                        })
+                        && signatures.iter().any(|value| {
+                            value.as_str() == Some("perimeter_gallery_micro_slot_cues")
+                        })
                         && signatures
                             .iter()
                             .any(|value| value.as_str() == Some("interactive_focus_kept_hot"))
