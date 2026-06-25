@@ -3,11 +3,11 @@
 use trnm_rts_data::RtsFirstContactPlayerScreenChromeProfile;
 
 pub(crate) fn command_glyph_role(ability: &str) -> &'static str {
-    trnm_rts_evidence::first_contact_command_glyph_role(ability)
+    trnm_rts_bevy_runtime::rts_first_contact_command_glyph_role(ability)
 }
 
 pub(crate) fn command_glyph_signature(role: &str) -> &'static str {
-    trnm_rts_evidence::first_contact_command_glyph_signature(role)
+    trnm_rts_bevy_runtime::rts_first_contact_command_glyph_signature(role)
 }
 
 pub(crate) fn command_role_backdrop(role: &str) -> u32 {
@@ -26,11 +26,11 @@ pub(crate) fn command_role_backdrop(role: &str) -> u32 {
 pub(crate) fn command_grid_slot_ids(
     chrome: &RtsFirstContactPlayerScreenChromeProfile,
 ) -> Vec<String> {
-    trnm_rts_evidence::first_contact_command_grid_slot_ids(chrome)
+    trnm_rts_bevy_runtime::rts_first_contact_command_grid_slot_ids(chrome)
 }
 
 pub(crate) fn command_slot_sent(command_queue: &[String], ability: &str, role: &str) -> bool {
-    trnm_rts_evidence::first_contact_command_slot_sent(command_queue, ability, role)
+    trnm_rts_bevy_runtime::rts_first_contact_command_slot_sent(command_queue, ability, role)
 }
 
 #[cfg(test)]

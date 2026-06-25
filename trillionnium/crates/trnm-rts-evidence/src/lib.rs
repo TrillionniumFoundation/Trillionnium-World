@@ -141,11 +141,7 @@ pub use first_contact_bottom_panel_readability::{
     RtsFirstContactBottomPanelRuntime,
 };
 #[cfg(not(target_os = "android"))]
-pub use first_contact_command_grid_readability::{
-    first_contact_command_glyph_role, first_contact_command_glyph_signature,
-    first_contact_command_grid_readability_guard, first_contact_command_grid_slot_ids,
-    first_contact_command_slot_sent, RtsFirstContactCommandGridRuntime,
-};
+pub use first_contact_command_grid_readability::first_contact_command_grid_readability_guard;
 #[cfg(not(target_os = "android"))]
 pub use first_contact_focus_readability::{
     first_contact_selection_combat_focus_guard, first_contact_target_callout_guard,
@@ -185,6 +181,14 @@ pub use first_contact_spatial_readability::{
 #[cfg(not(target_os = "android"))]
 pub use first_contact_visual_readability::{
     first_contact_visual_readability_guard, RtsFirstContactVisualReadabilityRuntime,
+};
+#[cfg(not(target_os = "android"))]
+pub use trnm_rts_bevy_runtime::{
+    rts_first_contact_command_glyph_role as first_contact_command_glyph_role,
+    rts_first_contact_command_glyph_signature as first_contact_command_glyph_signature,
+    rts_first_contact_command_grid_slot_ids as first_contact_command_grid_slot_ids,
+    rts_first_contact_command_slot_sent as first_contact_command_slot_sent,
+    RtsFirstContactCommandGridRuntime,
 };
 
 pub const TRNM_RTS_EVIDENCE_CONTRACT: &str = "trnm_rts_evidence_v1";
