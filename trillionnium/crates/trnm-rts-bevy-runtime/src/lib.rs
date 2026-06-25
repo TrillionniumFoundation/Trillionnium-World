@@ -7,6 +7,21 @@ use serde::{Deserialize, Serialize};
 use trnm_rts_core::RtsTile;
 use trnm_rts_data::RtsFirstContactPlayerScreenProfile;
 
+mod first_contact_tiles;
+
+pub use first_contact_tiles::{
+    rts_first_contact_central_clarity_quiet_tiles, rts_first_contact_radar_focus_tile,
+    rts_first_contact_radar_lane_sample_tiles, rts_first_contact_radar_objective_tiles,
+    rts_first_contact_radar_pressure_tiles, rts_first_contact_radar_structure_tiles,
+    rts_first_contact_route_clearance_tiles, rts_first_contact_selection_route_tiles,
+    rts_first_contact_target_callout_tile,
+    rts_first_contact_terminal_legibility_blocked_quiet_tiles,
+    rts_first_contact_terminal_legibility_quiet_tiles,
+    rts_first_contact_terminal_legibility_target_quiet_tiles, rts_first_contact_tile_id,
+    rts_first_contact_tile_tuple, rts_first_contact_visual_hierarchy_corridor_tiles,
+    TRNM_RTS_BEVY_RUNTIME_FIRST_CONTACT_TILE_SURFACE_CONTRACT,
+};
+
 pub const TRNM_RTS_BEVY_RUNTIME_CONTRACT: &str = "trnm_rts_bevy_runtime_adapter_v1";
 
 pub const TRNM_RTS_RUNTIME_MAP_WIDTH_TILES: i32 = 34;
