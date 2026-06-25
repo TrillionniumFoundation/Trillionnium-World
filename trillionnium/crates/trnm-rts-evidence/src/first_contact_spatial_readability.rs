@@ -1,7 +1,11 @@
 #![cfg(not(target_os = "android"))]
 
 use serde_json::{json, Value};
-use trnm_rts_bevy_runtime::{self as rts_bevy_runtime, rts_runtime_tile_id};
+use trnm_rts_bevy_runtime::{
+    self as rts_bevy_runtime, rts_runtime_tile_id,
+    TRNM_RTS_BEVY_RUNTIME_FIRST_CONTACT_TILE_SURFACE_CONTRACT,
+};
+use trnm_rts_core::RtsTile;
 use trnm_rts_data::first_contact_samples;
 
 use crate::{
@@ -31,14 +35,30 @@ fn tile_ids(tiles: &[(i32, i32)]) -> Vec<String> {
     tiles.iter().copied().map(tile_id).collect()
 }
 
+fn runtime_tile(tile: (i32, i32)) -> RtsTile {
+    RtsTile::new(tile.0, tile.1)
+}
+
+fn route_tile_ids(runtime: &RtsFirstContactSpatialReadabilityRuntime) -> Vec<String> {
+    tile_ids(&runtime.route_tiles)
+}
+
+fn command_destination_tile_id(
+    runtime: &RtsFirstContactSpatialReadabilityRuntime,
+) -> Option<String> {
+    runtime.command_destination_tile.map(tile_id)
+}
+
 fn selected_focus_tiles(runtime: &RtsFirstContactSpatialReadabilityRuntime) -> Vec<String> {
     tile_ids(&runtime.selected_tiles)
 }
 
 fn target_focus_tile(runtime: &RtsFirstContactSpatialReadabilityRuntime) -> (i32, i32) {
-    runtime
-        .command_destination_tile
-        .unwrap_or(runtime.fallback_target_tile)
+    let command_destination_tile = command_destination_tile_id(runtime);
+    rts_bevy_runtime::rts_first_contact_target_callout_tile(
+        command_destination_tile.as_deref(),
+        runtime_tile(runtime.fallback_target_tile),
+    )
 }
 
 fn target_focus_tile_id(runtime: &RtsFirstContactSpatialReadabilityRuntime) -> String {
@@ -48,52 +68,43 @@ fn target_focus_tile_id(runtime: &RtsFirstContactSpatialReadabilityRuntime) -> S
 fn visual_hierarchy_corridor_tiles(
     runtime: &RtsFirstContactSpatialReadabilityRuntime,
 ) -> Vec<(i32, i32)> {
-    let mut tiles = runtime.route_tiles.clone();
-    tiles.extend(runtime.selected_tiles.iter().copied());
-    tiles.push(target_focus_tile(runtime));
-    tiles.push(runtime.blocked_tile);
-    tiles.sort_unstable();
-    tiles.dedup();
-    tiles
+    let route_tile_ids = route_tile_ids(runtime);
+    let selected_tile_ids = selected_focus_tiles(runtime);
+    let command_destination_tile = command_destination_tile_id(runtime);
+    rts_bevy_runtime::rts_first_contact_visual_hierarchy_corridor_tiles(
+        &route_tile_ids,
+        &selected_tile_ids,
+        command_destination_tile.as_deref(),
+        runtime_tile(runtime.fallback_target_tile),
+        runtime_tile(runtime.blocked_tile),
+    )
 }
 
 fn central_clarity_quiet_tiles(
     runtime: &RtsFirstContactSpatialReadabilityRuntime,
 ) -> Vec<(i32, i32)> {
-    let focus_tiles = visual_hierarchy_corridor_tiles(runtime);
-    let mut tiles = Vec::new();
-    for y in 10..=12 {
-        for x in 13..=18 {
-            let tile = (x, y);
-            if !focus_tiles.contains(&tile) {
-                tiles.push(tile);
-            }
-        }
-    }
-    tiles
+    let route_tile_ids = route_tile_ids(runtime);
+    let selected_tile_ids = selected_focus_tiles(runtime);
+    let command_destination_tile = command_destination_tile_id(runtime);
+    rts_bevy_runtime::rts_first_contact_central_clarity_quiet_tiles(
+        &route_tile_ids,
+        &selected_tile_ids,
+        command_destination_tile.as_deref(),
+        runtime_tile(runtime.fallback_target_tile),
+        runtime_tile(runtime.blocked_tile),
+    )
 }
 
 fn terminal_legibility_target_quiet_tiles() -> Vec<(i32, i32)> {
-    vec![(15, 8), (16, 8), (17, 8), (15, 9), (17, 9)]
+    rts_bevy_runtime::rts_first_contact_terminal_legibility_target_quiet_tiles()
 }
 
 fn terminal_legibility_blocked_quiet_tiles() -> Vec<(i32, i32)> {
-    vec![
-        (14, 15),
-        (15, 15),
-        (16, 15),
-        (14, 16),
-        (16, 16),
-        (14, 17),
-        (15, 17),
-        (16, 17),
-    ]
+    rts_bevy_runtime::rts_first_contact_terminal_legibility_blocked_quiet_tiles()
 }
 
 fn terminal_legibility_quiet_tiles() -> Vec<(i32, i32)> {
-    let mut tiles = terminal_legibility_target_quiet_tiles();
-    tiles.extend(terminal_legibility_blocked_quiet_tiles());
-    tiles
+    rts_bevy_runtime::rts_first_contact_terminal_legibility_quiet_tiles()
 }
 
 fn route_line_step_count(route_focus_tile_pairs: &[(i32, i32)]) -> usize {
@@ -221,6 +232,7 @@ pub fn first_contact_visual_hierarchy_guard(
 
     json!({
         "contract_version": TRNM_RTS_EVIDENCE_FIRST_CONTACT_VISUAL_HIERARCHY_CONTRACT,
+        "tile_surface_contract": TRNM_RTS_BEVY_RUNTIME_FIRST_CONTACT_TILE_SURFACE_CONTRACT,
         "green": visual_hierarchy_gate,
         "source_path": "trnm-world-bevy classic_draw_first_contact_visual_hierarchy_layer between readability overlays and selection/combat focus",
         "corridor_tiles": corridor_tiles,
@@ -321,6 +333,7 @@ pub fn first_contact_central_clarity_guard(
 
     json!({
         "contract_version": TRNM_RTS_EVIDENCE_FIRST_CONTACT_CENTRAL_CLARITY_CONTRACT,
+        "tile_surface_contract": TRNM_RTS_BEVY_RUNTIME_FIRST_CONTACT_TILE_SURFACE_CONTRACT,
         "green": central_clarity_gate,
         "source_path": "trnm-world-bevy classic_draw_first_contact_central_clarity_layer between visual hierarchy and selection/combat focus",
         "central_core_tile_count": central_core_tile_count,
@@ -423,6 +436,7 @@ pub fn first_contact_terminal_legibility_guard(
 
     json!({
         "contract_version": TRNM_RTS_EVIDENCE_FIRST_CONTACT_TERMINAL_LEGIBILITY_CONTRACT,
+        "tile_surface_contract": TRNM_RTS_BEVY_RUNTIME_FIRST_CONTACT_TILE_SURFACE_CONTRACT,
         "green": terminal_legibility_gate,
         "source_path": "trnm-world-bevy classic_draw_first_contact_terminal_legibility_layer between central clarity and selection/combat focus",
         "terminal_quiet_tile_count": quiet_tiles.len(),
@@ -471,6 +485,12 @@ mod tests {
             hierarchy.get("contract_version").and_then(Value::as_str),
             Some(TRNM_RTS_EVIDENCE_FIRST_CONTACT_VISUAL_HIERARCHY_CONTRACT)
         );
+        assert_eq!(
+            hierarchy
+                .get("tile_surface_contract")
+                .and_then(Value::as_str),
+            Some(TRNM_RTS_BEVY_RUNTIME_FIRST_CONTACT_TILE_SURFACE_CONTRACT)
+        );
         assert_eq!(hierarchy["green"].as_bool(), Some(true));
         assert_eq!(
             hierarchy["corridor_tiles"].as_array().map(Vec::len),
@@ -483,6 +503,10 @@ mod tests {
             central.get("contract_version").and_then(Value::as_str),
             Some(TRNM_RTS_EVIDENCE_FIRST_CONTACT_CENTRAL_CLARITY_CONTRACT)
         );
+        assert_eq!(
+            central.get("tile_surface_contract").and_then(Value::as_str),
+            Some(TRNM_RTS_BEVY_RUNTIME_FIRST_CONTACT_TILE_SURFACE_CONTRACT)
+        );
         assert_eq!(central["green"].as_bool(), Some(true));
         assert_eq!(central["central_quiet_tile_count"].as_u64(), Some(13));
         assert_eq!(
@@ -494,6 +518,12 @@ mod tests {
         assert_eq!(
             terminal.get("contract_version").and_then(Value::as_str),
             Some(TRNM_RTS_EVIDENCE_FIRST_CONTACT_TERMINAL_LEGIBILITY_CONTRACT)
+        );
+        assert_eq!(
+            terminal
+                .get("tile_surface_contract")
+                .and_then(Value::as_str),
+            Some(TRNM_RTS_BEVY_RUNTIME_FIRST_CONTACT_TILE_SURFACE_CONTRACT)
         );
         assert_eq!(terminal["green"].as_bool(), Some(true));
         assert_eq!(terminal["terminal_quiet_tile_count"].as_u64(), Some(13));
