@@ -7,8 +7,18 @@ use serde::{Deserialize, Serialize};
 use trnm_rts_core::RtsTile;
 use trnm_rts_data::RtsFirstContactPlayerScreenProfile;
 
+mod first_contact_readouts;
 mod first_contact_tiles;
 
+pub use first_contact_readouts::{
+    rts_first_contact_build_placement_status_label, rts_first_contact_hud_tile_label,
+    rts_first_contact_resource_readout_value, rts_first_contact_tactical_header_camera_label,
+    rts_first_contact_tactical_header_order_label, rts_first_contact_tactical_header_title,
+    rts_first_contact_tactical_status_label, rts_first_contact_tactics_row_value,
+    rts_first_contact_target_callout_label, rts_first_contact_target_callout_subject,
+    rts_first_contact_target_label, RtsFirstContactReadoutRuntime,
+    TRNM_RTS_BEVY_RUNTIME_FIRST_CONTACT_READOUT_SURFACE_CONTRACT,
+};
 pub use first_contact_tiles::{
     rts_first_contact_central_clarity_quiet_tiles, rts_first_contact_radar_focus_tile,
     rts_first_contact_radar_lane_sample_tiles, rts_first_contact_radar_objective_tiles,

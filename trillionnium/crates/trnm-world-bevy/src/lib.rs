@@ -85888,16 +85888,6 @@ fn classic_first_contact_production_status_badge_label(status_label: &str) -> St
 }
 
 #[cfg(not(target_os = "android"))]
-fn classic_rts_sidebar_queue_summary(runtime: &NativeFirstPlayableRuntime) -> String {
-    rts_bevy_runtime::rts_sidebar_queue_summary(
-        &runtime.rts_production_queue,
-        &runtime.rts_build_queue,
-        runtime.rts_training_progress_percent,
-        runtime.rts_build_progress_percent,
-    )
-}
-
-#[cfg(not(target_os = "android"))]
 fn classic_rts_action_from_runtime_action(
     action: rts_bevy_runtime::RtsOrderQueueReplayAction,
 ) -> NativeControlAction {
