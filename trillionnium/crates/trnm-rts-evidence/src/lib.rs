@@ -118,6 +118,8 @@ mod first_contact_motion_readability;
 #[cfg(not(target_os = "android"))]
 mod first_contact_radar_readability;
 #[cfg(not(target_os = "android"))]
+mod first_contact_sidebar_density;
+#[cfg(not(target_os = "android"))]
 mod first_contact_silhouette_readability;
 #[cfg(not(target_os = "android"))]
 mod first_contact_spatial_readability;
@@ -161,6 +163,11 @@ pub use first_contact_radar_readability::{
     first_contact_radar_readability_guard, RtsFirstContactRadarReadabilityRuntime,
 };
 #[cfg(not(target_os = "android"))]
+pub use first_contact_sidebar_density::{
+    first_contact_sidebar_density_guard, RtsFirstContactSidebarDensityGeometrySnapshot,
+    RtsFirstContactSidebarDensityRuntime,
+};
+#[cfg(not(target_os = "android"))]
 pub use first_contact_silhouette_readability::first_contact_silhouette_readability_guard;
 #[cfg(not(target_os = "android"))]
 pub use first_contact_spatial_readability::{
@@ -191,6 +198,8 @@ pub const TRNM_RTS_EVIDENCE_FIRST_CONTACT_RADAR_READABILITY_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_first_contact_radar_readability_v1";
 pub const TRNM_RTS_EVIDENCE_FIRST_CONTACT_SELECTION_COMBAT_FOCUS_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_first_contact_selection_combat_focus_v1";
+pub const TRNM_RTS_EVIDENCE_FIRST_CONTACT_SIDEBAR_DENSITY_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_first_contact_sidebar_density_v1";
 pub const TRNM_RTS_EVIDENCE_FIRST_CONTACT_SILHOUETTE_READABILITY_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_first_contact_silhouette_readability_v1";
 pub const TRNM_RTS_EVIDENCE_FIRST_CONTACT_TARGET_CALLOUT_CONTRACT: &str =

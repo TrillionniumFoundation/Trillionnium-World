@@ -1,7 +1,10 @@
 #![cfg(not(target_os = "android"))]
 
-use serde_json::{json, Value};
+use serde_json::Value;
 use trnm_rts_data::RtsFirstContactPlayerScreenChromeProfile;
+use trnm_rts_evidence::{
+    RtsFirstContactSidebarDensityGeometrySnapshot, RtsFirstContactSidebarDensityRuntime,
+};
 
 use crate::{
     classic_first_contact_empty_production_slot_status_labels,
@@ -22,7 +25,6 @@ use crate::{
     CLASSIC_FIRST_CONTACT_BUILD_PALETTE_STATE_BADGE_W_PX,
     CLASSIC_FIRST_CONTACT_BUILD_PALETTE_TITLE_TO_SLOT_Y_PX,
     CLASSIC_FIRST_CONTACT_BUILD_PALETTE_TO_TACTICS_Y_PX,
-    TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_SIDEBAR_DENSITY_CONTRACT,
 };
 
 fn string_vec<const N: usize>(values: [&str; N]) -> Vec<String> {
@@ -134,131 +136,54 @@ pub(crate) fn sidebar_density_guard(
         .map(|label| classic_text_advance_px(label, 1))
         .collect::<Vec<_>>();
 
-    let production_density_gate = production_slot_visible_count == 4
-        && production_slot_column_count == 2
-        && production_row_count == 2
-        && production_to_palette_gap_px >= 12
-        && production_slot_labels == string_vec(["GUARD", "WORKER", "SIGNAL", "TRAINING"])
-        && production_slot_badge_labels == string_vec(["GRD", "WRK", "SIG", "TRN"])
-        && production_slot_status_labels
-            == string_vec(["Q1 64 R", "Q2 42 R", "Q3 64 R", "B2 42 R"])
-        && production_slot_status_badge_labels == string_vec(["Q1", "Q2", "Q3", "B2"])
-        && production_empty_slot_status_badge_labels == string_vec(["ADD", "ADD", "ADD", "ADD"])
-        && production_empty_slot_badge_label == "RDY"
-        && production_slot_badge_widths
-            .iter()
-            .all(|width| *width <= 18)
-        && production_slot_status_badge_widths
-            .iter()
-            .chain(production_empty_slot_status_badge_widths.iter())
-            .all(|width| *width <= 18);
-    let palette_geometry_gate = build_palette_visible_count == 8
-        && build_palette_column_count == 4
-        && build_palette_row_count == 2
-        && CLASSIC_FIRST_CONTACT_BUILD_PALETTE_SLOT_W_PX == 46
-        && CLASSIC_FIRST_CONTACT_BUILD_PALETTE_SLOT_H_PX == 40
-        && palette_row_gap_px >= 8
-        && palette_to_tactics_gap_px >= 12;
-    let palette_state_badge_gate = build_palette_state_labels
-        == string_vec([
-            "READY", "QUEUE", "READY", "QUEUE", "READY", "READY", "READY", "QUEUE",
-        ])
-        && build_palette_state_badge_labels
-            == string_vec(["RDY", "QUE", "RDY", "QUE", "RDY", "RDY", "RDY", "QUE"])
-        && build_palette_state_badge_widths
-            .iter()
-            .all(|width| *width <= CLASSIC_FIRST_CONTACT_BUILD_PALETTE_STATE_BADGE_W_PX - 6)
-        && CLASSIC_FIRST_CONTACT_BUILD_PALETTE_STATE_BADGE_H_PX >= 9;
-    let palette_label_gate = build_palette_labels
-        == string_vec([
-            "POWER", "TRAIN", "REFINE", "TOWER", "COMMAND", "RADAR", "WALL", "SIGNAL",
-        ])
-        && build_palette_badge_labels
-            == string_vec(["PWR", "TRN", "REF", "TWR", "CMD", "RAD", "WAL", "SIG"])
-        && build_palette_labels
-            .iter()
-            .all(|label| classic_text_advance_px(label, 1) <= 42)
-        && build_palette_badge_widths.iter().all(|width| *width <= 18);
-    let tactics_density_gate = tactics_row_count == 5
-        && tactics_row_gap_px >= 4
-        && tactics_detail_labels
-            == string_vec([
-                "SECURE RELAY BEACON",
-                "RELAY BEACON",
-                "16/16",
-                "GUARD 64% TOWER 42%",
-                "IDLE",
-            ])
-        && tactics_compact_badge_labels
-            == string_vec(["SECURE", "BEACON", "16/16", "G64/T42", "IDLE"])
-        && tactics_queue_fallback_badge_labels
-            == string_vec(["TRN SIG", "TRN SIG", "BLD RLY", "ATK BCN", "RDY"])
-        && tactics_detail_labels
-            .iter()
-            .all(|label| classic_text_advance_px(label, 1) <= 132)
-        && tactics_compact_badge_widths
-            .iter()
-            .chain(tactics_queue_fallback_badge_widths.iter())
-            .all(|width| *width <= 48);
-    let right_sidebar_density_gate = production_density_gate
-        && palette_geometry_gate
-        && palette_state_badge_gate
-        && palette_label_gate
-        && tactics_density_gate;
-
-    json!({
-        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_SIDEBAR_DENSITY_CONTRACT,
-        "green": right_sidebar_density_gate,
-        "source_path": "trnm-world-bevy classic_draw_openra_style_rts_shell right sidebar production/build palette/tactics density",
-        "production_slot_visible_count": production_slot_visible_count,
-        "production_slot_column_count": production_slot_column_count,
-        "production_row_count": production_row_count,
-        "production_slot_labels": production_slot_labels,
-        "production_slot_badge_labels": production_slot_badge_labels,
-        "production_slot_badge_widths": production_slot_badge_widths,
-        "production_slot_status_labels": production_slot_status_labels,
-        "production_slot_status_badge_labels": production_slot_status_badge_labels,
-        "production_slot_status_badge_widths": production_slot_status_badge_widths,
-        "production_empty_slot_status_badge_labels": production_empty_slot_status_badge_labels,
-        "production_empty_slot_status_badge_widths": production_empty_slot_status_badge_widths,
-        "production_empty_slot_badge_label": production_empty_slot_badge_label,
-        "production_to_palette_gap_px": production_to_palette_gap_px,
-        "build_palette_visible_count": build_palette_visible_count,
-        "build_palette_column_count": build_palette_column_count,
-        "build_palette_row_count": build_palette_row_count,
-        "build_palette_slot_width_px": CLASSIC_FIRST_CONTACT_BUILD_PALETTE_SLOT_W_PX,
-        "build_palette_slot_height_px": CLASSIC_FIRST_CONTACT_BUILD_PALETTE_SLOT_H_PX,
-        "build_palette_row_gap_px": CLASSIC_FIRST_CONTACT_BUILD_PALETTE_ROW_GAP_PX,
-        "build_palette_inter_row_gap_px": palette_row_gap_px,
-        "build_palette_to_tactics_gap_px": palette_to_tactics_gap_px,
-        "build_palette_labels": build_palette_labels,
-        "build_palette_badge_labels": build_palette_badge_labels,
-        "build_palette_badge_widths": build_palette_badge_widths,
-        "build_palette_state_labels": build_palette_state_labels,
-        "build_palette_state_badge_labels": build_palette_state_badge_labels,
-        "build_palette_state_badge_widths": build_palette_state_badge_widths,
-        "build_palette_state_badge_width_px": CLASSIC_FIRST_CONTACT_BUILD_PALETTE_STATE_BADGE_W_PX,
-        "build_palette_state_badge_height_px": CLASSIC_FIRST_CONTACT_BUILD_PALETTE_STATE_BADGE_H_PX,
-        "tactics_row_count": tactics_row_count,
-        "tactics_row_gap_px": tactics_row_gap_px,
-        "tactics_detail_labels": tactics_detail_labels,
-        "tactics_compact_badge_labels": tactics_compact_badge_labels,
-        "tactics_compact_badge_widths": tactics_compact_badge_widths,
-        "tactics_queue_fallback_values": tactics_queue_fallback_values,
-        "tactics_queue_fallback_badge_labels": tactics_queue_fallback_badge_labels,
-        "tactics_queue_fallback_badge_widths": tactics_queue_fallback_badge_widths,
-        "production_density_gate": production_density_gate,
-        "palette_geometry_gate": palette_geometry_gate,
-        "palette_state_badge_gate": palette_state_badge_gate,
-        "palette_label_gate": palette_label_gate,
-        "tactics_density_gate": tactics_density_gate,
-        "right_sidebar_density_gate": right_sidebar_density_gate,
-    })
+    let sidebar_runtime = RtsFirstContactSidebarDensityRuntime {
+        production_slot_visible_count,
+        production_slot_column_count,
+        production_slot_labels,
+        production_slot_badge_labels,
+        production_slot_badge_widths_px: production_slot_badge_widths,
+        production_slot_status_labels,
+        production_slot_status_badge_labels,
+        production_slot_status_badge_widths_px: production_slot_status_badge_widths,
+        production_empty_slot_status_badge_labels,
+        production_empty_slot_status_badge_widths_px: production_empty_slot_status_badge_widths,
+        production_empty_slot_badge_label,
+        build_palette_visible_count,
+        build_palette_column_count,
+        build_palette_labels,
+        build_palette_badge_labels,
+        build_palette_badge_widths_px: build_palette_badge_widths,
+        build_palette_state_labels,
+        build_palette_state_badge_labels,
+        build_palette_state_badge_widths_px: build_palette_state_badge_widths,
+        tactics_row_count,
+        tactics_detail_labels,
+        tactics_compact_badge_labels,
+        tactics_compact_badge_widths_px: tactics_compact_badge_widths,
+        tactics_queue_fallback_values,
+        tactics_queue_fallback_badge_labels,
+        tactics_queue_fallback_badge_widths_px: tactics_queue_fallback_badge_widths,
+        geometry: RtsFirstContactSidebarDensityGeometrySnapshot {
+            production_to_palette_gap_px,
+            build_palette_slot_width_px: CLASSIC_FIRST_CONTACT_BUILD_PALETTE_SLOT_W_PX,
+            build_palette_slot_height_px: CLASSIC_FIRST_CONTACT_BUILD_PALETTE_SLOT_H_PX,
+            build_palette_row_gap_px: CLASSIC_FIRST_CONTACT_BUILD_PALETTE_ROW_GAP_PX,
+            build_palette_inter_row_gap_px: palette_row_gap_px,
+            build_palette_to_tactics_gap_px: palette_to_tactics_gap_px,
+            build_palette_state_badge_width_px:
+                CLASSIC_FIRST_CONTACT_BUILD_PALETTE_STATE_BADGE_W_PX,
+            build_palette_state_badge_height_px:
+                CLASSIC_FIRST_CONTACT_BUILD_PALETTE_STATE_BADGE_H_PX,
+            tactics_row_gap_px,
+        },
+    };
+    trnm_rts_evidence::first_contact_sidebar_density_guard(&sidebar_runtime)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json::json;
 
     #[test]
     fn first_contact_sidebar_density_helpers_preserve_right_rail_contracts() {
