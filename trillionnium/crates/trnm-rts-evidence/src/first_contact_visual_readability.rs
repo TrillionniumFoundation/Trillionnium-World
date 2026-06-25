@@ -1,7 +1,10 @@
 #![cfg(not(target_os = "android"))]
 
 use serde_json::{json, Value};
-use trnm_rts_bevy_runtime::rts_runtime_tile_id;
+use trnm_rts_bevy_runtime::{
+    rts_first_contact_radar_objective_tiles, rts_first_contact_radar_structure_tiles,
+    rts_runtime_tile_id, TRNM_RTS_BEVY_RUNTIME_FIRST_CONTACT_TILE_SURFACE_CONTRACT,
+};
 use trnm_rts_data::{first_contact_basin_map, first_contact_map_renderer_model};
 
 use crate::TRNM_RTS_EVIDENCE_FIRST_CONTACT_VISUAL_READABILITY_CONTRACT;
@@ -13,8 +16,13 @@ pub struct RtsFirstContactVisualReadabilityRuntime {
     pub command_destination_tile: Option<String>,
 }
 
+#[cfg(test)]
 fn string_vec<const N: usize>(values: [&str; N]) -> Vec<String> {
     values.into_iter().map(str::to_string).collect()
+}
+
+fn tile_ids(tiles: &[(i32, i32)]) -> Vec<String> {
+    tiles.iter().copied().map(rts_runtime_tile_id).collect()
 }
 
 pub fn first_contact_visual_readability_guard(
@@ -26,8 +34,8 @@ pub fn first_contact_visual_readability_guard(
         .command_destination_tile
         .clone()
         .unwrap_or_else(|| "16,9".to_string());
-    let structure_anchor_tiles = string_vec(["8,8", "25,8", "25,25", "8,25", "11,8", "22,25"]);
-    let objective_focus_tiles = string_vec(["16,9", "16,24", "9,16", "24,16"]);
+    let structure_anchor_tiles = tile_ids(&rts_first_contact_radar_structure_tiles());
+    let objective_focus_tiles = tile_ids(&rts_first_contact_radar_objective_tiles());
     let lane_edge_sample_tiles = first_contact_map_renderer_model(&first_contact_basin_map())
         .lane_tiles
         .iter()
@@ -57,6 +65,7 @@ pub fn first_contact_visual_readability_guard(
 
     json!({
         "contract_version": TRNM_RTS_EVIDENCE_FIRST_CONTACT_VISUAL_READABILITY_CONTRACT,
+        "tile_surface_contract": TRNM_RTS_BEVY_RUNTIME_FIRST_CONTACT_TILE_SURFACE_CONTRACT,
         "green": green,
         "source_path": "trnm-world-bevy classic_draw_first_contact_readability_overlays",
         "selected_tile_ids": selected_tile_ids,
@@ -98,6 +107,10 @@ mod tests {
         assert_eq!(
             guard.get("contract_version").and_then(Value::as_str),
             Some(TRNM_RTS_EVIDENCE_FIRST_CONTACT_VISUAL_READABILITY_CONTRACT)
+        );
+        assert_eq!(
+            guard.get("tile_surface_contract").and_then(Value::as_str),
+            Some(TRNM_RTS_BEVY_RUNTIME_FIRST_CONTACT_TILE_SURFACE_CONTRACT)
         );
         assert_eq!(guard.get("green").and_then(Value::as_bool), Some(true));
         assert_eq!(
