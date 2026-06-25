@@ -2,7 +2,10 @@
 
 use serde_json::{json, Value};
 use trnm_rts_bevy_runtime::{
-    rts_runtime_tile_id, RtsCameraMinimapViewportRect, TRNM_RTS_RUNTIME_MAP_MAX_X,
+    rts_first_contact_radar_lane_sample_tiles, rts_first_contact_radar_objective_tiles,
+    rts_first_contact_radar_pressure_tiles, rts_first_contact_radar_structure_tiles,
+    rts_runtime_tile_id, RtsCameraMinimapViewportRect,
+    TRNM_RTS_BEVY_RUNTIME_FIRST_CONTACT_TILE_SURFACE_CONTRACT, TRNM_RTS_RUNTIME_MAP_MAX_X,
     TRNM_RTS_RUNTIME_MAP_MAX_Y, TRNM_RTS_RUNTIME_MAP_MIN_TILE,
 };
 
@@ -21,39 +24,16 @@ fn tile_ids(tiles: &[(i32, i32)]) -> Vec<String> {
     tiles.iter().copied().map(rts_runtime_tile_id).collect()
 }
 
-fn radar_objective_tiles() -> Vec<(i32, i32)> {
-    vec![(16, 9), (16, 24), (9, 16), (24, 16)]
-}
-
-fn radar_structure_tiles() -> Vec<(i32, i32)> {
-    vec![(8, 8), (25, 8), (25, 25), (8, 25), (11, 8), (22, 25)]
-}
-
-fn radar_pressure_tiles() -> Vec<(i32, i32)> {
-    vec![(25, 25), (25, 8), (24, 16)]
-}
-
-fn radar_lane_sample_tiles() -> Vec<(i32, i32)> {
-    let mut tiles = Vec::new();
-    for tile_y in (4..=30).step_by(2) {
-        tiles.push((16, tile_y));
-    }
-    for tile_x in (6..=28).step_by(2) {
-        tiles.push((tile_x, 16));
-    }
-    tiles
-}
-
 pub fn first_contact_radar_readability_guard(
     runtime: &RtsFirstContactRadarReadabilityRuntime,
 ) -> Value {
     let selected_tile_ids = runtime.selected_tile_ids.clone();
     let route_tile_ids = runtime.route_tile_ids.clone();
     let visible_tile_ids = runtime.visible_tile_ids.clone();
-    let objective_tiles = tile_ids(&radar_objective_tiles());
-    let structure_tiles = tile_ids(&radar_structure_tiles());
-    let pressure_tiles = tile_ids(&radar_pressure_tiles());
-    let lane_sample_tiles = tile_ids(&radar_lane_sample_tiles());
+    let objective_tiles = tile_ids(&rts_first_contact_radar_objective_tiles());
+    let structure_tiles = tile_ids(&rts_first_contact_radar_structure_tiles());
+    let pressure_tiles = tile_ids(&rts_first_contact_radar_pressure_tiles());
+    let lane_sample_tiles = tile_ids(&rts_first_contact_radar_lane_sample_tiles());
     let command_destination_tile = runtime
         .command_destination_tile
         .clone()
@@ -101,6 +81,7 @@ pub fn first_contact_radar_readability_guard(
 
     json!({
         "contract_version": TRNM_RTS_EVIDENCE_FIRST_CONTACT_RADAR_READABILITY_CONTRACT,
+        "tile_surface_contract": TRNM_RTS_BEVY_RUNTIME_FIRST_CONTACT_TILE_SURFACE_CONTRACT,
         "green": green,
         "source_path": "trnm-world-bevy classic_draw_first_contact_radar_context",
         "known_terrain_cell_count": known_terrain_cell_count,
@@ -180,6 +161,10 @@ mod tests {
         assert_eq!(
             guard.get("contract_version").and_then(Value::as_str),
             Some(TRNM_RTS_EVIDENCE_FIRST_CONTACT_RADAR_READABILITY_CONTRACT)
+        );
+        assert_eq!(
+            guard.get("tile_surface_contract").and_then(Value::as_str),
+            Some(TRNM_RTS_BEVY_RUNTIME_FIRST_CONTACT_TILE_SURFACE_CONTRACT)
         );
         assert_eq!(guard.get("green").and_then(Value::as_bool), Some(true));
         assert_eq!(
