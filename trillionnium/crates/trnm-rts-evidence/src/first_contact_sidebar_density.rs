@@ -1,6 +1,7 @@
 #![cfg(not(target_os = "android"))]
 
 use serde_json::{json, Value};
+use trnm_rts_data::TRNM_RTS_DATA_FIRST_CONTACT_LABEL_SURFACE_CONTRACT;
 
 use crate::TRNM_RTS_EVIDENCE_FIRST_CONTACT_SIDEBAR_DENSITY_CONTRACT;
 
@@ -139,6 +140,7 @@ pub fn first_contact_sidebar_density_guard(
 
     json!({
         "contract_version": TRNM_RTS_EVIDENCE_FIRST_CONTACT_SIDEBAR_DENSITY_CONTRACT,
+        "label_surface_contract": TRNM_RTS_DATA_FIRST_CONTACT_LABEL_SURFACE_CONTRACT,
         "green": right_sidebar_density_gate,
         "source_path": "trnm-world-bevy classic_draw_openra_style_rts_shell right sidebar production/build palette/tactics density",
         "production_slot_visible_count": production_slot_visible_count,
@@ -288,6 +290,10 @@ mod tests {
         assert_eq!(
             guard.get("contract_version").and_then(Value::as_str),
             Some(TRNM_RTS_EVIDENCE_FIRST_CONTACT_SIDEBAR_DENSITY_CONTRACT)
+        );
+        assert_eq!(
+            guard.get("label_surface_contract").and_then(Value::as_str),
+            Some(TRNM_RTS_DATA_FIRST_CONTACT_LABEL_SURFACE_CONTRACT)
         );
         assert_eq!(guard.get("green").and_then(Value::as_bool), Some(true));
         assert_eq!(

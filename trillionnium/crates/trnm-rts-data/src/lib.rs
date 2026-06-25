@@ -29,6 +29,8 @@ pub const TRNM_RTS_DATA_FIRST_CONTACT_VISUAL_TELEMETRY_CONTRACT: &str =
     "trnm_rts_data_first_contact_visual_telemetry_v1";
 pub const TRNM_RTS_DATA_FIRST_CONTACT_PLAYER_SCREEN_CONTRACT: &str =
     "trnm_rts_data_first_contact_player_screen_v1";
+pub const TRNM_RTS_DATA_FIRST_CONTACT_LABEL_SURFACE_CONTRACT: &str =
+    "trnm_rts_data_first_contact_label_surface_v1";
 pub const TRNM_RTS_DATA_FIRST_CONTACT_PREVIEW_ACTOR_CONTRACT: &str =
     "trnm_rts_data_first_contact_preview_actor_v1";
 

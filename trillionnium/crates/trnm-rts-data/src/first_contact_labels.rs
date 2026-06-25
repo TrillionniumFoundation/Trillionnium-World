@@ -246,6 +246,10 @@ mod tests {
 
     #[test]
     fn first_contact_badges_stay_compact_and_player_facing() {
+        assert_eq!(
+            crate::TRNM_RTS_DATA_FIRST_CONTACT_LABEL_SURFACE_CONTRACT,
+            "trnm_rts_data_first_contact_label_surface_v1"
+        );
         assert_eq!(palette_state_badge_label("READY"), "RDY");
         assert_eq!(build_palette_badge_label("COMMAND"), "CMD");
         assert_eq!(production_slot_badge_label("TRAINING"), "TRN");
