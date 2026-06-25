@@ -1,7 +1,10 @@
 #![cfg(not(target_os = "android"))]
 
 use serde_json::{json, Value};
-use trnm_rts_bevy_runtime::{self as rts_bevy_runtime, rts_runtime_tile_id};
+use trnm_rts_bevy_runtime::{
+    self as rts_bevy_runtime, rts_runtime_tile_id,
+    TRNM_RTS_BEVY_RUNTIME_FIRST_CONTACT_TILE_SURFACE_CONTRACT,
+};
 use trnm_rts_data::first_contact_samples::{self, AtlasSample};
 
 use crate::{
@@ -336,6 +339,7 @@ pub fn first_contact_marker_budget_guard(runtime: &RtsFirstContactMarkerBudgetRu
 
     json!({
         "contract_version": TRNM_RTS_EVIDENCE_FIRST_CONTACT_MARKER_BUDGET_CONTRACT,
+        "tile_surface_contract": TRNM_RTS_BEVY_RUNTIME_FIRST_CONTACT_TILE_SURFACE_CONTRACT,
         "green": first_contact_marker_budget_gate,
         "source_path": "trnm-world-bevy muted First Contact atlas gallery presentation plus final selection/combat focus layer",
         "gallery_sample_count": family_samples.len(),
@@ -452,6 +456,10 @@ mod tests {
         assert_eq!(
             guard.get("contract_version").and_then(Value::as_str),
             Some(TRNM_RTS_EVIDENCE_FIRST_CONTACT_MARKER_BUDGET_CONTRACT)
+        );
+        assert_eq!(
+            guard.get("tile_surface_contract").and_then(Value::as_str),
+            Some(TRNM_RTS_BEVY_RUNTIME_FIRST_CONTACT_TILE_SURFACE_CONTRACT)
         );
         assert_eq!(
             guard.get("gallery_sample_count").and_then(Value::as_u64),
