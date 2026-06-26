@@ -239,20 +239,41 @@ LOCAL_DEPLOY_FILE_STATUS="$(file_status "$LOCAL_DEPLOY_EVIDENCE")"
 [[ -n "$DEPLOY_SIGNED_BY" && -n "$DEPLOY_SIGNED_AT" ]] || DEPLOY_BLOCKERS+=("public_deploy_operator_signature")
 
 DEPLOY_BLOCKERS_JSON="$(printf '%s\n' "${DEPLOY_BLOCKERS[@]}" | json_array_from_lines)"
+DEPLOY_BLOCKER_COUNT="$(jq 'length' <<<"$DEPLOY_BLOCKERS_JSON")"
 DEPLOY_STATUS="public_network_deploy_green"
-if [[ "$(jq 'length' <<<"$DEPLOY_BLOCKERS_JSON")" != "0" ]]; then
+if [[ "$DEPLOY_BLOCKER_COUNT" != "0" ]]; then
   DEPLOY_STATUS="blocked_missing_public_network_live_exposure_evidence"
 fi
 
+LATENCY_BLOCKER_COUNT="$(jq 'length' <<<"$LATENCY_BLOCKERS_JSON")"
 STATUS="external_ops_evidence_green"
 if [[ "$LATENCY_STATUS" != "multi_node_or_live_traffic_latency_green" || "$DEPLOY_STATUS" != "public_network_deploy_green" ]]; then
   STATUS="blocked_missing_external_ops_real_evidence"
 fi
+EXTERNAL_OPS_GREEN=false
+MULTI_NODE_READY=false
+PUBLIC_NETWORK_READY=false
+if [[ "$STATUS" == "external_ops_evidence_green" ]]; then
+  EXTERNAL_OPS_GREEN=true
+fi
+if [[ "$LATENCY_STATUS" == "multi_node_or_live_traffic_latency_green" ]]; then
+  MULTI_NODE_READY=true
+fi
+if [[ "$DEPLOY_STATUS" == "public_network_deploy_green" ]]; then
+  PUBLIC_NETWORK_READY=true
+fi
+BLOCKER_COUNT=$((LATENCY_BLOCKER_COUNT + DEPLOY_BLOCKER_COUNT))
 
 jq -n \
   --arg contract_version "trillionnium_world_external_ops_evidence_gate_v1" \
   --arg status "$STATUS" \
   --arg generated_at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+  --argjson external_ops_green "$EXTERNAL_OPS_GREEN" \
+  --argjson multi_node_ready "$MULTI_NODE_READY" \
+  --argjson public_network_ready "$PUBLIC_NETWORK_READY" \
+  --argjson blocker_count "$BLOCKER_COUNT" \
+  --argjson multi_node_blocker_count "$LATENCY_BLOCKER_COUNT" \
+  --argjson public_network_blocker_count "$DEPLOY_BLOCKER_COUNT" \
   --arg multi_node_path "$MULTI_NODE_EVIDENCE_PATH" \
   --arg multi_node_file_status "$LATENCY_FILE_STATUS" \
   --arg multi_node_contract "$LATENCY_CONTRACT" \
@@ -282,9 +303,18 @@ jq -n \
     status: $status,
     generated_at: $generated_at,
     source_of_truth: "trillionnium_world_external_ops_evidence_gate",
+    green: $external_ops_green,
+    external_ops_ready: $external_ops_green,
+    multi_node_or_live_traffic_latency_ready: $multi_node_ready,
+    public_network_deploy_ready: $public_network_ready,
     public_launch_credit: "only_when_multi_node_or_live_traffic_and_public_network_deploy_statuses_are_green_after_field_validation",
     local_drill_rule: "local_release_load_drill_only_not_multi_node_or_live_traffic",
     live_public_exposure_performed_by_this_script: false,
+    blocker_count: $blocker_count,
+    multi_node_or_live_traffic_latency_blocker_count: $multi_node_blocker_count,
+    public_network_deploy_blocker_count: $public_network_blocker_count,
+    template_count: 2,
+    local_drill_count: 2,
     multi_node_or_live_traffic_latency: {
       status: $multi_node_status,
       accepted_status: "multi_node_or_live_traffic_latency_green",

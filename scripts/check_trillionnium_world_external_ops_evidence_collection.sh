@@ -59,11 +59,24 @@ STATUS="external_ops_evidence_collection_ready"
 if [[ ! -f "$MULTI_NODE_TEMPLATE" || ! -f "$PUBLIC_DEPLOY_TEMPLATE" ]]; then
   STATUS="external_ops_evidence_collection_blocked"
 fi
+COLLECTION_GREEN=false
+if [[ "$STATUS" == "external_ops_evidence_collection_ready" ]]; then
+  COLLECTION_GREEN=true
+fi
+BLOCKED_VALIDATOR_STATUS_COUNT=0
+if [[ "$LATENCY_STATUS" != "multi_node_or_live_traffic_latency_green" ]]; then
+  BLOCKED_VALIDATOR_STATUS_COUNT=$((BLOCKED_VALIDATOR_STATUS_COUNT + 1))
+fi
+if [[ "$DEPLOY_STATUS" != "public_network_deploy_green" ]]; then
+  BLOCKED_VALIDATOR_STATUS_COUNT=$((BLOCKED_VALIDATOR_STATUS_COUNT + 1))
+fi
 
 jq -n \
   --arg contract_version "trillionnium_world_external_ops_evidence_collection_v1" \
   --arg status "$STATUS" \
   --arg generated_at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+  --argjson collection_green "$COLLECTION_GREEN" \
+  --argjson blocked_validator_status_count "$BLOCKED_VALIDATOR_STATUS_COUNT" \
   --arg validator_summary "$VALIDATOR_SUMMARY" \
   --arg validator_log "$VALIDATOR_LOG" \
   --arg latency_status "$LATENCY_STATUS" \
@@ -84,10 +97,16 @@ jq -n \
     status: $status,
     generated_at: $generated_at,
     source_of_truth: "trillionnium_world_external_ops_evidence_collection",
+    green: $collection_green,
     public_launch_credit: false,
     multi_node_or_live_traffic_latency_ready: false,
     public_network_deploy_ready: false,
     live_public_exposure_performed: false,
+    template_count: 2,
+    local_drill_count: 2,
+    required_evidence_count: 12,
+    validator_status_count: 2,
+    blocked_validator_status_count: $blocked_validator_status_count,
     collection_command: "scripts/check_trillionnium_world_external_ops_evidence_collection.sh",
     validation_command: "TRILLIONNIUM_MULTI_NODE_LATENCY_EVIDENCE_PATH=<real-latency.json> TRILLIONNIUM_PUBLIC_NETWORK_DEPLOY_EVIDENCE_PATH=<real-public-deploy.json> scripts/check_trillionnium_world_external_ops_evidence.sh --require-ready",
     validator: {
@@ -150,9 +169,14 @@ jq -n \
 {
   printf '# Trillionnium World External Ops Evidence Collection\n\n'
   printf -- '- status: %s\n' "$STATUS"
+  printf -- '- green: %s\n' "$COLLECTION_GREEN"
   printf -- '- multi_node_or_live_traffic_latency_ready: false\n'
   printf -- '- public_network_deploy_ready: false\n'
   printf -- '- live_public_exposure_performed: false\n'
+  printf -- '- required_evidence_count: 12\n'
+  printf -- '- template_count: 2\n'
+  printf -- '- local_drill_count: 2\n'
+  printf -- '- blocked_validator_status_count: %s\n' "$BLOCKED_VALIDATOR_STATUS_COUNT"
   printf -- '- latency_validator_status: %s\n' "$LATENCY_STATUS"
   printf -- '- public_deploy_validator_status: %s\n\n' "$DEPLOY_STATUS"
   printf '## Commands\n\n'
