@@ -3262,6 +3262,7 @@ add_public_launch_evidence_intake_packet_fixtures() {
   jq -n '{
     contract_version: "trillionnium_world_public_launch_evidence_intake_v1",
     status: "public_launch_evidence_intake_ready_for_operator_collection",
+    green: true,
     source_of_truth: "trillionnium_world_public_launch_evidence_intake",
     public_launch_readiness_summary: "/fixture/public-launch-readiness.json",
     public_launch_readiness_log: "/fixture/public-launch-evidence-intake-readiness.log",
@@ -3274,6 +3275,7 @@ add_public_launch_evidence_intake_packet_fixtures() {
     live_map_ingestion_performed: false,
     live_public_exposure_performed: false,
     intake_rule: "collect_real_external_public_launch_evidence_without_claiming_public_launch_ready_or_android_s5_real_device_ready",
+    blocker_count: 6,
     blockers: [
       "s5_real_device_matrix",
       "production_map_pack_public_evidence",
@@ -3282,7 +3284,9 @@ add_public_launch_evidence_intake_packet_fixtures() {
       "multi_node_or_live_traffic_latency_evidence",
       "public_network_live_exposure_evidence"
     ],
+    unknown_blocker_count: 0,
     unknown_blockers: [],
+    evidence_item_count: 6,
     evidence_items: [
       {id: "s5_android_real_device_matrix", label: "S5 Android real-device matrix", blocker_id: "s5_real_device_matrix", evidence_env_var: "ANDROID_SERIAL", accepted_status: "real_device_evidence_green", current_status: "blocked_missing_s5_real_device_evidence", file_status: "present", green: false, blocked_by_public_launch_gate: true, evidence_path: "/fixture/s5-device-evidence.json", collection_command: "ANDROID_SERIAL=<device-serial> scripts/check_trillionnium_world_s5_device_evidence.sh --require-device", template_path: "/fixture/s5-device-evidence.template.json"},
       {id: "production_map_pack_public_evidence", label: "Production map-pack public evidence", blocker_id: "production_map_pack_public_evidence", evidence_env_var: "TRILLIONNIUM_PRODUCTION_MAP_PACK_PUBLIC_EVIDENCE_PATH", accepted_status: "production_map_pack_public_ready_green", current_status: "blocked_missing_production_map_pack_public_evidence", file_status: "present", green: false, blocked_by_public_launch_gate: true, evidence_path: "/fixture/production-map-pack-public-evidence.json", collection_command: "scripts/check_trillionnium_world_production_map_pack_public_evidence_collection.sh", template_path: "/fixture/production-map-pack-public-evidence.template.json"},
@@ -3291,6 +3295,7 @@ add_public_launch_evidence_intake_packet_fixtures() {
       {id: "multi_node_or_live_traffic_latency_evidence", label: "Multi-node or live-traffic latency evidence", blocker_id: "multi_node_or_live_traffic_latency_evidence", evidence_env_var: "TRILLIONNIUM_MULTI_NODE_LATENCY_EVIDENCE_PATH", accepted_status: "multi_node_or_live_traffic_latency_green", current_status: "blocked_missing_multi_node_or_live_traffic_latency_evidence", file_status: "missing", green: false, blocked_by_public_launch_gate: true, evidence_path: null, collection_command: "scripts/check_trillionnium_world_external_ops_evidence_collection.sh", template_path: "/fixture/multi-node-latency-evidence.template.json"},
       {id: "public_network_live_exposure_evidence", label: "Public network live exposure evidence", blocker_id: "public_network_live_exposure_evidence", evidence_env_var: "TRILLIONNIUM_PUBLIC_NETWORK_DEPLOY_EVIDENCE_PATH", accepted_status: "public_network_deploy_green", current_status: "blocked_missing_public_network_live_exposure_evidence", file_status: "missing", green: false, blocked_by_public_launch_gate: true, evidence_path: null, collection_command: "scripts/check_trillionnium_world_external_ops_evidence_collection.sh", template_path: "/fixture/public-deploy-runbook.md"}
     ],
+    needs_collection_count: 6,
     needs_collection: [
       {id: "s5_android_real_device_matrix", current_status: "blocked_missing_s5_real_device_evidence", accepted_status: "real_device_evidence_green", file_status: "present", green: false, evidence_env_var: "ANDROID_SERIAL", collection_command: "ANDROID_SERIAL=<device-serial> scripts/check_trillionnium_world_s5_device_evidence.sh --require-device", template_path: "/fixture/s5-device-evidence.template.json"},
       {id: "production_map_pack_public_evidence", current_status: "blocked_missing_production_map_pack_public_evidence", accepted_status: "production_map_pack_public_ready_green", file_status: "present", green: false, evidence_env_var: "TRILLIONNIUM_PRODUCTION_MAP_PACK_PUBLIC_EVIDENCE_PATH", collection_command: "scripts/check_trillionnium_world_production_map_pack_public_evidence_collection.sh", template_path: "/fixture/production-map-pack-public-evidence.template.json"},
@@ -3299,6 +3304,10 @@ add_public_launch_evidence_intake_packet_fixtures() {
       {id: "multi_node_or_live_traffic_latency_evidence", current_status: "blocked_missing_multi_node_or_live_traffic_latency_evidence", accepted_status: "multi_node_or_live_traffic_latency_green", file_status: "missing", green: false, evidence_env_var: "TRILLIONNIUM_MULTI_NODE_LATENCY_EVIDENCE_PATH", collection_command: "scripts/check_trillionnium_world_external_ops_evidence_collection.sh", template_path: "/fixture/multi-node-latency-evidence.template.json"},
       {id: "public_network_live_exposure_evidence", current_status: "blocked_missing_public_network_live_exposure_evidence", accepted_status: "public_network_deploy_green", file_status: "missing", green: false, evidence_env_var: "TRILLIONNIUM_PUBLIC_NETWORK_DEPLOY_EVIDENCE_PATH", collection_command: "scripts/check_trillionnium_world_external_ops_evidence_collection.sh", template_path: "/fixture/public-deploy-runbook.md"}
     ],
+    green_evidence_item_count: 0,
+    blocked_evidence_item_count: 6,
+    present_evidence_item_count: 2,
+    missing_evidence_item_count: 4,
     reviewer_next_action: "collect_evidence_items_in_needs_collection"
   }' >"$evidence_intake_json"
   add_artifact_from_path public_launch_evidence_intake "Public launch evidence intake" "$evidence_intake_json" release_review_input
@@ -3307,11 +3316,15 @@ add_public_launch_evidence_intake_packet_fixtures() {
   {
     printf '# Trillionnium World Public Launch Evidence Intake\n\n'
     printf -- '- status: public_launch_evidence_intake_ready_for_operator_collection\n'
+    printf -- '- green: true\n'
     printf -- '- public_launch_ready: false\n'
     printf -- '- public_launch_claimed: false\n'
     printf -- '- android_s5_real_device_claimed: false\n'
     printf -- '- live_map_ingestion_performed: false\n'
     printf -- '- live_public_exposure_performed: false\n\n'
+    printf -- '- evidence_item_count: 6\n'
+    printf -- '- needs_collection_count: 6\n'
+    printf -- '- blocker_count: 6\n\n'
     printf '## Evidence To Collect\n\n'
     printf -- '- [ ] S5 Android real-device matrix (real_device_evidence_green)\n'
     printf -- '  - env: ANDROID_SERIAL\n'

@@ -237,10 +237,16 @@ add_item \
 
 ITEMS_JSON="$(jq -s '.' "$ITEMS_FILE")"
 NEEDS_COLLECTION_JSON="$(jq -c '[.[] | select(.green != true)]' <<<"$ITEMS_JSON")"
+EVIDENCE_ITEM_COUNT="$(jq 'length' <<<"$ITEMS_JSON")"
 NEEDS_COLLECTION_COUNT="$(jq 'length' <<<"$NEEDS_COLLECTION_JSON")"
+GREEN_EVIDENCE_ITEM_COUNT="$(jq '[.[] | select(.green == true)] | length' <<<"$ITEMS_JSON")"
+BLOCKED_EVIDENCE_ITEM_COUNT="$(jq '[.[] | select(.green != true)] | length' <<<"$ITEMS_JSON")"
+PRESENT_EVIDENCE_ITEM_COUNT="$(jq '[.[] | select(.file_status == "present")] | length' <<<"$ITEMS_JSON")"
+MISSING_EVIDENCE_ITEM_COUNT="$(jq '[.[] | select(.file_status == "missing")] | length' <<<"$ITEMS_JSON")"
 KNOWN_BLOCKERS_JSON='["s5_real_device_matrix","production_map_pack_public_evidence","first_beta_cohort_evidence","commercial_launch_drill_evidence","multi_node_or_live_traffic_latency_evidence","public_network_live_exposure_evidence"]'
 UNKNOWN_BLOCKERS_JSON="$(jq -c --argjson known "$KNOWN_BLOCKERS_JSON" '(.blockers // []) | map(select(($known | index(.)) == null))' "$PUBLIC_LAUNCH_SUMMARY")"
 UNKNOWN_BLOCKER_COUNT="$(jq 'length' <<<"$UNKNOWN_BLOCKERS_JSON")"
+BLOCKER_COUNT="$(jq 'length' <<<"$BLOCKERS_JSON")"
 
 STATUS=public_launch_evidence_intake_ready_for_operator_collection
 COMPLETE=false
@@ -249,6 +255,10 @@ if [[ "$NEEDS_COLLECTION_COUNT" == "0" && "$PUBLIC_LAUNCH_READY" == "true" ]]; t
   COMPLETE=true
 elif [[ "$UNKNOWN_BLOCKER_COUNT" != "0" ]]; then
   STATUS=public_launch_evidence_intake_blocked_unknown_requirements
+fi
+GREEN=false
+if [[ "$STATUS" == "public_launch_evidence_intake_complete_green" || "$STATUS" == "public_launch_evidence_intake_ready_for_operator_collection" ]]; then
+  GREEN=true
 fi
 
 jq -n \
@@ -259,15 +269,25 @@ jq -n \
   --arg public_launch_log "$PUBLIC_LAUNCH_LOG" \
   --arg public_launch_status "$PUBLIC_STATUS" \
   --arg markdown_path "$MARKDOWN_FILE" \
+  --argjson green "$GREEN" \
   --argjson complete "$COMPLETE" \
   --argjson public_launch_ready "$PUBLIC_LAUNCH_READY" \
+  --argjson blocker_count "$BLOCKER_COUNT" \
   --argjson blockers "$BLOCKERS_JSON" \
+  --argjson unknown_blocker_count "$UNKNOWN_BLOCKER_COUNT" \
   --argjson unknown_blockers "$UNKNOWN_BLOCKERS_JSON" \
+  --argjson evidence_item_count "$EVIDENCE_ITEM_COUNT" \
   --argjson evidence_items "$ITEMS_JSON" \
+  --argjson needs_collection_count "$NEEDS_COLLECTION_COUNT" \
   --argjson needs_collection "$NEEDS_COLLECTION_JSON" \
+  --argjson green_evidence_item_count "$GREEN_EVIDENCE_ITEM_COUNT" \
+  --argjson blocked_evidence_item_count "$BLOCKED_EVIDENCE_ITEM_COUNT" \
+  --argjson present_evidence_item_count "$PRESENT_EVIDENCE_ITEM_COUNT" \
+  --argjson missing_evidence_item_count "$MISSING_EVIDENCE_ITEM_COUNT" \
   '{
     contract_version: $contract_version,
     status: $status,
+    green: $green,
     generated_at: $generated_at,
     source_of_truth: "trillionnium_world_public_launch_evidence_intake",
     public_launch_readiness_summary: $public_launch_readiness,
@@ -281,21 +301,33 @@ jq -n \
     live_map_ingestion_performed: false,
     live_public_exposure_performed: false,
     intake_rule: "collect_real_external_public_launch_evidence_without_claiming_public_launch_ready_or_android_s5_real_device_ready",
+    blocker_count: $blocker_count,
     blockers: $blockers,
+    unknown_blocker_count: $unknown_blocker_count,
     unknown_blockers: $unknown_blockers,
+    evidence_item_count: $evidence_item_count,
     evidence_items: $evidence_items,
+    needs_collection_count: $needs_collection_count,
     needs_collection: $needs_collection,
+    green_evidence_item_count: $green_evidence_item_count,
+    blocked_evidence_item_count: $blocked_evidence_item_count,
+    present_evidence_item_count: $present_evidence_item_count,
+    missing_evidence_item_count: $missing_evidence_item_count,
     reviewer_next_action: (if $complete then "review_public_launch_ready_evidence" else "collect_evidence_items_in_needs_collection" end)
   }' >"$SUMMARY_FILE"
 
 {
   printf '# Trillionnium World Public Launch Evidence Intake\n\n'
   printf -- '- status: `%s`\n' "$STATUS"
+  printf -- '- green: `%s`\n' "$GREEN"
   printf -- '- public_launch_ready: `%s`\n' "$PUBLIC_LAUNCH_READY"
   printf -- '- public_launch_claimed: `false`\n'
   printf -- '- android_s5_real_device_claimed: `false`\n'
   printf -- '- live_map_ingestion_performed: `false`\n'
   printf -- '- live_public_exposure_performed: `false`\n\n'
+  printf -- '- evidence_item_count: `%s`\n' "$EVIDENCE_ITEM_COUNT"
+  printf -- '- needs_collection_count: `%s`\n' "$NEEDS_COLLECTION_COUNT"
+  printf -- '- blocker_count: `%s`\n\n' "$BLOCKER_COUNT"
   printf '## Evidence To Collect\n\n'
   jq -r '.needs_collection[] | "- [ ] \(.label) (`\(.accepted_status)`): \(.collection_requirement)\n  - env: `\(.evidence_env_var // "n/a")`\n  - current_status: `\(.current_status)`\n  - evidence_path: `\(.evidence_path // "n/a")`\n  - collect: `\(.collection_command)`\n  - template_path: `\(.template_path // "n/a")`"' "$SUMMARY_FILE"
   printf '\n## Evidence Already Green\n\n'
