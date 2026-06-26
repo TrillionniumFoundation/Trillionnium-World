@@ -110,7 +110,7 @@ add_item() {
 }
 
 PUBLIC_STATUS="$(read_json_field "$PUBLIC_LAUNCH_SUMMARY" '.overall_status')"
-PUBLIC_LAUNCH_READY="$(jq -r '(.overall_status == "ready_for_public_launch_review")' "$PUBLIC_LAUNCH_SUMMARY" 2>/dev/null || printf 'false')"
+PUBLIC_LAUNCH_READY="$(jq -r '.public_launch_ready // (.overall_status == "ready_for_public_launch_review")' "$PUBLIC_LAUNCH_SUMMARY" 2>/dev/null || printf 'false')"
 if [[ -z "$PUBLIC_LAUNCH_READY" ]]; then
   PUBLIC_LAUNCH_READY=false
 fi

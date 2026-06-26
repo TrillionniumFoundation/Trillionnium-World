@@ -35,6 +35,7 @@ required_lines=(
   'android_s5_real_device_claimed: false'
   'live_map_ingestion_performed: false'
   'live_public_exposure_performed: false'
+  '.public_launch_ready // (.overall_status == "ready_for_public_launch_review")'
   'collect_real_external_public_launch_evidence_without_claiming_public_launch_ready_or_android_s5_real_device_ready'
 )
 

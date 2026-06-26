@@ -187,7 +187,7 @@ check_item \
 CHECKS_JSON="$(jq -s '.' "$CHECKS_FILE")"
 FAILURES_JSON="$(jq -c '[.[] | select(.status != "ok")]' <<<"$CHECKS_JSON")"
 FAILURE_COUNT="$(jq 'length' <<<"$FAILURES_JSON")"
-PUBLIC_LAUNCH_READY="$(jq -r '(.overall_status == "ready_for_public_launch_review")' "$READINESS_SUMMARY" 2>/dev/null || printf 'false')"
+PUBLIC_LAUNCH_READY="$(jq -r '.public_launch_ready // (.overall_status == "ready_for_public_launch_review")' "$READINESS_SUMMARY" 2>/dev/null || printf 'false')"
 
 STATUS=public_launch_blocker_consistency_blocked
 if [[ "$FAILURE_COUNT" == "0" ]]; then

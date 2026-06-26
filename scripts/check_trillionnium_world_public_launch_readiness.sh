@@ -161,6 +161,18 @@ if [[ "${#BLOCKERS[@]}" -gt 0 ]]; then
 fi
 
 BLOCKERS_JSON="$(printf '%s\n' "${BLOCKERS[@]}" | jq -Rsc 'split("\n") | map(select(length > 0))')"
+PUBLIC_LAUNCH_READY=false
+if [[ "$OVERALL_STATUS" == "ready_for_public_launch_review" ]]; then
+  PUBLIC_LAUNCH_READY=true
+fi
+KNOWN_PUBLIC_LAUNCH_BLOCKERS_JSON='[
+  "s5_real_device_matrix",
+  "production_map_pack_public_evidence",
+  "first_beta_cohort_evidence",
+  "commercial_launch_drill_evidence",
+  "multi_node_or_live_traffic_latency_evidence",
+  "public_network_live_exposure_evidence"
+]'
 
 jq -n \
   --arg contract_version "trillionnium_world_public_launch_readiness_v1" \
@@ -247,14 +259,26 @@ jq -n \
   --arg public_deploy_status "$PUBLIC_DEPLOY_STATUS" \
   --arg public_deploy_file_status "$PUBLIC_DEPLOY_FILE_STATUS" \
   --arg public_deploy_local_status "$PUBLIC_DEPLOY_LOCAL_STATUS" \
+  --argjson public_launch_ready "$PUBLIC_LAUNCH_READY" \
   --argjson blockers "$BLOCKERS_JSON" \
+  --argjson known_public_launch_blockers "$KNOWN_PUBLIC_LAUNCH_BLOCKERS_JSON" \
   '{
     contract_version: $contract_version,
+    status: $overall_status,
     overall_status: $overall_status,
     generated_at: $generated_at,
     source_of_truth: "trillionnium_world_public_launch_readiness_gate",
+    public_launch_ready: $public_launch_ready,
+    public_launch_claimed: false,
+    android_s5_real_device_claimed: false,
+    live_map_ingestion_performed: false,
+    live_public_exposure_performed: false,
     launch_rule: "do_not_claim_public_launch_ready_without_native_bevy_local_playability_texture_sampling_render_asset_eligibility_real_device_map_pack_cohort_commercial_multi_node_and_public_deploy_evidence",
+    blocker_count: ($blockers | length),
     blockers: $blockers,
+    known_public_launch_blockers: $known_public_launch_blockers,
+    known_public_launch_blocker_count: ($known_public_launch_blockers | length),
+    reviewer_next_action: (if $public_launch_ready then "review_public_launch_ready_evidence" else "collect_real_external_public_launch_evidence" end),
     gates: {
       dev_runtime_repository: {
         evidence_path: $dev_repository_evidence,

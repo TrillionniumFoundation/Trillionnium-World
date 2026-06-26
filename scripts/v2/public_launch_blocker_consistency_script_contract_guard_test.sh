@@ -26,6 +26,7 @@ required_lines=(
   'public_network_deploy_green'
   'unknown_readiness_blockers'
   'unknown_intake_blockers'
+  '.public_launch_ready // (.overall_status == "ready_for_public_launch_review")'
   'known_blocker_count: $known_blocker_count'
   'readiness_blocker_count: $readiness_blocker_count'
   'intake_needs_collection_count: $intake_needs_collection_count'
