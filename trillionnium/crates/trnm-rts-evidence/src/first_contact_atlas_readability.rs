@@ -49,6 +49,18 @@ fn runtime_family_frame_pixel_area(
         })
 }
 
+fn secondary_objective_atlas_sample(
+    tile: (i32, i32),
+    role: &str,
+    frame_id: &str,
+    signature: &str,
+) -> bool {
+    tile == (16, 24)
+        && role == "objective_sprite"
+        && frame_id == "marker_interaction"
+        && signature == "beacon_interaction_atlas_frame"
+}
+
 pub fn first_contact_atlas_readability_guard(
     runtime: &RtsFirstContactAtlasReadabilityRuntime,
 ) -> Value {
@@ -86,6 +98,30 @@ pub fn first_contact_atlas_readability_guard(
             })
         })
         .collect::<Vec<_>>();
+    let secondary_objective_atlas_samples = samples
+        .iter()
+        .filter(|(tile, role, frame_id, signature, _)| {
+            secondary_objective_atlas_sample(*tile, role, frame_id, signature)
+        })
+        .map(|(tile, role, frame_id, signature, scale)| {
+            json!({
+                "tile": rts_runtime_tile_id(*tile),
+                "role": role,
+                "frame_id": frame_id,
+                "signature": signature,
+                "scale": scale,
+            })
+        })
+        .collect::<Vec<_>>();
+    let secondary_objective_atlas_signatures = string_vec([
+        "secondary_objective_atlas_frame_suppressed",
+        "secondary_objective_atlas_anchor_only",
+    ]);
+    let secondary_objective_atlas_sample_count = secondary_objective_atlas_samples.len();
+    let secondary_objective_atlas_source_frame_pixel_budget =
+        secondary_objective_atlas_sample_count * 16_usize * 16_usize * (2_usize).pow(2);
+    let secondary_objective_atlas_rendered_frame_pixel_budget = 0_usize;
+    let secondary_objective_atlas_anchor_pixel_budget = secondary_objective_atlas_sample_count * 64;
     let atlas_manifest_roles = runtime.atlas_manifest_roles.clone();
     let atlas_family_sample_tiles = family_samples
         .iter()
@@ -379,6 +415,24 @@ pub fn first_contact_atlas_readability_guard(
         && atlas_runtime_depth_sample_count >= 21
         && atlas_lower_lane_depth_suppressed_count == 3
         && atlas_runtime_depth_pixel_budget >= 1_344;
+    let secondary_objective_atlas_deemphasis_gate = secondary_objective_atlas_samples
+        == vec![json!({
+            "tile": "16,24",
+            "role": "objective_sprite",
+            "frame_id": "marker_interaction",
+            "signature": "beacon_interaction_atlas_frame",
+            "scale": 2,
+        })]
+        && secondary_objective_atlas_sample_count == 1
+        && secondary_objective_atlas_source_frame_pixel_budget >= 1_024
+        && secondary_objective_atlas_rendered_frame_pixel_budget == 0
+        && secondary_objective_atlas_anchor_pixel_budget <= 64
+        && secondary_objective_atlas_signatures
+            .iter()
+            .any(|signature| signature == "secondary_objective_atlas_frame_suppressed")
+        && secondary_objective_atlas_signatures
+            .iter()
+            .any(|signature| signature == "secondary_objective_atlas_anchor_only");
     let no_copy_boundary_gate =
         !runtime.cex_runtime_player_client_allowed && !runtime.wgpu_required;
     let first_contact_atlas_readability_gate = atlas_manifest_gate
@@ -389,6 +443,7 @@ pub fn first_contact_atlas_readability_guard(
         && atlas_composition_gate
         && atlas_frame_family_gate
         && atlas_runtime_depth_gate
+        && secondary_objective_atlas_deemphasis_gate
         && no_copy_boundary_gate;
     let green = first_contact_atlas_readability_gate;
 
@@ -405,6 +460,12 @@ pub fn first_contact_atlas_readability_guard(
         "atlas_manifest_roles": atlas_manifest_roles,
         "atlas_signatures": atlas_signatures,
         "atlas_samples": atlas_samples,
+        "secondary_objective_atlas_samples": secondary_objective_atlas_samples,
+        "secondary_objective_atlas_sample_count": secondary_objective_atlas_sample_count,
+        "secondary_objective_atlas_source_frame_pixel_budget": secondary_objective_atlas_source_frame_pixel_budget,
+        "secondary_objective_atlas_rendered_frame_pixel_budget": secondary_objective_atlas_rendered_frame_pixel_budget,
+        "secondary_objective_atlas_anchor_pixel_budget": secondary_objective_atlas_anchor_pixel_budget,
+        "secondary_objective_atlas_signatures": secondary_objective_atlas_signatures,
         "atlas_family_sample_tiles": atlas_family_sample_tiles,
         "atlas_family_roles": atlas_family_roles,
         "atlas_family_frame_ids": atlas_family_frame_ids,
@@ -459,6 +520,7 @@ pub fn first_contact_atlas_readability_guard(
         "atlas_composition_gate": atlas_composition_gate,
         "atlas_frame_family_gate": atlas_frame_family_gate,
         "atlas_runtime_depth_gate": atlas_runtime_depth_gate,
+        "secondary_objective_atlas_deemphasis_gate": secondary_objective_atlas_deemphasis_gate,
         "no_copy_boundary_gate": no_copy_boundary_gate,
         "first_contact_atlas_readability_gate": first_contact_atlas_readability_gate,
         "warcraft_iii_asset_copied": false,
@@ -572,6 +634,36 @@ mod tests {
             Some(42_496)
         );
         assert_eq!(
+            guard.get("secondary_objective_atlas_samples").cloned(),
+            Some(json!([
+                {
+                    "tile": "16,24",
+                    "role": "objective_sprite",
+                    "frame_id": "marker_interaction",
+                    "signature": "beacon_interaction_atlas_frame",
+                    "scale": 2,
+                }
+            ]))
+        );
+        assert_eq!(
+            guard
+                .get("secondary_objective_atlas_source_frame_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(1_024)
+        );
+        assert_eq!(
+            guard
+                .get("secondary_objective_atlas_rendered_frame_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(0)
+        );
+        assert_eq!(
+            guard
+                .get("secondary_objective_atlas_anchor_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(64)
+        );
+        assert_eq!(
             guard
                 .get("atlas_runtime_depth_sample_count")
                 .and_then(Value::as_u64),
@@ -586,6 +678,12 @@ mod tests {
         assert_eq!(
             guard
                 .get("first_contact_atlas_readability_gate")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            guard
+                .get("secondary_objective_atlas_deemphasis_gate")
                 .and_then(Value::as_bool),
             Some(true)
         );

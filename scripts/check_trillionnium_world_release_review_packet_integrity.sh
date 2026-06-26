@@ -924,6 +924,13 @@ require_artifact_json_expr first_contact_basin_spec_semantics native_bevy_classi
   and (.first_contact_atlas_readability_guard.atlas_family_signatures | index("command_core_town_hall_frame_family") != null)
   and (.first_contact_atlas_readability_guard.atlas_family_signatures | index("relay_waygate_frame_family") != null)
   and (.first_contact_atlas_readability_guard.atlas_family_signatures | index("beacon_destination_marker_frame_family") != null)
+  and .first_contact_atlas_readability_guard.secondary_objective_atlas_samples == [{"tile":"16,24","role":"objective_sprite","frame_id":"marker_interaction","signature":"beacon_interaction_atlas_frame","scale":2}]
+  and .first_contact_atlas_readability_guard.secondary_objective_atlas_sample_count == 1
+  and .first_contact_atlas_readability_guard.secondary_objective_atlas_source_frame_pixel_budget >= 1024
+  and .first_contact_atlas_readability_guard.secondary_objective_atlas_rendered_frame_pixel_budget == 0
+  and .first_contact_atlas_readability_guard.secondary_objective_atlas_anchor_pixel_budget <= 64
+  and (.first_contact_atlas_readability_guard.secondary_objective_atlas_signatures | index("secondary_objective_atlas_frame_suppressed") != null)
+  and (.first_contact_atlas_readability_guard.secondary_objective_atlas_signatures | index("secondary_objective_atlas_anchor_only") != null)
   and .first_contact_atlas_readability_guard.terrain_frame_count == 6
   and .first_contact_atlas_readability_guard.unit_frame_count == 4
   and .first_contact_atlas_readability_guard.structure_frame_count == 4
@@ -972,6 +979,7 @@ require_artifact_json_expr first_contact_basin_spec_semantics native_bevy_classi
   and .first_contact_atlas_readability_guard.atlas_composition_gate == true
   and .first_contact_atlas_readability_guard.atlas_frame_family_gate == true
   and .first_contact_atlas_readability_guard.atlas_runtime_depth_gate == true
+  and .first_contact_atlas_readability_guard.secondary_objective_atlas_deemphasis_gate == true
   and .first_contact_atlas_readability_guard.no_copy_boundary_gate == true
   and .first_contact_atlas_readability_guard.first_contact_atlas_readability_gate == true
   and .first_contact_atlas_readability_guard_gate == true

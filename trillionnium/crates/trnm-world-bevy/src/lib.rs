@@ -98768,6 +98768,64 @@ fn classic_first_contact_atlas_runtime_depth_role(role: &str) -> bool {
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_first_contact_secondary_objective_atlas_asset(
+    tile: (i32, i32),
+    role: &str,
+    frame_id: &str,
+) -> bool {
+    tile == (16, 24) && role == "objective_sprite" && frame_id == "marker_interaction"
+}
+
+#[cfg(not(target_os = "android"))]
+#[allow(clippy::too_many_arguments)]
+fn classic_draw_first_contact_secondary_objective_atlas_anchor(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    cx: i32,
+    cy: i32,
+    cell_w: i32,
+    cell_h: i32,
+) {
+    let anchor = classic_mix_color(
+        CLASSIC_RTS_COMMAND_SURFACE_TARGET_COLOR,
+        CLASSIC_RTS_TACTICAL_VIEWPORT_TILE_COLOR,
+        1,
+        4,
+    );
+    classic_draw_iso_ellipse(
+        buffer,
+        width,
+        height,
+        cx,
+        cy + cell_h / 2 + 2,
+        (cell_w / 2).max(8),
+        3,
+        anchor,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        cx - cell_w / 2,
+        cy + cell_h / 2 + 1,
+        cell_w,
+        1,
+        classic_darken(anchor, 1, 4),
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        cx - 1,
+        cy - 2,
+        2,
+        5,
+        classic_darken(anchor, 1, 5),
+    );
+}
+
+#[cfg(not(target_os = "android"))]
 #[allow(clippy::too_many_arguments)]
 fn classic_draw_first_contact_atlas_runtime_depth(
     buffer: &mut [u32],
@@ -98914,6 +98972,12 @@ fn classic_draw_first_contact_atlas_asset_sample(
             cell_h,
             lower_lane_gallery,
         );
+    }
+    if classic_first_contact_secondary_objective_atlas_asset(tile, role, frame_id) {
+        classic_draw_first_contact_secondary_objective_atlas_anchor(
+            buffer, width, height, cx, cy, cell_w, cell_h,
+        );
+        return true;
     }
     let has_override_frame = assets.frame_override_pixels.contains_key(frame_id);
     let blit_x = if has_override_frame {
@@ -160364,6 +160428,30 @@ mod tests {
             Some(11776)
         );
         assert_eq!(
+            guard.get("secondary_objective_atlas_samples").cloned(),
+            Some(json!([
+                {
+                    "tile": "16,24",
+                    "role": "objective_sprite",
+                    "frame_id": "marker_interaction",
+                    "signature": "beacon_interaction_atlas_frame",
+                    "scale": 2
+                }
+            ]))
+        );
+        assert_eq!(
+            guard
+                .get("secondary_objective_atlas_rendered_frame_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(0)
+        );
+        assert_eq!(
+            guard
+                .get("secondary_objective_atlas_anchor_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(64)
+        );
+        assert_eq!(
             guard
                 .get("atlas_family_frame_ids")
                 .and_then(Value::as_array)
@@ -160510,6 +160598,7 @@ mod tests {
             "atlas_composition_gate",
             "atlas_frame_family_gate",
             "atlas_runtime_depth_gate",
+            "secondary_objective_atlas_deemphasis_gate",
             "no_copy_boundary_gate",
             "first_contact_atlas_readability_gate",
         ] {

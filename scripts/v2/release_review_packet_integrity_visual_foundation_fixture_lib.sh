@@ -1077,6 +1077,17 @@ add_first_contact_basin_source_manifest_packet_fixtures() {
         {tile: "16,9", role: "objective_sprite", frame_id: "marker_objective", signature: "beacon_objective_atlas_frame", scale: 2},
         {tile: "16,24", role: "objective_sprite", frame_id: "marker_interaction", signature: "beacon_interaction_atlas_frame", scale: 2}
       ],
+      secondary_objective_atlas_samples: [
+        {tile: "16,24", role: "objective_sprite", frame_id: "marker_interaction", signature: "beacon_interaction_atlas_frame", scale: 2}
+      ],
+      secondary_objective_atlas_sample_count: 1,
+      secondary_objective_atlas_source_frame_pixel_budget: 1024,
+      secondary_objective_atlas_rendered_frame_pixel_budget: 0,
+      secondary_objective_atlas_anchor_pixel_budget: 64,
+      secondary_objective_atlas_signatures: [
+        "secondary_objective_atlas_frame_suppressed",
+        "secondary_objective_atlas_anchor_only"
+      ],
       atlas_family_sample_tiles: ["4,14", "4,16", "4,18", "4,20", "29,14", "29,16", "29,18", "4,4", "6,4", "27,4", "29,4", "29,22", "29,24", "29,26"],
       atlas_family_roles: ["worker_unit_family", "worker_unit_family", "scout_unit_family", "scout_unit_family", "warden_unit_family", "warden_unit_family", "relay_unit_family", "command_core_structure_family", "command_core_structure_family", "relay_structure_family", "relay_structure_family", "beacon_objective_family", "beacon_objective_family", "beacon_objective_family"],
       atlas_family_frame_ids: ["actor_worker_idle", "actor_worker_carry", "actor_player_walk_east_1", "actor_player_walk_east_2", "actor_guard_idle", "actor_guard_attack", "actor_mentor_talk", "model_town_hall", "model_training_hall", "model_waygate", "prop_banner", "marker_objective", "rts_command_destination_marker", "marker_interaction"],
@@ -1151,6 +1162,7 @@ add_first_contact_basin_source_manifest_packet_fixtures() {
       atlas_composition_gate: true,
       atlas_frame_family_gate: true,
       atlas_runtime_depth_gate: true,
+      secondary_objective_atlas_deemphasis_gate: true,
       no_copy_boundary_gate: true,
       first_contact_atlas_readability_gate: true,
       warcraft_iii_asset_copied: false,
