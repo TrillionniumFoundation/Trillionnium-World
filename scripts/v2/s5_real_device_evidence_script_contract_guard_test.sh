@@ -27,6 +27,15 @@ required_lines=(
   'go_condition_matrix'
   'crash_free_logcat_window'
   'host_side_replay_credit: false'
+  'green: $s5_real_device_green'
+  'blocker_count: $blocker_count'
+  'template_count: $template_count'
+  'host_artifact_count: $host_artifact_count'
+  'real_device_evidence_field_count: $real_device_evidence_field_count'
+  'present_real_device_evidence_count: $present_real_device_evidence_count'
+  'missing_real_device_evidence_count: $missing_real_device_evidence_count'
+  'go_condition_count: $go_condition_count'
+  'blocked_go_condition_count: $blocked_go_condition_count'
   'template_requires_real_s5_device_evidence'
 )
 

@@ -160,15 +160,52 @@ if [[ -s "$LOGCAT_EVIDENCE" ]] && grep -Eiq 'FATAL EXCEPTION|AndroidRuntime|ANR 
 fi
 
 BLOCKERS_JSON="$(printf '%s\n' "${BLOCKERS[@]}" | json_array_from_lines)"
+BLOCKER_COUNT="$(jq 'length' <<<"$BLOCKERS_JSON")"
 STATUS="s5_real_device_evidence_green"
-if [[ "$(jq 'length' <<<"$BLOCKERS_JSON")" != "0" ]]; then
+if [[ "$BLOCKER_COUNT" != "0" ]]; then
   STATUS="blocked_missing_s5_real_device_evidence"
 fi
+S5_REAL_DEVICE_GREEN=false
+if [[ "$STATUS" == "s5_real_device_evidence_green" ]]; then
+  S5_REAL_DEVICE_GREEN=true
+fi
+REAL_DEVICE_EVIDENCE_FIELD_COUNT=9
+PRESENT_REAL_DEVICE_EVIDENCE_COUNT=0
+for evidence_ref in \
+  "$ADB_DEVICES_EVIDENCE" \
+  "$SCREENSHOT_EVIDENCE" \
+  "$GFXINFO_EVIDENCE" \
+  "$LOGCAT_EVIDENCE" \
+  "$LIFECYCLE_EVIDENCE" \
+  "$LOCALE_EVIDENCE" \
+  "$INPUT_METHOD_EVIDENCE" \
+  "$WEAK_NETWORK_EVIDENCE" \
+  "$RESOURCE_PACK_EVIDENCE"; do
+  if [[ "$(file_nonempty "$evidence_ref")" == "true" ]]; then
+    PRESENT_REAL_DEVICE_EVIDENCE_COUNT=$((PRESENT_REAL_DEVICE_EVIDENCE_COUNT + 1))
+  fi
+done
+MISSING_REAL_DEVICE_EVIDENCE_COUNT=$((REAL_DEVICE_EVIDENCE_FIELD_COUNT - PRESENT_REAL_DEVICE_EVIDENCE_COUNT))
+GO_CONDITION_COUNT=4
+BLOCKED_GO_CONDITION_COUNT=0
+[[ "$CJK_DISPLAY_INPUT_GATE" == "cjk_locale_input_snapshot_collected" || "$CJK_DISPLAY_INPUT_GATE" == "cjk_display_input_green" ]] || BLOCKED_GO_CONDITION_COUNT=$((BLOCKED_GO_CONDITION_COUNT + 1))
+[[ "$WEAK_NETWORK_GATE" == "real_device_weak_network_run" || "$WEAK_NETWORK_GATE" == "weak_network_green" ]] || BLOCKED_GO_CONDITION_COUNT=$((BLOCKED_GO_CONDITION_COUNT + 1))
+[[ "$RESOURCE_PACK_GATE" == "apk_signature_resource_pack_evidence_collected" || "$RESOURCE_PACK_GATE" == "resource_pack_green" ]] || BLOCKED_GO_CONDITION_COUNT=$((BLOCKED_GO_CONDITION_COUNT + 1))
+[[ "$CRASH_FREE_GATE" == "crash_free_logcat_window" || "$CRASH_FREE_GATE" == "crash_free_green" || "$CRASH_FREE_GATE" == "no_crashes_detected" ]] || BLOCKED_GO_CONDITION_COUNT=$((BLOCKED_GO_CONDITION_COUNT + 1))
 
 jq -n \
   --arg contract_version "trillionnium_world_s5_real_device_evidence_gate_v1" \
   --arg status "$STATUS" \
   --arg generated_at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+  --argjson s5_real_device_green "$S5_REAL_DEVICE_GREEN" \
+  --argjson blocker_count "$BLOCKER_COUNT" \
+  --argjson template_count 1 \
+  --argjson host_artifact_count 2 \
+  --argjson real_device_evidence_field_count "$REAL_DEVICE_EVIDENCE_FIELD_COUNT" \
+  --argjson present_real_device_evidence_count "$PRESENT_REAL_DEVICE_EVIDENCE_COUNT" \
+  --argjson missing_real_device_evidence_count "$MISSING_REAL_DEVICE_EVIDENCE_COUNT" \
+  --argjson go_condition_count "$GO_CONDITION_COUNT" \
+  --argjson blocked_go_condition_count "$BLOCKED_GO_CONDITION_COUNT" \
   --arg evidence_path "$S5_EVIDENCE_PATH" \
   --arg evidence_file_status "$EVIDENCE_FILE_STATUS" \
   --arg evidence_contract "$CONTRACT" \
@@ -201,9 +238,18 @@ jq -n \
     status: $status,
     generated_at: $generated_at,
     source_of_truth: "trillionnium_world_s5_real_device_evidence_gate",
+    green: $s5_real_device_green,
     accepted_status: "s5_real_device_evidence_green",
     android_s5_real_device_claimed: ($status == "s5_real_device_evidence_green"),
     host_side_replay_credit: false,
+    blocker_count: $blocker_count,
+    template_count: $template_count,
+    host_artifact_count: $host_artifact_count,
+    real_device_evidence_field_count: $real_device_evidence_field_count,
+    present_real_device_evidence_count: $present_real_device_evidence_count,
+    missing_real_device_evidence_count: $missing_real_device_evidence_count,
+    go_condition_count: $go_condition_count,
+    blocked_go_condition_count: $blocked_go_condition_count,
     template: {
       path: $template_path,
       sha256: $template_sha256,
