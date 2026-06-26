@@ -94,10 +94,45 @@ if [[ "$NATIVE_REPLAY_READY" == "true" \
   fi
 fi
 
+GATE_COUNT=14
+READY_GATE_COUNT=0
+for gate_ready in \
+  "$NATIVE_REPLAY_READY" \
+  "$PUBLIC_LAUNCH_CONSUMES_REPLAY" \
+  "$ACTION_COACH_READY" \
+  "$PLAYER_HUD_READY" \
+  "$LIVE_SCREENSHOT_READY" \
+  "$SPRITE_TEXTURE_SAMPLING_READY" \
+  "$SAMPLED_TEXTURE_CORRELATION_READY" \
+  "$RENDER_ASSET_ELIGIBILITY_READY" \
+  "$CEX_ADAPTER_READY" \
+  "$PUBLIC_LAUNCH_CONSUMES_LOCAL_PLAYABILITY" \
+  "$S5_REAL_DEVICE_READY" \
+  "$RELEASE_LATENCY_READY" \
+  "$ROLLBACK_READY" \
+  "$PUBLIC_DEPLOY_READY"; do
+  if [[ "$gate_ready" == "true" ]]; then
+    READY_GATE_COUNT=$((READY_GATE_COUNT + 1))
+  fi
+done
+BLOCKED_GATE_COUNT=$((GATE_COUNT - READY_GATE_COUNT))
+SIGNOFF_SUMMARY_BLOCKER_COUNT="$(jq 'length' <<<"$SIGNOFF_SUMMARY_BLOCKERS_JSON")"
+PUBLIC_LAUNCH_BLOCKER_COUNT="$(jq 'length' <<<"$PUBLIC_LAUNCH_BLOCKERS_JSON")"
+GREEN=true
+if [[ "$STATUS" == "release_review_quickcheck_blocked_native_bevy_replay" ]]; then
+  GREEN=false
+fi
+
 jq -n \
   --arg contract_version "trillionnium_world_release_review_quickcheck_v1" \
   --arg status "$STATUS" \
   --arg generated_at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+  --argjson green "$(json_bool "$GREEN")" \
+  --argjson gate_count "$GATE_COUNT" \
+  --argjson ready_gate_count "$READY_GATE_COUNT" \
+  --argjson blocked_gate_count "$BLOCKED_GATE_COUNT" \
+  --argjson signoff_summary_blocker_count "$SIGNOFF_SUMMARY_BLOCKER_COUNT" \
+  --argjson public_launch_blocker_count "$PUBLIC_LAUNCH_BLOCKER_COUNT" \
   --arg public_launch_summary "$PUBLIC_LAUNCH_SUMMARY" \
   --arg public_launch_log "$PUBLIC_LAUNCH_LOG" \
   --arg public_launch_status "$PUBLIC_LAUNCH_STATUS" \
@@ -126,9 +161,15 @@ jq -n \
     generated_at: $generated_at,
     source_of_truth: "trillionnium_world_release_review_quickcheck",
     quickcheck_rule: "refresh_public_launch_readiness_then_release_signoff_summary_and_fail_only_when_native_bevy_local_playability_texture_sampling_render_asset_eligibility_cex_adapter_readiness_or_consumption_is_broken_unless_require_ready_is_set",
+    green: $green,
     ready_for_release_review: ($native_replay_ready and $public_launch_consumes_replay and $action_coach_ready and $player_hud_ready and $live_screenshot_ready and $sprite_texture_sampling_ready and $sampled_texture_correlation_ready and $render_asset_eligibility_ready and $cex_adapter_ready and $public_launch_consumes_local_playability),
     public_launch_ready: ($public_launch_status == "ready_for_public_launch_review"),
     android_s5_real_device_claimed: false,
+    gate_count: $gate_count,
+    ready_gate_count: $ready_gate_count,
+    blocked_gate_count: $blocked_gate_count,
+    signoff_summary_blocker_count: $signoff_summary_blocker_count,
+    public_launch_blocker_count: $public_launch_blocker_count,
     refreshed_evidence: {
       public_launch_readiness: {
         summary_path: $public_launch_summary,
