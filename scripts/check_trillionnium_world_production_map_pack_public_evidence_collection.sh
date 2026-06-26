@@ -49,11 +49,21 @@ STATUS="production_map_pack_public_evidence_collection_ready"
 if [[ "$ROUTE_STATUS" != "production_map_pack_route_green" || ! -f "$TEMPLATE_FILE" || ! -f "$SCHEMA_FILE" ]]; then
   STATUS="production_map_pack_public_evidence_collection_blocked"
 fi
+COLLECTION_GREEN=false
+if [[ "$STATUS" == "production_map_pack_public_evidence_collection_ready" ]]; then
+  COLLECTION_GREEN=true
+fi
+BLOCKED_VALIDATOR_STATUS_COUNT=0
+if [[ "$VALIDATOR_STATUS" != "production_map_pack_public_ready_green" ]]; then
+  BLOCKED_VALIDATOR_STATUS_COUNT=1
+fi
 
 jq -n \
   --arg contract_version "trillionnium_world_production_map_pack_public_evidence_collection_v1" \
   --arg status "$STATUS" \
   --arg generated_at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+  --argjson collection_green "$COLLECTION_GREEN" \
+  --argjson blocked_validator_status_count "$BLOCKED_VALIDATOR_STATUS_COUNT" \
   --arg route_summary "$ROUTE_SUMMARY" \
   --arg route_status "$ROUTE_STATUS" \
   --arg route_log "$ROUTE_LOG" \
@@ -70,11 +80,18 @@ jq -n \
     status: $status,
     generated_at: $generated_at,
     source_of_truth: "trillionnium_world_production_map_pack_public_evidence_collection",
+    green: $collection_green,
     public_map_pack_ready: false,
     public_launch_credit: false,
     live_ingestion_performed: false,
     live_ingestion_allowed: false,
     runtime_clients_fetch_public_osm_directly: false,
+    route_prerequisite_count: 1,
+    template_count: 1,
+    template_schema_count: 1,
+    required_evidence_count: 11,
+    validator_status_count: 1,
+    blocked_validator_status_count: $blocked_validator_status_count,
     collection_command: "scripts/check_trillionnium_world_production_map_pack_public_evidence_collection.sh",
     validation_command: "TRILLIONNIUM_PRODUCTION_MAP_PACK_PUBLIC_EVIDENCE_PATH=<real-map-pack-evidence.json> scripts/check_trillionnium_world_production_map_pack_public_evidence.sh --require-ready",
     route_prerequisite: {
@@ -121,8 +138,13 @@ jq -n \
 {
   printf '# Trillionnium World Production Map-Pack Public Evidence Collection\n\n'
   printf -- '- status: %s\n' "$STATUS"
+  printf -- '- green: %s\n' "$COLLECTION_GREEN"
   printf -- '- public_map_pack_ready: false\n'
   printf -- '- live_ingestion_performed: false\n'
+  printf -- '- required_evidence_count: 11\n'
+  printf -- '- template_count: 1\n'
+  printf -- '- template_schema_count: 1\n'
+  printf -- '- blocked_validator_status_count: %s\n' "$BLOCKED_VALIDATOR_STATUS_COUNT"
   printf -- '- route_status: %s\n' "$ROUTE_STATUS"
   printf -- '- validator_status: %s\n\n' "$VALIDATOR_STATUS"
   printf '## Commands\n\n'

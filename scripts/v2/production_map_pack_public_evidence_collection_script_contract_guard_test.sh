@@ -28,6 +28,13 @@ required_lines=(
   'live_ingestion_allowed: false'
   'runtime_clients_fetch_public_osm_directly: false'
   'public_launch_credit: false'
+  'green: $collection_green'
+  'route_prerequisite_count: 1'
+  'template_count: 1'
+  'template_schema_count: 1'
+  'required_evidence_count: 11'
+  'validator_status_count: 1'
+  'blocked_validator_status_count: $blocked_validator_status_count'
 )
 
 for line in "${required_lines[@]}"; do

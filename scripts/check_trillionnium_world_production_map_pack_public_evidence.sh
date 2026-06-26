@@ -233,11 +233,20 @@ if [[ "${#BLOCKERS[@]}" -gt 0 ]]; then
 fi
 
 BLOCKERS_JSON="$(printf '%s\n' "${BLOCKERS[@]}" | jq -Rsc 'split("\n") | map(select(length > 0))')"
+BLOCKER_COUNT="${#BLOCKERS[@]}"
+PRODUCTION_MAP_PACK_GREEN=false
+if [[ "$STATUS" == "production_map_pack_public_ready_green" ]]; then
+  PRODUCTION_MAP_PACK_GREEN=true
+fi
 
 jq -n \
   --arg contract_version "trillionnium_world_production_map_pack_public_evidence_gate_v1" \
   --arg status "$STATUS" \
   --arg generated_at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+  --argjson production_map_pack_green "$PRODUCTION_MAP_PACK_GREEN" \
+  --argjson blocker_count "$BLOCKER_COUNT" \
+  --argjson required_check_count 24 \
+  --argjson schema_artifact_count 2 \
   --arg evidence_path "$EVIDENCE_PATH" \
   --arg evidence_file_status "$EVIDENCE_FILE_STATUS" \
   --arg evidence_contract "$CONTRACT" \
@@ -274,12 +283,16 @@ jq -n \
     status: $status,
     generated_at: $generated_at,
     source_of_truth: "trillionnium_world_production_map_pack_public_evidence_gate",
+    green: $production_map_pack_green,
     public_map_pack_ready: ($status == "production_map_pack_public_ready_green"),
     accepted_status: "production_map_pack_public_ready_green",
     live_ingestion_performed: false,
     live_ingestion_allowed: false,
     runtime_clients_fetch_public_osm_directly: false,
     public_launch_credit: "only_when_status_is_production_map_pack_public_ready_green",
+    blocker_count: $blocker_count,
+    required_check_count: $required_check_count,
+    schema_artifact_count: $schema_artifact_count,
     blockers: $blockers,
     operator_evidence: {
       path: $evidence_path,
