@@ -916,6 +916,7 @@ required_lines=(
   'public_launch_status_only_fixture_guard'
   'trillionnium_world_public_launch_status_only_fixture_guard_v1'
   'status_only_green_fixtures_must_be_rejected_by_field_level_public_launch_evidence_validators'
+  '.green == true and .public_launch_claimed == false and .android_s5_real_device_claimed == false and .live_map_ingestion_performed == false and .live_public_exposure_performed == false'
   'result_count == 4'
   'failure_count == 0'
   's5_status_only_fixture'

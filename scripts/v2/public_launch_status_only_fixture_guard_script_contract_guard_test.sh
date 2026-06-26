@@ -7,6 +7,11 @@ SCRIPT="$ROOT/scripts/check_trillionnium_world_public_launch_status_only_fixture
 required_lines=(
   'trillionnium_world_public_launch_status_only_fixture_guard_v1'
   'public-launch-status-only-fixtures.json'
+  'green: ($status == "public_launch_status_only_fixture_guard_green")'
+  'public_launch_claimed: false'
+  'android_s5_real_device_claimed: false'
+  'live_map_ingestion_performed: false'
+  'live_public_exposure_performed: false'
   'status_only_green_fixtures_must_be_rejected_by_field_level_public_launch_evidence_validators'
   'trillionnium_world_s5_native_bevy_device_evidence_v1'
   'production_map_pack_public_ready_green'
