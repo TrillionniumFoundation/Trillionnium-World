@@ -98931,6 +98931,9 @@ fn classic_draw_first_contact_atlas_readability_layer(
         classic_draw_first_contact_atlas_family_slot_cue(
             buffer, width, height, map_x, map_y, cell_w, cell_h, tile, role,
         );
+        if classic_first_contact_atlas_family_lower_lane_tile(tile) {
+            continue;
+        }
         classic_draw_first_contact_atlas_asset_sample(
             buffer, width, height, assets, map_x, map_y, cell_w, cell_h, tile, role, frame_id,
             scale, true,
@@ -160958,6 +160961,18 @@ mod tests {
         );
         assert_eq!(
             guard
+                .get("lower_lane_rendered_frame_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(0)
+        );
+        assert_eq!(
+            guard
+                .get("lower_lane_frame_suppressed_count")
+                .and_then(Value::as_u64),
+            Some(3)
+        );
+        assert_eq!(
+            guard
                 .get("gallery_slot_cue_pixel_budget")
                 .and_then(Value::as_u64),
             Some(252)
@@ -160996,7 +161011,7 @@ mod tests {
             guard
                 .get("lower_lane_dim_silhouette_pixel_budget")
                 .and_then(Value::as_u64),
-            Some(1440)
+            Some(0)
         );
         assert_eq!(
             guard
@@ -161056,10 +161071,10 @@ mod tests {
                             .any(|value| value.as_str() == Some("lower_lane_micro_slot_cues"))
                         && signatures
                             .iter()
-                            .any(|value| value.as_str() == Some("lower_lane_dim_silhouettes"))
-                        && signatures.iter().any(|value| {
-                            value.as_str() == Some("lower_lane_stronger_dim_silhouettes")
-                        })
+                            .any(|value| value.as_str() == Some("lower_lane_frame_suppressed"))
+                        && signatures
+                            .iter()
+                            .any(|value| value.as_str() == Some("lower_lane_anchor_only"))
                         && signatures
                             .iter()
                             .any(|value| value.as_str() == Some("lower_lane_shadow_suppressed"))

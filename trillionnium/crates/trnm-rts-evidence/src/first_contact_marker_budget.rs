@@ -52,6 +52,8 @@ struct GalleryBudgetSummary {
     gallery_darken_numerator: usize,
     gallery_darken_denominator: usize,
     lower_lane_gallery_sample_count: usize,
+    lower_lane_rendered_frame_pixel_budget: usize,
+    lower_lane_frame_suppressed_count: usize,
     lower_lane_mute_overlay_pixel_budget: usize,
     lower_lane_slot_cue_pixel_budget: usize,
     lower_lane_ghost_anchor_count: usize,
@@ -113,6 +115,7 @@ where
         TRNM_RTS_EVIDENCE_FIRST_CONTACT_GALLERY_DARKEN_DENOMINATOR as usize;
     let gallery_mute_overlay_pixel_budget = family_samples
         .iter()
+        .filter(|(tile, _, _, _, _)| !first_contact_samples::atlas_family_lower_lane_tile(*tile))
         .map(|(_, _, frame_id, _, scale)| {
             frame_pixel_area(frame_id, *scale) * gallery_darken_numerator
                 / gallery_darken_denominator.max(1)
@@ -120,7 +123,9 @@ where
         .sum::<usize>();
     let gallery_slot_cue_pixel_budget = family_samples.len() * GALLERY_SLOT_CUE_PIXELS_PER_SAMPLE;
     let lower_lane_gallery_sample_count = lower_lane_gallery_tiles.len();
-    let lower_lane_mute_overlay_pixel_budget = lower_lane_gallery_sample_count * 384;
+    let lower_lane_rendered_frame_pixel_budget = 0;
+    let lower_lane_frame_suppressed_count = lower_lane_gallery_sample_count;
+    let lower_lane_mute_overlay_pixel_budget = 0;
     let lower_lane_slot_cue_pixel_budget =
         lower_lane_gallery_sample_count * LOWER_LANE_SLOT_CUE_PIXELS_PER_SAMPLE;
     let lower_lane_ghost_anchor_count =
@@ -129,8 +134,7 @@ where
         TRNM_RTS_EVIDENCE_FIRST_CONTACT_LOWER_LANE_GALLERY_DARKEN_NUMERATOR as usize;
     let lower_lane_gallery_darken_denominator =
         TRNM_RTS_EVIDENCE_FIRST_CONTACT_LOWER_LANE_GALLERY_DARKEN_DENOMINATOR as usize;
-    let lower_lane_dim_silhouette_pixel_budget =
-        lower_lane_gallery_sample_count * lower_lane_gallery_darken_numerator * 96;
+    let lower_lane_dim_silhouette_pixel_budget = 0;
 
     GalleryBudgetSummary {
         gallery_lanes,
@@ -146,6 +150,8 @@ where
         gallery_darken_numerator,
         gallery_darken_denominator,
         lower_lane_gallery_sample_count,
+        lower_lane_rendered_frame_pixel_budget,
+        lower_lane_frame_suppressed_count,
         lower_lane_mute_overlay_pixel_budget,
         lower_lane_slot_cue_pixel_budget,
         lower_lane_ghost_anchor_count,
@@ -163,8 +169,8 @@ where
             "perimeter_gallery_stronger_deemphasis",
             "lower_lane_gallery_deemphasis",
             "lower_lane_micro_slot_cues",
-            "lower_lane_dim_silhouettes",
-            "lower_lane_stronger_dim_silhouettes",
+            "lower_lane_frame_suppressed",
+            "lower_lane_anchor_only",
             "lower_lane_shadow_suppressed",
             "lower_lane_ghost_anchors",
             "lower_lane_single_point_ghost_anchors",
@@ -220,6 +226,9 @@ pub fn first_contact_marker_budget_guard(runtime: &RtsFirstContactMarkerBudgetRu
     let gallery_darken_numerator = gallery_summary.gallery_darken_numerator;
     let gallery_darken_denominator = gallery_summary.gallery_darken_denominator;
     let lower_lane_gallery_sample_count = gallery_summary.lower_lane_gallery_sample_count;
+    let lower_lane_rendered_frame_pixel_budget =
+        gallery_summary.lower_lane_rendered_frame_pixel_budget;
+    let lower_lane_frame_suppressed_count = gallery_summary.lower_lane_frame_suppressed_count;
     let lower_lane_mute_overlay_pixel_budget = gallery_summary.lower_lane_mute_overlay_pixel_budget;
     let lower_lane_slot_cue_pixel_budget = gallery_summary.lower_lane_slot_cue_pixel_budget;
     let lower_lane_ghost_anchor_count = gallery_summary.lower_lane_ghost_anchor_count;
@@ -279,7 +288,7 @@ pub fn first_contact_marker_budget_guard(runtime: &RtsFirstContactMarkerBudgetRu
         && east_gallery_frame_count <= 6
         && max_gallery_lane_frame_count <= 6;
     let gallery_mute_gate = muted_gallery_sample_count == family_samples.len()
-        && gallery_mute_overlay_pixel_budget >= 28_000
+        && gallery_mute_overlay_pixel_budget >= 22_000
         && gallery_slot_cue_pixel_budget <= 252
         && gallery_darken_numerator == 2
         && gallery_darken_denominator == 3
@@ -293,12 +302,14 @@ pub fn first_contact_marker_budget_guard(runtime: &RtsFirstContactMarkerBudgetRu
     let lower_lane_gallery_deemphasis_gate = lower_lane_gallery_tiles
         == string_vec(["29,22", "29,24", "29,26"])
         && lower_lane_gallery_sample_count == 3
-        && lower_lane_mute_overlay_pixel_budget >= 1_152
+        && lower_lane_rendered_frame_pixel_budget == 0
+        && lower_lane_frame_suppressed_count == 3
+        && lower_lane_mute_overlay_pixel_budget == 0
         && lower_lane_slot_cue_pixel_budget <= 3
         && lower_lane_ghost_anchor_count == 3
         && lower_lane_gallery_darken_numerator == 5
         && lower_lane_gallery_darken_denominator == 6
-        && lower_lane_dim_silhouette_pixel_budget <= 1_440
+        && lower_lane_dim_silhouette_pixel_budget == 0
         && lower_lane_shadow_suppressed_count == 3
         && lower_lane_hot_marker_color_count == 0
         && gallery_presentation_signatures
@@ -309,10 +320,10 @@ pub fn first_contact_marker_budget_guard(runtime: &RtsFirstContactMarkerBudgetRu
             .any(|signature| signature == "lower_lane_micro_slot_cues")
         && gallery_presentation_signatures
             .iter()
-            .any(|signature| signature == "lower_lane_dim_silhouettes")
+            .any(|signature| signature == "lower_lane_frame_suppressed")
         && gallery_presentation_signatures
             .iter()
-            .any(|signature| signature == "lower_lane_stronger_dim_silhouettes")
+            .any(|signature| signature == "lower_lane_anchor_only")
         && gallery_presentation_signatures
             .iter()
             .any(|signature| signature == "lower_lane_shadow_suppressed")
@@ -379,6 +390,8 @@ pub fn first_contact_marker_budget_guard(runtime: &RtsFirstContactMarkerBudgetRu
         "gallery_darken_numerator": gallery_darken_numerator,
         "gallery_darken_denominator": gallery_darken_denominator,
         "lower_lane_gallery_sample_count": lower_lane_gallery_sample_count,
+        "lower_lane_rendered_frame_pixel_budget": lower_lane_rendered_frame_pixel_budget,
+        "lower_lane_frame_suppressed_count": lower_lane_frame_suppressed_count,
         "lower_lane_mute_overlay_pixel_budget": lower_lane_mute_overlay_pixel_budget,
         "lower_lane_slot_cue_pixel_budget": lower_lane_slot_cue_pixel_budget,
         "lower_lane_ghost_anchor_count": lower_lane_ghost_anchor_count,
@@ -458,12 +471,14 @@ mod tests {
         assert_eq!(summary.gallery_slot_cue_pixel_budget, 252);
         assert_eq!(summary.gallery_darken_numerator, 2);
         assert_eq!(summary.gallery_darken_denominator, 3);
-        assert_eq!(summary.lower_lane_mute_overlay_pixel_budget, 1_152);
+        assert_eq!(summary.lower_lane_rendered_frame_pixel_budget, 0);
+        assert_eq!(summary.lower_lane_frame_suppressed_count, 3);
+        assert_eq!(summary.lower_lane_mute_overlay_pixel_budget, 0);
         assert_eq!(summary.lower_lane_slot_cue_pixel_budget, 3);
         assert_eq!(summary.lower_lane_ghost_anchor_count, 3);
         assert_eq!(summary.lower_lane_gallery_darken_numerator, 5);
         assert_eq!(summary.lower_lane_gallery_darken_denominator, 6);
-        assert_eq!(summary.lower_lane_dim_silhouette_pixel_budget, 1_440);
+        assert_eq!(summary.lower_lane_dim_silhouette_pixel_budget, 0);
         assert_eq!(summary.lower_lane_shadow_suppressed_count, 3);
         assert_eq!(summary.gallery_hot_marker_color_count, 0);
         assert_eq!(summary.lower_lane_hot_marker_color_count, 0);
@@ -471,6 +486,12 @@ mod tests {
         assert!(summary
             .gallery_presentation_signatures
             .contains(&"lower_lane_single_point_ghost_anchors"));
+        assert!(summary
+            .gallery_presentation_signatures
+            .contains(&"lower_lane_frame_suppressed"));
+        assert!(summary
+            .gallery_presentation_signatures
+            .contains(&"lower_lane_anchor_only"));
         assert!(summary
             .gallery_presentation_signatures
             .contains(&"perimeter_gallery_stronger_deemphasis"));
@@ -507,6 +528,18 @@ mod tests {
         assert_eq!(
             guard
                 .get("lower_lane_slot_cue_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(3)
+        );
+        assert_eq!(
+            guard
+                .get("lower_lane_rendered_frame_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(0)
+        );
+        assert_eq!(
+            guard
+                .get("lower_lane_frame_suppressed_count")
                 .and_then(Value::as_u64),
             Some(3)
         );
@@ -554,6 +587,18 @@ mod tests {
             .is_some_and(|signatures| signatures.iter().any(
                 |signature| signature.as_str() == Some("lower_lane_single_point_ghost_anchors")
             )));
+        assert!(guard
+            .get("gallery_presentation_signatures")
+            .and_then(Value::as_array)
+            .is_some_and(|signatures| signatures
+                .iter()
+                .any(|signature| signature.as_str() == Some("lower_lane_frame_suppressed"))));
+        assert!(guard
+            .get("gallery_presentation_signatures")
+            .and_then(Value::as_array)
+            .is_some_and(|signatures| signatures
+                .iter()
+                .any(|signature| signature.as_str() == Some("lower_lane_anchor_only"))));
         assert!(guard
             .get("gallery_presentation_signatures")
             .and_then(Value::as_array)
