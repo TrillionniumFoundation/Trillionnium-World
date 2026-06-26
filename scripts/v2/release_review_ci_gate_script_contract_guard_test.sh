@@ -17,6 +17,7 @@ required_lines=(
   'checks_total: $check_count'
   'failed_check_count'
   'checks_failed: $failed_check_count'
+  '.failed_check_count // ((.failures // []) | length)'
   '--slurpfile checks "$CHECKS_FILE"'
   'release-review-ci-gate-world-bevy-release-build.log'
   'if [[ -z "${TRNM_WORLD_BEVY_ARTIFACT_BIN:-}" ]]'

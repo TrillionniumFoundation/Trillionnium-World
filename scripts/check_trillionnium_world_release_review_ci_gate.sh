@@ -1018,7 +1018,7 @@ INTEGRITY_GREEN="$(jq -r '.green // false' "$PACKET_INTEGRITY_JSON" 2>/dev/null 
 READY_FOR_RELEASE_REVIEW="$(jq -r '.ready_for_release_review // false' "$PACKET_INTEGRITY_JSON" 2>/dev/null || printf 'false')"
 PUBLIC_LAUNCH_READY="$(jq -r '.public_launch_ready // false' "$PACKET_INTEGRITY_JSON" 2>/dev/null || printf 'false')"
 ARTIFACT_COUNT="$(jq -r '.artifact_count // 0' "$PACKET_INTEGRITY_JSON" 2>/dev/null || printf '0')"
-INTEGRITY_FAILURE_COUNT="$(jq -r '(.failures // []) | length' "$PACKET_INTEGRITY_JSON" 2>/dev/null || printf '0')"
+INTEGRITY_FAILURE_COUNT="$(jq -r '.failed_check_count // ((.failures // []) | length)' "$PACKET_INTEGRITY_JSON" 2>/dev/null || printf '0')"
 
 GREEN=false
 STATUS=release_review_ci_gate_blocked
