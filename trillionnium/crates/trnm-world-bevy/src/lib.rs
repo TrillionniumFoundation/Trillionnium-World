@@ -97551,6 +97551,35 @@ fn classic_first_contact_art_landmark_color(role: &str) -> u32 {
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_first_contact_lower_secondary_beacon_lane(tile: (i32, i32), role: &str) -> bool {
+    tile == (16, 24) && role == "beacon_lane"
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_first_contact_lower_secondary_beacon_art_detail(
+    tile: (i32, i32),
+    role: &str,
+    signature: &str,
+) -> bool {
+    matches!(
+        (tile, role, signature),
+        ((16, 24), "beacon_lane", "painted_lane_chevrons")
+            | ((16, 23), "beacon_lane", "lane_power_pylons")
+            | ((16, 24), "beacon_ring", "beacon_capture_rings")
+    )
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_first_contact_lower_secondary_beacon_art_color(color: u32) -> u32 {
+    classic_mix_color(
+        classic_darken(color, 1, 4),
+        CLASSIC_RTS_TACTICAL_VIEWPORT_TILE_COLOR,
+        2,
+        3,
+    )
+}
+
+#[cfg(not(target_os = "android"))]
 #[allow(clippy::too_many_arguments)]
 fn classic_draw_first_contact_terrain_material_depth_detail(
     buffer: &mut [u32],
@@ -97567,6 +97596,30 @@ fn classic_draw_first_contact_terrain_material_depth_detail(
     let cx = tile_x + cell_w / 2;
     let cy = tile_y + cell_h / 2;
     let color = classic_first_contact_art_terrain_color(role);
+    if classic_first_contact_lower_secondary_beacon_lane(tile, role) {
+        let quiet = classic_first_contact_lower_secondary_beacon_art_color(color);
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            cx - cell_w / 2,
+            cy + cell_h / 2 - 1,
+            cell_w,
+            1,
+            quiet,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            cx - 1,
+            cy - 2,
+            2,
+            (cell_h / 2).max(4),
+            classic_darken(quiet, 1, 4),
+        );
+        return;
+    }
     match role {
         "base_concrete" => {
             let bevel = classic_darken(CLASSIC_RTS_STRUCTURE_FOUNDATION_SHADOW_COLOR, 1, 3);
@@ -97736,6 +97789,21 @@ fn classic_draw_first_contact_art_terrain_detail(
             }
         }
         "painted_lane_chevrons" => {
+            if classic_first_contact_lower_secondary_beacon_art_detail(tile, role, signature) {
+                let quiet = classic_first_contact_lower_secondary_beacon_art_color(color);
+                classic_draw_rect(buffer, width, height, cx - 8, cy - 1, 16, 2, quiet);
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    cx - 1,
+                    cy - cell_h / 3,
+                    2,
+                    (cell_h * 2 / 3).max(4),
+                    classic_darken(quiet, 1, 4),
+                );
+                return;
+            }
             for offset in [-cell_w, 0, cell_w] {
                 classic_draw_rect(buffer, width, height, cx + offset - 8, cy - 2, 16, 3, color);
                 classic_draw_rect(
@@ -97954,6 +98022,32 @@ fn classic_draw_first_contact_art_landmark_detail(
             }
         }
         "lane_power_pylons" => {
+            if classic_first_contact_lower_secondary_beacon_art_detail(tile, role, signature) {
+                let quiet = classic_first_contact_lower_secondary_beacon_art_color(color);
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    cx - cell_w / 2,
+                    cy - 1,
+                    cell_w,
+                    2,
+                    quiet,
+                );
+                for dx in [-cell_w / 3, cell_w / 3] {
+                    classic_draw_rect(
+                        buffer,
+                        width,
+                        height,
+                        cx + dx - 2,
+                        cy - cell_h / 2,
+                        4,
+                        cell_h,
+                        classic_darken(quiet, 1, 5),
+                    );
+                }
+                return;
+            }
             for dx in [-cell_w / 2, cell_w / 2] {
                 classic_draw_rect(
                     buffer,
@@ -98027,6 +98121,30 @@ fn classic_draw_first_contact_art_landmark_detail(
             }
         }
         "beacon_capture_rings" => {
+            if classic_first_contact_lower_secondary_beacon_art_detail(tile, role, signature) {
+                let quiet = classic_first_contact_lower_secondary_beacon_art_color(color);
+                classic_draw_iso_ellipse(
+                    buffer,
+                    width,
+                    height,
+                    cx,
+                    cy,
+                    (cell_w / 2).max(8),
+                    3,
+                    quiet,
+                );
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    cx - cell_w / 2,
+                    cy - 1,
+                    cell_w,
+                    2,
+                    classic_darken(quiet, 1, 4),
+                );
+                return;
+            }
             for radius in [cell_w / 2, cell_w] {
                 classic_draw_iso_ellipse(
                     buffer,

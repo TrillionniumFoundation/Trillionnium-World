@@ -13,6 +13,18 @@ fn tile_id(tile: (i32, i32)) -> String {
     rts_runtime_tile_id(tile)
 }
 
+fn lower_secondary_beacon_terrain_detail(tile: (i32, i32), role: &str, signature: &str) -> bool {
+    tile == (16, 24) && role == "beacon_lane" && signature == "painted_lane_chevrons"
+}
+
+fn lower_secondary_beacon_landmark_detail(tile: (i32, i32), role: &str, signature: &str) -> bool {
+    matches!(
+        (tile, role, signature),
+        ((16, 23), "beacon_lane", "lane_power_pylons")
+            | ((16, 24), "beacon_ring", "beacon_capture_rings")
+    )
+}
+
 pub fn first_contact_art_readability_guard() -> Value {
     let terrain_samples = first_contact_samples::art_terrain_samples();
     let building_samples = first_contact_samples::art_building_samples();
@@ -92,6 +104,40 @@ pub fn first_contact_art_readability_guard() -> Value {
             })
         })
         .collect::<Vec<_>>();
+    let mut lower_secondary_beacon_art_samples = terrain_samples
+        .iter()
+        .filter(|(tile, role, signature)| {
+            lower_secondary_beacon_terrain_detail(*tile, role, signature)
+        })
+        .map(|(tile, role, signature)| {
+            json!({
+                "tile": tile_id(*tile),
+                "role": role,
+                "signature": signature,
+            })
+        })
+        .collect::<Vec<_>>();
+    lower_secondary_beacon_art_samples.extend(
+        landmark_samples
+            .iter()
+            .filter(|(tile, role, signature)| {
+                lower_secondary_beacon_landmark_detail(*tile, role, signature)
+            })
+            .map(|(tile, role, signature)| {
+                json!({
+                    "tile": tile_id(*tile),
+                    "role": role,
+                    "signature": signature,
+                })
+            }),
+    );
+    let lower_secondary_beacon_art_signatures = string_vec([
+        "lower_secondary_beacon_micro_chevrons",
+        "lower_secondary_beacon_power_pylons_capped",
+        "lower_secondary_beacon_capture_ring_reduced",
+    ]);
+    let lower_secondary_beacon_art_sample_count = lower_secondary_beacon_art_samples.len();
+    let lower_secondary_beacon_art_pixel_budget = lower_secondary_beacon_art_sample_count * 32;
     let unique_terrain_signature_count = terrain_material_signatures
         .iter()
         .collect::<BTreeSet<_>>()
@@ -191,11 +237,40 @@ pub fn first_contact_art_readability_guard() -> Value {
             "runtime_beacon_core_glow_rungs",
         ])
         && runtime_actor_depth_pixel_budget >= 480;
+    let lower_secondary_beacon_art_deemphasis_gate = lower_secondary_beacon_art_samples
+        == vec![
+            json!({
+                "tile": "16,24",
+                "role": "beacon_lane",
+                "signature": "painted_lane_chevrons",
+            }),
+            json!({
+                "tile": "16,23",
+                "role": "beacon_lane",
+                "signature": "lane_power_pylons",
+            }),
+            json!({
+                "tile": "16,24",
+                "role": "beacon_ring",
+                "signature": "beacon_capture_rings",
+            }),
+        ]
+        && lower_secondary_beacon_art_pixel_budget <= 96
+        && lower_secondary_beacon_art_signatures
+            .iter()
+            .any(|signature| signature == "lower_secondary_beacon_micro_chevrons")
+        && lower_secondary_beacon_art_signatures
+            .iter()
+            .any(|signature| signature == "lower_secondary_beacon_power_pylons_capped")
+        && lower_secondary_beacon_art_signatures
+            .iter()
+            .any(|signature| signature == "lower_secondary_beacon_capture_ring_reduced");
     let authored_map_art_gate = terrain_material_gate
         && terrain_material_depth_gate
         && building_facade_gate
         && map_landmark_detail_gate
-        && runtime_actor_depth_gate;
+        && runtime_actor_depth_gate
+        && lower_secondary_beacon_art_deemphasis_gate;
     let green = authored_map_art_gate;
 
     json!({
@@ -238,6 +313,11 @@ pub fn first_contact_art_readability_guard() -> Value {
         "runtime_actor_depth_signatures": runtime_actor_depth_signatures,
         "runtime_actor_depth_pixel_budget": runtime_actor_depth_pixel_budget,
         "runtime_actor_depth_gate": runtime_actor_depth_gate,
+        "lower_secondary_beacon_art_samples": lower_secondary_beacon_art_samples,
+        "lower_secondary_beacon_art_sample_count": lower_secondary_beacon_art_sample_count,
+        "lower_secondary_beacon_art_pixel_budget": lower_secondary_beacon_art_pixel_budget,
+        "lower_secondary_beacon_art_signatures": lower_secondary_beacon_art_signatures,
+        "lower_secondary_beacon_art_deemphasis_gate": lower_secondary_beacon_art_deemphasis_gate,
         "authored_map_art_gate": authored_map_art_gate,
     })
 }
@@ -332,6 +412,32 @@ mod tests {
             Some(480)
         );
         assert_eq!(
+            guard.get("lower_secondary_beacon_art_samples").cloned(),
+            Some(json!([
+                {
+                    "tile": "16,24",
+                    "role": "beacon_lane",
+                    "signature": "painted_lane_chevrons",
+                },
+                {
+                    "tile": "16,23",
+                    "role": "beacon_lane",
+                    "signature": "lane_power_pylons",
+                },
+                {
+                    "tile": "16,24",
+                    "role": "beacon_ring",
+                    "signature": "beacon_capture_rings",
+                }
+            ]))
+        );
+        assert_eq!(
+            guard
+                .get("lower_secondary_beacon_art_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(96)
+        );
+        assert_eq!(
             guard
                 .get("command_core_facade_count")
                 .and_then(Value::as_u64),
@@ -351,6 +457,7 @@ mod tests {
             "building_facade_gate",
             "map_landmark_detail_gate",
             "runtime_actor_depth_gate",
+            "lower_secondary_beacon_art_deemphasis_gate",
             "authored_map_art_gate",
         ] {
             assert_eq!(guard.get(gate).and_then(Value::as_bool), Some(true));

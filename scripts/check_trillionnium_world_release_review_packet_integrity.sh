@@ -810,11 +810,18 @@ require_artifact_json_expr first_contact_basin_spec_semantics native_bevy_classi
   and (.first_contact_art_readability_guard.runtime_actor_depth_signatures | index("runtime_relay_mast_braces") != null)
   and (.first_contact_art_readability_guard.runtime_actor_depth_signatures | index("runtime_beacon_core_glow_rungs") != null)
   and .first_contact_art_readability_guard.runtime_actor_depth_pixel_budget >= 480
+  and .first_contact_art_readability_guard.lower_secondary_beacon_art_samples == [{"tile":"16,24","role":"beacon_lane","signature":"painted_lane_chevrons"},{"tile":"16,23","role":"beacon_lane","signature":"lane_power_pylons"},{"tile":"16,24","role":"beacon_ring","signature":"beacon_capture_rings"}]
+  and .first_contact_art_readability_guard.lower_secondary_beacon_art_sample_count == 3
+  and .first_contact_art_readability_guard.lower_secondary_beacon_art_pixel_budget <= 96
+  and (.first_contact_art_readability_guard.lower_secondary_beacon_art_signatures | index("lower_secondary_beacon_micro_chevrons") != null)
+  and (.first_contact_art_readability_guard.lower_secondary_beacon_art_signatures | index("lower_secondary_beacon_power_pylons_capped") != null)
+  and (.first_contact_art_readability_guard.lower_secondary_beacon_art_signatures | index("lower_secondary_beacon_capture_ring_reduced") != null)
   and .first_contact_art_readability_guard.terrain_material_gate == true
   and .first_contact_art_readability_guard.terrain_material_depth_gate == true
   and .first_contact_art_readability_guard.building_facade_gate == true
   and .first_contact_art_readability_guard.map_landmark_detail_gate == true
   and .first_contact_art_readability_guard.runtime_actor_depth_gate == true
+  and .first_contact_art_readability_guard.lower_secondary_beacon_art_deemphasis_gate == true
   and .first_contact_art_readability_guard.authored_map_art_gate == true
   and .first_contact_art_readability_guard_gate == true
   and .first_contact_motion_readability_contract == "trillionnium_world_bevy_classic_rts_first_contact_motion_readability_v1"

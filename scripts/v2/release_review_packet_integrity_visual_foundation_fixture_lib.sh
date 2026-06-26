@@ -932,6 +932,19 @@ add_first_contact_basin_source_manifest_packet_fixtures() {
       ],
       runtime_actor_depth_pixel_budget: 480,
       runtime_actor_depth_gate: true,
+      lower_secondary_beacon_art_samples: [
+        {tile: "16,24", role: "beacon_lane", signature: "painted_lane_chevrons"},
+        {tile: "16,23", role: "beacon_lane", signature: "lane_power_pylons"},
+        {tile: "16,24", role: "beacon_ring", signature: "beacon_capture_rings"}
+      ],
+      lower_secondary_beacon_art_sample_count: 3,
+      lower_secondary_beacon_art_pixel_budget: 96,
+      lower_secondary_beacon_art_signatures: [
+        "lower_secondary_beacon_micro_chevrons",
+        "lower_secondary_beacon_power_pylons_capped",
+        "lower_secondary_beacon_capture_ring_reduced"
+      ],
+      lower_secondary_beacon_art_deemphasis_gate: true,
       authored_map_art_gate: true
     },
     first_contact_art_readability_guard_gate: true,
