@@ -147,6 +147,7 @@ require_text release_review_status_markdown_cex_boundary "$STATUS_MD" "CEX adapt
 
 CHECKS_JSON="$(jq -s '.' "$CHECK_RESULTS")"
 FAILURES_JSON="$(jq -s '[.[] | select(.status != "ok")]' "$CHECK_RESULTS")"
+CHECK_COUNT="$(jq 'length' <<<"$CHECKS_JSON")"
 FAILURE_COUNT="$(jq 'length' <<<"$FAILURES_JSON")"
 READY_FOR_RELEASE_REVIEW="$(read_json_bool "$STATUS_JSON" '.ready_for_release_review')"
 PUBLIC_LAUNCH_READY="$(read_json_bool "$STATUS_JSON" '.public_launch_ready')"
@@ -172,6 +173,8 @@ jq -n \
   --argjson green "$GREEN" \
   --argjson ready_for_release_review "$READY_FOR_RELEASE_REVIEW" \
   --argjson public_launch_ready "$PUBLIC_LAUNCH_READY" \
+  --argjson check_count "$CHECK_COUNT" \
+  --argjson failed_check_count "$FAILURE_COUNT" \
   --argjson checks "$CHECKS_JSON" \
   --argjson failures "$FAILURES_JSON" \
   '{
@@ -184,6 +187,10 @@ jq -n \
     public_launch_ready: $public_launch_ready,
     android_s5_real_device_claimed: false,
     proof_scope: "host_side_bevy_runtime_replay_not_android_real_device",
+    check_count: $check_count,
+    failed_check_count: $failed_check_count,
+    checks_total: $check_count,
+    checks_failed: $failed_check_count,
     refreshed_status: {
       json_path: $status_json,
       markdown_path: $status_markdown,

@@ -77,11 +77,106 @@ jq -n \
   else
     "blocked_native_bevy_replay_or_public_launch_consumption"
   end) as $status |
+  ([
+    {
+      id: "native_bevy_keyboard_replay",
+      label: "Native/Bevy keyboard replay",
+      ready: ($q.gates.native_bevy_keyboard_replay_ready == true),
+      evidence_path: $s.gates.native_bevy_keyboard_replay.evidence_path,
+      detail: ("force=" + (($s.gates.native_bevy_keyboard_replay.branches.force.recorded_sequence_count // 0) | tostring) + ", agility=" + (($s.gates.native_bevy_keyboard_replay.branches.agility.recorded_sequence_count // 0) | tostring) + ", craft=" + (($s.gates.native_bevy_keyboard_replay.branches.craft.recorded_sequence_count // 0) | tostring) + "; force combat=" + ($s.gates.native_bevy_keyboard_replay.branches.force.combat_result_state // "unknown"))
+    },
+    {
+      id: "native_bevy_action_coach",
+      label: "Native/Bevy action coach",
+      ready: ($q.gates.native_bevy_action_coach_ready == true),
+      evidence_path: $s.gates.native_bevy_action_coach.evidence_path,
+      detail: ("coach_stage=" + (($s.gates.native_bevy_action_coach.coach_stage_gate // false) | tostring) + ", enter_execution=" + (($s.gates.native_bevy_action_coach.enter_execution_gate // false) | tostring) + ", final_next=" + (($s.gates.native_bevy_action_coach.final_next_gate // false) | tostring))
+    },
+    {
+      id: "native_bevy_player_hud_debug_layer",
+      label: "Native/Bevy player HUD/debug layer",
+      ready: ($q.gates.native_bevy_player_hud_debug_layer_ready == true),
+      evidence_path: $s.gates.native_bevy_player_hud_debug_layer.evidence_path,
+      detail: ("player_hud=" + (($s.gates.native_bevy_player_hud_debug_layer.player_hud_gate // false) | tostring) + ", debug_layer=" + (($s.gates.native_bevy_player_hud_debug_layer.debug_layer_gate // false) | tostring))
+    },
+    {
+      id: "native_bevy_live_window_screenshot_sequence",
+      label: "Native/Bevy live-window screenshot sequence",
+      ready: ($q.gates.native_bevy_live_window_screenshot_sequence_ready == true),
+      evidence_path: $s.gates.native_bevy_live_window_screenshot_sequence.evidence_path,
+      detail: ("frames=" + (($s.gates.native_bevy_live_window_screenshot_sequence.actual_frame_count // 0) | tostring) + ", sequence=" + (($s.gates.native_bevy_live_window_screenshot_sequence.frame_sequence_gate // false) | tostring) + ", contact_sheet=" + (($s.gates.native_bevy_live_window_screenshot_sequence.contact_sheet_gate // false) | tostring))
+    },
+    {
+      id: "native_bevy_sprite_texture_sampling",
+      label: "Native/Bevy sprite texture sampling",
+      ready: ($q.gates.native_bevy_sprite_texture_sampling_ready == true),
+      evidence_path: $s.gates.native_bevy_sprite_texture_sampling.evidence_path,
+      detail: ("sampled_surfaces=" + (($s.gates.native_bevy_sprite_texture_sampling.sampled_surface_count // 0) | tostring) + ", unique_rgba=" + (($s.gates.native_bevy_sprite_texture_sampling.texture_unique_rgba_color_count // 0) | tostring) + ", four_layer=" + (($s.gates.native_bevy_sprite_texture_sampling.four_layer_texture_sampling_gate // false) | tostring))
+    },
+    {
+      id: "native_bevy_live_window_sampled_texture_correlation",
+      label: "Native/Bevy sampled texture live-window correlation",
+      ready: ($q.gates.native_bevy_live_window_sampled_texture_correlation_ready == true),
+      evidence_path: $s.gates.native_bevy_live_window_sampled_texture_correlation.evidence_path,
+      detail: ("live_frames=" + (($s.gates.native_bevy_live_window_sampled_texture_correlation.live_frame_count // 0) | tostring) + ", final_frame_colors=" + (($s.gates.native_bevy_live_window_sampled_texture_correlation.live_final_frame_colors_96x54 // 0) | tostring) + ", four_layer=" + (($s.gates.native_bevy_live_window_sampled_texture_correlation.four_layer_sampled_live_correlation_gate // false) | tostring))
+    },
+   {
+     id: "native_bevy_render_asset_eligibility",
+      label: "Native/Bevy render asset eligibility",
+      ready: ($q.gates.native_bevy_render_asset_eligibility_ready == true),
+      evidence_path: $s.gates.native_bevy_render_asset_eligibility.evidence_path,
+     detail: ("usage=" + ($s.gates.native_bevy_render_asset_eligibility.image_asset_usage_debug // "unknown") + ", sprite_refs=" + (($s.gates.native_bevy_render_asset_eligibility.sprite_render_reference_count // 0) | tostring) + ", render_usage=" + (($s.gates.native_bevy_render_asset_eligibility.render_asset_usage_gate // false) | tostring))
+   },
+    {
+      id: "cex_adapter_readiness",
+      label: "CEX production world adapter readiness",
+      ready: ($q.gates.cex_adapter_readiness_ready == true),
+      evidence_path: $s.gates.cex_adapter_readiness.evidence_path,
+      detail: ("routes=" + (($s.gates.cex_adapter_readiness.route_record_total // 0) | tostring) + ", nodes=" + (($s.gates.cex_adapter_readiness.world_node_count // 0) | tostring) + ", protocol=" + ($s.gates.cex_adapter_readiness.protocol_contract // "unknown"))
+    },
+   {
+     id: "public_launch_consumes_replay",
+      label: "Public launch consumes replay gate",
+      ready: ($q.gates.public_launch_consumes_replay == true),
+      evidence_path: $q.refreshed_evidence.public_launch_readiness.summary_path,
+      detail: ($q.refreshed_evidence.public_launch_readiness.status // "unknown")
+    },
+    {
+      id: "public_launch_consumes_local_playability",
+      label: "Public launch consumes local playability gates",
+      ready: ($q.gates.public_launch_consumes_local_playability == true),
+      evidence_path: $q.refreshed_evidence.public_launch_readiness.summary_path,
+      detail: ($q.refreshed_evidence.public_launch_readiness.status // "unknown")
+    },
+    {
+      id: "release_latency_local_drill",
+      label: "Release latency local drill",
+      ready: ($q.gates.release_latency_ready == true),
+      evidence_path: $s.gates.release_latency.evidence_path,
+      detail: ($s.gates.release_latency.status // "unknown")
+    },
+    {
+      id: "release_rollback_backup_drill",
+      label: "Release rollback/backup drill",
+      ready: ($q.gates.release_rollback_backup_ready == true),
+      evidence_path: $s.gates.release_rollback_backup.evidence_path,
+      detail: ($s.gates.release_rollback_backup.status // "unknown")
+    },
+    {
+      id: "public_deploy_local_drill",
+      label: "Public deploy local drill",
+      ready: ($q.gates.public_deploy_ready == true),
+      evidence_path: $s.gates.public_deploy.evidence_path,
+      detail: ($s.gates.public_deploy.status // "unknown")
+    }
+  ]) as $ready_items |
+  ($blockers | map(blocker_detail(.))) as $blocked_items |
   {
     contract_version: $contract_version,
     status: $status,
     generated_at: $generated_at,
     source_of_truth: "trillionnium_world_release_review_status",
+    green: ($status != "blocked_native_bevy_replay_or_public_launch_consumption"),
     quickcheck_summary: $quickcheck_summary,
     signoff_summary: $signoff_summary,
     quickcheck_log: $quickcheck_log,
@@ -94,100 +189,11 @@ jq -n \
       native_bevy_texture_render_scope: "host_side_texture_sampling_correlation_and_render_asset_eligibility_not_gpu_upload_or_android_real_device",
       public_launch_claim: "blocked_until_real_external_evidence_is_attached"
     },
-    ready_items: [
-      {
-        id: "native_bevy_keyboard_replay",
-        label: "Native/Bevy keyboard replay",
-        ready: ($q.gates.native_bevy_keyboard_replay_ready == true),
-        evidence_path: $s.gates.native_bevy_keyboard_replay.evidence_path,
-        detail: ("force=" + (($s.gates.native_bevy_keyboard_replay.branches.force.recorded_sequence_count // 0) | tostring) + ", agility=" + (($s.gates.native_bevy_keyboard_replay.branches.agility.recorded_sequence_count // 0) | tostring) + ", craft=" + (($s.gates.native_bevy_keyboard_replay.branches.craft.recorded_sequence_count // 0) | tostring) + "; force combat=" + ($s.gates.native_bevy_keyboard_replay.branches.force.combat_result_state // "unknown"))
-      },
-      {
-        id: "native_bevy_action_coach",
-        label: "Native/Bevy action coach",
-        ready: ($q.gates.native_bevy_action_coach_ready == true),
-        evidence_path: $s.gates.native_bevy_action_coach.evidence_path,
-        detail: ("coach_stage=" + (($s.gates.native_bevy_action_coach.coach_stage_gate // false) | tostring) + ", enter_execution=" + (($s.gates.native_bevy_action_coach.enter_execution_gate // false) | tostring) + ", final_next=" + (($s.gates.native_bevy_action_coach.final_next_gate // false) | tostring))
-      },
-      {
-        id: "native_bevy_player_hud_debug_layer",
-        label: "Native/Bevy player HUD/debug layer",
-        ready: ($q.gates.native_bevy_player_hud_debug_layer_ready == true),
-        evidence_path: $s.gates.native_bevy_player_hud_debug_layer.evidence_path,
-        detail: ("player_hud=" + (($s.gates.native_bevy_player_hud_debug_layer.player_hud_gate // false) | tostring) + ", debug_layer=" + (($s.gates.native_bevy_player_hud_debug_layer.debug_layer_gate // false) | tostring))
-      },
-      {
-        id: "native_bevy_live_window_screenshot_sequence",
-        label: "Native/Bevy live-window screenshot sequence",
-        ready: ($q.gates.native_bevy_live_window_screenshot_sequence_ready == true),
-        evidence_path: $s.gates.native_bevy_live_window_screenshot_sequence.evidence_path,
-        detail: ("frames=" + (($s.gates.native_bevy_live_window_screenshot_sequence.actual_frame_count // 0) | tostring) + ", sequence=" + (($s.gates.native_bevy_live_window_screenshot_sequence.frame_sequence_gate // false) | tostring) + ", contact_sheet=" + (($s.gates.native_bevy_live_window_screenshot_sequence.contact_sheet_gate // false) | tostring))
-      },
-      {
-        id: "native_bevy_sprite_texture_sampling",
-        label: "Native/Bevy sprite texture sampling",
-        ready: ($q.gates.native_bevy_sprite_texture_sampling_ready == true),
-        evidence_path: $s.gates.native_bevy_sprite_texture_sampling.evidence_path,
-        detail: ("sampled_surfaces=" + (($s.gates.native_bevy_sprite_texture_sampling.sampled_surface_count // 0) | tostring) + ", unique_rgba=" + (($s.gates.native_bevy_sprite_texture_sampling.texture_unique_rgba_color_count // 0) | tostring) + ", four_layer=" + (($s.gates.native_bevy_sprite_texture_sampling.four_layer_texture_sampling_gate // false) | tostring))
-      },
-      {
-        id: "native_bevy_live_window_sampled_texture_correlation",
-        label: "Native/Bevy sampled texture live-window correlation",
-        ready: ($q.gates.native_bevy_live_window_sampled_texture_correlation_ready == true),
-        evidence_path: $s.gates.native_bevy_live_window_sampled_texture_correlation.evidence_path,
-        detail: ("live_frames=" + (($s.gates.native_bevy_live_window_sampled_texture_correlation.live_frame_count // 0) | tostring) + ", final_frame_colors=" + (($s.gates.native_bevy_live_window_sampled_texture_correlation.live_final_frame_colors_96x54 // 0) | tostring) + ", four_layer=" + (($s.gates.native_bevy_live_window_sampled_texture_correlation.four_layer_sampled_live_correlation_gate // false) | tostring))
-      },
-     {
-       id: "native_bevy_render_asset_eligibility",
-        label: "Native/Bevy render asset eligibility",
-        ready: ($q.gates.native_bevy_render_asset_eligibility_ready == true),
-        evidence_path: $s.gates.native_bevy_render_asset_eligibility.evidence_path,
-       detail: ("usage=" + ($s.gates.native_bevy_render_asset_eligibility.image_asset_usage_debug // "unknown") + ", sprite_refs=" + (($s.gates.native_bevy_render_asset_eligibility.sprite_render_reference_count // 0) | tostring) + ", render_usage=" + (($s.gates.native_bevy_render_asset_eligibility.render_asset_usage_gate // false) | tostring))
-     },
-      {
-        id: "cex_adapter_readiness",
-        label: "CEX production world adapter readiness",
-        ready: ($q.gates.cex_adapter_readiness_ready == true),
-        evidence_path: $s.gates.cex_adapter_readiness.evidence_path,
-        detail: ("routes=" + (($s.gates.cex_adapter_readiness.route_record_total // 0) | tostring) + ", nodes=" + (($s.gates.cex_adapter_readiness.world_node_count // 0) | tostring) + ", protocol=" + ($s.gates.cex_adapter_readiness.protocol_contract // "unknown"))
-      },
-     {
-       id: "public_launch_consumes_replay",
-        label: "Public launch consumes replay gate",
-        ready: ($q.gates.public_launch_consumes_replay == true),
-        evidence_path: $q.refreshed_evidence.public_launch_readiness.summary_path,
-        detail: ($q.refreshed_evidence.public_launch_readiness.status // "unknown")
-      },
-      {
-        id: "public_launch_consumes_local_playability",
-        label: "Public launch consumes local playability gates",
-        ready: ($q.gates.public_launch_consumes_local_playability == true),
-        evidence_path: $q.refreshed_evidence.public_launch_readiness.summary_path,
-        detail: ($q.refreshed_evidence.public_launch_readiness.status // "unknown")
-      },
-      {
-        id: "release_latency_local_drill",
-        label: "Release latency local drill",
-        ready: ($q.gates.release_latency_ready == true),
-        evidence_path: $s.gates.release_latency.evidence_path,
-        detail: ($s.gates.release_latency.status // "unknown")
-      },
-      {
-        id: "release_rollback_backup_drill",
-        label: "Release rollback/backup drill",
-        ready: ($q.gates.release_rollback_backup_ready == true),
-        evidence_path: $s.gates.release_rollback_backup.evidence_path,
-        detail: ($s.gates.release_rollback_backup.status // "unknown")
-      },
-      {
-        id: "public_deploy_local_drill",
-        label: "Public deploy local drill",
-        ready: ($q.gates.public_deploy_ready == true),
-        evidence_path: $s.gates.public_deploy.evidence_path,
-        detail: ($s.gates.public_deploy.status // "unknown")
-      }
-    ],
-    blocked_items: ($blockers | map(blocker_detail(.))),
+    ready_item_count: ($ready_items | length),
+    blocked_item_count: ($blocked_items | length),
+    public_launch_blocker_count: ($blocked_items | length),
+    ready_items: $ready_items,
+    blocked_items: $blocked_items,
     reviewer_next_action: (if ($q.public_launch_ready == true) then "review_public_launch_ready_evidence" elif ($q.ready_for_release_review == true) then "collect_real_external_public_launch_evidence" else "fix_native_bevy_replay_or_public_launch_consumption_chain" end)
   }
   ' >"$STATUS_JSON"
@@ -201,9 +207,14 @@ GENERATED_AT="$(jq -r '.generated_at' "$STATUS_JSON")"
   printf '# Trillionnium World Release Review Status\n\n'
   printf -- '- generated_at: `%s`\n' "$GENERATED_AT"
   printf -- '- status: `%s`\n' "$STATUS"
+  printf -- '- green: `%s`\n' "$(jq -r '.green' "$STATUS_JSON")"
   printf -- '- ready_for_release_review: `%s`\n' "$READY_FOR_REVIEW"
   printf -- '- public_launch_ready: `%s`\n' "$PUBLIC_LAUNCH_READY"
   printf -- '- android_s5_real_device_claimed: `false`\n\n'
+  printf '## Counts\n\n'
+  printf -- '- ready_item_count: `%s`\n' "$(jq -r '.ready_item_count' "$STATUS_JSON")"
+  printf -- '- blocked_item_count: `%s`\n' "$(jq -r '.blocked_item_count' "$STATUS_JSON")"
+  printf -- '- public_launch_blocker_count: `%s`\n\n' "$(jq -r '.public_launch_blocker_count' "$STATUS_JSON")"
   printf '## Green For Review\n\n'
   jq -r '.ready_items[] | "- [\(.ready | if . then "x" else " " end)] \(.label): \(.detail)"' "$STATUS_JSON"
   printf '\n## Still Requires Real External Evidence\n\n'

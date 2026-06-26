@@ -4086,6 +4086,7 @@ add_release_review_status_packet_fixtures() {
       signoff_summary: "/fixture/release-signoff-summary.json",
       quickcheck_log: "/fixture/release-review-status-quickcheck.log",
       markdown_path: "/fixture/release-review-status.md",
+      green: true,
       ready_for_release_review: true,
       public_launch_ready: $public_launch_ready,
       android_s5_real_device_claimed: $android_s5_real_device_claimed,
@@ -4094,6 +4095,9 @@ add_release_review_status_packet_fixtures() {
         native_bevy_texture_render_scope: "host_side_texture_sampling_correlation_and_render_asset_eligibility_not_gpu_upload_or_android_real_device",
         public_launch_claim: "blocked_until_real_external_evidence_is_attached"
       },
+      ready_item_count: ($ready_items | length),
+      blocked_item_count: 6,
+      public_launch_blocker_count: 6,
       ready_items: $ready_items,
       blocked_items: [
         {
@@ -4137,9 +4141,16 @@ add_release_review_status_packet_fixtures() {
 # Trillionnium World Release Review Status
 
 - status: `release_review_ready_public_launch_blocked`
+- green: `true`
 - ready_for_release_review: `true`
 - public_launch_ready: `false`
 - android_s5_real_device_claimed: `false`
+
+## Counts
+
+- ready_item_count: `13`
+- blocked_item_count: `6`
+- public_launch_blocker_count: `6`
 
 ## Green For Review
 
@@ -4246,6 +4257,10 @@ add_release_review_convergence_packet_fixtures() {
       public_launch_ready: $public_launch_ready,
       android_s5_real_device_claimed: $android_s5_real_device_claimed,
       proof_scope: "host_side_bevy_runtime_replay_not_android_real_device",
+      check_count: ($checks | length),
+      failed_check_count: 0,
+      checks_total: ($checks | length),
+      checks_failed: 0,
       refreshed_status: {
         json_path: "/fixture/release-review-status.json",
         markdown_path: "/fixture/release-review-status.md",
