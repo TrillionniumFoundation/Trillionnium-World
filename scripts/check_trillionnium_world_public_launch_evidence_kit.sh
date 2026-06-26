@@ -125,7 +125,10 @@ add_item public_network_live_exposure_evidence public_network_live_exposure_evid
 
 ITEMS_JSON="$(jq -s '.' "$ITEMS_FILE")"
 TEMPLATE_FAILURES_JSON="$(jq -c '[.[] | select(.template_ok != true)]' <<<"$ITEMS_JSON")"
+EVIDENCE_ITEM_COUNT="$(jq 'length' <<<"$ITEMS_JSON")"
+READY_TEMPLATE_COUNT="$(jq '[.[] | select(.template_ok == true)] | length' <<<"$ITEMS_JSON")"
 TEMPLATE_FAILURE_COUNT="$(jq 'length' <<<"$TEMPLATE_FAILURES_JSON")"
+REFRESH_LOG_COUNT=5
 PUBLIC_LAUNCH_READY="$(jq -r '.public_launch_ready // false' "$INTAKE_SUMMARY" 2>/dev/null || printf 'false')"
 NEEDS_COLLECTION_COUNT="$(jq -r '(.needs_collection // []) | length' "$INTAKE_SUMMARY" 2>/dev/null || printf '6')"
 
@@ -150,9 +153,13 @@ jq -n \
   --argjson green "$GREEN" \
   --argjson public_launch_ready "$PUBLIC_LAUNCH_READY" \
   --argjson needs_collection_count "$NEEDS_COLLECTION_COUNT" \
+  --argjson evidence_item_count "$EVIDENCE_ITEM_COUNT" \
+  --argjson ready_template_count "$READY_TEMPLATE_COUNT" \
+  --argjson template_failure_count "$TEMPLATE_FAILURE_COUNT" \
+  --argjson refresh_log_count "$REFRESH_LOG_COUNT" \
   --argjson evidence_items "$ITEMS_JSON" \
   --argjson template_failures "$TEMPLATE_FAILURES_JSON" \
-  '{contract_version: $contract_version, status: $status, generated_at: $generated_at, source_of_truth: "trillionnium_world_public_launch_evidence_kit", green: $green, public_launch_ready: $public_launch_ready, public_launch_claimed: false, android_s5_real_device_claimed: false, live_map_ingestion_performed: false, live_public_exposure_performed: false, kit_rule: "operator_templates_must_exist_and_must_not_claim_green_until_real_external_evidence_passes_field_validators", markdown_path: $markdown_path, intake_summary: $intake_summary, refresh_logs: {s5_real_device: $s5_log, production_map_pack: $map_log, cohort_schema: $cohort_schema_log, external_ops: $external_ops_log, evidence_intake: $intake_log}, needs_collection_count: $needs_collection_count, evidence_items: $evidence_items, template_failures: $template_failures, reviewer_next_action: (if $public_launch_ready then "review_public_launch_ready_evidence" else "collect_real_external_public_launch_evidence_using_templates" end)}' >"$SUMMARY_FILE"
+  '{contract_version: $contract_version, status: $status, generated_at: $generated_at, source_of_truth: "trillionnium_world_public_launch_evidence_kit", green: $green, public_launch_ready: $public_launch_ready, public_launch_claimed: false, android_s5_real_device_claimed: false, live_map_ingestion_performed: false, live_public_exposure_performed: false, kit_rule: "operator_templates_must_exist_and_must_not_claim_green_until_real_external_evidence_passes_field_validators", markdown_path: $markdown_path, intake_summary: $intake_summary, refresh_logs: {s5_real_device: $s5_log, production_map_pack: $map_log, cohort_schema: $cohort_schema_log, external_ops: $external_ops_log, evidence_intake: $intake_log}, needs_collection_count: $needs_collection_count, evidence_item_count: $evidence_item_count, ready_template_count: $ready_template_count, template_failure_count: $template_failure_count, refresh_log_count: $refresh_log_count, evidence_items: $evidence_items, template_failures: $template_failures, reviewer_next_action: (if $public_launch_ready then "review_public_launch_ready_evidence" else "collect_real_external_public_launch_evidence_using_templates" end)}' >"$SUMMARY_FILE"
 
 {
   printf '# Trillionnium World Public Launch Evidence Kit\n\n'
@@ -160,6 +167,10 @@ jq -n \
   printf -- '- public_launch_ready: %s\n' "$PUBLIC_LAUNCH_READY"
   printf -- '- public_launch_claimed: false\n'
   printf -- '- android_s5_real_device_claimed: false\n\n'
+  printf -- '- evidence_item_count: %s\n' "$EVIDENCE_ITEM_COUNT"
+  printf -- '- ready_template_count: %s\n' "$READY_TEMPLATE_COUNT"
+  printf -- '- template_failure_count: %s\n' "$TEMPLATE_FAILURE_COUNT"
+  printf -- '- refresh_log_count: %s\n\n' "$REFRESH_LOG_COUNT"
   printf '## Evidence Templates\n\n'
   jq -r '.evidence_items[] | "- " + .id + ": " + .template_path + "\n  - env: " + .evidence_env_var + "\n  - accepted_status: " + .accepted_status + "\n  - current_status: " + .current_status + "\n  - template_status: " + (.template_status // "missing") + "\n  - collect: " + .collection_command + "\n  - validator: " + .validator_command + "\n  - requirement: " + .collection_requirement' "$SUMMARY_FILE"
   printf '\n## Boundary\n\n'

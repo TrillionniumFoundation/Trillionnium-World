@@ -34,6 +34,10 @@ required_lines=(
   'android_s5_real_device_claimed: false'
   'live_map_ingestion_performed: false'
   'live_public_exposure_performed: false'
+  'evidence_item_count'
+  'ready_template_count'
+  'template_failure_count'
+  'refresh_log_count'
 )
 
 for line in "${required_lines[@]}"; do

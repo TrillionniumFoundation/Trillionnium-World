@@ -3422,7 +3422,18 @@ add_public_launch_evidence_kit_packet_fixtures() {
     kit_rule: "operator_templates_must_exist_and_must_not_claim_green_until_real_external_evidence_passes_field_validators",
     markdown_path: "/fixture/public-launch-evidence-kit.md",
     intake_summary: "/fixture/public-launch-evidence-intake.json",
+    refresh_logs: {
+      s5_real_device: "/fixture/public-launch-evidence-kit-s5.log",
+      production_map_pack: "/fixture/public-launch-evidence-kit-map-pack.log",
+      cohort_schema: "/fixture/public-launch-evidence-kit-cohort-schema.log",
+      external_ops: "/fixture/public-launch-evidence-kit-external-ops.log",
+      evidence_intake: "/fixture/public-launch-evidence-kit-intake.log"
+    },
     needs_collection_count: 6,
+    evidence_item_count: 6,
+    ready_template_count: 6,
+    template_failure_count: 0,
+    refresh_log_count: 5,
     evidence_items: [
       {id: "s5_android_real_device_matrix", blocker_id: "s5_real_device_matrix", evidence_env_var: "ANDROID_SERIAL", accepted_status: "s5_real_device_evidence_green", current_status: "blocked_missing_s5_real_device_evidence", template_status: "template_requires_real_s5_device_evidence", template_ok: true, collection_command: "ANDROID_SERIAL=<device-serial> scripts/check_trillionnium_world_s5_device_evidence.sh --require-device", validator_command: "TRILLIONNIUM_WORLD_S5_REAL_DEVICE_EVIDENCE_PATH=<real-s5-evidence.json> scripts/check_trillionnium_world_s5_real_device_evidence.sh --require-ready", template_public_launch_credit: false},
       {id: "production_map_pack_public_evidence", blocker_id: "production_map_pack_public_evidence", evidence_env_var: "TRILLIONNIUM_PRODUCTION_MAP_PACK_PUBLIC_EVIDENCE_PATH", accepted_status: "production_map_pack_public_ready_green", current_status: "blocked_missing_production_map_pack_public_evidence", template_status: "template_requires_real_public_map_pack_evidence", template_ok: true, collection_command: "scripts/check_trillionnium_world_production_map_pack_public_evidence_collection.sh", validator_command: "TRILLIONNIUM_PRODUCTION_MAP_PACK_PUBLIC_EVIDENCE_PATH=<real-map-pack-evidence.json> scripts/check_trillionnium_world_production_map_pack_public_evidence.sh --require-ready", template_public_launch_credit: false},
@@ -3443,6 +3454,10 @@ add_public_launch_evidence_kit_packet_fixtures() {
     printf -- '- public_launch_ready: false\n'
     printf -- '- public_launch_claimed: false\n'
     printf -- '- android_s5_real_device_claimed: false\n\n'
+    printf -- '- evidence_item_count: 6\n'
+    printf -- '- ready_template_count: 6\n'
+    printf -- '- template_failure_count: 0\n'
+    printf -- '- refresh_log_count: 5\n\n'
     printf '## Evidence Templates\n\n'
     printf -- '- s5_android_real_device_matrix: /fixture/s5-device-evidence.template.json\n'
     printf -- '  - env: ANDROID_SERIAL\n'
