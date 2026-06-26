@@ -15,7 +15,7 @@ use crate::{
     TRNM_RTS_EVIDENCE_FIRST_CONTACT_MARKER_BUDGET_CONTRACT,
 };
 
-const GALLERY_SLOT_CUE_PIXELS_PER_SAMPLE: usize = 18;
+const GALLERY_SLOT_CUE_PIXELS_PER_SAMPLE: usize = 2;
 const LOWER_LANE_SLOT_CUE_PIXELS_PER_SAMPLE: usize = 1;
 const LOWER_LANE_GHOST_ANCHOR_COUNT: usize = 1;
 
@@ -121,8 +121,13 @@ where
                 / gallery_darken_denominator.max(1)
         })
         .sum::<usize>();
-    let gallery_slot_cue_pixel_budget = family_samples.len() * GALLERY_SLOT_CUE_PIXELS_PER_SAMPLE;
     let lower_lane_gallery_sample_count = lower_lane_gallery_tiles.len();
+    let perimeter_gallery_sample_count = family_samples
+        .len()
+        .saturating_sub(lower_lane_gallery_sample_count);
+    let gallery_slot_cue_pixel_budget = perimeter_gallery_sample_count
+        * GALLERY_SLOT_CUE_PIXELS_PER_SAMPLE
+        + lower_lane_gallery_sample_count * LOWER_LANE_SLOT_CUE_PIXELS_PER_SAMPLE;
     let lower_lane_rendered_frame_pixel_budget = 0;
     let lower_lane_frame_suppressed_count = lower_lane_gallery_sample_count;
     let lower_lane_mute_overlay_pixel_budget = 0;
@@ -164,7 +169,7 @@ where
         interactive_hot_marker_role_count: 5,
         gallery_presentation_signatures: vec![
             "muted_gallery_slot_cues",
-            "perimeter_gallery_micro_slot_cues",
+            "perimeter_gallery_edge_anchors",
             "darkened_gallery_frames",
             "perimeter_gallery_stronger_deemphasis",
             "lower_lane_gallery_deemphasis",
@@ -289,7 +294,7 @@ pub fn first_contact_marker_budget_guard(runtime: &RtsFirstContactMarkerBudgetRu
         && max_gallery_lane_frame_count <= 6;
     let gallery_mute_gate = muted_gallery_sample_count == family_samples.len()
         && gallery_mute_overlay_pixel_budget >= 22_000
-        && gallery_slot_cue_pixel_budget <= 252
+        && gallery_slot_cue_pixel_budget <= 25
         && gallery_darken_numerator == 2
         && gallery_darken_denominator == 3
         && gallery_hot_marker_color_count == 0
@@ -468,7 +473,7 @@ mod tests {
         assert_eq!(summary.east_gallery_frame_count, 6);
         assert_eq!(summary.max_gallery_lane_frame_count, 6);
         assert_eq!(summary.lower_lane_gallery_sample_count, 3);
-        assert_eq!(summary.gallery_slot_cue_pixel_budget, 252);
+        assert_eq!(summary.gallery_slot_cue_pixel_budget, 25);
         assert_eq!(summary.gallery_darken_numerator, 2);
         assert_eq!(summary.gallery_darken_denominator, 3);
         assert_eq!(summary.lower_lane_rendered_frame_pixel_budget, 0);
@@ -497,7 +502,7 @@ mod tests {
             .contains(&"perimeter_gallery_stronger_deemphasis"));
         assert!(summary
             .gallery_presentation_signatures
-            .contains(&"perimeter_gallery_micro_slot_cues"));
+            .contains(&"perimeter_gallery_edge_anchors"));
         assert!(summary
             .gallery_presentation_signatures
             .contains(&"interactive_focus_kept_hot"));
@@ -547,7 +552,7 @@ mod tests {
             guard
                 .get("gallery_slot_cue_pixel_budget")
                 .and_then(Value::as_u64),
-            Some(252)
+            Some(25)
         );
         assert_eq!(
             guard

@@ -1165,7 +1165,7 @@ require_artifact_json_expr first_contact_basin_spec_semantics native_bevy_classi
   and .first_contact_marker_budget_guard.east_gallery_frame_count == 6
   and .first_contact_marker_budget_guard.max_gallery_lane_frame_count == 6
   and .first_contact_marker_budget_guard.gallery_mute_overlay_pixel_budget >= 21248
-  and .first_contact_marker_budget_guard.gallery_slot_cue_pixel_budget <= 1008
+  and .first_contact_marker_budget_guard.gallery_slot_cue_pixel_budget <= 25
   and .first_contact_marker_budget_guard.lower_lane_gallery_sample_count == 3
   and .first_contact_marker_budget_guard.lower_lane_rendered_frame_pixel_budget == 0
   and .first_contact_marker_budget_guard.lower_lane_frame_suppressed_count == 3
@@ -1184,6 +1184,7 @@ require_artifact_json_expr first_contact_basin_spec_semantics native_bevy_classi
   and .first_contact_marker_budget_guard.selected_focus_tiles == ["14,11","15,11","15,12","17,12"]
   and .first_contact_marker_budget_guard.route_focus_tiles == ["14,11","15,11","16,10","16,9"]
   and (.first_contact_marker_budget_guard.gallery_presentation_signatures | index("darkened_gallery_frames") != null)
+  and (.first_contact_marker_budget_guard.gallery_presentation_signatures | index("perimeter_gallery_edge_anchors") != null)
   and (.first_contact_marker_budget_guard.gallery_presentation_signatures | index("lower_lane_gallery_deemphasis") != null)
   and (.first_contact_marker_budget_guard.gallery_presentation_signatures | index("lower_lane_micro_slot_cues") != null)
   and (.first_contact_marker_budget_guard.gallery_presentation_signatures | index("lower_lane_frame_suppressed") != null)
