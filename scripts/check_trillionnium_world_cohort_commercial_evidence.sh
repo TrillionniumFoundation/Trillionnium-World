@@ -95,8 +95,9 @@ fi
 [[ -n "$COHORT_SIGNED_BY" && -n "$COHORT_SIGNED_AT" ]] || COHORT_BLOCKERS+=("first_beta_operator_signature")
 
 COHORT_BLOCKERS_JSON="$(printf '%s\n' "${COHORT_BLOCKERS[@]}" | json_array_from_lines)"
+COHORT_BLOCKER_COUNT="$(jq 'length' <<<"$COHORT_BLOCKERS_JSON")"
 COHORT_STATUS="first_beta_cohort_evidence_green"
-if [[ "$(jq 'length' <<<"$COHORT_BLOCKERS_JSON")" != "0" ]]; then
+if [[ "$COHORT_BLOCKER_COUNT" != "0" ]]; then
   COHORT_STATUS="blocked_missing_first_beta_cohort_evidence"
 fi
 
@@ -132,14 +133,17 @@ for drill in payment refund support legal operator traffic; do
     '{drill: $drill, status: (if $status == "" then "missing" else $status end), evidence: (if $evidence == "" then null else $evidence end), green: $green}' >>"$DRILL_RESULTS_FILE"
 done
 DRILL_RESULTS_JSON="$(jq -s '.' "$DRILL_RESULTS_FILE")"
+REQUIRED_DRILL_COUNT="$(jq 'length' <<<"$DRILL_RESULTS_JSON")"
+FAILED_DRILL_COUNT="$(jq '[.[] | select(.green != true)] | length' <<<"$DRILL_RESULTS_JSON")"
 
 [[ "$COMMERCIAL_SIGNOFF_REAL" == "true" ]] || COMMERCIAL_BLOCKERS+=("real_or_sanitized_commercial_signoff")
 [[ "$COMMERCIAL_REJECTS_SYNTHETIC" == "true" ]] || COMMERCIAL_BLOCKERS+=("synthetic_commercial_rejected")
 [[ -n "$COMMERCIAL_SIGNED_BY" && -n "$COMMERCIAL_SIGNED_AT" ]] || COMMERCIAL_BLOCKERS+=("commercial_operator_signature")
 
 COMMERCIAL_BLOCKERS_JSON="$(printf '%s\n' "${COMMERCIAL_BLOCKERS[@]}" | json_array_from_lines)"
+COMMERCIAL_BLOCKER_COUNT="$(jq 'length' <<<"$COMMERCIAL_BLOCKERS_JSON")"
 COMMERCIAL_STATUS="commercial_launch_drill_evidence_green"
-if [[ "$(jq 'length' <<<"$COMMERCIAL_BLOCKERS_JSON")" != "0" ]]; then
+if [[ "$COMMERCIAL_BLOCKER_COUNT" != "0" ]]; then
   COMMERCIAL_STATUS="blocked_missing_commercial_launch_drill_evidence"
 fi
 
@@ -147,11 +151,32 @@ STATUS="cohort_commercial_evidence_green"
 if [[ "$COHORT_STATUS" != "first_beta_cohort_evidence_green" || "$COMMERCIAL_STATUS" != "commercial_launch_drill_evidence_green" ]]; then
   STATUS="blocked_missing_cohort_commercial_real_evidence"
 fi
+COHORT_COMMERCIAL_GREEN=false
+FIRST_BETA_READY=false
+COMMERCIAL_READY=false
+if [[ "$STATUS" == "cohort_commercial_evidence_green" ]]; then
+  COHORT_COMMERCIAL_GREEN=true
+fi
+if [[ "$COHORT_STATUS" == "first_beta_cohort_evidence_green" ]]; then
+  FIRST_BETA_READY=true
+fi
+if [[ "$COMMERCIAL_STATUS" == "commercial_launch_drill_evidence_green" ]]; then
+  COMMERCIAL_READY=true
+fi
+BLOCKER_COUNT=$((COHORT_BLOCKER_COUNT + COMMERCIAL_BLOCKER_COUNT))
 
 jq -n \
   --arg contract_version "trillionnium_world_cohort_commercial_evidence_gate_v1" \
   --arg status "$STATUS" \
   --arg generated_at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+  --argjson cohort_commercial_green "$COHORT_COMMERCIAL_GREEN" \
+  --argjson first_beta_ready "$FIRST_BETA_READY" \
+  --argjson commercial_ready "$COMMERCIAL_READY" \
+  --argjson blocker_count "$BLOCKER_COUNT" \
+  --argjson first_beta_blocker_count "$COHORT_BLOCKER_COUNT" \
+  --argjson commercial_blocker_count "$COMMERCIAL_BLOCKER_COUNT" \
+  --argjson required_drill_count "$REQUIRED_DRILL_COUNT" \
+  --argjson failed_drill_count "$FAILED_DRILL_COUNT" \
   --arg schema_summary "$ACCEPTANCE_DIR/cohort-commercial-evidence-schema.json" \
   --arg schema_log "$SCHEMA_LOG" \
   --arg cohort_path "$COHORT_EVIDENCE_PATH" \
@@ -175,6 +200,15 @@ jq -n \
     status: $status,
     generated_at: $generated_at,
     source_of_truth: "trillionnium_world_cohort_commercial_evidence_gate",
+    green: $cohort_commercial_green,
+    cohort_commercial_ready: $cohort_commercial_green,
+    first_beta_ready: $first_beta_ready,
+    commercial_launch_drill_ready: $commercial_ready,
+    blocker_count: $blocker_count,
+    first_beta_blocker_count: $first_beta_blocker_count,
+    commercial_launch_drill_blocker_count: $commercial_blocker_count,
+    required_drill_count: $required_drill_count,
+    failed_drill_count: $failed_drill_count,
     public_launch_credit: "only_when_first_beta_and_commercial_statuses_are_green_after_field_validation",
     schema: {
       summary_path: $schema_summary,

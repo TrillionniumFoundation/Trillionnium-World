@@ -24,6 +24,12 @@ required_lines=(
   'commercial_traffic_drill'
   'commercial_operator_signoff'
   'public_launch_credit: false'
+  'green: $collection_green'
+  'template_count: 2'
+  'template_schema_count: 2'
+  'required_evidence_count: 11'
+  'validator_status_count: 2'
+  'blocked_validator_status_count: $blocked_validator_status_count'
   'Use sanitized participant ids'
   'Do not store private personal data in templates'
 )

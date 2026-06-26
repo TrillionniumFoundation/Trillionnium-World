@@ -52,11 +52,24 @@ STATUS="cohort_commercial_evidence_collection_ready"
 if [[ "$SCHEMA_STATUS" != "cohort_commercial_evidence_schema_green" || ! -f "$COHORT_TEMPLATE" || ! -f "$COMMERCIAL_TEMPLATE" ]]; then
   STATUS="cohort_commercial_evidence_collection_blocked"
 fi
+COLLECTION_GREEN=false
+if [[ "$STATUS" == "cohort_commercial_evidence_collection_ready" ]]; then
+  COLLECTION_GREEN=true
+fi
+BLOCKED_VALIDATOR_STATUS_COUNT=0
+if [[ "$COHORT_STATUS" != "first_beta_cohort_evidence_green" ]]; then
+  BLOCKED_VALIDATOR_STATUS_COUNT=$((BLOCKED_VALIDATOR_STATUS_COUNT + 1))
+fi
+if [[ "$COMMERCIAL_STATUS" != "commercial_launch_drill_evidence_green" ]]; then
+  BLOCKED_VALIDATOR_STATUS_COUNT=$((BLOCKED_VALIDATOR_STATUS_COUNT + 1))
+fi
 
 jq -n \
   --arg contract_version "trillionnium_world_cohort_commercial_evidence_collection_v1" \
   --arg status "$STATUS" \
   --arg generated_at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+  --argjson collection_green "$COLLECTION_GREEN" \
+  --argjson blocked_validator_status_count "$BLOCKED_VALIDATOR_STATUS_COUNT" \
   --arg schema_summary "$SCHEMA_SUMMARY" \
   --arg schema_status "$SCHEMA_STATUS" \
   --arg schema_log "$SCHEMA_LOG" \
@@ -78,9 +91,15 @@ jq -n \
     status: $status,
     generated_at: $generated_at,
     source_of_truth: "trillionnium_world_cohort_commercial_evidence_collection",
+    green: $collection_green,
     public_launch_credit: false,
     first_beta_ready: false,
     commercial_launch_drill_ready: false,
+    template_count: 2,
+    template_schema_count: 2,
+    required_evidence_count: 11,
+    validator_status_count: 2,
+    blocked_validator_status_count: $blocked_validator_status_count,
     collection_command: "scripts/check_trillionnium_world_cohort_commercial_evidence_collection.sh",
     validation_command: "TRILLIONNIUM_FIRST_BETA_COHORT_EVIDENCE_PATH=<real-cohort.json> TRILLIONNIUM_COMMERCIAL_LAUNCH_DRILL_EVIDENCE_PATH=<real-commercial-drill.json> scripts/check_trillionnium_world_cohort_commercial_evidence.sh --require-ready",
     schema: {
@@ -136,8 +155,13 @@ jq -n \
 {
   printf '# Trillionnium World Cohort / Commercial Evidence Collection\n\n'
   printf -- '- status: %s\n' "$STATUS"
+  printf -- '- green: %s\n' "$COLLECTION_GREEN"
   printf -- '- first_beta_ready: false\n'
   printf -- '- commercial_launch_drill_ready: false\n'
+  printf -- '- required_evidence_count: 11\n'
+  printf -- '- template_count: 2\n'
+  printf -- '- template_schema_count: 2\n'
+  printf -- '- blocked_validator_status_count: %s\n' "$BLOCKED_VALIDATOR_STATUS_COUNT"
   printf -- '- schema_status: %s\n' "$SCHEMA_STATUS"
   printf -- '- first_beta_validator_status: %s\n' "$COHORT_STATUS"
   printf -- '- commercial_validator_status: %s\n\n' "$COMMERCIAL_STATUS"
