@@ -3475,6 +3475,13 @@ add_public_launch_evidence_bundle_packet_fixtures() {
     live_map_ingestion_performed_by_this_script: false,
     live_public_exposure_performed_by_this_script: false,
     bundle_rule: "single_manifest_must_point_to_real_external_evidence_that_passes_all_field_validators_before_public_launch_credit",
+    evidence_item_count: 6,
+    item_failure_count: 6,
+    green_evidence_item_count: 0,
+    present_evidence_item_count: 0,
+    missing_evidence_item_count: 6,
+    validator_count: 4,
+    failed_validator_count: 4,
     evidence_bundle: {
       path: null,
       file_status: "missing",
@@ -3520,6 +3527,10 @@ add_public_launch_evidence_bundle_packet_fixtures() {
     printf '# Trillionnium World Public Launch Evidence Bundle\n\n'
     printf -- '- status: public_launch_evidence_bundle_ready_for_real_evidence\n'
     printf -- '- public_launch_ready: false\n'
+    printf -- '- evidence_item_count: 6\n'
+    printf -- '- item_failure_count: 6\n'
+    printf -- '- validator_count: 4\n'
+    printf -- '- failed_validator_count: 4\n'
     printf -- '- bundle_path: missing\n'
     printf -- '- template: /fixture/public-launch-evidence-bundle.template.json\n\n'
     printf '## Evidence Items\n\n'

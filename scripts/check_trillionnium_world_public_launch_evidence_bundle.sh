@@ -175,7 +175,13 @@ add_item public_network_deploy "Public network deploy evidence" "$DEPLOY_PATH" T
 ITEMS_JSON="$(jq -s '.' "$ITEMS_FILE")"
 VALIDATORS_JSON="$(jq -s '.' "$VALIDATORS_FILE")"
 ITEM_FAILURES_JSON="$(jq -c '[.[] | select(.green != true)]' <<<"$ITEMS_JSON")"
+EVIDENCE_ITEM_COUNT="$(jq 'length' <<<"$ITEMS_JSON")"
 ITEM_FAILURE_COUNT="$(jq 'length' <<<"$ITEM_FAILURES_JSON")"
+GREEN_EVIDENCE_ITEM_COUNT="$(jq '[.[] | select(.green == true)] | length' <<<"$ITEMS_JSON")"
+PRESENT_EVIDENCE_ITEM_COUNT="$(jq '[.[] | select(.file_status == "present")] | length' <<<"$ITEMS_JSON")"
+MISSING_EVIDENCE_ITEM_COUNT="$(jq '[.[] | select(.file_status != "present")] | length' <<<"$ITEMS_JSON")"
+VALIDATOR_COUNT="$(jq 'length' <<<"$VALIDATORS_JSON")"
+FAILED_VALIDATOR_COUNT="$(jq '[.[] | select((.exit_status // 0) != 0)] | length' <<<"$VALIDATORS_JSON")"
 BUNDLE_SIGNOFF_OK=false
 if [[ "$SIGNOFF_REAL" == "true" && "$SIGNOFF_REJECTS_SYNTHETIC" == "true" && -n "$SIGNOFF_BY" && -n "$SIGNOFF_AT" ]]; then
   BUNDLE_SIGNOFF_OK=true
@@ -211,15 +217,26 @@ jq -n \
   --argjson bundle_green "$BUNDLE_GREEN" \
   --argjson bundle_metadata_ok "$BUNDLE_METADATA_OK" \
   --argjson bundle_signoff_ok "$BUNDLE_SIGNOFF_OK" \
+  --argjson evidence_item_count "$EVIDENCE_ITEM_COUNT" \
+  --argjson item_failure_count "$ITEM_FAILURE_COUNT" \
+  --argjson green_evidence_item_count "$GREEN_EVIDENCE_ITEM_COUNT" \
+  --argjson present_evidence_item_count "$PRESENT_EVIDENCE_ITEM_COUNT" \
+  --argjson missing_evidence_item_count "$MISSING_EVIDENCE_ITEM_COUNT" \
+  --argjson validator_count "$VALIDATOR_COUNT" \
+  --argjson failed_validator_count "$FAILED_VALIDATOR_COUNT" \
   --argjson evidence_items "$ITEMS_JSON" \
   --argjson item_failures "$ITEM_FAILURES_JSON" \
   --argjson validators "$VALIDATORS_JSON" \
-  '{contract_version: $contract_version, status: $status, generated_at: $generated_at, source_of_truth: "trillionnium_world_public_launch_evidence_bundle_gate", green: $bundle_green, public_launch_ready: $bundle_green, public_launch_claimed: false, android_s5_real_device_claimed: false, live_map_ingestion_performed_by_this_script: false, live_public_exposure_performed_by_this_script: false, bundle_rule: "single_manifest_must_point_to_real_external_evidence_that_passes_all_field_validators_before_public_launch_credit", evidence_bundle: {path: (if $bundle_path == "" then null else $bundle_path end), file_status: $bundle_file_status, contract_version: $bundle_contract, status: $bundle_status_raw, metadata_ok: $bundle_metadata_ok, signoff_ok: $bundle_signoff_ok}, template: {path: $template_path, sha256: $template_sha256, public_launch_credit: false}, markdown_path: $markdown_path, evidence_kit_log: $kit_log, evidence_items: $evidence_items, item_failures: $item_failures, validators: $validators}' >"$SUMMARY_FILE"
+  '{contract_version: $contract_version, status: $status, generated_at: $generated_at, source_of_truth: "trillionnium_world_public_launch_evidence_bundle_gate", green: $bundle_green, public_launch_ready: $bundle_green, public_launch_claimed: false, android_s5_real_device_claimed: false, live_map_ingestion_performed_by_this_script: false, live_public_exposure_performed_by_this_script: false, bundle_rule: "single_manifest_must_point_to_real_external_evidence_that_passes_all_field_validators_before_public_launch_credit", evidence_item_count: $evidence_item_count, item_failure_count: $item_failure_count, green_evidence_item_count: $green_evidence_item_count, present_evidence_item_count: $present_evidence_item_count, missing_evidence_item_count: $missing_evidence_item_count, validator_count: $validator_count, failed_validator_count: $failed_validator_count, evidence_bundle: {path: (if $bundle_path == "" then null else $bundle_path end), file_status: $bundle_file_status, contract_version: $bundle_contract, status: $bundle_status_raw, metadata_ok: $bundle_metadata_ok, signoff_ok: $bundle_signoff_ok}, template: {path: $template_path, sha256: $template_sha256, public_launch_credit: false}, markdown_path: $markdown_path, evidence_kit_log: $kit_log, evidence_items: $evidence_items, item_failures: $item_failures, validators: $validators}' >"$SUMMARY_FILE"
 
 {
   printf '# Trillionnium World Public Launch Evidence Bundle\n\n'
   printf -- '- status: %s\n' "$STATUS"
   printf -- '- public_launch_ready: %s\n' "$BUNDLE_GREEN"
+  printf -- '- evidence_item_count: %s\n' "$EVIDENCE_ITEM_COUNT"
+  printf -- '- item_failure_count: %s\n' "$ITEM_FAILURE_COUNT"
+  printf -- '- validator_count: %s\n' "$VALIDATOR_COUNT"
+  printf -- '- failed_validator_count: %s\n' "$FAILED_VALIDATOR_COUNT"
   printf -- '- bundle_path: %s\n' "${BUNDLE_PATH:-missing}"
   printf -- '- template: %s\n\n' "$TEMPLATE_FILE"
   printf '## Evidence Items\n\n'
