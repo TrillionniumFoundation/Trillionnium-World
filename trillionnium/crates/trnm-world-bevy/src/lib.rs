@@ -83,6 +83,8 @@ mod first_contact_palette;
 mod first_contact_player_screen_labels;
 #[cfg(not(target_os = "android"))]
 mod first_contact_readouts;
+#[cfg(not(target_os = "android"))]
+mod first_contact_renderer_readability;
 mod first_contact_sidebar_density;
 #[cfg(not(target_os = "android"))]
 mod first_contact_tiles;
@@ -97551,35 +97553,6 @@ fn classic_first_contact_art_landmark_color(role: &str) -> u32 {
 }
 
 #[cfg(not(target_os = "android"))]
-fn classic_first_contact_lower_secondary_beacon_lane(tile: (i32, i32), role: &str) -> bool {
-    tile == (16, 24) && role == "beacon_lane"
-}
-
-#[cfg(not(target_os = "android"))]
-fn classic_first_contact_lower_secondary_beacon_art_detail(
-    tile: (i32, i32),
-    role: &str,
-    signature: &str,
-) -> bool {
-    matches!(
-        (tile, role, signature),
-        ((16, 24), "beacon_lane", "painted_lane_chevrons")
-            | ((16, 23), "beacon_lane", "lane_power_pylons")
-            | ((16, 24), "beacon_ring", "beacon_capture_rings")
-    )
-}
-
-#[cfg(not(target_os = "android"))]
-fn classic_first_contact_lower_secondary_beacon_art_color(color: u32) -> u32 {
-    classic_mix_color(
-        classic_darken(color, 1, 4),
-        CLASSIC_RTS_TACTICAL_VIEWPORT_TILE_COLOR,
-        2,
-        3,
-    )
-}
-
-#[cfg(not(target_os = "android"))]
 #[allow(clippy::too_many_arguments)]
 fn classic_draw_first_contact_terrain_material_depth_detail(
     buffer: &mut [u32],
@@ -97596,8 +97569,8 @@ fn classic_draw_first_contact_terrain_material_depth_detail(
     let cx = tile_x + cell_w / 2;
     let cy = tile_y + cell_h / 2;
     let color = classic_first_contact_art_terrain_color(role);
-    if classic_first_contact_lower_secondary_beacon_lane(tile, role) {
-        let quiet = classic_first_contact_lower_secondary_beacon_art_color(color);
+    if first_contact_renderer_readability::lower_secondary_beacon_lane(tile, role) {
+        let quiet = first_contact_renderer_readability::lower_secondary_beacon_art_color(color);
         classic_draw_rect(
             buffer,
             width,
@@ -97789,8 +97762,11 @@ fn classic_draw_first_contact_art_terrain_detail(
             }
         }
         "painted_lane_chevrons" => {
-            if classic_first_contact_lower_secondary_beacon_art_detail(tile, role, signature) {
-                let quiet = classic_first_contact_lower_secondary_beacon_art_color(color);
+            if first_contact_renderer_readability::lower_secondary_beacon_art_detail(
+                tile, role, signature,
+            ) {
+                let quiet =
+                    first_contact_renderer_readability::lower_secondary_beacon_art_color(color);
                 classic_draw_rect(buffer, width, height, cx - 8, cy - 1, 16, 2, quiet);
                 classic_draw_rect(
                     buffer,
@@ -98022,8 +97998,11 @@ fn classic_draw_first_contact_art_landmark_detail(
             }
         }
         "lane_power_pylons" => {
-            if classic_first_contact_lower_secondary_beacon_art_detail(tile, role, signature) {
-                let quiet = classic_first_contact_lower_secondary_beacon_art_color(color);
+            if first_contact_renderer_readability::lower_secondary_beacon_art_detail(
+                tile, role, signature,
+            ) {
+                let quiet =
+                    first_contact_renderer_readability::lower_secondary_beacon_art_color(color);
                 classic_draw_rect(
                     buffer,
                     width,
@@ -98121,8 +98100,11 @@ fn classic_draw_first_contact_art_landmark_detail(
             }
         }
         "beacon_capture_rings" => {
-            if classic_first_contact_lower_secondary_beacon_art_detail(tile, role, signature) {
-                let quiet = classic_first_contact_lower_secondary_beacon_art_color(color);
+            if first_contact_renderer_readability::lower_secondary_beacon_art_detail(
+                tile, role, signature,
+            ) {
+                let quiet =
+                    first_contact_renderer_readability::lower_secondary_beacon_art_color(color);
                 classic_draw_iso_ellipse(
                     buffer,
                     width,
@@ -98768,64 +98750,6 @@ fn classic_first_contact_atlas_runtime_depth_role(role: &str) -> bool {
 }
 
 #[cfg(not(target_os = "android"))]
-fn classic_first_contact_secondary_objective_atlas_asset(
-    tile: (i32, i32),
-    role: &str,
-    frame_id: &str,
-) -> bool {
-    tile == (16, 24) && role == "objective_sprite" && frame_id == "marker_interaction"
-}
-
-#[cfg(not(target_os = "android"))]
-#[allow(clippy::too_many_arguments)]
-fn classic_draw_first_contact_secondary_objective_atlas_anchor(
-    buffer: &mut [u32],
-    width: usize,
-    height: usize,
-    cx: i32,
-    cy: i32,
-    cell_w: i32,
-    cell_h: i32,
-) {
-    let anchor = classic_mix_color(
-        CLASSIC_RTS_COMMAND_SURFACE_TARGET_COLOR,
-        CLASSIC_RTS_TACTICAL_VIEWPORT_TILE_COLOR,
-        1,
-        4,
-    );
-    classic_draw_iso_ellipse(
-        buffer,
-        width,
-        height,
-        cx,
-        cy + cell_h / 2 + 2,
-        (cell_w / 2).max(8),
-        3,
-        anchor,
-    );
-    classic_draw_rect(
-        buffer,
-        width,
-        height,
-        cx - cell_w / 2,
-        cy + cell_h / 2 + 1,
-        cell_w,
-        1,
-        classic_darken(anchor, 1, 4),
-    );
-    classic_draw_rect(
-        buffer,
-        width,
-        height,
-        cx - 1,
-        cy - 2,
-        2,
-        5,
-        classic_darken(anchor, 1, 5),
-    );
-}
-
-#[cfg(not(target_os = "android"))]
 #[allow(clippy::too_many_arguments)]
 fn classic_draw_first_contact_atlas_runtime_depth(
     buffer: &mut [u32],
@@ -98973,8 +98897,8 @@ fn classic_draw_first_contact_atlas_asset_sample(
             lower_lane_gallery,
         );
     }
-    if classic_first_contact_secondary_objective_atlas_asset(tile, role, frame_id) {
-        classic_draw_first_contact_secondary_objective_atlas_anchor(
+    if first_contact_renderer_readability::secondary_objective_atlas_asset(tile, role, frame_id) {
+        first_contact_renderer_readability::draw_secondary_objective_atlas_anchor(
             buffer, width, height, cx, cy, cell_w, cell_h,
         );
         return true;

@@ -1,0 +1,138 @@
+#![cfg(not(target_os = "android"))]
+
+use crate::{
+    classic_darken, classic_draw_iso_ellipse, classic_draw_rect, classic_mix_color,
+    CLASSIC_RTS_COMMAND_SURFACE_TARGET_COLOR, CLASSIC_RTS_TACTICAL_VIEWPORT_TILE_COLOR,
+};
+
+pub(crate) fn lower_secondary_beacon_lane(tile: (i32, i32), role: &str) -> bool {
+    tile == (16, 24) && role == "beacon_lane"
+}
+
+pub(crate) fn lower_secondary_beacon_art_detail(
+    tile: (i32, i32),
+    role: &str,
+    signature: &str,
+) -> bool {
+    matches!(
+        (tile, role, signature),
+        ((16, 24), "beacon_lane", "painted_lane_chevrons")
+            | ((16, 23), "beacon_lane", "lane_power_pylons")
+            | ((16, 24), "beacon_ring", "beacon_capture_rings")
+    )
+}
+
+pub(crate) fn lower_secondary_beacon_art_color(color: u32) -> u32 {
+    classic_mix_color(
+        classic_darken(color, 1, 4),
+        CLASSIC_RTS_TACTICAL_VIEWPORT_TILE_COLOR,
+        2,
+        3,
+    )
+}
+
+pub(crate) fn secondary_objective_atlas_asset(
+    tile: (i32, i32),
+    role: &str,
+    frame_id: &str,
+) -> bool {
+    tile == (16, 24) && role == "objective_sprite" && frame_id == "marker_interaction"
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn draw_secondary_objective_atlas_anchor(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    cx: i32,
+    cy: i32,
+    cell_w: i32,
+    cell_h: i32,
+) {
+    let anchor = classic_mix_color(
+        CLASSIC_RTS_COMMAND_SURFACE_TARGET_COLOR,
+        CLASSIC_RTS_TACTICAL_VIEWPORT_TILE_COLOR,
+        1,
+        4,
+    );
+    classic_draw_iso_ellipse(
+        buffer,
+        width,
+        height,
+        cx,
+        cy + cell_h / 2 + 2,
+        (cell_w / 2).max(8),
+        3,
+        anchor,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        cx - cell_w / 2,
+        cy + cell_h / 2 + 1,
+        cell_w,
+        1,
+        classic_darken(anchor, 1, 4),
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        cx - 1,
+        cy - 2,
+        2,
+        5,
+        classic_darken(anchor, 1, 5),
+    );
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn first_contact_renderer_readability_selectors_stay_narrow() {
+        assert!(lower_secondary_beacon_lane((16, 24), "beacon_lane"));
+        assert!(!lower_secondary_beacon_lane((16, 23), "beacon_lane"));
+        assert!(!lower_secondary_beacon_lane((16, 24), "beacon_ring"));
+
+        assert!(lower_secondary_beacon_art_detail(
+            (16, 24),
+            "beacon_lane",
+            "painted_lane_chevrons"
+        ));
+        assert!(lower_secondary_beacon_art_detail(
+            (16, 23),
+            "beacon_lane",
+            "lane_power_pylons"
+        ));
+        assert!(lower_secondary_beacon_art_detail(
+            (16, 24),
+            "beacon_ring",
+            "beacon_capture_rings"
+        ));
+        assert!(!lower_secondary_beacon_art_detail(
+            (16, 9),
+            "beacon_ring",
+            "beacon_capture_rings"
+        ));
+
+        assert!(secondary_objective_atlas_asset(
+            (16, 24),
+            "objective_sprite",
+            "marker_interaction"
+        ));
+        assert!(!secondary_objective_atlas_asset(
+            (16, 9),
+            "objective_sprite",
+            "marker_objective"
+        ));
+        assert!(!secondary_objective_atlas_asset(
+            (16, 24),
+            "beacon_objective_family",
+            "marker_interaction"
+        ));
+        assert_ne!(lower_secondary_beacon_art_color(0x8090a0), 0x8090a0);
+    }
+}
