@@ -146,7 +146,7 @@ artifact public_network_deploy_template "Public network deploy evidence template
 require_json status_ready "$STATUS_JSON" '.ready_for_release_review == true and .public_launch_ready == false and .android_s5_real_device_claimed == false' "release review status must be review-ready while keeping public launch blocked and Android S5 unclaimed"
 require_json intake_contract "$INTAKE_JSON" '.contract_version == "trillionnium_world_public_launch_evidence_intake_v1" and (.evidence_items // [] | length) == 6 and .public_launch_claimed == false and .android_s5_real_device_claimed == false and .live_map_ingestion_performed == false and .live_public_exposure_performed == false' "intake must expose six no-claim external evidence items"
 require_json kit_contract "$KIT_JSON" '.contract_version == "trillionnium_world_public_launch_evidence_kit_v1" and .green == true and (.evidence_items // [] | length) == 6 and .public_launch_claimed == false and .android_s5_real_device_claimed == false' "kit must expose six valid no-credit templates and validator commands"
-require_json blocker_consistency "$BLOCKER_CONSISTENCY_JSON" '.contract_version == "trillionnium_world_public_launch_blocker_consistency_v1" and .green == true and (.blockers // [] | length) == 6 and (.failures // [] | length) == 0 and (.unknown_intake_blockers // [] | length) == 0 and (.unknown_readiness_blockers // [] | length) == 0 and .public_launch_ready == false' "readiness blockers, intake items, and validators must stay consistent"
+require_json blocker_consistency "$BLOCKER_CONSISTENCY_JSON" '.contract_version == "trillionnium_world_public_launch_blocker_consistency_v1" and .green == true and (.blockers // [] | length) == 6 and .known_blocker_count == 6 and .readiness_blocker_count == 6 and .intake_needs_collection_count == 6 and .unknown_readiness_blocker_count == 0 and .unknown_intake_blocker_count == 0 and (.failures // [] | length) == 0 and (.unknown_intake_blockers // [] | length) == 0 and (.unknown_readiness_blockers // [] | length) == 0 and .public_launch_ready == false' "readiness blockers, intake items, and validators must stay consistent"
 require_json template_negative "$TEMPLATE_NEGATIVE_JSON" '.contract_version == "trillionnium_world_public_launch_template_negative_fixtures_v1" and .green == true and .status == "public_launch_template_negative_fixtures_green"' "no-credit templates must fail strict validators"
 require_json bundle_gate "$EVIDENCE_BUNDLE_JSON" '.contract_version == "trillionnium_world_public_launch_evidence_bundle_gate_v1" and (.status == "public_launch_evidence_bundle_ready_for_real_evidence" or .status == "public_launch_evidence_bundle_green") and .public_launch_claimed == false and .android_s5_real_device_claimed == false' "bundle gate must be ready for real evidence without claiming public launch"
 require_json bundle_negative "$BUNDLE_NEGATIVE_JSON" '.contract_version == "trillionnium_world_public_launch_bundle_negative_fixtures_v1" and .green == true and .status == "public_launch_bundle_negative_fixtures_green"' "fake-green bundle must be rejected"
@@ -180,6 +180,10 @@ OPERATOR_ACTIONS_JSON="$(jq -c '[.evidence_items[] | {
 }]' "$KIT_JSON")"
 BLOCKED_ITEMS_JSON="$(jq -c '.blocked_items // []' "$STATUS_JSON")"
 KNOWN_BLOCKERS_JSON="$(jq -c '.known_blockers // []' "$BLOCKER_CONSISTENCY_JSON")"
+KNOWN_BLOCKER_COUNT="$(jq 'length' <<<"$KNOWN_BLOCKERS_JSON")"
+BLOCKED_ITEM_COUNT="$(jq 'length' <<<"$BLOCKED_ITEMS_JSON")"
+OPERATOR_ACTION_COUNT="$(jq 'length' <<<"$OPERATOR_ACTIONS_JSON")"
+HANDOFF_ARTIFACT_COUNT="$(jq 'length' <<<"$ARTIFACTS_JSON")"
 
 GREEN=false
 STATUS=public_launch_operator_handoff_blocked
@@ -192,7 +196,7 @@ if [[ "$FAILURE_COUNT" == "0" && "$READY_FOR_RELEASE_REVIEW" == "true" ]]; then
   fi
 fi
 
-jq -n --arg contract_version "trillionnium_world_public_launch_operator_handoff_v1" --arg status "$STATUS" --arg generated_at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" --arg markdown_path "$MARKDOWN_FILE" --arg evidence_bundle_template "$EVIDENCE_BUNDLE_TEMPLATE" --argjson green "$GREEN" --argjson ready_for_release_review "$READY_FOR_RELEASE_REVIEW" --argjson public_launch_ready "$PUBLIC_LAUNCH_READY" --argjson needs_collection_count "$NEEDS_COLLECTION_COUNT" --argjson operator_actions "$OPERATOR_ACTIONS_JSON" --argjson blocked_items "$BLOCKED_ITEMS_JSON" --argjson known_blockers "$KNOWN_BLOCKERS_JSON" --argjson handoff_artifacts "$ARTIFACTS_JSON" --argjson missing_artifacts "$MISSING_ARTIFACTS_JSON" --argjson failures "$FAILURES_JSON" '{
+jq -n --arg contract_version "trillionnium_world_public_launch_operator_handoff_v1" --arg status "$STATUS" --arg generated_at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" --arg markdown_path "$MARKDOWN_FILE" --arg evidence_bundle_template "$EVIDENCE_BUNDLE_TEMPLATE" --argjson green "$GREEN" --argjson ready_for_release_review "$READY_FOR_RELEASE_REVIEW" --argjson public_launch_ready "$PUBLIC_LAUNCH_READY" --argjson needs_collection_count "$NEEDS_COLLECTION_COUNT" --argjson known_blocker_count "$KNOWN_BLOCKER_COUNT" --argjson blocked_item_count "$BLOCKED_ITEM_COUNT" --argjson operator_action_count "$OPERATOR_ACTION_COUNT" --argjson handoff_artifact_count "$HANDOFF_ARTIFACT_COUNT" --argjson missing_artifact_count "$MISSING_ARTIFACT_COUNT" --argjson failure_count "$FAILURE_COUNT" --argjson operator_actions "$OPERATOR_ACTIONS_JSON" --argjson blocked_items "$BLOCKED_ITEMS_JSON" --argjson known_blockers "$KNOWN_BLOCKERS_JSON" --argjson handoff_artifacts "$ARTIFACTS_JSON" --argjson missing_artifacts "$MISSING_ARTIFACTS_JSON" --argjson failures "$FAILURES_JSON" '{
     contract_version: $contract_version,
     status: $status,
     generated_at: $generated_at,
@@ -208,6 +212,12 @@ jq -n --arg contract_version "trillionnium_world_public_launch_operator_handoff_
     markdown_path: $markdown_path,
     evidence_bundle_template: $evidence_bundle_template,
     needs_collection_count: $needs_collection_count,
+    known_blocker_count: $known_blocker_count,
+    blocked_item_count: $blocked_item_count,
+    operator_action_count: $operator_action_count,
+    handoff_artifact_count: $handoff_artifact_count,
+    missing_artifact_count: $missing_artifact_count,
+    failure_count: $failure_count,
     known_blockers: $known_blockers,
     blocked_items: $blocked_items,
     operator_actions: $operator_actions,

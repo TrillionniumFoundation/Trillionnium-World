@@ -26,13 +26,21 @@ check_trillionnium_world_production_map_pack_public_evidence_collection.sh
 check_trillionnium_world_cohort_commercial_evidence_collection.sh
 check_trillionnium_world_external_ops_evidence_collection.sh
 check_trillionnium_world_public_launch_blocker_consistency.sh
-.green == true and (.blockers // [] | length) == 6 and (.failures // [] | length) == 0
+.green == true and (.blockers // [] | length) == 6 and .known_blocker_count == 6
+.readiness_blocker_count == 6 and .intake_needs_collection_count == 6
+.unknown_readiness_blocker_count == 0 and .unknown_intake_blocker_count == 0
 check_trillionnium_world_public_launch_template_negative_fixtures.sh
 check_trillionnium_world_public_launch_evidence_bundle.sh
 check_trillionnium_world_public_launch_bundle_negative_fixtures.sh
 public_launch_operator_handoff_ready_with_external_blockers
 public_launch_operator_handoff_complete_green
 operator_handoff_collects_real_external_public_launch_evidence_without_claiming_public_launch_ready_or_android_s5_real_device_ready
+known_blocker_count: $known_blocker_count
+blocked_item_count: $blocked_item_count
+operator_action_count: $operator_action_count
+handoff_artifact_count: $handoff_artifact_count
+missing_artifact_count: $missing_artifact_count
+failure_count: $failure_count
 operator_actions
 handoff_artifacts
 sha256sum

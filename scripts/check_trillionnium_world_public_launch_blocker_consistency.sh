@@ -80,6 +80,8 @@ fi
 
 UNKNOWN_BLOCKERS_JSON="$(jq -c --argjson known "$KNOWN_BLOCKERS_JSON" '(.blockers // []) | map(select(($known | index(.)) == null))' "$READINESS_SUMMARY")"
 UNKNOWN_BLOCKER_COUNT="$(jq 'length' <<<"$UNKNOWN_BLOCKERS_JSON")"
+KNOWN_BLOCKER_COUNT="$(jq 'length' <<<"$KNOWN_BLOCKERS_JSON")"
+READINESS_BLOCKER_COUNT="$(jq '(.blockers // []) | length' "$READINESS_SUMMARY")"
 if [[ "$UNKNOWN_BLOCKER_COUNT" == "0" ]]; then
   add_check unknown_readiness_blockers ok "all readiness blockers are in the public launch blocker catalog"
 else
@@ -88,6 +90,7 @@ fi
 
 UNKNOWN_INTAKE_JSON="$(jq -c --argjson known "$KNOWN_BLOCKERS_JSON" '(.needs_collection // []) | map(.blocker_id) | map(select(($known | index(.)) == null))' "$INTAKE_SUMMARY")"
 UNKNOWN_INTAKE_COUNT="$(jq 'length' <<<"$UNKNOWN_INTAKE_JSON")"
+INTAKE_NEEDS_COLLECTION_COUNT="$(jq '(.needs_collection // []) | length' "$INTAKE_SUMMARY")"
 if [[ "$UNKNOWN_INTAKE_COUNT" == "0" ]]; then
   add_check unknown_intake_blockers ok "all intake needs_collection items map to known blockers"
 else
@@ -205,6 +208,11 @@ jq -n \
   --arg intake_log "$INTAKE_LOG" \
   --argjson public_launch_ready "$PUBLIC_LAUNCH_READY" \
   --argjson known_blockers "$KNOWN_BLOCKERS_JSON" \
+  --argjson known_blocker_count "$KNOWN_BLOCKER_COUNT" \
+  --argjson readiness_blocker_count "$READINESS_BLOCKER_COUNT" \
+  --argjson intake_needs_collection_count "$INTAKE_NEEDS_COLLECTION_COUNT" \
+  --argjson unknown_readiness_blocker_count "$UNKNOWN_BLOCKER_COUNT" \
+  --argjson unknown_intake_blocker_count "$UNKNOWN_INTAKE_COUNT" \
   --argjson unknown_readiness_blockers "$UNKNOWN_BLOCKERS_JSON" \
   --argjson unknown_intake_blockers "$UNKNOWN_INTAKE_JSON" \
   --argjson checks "$CHECKS_JSON" \
@@ -222,8 +230,15 @@ jq -n \
     intake: {summary_path: $intake_summary, refresh_log_path: $intake_log},
     blockers: $known_blockers,
     known_blockers: $known_blockers,
+    known_blocker_count: $known_blocker_count,
+    readiness_blocker_count: $readiness_blocker_count,
+    intake_needs_collection_count: $intake_needs_collection_count,
+    unknown_readiness_blocker_count: $unknown_readiness_blocker_count,
+    unknown_intake_blocker_count: $unknown_intake_blocker_count,
     unknown_readiness_blockers: $unknown_readiness_blockers,
     unknown_intake_blockers: $unknown_intake_blockers,
+    check_count: ($checks | length),
+    failed_check_count: ($failures | length),
     checks: $checks,
     failures: $failures
   }' >"$SUMMARY_FILE"
