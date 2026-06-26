@@ -230,8 +230,12 @@ require_json_expr packet_assembly_review "$PACKET_JSON" '
     and $review.green == true
     and $review.packet_contract == "trillionnium_world_release_review_packet_v1"
     and $review.packet_status == .status
+    and .green == true
     and .artifact_count == ((.artifacts // []) | length)
     and .missing_artifact_count == ((.missing_artifacts // []) | length)
+    and .ready_item_count == ((.ready_items // []) | length)
+    and .blocked_item_count == ((.blocked_items // []) | length)
+    and .public_launch_blocker_count == .blocked_item_count
     and .release_review_input_count == ([.artifacts[] | select(.role == "release_review_input")] | length)
     and .release_review_visual_evidence_count == ([.artifacts[] | select(.role == "release_review_visual_evidence")] | length)
     and .release_review_recording_count == ([.artifacts[] | select(.role == "release_review_recording")] | length)

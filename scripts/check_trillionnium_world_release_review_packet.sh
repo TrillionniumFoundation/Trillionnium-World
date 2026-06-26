@@ -295,6 +295,8 @@ STATUS_READY="$(jq -r '.status // "unknown"' "$STATUS_JSON")"
 CONVERGENCE_STATUS="$(jq -r '.status // "unknown"' "$CONVERGENCE_JSON")"
 BLOCKED_ITEMS_JSON="$(jq -c '.blocked_items // []' "$STATUS_JSON")"
 READY_ITEMS_JSON="$(jq -c '.ready_items // []' "$STATUS_JSON")"
+BLOCKED_ITEM_COUNT="$(jq 'length' <<<"$BLOCKED_ITEMS_JSON")"
+READY_ITEM_COUNT="$(jq 'length' <<<"$READY_ITEMS_JSON")"
 MISSING_ARTIFACTS_JSON="$(jq -c '[.[] | select(.file_status != "present") | .id]' <<<"$ARTIFACTS_JSON")"
 MISSING_ARTIFACT_COUNT="$(jq 'length' <<<"$MISSING_ARTIFACTS_JSON")"
 REVIEWED_RUNTIME_ARTIFACT_COUNT=16
@@ -331,6 +333,8 @@ jq -n \
   --argjson public_launch_ready "$PUBLIC_LAUNCH_READY" \
   --argjson blocked_items "$BLOCKED_ITEMS_JSON" \
   --argjson ready_items "$READY_ITEMS_JSON" \
+  --argjson blocked_item_count "$BLOCKED_ITEM_COUNT" \
+  --argjson ready_item_count "$READY_ITEM_COUNT" \
   --argjson missing_artifacts "$MISSING_ARTIFACTS_JSON" \
   --argjson missing_artifact_count "$MISSING_ARTIFACT_COUNT" \
   --argjson reviewed_runtime_artifact_count "$REVIEWED_RUNTIME_ARTIFACT_COUNT" \
@@ -340,6 +344,7 @@ jq -n \
     status: $status,
     generated_at: $generated_at,
     source_of_truth: "trillionnium_world_release_review_packet",
+    green: ($status != "release_review_packet_blocked"),
     markdown_path: $markdown_path,
     ready_for_release_review: $ready_for_release_review,
     public_launch_ready: $public_launch_ready,
@@ -361,6 +366,9 @@ jq -n \
     artifacts: $artifacts,
     missing_artifacts: $missing_artifacts,
     missing_artifact_count: $missing_artifact_count,
+    ready_item_count: $ready_item_count,
+    blocked_item_count: $blocked_item_count,
+    public_launch_blocker_count: $blocked_item_count,
     reviewed_runtime_artifact_count: $reviewed_runtime_artifact_count,
     reviewed_packet_fixture_count: $reviewed_packet_fixture_count,
     ready_items: $ready_items,
@@ -378,6 +386,7 @@ jq \
   --arg status "$PACKET_STATUS" \
   --argjson review "$PACKET_ASSEMBLY_REVIEW_JSON" \
   '.status = $status
+   | .green = ($status != "release_review_packet_blocked")
    | .rts_evidence_release_review_packet_assembly_review_contract = $review.contract_version
    | .rts_evidence_release_review_packet_assembly_review = $review
    | .rts_evidence_release_review_packet_assembly_review_gate = $review.green' \
@@ -387,12 +396,16 @@ mv "$PACKET_JSON_TMP" "$PACKET_JSON"
 {
   printf '# Trillionnium World Release Review Packet\n\n'
   printf -- '- status: `%s`\n' "$PACKET_STATUS"
+  printf -- '- green: `%s`\n' "$(jq -r '.green' "$PACKET_JSON")"
   printf -- '- ready_for_release_review: `%s`\n' "$READY_FOR_RELEASE_REVIEW"
   printf -- '- public_launch_ready: `%s`\n' "$PUBLIC_LAUNCH_READY"
   printf -- '- android_s5_real_device_claimed: `false`\n'
   printf -- '- proof_scope: `host_side_bevy_runtime_replay_not_android_real_device`\n\n'
   printf '## Inventory\n\n'
   printf -- '- artifact_count: `%s`\n' "$ARTIFACT_COUNT"
+  printf -- '- ready_item_count: `%s`\n' "$READY_ITEM_COUNT"
+  printf -- '- blocked_item_count: `%s`\n' "$BLOCKED_ITEM_COUNT"
+  printf -- '- public_launch_blocker_count: `%s`\n' "$BLOCKED_ITEM_COUNT"
   printf -- '- release_review_input_count: `%s`\n' "$RELEASE_REVIEW_INPUT_COUNT"
   printf -- '- release_review_visual_evidence_count: `%s`\n' "$RELEASE_REVIEW_VISUAL_EVIDENCE_COUNT"
   printf -- '- release_review_recording_count: `%s`\n' "$RELEASE_REVIEW_RECORDING_COUNT"
