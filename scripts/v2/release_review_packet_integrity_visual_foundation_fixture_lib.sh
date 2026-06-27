@@ -157,6 +157,7 @@ add_live_window_mouse_hit_test_packet_fixtures() {
     runtime_probe_contract: "trillionnium_world_bevy_runtime_probe_v1",
     source_of_truth: "XTest mouse button events click Bevy-exposed client hit centers on the visible X11 window and xwd captures each post-action frame",
     green: true,
+    ready_for_release_review: true,
     display: ":0",
     window_id: "0xa00004",
     host_pid: 160672,
@@ -171,7 +172,10 @@ add_live_window_mouse_hit_test_packet_fixtures() {
     contact_sheet_mean: [44.22, 49.38, 38.44],
     expected_frame_ids: ["title", "create", "talk", "train", "training_room", "arena", "fight_result", "save_continue", "title_continue", "resume_continue", "complete"],
     actual_frame_ids: ["title", "create", "talk", "train", "training_room", "arena", "fight_result", "save_continue", "title_continue", "resume_continue", "complete"],
+    expected_frame_count: 11,
+    actual_frame_count: 11,
     expected_action_labels: ["TITLE:NEW", "CREATE:CONFIRM", "TALK", "TRAIN", "MOVE:north", "FIGHT", "SAVE:SELECTED", "TITLE:OPEN", "TITLE:CONTINUE", "CONTINUE:SESSION"],
+    expected_action_label_count: 10,
     actions: [
       {step_index: 1, step_id: "title_new", action_label: "TITLE:NEW", target_frame_id: "create", client_x: 390, client_y: 473, row_id: "title", source: "native_control_button"},
       {step_index: 2, step_id: "character_confirm", action_label: "CREATE:CONFIRM", target_frame_id: "talk", client_x: 470, client_y: 473, row_id: "character_create", source: "native_control_button"},
@@ -184,6 +188,7 @@ add_live_window_mouse_hit_test_packet_fixtures() {
       {step_index: 9, step_id: "title_continue", action_label: "TITLE:CONTINUE", target_frame_id: "resume_continue", client_x: 474, client_y: 473, row_id: "title", source: "native_control_button"},
       {step_index: 10, step_id: "continue_session", action_label: "CONTINUE:SESSION", target_frame_id: "complete", client_x: 390, client_y: 473, row_id: "selected_slot", source: "native_control_button"}
     ],
+    action_count: 10,
     focus_event: {method: "XRaiseWindow+XSetInputFocus", window_id: "0xa00004"},
     mouse_events: [
       {action_label: "TITLE:NEW", step_id: "title_new", target_frame_id: "create", attempt: 1, relative: [390, 473], absolute: [390, 473], window_origin: [0, 0], window_size: [960, 540], source: "native_control_button", row_id: "title"},
@@ -197,6 +202,7 @@ add_live_window_mouse_hit_test_packet_fixtures() {
       {action_label: "TITLE:CONTINUE", step_id: "title_continue", target_frame_id: "resume_continue", attempt: 1, relative: [474, 473], absolute: [474, 473], window_origin: [0, 0], window_size: [960, 540], source: "native_control_button", row_id: "title"},
       {action_label: "CONTINUE:SESSION", step_id: "continue_session", target_frame_id: "complete", attempt: 1, relative: [390, 473], absolute: [390, 473], window_origin: [0, 0], window_size: [960, 540], source: "native_control_button", row_id: "selected_slot"}
     ],
+    mouse_event_count: 10,
     step_results: [
       {step_index: 1, step_id: "title_new", action_label: "TITLE:NEW", actual_accepted: true, reason: "enabled_title_new_game", input_feedback_toast: "TOAST OK | TITLE:NEW | enabled_title_new_game | NEXT CREATE:CONFIRM", state_check: {ok: true}},
       {step_index: 2, step_id: "character_confirm", action_label: "CREATE:CONFIRM", actual_accepted: true, reason: "enabled_character_create_confirm", input_feedback_toast: "TOAST OK | CREATE:CONFIRM | enabled_character_create_confirm | NEXT TALK", state_check: {ok: true}},
@@ -209,6 +215,8 @@ add_live_window_mouse_hit_test_packet_fixtures() {
       {step_index: 9, step_id: "title_continue", action_label: "TITLE:CONTINUE", actual_accepted: true, reason: "enabled_title_continue_slot:A", input_feedback_toast: "TOAST OK | TITLE:CONTINUE | enabled_title_continue_slot:A | NEXT CONTINUE:SESSION", state_check: {ok: true}},
       {step_index: 10, step_id: "continue_session", action_label: "CONTINUE:SESSION", actual_accepted: true, reason: "enabled_session_resume_continue", input_feedback_toast: "TOAST OK | CONTINUE:SESSION | enabled_session_resume_continue | NEXT FIRST MINUTE COMPLETE", state_check: {ok: true}}
     ],
+    step_result_count: 10,
+    changed_frame_count: 10,
     frames: [
       {frame_index: 0, frame_id: "title", after_action: null, path: "00-title.png", size: [960, 540], mean: [53.63, 58.71, 43.68], colors_96x54: 3331, nonblank: true, diff_mean_from_previous: null, diff_bbox_from_previous: null},
       {frame_index: 1, frame_id: "create", after_action: "TITLE:NEW", path: "01-create.png", size: [960, 540], mean: [53.24, 58.12, 43.51], colors_96x54: 3279, nonblank: true, diff_mean_from_previous: 2.32, diff_bbox_from_previous: [281, 391, 591, 529]},

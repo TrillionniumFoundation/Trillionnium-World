@@ -416,7 +416,9 @@ evidence = {
     "runtime_texture_sprite_asset_binding_gate": runtime_texture_sprite_asset_binding_gate,
     "runtime_texture_sprite_bound_surface_count": runtime_probe_sprite_binding_count,
     "runtime_texture_sprite_scene_layers": runtime_probe_sprite_scene_layers,
+    "runtime_texture_sprite_scene_layer_count": len(runtime_probe_sprite_scene_layers),
     "runtime_texture_sprite_material_slots": runtime_probe_sprite_material_slots,
+    "runtime_texture_sprite_material_slot_count": len(runtime_probe_sprite_material_slots),
     "runtime_texture_asset_contract": "trillionnium_world_bevy_runtime_texture_asset_v1",
     "runtime_texture_summary_path": str(runtime_texture_summary_path),
     "runtime_texture_manifest_path": str(runtime_texture_manifest_path),
@@ -430,12 +432,18 @@ evidence = {
     "contact_sheet_mean": sheet_mean,
     "expected_frame_ids": expected_frame_ids,
     "actual_frame_ids": actual_frame_ids,
+    "expected_frame_count": len(expected_frame_ids),
+    "actual_frame_count": len(actual_frame_ids),
     "actions": [{"step_id": step[0], "action_label": step[1], "target_frame_id": step[2]} for step in steps],
+    "action_count": len(steps),
     "focus_event": focus_event,
     "key_events": key_events,
+    "key_event_count": len(key_events),
     "frames": frames,
+    "changed_frame_count": len(changed_frames),
     "capture_diagnostics_gate": capture_diagnostics_gate,
     "capture_attempt_counts": capture_attempt_counts,
+    "capture_attempt_count": len(capture_attempt_counts),
     "total_capture_attempts": sum(capture_attempt_counts),
     "max_capture_attempts": max(capture_attempt_counts) if capture_attempt_counts else 0,
     "capture_elapsed_millis": capture_elapsed_millis,
@@ -463,6 +471,7 @@ evidence = {
     "runtime_texture_handle_gate": runtime_texture_handle_gate,
     "runtime_probe_sprite_binding_sample": runtime_probe_sprite_binding.get("sample", [])[:4],
     "green": green,
+    "ready_for_release_review": green,
     "internal_live_window_screenshot_sequence_claimed": True,
     "external_evidence_ignored_for_current_live_window_pass": True,
     "gpu_upload_claimed": False,
@@ -564,6 +573,15 @@ jq -e '
   ]
   and (.key_events | length) >= 10
   and (.key_events | length) <= 60
+  and .ready_for_release_review == true
+  and .expected_frame_count == (.expected_frame_ids | length)
+  and .actual_frame_count == (.actual_frame_ids | length)
+  and .action_count == (.actions | length)
+  and .key_event_count == (.key_events | length)
+  and .changed_frame_count == ([.frames[1:][] | select(.diff_mean_from_previous >= 0.35)] | length)
+  and .capture_attempt_count == (.capture_attempt_counts | length)
+  and .runtime_texture_sprite_scene_layer_count == (.runtime_texture_sprite_scene_layers | length)
+  and .runtime_texture_sprite_material_slot_count == (.runtime_texture_sprite_material_slots | length)
   and all(.key_events[]; .key == "Return")
   and all(.frames[]; .nonblank == true)
   and all(.frames[1:][]; .diff_mean_from_previous >= 0.35)

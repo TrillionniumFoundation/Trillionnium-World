@@ -431,7 +431,10 @@ evidence = {
     "contact_sheet_mean": sheet_mean,
     "expected_frame_ids": expected_frame_ids,
     "actual_frame_ids": actual_frame_ids,
+    "expected_frame_count": len(expected_frame_ids),
+    "actual_frame_count": len(actual_frame_ids),
     "expected_action_labels": expected_action_labels,
+    "expected_action_label_count": len(expected_action_labels),
     "actions": [
         {
             "step_index": target["step_index"],
@@ -445,10 +448,14 @@ evidence = {
         }
         for target in targets
     ],
+    "action_count": len(targets),
     "focus_event": focus_event,
     "mouse_events": mouse_events,
+    "mouse_event_count": len(mouse_events),
     "step_results": step_results,
+    "step_result_count": len(step_results),
     "frames": frames,
+    "changed_frame_count": len(changed_frames),
     "hit_test_map_gate": hit_test_map_gate,
     "runtime_probe_contract": "trillionnium_world_bevy_runtime_probe_v1",
     "runtime_probe_gate": runtime_probe_gate,
@@ -462,6 +469,7 @@ evidence = {
     "slot_write_gate": slot_write_gate,
     "contact_sheet_gate": contact_sheet_gate,
     "green": green,
+    "ready_for_release_review": green,
     "android_s5_real_device_claimed": False,
 }
 summary_path.write_text(json.dumps(evidence, indent=2, sort_keys=True), encoding="utf-8")
@@ -511,6 +519,14 @@ jq -e '
   ]
   and (.mouse_events | length) == 10
   and (.step_results | length) == 10
+  and .ready_for_release_review == true
+  and .expected_frame_count == (.expected_frame_ids | length)
+  and .actual_frame_count == (.actual_frame_ids | length)
+  and .expected_action_label_count == (.expected_action_labels | length)
+  and .action_count == (.actions | length)
+  and .mouse_event_count == (.mouse_events | length)
+  and .step_result_count == (.step_results | length)
+  and .changed_frame_count == ([.frames[1:][] | select(.diff_mean_from_previous >= 0.35 or (.diff_bbox_from_previous | length) == 4)] | length)
   and all(.step_results[]; .actual_accepted == true and .state_check.ok == true)
   and all(.mouse_events[]; .relative | length == 2)
   and all(.frames[]; .nonblank == true)

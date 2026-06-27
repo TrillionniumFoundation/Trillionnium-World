@@ -48,6 +48,18 @@ if ! grep -Fq 'capture_attempt_counts' "$ROOT/scripts/check_trillionnium_world_b
   echo "[FAIL] screenshot sequence script no longer reports frame capture attempts" >&2
   exit 1
 fi
+if ! grep -Fq '"actual_frame_count": len(actual_frame_ids)' "$ROOT/scripts/check_trillionnium_world_bevy_live_window_screenshot_sequence.sh"; then
+  echo "[FAIL] screenshot sequence script no longer exposes top-level frame counts" >&2
+  exit 1
+fi
+if ! grep -Fq '"key_event_count": len(key_events)' "$ROOT/scripts/check_trillionnium_world_bevy_live_window_screenshot_sequence.sh"; then
+  echo "[FAIL] screenshot sequence script no longer exposes top-level key event counts" >&2
+  exit 1
+fi
+if ! grep -Fq '"runtime_texture_sprite_scene_layer_count": len(runtime_probe_sprite_scene_layers)' "$ROOT/scripts/check_trillionnium_world_bevy_live_window_screenshot_sequence.sh"; then
+  echo "[FAIL] screenshot sequence script no longer exposes sprite scene-layer counts" >&2
+  exit 1
+fi
 
 if ! grep -Fq 'visible-button-hit-test-map' "$ROOT/scripts/check_trillionnium_world_bevy_live_window_mouse_hit_test_sequence.sh"; then
   echo "[FAIL] mouse hit-test script lost visible-button-hit-test-map fixture" >&2
@@ -63,6 +75,18 @@ if ! grep -Fq 'runtime_feedback_gate' "$ROOT/scripts/check_trillionnium_world_be
 fi
 if ! grep -Fq 'core_route_actions_reflowed' "$ROOT/scripts/check_trillionnium_world_bevy_live_window_mouse_hit_test_sequence.sh"; then
   echo "[FAIL] mouse hit-test script lost state-specific row reflow coordinates" >&2
+  exit 1
+fi
+if ! grep -Fq '"mouse_event_count": len(mouse_events)' "$ROOT/scripts/check_trillionnium_world_bevy_live_window_mouse_hit_test_sequence.sh"; then
+  echo "[FAIL] mouse hit-test script no longer exposes top-level mouse event counts" >&2
+  exit 1
+fi
+if ! grep -Fq '"step_result_count": len(step_results)' "$ROOT/scripts/check_trillionnium_world_bevy_live_window_mouse_hit_test_sequence.sh"; then
+  echo "[FAIL] mouse hit-test script no longer exposes top-level step result counts" >&2
+  exit 1
+fi
+if ! grep -Fq '"actual_frame_count": len(actual_frame_ids)' "$ROOT/scripts/check_trillionnium_world_bevy_live_window_mouse_hit_test_sequence.sh"; then
+  echo "[FAIL] mouse hit-test script no longer exposes top-level frame counts" >&2
   exit 1
 fi
 
