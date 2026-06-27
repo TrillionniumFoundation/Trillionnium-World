@@ -128010,6 +128010,33 @@ pub fn native_first_minute_command_feedback_rejection_replay_evidence_json(
         && blocked_feedback_chip_visual_gate
         && write_gate
         && original_art_policy_gate;
+    let input_source_count = input_sources.len();
+    let action_label_count = action_labels.len();
+    let blocked_action_label_count = blocked_action_labels.len();
+    let expected_input_source_count = expected_input_sources.len();
+    let parsed_rejection_input_source_count = parsed_rejection_input_sources.len();
+    let blocked_feedback_source_label_count = blocked_feedback_source_labels.len();
+    let blocked_feedback_toast_label_count = blocked_feedback_toast_labels.len();
+    let expected_blocked_reason_count = expected_blocked_reasons.len();
+    let blocked_reason_count = blocked_reasons.len();
+    let input_telemetry_event_count = input_telemetry_summary.total_events;
+    let input_telemetry_accepted_event_count = input_telemetry_summary.accepted_events;
+    let input_telemetry_blocked_event_count = input_telemetry_summary.blocked_events;
+    let rejection_recording_step_count = parsed_rejection_steps.len();
+    let replay_step_count = replay_steps.len();
+    let stage_summary_count = stage_summaries.len();
+    let retained_history_group_count = retained_history_group_ids.len();
+    let pruned_history_group_count = pruned_history_group_ids.len();
+    let pruned_history_entry_count = pruned_history_entries.len();
+    let command_queue_before_input_count = command_queue_before_inputs.len();
+    let command_queue_after_setup_input_count = command_queue_after_setup_input.len();
+    let command_queue_after_rejection_count = command_queue_after_rejections.len();
+    let executable_command_queue_after_setup_input_count =
+        executable_command_queue_after_setup_input.len();
+    let executable_command_queue_after_rejection_count =
+        executable_command_queue_after_rejections.len();
+    let command_queue_blocked_feedback_label_count = command_queue_blocked_feedback_labels.len();
+    let blocked_action_history_count = runtime.blocked_action_history.len();
 
     serde_json::to_string_pretty(&json!({
         "contract_version": TRILLIONNIUM_WORLD_BEVY_FIRST_MINUTE_COMMAND_FEEDBACK_REJECTION_REPLAY_CONTRACT,
@@ -128021,6 +128048,8 @@ pub fn native_first_minute_command_feedback_rejection_replay_evidence_json(
         "command_history_prune_contract": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CONTROL_GROUP_COMMAND_HISTORY_PRUNE_CONTRACT,
         "actor_id": actor_id,
         "green": green,
+        "ready_for_release_review": green,
+        "public_launch_ready": false,
         "preview_path": preview_path,
         "preview_format": "ppm_p3_rgb",
         "preview_width": preview_width,
@@ -128037,15 +128066,27 @@ pub fn native_first_minute_command_feedback_rejection_replay_evidence_json(
         "command_input_action_count": parsed_rejection_steps.len(),
         "accepted_command_input_count": accepted_command_input_count,
         "blocked_command_input_count": blocked_command_input_count,
+        "input_source_count": input_source_count,
         "input_sources": input_sources,
+        "action_label_count": action_label_count,
         "action_labels": action_labels,
+        "blocked_action_label_count": blocked_action_label_count,
         "blocked_action_labels": blocked_action_labels,
+        "expected_input_source_count": expected_input_source_count,
         "expected_input_sources": expected_input_sources,
+        "parsed_rejection_input_source_count": parsed_rejection_input_source_count,
         "parsed_rejection_input_sources": parsed_rejection_input_sources,
+        "blocked_feedback_source_label_count": blocked_feedback_source_label_count,
         "blocked_feedback_source_labels": blocked_feedback_source_labels,
+        "blocked_feedback_toast_label_count": blocked_feedback_toast_label_count,
         "blocked_feedback_toast_labels": blocked_feedback_toast_labels,
+        "expected_blocked_reason_count": expected_blocked_reason_count,
         "expected_blocked_reasons": expected_blocked_reasons,
+        "blocked_reason_count": blocked_reason_count,
         "blocked_reasons": blocked_reasons,
+        "input_telemetry_event_count": input_telemetry_event_count,
+        "input_telemetry_accepted_event_count": input_telemetry_accepted_event_count,
+        "input_telemetry_blocked_event_count": input_telemetry_blocked_event_count,
         "input_telemetry_summary": input_telemetry_summary,
         "first_minute_summary": {
             "green": first_minute_replay.get("green").and_then(|value| value.as_bool()).unwrap_or(false),
@@ -128055,25 +128096,38 @@ pub fn native_first_minute_command_feedback_rejection_replay_evidence_json(
             "final_objective_status": first_minute_replay.pointer("/replay_final_runtime/objective_status").cloned().unwrap_or_else(|| json!(null)),
         },
         "rejection_recording": parsed_rejection_recording,
+        "rejection_recording_step_count": rejection_recording_step_count,
+        "replay_step_count": replay_step_count,
         "replay_steps": replay_steps,
+        "stage_summary_count": stage_summary_count,
         "stage_summaries": stage_summaries,
         "history_entries": history_entries,
         "history_entry_count": 3,
+        "retained_history_group_count": retained_history_group_count,
         "retained_history_group_ids": retained_history_group_ids,
         "pruned_history_entries": pruned_history_entries,
+        "pruned_history_entry_count": pruned_history_entry_count,
+        "pruned_history_group_count": pruned_history_group_count,
         "pruned_history_group_ids": pruned_history_group_ids,
         "pruned_entry_count": 2,
         "history_capacity": 3,
         "history_overflow_row_count": 0,
+        "command_queue_before_input_count": command_queue_before_input_count,
         "command_queue_before_inputs": command_queue_before_inputs,
+        "command_queue_after_setup_input_count": command_queue_after_setup_input_count,
         "command_queue_after_setup_input": command_queue_after_setup_input,
+        "command_queue_after_rejection_count": command_queue_after_rejection_count,
         "command_queue_after_rejections": command_queue_after_rejections,
+        "executable_command_queue_after_setup_input_count": executable_command_queue_after_setup_input_count,
         "executable_command_queue_after_setup_input": executable_command_queue_after_setup_input,
+        "executable_command_queue_after_rejection_count": executable_command_queue_after_rejection_count,
         "executable_command_queue_after_rejections": executable_command_queue_after_rejections,
         "command_queue_blocked_feedback_chips": command_queue_blocked_feedback_chips,
+        "command_queue_blocked_feedback_label_count": command_queue_blocked_feedback_label_count,
         "command_queue_blocked_feedback_labels": command_queue_blocked_feedback_labels,
         "command_queue_blocked_feedback_chip_count": command_queue_blocked_feedback_chip_count,
         "command_queue_rejection_pollution_count": command_queue_rejection_pollution_count,
+        "blocked_action_history_count": blocked_action_history_count,
         "blocked_action_history": runtime.blocked_action_history,
         "stale_group_25_visible": false,
         "active_strip_lifecycle_states": ["cleared"],

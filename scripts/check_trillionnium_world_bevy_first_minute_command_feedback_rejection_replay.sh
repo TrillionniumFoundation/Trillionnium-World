@@ -42,6 +42,23 @@ jq -e '
   and .command_input_action_count == 8
   and .accepted_command_input_count == 1
   and .blocked_command_input_count == 7
+  and .ready_for_release_review == true
+  and .public_launch_ready == false
+  and .action_label_count == (.action_labels | length)
+  and .input_source_count == (.input_sources | length)
+  and .blocked_action_label_count == (.blocked_action_labels | length)
+  and .expected_input_source_count == (.expected_input_sources | length)
+  and .parsed_rejection_input_source_count == (.parsed_rejection_input_sources | length)
+  and .blocked_feedback_source_label_count == (.blocked_feedback_source_labels | length)
+  and .blocked_feedback_toast_label_count == (.blocked_feedback_toast_labels | length)
+  and .expected_blocked_reason_count == (.expected_blocked_reasons | length)
+  and .blocked_reason_count == (.blocked_reasons | length)
+  and .input_telemetry_event_count == .input_telemetry_summary.total_events
+  and .input_telemetry_accepted_event_count == .input_telemetry_summary.accepted_events
+  and .input_telemetry_blocked_event_count == .input_telemetry_summary.blocked_events
+  and .rejection_recording_step_count == (.rejection_recording.steps | length)
+  and .replay_step_count == (.replay_steps | length)
+  and .stage_summary_count == (.stage_summaries | length)
   and (.rejection_recording.steps | length) == 8
   and (.replay_steps | length) == 8
   and (.stage_summaries | length) == 4
@@ -117,10 +134,14 @@ jq -e '
   and .first_minute_summary.final_completion_gate == true
   and .first_minute_summary.final_objective_status == "combat_resolved"
   and .history_entry_count == 3
+  and .history_entry_count == (.history_entries | length)
   and .history_capacity == 3
   and .history_overflow_row_count == 0
+  and .retained_history_group_count == (.retained_history_group_ids | length)
   and .retained_history_group_ids == ["26", "27", "28"]
+  and .pruned_history_group_count == (.pruned_history_group_ids | length)
   and .pruned_history_group_ids == ["25", "24"]
+  and .pruned_history_entry_count == (.pruned_history_entries | length)
   and .pruned_entry_count == 2
   and .stale_group_25_visible == false
   and .active_strip_lifecycle_states == ["cleared"]
@@ -131,6 +152,13 @@ jq -e '
   and (.pruned_history_entries | map(.group_id) | index("25") != null)
   and (.pruned_history_entries | map(.group_id) | index("24") != null)
   and .command_queue_rejection_pollution_count == 0
+  and .command_queue_before_input_count == (.command_queue_before_inputs | length)
+  and .command_queue_after_setup_input_count == (.command_queue_after_setup_input | length)
+  and .command_queue_after_rejection_count == (.command_queue_after_rejections | length)
+  and .executable_command_queue_after_setup_input_count == (.executable_command_queue_after_setup_input | length)
+  and .executable_command_queue_after_rejection_count == (.executable_command_queue_after_rejections | length)
+  and .command_queue_blocked_feedback_label_count == (.command_queue_blocked_feedback_labels | length)
+  and .blocked_action_history_count == (.blocked_action_history | length)
   and .executable_command_queue_after_rejections == .executable_command_queue_after_setup_input
   and .blocked_tile_pixel_count > 40
   and .history_frame_pixel_count > 800
