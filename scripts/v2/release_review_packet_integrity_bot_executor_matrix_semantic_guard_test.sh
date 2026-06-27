@@ -1456,6 +1456,22 @@ jq -n '{
   openra_asset_copied: false,
   third_party_asset_copied: false
 }' >"$action_coach_json"
+action_coach_counts_json="$TMP_DIR/bevy-action-coach-counted.json"
+jq '
+  .coach_stage_check_count = (.coach_stage_checks | length)
+  | .matched_coach_stage_check_count = ([.coach_stage_checks[] | select(.action_matches == true and .clean_player_line == true)] | length)
+  | .enter_execution_check_count = (.enter_execution_checks | length)
+  | .accepted_enter_execution_check_count = ([.enter_execution_checks[] | select(.accepted == true)] | length)
+  | .matched_enter_execution_check_count = ([.enter_execution_checks[] | select(.matches == true)] | length)
+  | .keyboard_event_count = (.keyboard_events | length)
+  | .accepted_keyboard_event_count = ([.keyboard_events[] | select(.accepted == true)] | length)
+  | .sample_count = (.samples | length)
+  | .final_runtime_key_count = (.final_runtime | keys | length)
+  | .final_runtime_completed_step_count = (.final_runtime.completed_steps | length)
+  | .final_runtime_input_feedback_history_count = (.final_runtime.input_feedback_history | length)
+  | .final_runtime_visited_room_count = (.final_runtime.visited_rooms | length)
+' "$action_coach_json" >"$action_coach_counts_json"
+mv "$action_coach_counts_json" "$action_coach_json"
 add_artifact_from_path native_bevy_action_coach "Native/Bevy action coach" "$action_coach_json" release_review_input
 
 

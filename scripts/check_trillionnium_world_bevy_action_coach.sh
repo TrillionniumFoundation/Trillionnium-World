@@ -13,6 +13,18 @@ mkdir -p "$(dirname "$SUMMARY")"
 
 jq '
   .status = "action_coach_green"
+  | .coach_stage_check_count = (.coach_stage_checks | length)
+  | .matched_coach_stage_check_count = ([.coach_stage_checks[] | select(.action_matches == true and .clean_player_line == true)] | length)
+  | .enter_execution_check_count = (.enter_execution_checks | length)
+  | .accepted_enter_execution_check_count = ([.enter_execution_checks[] | select(.accepted == true)] | length)
+  | .matched_enter_execution_check_count = ([.enter_execution_checks[] | select(.matches == true)] | length)
+  | .keyboard_event_count = (.keyboard_events | length)
+  | .accepted_keyboard_event_count = ([.keyboard_events[] | select(.accepted == true)] | length)
+  | .sample_count = (.samples | length)
+  | .final_runtime_key_count = (.final_runtime | keys | length)
+  | .final_runtime_completed_step_count = (.final_runtime.completed_steps | length)
+  | .final_runtime_input_feedback_history_count = (.final_runtime.input_feedback_history | length)
+  | .final_runtime_visited_room_count = (.final_runtime.visited_rooms | length)
   | .external_evidence_ignored_for_current_action_coach_pass = true
   | .public_launch_ready = false
   | .production_ready_ui_claimed = false
@@ -32,6 +44,28 @@ jq -e '
   and .enter_execution_gate == true
   and .final_next_gate == true
   and .input_hint_contract_gate == true
+  and .coach_stage_check_count == (.coach_stage_checks | length)
+  and .coach_stage_check_count == 4
+  and .matched_coach_stage_check_count == ([.coach_stage_checks[] | select(.action_matches == true and .clean_player_line == true)] | length)
+  and .matched_coach_stage_check_count == .coach_stage_check_count
+  and .enter_execution_check_count == (.enter_execution_checks | length)
+  and .enter_execution_check_count == 3
+  and .accepted_enter_execution_check_count == ([.enter_execution_checks[] | select(.accepted == true)] | length)
+  and .accepted_enter_execution_check_count == .enter_execution_check_count
+  and .matched_enter_execution_check_count == ([.enter_execution_checks[] | select(.matches == true)] | length)
+  and .matched_enter_execution_check_count == .enter_execution_check_count
+  and .keyboard_event_count == (.keyboard_events | length)
+  and .keyboard_event_count == 3
+  and .accepted_keyboard_event_count == ([.keyboard_events[] | select(.accepted == true)] | length)
+  and .accepted_keyboard_event_count == .keyboard_event_count
+  and .sample_count == (.samples | length)
+  and .sample_count == 4
+  and .final_runtime_key_count == (.final_runtime | keys | length)
+  and .final_runtime_completed_step_count == (.final_runtime.completed_steps | length)
+  and .final_runtime_input_feedback_history_count == (.final_runtime.input_feedback_history | length)
+  and .final_runtime_input_feedback_history_count == .keyboard_event_count
+  and .final_runtime_visited_room_count == (.final_runtime.visited_rooms | length)
+  and .final_runtime_visited_room_count == 2
   and (.coach_stage_checks | length) == 4
   and (.coach_stage_checks | all(.action_matches == true and .clean_player_line == true))
   and (.coach_stage_checks | map(.coach_line | contains("ACTION COACH | Enter/NumpadEnter ->")) | all)
