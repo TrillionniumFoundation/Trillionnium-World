@@ -212,6 +212,19 @@ jq -n \
     source_of_truth: "git_status_porcelain_plus_release_review_evidence",
     green: true,
     dirty_tree: $dirty_tree,
+    ready_for_release_review: $release_review_ready,
+    public_launch_ready: $release_review_public_launch_ready,
+    cex_adapter_ready: $cex_adapter_green,
+    working_tree_path_count: $total_paths,
+    tracked_modified_count: $tracked_modified_count,
+    untracked_path_count: $untracked_count,
+    uncategorized_path_count: $uncategorized_count,
+    working_tree_group_count: ($groups | length),
+    working_tree_entry_count: ($entries | length),
+    release_review_artifact_count: $release_review_artifact_count,
+    release_review_failure_count: $release_review_failures,
+    repository_ahead_count: $ahead_count,
+    repository_behind_count: $behind_count,
     proof_scope: $proof_scope,
     repository: {
       branch: $branch,
@@ -273,12 +286,15 @@ jq -n \
   printf -- '- generated_at: %s\n' "$(jq -r '.generated_at' "$SUMMARY_JSON")"
   printf -- '- status: %s\n' "$(jq -r '.status' "$SUMMARY_JSON")"
   printf -- '- dirty_tree: %s\n' "$(jq -r '.dirty_tree' "$SUMMARY_JSON")"
-  printf -- '- total_paths: %s\n' "$(jq -r '.working_tree.total_paths' "$SUMMARY_JSON")"
-  printf -- '- tracked_modified_count: %s\n' "$(jq -r '.working_tree.tracked_modified_count' "$SUMMARY_JSON")"
-  printf -- '- untracked_count: %s\n' "$(jq -r '.working_tree.untracked_count' "$SUMMARY_JSON")"
-  printf -- '- release_review_ready: %s\n' "$(jq -r '.release_review_snapshot.ready_for_release_review' "$SUMMARY_JSON")"
-  printf -- '- public_launch_ready: %s\n' "$(jq -r '.release_review_snapshot.public_launch_ready' "$SUMMARY_JSON")"
-  printf -- '- cex_adapter_ready: %s\n\n' "$(jq -r '.cex_adapter_readiness_snapshot.green' "$SUMMARY_JSON")"
+  printf -- '- working_tree_path_count: %s\n' "$(jq -r '.working_tree_path_count' "$SUMMARY_JSON")"
+  printf -- '- tracked_modified_count: %s\n' "$(jq -r '.tracked_modified_count' "$SUMMARY_JSON")"
+  printf -- '- untracked_path_count: %s\n' "$(jq -r '.untracked_path_count' "$SUMMARY_JSON")"
+  printf -- '- working_tree_group_count: %s\n' "$(jq -r '.working_tree_group_count' "$SUMMARY_JSON")"
+  printf -- '- release_review_ready: %s\n' "$(jq -r '.ready_for_release_review' "$SUMMARY_JSON")"
+  printf -- '- public_launch_ready: %s\n' "$(jq -r '.public_launch_ready' "$SUMMARY_JSON")"
+  printf -- '- release_review_artifact_count: %s\n' "$(jq -r '.release_review_artifact_count' "$SUMMARY_JSON")"
+  printf -- '- release_review_failure_count: %s\n' "$(jq -r '.release_review_failure_count' "$SUMMARY_JSON")"
+  printf -- '- cex_adapter_ready: %s\n\n' "$(jq -r '.cex_adapter_ready' "$SUMMARY_JSON")"
 
   printf '## Recommended Review Order\n\n'
   jq -r '.working_tree.groups[] | "- \(.category): \(.path_count) paths (\(.tracked_modified_count) tracked, \(.untracked_count) untracked)"' "$SUMMARY_JSON"

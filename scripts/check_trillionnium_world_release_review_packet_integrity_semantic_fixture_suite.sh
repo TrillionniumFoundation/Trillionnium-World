@@ -97,8 +97,8 @@ write_fixture_summary \
   "release_review_packet_integrity_semantic_fixture_green" \
   "release_review_convergence_status_quickcheck_release_signoff_cex_adapter_first_minute_command_feedback_and_handoff_first_contact_semantic_negative_fixture" \
   "packet_integrity_must_reject_semantically_invalid_release_review_convergence_status_quickcheck_release_signoff_summary_cex_adapter_readiness_first_minute_command_feedback_and_handoff_first_contact_artifacts_even_when_sha_bytes_contract_and_status_match" \
-  21 \
-  '["release_review_convergence_semantics","release_review_status_semantics","release_review_status_markdown_semantics","release_review_quickcheck_semantics","release_signoff_summary_semantics","cex_adapter_readiness_semantics","first_minute_command_feedback_replay_semantics","first_minute_command_feedback_source_recording_semantics","first_minute_command_feedback_recording_semantics","first_minute_command_feedback_replay_ppm_semantics","first_minute_command_feedback_rejection_replay_semantics","first_minute_command_feedback_rejection_source_recording_semantics","first_minute_command_feedback_rejection_recording_semantics","first_minute_command_feedback_rejection_replay_ppm_semantics","classic_playtest_readiness_full_game_visual_ui_replication_semantics","classic_playtest_readiness_openra_style_screen_set_review_semantics","classic_playtest_readiness_semantics","campaign_outcome_ui_readiness_semantics","classic_playtest_handoff_readiness_semantics","classic_playtest_handoff_packet_semantics","classic_playtest_handoff_packet_markdown_semantics"]'
+  22 \
+  '["release_review_checkpoint_manifest_semantics","release_review_convergence_semantics","release_review_status_semantics","release_review_status_markdown_semantics","release_review_quickcheck_semantics","release_signoff_summary_semantics","cex_adapter_readiness_semantics","first_minute_command_feedback_replay_semantics","first_minute_command_feedback_source_recording_semantics","first_minute_command_feedback_recording_semantics","first_minute_command_feedback_replay_ppm_semantics","first_minute_command_feedback_rejection_replay_semantics","first_minute_command_feedback_rejection_source_recording_semantics","first_minute_command_feedback_rejection_recording_semantics","first_minute_command_feedback_rejection_replay_ppm_semantics","classic_playtest_readiness_full_game_visual_ui_replication_semantics","classic_playtest_readiness_openra_style_screen_set_review_semantics","classic_playtest_readiness_semantics","campaign_outcome_ui_readiness_semantics","classic_playtest_handoff_readiness_semantics","classic_playtest_handoff_packet_semantics","classic_playtest_handoff_packet_markdown_semantics"]'
 
 write_fixture_summary \
   "$ACCEPTANCE_DIR/release-review-packet-integrity-bot-executor-semantic-fixture.json" \
@@ -303,6 +303,7 @@ mutate_text_artifact() {
   update_packet_artifact "$artifact_id" "$target_path"
 }
 
+mutate_json_artifact release_review_checkpoint_manifest '.working_tree_path_count = ((.working_tree.total_paths // 0) + 1)'
 mutate_json_artifact release_review_convergence '.green = false'
 mutate_json_artifact release_review_status_json '.ready_for_release_review = false'
 mutate_text_artifact release_review_status_markdown
@@ -361,6 +362,7 @@ apply_packet_artifact_updates
 
 expected_names="$TMP_DIR/expected-failure-names.json"
 jq -n '[
+  "release_review_checkpoint_manifest_semantics",
   "release_review_convergence_semantics",
   "release_review_status_semantics",
   "release_review_status_markdown_semantics",
@@ -453,4 +455,4 @@ for path in "${summary_paths[@]}"; do
 done
 
 SUCCESS=1
-printf 'TRILLIONNIUM_WORLD_RELEASE_REVIEW_PACKET_INTEGRITY_SEMANTIC_FIXTURE_SUITE_GREEN %s failures=51 summaries=%s\n' "$integrity_summary" "${#summary_paths[@]}"
+printf 'TRILLIONNIUM_WORLD_RELEASE_REVIEW_PACKET_INTEGRITY_SEMANTIC_FIXTURE_SUITE_GREEN %s failures=52 summaries=%s\n' "$integrity_summary" "${#summary_paths[@]}"

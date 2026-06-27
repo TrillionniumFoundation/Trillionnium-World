@@ -25,8 +25,9 @@ jq -n \
     fixture_kind: "release_review_convergence_status_quickcheck_release_signoff_cex_adapter_first_minute_command_feedback_and_handoff_first_contact_semantic_negative_fixture",
     fixture_rule: "packet_integrity_must_reject_semantically_invalid_release_review_convergence_status_quickcheck_release_signoff_summary_cex_adapter_readiness_first_minute_command_feedback_and_handoff_first_contact_artifacts_even_when_sha_bytes_contract_and_status_match",
     fake_packet_artifact_count: 121,
-    expected_semantic_failure_count: 21,
+    expected_semantic_failure_count: 22,
     expected_semantic_failure_names: [
+      "release_review_checkpoint_manifest_semantics",
       "release_review_convergence_semantics",
       "release_review_status_semantics",
       "release_review_status_markdown_semantics",
@@ -65,8 +66,9 @@ jq -e '
   and .status == "release_review_packet_integrity_semantic_fixture_green"
   and .green == true
   and .fake_packet_artifact_count == 121
-  and .expected_semantic_failure_count == 21
+  and .expected_semantic_failure_count == 22
   and .expected_semantic_failure_names == [
+    "release_review_checkpoint_manifest_semantics",
     "release_review_convergence_semantics",
     "release_review_status_semantics",
     "release_review_status_markdown_semantics",

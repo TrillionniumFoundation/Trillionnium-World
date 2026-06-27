@@ -53,14 +53,7 @@ add_artifact_from_path() {
     }' >>"$artifacts_jsonl"
 }
 
-for index in $(seq 1 1); do
-  artifact_path="$TMP_DIR/fixture_${index}.json"
-  jq -nc \
-    --arg id "fixture_${index}" \
-    '{contract_version: "fixture_contract_v1", status: "fixture_green", payload: $id}' >"$artifact_path"
-  add_artifact_from_path "fixture_${index}" "fixture_${index}" "$artifact_path" fixture
-done
-
+add_release_review_checkpoint_manifest_packet_fixtures
 add_visual_foundation_packet_fixtures
 add_modeling_foundation_packet_fixtures
 add_performance_budget_packet_fixtures
@@ -99,8 +92,9 @@ jq -n '{
   fixture_kind: "release_review_convergence_status_quickcheck_release_signoff_cex_adapter_first_minute_command_feedback_and_handoff_first_contact_semantic_negative_fixture",
   fixture_rule: "packet_integrity_must_reject_semantically_invalid_release_review_convergence_status_quickcheck_release_signoff_summary_cex_adapter_readiness_first_minute_command_feedback_and_handoff_first_contact_artifacts_even_when_sha_bytes_contract_and_status_match",
   fake_packet_artifact_count: 121,
-  expected_semantic_failure_count: 21,
+  expected_semantic_failure_count: 22,
   expected_semantic_failure_names: [
+    "release_review_checkpoint_manifest_semantics",
     "release_review_convergence_semantics",
     "release_review_status_semantics",
     "release_review_status_markdown_semantics",

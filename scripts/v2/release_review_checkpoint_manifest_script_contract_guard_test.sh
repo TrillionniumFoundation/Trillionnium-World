@@ -25,7 +25,19 @@ code_surface
 repo_infra_dev_environment
 generated_acceptance_evidence
 docs_planning
+ready_for_release_review: $release_review_ready
+public_launch_ready: $release_review_public_launch_ready
+cex_adapter_ready: $cex_adapter_green
+working_tree_path_count: $total_paths
+tracked_modified_count: $tracked_modified_count
+untracked_path_count: $untracked_count
 uncategorized_count
+working_tree_group_count: ($groups | length)
+working_tree_entry_count: ($entries | length)
+release_review_artifact_count: $release_review_artifact_count
+release_review_failure_count: $release_review_failures
+repository_ahead_count: $ahead_count
+repository_behind_count: $behind_count
 release-review-ci-gate.json
 cex-production-adapter-readiness.json
 checkpoint_manifest_only_not_public_launch_evidence

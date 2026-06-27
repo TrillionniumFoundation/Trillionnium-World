@@ -3799,6 +3799,102 @@ add_public_launch_operator_handoff_packet_fixtures() {
   add_artifact_from_path public_launch_operator_handoff_markdown "Public launch operator handoff Markdown" "$operator_handoff_md" release_review_operator_handoff
 }
 
+add_release_review_checkpoint_manifest_packet_fixtures() {
+  local mode="${1:-valid}"
+  local checkpoint_manifest_json="$TMP_DIR/release-review-checkpoint-manifest.json"
+  local working_tree_path_count=3
+
+  if [[ "$mode" == "semantic_invalid" ]]; then
+    working_tree_path_count=4
+  fi
+
+  jq -n \
+    --argjson working_tree_path_count "$working_tree_path_count" \
+    '{
+      contract_version: "trillionnium_world_release_review_checkpoint_manifest_v1",
+      status: "checkpoint_manifest_ready_with_dirty_wip",
+      generated_at: "2026-06-27T00:00:00Z",
+      source_of_truth: "git_status_porcelain_plus_release_review_evidence",
+      green: true,
+      dirty_tree: true,
+      ready_for_release_review: true,
+      public_launch_ready: false,
+      cex_adapter_ready: true,
+      working_tree_path_count: $working_tree_path_count,
+      tracked_modified_count: 2,
+      untracked_path_count: 1,
+      uncategorized_path_count: 0,
+      working_tree_group_count: 2,
+      working_tree_entry_count: 3,
+      release_review_artifact_count: 128,
+      release_review_failure_count: 0,
+      repository_ahead_count: 763,
+      repository_behind_count: 0,
+      proof_scope: "checkpoint_manifest_only_not_public_launch_evidence",
+      repository: {
+        branch: "main",
+        head_sha: "fixture123",
+        head_subject: "fixture checkpoint manifest",
+        upstream: "origin/main",
+        ahead_count: 763,
+        behind_count: 0
+      },
+      release_review_snapshot: {
+        ci_gate_path: "/fixture/release-review-ci-gate.json",
+        status_path: "/fixture/release-review-status.json",
+        status: "release_review_ci_gate_green_with_public_launch_blockers",
+        green: true,
+        ready_for_release_review: true,
+        public_launch_ready: false,
+        failure_count: 0,
+        artifact_count: 128
+      },
+      cex_adapter_readiness_snapshot: {
+        evidence_path: "/fixture/cex-production-adapter-readiness.json",
+        green: true,
+        status: "cex_adapter_readiness_green",
+        protocol_contract: "trillionnium_world_runtime_adapter_v1",
+        source_contract: "cex_trillionnium_world_production_adapter_v1",
+        route_record_total: 7236,
+        world_node_count: 24
+      },
+      working_tree: {
+        total_paths: 3,
+        tracked_modified_count: 2,
+        untracked_count: 1,
+        uncategorized_count: 0,
+        groups: [
+          {category: "release_review_surface", label: "Release-review status, packet, signoff, and docs surface", review_order: 20, path_count: 2, tracked_modified_count: 2, untracked_count: 0, paths: ["scripts/check_trillionnium_world_release_review_checkpoint_manifest.sh", "scripts/check_trillionnium_world_release_review_packet_integrity.sh"]},
+          {category: "generated_acceptance_evidence", label: "Generated acceptance evidence", review_order: 80, path_count: 1, tracked_modified_count: 0, untracked_count: 1, paths: ["acceptance/S6_public_launch/latest/release-review-checkpoint-manifest.json"]}
+        ],
+        entries: [
+          {status_code: " M", tracking_state: "tracked", category: "release_review_surface", path: "scripts/check_trillionnium_world_release_review_checkpoint_manifest.sh"},
+          {status_code: " M", tracking_state: "tracked", category: "release_review_surface", path: "scripts/check_trillionnium_world_release_review_packet_integrity.sh"},
+          {status_code: "??", tracking_state: "untracked", category: "generated_acceptance_evidence", path: "acceptance/S6_public_launch/latest/release-review-checkpoint-manifest.json"}
+        ]
+      },
+      recommended_review_order: [
+        "cex_adapter_readiness",
+        "release_review_surface",
+        "external_evidence_validators",
+        "native_bevy_host_playability",
+        "map_pack_repository_boundary",
+        "code_surface",
+        "repo_infra_dev_environment",
+        "generated_acceptance_evidence",
+        "docs_planning",
+        "uncategorized"
+      ],
+      reviewer_next_action: "review_grouped_wip_then_commit_by_slice",
+      boundary: {
+        checkpoint_manifest_claim: "groups_current_working_tree_only",
+        public_launch_claim: "does_not_replace_real_external_evidence",
+        commit_claim: "does_not_commit_or_stage_files"
+      }
+    }' >"$checkpoint_manifest_json"
+  add_artifact_from_path release_review_checkpoint_manifest "Release review checkpoint manifest" "$checkpoint_manifest_json" release_review_checkpoint
+}
+
 add_cex_adapter_readiness_packet_fixtures() {
   local mode="${1:-valid}"
   local cex_adapter_json="$TMP_DIR/cex-production-adapter-readiness.json"
