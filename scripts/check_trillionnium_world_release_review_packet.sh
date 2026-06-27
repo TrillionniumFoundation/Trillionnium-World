@@ -424,7 +424,7 @@ mv "$PACKET_JSON_TMP" "$PACKET_JSON"
   printf -- '- Native/Bevy keyboard replay, classic animation preview/selector, classic player motion, action coach, HUD/debug layer, player UI rescue, live screenshots, sprite texture sampling, sampled texture live-window correlation, and render asset eligibility are host-side proof, not Android real-device proof.\n'
   printf -- '- CEX adapter readiness proves the current CEX incubator exports the Trillionnium world runtime adapter contract; it is not a substitute for real external public-launch evidence.\n'
   printf -- '- Public launch operator handoff is a checksum-bound collection checklist; it does not grant public-launch credit without real external evidence.\n'
-  printf -- '- RTS evidence packet assembly review checks the manifest, key runtime artifacts, semantic fixtures, status handoff, and external-evidence blockers before reviewer handoff.\n'
+  printf -- '- RTS evidence packet assembly review checks the manifest, key runtime artifacts, semantic fixtures, status handoff, required artifact/fixture/gate counts, and external-evidence blockers before reviewer handoff.\n'
   printf -- '- The checkpoint manifest groups the current dirty working tree for review; it does not stage, commit, or publish anything.\n'
   printf -- '- Public launch remains blocked until the external evidence above is attached.\n'
 } >"$PACKET_MD"

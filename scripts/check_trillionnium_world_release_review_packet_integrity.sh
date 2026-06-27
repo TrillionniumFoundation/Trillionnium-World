@@ -259,10 +259,42 @@ require_json_expr packet_assembly_review "$PACKET_JSON" '
     and $review.release_review_log_count == .release_review_log_count
     and $review.missing_artifact_count == .missing_artifact_count
     and $review.packet_integrity_fixture_count == 9
+    and $review.required_runtime_artifact_count == 16
+    and $review.required_packet_fixture_count == 9
     and $review.reviewed_runtime_artifact_count == 16
     and $review.reviewed_packet_fixture_count == 9
     and $review.ready_item_count >= 13
     and $review.blocked_item_count == 6
+    and $review.external_blocker_count == $review.blocked_item_count
+    and $review.ready_for_release_review == .ready_for_release_review
+    and $review.public_launch_ready == .public_launch_ready
+    and $review.android_s5_real_device_claimed == .android_s5_real_device_claimed
+    and $review.gate_count == 10
+    and $review.passed_gate_count == ([
+      $review.inventory_summary_gate,
+      $review.artifact_manifest_gate,
+      $review.missing_artifacts_gate,
+      $review.release_review_readiness_gate,
+      $review.status_handoff_gate,
+      $review.key_runtime_artifacts_gate,
+      $review.full_game_visual_ui_handoff_gate,
+      $review.packet_integrity_fixture_gate,
+      $review.public_launch_boundary_gate,
+      $review.external_blocker_gate
+    ] | map(select(. == true)) | length)
+    and $review.failed_gate_count == ([
+      $review.inventory_summary_gate,
+      $review.artifact_manifest_gate,
+      $review.missing_artifacts_gate,
+      $review.release_review_readiness_gate,
+      $review.status_handoff_gate,
+      $review.key_runtime_artifacts_gate,
+      $review.full_game_visual_ui_handoff_gate,
+      $review.packet_integrity_fixture_gate,
+      $review.public_launch_boundary_gate,
+      $review.external_blocker_gate
+    ] | map(select(. != true)) | length)
+    and $review.failed_gate_count == 0
     and $review.inventory_summary_gate == true
     and $review.artifact_manifest_gate == true
     and $review.missing_artifacts_gate == true

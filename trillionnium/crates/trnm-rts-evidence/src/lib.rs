@@ -566,10 +566,19 @@ pub struct RtsReleaseReviewPacketAssemblyReview {
     pub release_review_log_count: u64,
     pub missing_artifact_count: u64,
     pub packet_integrity_fixture_count: u64,
+    pub required_runtime_artifact_count: u64,
+    pub required_packet_fixture_count: u64,
     pub reviewed_runtime_artifact_count: u64,
     pub reviewed_packet_fixture_count: u64,
     pub ready_item_count: u64,
     pub blocked_item_count: u64,
+    pub external_blocker_count: u64,
+    pub gate_count: u64,
+    pub passed_gate_count: u64,
+    pub failed_gate_count: u64,
+    pub ready_for_release_review: bool,
+    pub public_launch_ready: bool,
+    pub android_s5_real_device_claimed: bool,
     pub inventory_summary_gate: bool,
     pub artifact_manifest_gate: bool,
     pub missing_artifacts_gate: bool,
@@ -2114,6 +2123,10 @@ pub fn rts_release_review_packet_assembly_review(
     let missing_artifact_count = json_array_len_at(packet, "missing_artifacts");
     let ready_item_count = json_array_len_at(packet, "ready_items");
     let blocked_item_count = json_array_len_at(packet, "blocked_items");
+    let external_blocker_count = blocked_item_count;
+    let ready_for_release_review = json_bool_at(packet, "ready_for_release_review");
+    let public_launch_ready = json_bool_at(packet, "public_launch_ready");
+    let android_s5_real_device_claimed = json_bool_at(packet, "android_s5_real_device_claimed");
 
     let reviewed_runtime_artifact_ids = [
         "native_bevy_classic_rts_first_contact_basin_spec",
@@ -2150,6 +2163,8 @@ pub fn rts_release_review_packet_assembly_review(
     .iter()
     .map(|id| (*id).to_string())
     .collect::<Vec<_>>();
+    let required_runtime_artifact_count = reviewed_runtime_artifact_ids.len() as u64;
+    let required_packet_fixture_count = reviewed_packet_fixture_ids.len() as u64;
 
     let inventory_summary_gate = json_u64_at(packet, "artifact_count") == artifact_count
         && json_u64_at(packet, "release_review_input_count") == release_review_input_count
@@ -2167,9 +2182,8 @@ pub fn rts_release_review_packet_assembly_review(
         && json_u64_at(packet, "release_review_log_count") == release_review_log_count
         && json_u64_at(packet, "missing_artifact_count") == missing_artifact_count
         && json_u64_at(packet, "reviewed_runtime_artifact_count")
-            == reviewed_runtime_artifact_ids.len() as u64
-        && json_u64_at(packet, "reviewed_packet_fixture_count")
-            == reviewed_packet_fixture_ids.len() as u64;
+            == required_runtime_artifact_count
+        && json_u64_at(packet, "reviewed_packet_fixture_count") == required_packet_fixture_count;
     let artifact_manifest_gate = artifact_count >= 120
         && artifacts
             .iter()
@@ -2217,9 +2231,9 @@ pub fn rts_release_review_packet_assembly_review(
         "release_review_visual_evidence",
     );
     let packet_integrity_fixture_gate =
-        packet_integrity_fixture_count == reviewed_packet_fixture_ids.len() as u64;
-    let public_launch_boundary_gate = !json_bool_at(packet, "public_launch_ready")
-        && !json_bool_at(packet, "android_s5_real_device_claimed")
+        packet_integrity_fixture_count == required_packet_fixture_count;
+    let public_launch_boundary_gate = !public_launch_ready
+        && !android_s5_real_device_claimed
         && json_string_equals(
             packet,
             "proof_scope",
@@ -2230,6 +2244,21 @@ pub fn rts_release_review_packet_assembly_review(
             json_string_at(packet, "reviewer_next_action").as_deref(),
             Some("collect_real_external_public_launch_evidence")
         );
+    let gate_values = [
+        inventory_summary_gate,
+        artifact_manifest_gate,
+        missing_artifacts_gate,
+        release_review_readiness_gate,
+        status_handoff_gate,
+        key_runtime_artifacts_gate,
+        full_game_visual_ui_handoff_gate,
+        packet_integrity_fixture_gate,
+        public_launch_boundary_gate,
+        external_blocker_gate,
+    ];
+    let gate_count = gate_values.len() as u64;
+    let passed_gate_count = gate_values.iter().filter(|&&gate| gate).count() as u64;
+    let failed_gate_count = gate_count - passed_gate_count;
     let green = inventory_summary_gate
         && artifact_manifest_gate
         && missing_artifacts_gate
@@ -2259,10 +2288,19 @@ pub fn rts_release_review_packet_assembly_review(
         release_review_log_count,
         missing_artifact_count,
         packet_integrity_fixture_count,
+        required_runtime_artifact_count,
+        required_packet_fixture_count,
         reviewed_runtime_artifact_count,
         reviewed_packet_fixture_count,
         ready_item_count,
         blocked_item_count,
+        external_blocker_count,
+        gate_count,
+        passed_gate_count,
+        failed_gate_count,
+        ready_for_release_review,
+        public_launch_ready,
+        android_s5_real_device_claimed,
         inventory_summary_gate,
         artifact_manifest_gate,
         missing_artifacts_gate,
@@ -6238,6 +6276,14 @@ mod tests {
         assert_eq!(review.artifact_count, 128);
         assert_eq!(review.packet_integrity_fixture_count, 9);
         assert_eq!(
+            review.required_runtime_artifact_count,
+            runtime_ids.len() as u64
+        );
+        assert_eq!(
+            review.required_packet_fixture_count,
+            fixture_ids.len() as u64
+        );
+        assert_eq!(
             review.reviewed_runtime_artifact_count,
             runtime_ids.len() as u64
         );
@@ -6248,6 +6294,13 @@ mod tests {
         assert_eq!(review.missing_artifact_count, 0);
         assert_eq!(review.ready_item_count, 13);
         assert_eq!(review.blocked_item_count, 6);
+        assert_eq!(review.external_blocker_count, 6);
+        assert_eq!(review.gate_count, 10);
+        assert_eq!(review.passed_gate_count, 10);
+        assert_eq!(review.failed_gate_count, 0);
+        assert!(review.ready_for_release_review);
+        assert!(!review.public_launch_ready);
+        assert!(!review.android_s5_real_device_claimed);
         assert!(review.inventory_summary_gate);
         assert!(review.artifact_manifest_gate);
         assert!(review.missing_artifacts_gate);
