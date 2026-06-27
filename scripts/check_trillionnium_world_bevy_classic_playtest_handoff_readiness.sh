@@ -153,14 +153,26 @@ jq -n \
     },
     android_s5_real_device_claimed: false,
     public_launch_ready_claimed: false,
+    public_launch_ready: false,
     source_of_truth: "Classic playtest handoff readiness is the local human-playtest handoff layer for trnm-world-bevy. It requires the full Bevy classic playtest readiness chain, a live release runner, a campaign launcher that resumes into the Bevy-owned open-world RTS handoff, and observability evidence. It does not claim S5 real-device evidence, public launch readiness, or OpenRA natural replay/headless parity."
   }
+  | .source_contract_count = (.source_contracts | keys | length)
+  | .evidence_path_count = (.evidence_paths | keys | length)
+  | .gate_count = (.gates | keys | length)
+  | .passed_gate_count = ([.gates[] | select(. == true)] | length)
+  | .failed_gate_count = ([.gates[] | select(. != true)] | length)
 ' >"$SUMMARY"
 
 jq -e '
   .contract_version == "trillionnium_world_bevy_classic_playtest_handoff_readiness_v1"
   and .status == "classic_playtest_handoff_readiness_green"
   and .green == true
+  and .source_contract_count == (.source_contracts | keys | length)
+  and .evidence_path_count == (.evidence_paths | keys | length)
+  and .gate_count == (.gates | keys | length)
+  and .passed_gate_count == ([.gates[] | select(. == true)] | length)
+  and .failed_gate_count == ([.gates[] | select(. != true)] | length)
+  and .failed_gate_count == 0
   and .source_contracts.playtest_readiness == "trillionnium_world_bevy_classic_playtest_readiness_v1"
   and .source_contracts.playtest_launcher == "trillionnium_world_bevy_classic_playtest_launcher_v1"
   and .source_contracts.playtest_runner_status == "trillionnium_world_bevy_classic_playtest_runner_status_v1"
@@ -226,6 +238,7 @@ jq -e '
   and .gates.first_contact_offline_adapter_lobby_ready_gate == true
   and .gates.public_launch_not_claimed_gate == true
   and .gates.android_s5_real_device_not_claimed_gate == true
+  and .public_launch_ready == false
   and .android_s5_real_device_claimed == false
   and .public_launch_ready_claimed == false
 ' "$SUMMARY" >/dev/null

@@ -108,9 +108,19 @@ jq -n \
       android_s5_real_device_claimed: false,
       openra_natural_replay_or_headless_parity_claimed: false
     },
+    public_launch_ready: false,
+    public_launch_ready_claimed: false,
+    android_s5_real_device_claimed: false,
+    openra_natural_replay_or_headless_parity_claimed: false,
     markdown_path: "acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-handoff-packet.md",
     source_of_truth: "Classic playtest handoff packet binds the local Bevy human-playtest handoff to checksummed evidence artifacts and replayable commands. It is a local host-side playtest packet only, not public launch, S5 real-device, or OpenRA natural replay/headless parity credit."
   }
+  | .source_contract_count = (.source_contracts | keys | length)
+  | .artifact_count = (.artifact_manifest | length)
+  | .artifact_bytes_total = ([.artifact_manifest[].bytes] | add)
+  | .gate_count = (.gates | keys | length)
+  | .passed_gate_count = ([.gates[] | select(. == true)] | length)
+  | .failed_gate_count = ([.gates[] | select(. != true)] | length)
 ' >"$SUMMARY"
 
 jq -e '
@@ -123,6 +133,13 @@ jq -e '
   and .source_contracts.playtest_runner_status == "trillionnium_world_bevy_classic_playtest_runner_status_v1"
   and .source_contracts.playtest_observability_readiness == "trillionnium_world_bevy_classic_rts_playtest_observability_readiness_v1"
   and .source_contracts.first_contact_runtime_review == "trnm_rts_evidence_bevy_runtime_adapter_v1"
+  and .source_contract_count == (.source_contracts | keys | length)
+  and .artifact_count == (.artifact_manifest | length)
+  and .artifact_bytes_total == ([.artifact_manifest[].bytes] | add)
+  and .gate_count == (.gates | keys | length)
+  and .passed_gate_count == ([.gates[] | select(. == true)] | length)
+  and .failed_gate_count == ([.gates[] | select(. != true)] | length)
+  and .failed_gate_count == 0
   and .gates.handoff_readiness_green == true
   and .gates.playtest_readiness_green == true
   and .gates.launcher_green == true
@@ -154,12 +171,18 @@ jq -e '
   and .no_credit_boundaries.public_launch_ready_claimed == false
   and .no_credit_boundaries.android_s5_real_device_claimed == false
   and .no_credit_boundaries.openra_natural_replay_or_headless_parity_claimed == false
+  and .public_launch_ready == false
+  and .public_launch_ready_claimed == false
+  and .android_s5_real_device_claimed == false
+  and .openra_natural_replay_or_headless_parity_claimed == false
 ' "$SUMMARY" >/dev/null
 
 {
   printf '# Bevy Classic Playtest Handoff Packet\n\n'
   printf '%s\n' "- Status: \`$(jq -r '.green' "$SUMMARY")\`"
   printf '%s\n' "- Contract: \`$(jq -r '.contract_version' "$SUMMARY")\`"
+  printf '%s\n' "- Gate count: \`$(jq -r '.passed_gate_count' "$SUMMARY")\` / \`$(jq -r '.gate_count' "$SUMMARY")\` passed"
+  printf '%s\n' "- Artifact count: \`$(jq -r '.artifact_count' "$SUMMARY")\`, bytes \`$(jq -r '.artifact_bytes_total' "$SUMMARY")\`"
   printf '%s\n' \
     "- Runner: \`$(jq -r '.handoff_summary.runner_service' "$SUMMARY")\` PID \`$(jq -r '.handoff_summary.runner_main_pid' "$SUMMARY")\`"
   printf '%s\n' \

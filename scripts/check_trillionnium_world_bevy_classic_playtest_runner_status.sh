@@ -541,11 +541,18 @@ jq -n \
       player_screen_visual_gate: $player_screen_visual_gate
     },
     source_of_truth: "The live playtest runner must be the release trnm-world-bevy binary with the low-spec classic player screen, X11 backend, classic renderer manifest, a concise player-facing First Contact Basin window title, a bounded CPUQuota/CPUWeight budget, and a visible First Contact Basin player screen with real map/HUD/command pixels, non-dead HUD panels, clipped-label edge safety, and gameplay-scene balance; CEX paths are explicitly rejected, and proof/debug/shortcut-manual default title strings are explicitly rejected."
-  }' >"$SUMMARY"
+  }
+  | .gate_count = (.gates | keys | length)
+  | .passed_gate_count = ([.gates[] | select(. == true)] | length)
+  | .failed_gate_count = ([.gates[] | select(. != true)] | length)' >"$SUMMARY"
 
 jq -e '
   .contract_version == "trillionnium_world_bevy_classic_playtest_runner_status_v1"
   and .green == true
+  and .gate_count == (.gates | keys | length)
+  and .passed_gate_count == ([.gates[] | select(. == true)] | length)
+  and .failed_gate_count == ([.gates[] | select(. != true)] | length)
+  and .failed_gate_count == 0
   and .service.unit == "trillionnium-bevy-playtest.service"
   and .service.active_state == "active"
   and .service.sub_state == "running"

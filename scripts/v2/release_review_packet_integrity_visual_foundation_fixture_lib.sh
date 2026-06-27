@@ -2309,7 +2309,10 @@ add_playtest_runner_packet_fixtures() {
         player_screen_visual_gate: true
       },
       source_of_truth: "The live playtest runner must be the release trnm-world-bevy binary with the low-spec classic player screen, X11 backend, classic renderer manifest, a concise player-facing First Contact Basin window title, a bounded CPUQuota/CPUWeight budget, and a visible First Contact Basin player screen with real map/HUD/command pixels, non-dead HUD panels, clipped-label edge safety, and gameplay-scene balance; CEX paths are explicitly rejected, and proof/debug/shortcut-manual default title strings are explicitly rejected."
-  }' >"$playtest_runner_json"
+  }
+  | .gate_count = (.gates | keys | length)
+  | .passed_gate_count = ([.gates[] | select(. == true)] | length)
+  | .failed_gate_count = ([.gates[] | select(. != true)] | length)' >"$playtest_runner_json"
   add_artifact_from_path native_bevy_classic_playtest_runner_status "Native/Bevy classic playtest runner status" "$playtest_runner_json" release_review_input
 }
 
@@ -2487,8 +2490,14 @@ add_classic_playtest_handoff_packet_fixtures() {
       },
       android_s5_real_device_claimed: false,
       public_launch_ready_claimed: false,
+      public_launch_ready: false,
       source_of_truth: "Classic playtest handoff readiness is the local human-playtest handoff layer for trnm-world-bevy. It requires the full Bevy classic playtest readiness chain, a live release runner, a campaign launcher that resumes into the Bevy-owned open-world RTS handoff, and observability evidence. It does not claim S5 real-device evidence, public launch readiness, or OpenRA natural replay/headless parity."
-    }' >"$playtest_handoff_readiness_json"
+    }
+    | .source_contract_count = (.source_contracts | keys | length)
+    | .evidence_path_count = (.evidence_paths | keys | length)
+    | .gate_count = (.gates | keys | length)
+    | .passed_gate_count = ([.gates[] | select(. == true)] | length)
+    | .failed_gate_count = ([.gates[] | select(. != true)] | length)' >"$playtest_handoff_readiness_json"
   add_artifact_from_path native_bevy_classic_playtest_handoff_readiness "Native/Bevy classic playtest handoff readiness" "$playtest_handoff_readiness_json" release_review_input
 
   local playtest_handoff_packet_json="$TMP_DIR/bevy-classic-playtest-handoff-packet.json"
@@ -2564,9 +2573,19 @@ add_classic_playtest_handoff_packet_fixtures() {
         android_s5_real_device_claimed: false,
         openra_natural_replay_or_headless_parity_claimed: false
       },
+      public_launch_ready: false,
+      public_launch_ready_claimed: false,
+      android_s5_real_device_claimed: false,
+      openra_natural_replay_or_headless_parity_claimed: false,
       markdown_path: "acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-handoff-packet.md",
       source_of_truth: "Classic playtest handoff packet binds the local Bevy human-playtest handoff to checksummed evidence artifacts and replayable commands. It is a local host-side playtest packet only, not public launch, S5 real-device, or OpenRA natural replay/headless parity credit."
-    }' >"$playtest_handoff_packet_json"
+    }
+    | .source_contract_count = (.source_contracts | keys | length)
+    | .artifact_count = (.artifact_manifest | length)
+    | .artifact_bytes_total = ([.artifact_manifest[].bytes] | add)
+    | .gate_count = (.gates | keys | length)
+    | .passed_gate_count = ([.gates[] | select(. == true)] | length)
+    | .failed_gate_count = ([.gates[] | select(. != true)] | length)' >"$playtest_handoff_packet_json"
   add_artifact_from_path native_bevy_classic_playtest_handoff_packet "Native/Bevy classic playtest handoff packet" "$playtest_handoff_packet_json" release_review_input
 
   local playtest_handoff_packet_md="$TMP_DIR/bevy-classic-playtest-handoff-packet.md"
@@ -2574,6 +2593,8 @@ add_classic_playtest_handoff_packet_fixtures() {
     printf '# Bevy Classic Playtest Handoff Packet\n\n'
     printf -- '- Status: `true`\n'
     printf -- '- Contract: `trillionnium_world_bevy_classic_playtest_handoff_packet_v1`\n'
+    printf -- '- Gate count: `15` / `15` passed\n'
+    printf -- '- Artifact count: `5`, bytes `22528`\n'
     printf -- '- Runner: `trillionnium-bevy-playtest.service` PID `160672`\n'
     printf -- '- Resume: `league-coliseum` / `arena_outdoor` / `resumed:league-coliseum`\n'
     printf -- '- Campaign slot bytes: `71913`\n'
