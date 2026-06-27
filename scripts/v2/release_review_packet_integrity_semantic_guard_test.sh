@@ -1405,6 +1405,21 @@ jq -n '{
   openra_asset_copied: false,
   third_party_asset_copied: false
 }' >"$in_match_hud_state_replication_json"
+in_match_hud_state_replication_json_tmp="$in_match_hud_state_replication_json.tmp"
+jq '
+  .source_contract_count = (.source_contracts | keys | length)
+  | .selected_unit_count = (.selected_unit_ids | length)
+  | .active_control_group_count = (.active_control_group_ids | length)
+  | .command_queue_count = (.command_queue | length)
+  | .production_queue_count = (.production_queue | length)
+  | .build_queue_count = (.build_queue | length)
+  | .resource_spend_log_count = (.resource_spend_log | length)
+  | .ability_command_count = (.ability_command_ids | length)
+  | .combat_event_log_count = (.combat_event_log | length)
+  | .visible_tile_count = (.visible_tile_ids | length)
+  | .fogged_tile_count = (.fogged_tile_ids | length)
+' "$in_match_hud_state_replication_json" >"$in_match_hud_state_replication_json_tmp"
+mv "$in_match_hud_state_replication_json_tmp" "$in_match_hud_state_replication_json"
 add_artifact_from_path native_bevy_classic_rts_in_match_hud_state_replication "Native/Bevy classic RTS in-match HUD/state replication" "$in_match_hud_state_replication_json" release_review_input
 
 
