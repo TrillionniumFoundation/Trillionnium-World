@@ -921,6 +921,37 @@ jq -n '{
   openra_asset_copied: false,
   third_party_asset_copied: false
 }' >"$keyboard_replay_json"
+keyboard_replay_counts_json="$TMP_DIR/bevy-build-branch-title-route-all-branch-keyboard-replay-counted.json"
+jq '
+  def branch_objective_status($branch):
+    $branch.replay_final_runtime.objective_status
+    // ("build_mastery_challenge_completed:" + $branch.stat_id + ":" + $branch.replay_final_runtime.route_director_task_id);
+  def branch_summary($branch):
+    {
+      recorded_sequence_count: $branch.recorded_sequence_count,
+      replay_event_count: $branch.replay_event_count,
+      final_runtime_match: $branch.final_runtime_match,
+      final_objective_status: branch_objective_status($branch),
+      combat_result_state: $branch.replay_final_runtime.combat_result_state,
+      current_room_id: $branch.replay_final_runtime.current_room_id,
+      reward_item_id: $branch.reward_item_id
+    };
+  .ready_for_release_review = true
+  | .proof_scope = "host_side_bevy_runtime_replay_not_android_real_device"
+  | .green_replay_result_count = ([.replay_results[] | select(.green == true)] | length)
+  | .recorded_branch_green_count = ([.replay_results[] | select(.recorded_branch_green == true)] | length)
+  | .recorded_sequence_total_count = ([.replay_results[].recorded_sequence_count] | add)
+  | .replay_event_total_count = ([.replay_results[].replay_event_count] | add)
+  | .final_runtime_match_count = ([.replay_results[] | select(.final_runtime_match == true)] | length)
+  | .combat_victory_branch_count = ([.replay_results[] | select(.replay_final_runtime.combat_result_state == "victory")] | length)
+  | .reward_item_count = ([.replay_results[].reward_item_id] | length)
+  | .branches = {
+      force: branch_summary(.replay_results.force),
+      agility: branch_summary(.replay_results.agility),
+      craft: branch_summary(.replay_results.craft)
+    }
+' "$keyboard_replay_json" >"$keyboard_replay_counts_json"
+mv "$keyboard_replay_counts_json" "$keyboard_replay_json"
 add_artifact_from_path native_bevy_keyboard_replay "Native/Bevy keyboard replay" "$keyboard_replay_json" release_review_input
 
 classic_animation_preview_json="$TMP_DIR/bevy-classic-animation-preview.json"
