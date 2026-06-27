@@ -420,16 +420,54 @@ pub fn trillionnium_world_map_modeling_gate_json() -> Value {
     let terrain_gate = terrain_count >= 4;
     let source_gate = true;
     let green = building_gate && road_gate && greenery_gate && terrain_gate && source_gate;
+    let required_next_evidence = [
+        "approved_production_map_source",
+        "signed_production_map_pack_manifest",
+        "building_footprint_derivation_report",
+        "road_graph_derivation_report",
+        "greenery_landuse_derivation_report",
+        "terrain_mesh_derivation_report",
+        "visible_attribution_screenshots",
+        "sensitive_poi_and_geofence_review",
+        "operator_signoff",
+    ];
+    let required_next_evidence_count = required_next_evidence.len();
+    let gate_count = 6;
+    let passed_gate_count = [
+        building_gate,
+        road_gate,
+        greenery_gate,
+        terrain_gate,
+        source_gate,
+        green,
+    ]
+    .into_iter()
+    .filter(|gate| *gate)
+    .count();
 
     json!({
         "contract_version": TRILLIONNIUM_WORLD_MAP_MODELING_GATE_CONTRACT_VERSION,
         "status": if green { "fixture_map_modeling_gate_green_with_public_data_blockers" } else { "fixture_map_modeling_gate_blocked" },
         "source_of_truth": "trnm_world_map_provider_fixture_modeling",
+        "green": green,
         "provider_mode": "fixture",
         "fixture_only": true,
+        "public_map_pack_ready": false,
+        "public_launch_ready": false,
+        "public_launch_credit": false,
+        "live_ingestion_performed": false,
         "live_ingestion_enabled": false,
         "runtime_clients_fetch_public_osm_directly": false,
         "public_network_ready": false,
+        "building_model_count": building_count,
+        "road_model_count": road_count,
+        "greenery_model_count": greenery_count,
+        "terrain_model_count": terrain_count,
+        "modeling_layer_count": 4,
+        "required_next_evidence_count": required_next_evidence_count,
+        "gate_count": gate_count,
+        "passed_gate_count": passed_gate_count,
+        "failed_gate_count": gate_count - passed_gate_count,
         "public_network_blocking_reason": "building/road/greenery/terrain modeling is proven on deterministic fixture map_pack only; production credit still requires approved real map-pack source, cache policy, attribution screenshots, sensitive POI/geofence review, and operator signoff",
         "modeling_layers": {
             "buildings": building_models,
@@ -459,17 +497,7 @@ pub fn trillionnium_world_map_modeling_gate_json() -> Value {
             "renderer_authority": "native_bevy_visualization_only_world_state_remains_rust_authoritative",
             "production_data_rule": "real map modeling credit must consume signed production map_pack artifacts, not direct runtime Overpass or Geofabrik calls",
         },
-        "required_next_evidence": [
-            "approved_production_map_source",
-            "signed_production_map_pack_manifest",
-            "building_footprint_derivation_report",
-            "road_graph_derivation_report",
-            "greenery_landuse_derivation_report",
-            "terrain_mesh_derivation_report",
-            "visible_attribution_screenshots",
-            "sensitive_poi_and_geofence_review",
-            "operator_signoff"
-        ]
+        "required_next_evidence": required_next_evidence,
     })
 }
 
@@ -1007,9 +1035,35 @@ mod tests {
             modeling["status"],
             "fixture_map_modeling_gate_green_with_public_data_blockers"
         );
+        assert_eq!(modeling["green"], true);
         assert_eq!(modeling["fixture_only"], true);
+        assert_eq!(modeling["public_map_pack_ready"], false);
+        assert_eq!(modeling["public_launch_ready"], false);
+        assert_eq!(modeling["public_launch_credit"], false);
+        assert_eq!(modeling["live_ingestion_performed"], false);
         assert_eq!(modeling["live_ingestion_enabled"], false);
         assert_eq!(modeling["runtime_clients_fetch_public_osm_directly"], false);
+        assert_eq!(
+            modeling["building_model_count"],
+            modeling["layer_counts"]["buildings"]
+        );
+        assert_eq!(
+            modeling["road_model_count"],
+            modeling["layer_counts"]["roads"]
+        );
+        assert_eq!(
+            modeling["greenery_model_count"],
+            modeling["layer_counts"]["greenery"]
+        );
+        assert_eq!(
+            modeling["terrain_model_count"],
+            modeling["layer_counts"]["terrain"]
+        );
+        assert_eq!(modeling["modeling_layer_count"], 4);
+        assert_eq!(modeling["required_next_evidence_count"], 9);
+        assert_eq!(modeling["gate_count"], 6);
+        assert_eq!(modeling["passed_gate_count"], 6);
+        assert_eq!(modeling["failed_gate_count"], 0);
         assert_eq!(modeling["gates"]["building_modeling_gate"], true);
         assert_eq!(modeling["gates"]["road_modeling_gate"], true);
         assert_eq!(modeling["gates"]["greenery_modeling_gate"], true);

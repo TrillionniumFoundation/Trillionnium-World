@@ -15,10 +15,24 @@ mkdir -p "$ACCEPTANCE_DIR"
 jq -e '
   .contract_version == "trillionnium_world_map_modeling_gate_v1"
   and .status == "fixture_map_modeling_gate_green_with_public_data_blockers"
+  and .green == true
   and .fixture_only == true
+  and .public_map_pack_ready == false
+  and .public_launch_ready == false
+  and .public_launch_credit == false
+  and .live_ingestion_performed == false
   and .live_ingestion_enabled == false
   and .runtime_clients_fetch_public_osm_directly == false
   and .public_network_ready == false
+  and .building_model_count == .layer_counts.buildings
+  and .road_model_count == .layer_counts.roads
+  and .greenery_model_count == .layer_counts.greenery
+  and .terrain_model_count == .layer_counts.terrain
+  and .modeling_layer_count == (.modeling_layers | keys | length)
+  and .required_next_evidence_count == (.required_next_evidence | length)
+  and .gate_count == (.gates | keys | length)
+  and .passed_gate_count == ([.gates[] | select(. == true)] | length)
+  and .failed_gate_count == ([.gates[] | select(. != true)] | length)
   and .layer_counts.buildings >= 20
   and .layer_counts.roads >= 20
   and .layer_counts.greenery >= 5
