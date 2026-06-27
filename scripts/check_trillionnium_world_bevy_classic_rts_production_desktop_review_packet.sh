@@ -131,11 +131,39 @@ jq -n \
     and $mouse_gate
     and $artifact_gate
   ) as $green |
+  ([
+    $production_gate,
+    $desktop_gate,
+    $real_gate,
+    $keyboard_gate,
+    $mouse_gate,
+    $artifact_gate,
+    ($production_gate and $desktop_gate and $real_gate),
+    true,
+    true,
+    true
+  ]) as $gate_values |
   {
     contract_version: "trillionnium_world_bevy_classic_rts_production_desktop_review_packet_v1",
     generated_at: (now | todate),
     green: $green,
     status: (if $green then "classic_rts_production_desktop_review_packet_green" else "classic_rts_production_desktop_review_packet_blocked" end),
+    source_contract_count: 5,
+    artifact_count: ($artifacts | length),
+    artifact_bytes_total: ([$artifacts[].bytes] | add),
+    gate_count: ($gate_values | length),
+    passed_gate_count: ($gate_values | map(select(. == true)) | length),
+    failed_gate_count: ($gate_values | map(select(. != true)) | length),
+    production_interaction_surface_count: $production.interaction_surface_count,
+    desktop_screenshot_frame_count: $desktop.desktop_review_summary.screenshot_frame_count,
+    desktop_keyboard_event_count: $desktop.desktop_review_summary.keyboard_event_count,
+    desktop_mouse_event_count: $desktop.desktop_review_summary.mouse_event_count,
+    desktop_mouse_slot_a_bytes: $desktop.desktop_review_summary.mouse_slot_a_bytes,
+    android_s5_real_device_claimed: false,
+    public_launch_ready_claimed: false,
+    live_public_network_exposure_performed: false,
+    live_osm_ingestion_performed: false,
+    production_ready_desktop_review_shipped: false,
     source_contracts: {
       production_interaction_polish: $production.contract_version,
       desktop_playtest_review_packet: $desktop.contract_version,
@@ -241,6 +269,23 @@ jq -e '
   .contract_version == "trillionnium_world_bevy_classic_rts_production_desktop_review_packet_v1"
   and .green == true
   and .status == "classic_rts_production_desktop_review_packet_green"
+  and .source_contract_count == (.source_contracts | length)
+  and .artifact_count == (.artifact_manifest | length)
+  and .artifact_bytes_total == ([.artifact_manifest[].bytes] | add)
+  and .gate_count == (.gates | length)
+  and .passed_gate_count == ([.gates[]] | map(select(. == true)) | length)
+  and .failed_gate_count == ([.gates[]] | map(select(. != true)) | length)
+  and .failed_gate_count == 0
+  and .production_interaction_surface_count == .production_review_summary.interaction_surface_count
+  and .desktop_screenshot_frame_count == .desktop_review_summary.screenshot_frame_count
+  and .desktop_keyboard_event_count == .desktop_review_summary.keyboard_event_count
+  and .desktop_mouse_event_count == .desktop_review_summary.mouse_event_count
+  and .desktop_mouse_slot_a_bytes == .desktop_review_summary.mouse_slot_a_bytes
+  and .android_s5_real_device_claimed == false
+  and .public_launch_ready_claimed == false
+  and .live_public_network_exposure_performed == false
+  and .live_osm_ingestion_performed == false
+  and .production_ready_desktop_review_shipped == false
   and .source_contracts.production_interaction_polish == "trillionnium_world_bevy_classic_rts_production_interaction_polish_v1"
   and .source_contracts.desktop_playtest_review_packet == "trillionnium_world_bevy_desktop_playtest_review_packet_v1"
   and .source_contracts.desktop_real_machine_readiness == "trillionnium_world_bevy_desktop_real_machine_readiness_v1"
@@ -294,6 +339,12 @@ jq -e '
   printf -- '- status: `%s`\n' "$(jq -r '.status' "$SUMMARY")"
   printf -- '- green: `%s`\n' "$(jq -r '.green' "$SUMMARY")"
   printf -- '- production_surfaces: `%s`\n' "$(jq -r '.production_review_summary.interaction_surface_count' "$SUMMARY")"
+  printf -- '- source_contract_count: `%s`\n' "$(jq -r '.source_contract_count' "$SUMMARY")"
+  printf -- '- artifact_count: `%s`\n' "$(jq -r '.artifact_count' "$SUMMARY")"
+  printf -- '- artifact_bytes_total: `%s`\n' "$(jq -r '.artifact_bytes_total' "$SUMMARY")"
+  printf -- '- gate_count: `%s`\n' "$(jq -r '.gate_count' "$SUMMARY")"
+  printf -- '- passed_gate_count: `%s`\n' "$(jq -r '.passed_gate_count' "$SUMMARY")"
+  printf -- '- failed_gate_count: `%s`\n' "$(jq -r '.failed_gate_count' "$SUMMARY")"
   printf -- '- desktop_runner: `%s` PID `%s`\n' \
     "$(jq -r '.desktop_review_summary.release_runner_service' "$SUMMARY")" \
     "$(jq -r '.desktop_review_summary.release_runner_pid' "$SUMMARY")"

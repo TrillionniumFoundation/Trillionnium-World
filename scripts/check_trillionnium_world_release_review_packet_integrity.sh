@@ -1710,7 +1710,65 @@ require_artifact_json_expr_when_packet_count_at_least openra_engine_port_asset_p
   and .public_launch_ready == false
 ' "OpenRA engine port asset parity packet artifact binds scoped Rust engine-port foundation modules, OpenRA widget/chrome source chain, full owned asset manifest, zero-pixel/sha asset parity, and no OpenRA/Westwood/code-copy/public/S5 credit"
 require_artifact_ppm_header_when_packet_count_at_least openra_engine_port_asset_parity_ppm_semantics native_bevy_classic_rts_openra_engine_port_asset_parity_ppm 126 8000000 1920 1080
-require_artifact_json_expr production_desktop_review_packet_semantics native_bevy_classic_rts_production_desktop_review_packet '.contract_version == "trillionnium_world_bevy_classic_rts_production_desktop_review_packet_v1" and .status == "classic_rts_production_desktop_review_packet_green" and .green == true and .source_contracts.production_interaction_polish == "trillionnium_world_bevy_classic_rts_production_interaction_polish_v1" and .source_contracts.desktop_playtest_review_packet == "trillionnium_world_bevy_desktop_playtest_review_packet_v1" and .source_contracts.desktop_real_machine_readiness == "trillionnium_world_bevy_desktop_real_machine_readiness_v1" and .gates.production_interaction_polish_gate == true and .gates.desktop_playtest_review_packet_gate == true and .gates.desktop_real_machine_readiness_gate == true and .gates.keyboard_visual_review_gate == true and .gates.mouse_visual_review_gate == true and .gates.artifact_manifest_gate == true and .gates.production_to_desktop_review_gate == true and .gates.desktop_before_mobile_gate == true and .gates.android_s5_real_device_not_claimed_gate == true and .gates.public_launch_not_claimed_gate == true and .production_review_summary.interaction_surface_count == 6 and .production_review_summary.runtime_screen_mode == "player_runtime_command_interaction_screen" and .production_review_summary.runtime_screen_gate == true and .production_review_summary.evidence_board_only == false and .production_review_summary.runtime_screen_layout.drag_select == "visible marquee skin and selection feedback strip" and .production_review_summary.runtime_screen_layout.queue_path == "queued waypoint path, rally chain, reservation, and cancel/repath strip" and .production_review_summary.ui_skin_runtime_screen_mode == "player_runtime_production_hud_skin_screen" and .production_review_summary.ui_skin_runtime_screen_gate == true and .production_review_summary.ui_skin_evidence_board_only == false and .production_review_summary.drag_select_skin_pixel_count >= 9000 and .production_review_summary.right_click_move_skin_pixel_count >= 9000 and .production_review_summary.attack_lock_skin_pixel_count >= 9000 and .production_review_summary.build_ghost_skin_pixel_count >= 9000 and .production_review_summary.queue_path_skin_pixel_count >= 9000 and .production_review_summary.scroll_minimap_skin_pixel_count >= 9000 and .desktop_review_summary.screenshot_frame_count >= 10 and .desktop_review_summary.keyboard_event_count >= 10 and .desktop_review_summary.mouse_event_count >= 10 and .desktop_review_summary.mouse_slot_a_bytes > 512 and (((.artifact_manifest // []) | length) >= 6) and .no_credit_boundaries.android_s5_real_device_claimed == false and .no_credit_boundaries.public_launch_ready_claimed == false and .no_credit_boundaries.production_ready_desktop_review_shipped == false and .no_credit_boundaries.desktop_review_scope == "local_linux_desktop_x11_window_keyboard_mouse_with_production_interaction_polish"' "production desktop review packet binds production interaction polish to local Linux keyboard/mouse desktop evidence without S5/public-launch credit"
+require_artifact_json_expr production_desktop_review_packet_semantics native_bevy_classic_rts_production_desktop_review_packet '
+  .contract_version == "trillionnium_world_bevy_classic_rts_production_desktop_review_packet_v1"
+  and .status == "classic_rts_production_desktop_review_packet_green"
+  and .green == true
+  and .source_contract_count == (.source_contracts | length)
+  and .artifact_count == ((.artifact_manifest // []) | length)
+  and .artifact_bytes_total == ([.artifact_manifest[]?.bytes] | add)
+  and .gate_count == (.gates | length)
+  and .passed_gate_count == ([.gates[]] | map(select(. == true)) | length)
+  and .failed_gate_count == ([.gates[]] | map(select(. != true)) | length)
+  and .failed_gate_count == 0
+  and .production_interaction_surface_count == .production_review_summary.interaction_surface_count
+  and .desktop_screenshot_frame_count == .desktop_review_summary.screenshot_frame_count
+  and .desktop_keyboard_event_count == .desktop_review_summary.keyboard_event_count
+  and .desktop_mouse_event_count == .desktop_review_summary.mouse_event_count
+  and .desktop_mouse_slot_a_bytes == .desktop_review_summary.mouse_slot_a_bytes
+  and .android_s5_real_device_claimed == false
+  and .public_launch_ready_claimed == false
+  and .live_public_network_exposure_performed == false
+  and .live_osm_ingestion_performed == false
+  and .production_ready_desktop_review_shipped == false
+  and .source_contracts.production_interaction_polish == "trillionnium_world_bevy_classic_rts_production_interaction_polish_v1"
+  and .source_contracts.desktop_playtest_review_packet == "trillionnium_world_bevy_desktop_playtest_review_packet_v1"
+  and .source_contracts.desktop_real_machine_readiness == "trillionnium_world_bevy_desktop_real_machine_readiness_v1"
+  and .gates.production_interaction_polish_gate == true
+  and .gates.desktop_playtest_review_packet_gate == true
+  and .gates.desktop_real_machine_readiness_gate == true
+  and .gates.keyboard_visual_review_gate == true
+  and .gates.mouse_visual_review_gate == true
+  and .gates.artifact_manifest_gate == true
+  and .gates.production_to_desktop_review_gate == true
+  and .gates.desktop_before_mobile_gate == true
+  and .gates.android_s5_real_device_not_claimed_gate == true
+  and .gates.public_launch_not_claimed_gate == true
+  and .production_review_summary.interaction_surface_count == 6
+  and .production_review_summary.runtime_screen_mode == "player_runtime_command_interaction_screen"
+  and .production_review_summary.runtime_screen_gate == true
+  and .production_review_summary.evidence_board_only == false
+  and .production_review_summary.runtime_screen_layout.drag_select == "visible marquee skin and selection feedback strip"
+  and .production_review_summary.runtime_screen_layout.queue_path == "queued waypoint path, rally chain, reservation, and cancel/repath strip"
+  and .production_review_summary.ui_skin_runtime_screen_mode == "player_runtime_production_hud_skin_screen"
+  and .production_review_summary.ui_skin_runtime_screen_gate == true
+  and .production_review_summary.ui_skin_evidence_board_only == false
+  and .production_review_summary.drag_select_skin_pixel_count >= 9000
+  and .production_review_summary.right_click_move_skin_pixel_count >= 9000
+  and .production_review_summary.attack_lock_skin_pixel_count >= 9000
+  and .production_review_summary.build_ghost_skin_pixel_count >= 9000
+  and .production_review_summary.queue_path_skin_pixel_count >= 9000
+  and .production_review_summary.scroll_minimap_skin_pixel_count >= 9000
+  and .desktop_review_summary.screenshot_frame_count >= 10
+  and .desktop_review_summary.keyboard_event_count >= 10
+  and .desktop_review_summary.mouse_event_count >= 10
+  and .desktop_review_summary.mouse_slot_a_bytes > 512
+  and (((.artifact_manifest // []) | length) >= 6)
+  and .no_credit_boundaries.android_s5_real_device_claimed == false
+  and .no_credit_boundaries.public_launch_ready_claimed == false
+  and .no_credit_boundaries.production_ready_desktop_review_shipped == false
+  and .no_credit_boundaries.desktop_review_scope == "local_linux_desktop_x11_window_keyboard_mouse_with_production_interaction_polish"
+' "production desktop review packet binds production interaction polish to local Linux keyboard/mouse desktop evidence without S5/public-launch credit"
 require_artifact_json_expr packet_integrity_semantic_fixture release_review_packet_integrity_semantic_fixture '.contract_version == "trillionnium_world_release_review_packet_integrity_semantic_fixture_v1" and .status == "release_review_packet_integrity_semantic_fixture_green" and .green == true and .fake_packet_artifact_count == 121 and .expected_semantic_failure_count == 22 and .expected_semantic_failure_names == ["release_review_checkpoint_manifest_semantics", "release_review_convergence_semantics", "release_review_status_semantics", "release_review_status_markdown_semantics", "release_review_quickcheck_semantics", "release_signoff_summary_semantics", "cex_adapter_readiness_semantics", "first_minute_command_feedback_replay_semantics", "first_minute_command_feedback_source_recording_semantics", "first_minute_command_feedback_recording_semantics", "first_minute_command_feedback_replay_ppm_semantics", "first_minute_command_feedback_rejection_replay_semantics", "first_minute_command_feedback_rejection_source_recording_semantics", "first_minute_command_feedback_rejection_recording_semantics", "first_minute_command_feedback_rejection_replay_ppm_semantics", "classic_playtest_readiness_full_game_visual_ui_replication_semantics", "classic_playtest_readiness_openra_style_screen_set_review_semantics", "classic_playtest_readiness_semantics",
     "campaign_outcome_ui_readiness_semantics", "classic_playtest_handoff_readiness_semantics", "classic_playtest_handoff_packet_semantics", "classic_playtest_handoff_packet_markdown_semantics"] and .checksum_mismatch_failure_count == 0 and .bytes_mismatch_failure_count == 0 and .contract_mismatch_failure_count == 0 and .status_mismatch_failure_count == 0 and .ready_for_release_review == true and .public_launch_ready == false and .android_s5_real_device_claimed == false' "packet integrity semantic fixture proves bad release review convergence, status JSON/Markdown, quickcheck, release signoff, CEX adapter readiness, command feedback, classic playtest aggregate, and handoff First Contact semantics fail even when checksums, bytes, contracts, and statuses match"
 require_artifact_json_expr packet_integrity_bot_executor_semantic_fixture release_review_packet_integrity_bot_executor_semantic_fixture '.contract_version == "trillionnium_world_release_review_packet_integrity_bot_executor_semantic_fixture_v1" and .status == "release_review_packet_integrity_bot_executor_semantic_fixture_green" and .green == true and .fake_packet_artifact_count == 121 and .expected_semantic_failure_count == 9 and .expected_semantic_failure_names == ["bot_planner_action_executor_semantics", "bot_planner_action_executor_log_semantics", "bot_planner_action_executor_ppm_semantics", "bot_planner_executor_replay_determinism_semantics", "bot_planner_executor_replay_determinism_log_semantics", "bot_planner_executor_replay_determinism_ppm_semantics", "multi_match_bot_executor_evaluation_semantics", "multi_match_bot_executor_evaluation_log_semantics", "multi_match_bot_executor_evaluation_ppm_semantics"] and .checksum_mismatch_failure_count == 0 and .bytes_mismatch_failure_count == 0 and .contract_mismatch_failure_count == 0 and .status_mismatch_failure_count == 0 and .ready_for_release_review == true and .public_launch_ready == false and .android_s5_real_device_claimed == false' "packet integrity bot executor semantic fixture proves bad bot executor source-chain semantics fail even when checksums, bytes, contracts, and statuses match"
