@@ -13,6 +13,24 @@ mkdir -p "$(dirname "$SUMMARY")"
 
 jq '
   .status = "player_ui_rescue_green"
+  | .player_layer_field_count = (.player_layer | keys | length)
+  | .action_row_count = (.action_row_policy.active_action_row_ids | length)
+  | .art_direction_surface_count = .art_direction_policy.surface_count
+  | .scene_readability_surface_count = .scene_readability_policy.surface_count
+  | .sprite_asset_surface_count = .sprite_asset_policy.surface_count
+  | .map_model_visual_surface_count = .map_model_visual_policy.surface_count
+  | .map_model_visual_building_count = .map_model_visual_policy.building_count
+  | .map_model_visual_road_count = .map_model_visual_policy.road_count
+  | .map_model_visual_greenery_count = .map_model_visual_policy.greenery_count
+  | .map_model_visual_terrain_count = .map_model_visual_policy.terrain_count
+  | .map_occlusion_surface_count = .map_occlusion_policy.surface_count
+  | .ui_polish_surface_count = .ui_polish_policy.surface_count
+  | .tileset_polish_surface_count = .tileset_polish_policy.surface_count
+  | .authored_art_pack_surface_count = .authored_art_pack_policy.surface_count
+  | .final_runtime_key_count = (.final_runtime | keys | length)
+  | .final_runtime_completed_step_count = (.final_runtime.completed_steps | length)
+  | .final_runtime_input_feedback_history_count = (.final_runtime.input_feedback_history | length)
+  | .final_runtime_contextual_action_label_count = (.final_runtime.contextual_action_labels | length)
   | .external_evidence_ignored_for_current_player_ui_rescue_pass = true
   | .public_launch_ready = false
   | .production_ready_ui_claimed = false
@@ -49,6 +67,24 @@ jq -e '
   and .tileset_polish_gate == true
   and .authored_art_pack_gate == true
   and .runtime_gate == true
+  and .player_layer_field_count == (.player_layer | keys | length)
+  and .action_row_count == (.action_row_policy.active_action_row_ids | length)
+  and .art_direction_surface_count == .art_direction_policy.surface_count
+  and .scene_readability_surface_count == .scene_readability_policy.surface_count
+  and .sprite_asset_surface_count == .sprite_asset_policy.surface_count
+  and .map_model_visual_surface_count == .map_model_visual_policy.surface_count
+  and .map_model_visual_building_count == .map_model_visual_policy.building_count
+  and .map_model_visual_road_count == .map_model_visual_policy.road_count
+  and .map_model_visual_greenery_count == .map_model_visual_policy.greenery_count
+  and .map_model_visual_terrain_count == .map_model_visual_policy.terrain_count
+  and .map_occlusion_surface_count == .map_occlusion_policy.surface_count
+  and .ui_polish_surface_count == .ui_polish_policy.surface_count
+  and .tileset_polish_surface_count == .tileset_polish_policy.surface_count
+  and .authored_art_pack_surface_count == .authored_art_pack_policy.surface_count
+  and .final_runtime_key_count == (.final_runtime | keys | length)
+  and .final_runtime_completed_step_count == (.final_runtime.completed_steps | length)
+  and .final_runtime_input_feedback_history_count == (.final_runtime.input_feedback_history | length)
+  and .final_runtime_contextual_action_label_count == (.final_runtime.contextual_action_labels | length)
   and (.player_layer.character_status_text | contains("PLAYER HUD"))
   and (.player_layer.character_status_text | contains("Goal"))
   and (.player_layer.room_panel_text | contains("PLAYER ROUTE |"))

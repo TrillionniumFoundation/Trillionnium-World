@@ -14,6 +14,13 @@ mkdir -p "$(dirname "$SUMMARY")"
 
 jq '
   .status = "player_hud_debug_layer_green"
+  | .player_layer_panel_count = (.player_layer.panel_ids | length)
+  | .debug_layer_panel_count = (.debug_layer.panel_ids | length)
+  | .final_runtime_key_count = (.final_runtime | keys | length)
+  | .final_runtime_completed_step_count = (.final_runtime.completed_steps | length)
+  | .final_runtime_input_feedback_history_count = (.final_runtime.input_feedback_history | length)
+  | .final_runtime_visited_room_count = (.final_runtime.visited_rooms | length)
+  | .final_runtime_contextual_action_label_count = (.final_runtime.contextual_action_labels | length)
   | .external_evidence_ignored_for_current_player_hud_pass = true
   | .public_launch_ready = false
   | .production_ready_ui_claimed = false
@@ -36,6 +43,13 @@ jq -e '
   and .input_hint_gate == true
   and .panel_layer_gate == true
   and .runtime_gate == true
+  and .player_layer_panel_count == (.player_layer.panel_ids | length)
+  and .debug_layer_panel_count == (.debug_layer.panel_ids | length)
+  and .final_runtime_key_count == (.final_runtime | keys | length)
+  and .final_runtime_completed_step_count == (.final_runtime.completed_steps | length)
+  and .final_runtime_input_feedback_history_count == (.final_runtime.input_feedback_history | length)
+  and .final_runtime_visited_room_count == (.final_runtime.visited_rooms | length)
+  and .final_runtime_contextual_action_label_count == (.final_runtime.contextual_action_labels | length)
   and (.player_layer.character_status_text | contains("PLAYER HUD"))
   and (.player_layer.character_status_text | contains("DEBUG LAYER") | not)
   and (.player_layer.character_status_text | contains("INPUT SUMMARY") | not)

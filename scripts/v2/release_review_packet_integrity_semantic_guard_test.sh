@@ -1943,6 +1943,17 @@ jq -n '{
   openra_asset_copied: false,
   third_party_asset_copied: false
 }' >"$player_hud_debug_layer_json"
+player_hud_debug_layer_counts_json="$player_hud_debug_layer_json.counts"
+jq '
+  .player_layer_panel_count = (.player_layer.panel_ids | length)
+  | .debug_layer_panel_count = (.debug_layer.panel_ids | length)
+  | .final_runtime_key_count = (.final_runtime | keys | length)
+  | .final_runtime_completed_step_count = (.final_runtime.completed_steps | length)
+  | .final_runtime_input_feedback_history_count = (.final_runtime.input_feedback_history | length)
+  | .final_runtime_visited_room_count = (.final_runtime.visited_rooms | length)
+  | .final_runtime_contextual_action_label_count = (.final_runtime.contextual_action_labels | length)
+' "$player_hud_debug_layer_json" >"$player_hud_debug_layer_counts_json"
+mv "$player_hud_debug_layer_counts_json" "$player_hud_debug_layer_json"
 add_artifact_from_path native_bevy_player_hud_debug_layer "Native/Bevy player HUD/debug layer" "$player_hud_debug_layer_json" release_review_input
 
 
@@ -2090,6 +2101,28 @@ jq -n '{
   openra_asset_copied: false,
   third_party_asset_copied: false
 }' >"$player_ui_rescue_json"
+player_ui_rescue_counts_json="$player_ui_rescue_json.counts"
+jq '
+  .player_layer_field_count = (.player_layer | keys | length)
+  | .action_row_count = (.action_row_policy.active_action_row_ids | length)
+  | .art_direction_surface_count = .art_direction_policy.surface_count
+  | .scene_readability_surface_count = .scene_readability_policy.surface_count
+  | .sprite_asset_surface_count = .sprite_asset_policy.surface_count
+  | .map_model_visual_surface_count = .map_model_visual_policy.surface_count
+  | .map_model_visual_building_count = .map_model_visual_policy.building_count
+  | .map_model_visual_road_count = .map_model_visual_policy.road_count
+  | .map_model_visual_greenery_count = .map_model_visual_policy.greenery_count
+  | .map_model_visual_terrain_count = .map_model_visual_policy.terrain_count
+  | .map_occlusion_surface_count = .map_occlusion_policy.surface_count
+  | .ui_polish_surface_count = .ui_polish_policy.surface_count
+  | .tileset_polish_surface_count = .tileset_polish_policy.surface_count
+  | .authored_art_pack_surface_count = .authored_art_pack_policy.surface_count
+  | .final_runtime_key_count = (.final_runtime | keys | length)
+  | .final_runtime_completed_step_count = (.final_runtime.completed_steps | length)
+  | .final_runtime_input_feedback_history_count = (.final_runtime.input_feedback_history | length)
+  | .final_runtime_contextual_action_label_count = (.final_runtime.contextual_action_labels | length)
+' "$player_ui_rescue_json" >"$player_ui_rescue_counts_json"
+mv "$player_ui_rescue_counts_json" "$player_ui_rescue_json"
 add_artifact_from_path native_bevy_player_ui_rescue "Native/Bevy player UI rescue" "$player_ui_rescue_json" release_review_input
 
 live_window_screenshot_sequence_json="$TMP_DIR/bevy-live-window-screenshot-sequence.json"
