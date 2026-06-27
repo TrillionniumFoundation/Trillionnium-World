@@ -387,6 +387,8 @@ require_artifact_json_expr_when_packet_count_at_least visible_button_hit_test_ma
   .contract_version == "trillionnium_world_bevy_visible_button_hit_test_map_v1"
   and .live_mouse_sequence_contract == "trillionnium_world_bevy_live_window_mouse_hit_test_sequence_v1"
   and .green == true
+  and .ready_for_release_review == true
+  and .public_launch_ready == false
   and .coordinate_space == "client_window_pixels_from_top_left"
   and .button_event_source == "Bevy UI Button Interaction::Pressed"
   and .window_size == {"width": 960, "height": 540}
@@ -396,6 +398,15 @@ require_artifact_json_expr_when_packet_count_at_least visible_button_hit_test_ma
   and .native_action_parse_gate == true
   and .first_minute_touch_coverage_gate == true
   and .visible_row_gate == true
+  and .target_count == (.targets | length)
+  and .expected_action_label_count == (.expected_action_labels | length)
+  and .actual_action_label_count == (.actual_action_labels | length)
+  and .source_count == ([.targets[].source] | length)
+  and .native_control_button_source_count == ([.targets[].source | select(. == "native_control_button")] | length)
+  and .text_adventure_key_button_source_count == ([.targets[].source | select(. == "text_adventure_key_button")] | length)
+  and .state_specific_visible_button_source_count == ([.targets[].source | select(. == "state_specific_visible_button")] | length)
+  and .row_id_count == ([.targets[].row_id] | length)
+  and .state_specific_reflowed_row_count == ([.targets[].row_id | select(. == "core_route_actions_reflowed")] | length)
   and (.targets | length) == 10
   and .expected_action_labels == ["TITLE:NEW", "CREATE:CONFIRM", "TALK", "TRAIN", "MOVE:north", "FIGHT", "SAVE:SELECTED", "TITLE:OPEN", "TITLE:CONTINUE", "CONTINUE:SESSION"]
   and .actual_action_labels == .expected_action_labels
@@ -413,7 +424,7 @@ require_artifact_json_expr_when_packet_count_at_least visible_button_hit_test_ma
   and ([.targets[] | select(.action_label == "TRAIN")][0] | .client_x == 332 and .client_y == 473 and .row_id == "core_route_actions_reflowed" and .source == "state_specific_visible_button")
   and ([.targets[] | select(.action_label == "FIGHT")][0] | .client_x == 332 and .client_y == 473 and .row_id == "core_route_actions_reflowed" and .source == "state_specific_visible_button")
   and .android_s5_real_device_claimed == false
-' "visible button hit-test map packet artifact binds first-minute button centers, state-specific TRAIN/FIGHT row reflow, source rows, and Android S5 no-claim boundary"
+' "visible button hit-test map packet artifact binds first-minute button centers, state-specific TRAIN/FIGHT row reflow, source rows, top-level coverage counts, public-launch false boundary, and Android S5 no-claim boundary"
 require_artifact_json_expr live_window_mouse_hit_test_sequence_semantics native_bevy_live_window_mouse_hit_test_sequence '
   .contract_version == "trillionnium_world_bevy_live_window_mouse_hit_test_sequence_v1"
   and .hit_test_map_contract == "trillionnium_world_bevy_visible_button_hit_test_map_v1"

@@ -128665,17 +128665,49 @@ pub fn native_visible_button_hit_test_map_evidence_json() -> String {
         && native_action_parse_gate
         && first_minute_touch_coverage_gate
         && visible_row_gate;
+    let target_count = targets.len();
+    let expected_action_label_count = expected_action_labels.len();
+    let actual_action_label_count = actual_action_labels.len();
+    let source_count = source_ids.len();
+    let native_control_button_source_count = source_ids
+        .iter()
+        .filter(|source| source.as_str() == "native_control_button")
+        .count();
+    let text_adventure_key_button_source_count = source_ids
+        .iter()
+        .filter(|source| source.as_str() == "text_adventure_key_button")
+        .count();
+    let state_specific_visible_button_source_count = source_ids
+        .iter()
+        .filter(|source| source.as_str() == "state_specific_visible_button")
+        .count();
+    let row_id_count = row_ids.len();
+    let state_specific_reflowed_row_count = row_ids
+        .iter()
+        .filter(|row| row.as_str() == "core_route_actions_reflowed")
+        .count();
     let evidence = json!({
         "contract_version": TRILLIONNIUM_WORLD_BEVY_VISIBLE_BUTTON_HIT_TEST_MAP_CONTRACT,
         "live_mouse_sequence_contract": TRILLIONNIUM_WORLD_BEVY_LIVE_WINDOW_MOUSE_HIT_TEST_SEQUENCE_CONTRACT,
         "green": green,
+        "ready_for_release_review": green,
+        "public_launch_ready": false,
         "source_of_truth": "native_tile_rpg_shell fixed-pixel Bevy UI layout exposes client-window hit centers for the first-minute mouse/touch path, including state-specific row reflow after TALK and after MOVE:north",
         "window_size": window_size,
         "coordinate_space": "client_window_pixels_from_top_left",
         "button_event_source": "Bevy UI Button Interaction::Pressed",
+        "target_count": target_count,
         "targets": targets,
+        "expected_action_label_count": expected_action_label_count,
         "expected_action_labels": expected_action_labels,
+        "actual_action_label_count": actual_action_label_count,
         "actual_action_labels": actual_action_labels,
+        "source_count": source_count,
+        "native_control_button_source_count": native_control_button_source_count,
+        "text_adventure_key_button_source_count": text_adventure_key_button_source_count,
+        "state_specific_visible_button_source_count": state_specific_visible_button_source_count,
+        "row_id_count": row_id_count,
+        "state_specific_reflowed_row_count": state_specific_reflowed_row_count,
         "window_size_gate": window_size_gate,
         "target_count_gate": target_count_gate,
         "target_sequence_gate": target_sequence_gate,
@@ -163315,11 +163347,45 @@ mod tests {
             value.get("green").and_then(|value| value.as_bool()),
             Some(true)
         );
+        assert_eq!(
+            value
+                .get("ready_for_release_review")
+                .and_then(|value| value.as_bool()),
+            Some(true)
+        );
+        assert_eq!(
+            value
+                .get("public_launch_ready")
+                .and_then(|value| value.as_bool()),
+            Some(false)
+        );
         let targets = value
             .get("targets")
             .and_then(|value| value.as_array())
             .expect("targets array is present");
         assert_eq!(targets.len(), 10);
+        assert_eq!(
+            value.get("target_count").and_then(|value| value.as_u64()),
+            Some(targets.len() as u64)
+        );
+        assert_eq!(
+            value
+                .get("expected_action_label_count")
+                .and_then(|value| value.as_u64()),
+            Some(10)
+        );
+        assert_eq!(
+            value
+                .get("actual_action_label_count")
+                .and_then(|value| value.as_u64()),
+            Some(10)
+        );
+        assert_eq!(
+            value
+                .get("state_specific_reflowed_row_count")
+                .and_then(|value| value.as_u64()),
+            Some(2)
+        );
         let actual_labels = targets
             .iter()
             .map(|target| {

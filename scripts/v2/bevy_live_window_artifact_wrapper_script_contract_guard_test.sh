@@ -77,6 +77,14 @@ if ! grep -Fq 'core_route_actions_reflowed' "$ROOT/scripts/check_trillionnium_wo
   echo "[FAIL] mouse hit-test script lost state-specific row reflow coordinates" >&2
   exit 1
 fi
+if ! grep -Fq '.target_count == (.targets | length)' "$ROOT/scripts/check_trillionnium_world_bevy_live_window_mouse_hit_test_sequence.sh"; then
+  echo "[FAIL] mouse hit-test script no longer verifies visible button target counts" >&2
+  exit 1
+fi
+if ! grep -Fq '.state_specific_reflowed_row_count == ([.targets[].row_id | select(. == "core_route_actions_reflowed")] | length)' "$ROOT/scripts/check_trillionnium_world_bevy_live_window_mouse_hit_test_sequence.sh"; then
+  echo "[FAIL] mouse hit-test script no longer verifies state-specific row counts" >&2
+  exit 1
+fi
 if ! grep -Fq '"mouse_event_count": len(mouse_events)' "$ROOT/scripts/check_trillionnium_world_bevy_live_window_mouse_hit_test_sequence.sh"; then
   echo "[FAIL] mouse hit-test script no longer exposes top-level mouse event counts" >&2
   exit 1

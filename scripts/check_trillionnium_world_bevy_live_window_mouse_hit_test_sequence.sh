@@ -24,6 +24,17 @@ mkdir -p "$FRAME_DIR" "$SLOT_DIR"
 jq -e '
   .contract_version == "trillionnium_world_bevy_visible_button_hit_test_map_v1"
   and .green == true
+  and .ready_for_release_review == true
+  and .public_launch_ready == false
+  and .target_count == (.targets | length)
+  and .expected_action_label_count == (.expected_action_labels | length)
+  and .actual_action_label_count == (.actual_action_labels | length)
+  and .source_count == ([.targets[].source] | length)
+  and .native_control_button_source_count == ([.targets[].source | select(. == "native_control_button")] | length)
+  and .text_adventure_key_button_source_count == ([.targets[].source | select(. == "text_adventure_key_button")] | length)
+  and .state_specific_visible_button_source_count == ([.targets[].source | select(. == "state_specific_visible_button")] | length)
+  and .row_id_count == ([.targets[].row_id] | length)
+  and .state_specific_reflowed_row_count == ([.targets[].row_id | select(. == "core_route_actions_reflowed")] | length)
   and .target_count_gate == true
   and .target_sequence_gate == true
   and .native_action_parse_gate == true
