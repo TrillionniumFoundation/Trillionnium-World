@@ -121071,10 +121071,14 @@ pub fn native_runtime_texture_sprite_texture_sampling_evidence_json(
         && four_layer_texture_sampling_gate
         && global_unique_texture_color_gate
         && boundary_gate;
+    let scene_layer_count = scene_layers.len();
+    let material_slot_count = material_slots.len();
+    let sampled_surface_sample_count = sampled_surfaces.iter().take(12).count();
     let evidence = json!({
         "contract_version": TRILLIONNIUM_WORLD_BEVY_SPRITE_TEXTURE_SAMPLING_CONTRACT,
         "actor_id": actor_id,
         "green": green,
+        "ready_for_release_review": green,
         "runtime_texture_asset_contract": TRILLIONNIUM_WORLD_BEVY_RUNTIME_TEXTURE_ASSET_CONTRACT,
         "runtime_texture_manifest_probe_contract": TRILLIONNIUM_WORLD_BEVY_RUNTIME_TEXTURE_MANIFEST_PROBE_CONTRACT,
         "asset_store_registration_contract": TRILLIONNIUM_WORLD_BEVY_ASSET_STORE_REGISTRATION_CONTRACT,
@@ -121086,10 +121090,13 @@ pub fn native_runtime_texture_sprite_texture_sampling_evidence_json(
         "sprite_binding_lookup": lookup,
         "sampled_surface_count": sampled_surfaces.len(),
         "texture_unique_rgba_color_count": unique_rgba_values.len(),
+        "scene_layer_count": scene_layer_count,
         "scene_layers": scene_layers.iter().cloned().collect::<Vec<_>>(),
+        "material_slot_count": material_slot_count,
         "material_slots": material_slots.iter().cloned().collect::<Vec<_>>(),
         "sampled_layer_counts": sampled_layer_counts,
         "sampled_material_slot_counts": sampled_material_slot_counts,
+        "sampled_surface_sample_count": sampled_surface_sample_count,
         "sampled_surfaces_sample": sampled_surfaces.iter().take(12).cloned().collect::<Vec<_>>(),
         "runtime_summary_gate": runtime_summary_gate,
         "asset_store_registration_gate": asset_store_registration_gate,
@@ -121329,10 +121336,12 @@ pub fn native_runtime_texture_render_asset_eligibility_evidence_json(
         && sprite_render_reference_gate
         && lookup.green
         && boundary_gate;
+    let sprite_render_reference_sample_count = sprite_render_references.iter().take(12).count();
     let evidence = json!({
         "contract_version": TRILLIONNIUM_WORLD_BEVY_RENDER_ASSET_ELIGIBILITY_CONTRACT,
         "actor_id": actor_id,
         "green": green,
+        "ready_for_release_review": green,
         "runtime_texture_asset_contract": TRILLIONNIUM_WORLD_BEVY_RUNTIME_TEXTURE_ASSET_CONTRACT,
         "sprite_texture_sampling_contract": TRILLIONNIUM_WORLD_BEVY_SPRITE_TEXTURE_SAMPLING_CONTRACT,
         "live_window_sampled_texture_correlation_contract": "trillionnium_world_bevy_live_window_sampled_texture_correlation_v1",
@@ -121376,6 +121385,7 @@ pub fn native_runtime_texture_render_asset_eligibility_evidence_json(
             "height": first_texture_rect_height,
         },
         "sprite_render_reference_count": sprite_render_references.len(),
+        "sprite_render_reference_sample_count": sprite_render_reference_sample_count,
         "sprite_render_references_sample": sprite_render_references.iter().take(12).cloned().collect::<Vec<_>>(),
         "runtime_summary_gate": runtime_summary_gate,
         "asset_store_registration_gate": asset_store_registration_gate,

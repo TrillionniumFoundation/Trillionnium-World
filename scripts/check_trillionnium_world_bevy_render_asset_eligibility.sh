@@ -34,10 +34,11 @@ jq '
 rm -f "$SUMMARY_RAW"
 
 jq -e '
-  .contract_version == "trillionnium_world_bevy_render_asset_eligibility_v1"
-  and .status == "render_asset_eligibility_green"
-  and .green == true
-  and .runtime_texture_asset_contract == "trillionnium_world_bevy_runtime_texture_asset_v1"
+	  .contract_version == "trillionnium_world_bevy_render_asset_eligibility_v1"
+	  and .status == "render_asset_eligibility_green"
+	  and .green == true
+	  and .ready_for_release_review == true
+	  and .runtime_texture_asset_contract == "trillionnium_world_bevy_runtime_texture_asset_v1"
   and .sprite_texture_sampling_contract == "trillionnium_world_bevy_sprite_texture_sampling_v1"
   and .live_window_sampled_texture_correlation_contract == "trillionnium_world_bevy_live_window_sampled_texture_correlation_v1"
   and .runtime_summary_gate == true
@@ -68,8 +69,9 @@ jq -e '
   and .texture_atlas_rect_count >= 32
   and .first_texture_rect_dimensions.width == 32
   and .first_texture_rect_dimensions.height == 32
-  and .sprite_render_reference_count >= 24
-  and (.sprite_render_references_sample | length) >= 8
+	  and .sprite_render_reference_count >= 24
+	  and .sprite_render_reference_sample_count == (.sprite_render_references_sample | length)
+	  and (.sprite_render_references_sample | length) >= 8
   and .sprite_render_references_sample[0].render_asset_reference_gate == true
   and .asset_boundary == "bevy_image_render_asset_usage_eligible_not_render_world_extraction_or_gpu_upload_claim"
   and .host_side_render_asset_eligibility_claimed == true

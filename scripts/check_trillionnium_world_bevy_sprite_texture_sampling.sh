@@ -31,10 +31,11 @@ jq '
 rm -f "$SUMMARY_RAW"
 
 jq -e '
-  .contract_version == "trillionnium_world_bevy_sprite_texture_sampling_v1"
-  and .status == "sprite_texture_sampling_green"
-  and .green == true
-  and .runtime_texture_asset_contract == "trillionnium_world_bevy_runtime_texture_asset_v1"
+	  .contract_version == "trillionnium_world_bevy_sprite_texture_sampling_v1"
+	  and .status == "sprite_texture_sampling_green"
+	  and .green == true
+	  and .ready_for_release_review == true
+	  and .runtime_texture_asset_contract == "trillionnium_world_bevy_runtime_texture_asset_v1"
   and .runtime_texture_manifest_probe_contract == "trillionnium_world_bevy_runtime_texture_manifest_probe_v1"
   and .asset_store_registration_contract == "trillionnium_world_bevy_asset_store_registration_v1"
   and .sprite_asset_binding_contract == "trillionnium_world_bevy_sprite_asset_binding_v1"
@@ -54,10 +55,13 @@ jq -e '
   and .asset_store_registration.bevy_image_store_registration_gate == true
   and .asset_store_registration.texture_atlas_layout_store_registration_gate == true
   and .sprite_binding_lookup.green == true
-  and .sprite_binding_lookup.binding_count >= 32
-  and .sampled_surface_count >= 24
-  and .texture_unique_rgba_color_count >= 4
-  and (.scene_layers | index("map"))
+	  and .sprite_binding_lookup.binding_count >= 32
+	  and .sampled_surface_count >= 24
+	  and .texture_unique_rgba_color_count >= 4
+	  and .scene_layer_count == (.scene_layers | length)
+	  and .material_slot_count == (.material_slots | length)
+	  and .sampled_surface_sample_count == (.sampled_surfaces_sample | length)
+	  and (.scene_layers | index("map"))
   and (.scene_layers | index("hud"))
   and (.scene_layers | index("actor"))
   and (.scene_layers | index("feedback"))

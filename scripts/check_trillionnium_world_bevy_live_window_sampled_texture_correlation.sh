@@ -106,6 +106,7 @@ summary = {
     "contract_version": "trillionnium_world_bevy_live_window_sampled_texture_correlation_v1",
     "status": "live_window_sampled_texture_correlation_green",
     "green": all(gates.values()),
+    "ready_for_release_review": all(gates.values()),
     "sprite_texture_sampling_contract": "trillionnium_world_bevy_sprite_texture_sampling_v1",
     "live_window_texture_correlation_contract": "trillionnium_world_bevy_live_window_texture_correlation_v1",
     "sampling_summary_path": str(sampling_path),
@@ -117,8 +118,11 @@ summary = {
     "live_final_frame_colors_96x54": int(live.get("live_final_frame_colors_96x54", 0)),
     "image_asset_handle_id": live.get("image_asset_handle_id"),
     "texture_atlas_layout_handle_id": live.get("texture_atlas_layout_handle_id"),
+    "sampled_layer_count": len(sampled_layer_counts),
     "sampled_layer_counts": sampled_layer_counts,
+    "sampled_material_slot_count": len(sampled_slot_counts),
     "sampled_material_slot_counts": sampled_slot_counts,
+    "layer_correlation_count": len(layer_correlations),
     "layer_correlations": layer_correlations,
     "gates": gates,
     "asset_boundary": "live_window_pixels_correlated_to_cpu_sampled_bevy_texture_atlas_not_gpu_upload_claim",
@@ -140,10 +144,11 @@ summary_path.write_text(json.dumps(summary, indent=2))
 PY
 
 jq -e '
-  .contract_version == "trillionnium_world_bevy_live_window_sampled_texture_correlation_v1"
-  and .status == "live_window_sampled_texture_correlation_green"
-  and .green == true
-  and .sprite_texture_sampling_contract == "trillionnium_world_bevy_sprite_texture_sampling_v1"
+	  .contract_version == "trillionnium_world_bevy_live_window_sampled_texture_correlation_v1"
+	  and .status == "live_window_sampled_texture_correlation_green"
+	  and .green == true
+	  and .ready_for_release_review == true
+	  and .sprite_texture_sampling_contract == "trillionnium_world_bevy_sprite_texture_sampling_v1"
   and .live_window_texture_correlation_contract == "trillionnium_world_bevy_live_window_texture_correlation_v1"
   and .gates.sprite_texture_sampling_gate == true
   and .gates.live_window_texture_correlation_gate == true
@@ -159,9 +164,12 @@ jq -e '
   and .texture_unique_rgba_color_count >= 4
   and .live_frame_count >= 11
   and .live_final_frame_colors_96x54 >= 1000
-  and .image_asset_handle_id == "bevy_image_handle::trnm_world_authored_sprite_sheet_v1"
-  and .texture_atlas_layout_handle_id == "bevy_texture_atlas_layout_handle::trnm_world_authored_sprite_sheet_layout_v1"
-  and .sampled_layer_counts.map >= 1
+	  and .image_asset_handle_id == "bevy_image_handle::trnm_world_authored_sprite_sheet_v1"
+	  and .texture_atlas_layout_handle_id == "bevy_texture_atlas_layout_handle::trnm_world_authored_sprite_sheet_layout_v1"
+	  and .sampled_layer_count == (.sampled_layer_counts | keys | length)
+	  and .sampled_material_slot_count == (.sampled_material_slot_counts | keys | length)
+	  and .layer_correlation_count == (.layer_correlations | length)
+	  and .sampled_layer_counts.map >= 1
   and .sampled_layer_counts.hud >= 1
   and .sampled_layer_counts.actor >= 1
   and .sampled_layer_counts.feedback >= 1
