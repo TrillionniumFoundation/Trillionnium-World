@@ -12,6 +12,18 @@ required_lines=(
   '--no-refresh)'
   'REFRESH=0'
   'unknown option: %s'
+  'SUMMARY_WITH_COUNTS'
+  'check_count = (.checks | length)'
+  'passed_check_count = ([.checks[]] | map(select(. == true)) | length)'
+  'failed_check_count = ([.checks[]] | map(select(. != true)) | length)'
+  'artifact_count = (.artifacts | length)'
+  'gate_count = (.gates | length)'
+  'true_gate_count = ([.gates[]] | map(select(. == true)) | length)'
+  'false_boundary_gate_count'
+  'cex_runtime_player_client_allowed'
+  'wgpu_required'
+  'passed_gate_count = (.true_gate_count + .false_boundary_gate_count)'
+  'failed_gate_count = (.gate_count - .passed_gate_count)'
 )
 
 for line in "${required_lines[@]}"; do

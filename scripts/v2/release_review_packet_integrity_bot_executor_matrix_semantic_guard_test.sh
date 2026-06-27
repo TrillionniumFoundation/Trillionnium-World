@@ -2123,6 +2123,23 @@ jq -n '{
   openra_asset_copied: false,
   third_party_asset_copied: false
 }' >"$classic_playtest_readiness_json"
+classic_playtest_readiness_counts_json="$TMP_DIR/bevy-classic-playtest-readiness-counted.json"
+jq '
+  .check_count = (.checks | length)
+  | .passed_check_count = ([.checks[]] | map(select(. == true)) | length)
+  | .failed_check_count = ([.checks[]] | map(select(. != true)) | length)
+  | .artifact_count = (.artifacts | length)
+  | .gate_count = (.gates | length)
+  | .true_gate_count = ([.gates[]] | map(select(. == true)) | length)
+  | .false_boundary_gate_count = ([
+      .gates
+      | to_entries[]
+      | select((.key == "cex_runtime_player_client_allowed" or .key == "wgpu_required") and .value == false)
+    ] | length)
+  | .passed_gate_count = (.true_gate_count + .false_boundary_gate_count)
+  | .failed_gate_count = (.gate_count - .passed_gate_count)
+' "$classic_playtest_readiness_json" >"$classic_playtest_readiness_counts_json"
+mv "$classic_playtest_readiness_counts_json" "$classic_playtest_readiness_json"
 add_artifact_from_path native_bevy_classic_playtest_readiness "Native/Bevy classic playtest readiness" "$classic_playtest_readiness_json" release_review_input
 jq -n \
   --argjson artifacts "$(jq -s '.' "$artifacts_jsonl")" \

@@ -24,7 +24,8 @@ mkdir -p "$(dirname "$SUMMARY")"
 SUMMARY_FILTER="$(mktemp)"
 VALIDATION_FILTER="$(mktemp)"
 VALIDATION_CHUNK_DIR="$(mktemp -d)"
-trap 'rm -f "$SUMMARY_FILTER" "$VALIDATION_FILTER"; rm -rf "$VALIDATION_CHUNK_DIR"' EXIT
+SUMMARY_WITH_COUNTS="$(mktemp)"
+trap 'rm -f "$SUMMARY_FILTER" "$VALIDATION_FILTER" "$SUMMARY_WITH_COUNTS"; rm -rf "$VALIDATION_CHUNK_DIR"' EXIT
 sed -n '/^# BEGIN_PLAYTEST_READINESS_SUMMARY_FILTER$/,/^# END_PLAYTEST_READINESS_SUMMARY_FILTER$/p' "$0" | sed '1d;$d' >"$SUMMARY_FILTER"
 sed -n '/^# BEGIN_PLAYTEST_READINESS_VALIDATION_FILTER$/,/^# END_PLAYTEST_READINESS_VALIDATION_FILTER$/p' "$0" | sed '1d;$d' >"$VALIDATION_FILTER"
 
@@ -287,6 +288,23 @@ jq -n \
   --slurpfile runner "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-runner-status.json" \
   --slurpfile launcher "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-launcher.json" \
   -f "$SUMMARY_FILTER" >"$SUMMARY"
+
+jq '
+  .check_count = (.checks | length)
+  | .passed_check_count = ([.checks[]] | map(select(. == true)) | length)
+  | .failed_check_count = ([.checks[]] | map(select(. != true)) | length)
+  | .artifact_count = (.artifacts | length)
+  | .gate_count = (.gates | length)
+  | .true_gate_count = ([.gates[]] | map(select(. == true)) | length)
+  | .false_boundary_gate_count = ([
+      .gates
+      | to_entries[]
+      | select((.key == "cex_runtime_player_client_allowed" or .key == "wgpu_required") and .value == false)
+    ] | length)
+  | .passed_gate_count = (.true_gate_count + .false_boundary_gate_count)
+  | .failed_gate_count = (.gate_count - .passed_gate_count)
+' "$SUMMARY" >"$SUMMARY_WITH_COUNTS"
+mv "$SUMMARY_WITH_COUNTS" "$SUMMARY"
 
 : <<'PLAYTEST_READINESS_SUMMARY_FILTER_BLOCK'
 # BEGIN_PLAYTEST_READINESS_SUMMARY_FILTER
@@ -3642,6 +3660,17 @@ run_validation_filter_in_chunks "$VALIDATION_FILTER" "$SUMMARY" "$VALIDATION_CHU
   .contract_version == "trillionnium_world_bevy_classic_playtest_readiness_v1"
   and .status == "classic_playtest_readiness_green"
   and .green == true
+  and .check_count == (.checks | length)
+  and .passed_check_count == ([.checks[]] | map(select(. == true)) | length)
+  and .failed_check_count == ([.checks[]] | map(select(. != true)) | length)
+  and .failed_check_count == 0
+  and .artifact_count == (.artifacts | length)
+  and .gate_count == (.gates | length)
+  and .true_gate_count == ([.gates[]] | map(select(. == true)) | length)
+  and .false_boundary_gate_count == ([.gates | to_entries[] | select((.key == "cex_runtime_player_client_allowed" or .key == "wgpu_required") and .value == false)] | length)
+  and .passed_gate_count == (.true_gate_count + .false_boundary_gate_count)
+  and .failed_gate_count == (.gate_count - .passed_gate_count)
+  and .failed_gate_count == 0
   and .internal_classic_playtest_readiness_claimed == true
   and .external_evidence_ignored_for_current_playtest_pass == true
   and .android_s5_real_device_claimed == false
