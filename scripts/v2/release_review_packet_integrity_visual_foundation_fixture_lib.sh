@@ -1959,7 +1959,9 @@ add_modeling_foundation_packet_fixtures() {
   local asset_pack_json="$TMP_DIR/bevy-classic-asset-pack.json"
   jq -n '{
     contract_version: "trillionnium_world_bevy_classic_asset_pack_v1",
+    status: "classic_asset_pack_green",
     green: true,
+    ready_for_release_review: true,
     loaded_from_manifest: true,
     renderer_uses_manifest: true,
     atlas_parse_gate: true,
@@ -1976,6 +1978,9 @@ add_modeling_foundation_packet_fixtures() {
     transparent_sprite_gate: true,
     opaque_tile_gate: true,
     procedural_sprite_shape_gate: true,
+    gate_count: 14,
+    passed_gate_count: 14,
+    failed_gate_count: 0,
     frame_count: 43,
     actor_count: 3,
     scene_count: 3,
@@ -1997,7 +2002,9 @@ add_modeling_foundation_packet_fixtures() {
   local manifest_lint_json="$TMP_DIR/bevy-classic-manifest-lint.json"
   jq -n '{
     contract_version: "trillionnium_world_bevy_classic_manifest_lint_v1",
+    status: "classic_manifest_lint_green",
     green: true,
+    ready_for_release_review: true,
     frame_count: 43,
     actor_count: 3,
     scene_count: 3,
@@ -2020,8 +2027,11 @@ add_modeling_foundation_packet_fixtures() {
       wall_tile: 1,
       water_tile: 1
     },
+    role_family_count: 17,
     duplicate_frame_ids: [],
+    duplicate_frame_id_count: 0,
     out_of_bounds_frame_ids: [],
+    out_of_bounds_frame_id_count: 0,
     frame_overlap_detected: false,
     loaded_from_manifest: true,
     atlas_parse_gate: true,
@@ -2037,6 +2047,9 @@ add_modeling_foundation_packet_fixtures() {
     scene_landmark_gate: true,
     catalog_ready_gate: true,
     boundary_gate: true,
+    gate_count: 16,
+    passed_gate_count: 16,
+    failed_gate_count: 0,
     asset_boundary: "project_owned_manifest_ppm_atlas_for_classic_low_spec_renderer_not_cex_runtime",
     source_of_truth: "Classic manifest lint is the modeling production gate for extending project-owned low-spec sprite frames, scenes, actors, and clips inside trnm-world-bevy.",
     cex_runtime_player_client_allowed: false,

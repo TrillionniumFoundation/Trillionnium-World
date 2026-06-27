@@ -3,14 +3,41 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SUMMARY="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-asset-pack.json"
+SUMMARY_RAW="$SUMMARY.raw.$$"
+SUMMARY_TMP="$SUMMARY.tmp.$$"
 MANIFEST="$ROOT/assets/trnm-world/classic/manifest.json"
 ATLAS="$ROOT/assets/trnm-world/classic/atlas.ppm"
 mkdir -p "$(dirname "$SUMMARY")" "$(dirname "$MANIFEST")"
+trap 'rm -f "$SUMMARY_RAW" "$SUMMARY_TMP"' EXIT
 
 (
   cd "$ROOT/trillionnium"
-  "$ROOT/scripts/run_trillionnium_world_bevy_artifact_command.sh" classic-asset-pack "$MANIFEST" "$ATLAS" >"$SUMMARY"
+  "$ROOT/scripts/run_trillionnium_world_bevy_artifact_command.sh" classic-asset-pack "$MANIFEST" "$ATLAS" >"$SUMMARY_RAW"
 )
+
+jq '
+  .status = "classic_asset_pack_green"
+  | .ready_for_release_review = true
+  | .gate_count = 14
+  | .passed_gate_count = ([
+      .atlas_parse_gate,
+      .frame_gate,
+      .scene_gate,
+      .actor_gate,
+      .animation_clip_gate,
+      .directional_player_frame_gate,
+      .player_walk_clip_gate,
+      .mentor_talk_clip_gate,
+      .enemy_attack_clip_gate,
+      .scene_tile_gate,
+      .scene_landmark_gate,
+      .transparent_sprite_gate,
+      .opaque_tile_gate,
+      .procedural_sprite_shape_gate
+    ] | map(select(. == true)) | length)
+  | .failed_gate_count = (.gate_count - .passed_gate_count)
+' "$SUMMARY_RAW" >"$SUMMARY_TMP"
+mv "$SUMMARY_TMP" "$SUMMARY"
 
 test -s "$SUMMARY"
 test -s "$MANIFEST"
@@ -19,7 +46,12 @@ head -n 1 "$ATLAS" | grep -Fx 'P3' >/dev/null
 
 jq -e '
   .contract_version == "trillionnium_world_bevy_classic_asset_pack_v1"
+  and .status == "classic_asset_pack_green"
   and .green == true
+  and .ready_for_release_review == true
+  and .gate_count == 14
+  and .passed_gate_count == 14
+  and .failed_gate_count == 0
   and .loaded_from_manifest == true
   and .atlas_parse_gate == true
   and .frame_count >= 32
