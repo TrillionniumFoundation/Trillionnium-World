@@ -2257,6 +2257,17 @@ mv "$SUMMARY_WITH_COUNTS" "$SUMMARY"
       rts_campaign_ui_continuity_final_room_id: $rts_campaign_ui_continuity[0].final_current_room_id,
       rts_campaign_ui_continuity_restored_room_id: $rts_campaign_ui_continuity[0].restored_current_room_id,
       rts_campaign_ui_continuity_primary_action_label: $rts_campaign_ui_continuity[0].final_contextual_primary_action_label,
+      rts_campaign_ui_continuity_runtime_screen_layout_count: $rts_campaign_ui_continuity[0].runtime_screen_layout_count,
+      rts_campaign_ui_continuity_review_field_count: $rts_campaign_ui_continuity[0].rts_evidence_campaign_ui_continuity_review_field_count,
+      rts_campaign_ui_continuity_final_action_label_count: $rts_campaign_ui_continuity[0].final_contextual_action_label_count,
+      rts_campaign_ui_continuity_final_active_task_count: $rts_campaign_ui_continuity[0].final_active_task_count,
+      rts_campaign_ui_continuity_restored_action_label_count: $rts_campaign_ui_continuity[0].restored_contextual_action_label_count,
+      rts_campaign_ui_continuity_restored_active_task_count: $rts_campaign_ui_continuity[0].restored_active_task_count,
+      rts_campaign_ui_continuity_milestone_count: $rts_campaign_ui_continuity[0].milestone_count,
+      rts_campaign_ui_continuity_pixel_count_field_count: $rts_campaign_ui_continuity[0].campaign_continuity_pixel_count_field_count,
+      rts_campaign_ui_continuity_gate_count: $rts_campaign_ui_continuity[0].gate_count,
+      rts_campaign_ui_continuity_passed_gate_count: $rts_campaign_ui_continuity[0].passed_gate_count,
+      rts_campaign_ui_continuity_failed_gate_count: $rts_campaign_ui_continuity[0].failed_gate_count,
       rts_in_match_hud_state_replication_surface_count: $rts_in_match_hud_state_replication[0].hud_surface_count,
       rts_in_match_hud_state_replication_non_background_pixels: $rts_in_match_hud_state_replication[0].hud_pixel_counts.non_background,
       rts_in_match_hud_state_replication_command_grid_pixel_count: $rts_in_match_hud_state_replication[0].hud_pixel_counts.command_grid,
@@ -2493,6 +2504,13 @@ mv "$SUMMARY_WITH_COUNTS" "$SUMMARY"
       rts_camera_minimap_sync_route_pixel_count: $rts_camera_minimap_sync[0].route_pixel_count,
       rts_camera_minimap_sync_input_action_count: $rts_camera_minimap_sync[0].input_action_count,
       rts_camera_minimap_sync_revealed_tile_union_count: $rts_camera_minimap_sync[0].revealed_tile_union_count,
+      rts_camera_minimap_sync_stage_summary_count: $rts_camera_minimap_sync[0].stage_summary_count,
+      rts_camera_minimap_sync_stage_name_count: $rts_camera_minimap_sync[0].stage_name_count,
+      rts_camera_minimap_sync_input_source_count: $rts_camera_minimap_sync[0].input_source_count,
+      rts_camera_minimap_sync_large_map_field_count: $rts_camera_minimap_sync[0].large_map_field_count,
+      rts_camera_minimap_sync_gate_count: $rts_camera_minimap_sync[0].gate_count,
+      rts_camera_minimap_sync_passed_gate_count: $rts_camera_minimap_sync[0].passed_gate_count,
+      rts_camera_minimap_sync_failed_gate_count: $rts_camera_minimap_sync[0].failed_gate_count,
       rts_command_queue_path_preview_queue_slot_pixel_count: $rts_command_queue_path_preview[0].queue_slot_pixel_count,
       rts_command_queue_path_preview_path_pixel_count: $rts_command_queue_path_preview[0].path_pixel_count,
       rts_command_queue_path_preview_waypoint_pixel_count: $rts_command_queue_path_preview[0].waypoint_pixel_count,
@@ -3989,6 +4007,17 @@ run_validation_filter_in_chunks "$VALIDATION_FILTER" "$SUMMARY" "$VALIDATION_CHU
   and .headline.rts_campaign_ui_continuity_final_room_id == "league-coliseum"
   and .headline.rts_campaign_ui_continuity_restored_room_id == "league-coliseum"
   and .headline.rts_campaign_ui_continuity_primary_action_label == "COMBAT:attack"
+  and .headline.rts_campaign_ui_continuity_runtime_screen_layout_count == 3
+  and .headline.rts_campaign_ui_continuity_review_field_count == 26
+  and .headline.rts_campaign_ui_continuity_final_action_label_count == 24
+  and .headline.rts_campaign_ui_continuity_final_active_task_count == 1
+  and .headline.rts_campaign_ui_continuity_restored_action_label_count == 24
+  and .headline.rts_campaign_ui_continuity_restored_active_task_count == 1
+  and .headline.rts_campaign_ui_continuity_milestone_count == 16
+  and .headline.rts_campaign_ui_continuity_pixel_count_field_count == 4
+  and .headline.rts_campaign_ui_continuity_gate_count == 12
+  and .headline.rts_campaign_ui_continuity_passed_gate_count == 12
+  and .headline.rts_campaign_ui_continuity_failed_gate_count == 0
   and .headline.rts_in_match_hud_state_replication_surface_count == 8
   and .headline.rts_in_match_hud_state_replication_non_background_pixels > 100000
   and .headline.rts_in_match_hud_state_replication_command_grid_pixel_count > 40
@@ -5143,6 +5172,13 @@ run_validation_filter_in_chunks "$VALIDATION_FILTER" "$SUMMARY" "$VALIDATION_CHU
   and .headline.rts_camera_minimap_sync_reveal_pixel_count > 800
   and .headline.rts_camera_minimap_sync_selection_pixel_count > 1000
   and .headline.rts_camera_minimap_sync_route_pixel_count > 900
+  and .headline.rts_camera_minimap_sync_stage_summary_count == 6
+  and .headline.rts_camera_minimap_sync_stage_name_count == 6
+  and .headline.rts_camera_minimap_sync_input_source_count == 6
+  and .headline.rts_camera_minimap_sync_large_map_field_count == 5
+  and .headline.rts_camera_minimap_sync_gate_count == 16
+  and .headline.rts_camera_minimap_sync_passed_gate_count == 16
+  and .headline.rts_camera_minimap_sync_failed_gate_count == 0
   and .headline.rts_command_queue_path_preview_accepted_input_count == 6
   and .headline.rts_command_queue_path_preview_final_queue_count >= 12
   and .headline.rts_command_queue_path_preview_queue_slot_pixel_count > 1200

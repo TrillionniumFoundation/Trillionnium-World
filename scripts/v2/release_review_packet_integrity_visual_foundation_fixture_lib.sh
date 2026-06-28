@@ -278,8 +278,11 @@ add_camera_minimap_sync_packet_fixtures() {
     runtime_path: "apply_rts_scrollable_map_camera_input+rts_camera_minimap_viewport_rect+rts_camera_minimap_revealed_tiles",
     selection_follow_path: "rts_camera_minimap_selection_follow_step",
     native_runtime_path: "update_native_rts_scrollable_map_camera+apply_native_rts_scrollable_map_view+rts_camera_minimap_viewport_rect",
+    input_sources: ["selection_follow", "camera_viewport_rect", "edge_scroll", "control_group_recall_camera", "minimap_route_projection", "wheel_zoom"],
+    input_source_count: 6,
     input_action_count: 6,
     large_map: {map_width_tiles: 34, map_height_tiles: 34, playable_min_tile: 1, playable_max_x: 32, playable_max_y: 32},
+    large_map_field_count: 5,
     stage_summaries: [
       {stage: "viewport_rect", selected_unit_id: "mirror_captain", control_group_id: "1", minimap_tile_id: null, focus_tile: {x: 8, y: 8}},
       {stage: "fog_reveal", selected_unit_id: "mirror_captain", control_group_id: "1", minimap_tile_id: null, focus_tile: {x: 9, y: 9}},
@@ -288,6 +291,8 @@ add_camera_minimap_sync_packet_fixtures() {
       {stage: "route_projection", selected_unit_id: "signal_lancer", control_group_id: "2", minimap_tile_id: "minimap_route_target", focus_tile: {x: 22, y: 20}},
       {stage: "zoom_sync", selected_unit_id: "mirror_captain", control_group_id: "1", minimap_tile_id: null, focus_tile: {x: 22, y: 20}}
     ],
+    stage_summary_count: 6,
+    stage_name_count: 6,
     revealed_tile_union_count: 33,
     viewport_pixel_count: 5579,
     fog_pixel_count: 19452,
@@ -310,6 +315,9 @@ add_camera_minimap_sync_packet_fixtures() {
     minimap_runtime_gate: true,
     scene_renderer_gate: true,
     original_art_policy_gate: true,
+    gate_count: 16,
+    passed_gate_count: 16,
+    failed_gate_count: 0,
     warcraft_iii_asset_copied: false,
     cex_runtime_player_client_allowed: false,
     wgpu_required: false,
@@ -2725,6 +2733,7 @@ add_campaign_ui_continuity_packet_fixtures() {
       campaign_route_rail: "sixteen accepted campaign handoff stages shown as a player-side route rail",
       resume_timeline: "bottom player timeline binds objective, expansion, siege, keep, restoration, and open-world resume"
     },
+    runtime_screen_layout_count: 3,
     rts_evidence_campaign_ui_continuity_review_contract: "trnm_rts_evidence_campaign_ui_continuity_review_v1",
     rts_evidence_campaign_ui_continuity_review: {
       contract_version: "trnm_rts_evidence_campaign_ui_continuity_review_v1",
@@ -2754,6 +2763,7 @@ add_campaign_ui_continuity_packet_fixtures() {
       evidence_path: "trnm-rts-evidence campaign_ui_continuity_review -> Bevy campaign UI continuity packet artifact",
       source_of_truth: "The RTS evidence crate reviews campaign handoff final/restored route state, save-restore persistence, milestone pixels, native-client no-credit boundary, and player-first route-resume screen gates before trnm-world-bevy includes the campaign UI continuity artifact in release-review evidence."
     },
+    rts_evidence_campaign_ui_continuity_review_field_count: 26,
     rts_evidence_campaign_ui_continuity_review_gate: true,
     capture_frame_count: 16,
     final_current_room_id: "league-coliseum",
@@ -2763,7 +2773,9 @@ add_campaign_ui_continuity_packet_fixtures() {
     final_open_world_handoff_state: "resumed:league-coliseum",
     final_contextual_primary_action_label: "COMBAT:attack",
     final_contextual_action_labels: ["TITLE:OPEN", "ACCOUNT:REGISTER", "ACCOUNT:LOGIN", "ACCOUNT:CONTINUE", "ROOM:mirror-city-square", "ROOM:delivery-dock", "NPC:enemy-market-bandit", "COMBAT:attack", "COMBAT:defend", "COMBAT:potion", "COMBAT:escape", "BAG:open", "STAT:force", "STAT:agility", "STAT:craft", "SAVE:SLOT", "SLOT:A", "SAVE:A", "SLOT:B", "SAVE:B", "SLOT:C", "SAVE:C", "SAVE:SELECTED", "PAUSE:MENU"],
+    final_contextual_action_label_count: 24,
     final_active_task_ids: ["task-fixture-first-route"],
+    final_active_task_count: 1,
     final_objective_status: "open_world_after_action_ready",
     restored_current_room_id: "league-coliseum",
     restored_map_scene: "arena_outdoor",
@@ -2771,7 +2783,9 @@ add_campaign_ui_continuity_packet_fixtures() {
     restored_route_director_task_id: "task-fixture-first-route",
     restored_route_director_next_room_id: null,
     restored_contextual_action_labels: ["TITLE:OPEN", "ACCOUNT:REGISTER", "ACCOUNT:LOGIN", "ACCOUNT:CONTINUE", "ROOM:mirror-city-square", "ROOM:delivery-dock", "NPC:enemy-market-bandit", "COMBAT:attack", "COMBAT:defend", "COMBAT:potion", "COMBAT:escape", "BAG:open", "STAT:force", "STAT:agility", "STAT:craft", "SAVE:SLOT", "SLOT:A", "SAVE:A", "SLOT:B", "SAVE:B", "SLOT:C", "SAVE:C", "SAVE:SELECTED", "PAUSE:MENU"],
+    restored_contextual_action_label_count: 24,
     restored_active_task_ids: ["task-fixture-first-route"],
+    restored_active_task_count: 1,
     milestones: {
       aftermath_seen: true,
       army_rally_seen: true,
@@ -2790,6 +2804,7 @@ add_campaign_ui_continuity_packet_fixtures() {
       restoration_seen: true,
       tier_two_seen: true
     },
+    milestone_count: 16,
     non_background_pixels: 2073600,
     victory_pixel_count: 1702,
     expansion_pixel_count: 20311,
@@ -2803,6 +2818,7 @@ add_campaign_ui_continuity_packet_fixtures() {
       player_first_campaign_status_strip: 28000,
       player_first_campaign_route_rail: 160000
     },
+    campaign_continuity_pixel_count_field_count: 4,
     handoff_green_gate: true,
     preview_resolution_gate: true,
     live_input_gate: true,
@@ -2813,6 +2829,9 @@ add_campaign_ui_continuity_packet_fixtures() {
     render_readability_gate: true,
     native_client_boundary_gate: true,
     player_first_campaign_continuity_screen_gate: true,
+    gate_count: 12,
+    passed_gate_count: 12,
+    failed_gate_count: 0,
     android_s5_real_device_claimed: false,
     public_launch_ready: false,
     screen_for_screen_openra_ui_claimed: false,
