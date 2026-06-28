@@ -1062,6 +1062,25 @@ jq -n '{
   openra_asset_copied: false,
   third_party_asset_copied: false
 }' >"$session_state_continuity_json"
+session_state_continuity_counts_json="$session_state_continuity_json.tmp"
+jq '
+  .source_paths = (.source_paths // {shell_meta_ui_replication_preview: "fixture", session_slot_a_path: "fixture", match_setup_ui_replication_preview: "fixture", in_match_hud_state_replication_preview: "fixture", campaign_outcome_ui_readiness_dir: "fixture", campaign_ui_continuity_preview: "fixture"})
+  | .state_continuity_slot_ids = (.state_continuity_slot_ids // ["match_setup_snapshot", "session_slot_write", "load_resume_lock", "continue_unlock", "in_match_hud_restore", "outcome_reward_state", "open_world_resume", "recovery_ui_guard"])
+  | .state_continuity_source_surfaces = (.state_continuity_source_surfaces // .state_continuity_surface_names)
+  | .source_contract_count = (.source_contracts | keys | length)
+  | .source_path_count = (.source_paths | keys | length)
+  | .source_headline_field_count = (.source_headline | keys | length)
+  | .runtime_screen_layout_count = (.runtime_screen_layout | keys | length)
+  | .state_continuity_surface_name_count = (.state_continuity_surface_names | length)
+  | .state_continuity_slot_id_count = (.state_continuity_slot_ids | length)
+  | .state_continuity_source_surface_count = (.state_continuity_source_surfaces | length)
+  | .state_continuity_pixel_count_field_count = (.state_continuity_pixel_counts | keys | length)
+  | .resume_chain_count = (.resume_chain | length)
+  | .gate_count = ([.shell_meta_gate, .session_slot_confirm_gate, .session_load_resume_gate, .session_recovery_gate, .match_setup_gate, .hud_restore_gate, .campaign_outcome_gate, .campaign_continuity_gate, .state_continuity_chain_gate, .native_client_boundary_gate, .preview_gate, .player_first_session_resume_screen_gate, .source_preview_gate, .runtime_screen_gate, .rts_evidence_session_state_continuity_review_gate, .session_state_continuity_gate] | length)
+  | .passed_gate_count = ([.shell_meta_gate, .session_slot_confirm_gate, .session_load_resume_gate, .session_recovery_gate, .match_setup_gate, .hud_restore_gate, .campaign_outcome_gate, .campaign_continuity_gate, .state_continuity_chain_gate, .native_client_boundary_gate, .preview_gate, .player_first_session_resume_screen_gate, .source_preview_gate, .runtime_screen_gate, .rts_evidence_session_state_continuity_review_gate, .session_state_continuity_gate] | map(select(. == true)) | length)
+  | .failed_gate_count = (.gate_count - .passed_gate_count)
+' "$session_state_continuity_json" >"$session_state_continuity_counts_json"
+mv "$session_state_continuity_counts_json" "$session_state_continuity_json"
 add_artifact_from_path native_bevy_classic_rts_session_state_continuity "Native/Bevy classic RTS session state continuity" "$session_state_continuity_json" release_review_input
 combat_readability_pressure_readiness_json="$TMP_DIR/bevy-classic-rts-combat-readability-pressure-readiness.json"
 jq -n '{
@@ -2096,6 +2115,21 @@ jq -n '{
     rts_full_game_visual_ui_replication_runtime_screen_mode: "player_runtime_full_game_visual_ui_screen",
     rts_full_game_visual_ui_replication_evidence_board_only: false,
     rts_full_game_visual_ui_replication_surface_count: 18,
+    rts_full_game_visual_ui_replication_source_contract_count: 14,
+    rts_full_game_visual_ui_replication_source_path_count: 14,
+    rts_full_game_visual_ui_replication_source_review_contract_count: 3,
+    rts_full_game_visual_ui_replication_source_review_gate_count: 3,
+    rts_full_game_visual_ui_replication_source_review_source_count: 3,
+    rts_full_game_visual_ui_replication_source_headline_field_count: 15,
+    rts_full_game_visual_ui_replication_single_screen_runtime_layout_count: 5,
+    rts_full_game_visual_ui_replication_pixel_count_field_count: 14,
+    rts_full_game_visual_ui_replication_coverage_surface_name_count: 18,
+    rts_full_game_visual_ui_replication_command_grid_role_id_count: 12,
+    rts_full_game_visual_ui_replication_command_grid_icon_signature_count: 12,
+    rts_full_game_visual_ui_replication_command_grid_state_sample_count: 12,
+    rts_full_game_visual_ui_replication_gate_count: 13,
+    rts_full_game_visual_ui_replication_passed_gate_count: 13,
+    rts_full_game_visual_ui_replication_failed_gate_count: 0,
     rts_full_game_visual_ui_replication_non_background_pixels: 2073600,
     rts_full_game_visual_ui_replication_hud_chrome_pixel_count: 276317,
     rts_full_game_visual_ui_replication_command_pixel_count: 42590,
@@ -2120,6 +2154,17 @@ jq -n '{
     rts_openra_screen_for_screen_ui_replication_screen_count: 8,
     rts_openra_screen_for_screen_ui_replication_surface_count: 8,
     rts_openra_screen_for_screen_ui_replication_widget_root_count: 4,
+    rts_openra_screen_for_screen_ui_replication_source_contract_count: 8,
+    rts_openra_screen_for_screen_ui_replication_source_headline_field_count: 10,
+    rts_openra_screen_for_screen_ui_replication_screen_layout_count: 8,
+    rts_openra_screen_for_screen_ui_replication_pixel_count_field_count: 10,
+    rts_openra_screen_for_screen_ui_replication_openra_style_ingame_pixel_count_field_count: 5,
+    rts_openra_screen_for_screen_ui_replication_widget_root_name_count: 4,
+    rts_openra_screen_for_screen_ui_replication_reference_source_count: 3,
+    rts_openra_screen_for_screen_ui_replication_surface_name_count: 8,
+    rts_openra_screen_for_screen_ui_replication_gate_count: 13,
+    rts_openra_screen_for_screen_ui_replication_passed_gate_count: 13,
+    rts_openra_screen_for_screen_ui_replication_failed_gate_count: 0,
     rts_openra_screen_for_screen_ui_replication_runtime_screen_mode: "player_runtime_openra_style_ingame_screen_set",
     rts_openra_screen_for_screen_ui_replication_evidence_board_only: false,
     rts_openra_screen_for_screen_ui_replication_player_first_ingame_view_non_background: 80000,

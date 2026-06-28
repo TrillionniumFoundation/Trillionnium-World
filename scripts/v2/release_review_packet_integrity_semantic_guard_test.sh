@@ -1536,6 +1536,25 @@ jq -n '{
   openra_asset_copied: false,
   third_party_asset_copied: false
 }' >"$session_state_continuity_json"
+session_state_continuity_counts_json="$session_state_continuity_json.tmp"
+jq '
+  .source_paths = (.source_paths // {shell_meta_ui_replication_preview: "fixture", session_slot_a_path: "fixture", match_setup_ui_replication_preview: "fixture", in_match_hud_state_replication_preview: "fixture", campaign_outcome_ui_readiness_dir: "fixture", campaign_ui_continuity_preview: "fixture"})
+  | .state_continuity_slot_ids = (.state_continuity_slot_ids // ["match_setup_snapshot", "session_slot_write", "load_resume_lock", "continue_unlock", "in_match_hud_restore", "outcome_reward_state", "open_world_resume", "recovery_ui_guard"])
+  | .state_continuity_source_surfaces = (.state_continuity_source_surfaces // .state_continuity_surface_names)
+  | .source_contract_count = (.source_contracts | keys | length)
+  | .source_path_count = (.source_paths | keys | length)
+  | .source_headline_field_count = (.source_headline | keys | length)
+  | .runtime_screen_layout_count = (.runtime_screen_layout | keys | length)
+  | .state_continuity_surface_name_count = (.state_continuity_surface_names | length)
+  | .state_continuity_slot_id_count = (.state_continuity_slot_ids | length)
+  | .state_continuity_source_surface_count = (.state_continuity_source_surfaces | length)
+  | .state_continuity_pixel_count_field_count = (.state_continuity_pixel_counts | keys | length)
+  | .resume_chain_count = (.resume_chain | length)
+  | .gate_count = ([.shell_meta_gate, .session_slot_confirm_gate, .session_load_resume_gate, .session_recovery_gate, .match_setup_gate, .hud_restore_gate, .campaign_outcome_gate, .campaign_continuity_gate, .state_continuity_chain_gate, .native_client_boundary_gate, .preview_gate, .player_first_session_resume_screen_gate, .source_preview_gate, .runtime_screen_gate, .rts_evidence_session_state_continuity_review_gate, .session_state_continuity_gate] | length)
+  | .passed_gate_count = ([.shell_meta_gate, .session_slot_confirm_gate, .session_load_resume_gate, .session_recovery_gate, .match_setup_gate, .hud_restore_gate, .campaign_outcome_gate, .campaign_continuity_gate, .state_continuity_chain_gate, .native_client_boundary_gate, .preview_gate, .player_first_session_resume_screen_gate, .source_preview_gate, .runtime_screen_gate, .rts_evidence_session_state_continuity_review_gate, .session_state_continuity_gate] | map(select(. == true)) | length)
+  | .failed_gate_count = (.gate_count - .passed_gate_count)
+' "$session_state_continuity_json" >"$session_state_continuity_counts_json"
+mv "$session_state_continuity_counts_json" "$session_state_continuity_json"
 add_artifact_from_path native_bevy_classic_rts_session_state_continuity "Native/Bevy classic RTS session state continuity" "$session_state_continuity_json" release_review_input
 combat_readability_pressure_readiness_json="$TMP_DIR/bevy-classic-rts-combat-readability-pressure-readiness.json"
 jq -n '{

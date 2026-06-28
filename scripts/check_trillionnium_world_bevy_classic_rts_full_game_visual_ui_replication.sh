@@ -5,8 +5,58 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SUMMARY="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-full-game-visual-ui-replication.json"
 PREVIEW="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-full-game-visual-ui-replication.ppm"
 mkdir -p "$(dirname "$SUMMARY")"
+SUMMARY_RAW="$(mktemp "${SUMMARY}.raw.XXXXXX")"
+SUMMARY_TMP="$(mktemp "${SUMMARY}.tmp.XXXXXX")"
+trap 'rm -f "$SUMMARY_RAW" "$SUMMARY_TMP"' EXIT
 
-"$ROOT/scripts/run_trillionnium_world_bevy_artifact_command.sh" classic-rts-full-game-visual-ui-replication "$PREVIEW" >"$SUMMARY"
+"$ROOT/scripts/run_trillionnium_world_bevy_artifact_command.sh" classic-rts-full-game-visual-ui-replication "$PREVIEW" >"$SUMMARY_RAW"
+
+jq '
+  .source_contract_count = (.source_contracts | keys | length)
+  | .source_path_count = (.source_paths | keys | length)
+  | .source_review_contract_count = (.source_review_contracts | keys | length)
+  | .source_review_gate_count = (.source_review_gates | keys | length)
+  | .source_review_source_count = (.source_review_sources | keys | length)
+  | .source_headline_field_count = (.source_headline | keys | length)
+  | .single_screen_runtime_layout_count = (.single_screen_runtime_layout | keys | length)
+  | .pixel_count_field_count = (.pixel_counts | keys | length)
+  | .coverage_surface_name_count = (.coverage_surface_names | length)
+  | .command_grid_role_id_count = (.full_game_command_grid_role_ids | length)
+  | .command_grid_icon_signature_count = (.full_game_command_grid_icon_signatures | length)
+  | .command_grid_state_sample_count = (.full_game_command_grid_state_samples | length)
+  | .gate_count = ([
+      .source_contract_gate,
+      .source_green_gate,
+      .runtime_screen_chain_gate,
+      .runtime_screen_gate,
+      .player_flow_gate,
+      .coverage_surface_gate,
+      .preview_gate,
+      .player_first_tactical_composition_gate,
+      .full_game_command_grid_readability_gate,
+      .player_first_full_game_visual_ui_screen_gate,
+      .no_copy_boundary_gate,
+      .rts_evidence_full_game_visual_ui_replication_review_gate,
+      .full_game_visual_ui_replication_gate
+    ] | length)
+  | .passed_gate_count = ([
+      .source_contract_gate,
+      .source_green_gate,
+      .runtime_screen_chain_gate,
+      .runtime_screen_gate,
+      .player_flow_gate,
+      .coverage_surface_gate,
+      .preview_gate,
+      .player_first_tactical_composition_gate,
+      .full_game_command_grid_readability_gate,
+      .player_first_full_game_visual_ui_screen_gate,
+      .no_copy_boundary_gate,
+      .rts_evidence_full_game_visual_ui_replication_review_gate,
+      .full_game_visual_ui_replication_gate
+    ] | map(select(. == true)) | length)
+  | .failed_gate_count = (.gate_count - .passed_gate_count)
+' "$SUMMARY_RAW" >"$SUMMARY_TMP"
+mv "$SUMMARY_TMP" "$SUMMARY"
 
 jq -e '
   .contract_version == "trillionnium_world_bevy_classic_rts_full_game_visual_ui_replication_v1"
@@ -18,7 +68,22 @@ jq -e '
   and .runtime_screen_mode == "player_runtime_full_game_visual_ui_screen"
   and .runtime_screen_gate == true
   and .evidence_board_only == false
+  and .source_contract_count == (.source_contracts | keys | length)
+  and .source_path_count == (.source_paths | keys | length)
+  and .source_review_contract_count == (.source_review_contracts | keys | length)
+  and .source_review_gate_count == (.source_review_gates | keys | length)
+  and .source_review_source_count == (.source_review_sources | keys | length)
+  and .source_headline_field_count == (.source_headline | keys | length)
+  and .single_screen_runtime_layout_count == (.single_screen_runtime_layout | keys | length)
+  and .pixel_count_field_count == (.pixel_counts | keys | length)
   and .coverage_surface_count == 18
+  and .coverage_surface_name_count == (.coverage_surface_names | length)
+  and .command_grid_role_id_count == (.full_game_command_grid_role_ids | length)
+  and .command_grid_icon_signature_count == (.full_game_command_grid_icon_signatures | length)
+  and .command_grid_state_sample_count == (.full_game_command_grid_state_samples | length)
+  and .gate_count == 13
+  and .passed_gate_count == 13
+  and .failed_gate_count == 0
   and ([.coverage_surface_names[]] | index("title_account_shell") != null)
   and ([.coverage_surface_names[]] | index("match_setup_start") != null)
   and ([.coverage_surface_names[]] | index("tactical_viewport") != null)

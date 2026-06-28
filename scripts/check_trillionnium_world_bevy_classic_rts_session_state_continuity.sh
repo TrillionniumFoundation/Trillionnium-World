@@ -5,8 +5,61 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SUMMARY="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-session-state-continuity.json"
 PREVIEW="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-session-state-continuity.ppm"
 mkdir -p "$(dirname "$SUMMARY")"
+SUMMARY_RAW="$(mktemp "${SUMMARY}.raw.XXXXXX")"
+SUMMARY_TMP="$(mktemp "${SUMMARY}.tmp.XXXXXX")"
+trap 'rm -f "$SUMMARY_RAW" "$SUMMARY_TMP"' EXIT
 
-"$ROOT/scripts/run_trillionnium_world_bevy_artifact_command.sh" classic-rts-session-state-continuity "$PREVIEW" >"$SUMMARY"
+"$ROOT/scripts/run_trillionnium_world_bevy_artifact_command.sh" classic-rts-session-state-continuity "$PREVIEW" >"$SUMMARY_RAW"
+
+jq '
+  .source_contract_count = (.source_contracts | keys | length)
+  | .source_path_count = (.source_paths | keys | length)
+  | .source_headline_field_count = (.source_headline | keys | length)
+  | .runtime_screen_layout_count = (.runtime_screen_layout | keys | length)
+  | .state_continuity_surface_name_count = (.state_continuity_surface_names | length)
+  | .state_continuity_slot_id_count = (.state_continuity_slot_ids | length)
+  | .state_continuity_source_surface_count = (.state_continuity_source_surfaces | length)
+  | .state_continuity_pixel_count_field_count = (.state_continuity_pixel_counts | keys | length)
+  | .resume_chain_count = (.resume_chain | length)
+  | .gate_count = ([
+      .shell_meta_gate,
+      .session_slot_confirm_gate,
+      .session_load_resume_gate,
+      .session_recovery_gate,
+      .match_setup_gate,
+      .hud_restore_gate,
+      .campaign_outcome_gate,
+      .campaign_continuity_gate,
+      .state_continuity_chain_gate,
+      .native_client_boundary_gate,
+      .preview_gate,
+      .player_first_session_resume_screen_gate,
+      .source_preview_gate,
+      .runtime_screen_gate,
+      .rts_evidence_session_state_continuity_review_gate,
+      .session_state_continuity_gate
+    ] | length)
+  | .passed_gate_count = ([
+      .shell_meta_gate,
+      .session_slot_confirm_gate,
+      .session_load_resume_gate,
+      .session_recovery_gate,
+      .match_setup_gate,
+      .hud_restore_gate,
+      .campaign_outcome_gate,
+      .campaign_continuity_gate,
+      .state_continuity_chain_gate,
+      .native_client_boundary_gate,
+      .preview_gate,
+      .player_first_session_resume_screen_gate,
+      .source_preview_gate,
+      .runtime_screen_gate,
+      .rts_evidence_session_state_continuity_review_gate,
+      .session_state_continuity_gate
+    ] | map(select(. == true)) | length)
+  | .failed_gate_count = (.gate_count - .passed_gate_count)
+' "$SUMMARY_RAW" >"$SUMMARY_TMP"
+mv "$SUMMARY_TMP" "$SUMMARY"
 
 jq -e '
   .contract_version == "trillionnium_world_bevy_classic_rts_session_state_continuity_v1"
@@ -15,6 +68,10 @@ jq -e '
   and .preview_width == 1600
   and .preview_height == 900
   and .preview_format == "ppm_p3_rgb"
+  and .source_contract_count == (.source_contracts | keys | length)
+  and .source_path_count == (.source_paths | keys | length)
+  and .source_headline_field_count == (.source_headline | keys | length)
+  and .runtime_screen_layout_count == (.runtime_screen_layout | keys | length)
   and .source_contracts.shell_meta_ui_replication == "trillionnium_world_bevy_classic_rts_shell_meta_ui_replication_v1"
   and .source_contracts.session_slot_confirm == "trillionnium_world_bevy_session_slot_confirm_v1"
   and .source_contracts.session_load_resume == "trillionnium_world_bevy_session_load_resume_v1"
@@ -57,6 +114,14 @@ jq -e '
   and (.rts_evidence_session_state_continuity_review.source_of_truth | contains("RTS evidence crate reviews save-slot confirmation"))
   and .rts_evidence_session_state_continuity_review_gate == true
   and .state_continuity_surface_count == 8
+  and .state_continuity_surface_name_count == (.state_continuity_surface_names | length)
+  and .state_continuity_slot_id_count == (.state_continuity_slot_ids | length)
+  and .state_continuity_source_surface_count == (.state_continuity_source_surfaces | length)
+  and .state_continuity_pixel_count_field_count == (.state_continuity_pixel_counts | keys | length)
+  and .resume_chain_count == (.resume_chain | length)
+  and .gate_count == 16
+  and .passed_gate_count == 16
+  and .failed_gate_count == 0
   and (.state_continuity_surface_names | index("MATCH SETUP SNAPSHOT") != null)
   and (.state_continuity_surface_names | index("SESSION SLOT WRITE") != null)
   and (.state_continuity_surface_names | index("LOAD RESUME LOCK") != null)

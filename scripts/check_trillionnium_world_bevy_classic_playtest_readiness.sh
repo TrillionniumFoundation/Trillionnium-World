@@ -2280,6 +2280,21 @@ mv "$SUMMARY_WITH_COUNTS" "$SUMMARY"
       rts_full_game_visual_ui_replication_runtime_screen_mode: $rts_full_game_visual_ui_replication[0].runtime_screen_mode,
       rts_full_game_visual_ui_replication_evidence_board_only: $rts_full_game_visual_ui_replication[0].evidence_board_only,
       rts_full_game_visual_ui_replication_surface_count: $rts_full_game_visual_ui_replication[0].coverage_surface_count,
+      rts_full_game_visual_ui_replication_source_contract_count: $rts_full_game_visual_ui_replication[0].source_contract_count,
+      rts_full_game_visual_ui_replication_source_path_count: $rts_full_game_visual_ui_replication[0].source_path_count,
+      rts_full_game_visual_ui_replication_source_review_contract_count: $rts_full_game_visual_ui_replication[0].source_review_contract_count,
+      rts_full_game_visual_ui_replication_source_review_gate_count: $rts_full_game_visual_ui_replication[0].source_review_gate_count,
+      rts_full_game_visual_ui_replication_source_review_source_count: $rts_full_game_visual_ui_replication[0].source_review_source_count,
+      rts_full_game_visual_ui_replication_source_headline_field_count: $rts_full_game_visual_ui_replication[0].source_headline_field_count,
+      rts_full_game_visual_ui_replication_single_screen_runtime_layout_count: $rts_full_game_visual_ui_replication[0].single_screen_runtime_layout_count,
+      rts_full_game_visual_ui_replication_pixel_count_field_count: $rts_full_game_visual_ui_replication[0].pixel_count_field_count,
+      rts_full_game_visual_ui_replication_coverage_surface_name_count: $rts_full_game_visual_ui_replication[0].coverage_surface_name_count,
+      rts_full_game_visual_ui_replication_command_grid_role_id_count: $rts_full_game_visual_ui_replication[0].command_grid_role_id_count,
+      rts_full_game_visual_ui_replication_command_grid_icon_signature_count: $rts_full_game_visual_ui_replication[0].command_grid_icon_signature_count,
+      rts_full_game_visual_ui_replication_command_grid_state_sample_count: $rts_full_game_visual_ui_replication[0].command_grid_state_sample_count,
+      rts_full_game_visual_ui_replication_gate_count: $rts_full_game_visual_ui_replication[0].gate_count,
+      rts_full_game_visual_ui_replication_passed_gate_count: $rts_full_game_visual_ui_replication[0].passed_gate_count,
+      rts_full_game_visual_ui_replication_failed_gate_count: $rts_full_game_visual_ui_replication[0].failed_gate_count,
       rts_full_game_visual_ui_replication_non_background_pixels: $rts_full_game_visual_ui_replication[0].pixel_counts.non_background,
       rts_full_game_visual_ui_replication_hud_chrome_pixel_count: $rts_full_game_visual_ui_replication[0].pixel_counts.hud_chrome,
       rts_full_game_visual_ui_replication_command_pixel_count: $rts_full_game_visual_ui_replication[0].pixel_counts.command,
@@ -2301,6 +2316,17 @@ mv "$SUMMARY_WITH_COUNTS" "$SUMMARY"
       rts_openra_screen_for_screen_ui_replication_screen_count: $rts_openra_screen_for_screen_ui_replication[0].openra_reference_screen_count,
       rts_openra_screen_for_screen_ui_replication_surface_count: $rts_openra_screen_for_screen_ui_replication[0].replicated_interaction_surface_count,
       rts_openra_screen_for_screen_ui_replication_widget_root_count: $rts_openra_screen_for_screen_ui_replication[0].openra_widget_root_count,
+      rts_openra_screen_for_screen_ui_replication_source_contract_count: $rts_openra_screen_for_screen_ui_replication[0].source_contract_count,
+      rts_openra_screen_for_screen_ui_replication_source_headline_field_count: $rts_openra_screen_for_screen_ui_replication[0].source_headline_field_count,
+      rts_openra_screen_for_screen_ui_replication_screen_layout_count: $rts_openra_screen_for_screen_ui_replication[0].screen_layout_count,
+      rts_openra_screen_for_screen_ui_replication_pixel_count_field_count: $rts_openra_screen_for_screen_ui_replication[0].pixel_count_field_count,
+      rts_openra_screen_for_screen_ui_replication_openra_style_ingame_pixel_count_field_count: $rts_openra_screen_for_screen_ui_replication[0].openra_style_ingame_pixel_count_field_count,
+      rts_openra_screen_for_screen_ui_replication_widget_root_name_count: $rts_openra_screen_for_screen_ui_replication[0].openra_widget_root_name_count,
+      rts_openra_screen_for_screen_ui_replication_reference_source_count: $rts_openra_screen_for_screen_ui_replication[0].openra_reference_source_count,
+      rts_openra_screen_for_screen_ui_replication_surface_name_count: $rts_openra_screen_for_screen_ui_replication[0].replicated_interaction_surface_name_count,
+      rts_openra_screen_for_screen_ui_replication_gate_count: $rts_openra_screen_for_screen_ui_replication[0].gate_count,
+      rts_openra_screen_for_screen_ui_replication_passed_gate_count: $rts_openra_screen_for_screen_ui_replication[0].passed_gate_count,
+      rts_openra_screen_for_screen_ui_replication_failed_gate_count: $rts_openra_screen_for_screen_ui_replication[0].failed_gate_count,
       rts_openra_screen_for_screen_ui_replication_runtime_screen_mode: $rts_openra_screen_for_screen_ui_replication[0].runtime_screen_mode,
       rts_openra_screen_for_screen_ui_replication_evidence_board_only: $rts_openra_screen_for_screen_ui_replication[0].evidence_board_only,
       rts_openra_screen_for_screen_ui_replication_non_background_pixels: $rts_openra_screen_for_screen_ui_replication[0].pixel_counts.non_background,
@@ -3949,6 +3975,21 @@ run_validation_filter_in_chunks "$VALIDATION_FILTER" "$SUMMARY" "$VALIDATION_CHU
   and .headline.rts_full_game_visual_ui_replication_runtime_screen_mode == "player_runtime_full_game_visual_ui_screen"
   and .headline.rts_full_game_visual_ui_replication_evidence_board_only == false
   and .headline.rts_full_game_visual_ui_replication_surface_count == 18
+  and .headline.rts_full_game_visual_ui_replication_source_contract_count == 14
+  and .headline.rts_full_game_visual_ui_replication_source_path_count == 14
+  and .headline.rts_full_game_visual_ui_replication_source_review_contract_count == 3
+  and .headline.rts_full_game_visual_ui_replication_source_review_gate_count == 3
+  and .headline.rts_full_game_visual_ui_replication_source_review_source_count == 3
+  and .headline.rts_full_game_visual_ui_replication_source_headline_field_count == 15
+  and .headline.rts_full_game_visual_ui_replication_single_screen_runtime_layout_count == 5
+  and .headline.rts_full_game_visual_ui_replication_pixel_count_field_count == 14
+  and .headline.rts_full_game_visual_ui_replication_coverage_surface_name_count == 18
+  and .headline.rts_full_game_visual_ui_replication_command_grid_role_id_count == 12
+  and .headline.rts_full_game_visual_ui_replication_command_grid_icon_signature_count == 12
+  and .headline.rts_full_game_visual_ui_replication_command_grid_state_sample_count == 12
+  and .headline.rts_full_game_visual_ui_replication_gate_count == 13
+  and .headline.rts_full_game_visual_ui_replication_passed_gate_count == 13
+  and .headline.rts_full_game_visual_ui_replication_failed_gate_count == 0
   and .headline.rts_full_game_visual_ui_replication_non_background_pixels > 900000
   and .headline.rts_full_game_visual_ui_replication_hud_chrome_pixel_count > 120000
   and .headline.rts_full_game_visual_ui_replication_command_pixel_count > 20000
@@ -3970,6 +4011,17 @@ run_validation_filter_in_chunks "$VALIDATION_FILTER" "$SUMMARY" "$VALIDATION_CHU
   and .headline.rts_openra_screen_for_screen_ui_replication_screen_count == 8
   and .headline.rts_openra_screen_for_screen_ui_replication_surface_count == 8
   and .headline.rts_openra_screen_for_screen_ui_replication_widget_root_count == 4
+  and .headline.rts_openra_screen_for_screen_ui_replication_source_contract_count == 8
+  and .headline.rts_openra_screen_for_screen_ui_replication_source_headline_field_count == 10
+  and .headline.rts_openra_screen_for_screen_ui_replication_screen_layout_count == 8
+  and .headline.rts_openra_screen_for_screen_ui_replication_pixel_count_field_count == 10
+  and .headline.rts_openra_screen_for_screen_ui_replication_openra_style_ingame_pixel_count_field_count == 5
+  and .headline.rts_openra_screen_for_screen_ui_replication_widget_root_name_count == 4
+  and .headline.rts_openra_screen_for_screen_ui_replication_reference_source_count == 3
+  and .headline.rts_openra_screen_for_screen_ui_replication_surface_name_count == 8
+  and .headline.rts_openra_screen_for_screen_ui_replication_gate_count == 13
+  and .headline.rts_openra_screen_for_screen_ui_replication_passed_gate_count == 13
+  and .headline.rts_openra_screen_for_screen_ui_replication_failed_gate_count == 0
   and .headline.rts_openra_screen_for_screen_ui_replication_runtime_screen_mode == "player_runtime_openra_style_ingame_screen_set"
   and .headline.rts_openra_screen_for_screen_ui_replication_evidence_board_only == false
   and .headline.rts_openra_screen_for_screen_ui_replication_non_background_pixels > 1200000

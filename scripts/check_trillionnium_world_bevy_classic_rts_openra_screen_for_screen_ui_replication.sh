@@ -5,8 +5,54 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SUMMARY="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-openra-screen-for-screen-ui-replication.json"
 PREVIEW="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-openra-screen-for-screen-ui-replication.ppm"
 mkdir -p "$(dirname "$SUMMARY")"
+SUMMARY_RAW="$(mktemp "${SUMMARY}.raw.XXXXXX")"
+SUMMARY_TMP="$(mktemp "${SUMMARY}.tmp.XXXXXX")"
+trap 'rm -f "$SUMMARY_RAW" "$SUMMARY_TMP"' EXIT
 
-"$ROOT/scripts/run_trillionnium_world_bevy_artifact_command.sh" classic-rts-openra-screen-for-screen-ui-replication "$PREVIEW" >"$SUMMARY"
+"$ROOT/scripts/run_trillionnium_world_bevy_artifact_command.sh" classic-rts-openra-screen-for-screen-ui-replication "$PREVIEW" >"$SUMMARY_RAW"
+
+jq '
+  .source_contract_count = (.source_contracts | keys | length)
+  | .source_headline_field_count = (.source_headline | keys | length)
+  | .screen_layout_count = (.screen_layouts | keys | length)
+  | .pixel_count_field_count = (.pixel_counts | keys | length)
+  | .openra_style_ingame_pixel_count_field_count = (.openra_style_ingame_pixel_counts | keys | length)
+  | .openra_widget_root_name_count = (.openra_widget_roots | length)
+  | .openra_reference_source_count = (.openra_reference_sources | keys | length)
+  | .replicated_interaction_surface_name_count = (.replicated_interaction_surfaces | length)
+  | .gate_count = ([
+      .source_contract_gate,
+      .source_green_gate,
+      .openra_runtime_vocabulary_gate,
+      .widget_root_reference_gate,
+      .screen_set_gate,
+      .source_screen_chain_gate,
+      .preview_gate,
+      .runtime_screen_gate,
+      .no_asset_copy_boundary_gate,
+      .player_first_openra_style_ingame_screen_gate,
+      .openra_style_ui_screen_set_replication_gate,
+      .rts_evidence_openra_style_screen_set_review_gate,
+      .openra_screen_for_screen_ui_replication_gate
+    ] | length)
+  | .passed_gate_count = ([
+      .source_contract_gate,
+      .source_green_gate,
+      .openra_runtime_vocabulary_gate,
+      .widget_root_reference_gate,
+      .screen_set_gate,
+      .source_screen_chain_gate,
+      .preview_gate,
+      .runtime_screen_gate,
+      .no_asset_copy_boundary_gate,
+      .player_first_openra_style_ingame_screen_gate,
+      .openra_style_ui_screen_set_replication_gate,
+      .rts_evidence_openra_style_screen_set_review_gate,
+      .openra_screen_for_screen_ui_replication_gate
+    ] | map(select(. == true)) | length)
+  | .failed_gate_count = (.gate_count - .passed_gate_count)
+' "$SUMMARY_RAW" >"$SUMMARY_TMP"
+mv "$SUMMARY_TMP" "$SUMMARY"
 
 jq -e '
   .contract_version == "trillionnium_world_bevy_classic_rts_openra_screen_for_screen_ui_replication_v1"
@@ -19,7 +65,13 @@ jq -e '
   and .runtime_screen_mode == "player_runtime_openra_style_ingame_screen_set"
   and .runtime_screen_gate == true
   and .evidence_board_only == false
+  and .source_contract_count == (.source_contracts | keys | length)
+  and .source_headline_field_count == (.source_headline | keys | length)
+  and .screen_layout_count == (.screen_layouts | keys | length)
+  and .pixel_count_field_count == (.pixel_counts | keys | length)
+  and .openra_style_ingame_pixel_count_field_count == (.openra_style_ingame_pixel_counts | keys | length)
   and .openra_widget_root_count == 4
+  and .openra_widget_root_name_count == (.openra_widget_roots | length)
   and ([.openra_widget_roots[]] | index("ShellmapRoot=MAINMENU") != null)
   and ([.openra_widget_roots[]] | index("IngameRoot=INGAME_ROOT") != null)
   and ([.openra_widget_roots[]] | index("GameSaveLoadingRoot=GAMESAVE_LOADING_SCREEN") != null)
@@ -33,7 +85,12 @@ jq -e '
   and ([.openra_reference_screens[]] | index("INGAME_ROOT_sidebar_hud") != null)
   and ([.openra_reference_screens[]] | index("PAUSE_options_overlay") != null)
   and ([.openra_reference_screens[]] | index("POSTGAME_statistics") != null)
+  and .openra_reference_source_count == (.openra_reference_sources | keys | length)
   and .replicated_interaction_surface_count == 8
+  and .replicated_interaction_surface_name_count == (.replicated_interaction_surfaces | length)
+  and .gate_count == 13
+  and .passed_gate_count == 13
+  and .failed_gate_count == 0
   and .source_contracts.full_game_visual_ui_replication == "trillionnium_world_bevy_classic_rts_full_game_visual_ui_replication_v1"
   and .source_contracts.openra_like_core == "trillionnium_world_bevy_classic_rts_openra_like_core_v1"
   and .source_contracts.openra_parity_lane == "trillionnium_world_bevy_classic_rts_openra_parity_lane_v1"
