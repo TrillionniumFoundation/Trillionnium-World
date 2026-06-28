@@ -4,9 +4,35 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SUMMARY="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-selection-minimap.json"
 PREVIEW="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-selection-minimap.ppm"
+RAW_SUMMARY="$SUMMARY.raw.$$"
+TMP_SUMMARY="$SUMMARY.tmp.$$"
 mkdir -p "$(dirname "$SUMMARY")"
+cleanup() {
+  rm -f "$RAW_SUMMARY" "$TMP_SUMMARY"
+}
+trap cleanup EXIT
 
-"$ROOT/scripts/run_trillionnium_world_bevy_artifact_command.sh" classic-rts-selection-minimap "$PREVIEW" >"$SUMMARY"
+"$ROOT/scripts/run_trillionnium_world_bevy_artifact_command.sh" classic-rts-selection-minimap "$PREVIEW" >"$RAW_SUMMARY"
+
+jq '
+  .action_label_count = ((.action_labels // []) | length)
+  | .input_source_count = ((.input_sources // []) | length)
+  | .stage_summary_count = ((.stage_summaries // []) | length)
+  | .stage_name_count = ([.stage_summaries[]?.stage] | length)
+  | .final_selected_unit_count = ((.final_selected_unit_ids // []) | length)
+  | .final_selection_box_tile_count = ((.final_selection_box_tile_ids // []) | length)
+  | .final_control_group_assignment_count = ((.final_control_group_assignments // []) | length)
+  | .final_active_control_group_count = ((.final_active_control_group_ids // []) | length)
+  | .final_group_route_tile_count = ((.final_group_route_tile_ids // []) | length)
+  | .final_command_queue_count = ((.final_command_queue // []) | length)
+  | .rts_selection_minimap_core_frame_order_count = ((.rts_selection_minimap_core_frame_orders // []) | length)
+  | .rts_selection_minimap_core_frame_order_kind_label_count = ((.rts_selection_minimap_core_frame_order_kind_labels // []) | length)
+  | .rts_selection_minimap_core_frame_order_error_count = ((.rts_selection_minimap_core_frame_order_errors // []) | length)
+  | .selection_minimap_gate_count = ([.write_gate, .live_selection_minimap_input_gate, .selection_box_gate, .control_group_gate, .minimap_command_gate, .split_route_gate, .rts_selection_minimap_core_frame_order_gate, .rts_selection_minimap_core_headless_replay_gate] | length)
+  | .selection_minimap_passed_gate_count = ([.write_gate, .live_selection_minimap_input_gate, .selection_box_gate, .control_group_gate, .minimap_command_gate, .split_route_gate, .rts_selection_minimap_core_frame_order_gate, .rts_selection_minimap_core_headless_replay_gate] | map(select(. == true)) | length)
+  | .selection_minimap_failed_gate_count = ([.write_gate, .live_selection_minimap_input_gate, .selection_box_gate, .control_group_gate, .minimap_command_gate, .split_route_gate, .rts_selection_minimap_core_frame_order_gate, .rts_selection_minimap_core_headless_replay_gate] | map(select(. != true)) | length)
+' "$RAW_SUMMARY" >"$TMP_SUMMARY"
+mv "$TMP_SUMMARY" "$SUMMARY"
 
 jq -e '
   .contract_version == "trillionnium_world_bevy_classic_rts_selection_minimap_v1"
@@ -17,6 +43,19 @@ jq -e '
   and .input_path == "apply_live_native_action_with_source(classic_rts_selection_minimap_input)"
   and .input_action_count == 4
   and .accepted_input_count == 4
+  and .action_label_count == (.action_labels | length)
+  and .input_source_count == (.input_sources | length)
+  and .stage_summary_count == (.stage_summaries | length)
+  and .stage_name_count == ([.stage_summaries[].stage] | length)
+  and .final_selected_unit_count == (.final_selected_unit_ids | length)
+  and .final_selection_box_tile_count == (.final_selection_box_tile_ids | length)
+  and .final_control_group_assignment_count == (.final_control_group_assignments | length)
+  and .final_active_control_group_count == (.final_active_control_group_ids | length)
+  and .final_group_route_tile_count == (.final_group_route_tile_ids | length)
+  and .final_command_queue_count == (.final_command_queue | length)
+  and .rts_selection_minimap_core_frame_order_count == (.rts_selection_minimap_core_frame_orders | length)
+  and .rts_selection_minimap_core_frame_order_kind_label_count == (.rts_selection_minimap_core_frame_order_kind_labels | length)
+  and .rts_selection_minimap_core_frame_order_error_count == (.rts_selection_minimap_core_frame_order_errors | length)
   and (.action_labels | index("RTS:SELECT:box:frontline") != null)
   and (.action_labels | index("RTS:MOVE:minimap:9,2:rally") != null)
   and (.action_labels | index("RTS:SELECT:2") != null)
@@ -67,6 +106,9 @@ jq -e '
   and .split_route_gate == true
   and .rts_selection_minimap_core_frame_order_gate == true
   and .rts_selection_minimap_core_headless_replay_gate == true
+  and .selection_minimap_gate_count == 8
+  and .selection_minimap_passed_gate_count == 8
+  and .selection_minimap_failed_gate_count == 0
   and .cex_runtime_player_client_allowed == false
   and .wgpu_required == false
 ' "$SUMMARY" >/dev/null

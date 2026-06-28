@@ -275,6 +275,30 @@ jq -n '{
   cex_runtime_player_client_allowed: false,
   wgpu_required: false
 }' >"$control_loop_json"
+jq '
+  .move_command_queue_count = ((.move_command_queue // []) | length)
+  | .attack_command_queue_count = ((.attack_command_queue // []) | length)
+  | .move_production_queue_count = ((.move_production_queue // []) | length)
+  | .attack_production_queue_count = ((.attack_production_queue // []) | length)
+  | .move_build_queue_count = ((.move_build_queue // []) | length)
+  | .attack_build_queue_count = ((.attack_build_queue // []) | length)
+  | .move_resource_spend_log_count = ((.move_resource_spend_log // []) | length)
+  | .attack_resource_spend_log_count = ((.attack_resource_spend_log // []) | length)
+  | .move_combat_event_log_count = ((.move_combat_event_log // []) | length)
+  | .attack_combat_event_log_count = ((.attack_combat_event_log // []) | length)
+  | .move_visible_tile_count = ((.move_visible_tile_ids // []) | length)
+  | .attack_visible_tile_count = ((.attack_visible_tile_ids // []) | length)
+  | .move_fogged_tile_count = ((.move_fogged_tile_ids // []) | length)
+  | .attack_fogged_tile_count = ((.attack_fogged_tile_ids // []) | length)
+  | .move_ability_command_count = ((.move_ability_command_ids // []) | length)
+  | .attack_ability_command_count = ((.attack_ability_command_ids // []) | length)
+  | .move_ability_cooldown_count = ((.move_ability_cooldown_percents // []) | length)
+  | .attack_ability_cooldown_count = ((.attack_ability_cooldown_percents // []) | length)
+  | .control_loop_gate_count = ([.write_gate, .mirror_scene_gate, .coliseum_scene_gate, .selection_gate, .command_queue_gate, .strategy_hud_gate, .macro_loop_gate, .tactical_combat_gate, .gameplay_surface_gate] | length)
+  | .control_loop_passed_gate_count = ([.write_gate, .mirror_scene_gate, .coliseum_scene_gate, .selection_gate, .command_queue_gate, .strategy_hud_gate, .macro_loop_gate, .tactical_combat_gate, .gameplay_surface_gate] | map(select(. == true)) | length)
+  | .control_loop_failed_gate_count = ([.write_gate, .mirror_scene_gate, .coliseum_scene_gate, .selection_gate, .command_queue_gate, .strategy_hud_gate, .macro_loop_gate, .tactical_combat_gate, .gameplay_surface_gate] | map(select(. != true)) | length)
+' "$control_loop_json" >"$control_loop_json.tmp"
+mv "$control_loop_json.tmp" "$control_loop_json"
 add_artifact_from_path native_bevy_classic_rts_control_loop "Native/Bevy classic RTS control loop" "$control_loop_json" release_review_input
 control_loop_ppm="$TMP_DIR/bevy-classic-rts-control-loop.ppm"
 printf 'P3\n1279 360\n255\n' >"$control_loop_ppm"
@@ -341,9 +365,30 @@ jq -n '{
   control_group_gate: true,
   minimap_command_gate: true,
   split_route_gate: true,
+  rts_selection_minimap_core_frame_order_gate: true,
+  rts_selection_minimap_core_headless_replay_gate: true,
   cex_runtime_player_client_allowed: false,
   wgpu_required: false
 }' >"$selection_minimap_json"
+jq '
+  .action_label_count = ((.action_labels // []) | length)
+  | .input_source_count = ((.input_sources // []) | length)
+  | .stage_summary_count = ((.stage_summaries // []) | length)
+  | .stage_name_count = ([.stage_summaries[]?.stage] | length)
+  | .final_selected_unit_count = ((.final_selected_unit_ids // []) | length)
+  | .final_selection_box_tile_count = ((.final_selection_box_tile_ids // []) | length)
+  | .final_control_group_assignment_count = ((.final_control_group_assignments // []) | length)
+  | .final_active_control_group_count = ((.final_active_control_group_ids // []) | length)
+  | .final_group_route_tile_count = ((.final_group_route_tile_ids // []) | length)
+  | .final_command_queue_count = ((.final_command_queue // []) | length)
+  | .rts_selection_minimap_core_frame_order_count = ((.rts_selection_minimap_core_frame_orders // []) | length)
+  | .rts_selection_minimap_core_frame_order_kind_label_count = ((.rts_selection_minimap_core_frame_order_kind_labels // []) | length)
+  | .rts_selection_minimap_core_frame_order_error_count = ((.rts_selection_minimap_core_frame_order_errors // []) | length)
+  | .selection_minimap_gate_count = ([.write_gate, .live_selection_minimap_input_gate, .selection_box_gate, .control_group_gate, .minimap_command_gate, .split_route_gate, .rts_selection_minimap_core_frame_order_gate, .rts_selection_minimap_core_headless_replay_gate] | length)
+  | .selection_minimap_passed_gate_count = ([.write_gate, .live_selection_minimap_input_gate, .selection_box_gate, .control_group_gate, .minimap_command_gate, .split_route_gate, .rts_selection_minimap_core_frame_order_gate, .rts_selection_minimap_core_headless_replay_gate] | map(select(. == true)) | length)
+  | .selection_minimap_failed_gate_count = ([.write_gate, .live_selection_minimap_input_gate, .selection_box_gate, .control_group_gate, .minimap_command_gate, .split_route_gate, .rts_selection_minimap_core_frame_order_gate, .rts_selection_minimap_core_headless_replay_gate] | map(select(. != true)) | length)
+' "$selection_minimap_json" >"$selection_minimap_json.tmp"
+mv "$selection_minimap_json.tmp" "$selection_minimap_json"
 add_artifact_from_path native_bevy_classic_rts_selection_minimap "Native/Bevy classic RTS selection/minimap" "$selection_minimap_json" release_review_input
 selection_minimap_ppm="$TMP_DIR/bevy-classic-rts-selection-minimap.ppm"
 printf 'P3\n1280 720\n255\n' >"$selection_minimap_ppm"
@@ -408,9 +453,31 @@ jq -n '{
   completion_gate: true,
   repair_gate: true,
   cancel_refund_gate: true,
+  rts_production_lifecycle_core_frame_order_gate: true,
+  rts_production_lifecycle_core_headless_replay_gate: true,
   cex_runtime_player_client_allowed: false,
   wgpu_required: false
 }' >"$build_lifecycle_json"
+jq '
+  .action_label_count = ((.action_labels // []) | length)
+  | .input_source_count = ((.input_sources // []) | length)
+  | .stage_summary_count = ((.stage_summaries // []) | length)
+  | .final_build_site_tile_count = ((.final_build_site_tile_ids // []) | length)
+  | .final_completed_structure_count = ((.final_completed_structure_ids // []) | length)
+  | .final_cancelled_structure_count = ((.final_cancelled_structure_ids // []) | length)
+  | .final_refund_delta_count = ((.final_refund_delta_log // []) | length)
+  | .final_structure_health_count = ((.final_structure_health_percents // []) | length)
+  | .final_resource_spend_count = ((.final_resource_spend_log // []) | length)
+  | .final_command_queue_count = ((.final_command_queue // []) | length)
+  | .rts_production_lifecycle_core_frame_order_count = ((.rts_production_lifecycle_core_frame_orders // []) | length)
+  | .rts_production_lifecycle_core_frame_order_kind_label_count = ((.rts_production_lifecycle_core_frame_order_kind_labels // []) | length)
+  | .rts_production_lifecycle_core_frame_order_error_count = ((.rts_production_lifecycle_core_frame_order_errors // []) | length)
+  | .rts_production_lifecycle_core_refund_delta_label_count = ((.rts_production_lifecycle_core_refund_delta_labels // []) | length)
+  | .build_lifecycle_gate_count = ([.write_gate, .live_build_lifecycle_input_gate, .build_placement_gate, .completion_gate, .repair_gate, .cancel_refund_gate, .rts_production_lifecycle_core_frame_order_gate, .rts_production_lifecycle_core_headless_replay_gate] | length)
+  | .build_lifecycle_passed_gate_count = ([.write_gate, .live_build_lifecycle_input_gate, .build_placement_gate, .completion_gate, .repair_gate, .cancel_refund_gate, .rts_production_lifecycle_core_frame_order_gate, .rts_production_lifecycle_core_headless_replay_gate] | map(select(. == true)) | length)
+  | .build_lifecycle_failed_gate_count = ([.write_gate, .live_build_lifecycle_input_gate, .build_placement_gate, .completion_gate, .repair_gate, .cancel_refund_gate, .rts_production_lifecycle_core_frame_order_gate, .rts_production_lifecycle_core_headless_replay_gate] | map(select(. != true)) | length)
+' "$build_lifecycle_json" >"$build_lifecycle_json.tmp"
+mv "$build_lifecycle_json.tmp" "$build_lifecycle_json"
 add_artifact_from_path native_bevy_classic_rts_build_lifecycle "Native/Bevy classic RTS build lifecycle" "$build_lifecycle_json" release_review_input
 build_lifecycle_ppm="$TMP_DIR/bevy-classic-rts-build-lifecycle.ppm"
 printf 'P3\n640 360\n255\n' >"$build_lifecycle_ppm"
@@ -498,6 +565,31 @@ jq -n '{
   cex_runtime_player_client_allowed: false,
   wgpu_required: false
 }' >"$tech_tree_json"
+jq '
+  .action_label_count = ((.action_labels // []) | length)
+  | .input_source_count = ((.input_sources // []) | length)
+  | .stage_summary_count = ((.stage_summaries // []) | length)
+  | .final_base_structure_count = ((.final_base_structure_ids // []) | length)
+  | .final_build_queue_count = ((.final_build_queue // []) | length)
+  | .final_production_queue_count = ((.final_production_queue // []) | length)
+  | .final_tech_research_count = ((.final_tech_research_ids // []) | length)
+  | .final_completed_upgrade_count = ((.final_completed_upgrade_ids // []) | length)
+  | .final_unlocked_unit_count = ((.final_unlocked_unit_ids // []) | length)
+  | .final_unlocked_structure_count = ((.final_unlocked_structure_ids // []) | length)
+  | .final_tech_requirement_count = ((.final_tech_requirements_log // []) | length)
+  | .final_command_queue_count = ((.final_command_queue // []) | length)
+  | .rts_tech_tree_core_frame_order_count = ((.rts_tech_tree_core_frame_orders // []) | length)
+  | .rts_tech_tree_core_frame_order_kind_label_count = ((.rts_tech_tree_core_frame_order_kind_labels // []) | length)
+  | .rts_tech_tree_core_frame_order_error_count = ((.rts_tech_tree_core_frame_order_errors // []) | length)
+  | .rts_tech_tree_core_researched_rule_count = ((.rts_tech_tree_core_researched_rule_ids // []) | length)
+  | .rts_tech_tree_core_upgraded_rule_count = ((.rts_tech_tree_core_upgraded_rule_ids // []) | length)
+  | .rts_tech_tree_core_unlocked_rule_count = ((.rts_tech_tree_core_unlocked_rule_ids // []) | length)
+  | .rts_tech_tree_core_source_actor_count = ((.rts_tech_tree_core_source_actor_ids // []) | length)
+  | .tech_tree_gate_count = ([.write_gate, .live_tech_tree_input_gate, .faction_base_gate, .research_gate, .upgrade_gate, .unlock_gate, .dependency_gate, .rts_tech_tree_core_frame_order_gate, .rts_tech_tree_core_headless_replay_gate] | length)
+  | .tech_tree_passed_gate_count = ([.write_gate, .live_tech_tree_input_gate, .faction_base_gate, .research_gate, .upgrade_gate, .unlock_gate, .dependency_gate, .rts_tech_tree_core_frame_order_gate, .rts_tech_tree_core_headless_replay_gate] | map(select(. == true)) | length)
+  | .tech_tree_failed_gate_count = ([.write_gate, .live_tech_tree_input_gate, .faction_base_gate, .research_gate, .upgrade_gate, .unlock_gate, .dependency_gate, .rts_tech_tree_core_frame_order_gate, .rts_tech_tree_core_headless_replay_gate] | map(select(. != true)) | length)
+' "$tech_tree_json" >"$tech_tree_json.tmp"
+mv "$tech_tree_json.tmp" "$tech_tree_json"
 add_artifact_from_path native_bevy_classic_rts_tech_tree "Native/Bevy classic RTS tech tree" "$tech_tree_json" release_review_input
 tech_tree_ppm="$TMP_DIR/bevy-classic-rts-tech-tree.ppm"
 printf 'P3\n1280 1080\n255\n' >"$tech_tree_ppm"
@@ -578,6 +670,25 @@ jq -n '{
   cex_runtime_player_client_allowed: false,
   wgpu_required: false
 }' >"$projectile_ability_json"
+jq '
+  .action_label_count = ((.action_labels // []) | length)
+  | .input_source_count = ((.input_sources // []) | length)
+  | .stage_summary_count = ((.stage_summaries // []) | length)
+  | .final_projectile_trail_tile_count = ((.final_projectile_trail_tile_ids // []) | length)
+  | .final_ability_effect_tile_count = ((.final_ability_effect_tile_ids // []) | length)
+  | .final_ability_damage_tick_count = ((.final_ability_damage_ticks // []) | length)
+  | .final_command_queue_count = ((.final_command_queue // []) | length)
+  | .final_combat_event_log_count = ((.final_combat_event_log // []) | length)
+  | .rts_projectile_ability_core_frame_order_count = ((.rts_projectile_ability_core_frame_orders // []) | length)
+  | .rts_projectile_ability_core_frame_order_kind_label_count = ((.rts_projectile_ability_core_frame_order_kind_labels // []) | length)
+  | .rts_projectile_ability_core_frame_order_error_count = ((.rts_projectile_ability_core_frame_order_errors // []) | length)
+  | .rts_projectile_ability_core_headless_ability_rule_count = ((.rts_projectile_ability_core_headless_ability_rule_ids // []) | length)
+  | .rts_projectile_ability_core_headless_ability_target_actor_count = ((.rts_projectile_ability_core_headless_ability_target_actor_ids // []) | length)
+  | .projectile_ability_gate_count = ([.write_gate, .live_projectile_ability_input_gate, .projectile_trail_gate, .projectile_impact_gate, .ability_radius_gate, .damage_tick_gate, .armor_shield_gate, .rts_projectile_ability_core_frame_order_gate, .rts_projectile_ability_core_headless_replay_gate] | length)
+  | .projectile_ability_passed_gate_count = ([.write_gate, .live_projectile_ability_input_gate, .projectile_trail_gate, .projectile_impact_gate, .ability_radius_gate, .damage_tick_gate, .armor_shield_gate, .rts_projectile_ability_core_frame_order_gate, .rts_projectile_ability_core_headless_replay_gate] | map(select(. == true)) | length)
+  | .projectile_ability_failed_gate_count = ([.write_gate, .live_projectile_ability_input_gate, .projectile_trail_gate, .projectile_impact_gate, .ability_radius_gate, .damage_tick_gate, .armor_shield_gate, .rts_projectile_ability_core_frame_order_gate, .rts_projectile_ability_core_headless_replay_gate] | map(select(. != true)) | length)
+' "$projectile_ability_json" >"$projectile_ability_json.tmp"
+mv "$projectile_ability_json.tmp" "$projectile_ability_json"
 add_artifact_from_path native_bevy_classic_rts_projectile_ability "Native/Bevy classic RTS projectile/ability" "$projectile_ability_json" release_review_input
 projectile_ability_ppm="$TMP_DIR/bevy-classic-rts-projectile-ability.ppm"
 printf 'P3\n1280 1080\n255\n' >"$projectile_ability_ppm"

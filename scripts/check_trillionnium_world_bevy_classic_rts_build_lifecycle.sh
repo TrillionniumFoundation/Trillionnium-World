@@ -4,9 +4,36 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SUMMARY="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-build-lifecycle.json"
 PREVIEW="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-build-lifecycle.ppm"
+RAW_SUMMARY="$SUMMARY.raw.$$"
+TMP_SUMMARY="$SUMMARY.tmp.$$"
 mkdir -p "$(dirname "$SUMMARY")"
+cleanup() {
+  rm -f "$RAW_SUMMARY" "$TMP_SUMMARY"
+}
+trap cleanup EXIT
 
-"$ROOT/scripts/run_trillionnium_world_bevy_artifact_command.sh" classic-rts-build-lifecycle "$PREVIEW" >"$SUMMARY"
+"$ROOT/scripts/run_trillionnium_world_bevy_artifact_command.sh" classic-rts-build-lifecycle "$PREVIEW" >"$RAW_SUMMARY"
+
+jq '
+  .action_label_count = ((.action_labels // []) | length)
+  | .input_source_count = ((.input_sources // []) | length)
+  | .stage_summary_count = ((.stage_summaries // []) | length)
+  | .final_build_site_tile_count = ((.final_build_site_tile_ids // []) | length)
+  | .final_completed_structure_count = ((.final_completed_structure_ids // []) | length)
+  | .final_cancelled_structure_count = ((.final_cancelled_structure_ids // []) | length)
+  | .final_refund_delta_count = ((.final_refund_delta_log // []) | length)
+  | .final_structure_health_count = ((.final_structure_health_percents // []) | length)
+  | .final_resource_spend_count = ((.final_resource_spend_log // []) | length)
+  | .final_command_queue_count = ((.final_command_queue // []) | length)
+  | .rts_production_lifecycle_core_frame_order_count = ((.rts_production_lifecycle_core_frame_orders // []) | length)
+  | .rts_production_lifecycle_core_frame_order_kind_label_count = ((.rts_production_lifecycle_core_frame_order_kind_labels // []) | length)
+  | .rts_production_lifecycle_core_frame_order_error_count = ((.rts_production_lifecycle_core_frame_order_errors // []) | length)
+  | .rts_production_lifecycle_core_refund_delta_label_count = ((.rts_production_lifecycle_core_refund_delta_labels // []) | length)
+  | .build_lifecycle_gate_count = ([.write_gate, .live_build_lifecycle_input_gate, .build_placement_gate, .completion_gate, .repair_gate, .cancel_refund_gate, .rts_production_lifecycle_core_frame_order_gate, .rts_production_lifecycle_core_headless_replay_gate] | length)
+  | .build_lifecycle_passed_gate_count = ([.write_gate, .live_build_lifecycle_input_gate, .build_placement_gate, .completion_gate, .repair_gate, .cancel_refund_gate, .rts_production_lifecycle_core_frame_order_gate, .rts_production_lifecycle_core_headless_replay_gate] | map(select(. == true)) | length)
+  | .build_lifecycle_failed_gate_count = ([.write_gate, .live_build_lifecycle_input_gate, .build_placement_gate, .completion_gate, .repair_gate, .cancel_refund_gate, .rts_production_lifecycle_core_frame_order_gate, .rts_production_lifecycle_core_headless_replay_gate] | map(select(. != true)) | length)
+' "$RAW_SUMMARY" >"$TMP_SUMMARY"
+mv "$TMP_SUMMARY" "$SUMMARY"
 
 jq -e '
   .contract_version == "trillionnium_world_bevy_classic_rts_build_lifecycle_v1"
@@ -17,6 +44,20 @@ jq -e '
   and .input_path == "apply_live_native_action_with_source(classic_rts_build_lifecycle_input)"
   and .input_action_count == 6
   and .accepted_input_count == 6
+  and .action_label_count == (.action_labels | length)
+  and .input_source_count == (.input_sources | length)
+  and .stage_summary_count == (.stage_summaries | length)
+  and .final_build_site_tile_count == (.final_build_site_tile_ids | length)
+  and .final_completed_structure_count == (.final_completed_structure_ids | length)
+  and .final_cancelled_structure_count == (.final_cancelled_structure_ids | length)
+  and .final_refund_delta_count == (.final_refund_delta_log | length)
+  and .final_structure_health_count == (.final_structure_health_percents | length)
+  and .final_resource_spend_count == (.final_resource_spend_log | length)
+  and .final_command_queue_count == (.final_command_queue | length)
+  and .rts_production_lifecycle_core_frame_order_count == (.rts_production_lifecycle_core_frame_orders | length)
+  and .rts_production_lifecycle_core_frame_order_kind_label_count == (.rts_production_lifecycle_core_frame_order_kind_labels | length)
+  and .rts_production_lifecycle_core_frame_order_error_count == (.rts_production_lifecycle_core_frame_order_errors | length)
+  and .rts_production_lifecycle_core_refund_delta_label_count == (.rts_production_lifecycle_core_refund_delta_labels | length)
   and (.action_labels | index("RTS:SELECT:1") != null)
   and (.action_labels | index("RTS:QUEUE:build:watch_tower@7,4") != null)
   and (.action_labels | index("RTS:QUEUE:complete:watch_tower@7,4") != null)
@@ -112,6 +153,9 @@ jq -e '
   and .completion_gate == true
   and .repair_gate == true
   and .cancel_refund_gate == true
+  and .build_lifecycle_gate_count == 8
+  and .build_lifecycle_passed_gate_count == 8
+  and .build_lifecycle_failed_gate_count == 0
   and .cex_runtime_player_client_allowed == false
   and .wgpu_required == false
 ' "$SUMMARY" >/dev/null
