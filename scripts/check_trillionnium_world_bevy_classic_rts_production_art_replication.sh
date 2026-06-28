@@ -5,20 +5,50 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SUMMARY="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-production-art-replication.json"
 PREVIEW="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-production-art-replication.ppm"
 mkdir -p "$(dirname "$SUMMARY")"
+SUMMARY_RAW="$(mktemp "${SUMMARY}.raw.XXXXXX")"
+SUMMARY_TMP="$(mktemp "${SUMMARY}.tmp.XXXXXX")"
+trap 'rm -f "$SUMMARY_RAW" "$SUMMARY_TMP"' EXIT
 
-"$ROOT/scripts/run_trillionnium_world_bevy_artifact_command.sh" classic-rts-production-art-replication "$PREVIEW" >"$SUMMARY"
+"$ROOT/scripts/run_trillionnium_world_bevy_artifact_command.sh" classic-rts-production-art-replication "$PREVIEW" >"$SUMMARY_RAW"
+
+jq '
+  .source_contract_count = (.source_contracts | keys | length)
+  | .required_asset_kind_count = (.required_asset_kinds | length)
+  | .required_gameplay_layer_count = (.required_gameplay_layers | length)
+  | .required_replacement_slot_count = (.required_replacement_slots | length)
+  | .gate_count = ([
+      .authored_replacement_slot_gate,
+      .map_ui_gate,
+      .production_preview_gate,
+      .production_art_replication_gate,
+      .no_copy_boundary_gate,
+      .original_art_policy_gate
+    ] | length)
+  | .passed_gate_count = ([
+      .authored_replacement_slot_gate,
+      .map_ui_gate,
+      .production_preview_gate,
+      .production_art_replication_gate,
+      .no_copy_boundary_gate,
+      .original_art_policy_gate
+    ] | map(select(. == true)) | length)
+  | .failed_gate_count = (.gate_count - .passed_gate_count)
+' "$SUMMARY_RAW" >"$SUMMARY_TMP"
+mv "$SUMMARY_TMP" "$SUMMARY"
 
 jq -e '
   .contract_version == "trillionnium_world_bevy_classic_rts_production_art_replication_v1"
   and .green == true
   and .preview_width == 1280
   and .preview_height == 720
+  and .source_contract_count == (.source_contracts | keys | length)
   and .source_contracts.authored_art_pack == "trillionnium_world_bevy_authored_art_pack_v1"
   and .source_contracts.map_ui_modeling_readiness == "trillionnium_world_bevy_classic_rts_map_ui_modeling_readiness_v1"
   and .source_contracts.visual_fidelity == "trillionnium_world_bevy_classic_rts_visual_fidelity_v1"
   and .authored_surface_count >= 120
   and .authored_export_ready_count == .authored_surface_count
   and .authored_min_target_resolution_px >= 32
+  and .required_asset_kind_count == (.required_asset_kinds | length)
   and (.required_asset_kinds | index("terrain_tile") != null)
   and (.required_asset_kinds | index("road_tile") != null)
   and (.required_asset_kinds | index("building_tile") != null)
@@ -28,6 +58,8 @@ jq -e '
   and (.required_asset_kinds | index("hud_glyph") != null)
   and (.required_asset_kinds | index("actor_sprite") != null)
   and (.required_asset_kinds | index("feedback_glyph") != null)
+  and .required_gameplay_layer_count == (.required_gameplay_layers | length)
+  and .required_replacement_slot_count == (.required_replacement_slots | length)
   and (.required_replacement_slots | index("tile_sprite_slot") != null)
   and (.required_replacement_slots | index("hud_icon_slot") != null)
   and (.required_replacement_slots | index("hud_glyph_slot") != null)
@@ -47,6 +79,9 @@ jq -e '
   and .production_art_replication_gate == true
   and .no_copy_boundary_gate == true
   and .original_art_policy_gate == true
+  and .gate_count == 6
+  and .passed_gate_count == 6
+  and .failed_gate_count == 0
   and .warcraft_iii_asset_copied == false
   and .openra_asset_copied == false
   and .third_party_asset_copied == false

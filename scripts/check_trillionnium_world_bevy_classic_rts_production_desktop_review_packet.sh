@@ -155,6 +155,16 @@ jq -n \
     passed_gate_count: ($gate_values | map(select(. == true)) | length),
     failed_gate_count: ($gate_values | map(select(. != true)) | length),
     production_interaction_surface_count: $production.interaction_surface_count,
+    production_interaction_source_contract_count: $production.source_contract_count,
+    production_interaction_source_path_count: $production.source_path_count,
+    production_interaction_runtime_screen_layout_count: $production.runtime_screen_layout_count,
+    production_interaction_pixel_count_field_count: $production.interaction_pixel_count_field_count,
+    production_interaction_surface_name_count: $production.interaction_surface_name_count,
+    production_interaction_replacement_slot_count: $production.interaction_replacement_slot_count,
+    production_interaction_source_surface_count: $production.interaction_source_surface_count,
+    production_interaction_gate_count: $production.gate_count,
+    production_interaction_passed_gate_count: $production.passed_gate_count,
+    production_interaction_failed_gate_count: $production.failed_gate_count,
     desktop_screenshot_frame_count: $desktop.desktop_review_summary.screenshot_frame_count,
     desktop_keyboard_event_count: $desktop.desktop_review_summary.keyboard_event_count,
     desktop_mouse_event_count: $desktop.desktop_review_summary.mouse_event_count,
@@ -185,6 +195,16 @@ jq -n \
     },
     production_review_summary: {
       interaction_surface_count: $production.interaction_surface_count,
+      source_contract_count: $production.source_contract_count,
+      source_path_count: $production.source_path_count,
+      runtime_screen_layout_count: $production.runtime_screen_layout_count,
+      interaction_pixel_count_field_count: $production.interaction_pixel_count_field_count,
+      interaction_surface_name_count: $production.interaction_surface_name_count,
+      interaction_replacement_slot_count: $production.interaction_replacement_slot_count,
+      interaction_source_surface_count: $production.interaction_source_surface_count,
+      gate_count: $production.gate_count,
+      passed_gate_count: $production.passed_gate_count,
+      failed_gate_count: $production.failed_gate_count,
       interaction_surface_names: $production.interaction_surface_names,
       runtime_screen_mode: $production.runtime_screen_mode,
       runtime_screen_gate: $production.runtime_screen_gate,
@@ -277,6 +297,16 @@ jq -e '
   and .failed_gate_count == ([.gates[]] | map(select(. != true)) | length)
   and .failed_gate_count == 0
   and .production_interaction_surface_count == .production_review_summary.interaction_surface_count
+  and .production_interaction_source_contract_count == .production_review_summary.source_contract_count
+  and .production_interaction_source_path_count == .production_review_summary.source_path_count
+  and .production_interaction_runtime_screen_layout_count == .production_review_summary.runtime_screen_layout_count
+  and .production_interaction_pixel_count_field_count == .production_review_summary.interaction_pixel_count_field_count
+  and .production_interaction_surface_name_count == .production_review_summary.interaction_surface_name_count
+  and .production_interaction_replacement_slot_count == .production_review_summary.interaction_replacement_slot_count
+  and .production_interaction_source_surface_count == .production_review_summary.interaction_source_surface_count
+  and .production_interaction_gate_count == .production_review_summary.gate_count
+  and .production_interaction_passed_gate_count == .production_review_summary.passed_gate_count
+  and .production_interaction_failed_gate_count == .production_review_summary.failed_gate_count
   and .desktop_screenshot_frame_count == .desktop_review_summary.screenshot_frame_count
   and .desktop_keyboard_event_count == .desktop_review_summary.keyboard_event_count
   and .desktop_mouse_event_count == .desktop_review_summary.mouse_event_count
@@ -297,6 +327,16 @@ jq -e '
   and .gates.artifact_manifest_gate == true
   and .gates.production_to_desktop_review_gate == true
   and .production_review_summary.interaction_surface_count == 6
+  and .production_review_summary.source_contract_count == 6
+  and .production_review_summary.source_path_count == 6
+  and .production_review_summary.runtime_screen_layout_count == 6
+  and .production_review_summary.interaction_pixel_count_field_count == 5
+  and .production_review_summary.interaction_surface_name_count == 6
+  and .production_review_summary.interaction_replacement_slot_count == 6
+  and .production_review_summary.interaction_source_surface_count == 6
+  and .production_review_summary.gate_count == 12
+  and .production_review_summary.passed_gate_count == 12
+  and .production_review_summary.failed_gate_count == 0
   and (.production_review_summary.interaction_surface_names | index("DRAG SELECT") != null)
   and (.production_review_summary.interaction_surface_names | index("RIGHT CLICK MOVE") != null)
   and (.production_review_summary.interaction_surface_names | index("ATTACK LOCK") != null)

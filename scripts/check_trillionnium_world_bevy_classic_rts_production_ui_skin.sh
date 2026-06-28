@@ -5,14 +5,61 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SUMMARY="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-production-ui-skin.json"
 PREVIEW="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-production-ui-skin.ppm"
 mkdir -p "$(dirname "$SUMMARY")"
+SUMMARY_RAW="$(mktemp "${SUMMARY}.raw.XXXXXX")"
+SUMMARY_TMP="$(mktemp "${SUMMARY}.tmp.XXXXXX")"
+trap 'rm -f "$SUMMARY_RAW" "$SUMMARY_TMP"' EXIT
 
-"$ROOT/scripts/run_trillionnium_world_bevy_artifact_command.sh" classic-rts-production-ui-skin "$PREVIEW" >"$SUMMARY"
+"$ROOT/scripts/run_trillionnium_world_bevy_artifact_command.sh" classic-rts-production-ui-skin "$PREVIEW" >"$SUMMARY_RAW"
+
+jq '
+  .source_contract_count = (.source_contracts | keys | length)
+  | .source_path_count = (.source_paths | keys | length)
+  | .runtime_screen_layout_count = (.runtime_screen_layout | keys | length)
+  | .production_ui_skin_pixel_count_field_count = (.production_ui_skin_pixel_counts | keys | length)
+  | .ui_skin_surface_name_count = (.ui_skin_surface_names | length)
+  | .ui_skin_replacement_slot_count = (.ui_skin_replacement_slots | length)
+  | .ui_skin_source_surface_count = (.ui_skin_source_surfaces | length)
+  | .gate_count = ([
+      .asset_atlas_gate,
+      .command_surface_skin_gate,
+      .selection_minimap_skin_gate,
+      .unit_status_skin_gate,
+      .command_feedback_skin_gate,
+      .tooltip_skin_gate,
+      .hotkey_skin_gate,
+      .production_ui_skin_preview_gate,
+      .player_first_production_hud_skin_screen_gate,
+      .runtime_screen_gate,
+      .source_preview_gate,
+      .no_copy_boundary_gate,
+      .production_ui_skin_gate
+    ] | length)
+  | .passed_gate_count = ([
+      .asset_atlas_gate,
+      .command_surface_skin_gate,
+      .selection_minimap_skin_gate,
+      .unit_status_skin_gate,
+      .command_feedback_skin_gate,
+      .tooltip_skin_gate,
+      .hotkey_skin_gate,
+      .production_ui_skin_preview_gate,
+      .player_first_production_hud_skin_screen_gate,
+      .runtime_screen_gate,
+      .source_preview_gate,
+      .no_copy_boundary_gate,
+      .production_ui_skin_gate
+    ] | map(select(. == true)) | length)
+  | .failed_gate_count = (.gate_count - .passed_gate_count)
+' "$SUMMARY_RAW" >"$SUMMARY_TMP"
+mv "$SUMMARY_TMP" "$SUMMARY"
 
 jq -e '
   .contract_version == "trillionnium_world_bevy_classic_rts_production_ui_skin_v1"
   and .green == true
   and .preview_width == 1280
   and .preview_height == 768
+  and .source_contract_count == (.source_contracts | keys | length)
+  and .source_path_count == (.source_paths | keys | length)
   and .source_contracts.production_asset_atlas == "trillionnium_world_bevy_classic_rts_production_asset_atlas_v1"
   and .source_contracts.command_surface == "trillionnium_world_bevy_classic_rts_command_surface_v1"
   and .source_contracts.selection_minimap == "trillionnium_world_bevy_classic_rts_selection_minimap_v1"
@@ -21,6 +68,7 @@ jq -e '
   and .source_contracts.ability_tooltip_telegraph == "trillionnium_world_bevy_classic_rts_ability_tooltip_telegraph_v1"
   and .source_contracts.control_group_hotkey_feedback == "trillionnium_world_bevy_classic_rts_control_group_hotkey_feedback_v1"
   and .ui_skin_surface_count == 8
+  and .ui_skin_surface_name_count == (.ui_skin_surface_names | length)
   and (.ui_skin_surface_names | index("HUD CHROME") != null)
   and (.ui_skin_surface_names | index("COMMAND GRID") != null)
   and (.ui_skin_surface_names | index("MINIMAP BEZEL") != null)
@@ -29,6 +77,7 @@ jq -e '
   and (.ui_skin_surface_names | index("FEEDBACK MARKERS") != null)
   and (.ui_skin_surface_names | index("HOTKEY STRIP") != null)
   and (.ui_skin_surface_names | index("STATUS BARS") != null)
+  and .ui_skin_replacement_slot_count == (.ui_skin_replacement_slots | length)
   and (.ui_skin_replacement_slots | index("hud_panel_chrome_slot") != null)
   and (.ui_skin_replacement_slots | index("command_button_skin_slot") != null)
   and (.ui_skin_replacement_slots | index("minimap_frame_slot") != null)
@@ -37,9 +86,11 @@ jq -e '
   and (.ui_skin_replacement_slots | index("feedback_marker_slot") != null)
   and (.ui_skin_replacement_slots | index("hotkey_strip_slot") != null)
   and (.ui_skin_replacement_slots | index("status_bar_slot") != null)
+  and .ui_skin_source_surface_count == (.ui_skin_source_surfaces | length)
   and .runtime_screen_mode == "player_runtime_production_hud_skin_screen"
   and .runtime_screen_gate == true
   and .evidence_board_only == false
+  and .runtime_screen_layout_count == (.runtime_screen_layout | keys | length)
   and .runtime_screen_layout.primary_tactical_viewport == "single skinned RTS tactical viewport behind the production HUD"
   and .runtime_screen_layout.hud_chrome == "bottom player HUD chrome and resource strip"
   and .runtime_screen_layout.command_grid == "bottom command button skin slots applied in context"
@@ -81,6 +132,7 @@ jq -e '
   and .production_ui_skin_pixel_counts.player_first_production_hud_unit_card > 30000
   and .production_ui_skin_pixel_counts.player_first_production_hud_feedback_lane > 30000
   and .production_ui_skin_pixel_counts.player_first_production_hud_hotkey_status > 25000
+  and .production_ui_skin_pixel_count_field_count == (.production_ui_skin_pixel_counts | keys | length)
   and .skin_highlight_pixel_count > 3000
   and .asset_atlas_gate == true
   and .command_surface_skin_gate == true
@@ -95,6 +147,9 @@ jq -e '
   and .source_preview_gate == true
   and .no_copy_boundary_gate == true
   and .production_ui_skin_gate == true
+  and .gate_count == 13
+  and .passed_gate_count == 13
+  and .failed_gate_count == 0
   and .warcraft_iii_asset_copied == false
   and .openra_asset_copied == false
   and .third_party_asset_copied == false

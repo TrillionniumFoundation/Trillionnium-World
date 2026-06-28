@@ -969,7 +969,7 @@ truncate -s 8000001 "$bot_map_intel_gap_ppm"
 add_artifact_from_path native_bevy_bot_map_intel_gap_ppm "Native/Bevy bot map intel gap PPM" "$bot_map_intel_gap_ppm" release_review_visual_evidence
 
 production_desktop_review_packet_json="$TMP_DIR/bevy-classic-rts-production-desktop-review-packet.json"
-jq -n '{contract_version: "trillionnium_world_bevy_classic_rts_production_desktop_review_packet_v1", status: "classic_rts_production_desktop_review_packet_green", green: true, source_contract_count: 3, artifact_count: 6, artifact_bytes_total: 6, gate_count: 10, passed_gate_count: 10, failed_gate_count: 0, production_interaction_surface_count: 6, desktop_screenshot_frame_count: 11, desktop_keyboard_event_count: 13, desktop_mouse_event_count: 15, desktop_mouse_slot_a_bytes: 41520, android_s5_real_device_claimed: false, public_launch_ready_claimed: false, live_public_network_exposure_performed: false, live_osm_ingestion_performed: false, production_ready_desktop_review_shipped: false, source_contracts: {production_interaction_polish: "trillionnium_world_bevy_classic_rts_production_interaction_polish_v1", desktop_playtest_review_packet: "trillionnium_world_bevy_desktop_playtest_review_packet_v1", desktop_real_machine_readiness: "trillionnium_world_bevy_desktop_real_machine_readiness_v1"}, gates: {production_interaction_polish_gate: true, desktop_playtest_review_packet_gate: true, desktop_real_machine_readiness_gate: true, keyboard_visual_review_gate: true, mouse_visual_review_gate: true, artifact_manifest_gate: true, production_to_desktop_review_gate: true, desktop_before_mobile_gate: true, android_s5_real_device_not_claimed_gate: true, public_launch_not_claimed_gate: true}, production_review_summary: {interaction_surface_count: 6, runtime_screen_mode: "player_runtime_command_interaction_screen", runtime_screen_gate: true, evidence_board_only: false, runtime_screen_layout: {drag_select: "visible marquee skin and selection feedback strip", queue_path: "queued waypoint path, rally chain, reservation, and cancel/repath strip"}, ui_skin_runtime_screen_mode: "player_runtime_production_hud_skin_screen", ui_skin_runtime_screen_gate: true, ui_skin_evidence_board_only: false, drag_select_skin_pixel_count: 9980, right_click_move_skin_pixel_count: 9980, attack_lock_skin_pixel_count: 9980, build_ghost_skin_pixel_count: 9980, queue_path_skin_pixel_count: 9700, scroll_minimap_skin_pixel_count: 9700}, desktop_review_summary: {screenshot_frame_count: 11, keyboard_event_count: 13, mouse_event_count: 15, mouse_slot_a_bytes: 41520}, artifact_manifest: [{label: "production_interaction_polish", path: "fixture", sha256: "fixture", bytes: 1}, {label: "production_interaction_polish_preview", path: "fixture", sha256: "fixture", bytes: 1}, {label: "desktop_playtest_review_packet", path: "fixture", sha256: "fixture", bytes: 1}, {label: "desktop_real_machine_readiness", path: "fixture", sha256: "fixture", bytes: 1}, {label: "live_window_screenshot_sequence", path: "fixture", sha256: "fixture", bytes: 1}, {label: "live_window_mouse_hit_test_sequence", path: "fixture", sha256: "fixture", bytes: 1}], no_credit_boundaries: {android_s5_real_device_claimed: false, public_launch_ready_claimed: false, production_ready_desktop_review_shipped: false, desktop_review_scope: "local_linux_desktop_x11_window_keyboard_mouse_with_production_interaction_polish"}}' >"$production_desktop_review_packet_json"
+jq -n '{contract_version: "trillionnium_world_bevy_classic_rts_production_desktop_review_packet_v1", status: "classic_rts_production_desktop_review_packet_green", green: true, source_contract_count: 3, artifact_count: 6, artifact_bytes_total: 6, gate_count: 10, passed_gate_count: 10, failed_gate_count: 0, production_interaction_surface_count: 6, production_interaction_source_contract_count: 6, production_interaction_source_path_count: 6, production_interaction_runtime_screen_layout_count: 6, production_interaction_pixel_count_field_count: 5, production_interaction_surface_name_count: 6, production_interaction_replacement_slot_count: 6, production_interaction_source_surface_count: 6, production_interaction_gate_count: 12, production_interaction_passed_gate_count: 12, production_interaction_failed_gate_count: 0, desktop_screenshot_frame_count: 11, desktop_keyboard_event_count: 13, desktop_mouse_event_count: 15, desktop_mouse_slot_a_bytes: 41520, android_s5_real_device_claimed: false, public_launch_ready_claimed: false, live_public_network_exposure_performed: false, live_osm_ingestion_performed: false, production_ready_desktop_review_shipped: false, source_contracts: {production_interaction_polish: "trillionnium_world_bevy_classic_rts_production_interaction_polish_v1", desktop_playtest_review_packet: "trillionnium_world_bevy_desktop_playtest_review_packet_v1", desktop_real_machine_readiness: "trillionnium_world_bevy_desktop_real_machine_readiness_v1"}, gates: {production_interaction_polish_gate: true, desktop_playtest_review_packet_gate: true, desktop_real_machine_readiness_gate: true, keyboard_visual_review_gate: true, mouse_visual_review_gate: true, artifact_manifest_gate: true, production_to_desktop_review_gate: true, desktop_before_mobile_gate: true, android_s5_real_device_not_claimed_gate: true, public_launch_not_claimed_gate: true}, production_review_summary: {interaction_surface_count: 6, source_contract_count: 6, source_path_count: 6, runtime_screen_layout_count: 6, interaction_pixel_count_field_count: 5, interaction_surface_name_count: 6, interaction_replacement_slot_count: 6, interaction_source_surface_count: 6, gate_count: 12, passed_gate_count: 12, failed_gate_count: 0, runtime_screen_mode: "player_runtime_command_interaction_screen", runtime_screen_gate: true, evidence_board_only: false, runtime_screen_layout: {drag_select: "visible marquee skin and selection feedback strip", queue_path: "queued waypoint path, rally chain, reservation, and cancel/repath strip"}, ui_skin_runtime_screen_mode: "player_runtime_production_hud_skin_screen", ui_skin_runtime_screen_gate: true, ui_skin_evidence_board_only: false, drag_select_skin_pixel_count: 9980, right_click_move_skin_pixel_count: 9980, attack_lock_skin_pixel_count: 9980, build_ghost_skin_pixel_count: 9980, queue_path_skin_pixel_count: 9700, scroll_minimap_skin_pixel_count: 9700}, desktop_review_summary: {screenshot_frame_count: 11, keyboard_event_count: 13, mouse_event_count: 15, mouse_slot_a_bytes: 41520}, artifact_manifest: [{label: "production_interaction_polish", path: "fixture", sha256: "fixture", bytes: 1}, {label: "production_interaction_polish_preview", path: "fixture", sha256: "fixture", bytes: 1}, {label: "desktop_playtest_review_packet", path: "fixture", sha256: "fixture", bytes: 1}, {label: "desktop_real_machine_readiness", path: "fixture", sha256: "fixture", bytes: 1}, {label: "live_window_screenshot_sequence", path: "fixture", sha256: "fixture", bytes: 1}, {label: "live_window_mouse_hit_test_sequence", path: "fixture", sha256: "fixture", bytes: 1}], no_credit_boundaries: {android_s5_real_device_claimed: false, public_launch_ready_claimed: false, production_ready_desktop_review_shipped: false, desktop_review_scope: "local_linux_desktop_x11_window_keyboard_mouse_with_production_interaction_polish"}}' >"$production_desktop_review_packet_json"
 add_artifact_from_path native_bevy_classic_rts_production_desktop_review_packet "Native/Bevy classic RTS production desktop review packet" "$production_desktop_review_packet_json" release_review_input
 
 full_screen_ui_replication_json="$TMP_DIR/bevy-classic-rts-full-screen-ui-replication.json"
@@ -2312,6 +2312,43 @@ jq -n '{
     rts_unit_status_portrait_frame_pixel_count: 15339,
     rts_ability_tooltip_telegraph_tooltip_pixel_count: 10466,
     rts_depth_readability_foreground_pixel_count: 11000,
+    rts_production_art_replication_source_contract_count: 3,
+    rts_production_art_replication_required_asset_kind_count: 9,
+    rts_production_art_replication_required_gameplay_layer_count: 8,
+    rts_production_art_replication_required_replacement_slot_count: 5,
+    rts_production_art_replication_gate_count: 6,
+    rts_production_art_replication_passed_gate_count: 6,
+    rts_production_art_replication_failed_gate_count: 0,
+    rts_production_asset_atlas_source_contract_count: 4,
+    rts_production_asset_atlas_source_path_count: 7,
+    rts_production_asset_atlas_family_name_count: 10,
+    rts_production_asset_atlas_binding_replacement_slot_count: 7,
+    rts_production_asset_atlas_binding_runtime_target_count: 4,
+    rts_production_asset_atlas_runtime_material_slot_count: 4,
+    rts_production_asset_atlas_runtime_scene_layer_count: 4,
+    rts_production_asset_atlas_gate_count: 8,
+    rts_production_asset_atlas_passed_gate_count: 8,
+    rts_production_asset_atlas_failed_gate_count: 0,
+    rts_production_ui_skin_source_contract_count: 7,
+    rts_production_ui_skin_source_path_count: 7,
+    rts_production_ui_skin_runtime_screen_layout_count: 7,
+    rts_production_ui_skin_pixel_count_field_count: 8,
+    rts_production_ui_skin_surface_name_count: 8,
+    rts_production_ui_skin_replacement_slot_count: 8,
+    rts_production_ui_skin_source_surface_count: 8,
+    rts_production_ui_skin_gate_count: 13,
+    rts_production_ui_skin_passed_gate_count: 13,
+    rts_production_ui_skin_failed_gate_count: 0,
+    rts_production_interaction_polish_source_contract_count: 6,
+    rts_production_interaction_polish_source_path_count: 6,
+    rts_production_interaction_polish_runtime_screen_layout_count: 6,
+    rts_production_interaction_polish_pixel_count_field_count: 5,
+    rts_production_interaction_polish_surface_name_count: 6,
+    rts_production_interaction_polish_replacement_slot_count: 6,
+    rts_production_interaction_polish_source_surface_count: 6,
+    rts_production_interaction_polish_gate_count: 12,
+    rts_production_interaction_polish_passed_gate_count: 12,
+    rts_production_interaction_polish_failed_gate_count: 0,
     rts_combat_readability_pressure_player_first_view_non_background: 248151,
     rts_combat_readability_pressure_player_first_view_frame_pixel_count: 13752,
     rts_combat_readability_pressure_player_first_status_strip_pixel_count: 26777,

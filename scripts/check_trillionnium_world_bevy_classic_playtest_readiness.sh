@@ -2119,6 +2119,23 @@ mv "$SUMMARY_WITH_COUNTS" "$SUMMARY"
       rts_visual_fidelity_model_edge_pixel_count: $rts_visual_fidelity[0].model_edge_pixel_count,
       rts_visual_fidelity_command_grid_pixel_count: $rts_visual_fidelity[0].command_grid_pixel_count,
       rts_visual_fidelity_npc_action_pixel_count: $rts_visual_fidelity[0].npc_action_pixel_count,
+      rts_production_art_replication_source_contract_count: $rts_production_art_replication[0].source_contract_count,
+      rts_production_art_replication_required_asset_kind_count: $rts_production_art_replication[0].required_asset_kind_count,
+      rts_production_art_replication_required_gameplay_layer_count: $rts_production_art_replication[0].required_gameplay_layer_count,
+      rts_production_art_replication_required_replacement_slot_count: $rts_production_art_replication[0].required_replacement_slot_count,
+      rts_production_art_replication_gate_count: $rts_production_art_replication[0].gate_count,
+      rts_production_art_replication_passed_gate_count: $rts_production_art_replication[0].passed_gate_count,
+      rts_production_art_replication_failed_gate_count: $rts_production_art_replication[0].failed_gate_count,
+      rts_production_asset_atlas_source_contract_count: $rts_production_asset_atlas[0].source_contract_count,
+      rts_production_asset_atlas_source_path_count: $rts_production_asset_atlas[0].source_path_count,
+      rts_production_asset_atlas_family_name_count: $rts_production_asset_atlas[0].atlas_family_name_count,
+      rts_production_asset_atlas_binding_replacement_slot_count: $rts_production_asset_atlas[0].binding_replacement_slot_count,
+      rts_production_asset_atlas_binding_runtime_target_count: $rts_production_asset_atlas[0].binding_runtime_target_count,
+      rts_production_asset_atlas_runtime_material_slot_count: $rts_production_asset_atlas[0].runtime_material_slot_count,
+      rts_production_asset_atlas_runtime_scene_layer_count: $rts_production_asset_atlas[0].runtime_scene_layer_count,
+      rts_production_asset_atlas_gate_count: $rts_production_asset_atlas[0].gate_count,
+      rts_production_asset_atlas_passed_gate_count: $rts_production_asset_atlas[0].passed_gate_count,
+      rts_production_asset_atlas_failed_gate_count: $rts_production_asset_atlas[0].failed_gate_count,
       rts_production_asset_atlas_frame_count: $rts_production_asset_atlas[0].atlas_frame_count,
       rts_production_asset_atlas_sprite_binding_count: $rts_production_asset_atlas[0].sprite_binding_count,
       rts_production_asset_atlas_material_asset_count: $rts_production_asset_atlas[0].material_asset_count,
@@ -2127,6 +2144,16 @@ mv "$SUMMARY_WITH_COUNTS" "$SUMMARY"
       rts_production_asset_atlas_runtime_binding_lane_pixel_count: $rts_production_asset_atlas[0].runtime_binding_lane_pixel_count,
       rts_production_asset_atlas_uv_rect_pixel_count: $rts_production_asset_atlas[0].uv_rect_pixel_count,
       rts_production_ui_skin_surface_count: $rts_production_ui_skin[0].ui_skin_surface_count,
+      rts_production_ui_skin_source_contract_count: $rts_production_ui_skin[0].source_contract_count,
+      rts_production_ui_skin_source_path_count: $rts_production_ui_skin[0].source_path_count,
+      rts_production_ui_skin_runtime_screen_layout_count: $rts_production_ui_skin[0].runtime_screen_layout_count,
+      rts_production_ui_skin_pixel_count_field_count: $rts_production_ui_skin[0].production_ui_skin_pixel_count_field_count,
+      rts_production_ui_skin_surface_name_count: $rts_production_ui_skin[0].ui_skin_surface_name_count,
+      rts_production_ui_skin_replacement_slot_count: $rts_production_ui_skin[0].ui_skin_replacement_slot_count,
+      rts_production_ui_skin_source_surface_count: $rts_production_ui_skin[0].ui_skin_source_surface_count,
+      rts_production_ui_skin_gate_count: $rts_production_ui_skin[0].gate_count,
+      rts_production_ui_skin_passed_gate_count: $rts_production_ui_skin[0].passed_gate_count,
+      rts_production_ui_skin_failed_gate_count: $rts_production_ui_skin[0].failed_gate_count,
       rts_production_ui_skin_board_pixel_count: $rts_production_ui_skin[0].ui_skin_board_pixel_count,
       rts_production_ui_skin_hud_chrome_pixel_count: $rts_production_ui_skin[0].hud_chrome_pixel_count,
       rts_production_ui_skin_command_grid_pixel_count: $rts_production_ui_skin[0].command_grid_skin_pixel_count,
@@ -2146,6 +2173,16 @@ mv "$SUMMARY_WITH_COUNTS" "$SUMMARY"
       rts_production_ui_skin_player_first_hud_feedback_lane_pixel_count: $rts_production_ui_skin[0].production_ui_skin_pixel_counts.player_first_production_hud_feedback_lane,
       rts_production_ui_skin_player_first_hud_hotkey_status_pixel_count: $rts_production_ui_skin[0].production_ui_skin_pixel_counts.player_first_production_hud_hotkey_status,
       rts_production_interaction_polish_surface_count: $rts_production_interaction_polish[0].interaction_surface_count,
+      rts_production_interaction_polish_source_contract_count: $rts_production_interaction_polish[0].source_contract_count,
+      rts_production_interaction_polish_source_path_count: $rts_production_interaction_polish[0].source_path_count,
+      rts_production_interaction_polish_runtime_screen_layout_count: $rts_production_interaction_polish[0].runtime_screen_layout_count,
+      rts_production_interaction_polish_pixel_count_field_count: $rts_production_interaction_polish[0].interaction_pixel_count_field_count,
+      rts_production_interaction_polish_surface_name_count: $rts_production_interaction_polish[0].interaction_surface_name_count,
+      rts_production_interaction_polish_replacement_slot_count: $rts_production_interaction_polish[0].interaction_replacement_slot_count,
+      rts_production_interaction_polish_source_surface_count: $rts_production_interaction_polish[0].interaction_source_surface_count,
+      rts_production_interaction_polish_gate_count: $rts_production_interaction_polish[0].gate_count,
+      rts_production_interaction_polish_passed_gate_count: $rts_production_interaction_polish[0].passed_gate_count,
+      rts_production_interaction_polish_failed_gate_count: $rts_production_interaction_polish[0].failed_gate_count,
       rts_production_interaction_polish_board_pixel_count: $rts_production_interaction_polish[0].interaction_board_pixel_count,
       rts_production_interaction_polish_drag_select_pixel_count: $rts_production_interaction_polish[0].drag_select_skin_pixel_count,
       rts_production_interaction_polish_right_click_pixel_count: $rts_production_interaction_polish[0].right_click_move_skin_pixel_count,
@@ -3809,6 +3846,23 @@ run_validation_filter_in_chunks "$VALIDATION_FILTER" "$SUMMARY" "$VALIDATION_CHU
   and .checks.classic_rts_full_game_visual_ui_replication_green == true
   and .checks.classic_rts_openra_screen_for_screen_ui_replication_green == true
   and .checks.classic_rts_openra_engine_port_asset_parity_green == true
+  and .headline.rts_production_art_replication_source_contract_count == 3
+  and .headline.rts_production_art_replication_required_asset_kind_count == 9
+  and .headline.rts_production_art_replication_required_gameplay_layer_count == 8
+  and .headline.rts_production_art_replication_required_replacement_slot_count == 5
+  and .headline.rts_production_art_replication_gate_count == 6
+  and .headline.rts_production_art_replication_passed_gate_count == 6
+  and .headline.rts_production_art_replication_failed_gate_count == 0
+  and .headline.rts_production_asset_atlas_source_contract_count == 4
+  and .headline.rts_production_asset_atlas_source_path_count == 7
+  and .headline.rts_production_asset_atlas_family_name_count == 10
+  and .headline.rts_production_asset_atlas_binding_replacement_slot_count == 7
+  and .headline.rts_production_asset_atlas_binding_runtime_target_count == 4
+  and .headline.rts_production_asset_atlas_runtime_material_slot_count == 4
+  and .headline.rts_production_asset_atlas_runtime_scene_layer_count == 4
+  and .headline.rts_production_asset_atlas_gate_count == 8
+  and .headline.rts_production_asset_atlas_passed_gate_count == 8
+  and .headline.rts_production_asset_atlas_failed_gate_count == 0
   and .headline.rts_production_asset_atlas_frame_count >= 32
   and .headline.rts_production_asset_atlas_sprite_binding_count >= 32
   and .headline.rts_production_asset_atlas_material_asset_count == 4
@@ -3817,6 +3871,16 @@ run_validation_filter_in_chunks "$VALIDATION_FILTER" "$SUMMARY" "$VALIDATION_CHU
   and .headline.rts_production_asset_atlas_runtime_binding_lane_pixel_count > 8000
   and .headline.rts_production_asset_atlas_uv_rect_pixel_count > 6000
   and .headline.rts_production_ui_skin_surface_count == 8
+  and .headline.rts_production_ui_skin_source_contract_count == 7
+  and .headline.rts_production_ui_skin_source_path_count == 7
+  and .headline.rts_production_ui_skin_runtime_screen_layout_count == 7
+  and .headline.rts_production_ui_skin_pixel_count_field_count == 8
+  and .headline.rts_production_ui_skin_surface_name_count == 8
+  and .headline.rts_production_ui_skin_replacement_slot_count == 8
+  and .headline.rts_production_ui_skin_source_surface_count == 8
+  and .headline.rts_production_ui_skin_gate_count == 13
+  and .headline.rts_production_ui_skin_passed_gate_count == 13
+  and .headline.rts_production_ui_skin_failed_gate_count == 0
   and .headline.rts_production_ui_skin_board_pixel_count > 80000
   and .headline.rts_production_ui_skin_hud_chrome_pixel_count > 1000
   and .headline.rts_production_ui_skin_command_grid_pixel_count > 1000
@@ -3836,6 +3900,16 @@ run_validation_filter_in_chunks "$VALIDATION_FILTER" "$SUMMARY" "$VALIDATION_CHU
   and .headline.rts_production_ui_skin_player_first_hud_feedback_lane_pixel_count > 30000
   and .headline.rts_production_ui_skin_player_first_hud_hotkey_status_pixel_count > 25000
   and .headline.rts_production_interaction_polish_surface_count == 6
+  and .headline.rts_production_interaction_polish_source_contract_count == 6
+  and .headline.rts_production_interaction_polish_source_path_count == 6
+  and .headline.rts_production_interaction_polish_runtime_screen_layout_count == 6
+  and .headline.rts_production_interaction_polish_pixel_count_field_count == 5
+  and .headline.rts_production_interaction_polish_surface_name_count == 6
+  and .headline.rts_production_interaction_polish_replacement_slot_count == 6
+  and .headline.rts_production_interaction_polish_source_surface_count == 6
+  and .headline.rts_production_interaction_polish_gate_count == 12
+  and .headline.rts_production_interaction_polish_passed_gate_count == 12
+  and .headline.rts_production_interaction_polish_failed_gate_count == 0
   and .headline.rts_production_interaction_polish_board_pixel_count > 80000
   and .headline.rts_production_interaction_polish_drag_select_pixel_count > 1000
   and .headline.rts_production_interaction_polish_right_click_pixel_count > 1000
