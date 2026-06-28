@@ -5,8 +5,51 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SUMMARY="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-match-setup-ui-replication.json"
 PREVIEW="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-match-setup-ui-replication.ppm"
 mkdir -p "$(dirname "$SUMMARY")"
+SUMMARY_RAW="$(mktemp "${SUMMARY}.raw.XXXXXX")"
+SUMMARY_TMP="$(mktemp "${SUMMARY}.tmp.XXXXXX")"
+trap 'rm -f "$SUMMARY_RAW" "$SUMMARY_TMP"' EXIT
 
-"$ROOT/scripts/run_trillionnium_world_bevy_artifact_command.sh" classic-rts-match-setup-ui-replication "$PREVIEW" >"$SUMMARY"
+"$ROOT/scripts/run_trillionnium_world_bevy_artifact_command.sh" classic-rts-match-setup-ui-replication "$PREVIEW" >"$SUMMARY_RAW"
+
+jq '
+  .source_contract_count = (.source_contracts | keys | length)
+  | .source_path_count = (.source_paths | keys | length)
+  | .source_headline_field_count = (.source_headline | keys | length)
+  | .runtime_screen_layout_count = (.runtime_screen_layout | keys | length)
+  | .setup_pixel_count_field_count = (.setup_pixel_counts | keys | length)
+  | .match_setup_player_first_pixel_count_field_count = (.match_setup_player_first_pixel_counts | keys | length)
+  | .setup_surface_name_count = (.setup_surface_names | length)
+  | .setup_slot_id_count = (.setup_slot_ids | length)
+  | .setup_source_surface_count = (.setup_source_surfaces | length)
+  | .gate_count = ([
+      .shell_meta_gate,
+      .campaign_entry_gate,
+      .map_spec_gate,
+      .map_ui_gate,
+      .faction_gate,
+      .no_external_boundary_gate,
+      .setup_preview_gate,
+      .runtime_screen_gate,
+      .source_preview_gate,
+      .player_first_match_setup_screen_gate,
+      .match_setup_ui_replication_gate
+    ] | length)
+  | .passed_gate_count = ([
+      .shell_meta_gate,
+      .campaign_entry_gate,
+      .map_spec_gate,
+      .map_ui_gate,
+      .faction_gate,
+      .no_external_boundary_gate,
+      .setup_preview_gate,
+      .runtime_screen_gate,
+      .source_preview_gate,
+      .player_first_match_setup_screen_gate,
+      .match_setup_ui_replication_gate
+    ] | map(select(. == true)) | length)
+  | .failed_gate_count = (.gate_count - .passed_gate_count)
+' "$SUMMARY_RAW" >"$SUMMARY_TMP"
+mv "$SUMMARY_TMP" "$SUMMARY"
 
 jq -e '
   .contract_version == "trillionnium_world_bevy_classic_rts_match_setup_ui_replication_v1"
@@ -15,6 +58,18 @@ jq -e '
   and .preview_width == 1280
   and .preview_height == 768
   and .preview_format == "ppm_p3_rgb"
+  and .source_contract_count == (.source_contracts | keys | length)
+  and .source_path_count == (.source_paths | keys | length)
+  and .source_headline_field_count == (.source_headline | keys | length)
+  and .runtime_screen_layout_count == (.runtime_screen_layout | keys | length)
+  and .setup_pixel_count_field_count == (.setup_pixel_counts | keys | length)
+  and .match_setup_player_first_pixel_count_field_count == (.match_setup_player_first_pixel_counts | keys | length)
+  and .setup_surface_name_count == (.setup_surface_names | length)
+  and .setup_slot_id_count == (.setup_slot_ids | length)
+  and .setup_source_surface_count == (.setup_source_surfaces | length)
+  and .gate_count == 11
+  and .passed_gate_count == 11
+  and .failed_gate_count == 0
   and .source_contracts.shell_meta_ui_replication == "trillionnium_world_bevy_classic_rts_shell_meta_ui_replication_v1"
   and .source_contracts.campaign_entry == "trillionnium_world_bevy_classic_rts_campaign_entry_v1"
   and .source_contracts.first_contact_basin_spec == "trillionnium_world_bevy_classic_rts_first_contact_basin_spec_v1"

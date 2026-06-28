@@ -6,9 +6,70 @@ SUMMARY="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-shell-me
 PREVIEW="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-shell-meta-ui-replication.ppm"
 SLOT_DIR="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-shell-meta-ui-replication-slots"
 mkdir -p "$(dirname "$SUMMARY")" "$SLOT_DIR"
+SUMMARY_RAW="$(mktemp "${SUMMARY}.raw.XXXXXX")"
+SUMMARY_TMP="$(mktemp "${SUMMARY}.tmp.XXXXXX")"
+trap 'rm -f "$SUMMARY_RAW" "$SUMMARY_TMP"' EXIT
 
 TRNM_WORLD_BEVY_SESSION_SLOT_DIR="$SLOT_DIR" \
-  "$ROOT/scripts/run_trillionnium_world_bevy_artifact_command.sh" classic-rts-shell-meta-ui-replication "$PREVIEW" >"$SUMMARY"
+  "$ROOT/scripts/run_trillionnium_world_bevy_artifact_command.sh" classic-rts-shell-meta-ui-replication "$PREVIEW" >"$SUMMARY_RAW"
+
+jq '
+  .source_contract_count = (.source_contracts | keys | length)
+  | .source_path_count = (.source_paths | keys | length)
+  | .source_headline_field_count = (.source_headline | keys | length)
+  | .runtime_screen_layout_count = (.runtime_screen_layout | keys | length)
+  | .shell_meta_pixel_count_field_count = (.shell_meta_pixel_counts | keys | length)
+  | .shell_meta_player_first_pixel_count_field_count = (.shell_meta_player_first_pixel_counts | keys | length)
+  | .shell_meta_surface_name_count = (.shell_meta_surface_names | length)
+  | .shell_meta_slot_id_count = (.shell_meta_slot_ids | length)
+  | .shell_meta_source_surface_count = (.shell_meta_source_surfaces | length)
+  | .gate_count = ([
+      .full_screen_ui_replication_gate,
+      .account_title_gate,
+      .title_menu_gate,
+      .character_create_gate,
+      .session_slot_menu_gate,
+      .session_save_slot_gate,
+      .session_slot_confirm_gate,
+      .session_load_resume_gate,
+      .session_recovery_gate,
+      .pause_menu_gate,
+      .settings_menu_gate,
+      .input_hud_gate,
+      .visible_hit_test_gate,
+      .first_minute_onboarding_gate,
+      .no_external_boundary_gate,
+      .shell_meta_preview_gate,
+      .runtime_screen_gate,
+      .player_first_shell_meta_screen_gate,
+      .source_preview_gate,
+      .shell_meta_ui_replication_gate
+    ] | length)
+  | .passed_gate_count = ([
+      .full_screen_ui_replication_gate,
+      .account_title_gate,
+      .title_menu_gate,
+      .character_create_gate,
+      .session_slot_menu_gate,
+      .session_save_slot_gate,
+      .session_slot_confirm_gate,
+      .session_load_resume_gate,
+      .session_recovery_gate,
+      .pause_menu_gate,
+      .settings_menu_gate,
+      .input_hud_gate,
+      .visible_hit_test_gate,
+      .first_minute_onboarding_gate,
+      .no_external_boundary_gate,
+      .shell_meta_preview_gate,
+      .runtime_screen_gate,
+      .player_first_shell_meta_screen_gate,
+      .source_preview_gate,
+      .shell_meta_ui_replication_gate
+    ] | map(select(. == true)) | length)
+  | .failed_gate_count = (.gate_count - .passed_gate_count)
+' "$SUMMARY_RAW" >"$SUMMARY_TMP"
+mv "$SUMMARY_TMP" "$SUMMARY"
 
 jq -e '
   .contract_version == "trillionnium_world_bevy_classic_rts_shell_meta_ui_replication_v1"
@@ -16,6 +77,18 @@ jq -e '
   and .green == true
   and .preview_width == 1280
   and .preview_height == 768
+  and .source_contract_count == (.source_contracts | keys | length)
+  and .source_path_count == (.source_paths | keys | length)
+  and .source_headline_field_count == (.source_headline | keys | length)
+  and .runtime_screen_layout_count == (.runtime_screen_layout | keys | length)
+  and .shell_meta_pixel_count_field_count == (.shell_meta_pixel_counts | keys | length)
+  and .shell_meta_player_first_pixel_count_field_count == (.shell_meta_player_first_pixel_counts | keys | length)
+  and .shell_meta_surface_name_count == (.shell_meta_surface_names | length)
+  and .shell_meta_slot_id_count == (.shell_meta_slot_ids | length)
+  and .shell_meta_source_surface_count == (.shell_meta_source_surfaces | length)
+  and .gate_count == 20
+  and .passed_gate_count == 20
+  and .failed_gate_count == 0
   and .source_contracts.full_screen_ui_replication == "trillionnium_world_bevy_classic_rts_full_screen_ui_replication_v1"
   and .source_contracts.account_title_flow == "trillionnium_world_bevy_account_title_flow_v1"
   and .source_contracts.title_menu == "trillionnium_world_bevy_title_menu_v1"
