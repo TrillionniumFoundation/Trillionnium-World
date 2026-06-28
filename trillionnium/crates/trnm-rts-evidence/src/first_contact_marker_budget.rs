@@ -15,7 +15,7 @@ use crate::{
     TRNM_RTS_EVIDENCE_FIRST_CONTACT_MARKER_BUDGET_CONTRACT,
 };
 
-const GALLERY_SLOT_CUE_PIXELS_PER_SAMPLE: usize = 2;
+const GALLERY_SLOT_CUE_PIXELS_PER_SAMPLE: usize = 1;
 const LOWER_LANE_SLOT_CUE_PIXELS_PER_SAMPLE: usize = 1;
 const LOWER_LANE_GHOST_ANCHOR_COUNT: usize = 1;
 
@@ -170,6 +170,7 @@ where
         gallery_presentation_signatures: vec![
             "muted_gallery_slot_cues",
             "perimeter_gallery_edge_anchors",
+            "perimeter_gallery_single_pixel_anchors",
             "darkened_gallery_frames",
             "perimeter_gallery_stronger_deemphasis",
             "lower_lane_gallery_deemphasis",
@@ -294,7 +295,7 @@ pub fn first_contact_marker_budget_guard(runtime: &RtsFirstContactMarkerBudgetRu
         && max_gallery_lane_frame_count <= 6;
     let gallery_mute_gate = muted_gallery_sample_count == family_samples.len()
         && gallery_mute_overlay_pixel_budget >= 22_000
-        && gallery_slot_cue_pixel_budget <= 25
+        && gallery_slot_cue_pixel_budget <= 14
         && gallery_darken_numerator == 4
         && gallery_darken_denominator == 5
         && gallery_hot_marker_color_count == 0
@@ -473,7 +474,7 @@ mod tests {
         assert_eq!(summary.east_gallery_frame_count, 6);
         assert_eq!(summary.max_gallery_lane_frame_count, 6);
         assert_eq!(summary.lower_lane_gallery_sample_count, 3);
-        assert_eq!(summary.gallery_slot_cue_pixel_budget, 25);
+        assert_eq!(summary.gallery_slot_cue_pixel_budget, 14);
         assert_eq!(summary.gallery_darken_numerator, 4);
         assert_eq!(summary.gallery_darken_denominator, 5);
         assert_eq!(summary.lower_lane_rendered_frame_pixel_budget, 0);
@@ -503,6 +504,9 @@ mod tests {
         assert!(summary
             .gallery_presentation_signatures
             .contains(&"perimeter_gallery_edge_anchors"));
+        assert!(summary
+            .gallery_presentation_signatures
+            .contains(&"perimeter_gallery_single_pixel_anchors"));
         assert!(summary
             .gallery_presentation_signatures
             .contains(&"interactive_focus_kept_hot"));
@@ -552,7 +556,7 @@ mod tests {
             guard
                 .get("gallery_slot_cue_pixel_budget")
                 .and_then(Value::as_u64),
-            Some(25)
+            Some(14)
         );
         assert_eq!(
             guard
@@ -610,6 +614,13 @@ mod tests {
             .is_some_and(|signatures| signatures.iter().any(
                 |signature| signature.as_str() == Some("perimeter_gallery_stronger_deemphasis")
             )));
+        assert!(guard
+            .get("gallery_presentation_signatures")
+            .and_then(Value::as_array)
+            .is_some_and(|signatures| signatures
+                .iter()
+                .any(|signature| signature.as_str()
+                    == Some("perimeter_gallery_single_pixel_anchors"))));
 
         for gate in [
             "gallery_lane_budget_gate",

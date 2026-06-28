@@ -98979,9 +98979,9 @@ fn classic_draw_first_contact_atlas_family_slot_cue(
             width,
             height,
             tile_x + 1,
-            tile_y + cell_h / 2 - 1,
+            tile_y + cell_h / 2,
             1,
-            2,
+            1,
             anchor_color,
         ),
         "east_gallery" => classic_draw_rect(
@@ -98989,18 +98989,18 @@ fn classic_draw_first_contact_atlas_family_slot_cue(
             width,
             height,
             tile_x + cell_w - 2,
-            tile_y + cell_h / 2 - 1,
+            tile_y + cell_h / 2,
             1,
-            2,
+            1,
             anchor_color,
         ),
         _ => classic_draw_rect(
             buffer,
             width,
             height,
-            tile_x + cell_w / 2 - 1,
+            tile_x + cell_w / 2,
             tile_y + 1,
-            2,
+            1,
             1,
             anchor_color,
         ),
@@ -161194,7 +161194,7 @@ mod tests {
             guard
                 .get("gallery_slot_cue_pixel_budget")
                 .and_then(Value::as_u64),
-            Some(25)
+            Some(14)
         );
         assert_eq!(
             guard
@@ -161276,6 +161276,9 @@ mod tests {
                         && signatures
                             .iter()
                             .any(|value| value.as_str() == Some("perimeter_gallery_edge_anchors"))
+                        && signatures.iter().any(|value| {
+                            value.as_str() == Some("perimeter_gallery_single_pixel_anchors")
+                        })
                         && signatures
                             .iter()
                             .any(|value| value.as_str() == Some("interactive_focus_kept_hot"))
