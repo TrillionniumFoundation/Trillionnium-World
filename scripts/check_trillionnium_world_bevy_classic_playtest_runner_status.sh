@@ -540,8 +540,15 @@ jq -n \
       player_screen_debug_title_absent_gate: $player_screen_debug_title_absent_gate,
       player_screen_visual_gate: $player_screen_visual_gate
     },
+    ready_for_release_review: true,
+    public_launch_ready: false,
+    android_s5_real_device_claimed: false,
     source_of_truth: "The live playtest runner must be the release trnm-world-bevy binary with the low-spec classic player screen, X11 backend, classic renderer manifest, a concise player-facing First Contact Basin window title, a bounded CPUQuota/CPUWeight budget, and a visible First Contact Basin player screen with real map/HUD/command pixels, non-dead HUD panels, clipped-label edge safety, and gameplay-scene balance; CEX paths are explicitly rejected, and proof/debug/shortcut-manual default title strings are explicitly rejected."
   }
+  | .runtime_cmdline_arg_count = (.runtime.cmdline | length)
+  | .selected_environment_count = (.runtime.selected_environment | keys | length)
+  | .live_player_screen_evidence_path_count = ([.live_player_screen.screenshot_path, .live_player_screen.probe_path] | map(select(. != null and . != "")) | length)
+  | .live_player_screen_pixel_count = (.live_player_screen.window_width * .live_player_screen.window_height)
   | .gate_count = (.gates | keys | length)
   | .passed_gate_count = ([.gates[] | select(. == true)] | length)
   | .failed_gate_count = ([.gates[] | select(. != true)] | length)' >"$SUMMARY"
@@ -549,6 +556,17 @@ jq -n \
 jq -e '
   .contract_version == "trillionnium_world_bevy_classic_playtest_runner_status_v1"
   and .green == true
+  and .ready_for_release_review == true
+  and .public_launch_ready == false
+  and .android_s5_real_device_claimed == false
+  and .runtime_cmdline_arg_count == (.runtime.cmdline | length)
+  and .runtime_cmdline_arg_count == 2
+  and .selected_environment_count == (.runtime.selected_environment | keys | length)
+  and .selected_environment_count >= 8
+  and .live_player_screen_evidence_path_count == ([.live_player_screen.screenshot_path, .live_player_screen.probe_path] | map(select(. != null and . != "")) | length)
+  and .live_player_screen_evidence_path_count == 2
+  and .live_player_screen_pixel_count == (.live_player_screen.window_width * .live_player_screen.window_height)
+  and .live_player_screen_pixel_count >= 828000
   and .gate_count == (.gates | keys | length)
   and .passed_gate_count == ([.gates[] | select(. == true)] | length)
   and .failed_gate_count == ([.gates[] | select(. != true)] | length)
