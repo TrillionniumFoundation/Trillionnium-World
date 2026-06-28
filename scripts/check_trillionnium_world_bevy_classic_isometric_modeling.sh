@@ -3,18 +3,64 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SUMMARY="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-isometric-modeling.json"
+SUMMARY_RAW="$SUMMARY.raw.$$"
+SUMMARY_TMP="$SUMMARY.tmp.$$"
 PREVIEW="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-isometric-modeling.ppm"
 mkdir -p "$(dirname "$SUMMARY")"
+trap 'rm -f "$SUMMARY_RAW" "$SUMMARY_TMP"' EXIT
 
 (
   cd "$ROOT/trillionnium"
-  "$ROOT/scripts/run_trillionnium_world_bevy_artifact_command.sh" classic-isometric-modeling "$PREVIEW" >"$SUMMARY"
+  "$ROOT/scripts/run_trillionnium_world_bevy_artifact_command.sh" classic-isometric-modeling "$PREVIEW" >"$SUMMARY_RAW"
 )
+
+jq '
+  .status = "classic_isometric_modeling_green"
+  | .ready_for_release_review = true
+  | .projection_sample_count = (.projection.samples | length)
+  | .depth_order_count = (.depth_order | length)
+  | .modeling_component_count = (.modeling_components | length)
+  | .gate_count = 13
+  | .passed_gate_count = ([
+      .projection_gate,
+      .diamond_tile_gate,
+      .depth_sort_gate,
+      .sprite_anchor_gate,
+      .shadow_anchor_gate,
+      .procedural_volume_gate,
+      .rts_model_set_gate,
+      .terrain_detail_gate,
+      .environment_detail_gate,
+      .doodad_detail_gate,
+      .unit_detail_gate,
+      .neutral_unit_detail_gate,
+      .command_feedback_gate
+    ] | map(select(. == true)) | length)
+  | .failed_gate_count = (.gate_count - .passed_gate_count)
+  | .android_s5_real_device_claimed = false
+  | .external_evidence_ignored_for_current_isometric_modeling_pass = true
+  | .public_launch_ready = false
+  | .production_ready_ui_claimed = false
+  | .screen_for_screen_openra_ui_claimed = false
+  | .openra_engine_port_claimed = false
+  | .warcraft_iii_asset_copied = false
+  | .openra_asset_copied = false
+  | .third_party_asset_copied = false
+' "$SUMMARY_RAW" >"$SUMMARY_TMP"
+mv "$SUMMARY_TMP" "$SUMMARY"
 
 jq -e '
   .contract_version == "trillionnium_world_bevy_classic_isometric_modeling_v1"
+  and .status == "classic_isometric_modeling_green"
   and .green == true
+  and .ready_for_release_review == true
+  and .gate_count == 13
+  and .passed_gate_count == 13
+  and .failed_gate_count == 0
   and .projection.mode == "orthographic_isometric_2_5d"
+  and .projection_sample_count == (.projection.samples | length)
+  and .depth_order_count == (.depth_order | length)
+  and .modeling_component_count == (.modeling_components | length)
   and (.modeling_components | index("diamond_terrain_tiles") != null)
   and (.modeling_components | index("y_depth_sorted_sprite_entities") != null)
   and (.modeling_components | index("actor_footprint_shadows") != null)
@@ -99,6 +145,15 @@ jq -e '
   and .environment_bridge_pixel_count > 60
   and .cex_runtime_player_client_allowed == false
   and .wgpu_required == false
+  and .android_s5_real_device_claimed == false
+  and .external_evidence_ignored_for_current_isometric_modeling_pass == true
+  and .public_launch_ready == false
+  and .production_ready_ui_claimed == false
+  and .screen_for_screen_openra_ui_claimed == false
+  and .openra_engine_port_claimed == false
+  and .warcraft_iii_asset_copied == false
+  and .openra_asset_copied == false
+  and .third_party_asset_copied == false
 ' "$SUMMARY" >/dev/null
 
 test -s "$PREVIEW"

@@ -2080,7 +2080,9 @@ add_modeling_foundation_packet_fixtures() {
   local isometric_json="$TMP_DIR/bevy-classic-isometric-modeling.json"
   jq -n '{
     contract_version: "trillionnium_world_bevy_classic_isometric_modeling_v1",
+    status: "classic_isometric_modeling_green",
     green: true,
+    ready_for_release_review: true,
     preview_format: "ppm_p3_rgb",
     preview_width: 640,
     preview_height: 360,
@@ -2098,6 +2100,7 @@ add_modeling_foundation_packet_fixtures() {
         {id: "deep", screen: {x: 344, y: 156}, tile: {x: 5, y: 4}}
       ]
     },
+    projection_sample_count: 4,
     depth_order: [
       {depth_key: 41, frame_id: "model_town_hall", id: "town_hall"},
       {depth_key: 74, frame_id: "actor_mentor_talk", id: "mentor"},
@@ -2106,6 +2109,7 @@ add_modeling_foundation_packet_fixtures() {
       {depth_key: 136, frame_id: "actor_creep_attack", id: "square_creep_pressure"},
       {depth_key: 154, frame_id: "doodad_crystal_cluster", id: "square_crystal"}
     ],
+    depth_order_count: 6,
     modeling_components: [
       "diamond_terrain_tiles",
       "orthographic_isometric_projection",
@@ -2138,6 +2142,7 @@ add_modeling_foundation_packet_fixtures() {
       "ruins_gold_vein_and_signpost_doodads",
       "neutral_guard_worker_creep_units"
     ],
+    modeling_component_count: 30,
     projection_gate: true,
     diamond_tile_gate: true,
     depth_sort_gate: true,
@@ -2151,6 +2156,9 @@ add_modeling_foundation_packet_fixtures() {
     unit_detail_gate: true,
     neutral_unit_detail_gate: true,
     command_feedback_gate: true,
+    gate_count: 13,
+    passed_gate_count: 13,
+    failed_gate_count: 0,
     rts_model_entity_count: 13,
     rts_environment_entity_count: 17,
     rts_doodad_entity_count: 20,
@@ -2188,7 +2196,16 @@ add_modeling_foundation_packet_fixtures() {
     environment_bridge_pixel_count: 168,
     source_of_truth: "The classic renderer now uses a Warcraft-style 2.5D model: orthographic isometric diamond terrain, road/water/cliff/foundation details, doodad density props, bottom-center sprite anchors, footprint shadows, command feedback, and Y/depth sorted scene entities inside trnm-world-bevy.",
     cex_runtime_player_client_allowed: false,
-    wgpu_required: false
+    wgpu_required: false,
+    android_s5_real_device_claimed: false,
+    external_evidence_ignored_for_current_isometric_modeling_pass: true,
+    public_launch_ready: false,
+    production_ready_ui_claimed: false,
+    screen_for_screen_openra_ui_claimed: false,
+    openra_engine_port_claimed: false,
+    warcraft_iii_asset_copied: false,
+    openra_asset_copied: false,
+    third_party_asset_copied: false
   }' >"$isometric_json"
   add_artifact_from_path native_bevy_classic_isometric_modeling "Native/Bevy classic isometric modeling" "$isometric_json" release_review_input
 

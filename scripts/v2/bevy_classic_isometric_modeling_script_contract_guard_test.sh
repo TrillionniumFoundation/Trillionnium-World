@@ -10,7 +10,15 @@ required_script_lines=(
   'trillionnium_world_bevy_classic_isometric_modeling_v1'
   'bevy-classic-isometric-modeling.json'
   'bevy-classic-isometric-modeling.ppm'
+  'SUMMARY_RAW="$SUMMARY.raw.$$"'
+  'SUMMARY_TMP="$SUMMARY.tmp.$$"'
   'classic-isometric-modeling'
+  'status = "classic_isometric_modeling_green"'
+  'ready_for_release_review == true'
+  'gate_count == 13'
+  'projection_sample_count == (.projection.samples | length)'
+  'depth_order_count == (.depth_order | length)'
+  'modeling_component_count == (.modeling_components | length)'
   'orthographic_isometric_2_5d'
   'diamond_terrain_tiles'
   'y_depth_sorted_sprite_entities'
@@ -44,6 +52,10 @@ required_script_lines=(
   'doodad_detail_gate'
   'cex_runtime_player_client_allowed == false'
   'wgpu_required == false'
+  'android_s5_real_device_claimed == false'
+  'external_evidence_ignored_for_current_isometric_modeling_pass == true'
+  'public_launch_ready == false'
+  'third_party_asset_copied == false'
 )
 
 for line in "${required_script_lines[@]}"; do

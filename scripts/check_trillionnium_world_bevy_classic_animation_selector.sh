@@ -3,9 +3,11 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SUMMARY="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-animation-selector.json"
-SUMMARY_RAW="$SUMMARY.raw"
+SUMMARY_RAW="$SUMMARY.raw.$$"
+SUMMARY_TMP="$SUMMARY.tmp.$$"
 MANIFEST="$ROOT/assets/trnm-world/classic/manifest.json"
 mkdir -p "$(dirname "$SUMMARY")"
+trap 'rm -f "$SUMMARY_RAW" "$SUMMARY_TMP"' EXIT
 
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_manifest_lint.sh" >/dev/null
 
@@ -17,6 +19,18 @@ mkdir -p "$(dirname "$SUMMARY")"
 
 jq '
   .status = "classic_animation_selector_green"
+  | .ready_for_release_review = true
+  | .case_detail_count = (.cases | length)
+  | .selected_frame_count = (.selected_frames | length)
+  | .unique_selected_frame_count = (.selected_frames | unique | length)
+  | .gate_count = 4
+  | .passed_gate_count = ([
+      .atlas_parse_gate,
+      .selector_case_gate,
+      .selected_frame_manifest_gate,
+      .animation_transition_gate
+    ] | map(select(. == true)) | length)
+  | .failed_gate_count = (.gate_count - .passed_gate_count)
   | .android_s5_real_device_claimed = false
   | .external_evidence_ignored_for_current_animation_selector_pass = true
   | .public_launch_ready = false
@@ -26,8 +40,8 @@ jq '
   | .warcraft_iii_asset_copied = false
   | .openra_asset_copied = false
   | .third_party_asset_copied = false
-' "$SUMMARY_RAW" >"$SUMMARY"
-rm -f "$SUMMARY_RAW"
+' "$SUMMARY_RAW" >"$SUMMARY_TMP"
+mv "$SUMMARY_TMP" "$SUMMARY"
 
 test -s "$SUMMARY"
 
@@ -35,7 +49,14 @@ jq -e '
   .contract_version == "trillionnium_world_bevy_classic_animation_selector_v1"
   and .status == "classic_animation_selector_green"
   and .green == true
+  and .ready_for_release_review == true
+  and .gate_count == 4
+  and .passed_gate_count == 4
+  and .failed_gate_count == 0
   and .case_count >= 6
+  and .case_detail_count == (.cases | length)
+  and .selected_frame_count == (.selected_frames | length)
+  and .unique_selected_frame_count == (.selected_frames | unique | length)
   and .loaded_from_manifest == true
   and .atlas_parse_gate == true
   and .selector_case_gate == true

@@ -3,10 +3,12 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SUMMARY="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-animation-preview.json"
-SUMMARY_RAW="$SUMMARY.raw"
+SUMMARY_RAW="$SUMMARY.raw.$$"
+SUMMARY_TMP="$SUMMARY.tmp.$$"
 PREVIEW="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-animation-preview.ppm"
 MANIFEST="$ROOT/assets/trnm-world/classic/manifest.json"
 mkdir -p "$(dirname "$SUMMARY")"
+trap 'rm -f "$SUMMARY_RAW" "$SUMMARY_TMP"' EXIT
 
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_manifest_lint.sh" >/dev/null
 
@@ -18,6 +20,22 @@ mkdir -p "$(dirname "$SUMMARY")"
 
 jq '
   .status = "classic_animation_preview_green"
+  | .ready_for_release_review = true
+  | .clip_summary_count = (.clip_summaries | length)
+  | .unique_clip_action_count = ([.clip_summaries[].action] | unique | length)
+  | .unique_clip_actor_count = ([.clip_summaries[].actor_id] | unique | length)
+  | .gate_count = 8
+  | .passed_gate_count = ([
+      .atlas_parse_gate,
+      .clip_count_gate,
+      .action_coverage_gate,
+      .fps_gate,
+      .all_clip_refs_valid,
+      .rendered_clip_gate,
+      .preview_sheet_gate,
+      .label_gate
+    ] | map(select(. == true)) | length)
+  | .failed_gate_count = (.gate_count - .passed_gate_count)
   | .android_s5_real_device_claimed = false
   | .external_evidence_ignored_for_current_animation_preview_pass = true
   | .public_launch_ready = false
@@ -27,8 +45,8 @@ jq '
   | .warcraft_iii_asset_copied = false
   | .openra_asset_copied = false
   | .third_party_asset_copied = false
-' "$SUMMARY_RAW" >"$SUMMARY"
-rm -f "$SUMMARY_RAW"
+' "$SUMMARY_RAW" >"$SUMMARY_TMP"
+mv "$SUMMARY_TMP" "$SUMMARY"
 
 test -s "$SUMMARY"
 test -s "$PREVIEW"
@@ -38,6 +56,10 @@ jq -e '
   .contract_version == "trillionnium_world_bevy_classic_animation_preview_v1"
   and .status == "classic_animation_preview_green"
   and .green == true
+  and .ready_for_release_review == true
+  and .gate_count == 8
+  and .passed_gate_count == 8
+  and .failed_gate_count == 0
   and .preview_format == "ppm_p3_rgb"
   and .preview_width == 640
   and .preview_height >= 448
@@ -45,6 +67,9 @@ jq -e '
   and .clip_count >= 4
   and .rendered_clip_count == .clip_count
   and .rendered_frame_slot_count >= 15
+  and .clip_summary_count == (.clip_summaries | length)
+  and .unique_clip_action_count == ([.clip_summaries[].action] | unique | length)
+  and .unique_clip_actor_count == ([.clip_summaries[].actor_id] | unique | length)
   and .unique_color_count >= 32
   and .non_background_pixels > 35000
   and .label_pixel_count > 2000

@@ -3,10 +3,12 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SUMMARY="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-player-motion-probe.json"
-SUMMARY_RAW="$SUMMARY.raw"
+SUMMARY_RAW="$SUMMARY.raw.$$"
+SUMMARY_TMP="$SUMMARY.tmp.$$"
 PROBE="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-player-motion-probe.ppm"
 MANIFEST="$ROOT/assets/trnm-world/classic/manifest.json"
 mkdir -p "$(dirname "$SUMMARY")"
+trap 'rm -f "$SUMMARY_RAW" "$SUMMARY_TMP"' EXIT
 
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_manifest_lint.sh" >/dev/null
 
@@ -18,6 +20,21 @@ mkdir -p "$(dirname "$SUMMARY")"
 
 jq '
   .status = "classic_player_motion_probe_green"
+  | .ready_for_release_review = true
+  | .sample_detail_count = (.samples | length)
+  | .selected_frame_id_count = (.selected_frame_ids | length)
+  | .unique_direction_count = ([.samples[].direction] | unique | length)
+  | .gate_count = 7
+  | .passed_gate_count = ([
+      .atlas_parse_gate,
+      .accepted_input_gate,
+      .direction_coverage_gate,
+      .frame_match_gate,
+      .manifest_frame_gate,
+      .sheet_gate,
+      .label_gate
+    ] | map(select(. == true)) | length)
+  | .failed_gate_count = (.gate_count - .passed_gate_count)
   | .android_s5_real_device_claimed = false
   | .external_evidence_ignored_for_current_player_motion_probe_pass = true
   | .public_launch_ready = false
@@ -27,8 +44,8 @@ jq '
   | .warcraft_iii_asset_copied = false
   | .openra_asset_copied = false
   | .third_party_asset_copied = false
-' "$SUMMARY_RAW" >"$SUMMARY"
-rm -f "$SUMMARY_RAW"
+' "$SUMMARY_RAW" >"$SUMMARY_TMP"
+mv "$SUMMARY_TMP" "$SUMMARY"
 
 test -s "$SUMMARY"
 test -s "$PROBE"
@@ -38,12 +55,19 @@ jq -e '
   .contract_version == "trillionnium_world_bevy_classic_player_motion_probe_v1"
   and .status == "classic_player_motion_probe_green"
   and .green == true
+  and .ready_for_release_review == true
+  and .gate_count == 7
+  and .passed_gate_count == 7
+  and .failed_gate_count == 0
   and .probe_format == "ppm_p3_rgb"
   and .probe_width == 640
   and .probe_height == 192
   and .probe_bytes > 100000
   and .sample_count == 8
   and .accepted_input_count == 8
+  and .sample_detail_count == (.samples | length)
+  and .selected_frame_id_count == (.selected_frame_ids | length)
+  and .unique_direction_count == ([.samples[].direction] | unique | length)
   and .unique_color_count >= 16
   and .non_background_pixels > 45000
   and .label_pixel_count > 800
