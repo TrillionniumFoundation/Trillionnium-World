@@ -5,14 +5,67 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SUMMARY="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-campaign-outcome-ui-readiness.json"
 PREVIEW_DIR="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-campaign-outcome-ui-readiness"
 mkdir -p "$PREVIEW_DIR" "$(dirname "$SUMMARY")"
+SUMMARY_RAW="$(mktemp "${SUMMARY}.raw.XXXXXX")"
+SUMMARY_TMP="$(mktemp "${SUMMARY}.tmp.XXXXXX")"
+trap 'rm -f "$SUMMARY_RAW" "$SUMMARY_TMP"' EXIT
 
-"$ROOT/scripts/run_trillionnium_world_bevy_artifact_command.sh" classic-rts-campaign-outcome-ui-readiness "$PREVIEW_DIR" >"$SUMMARY"
+"$ROOT/scripts/run_trillionnium_world_bevy_artifact_command.sh" classic-rts-campaign-outcome-ui-readiness "$PREVIEW_DIR" >"$SUMMARY_RAW"
+
+jq '
+  .source_contract_count = (.source_contracts | keys | length)
+  | .preview_path_count = (.preview_paths | keys | length)
+  | .runtime_screen_layout_count = (.runtime_screen_layout | keys | length)
+  | .campaign_flow_count = (.campaign_flow | length)
+  | .first_minute_summary_field_count = (.first_minute_summary | keys | length)
+  | .victory_summary_field_count = (.victory_summary | keys | length)
+  | .base_assault_summary_field_count = (.base_assault_summary | keys | length)
+  | .aftermath_summary_field_count = (.aftermath_summary | keys | length)
+  | .open_world_summary_field_count = (.open_world_summary | keys | length)
+  | .gate_count = ([
+      .first_minute_gate,
+      .objective_victory_gate,
+      .base_assault_gate,
+      .battle_aftermath_gate,
+      .open_world_return_gate,
+      .player_first_campaign_outcome_screen_gate,
+      .native_boundary_gate,
+      .preview_gate,
+      .runtime_screen_gate,
+      .campaign_outcome_ui_readiness_gate
+    ] | length)
+  | .passed_gate_count = ([
+      .first_minute_gate,
+      .objective_victory_gate,
+      .base_assault_gate,
+      .battle_aftermath_gate,
+      .open_world_return_gate,
+      .player_first_campaign_outcome_screen_gate,
+      .native_boundary_gate,
+      .preview_gate,
+      .runtime_screen_gate,
+      .campaign_outcome_ui_readiness_gate
+    ] | map(select(. == true)) | length)
+  | .failed_gate_count = (.gate_count - .passed_gate_count)
+' "$SUMMARY_RAW" >"$SUMMARY_TMP"
+mv "$SUMMARY_TMP" "$SUMMARY"
 
 jq -e '
   .contract_version == "trillionnium_world_bevy_classic_rts_campaign_outcome_ui_readiness_v1"
   and .status == "classic_rts_campaign_outcome_ui_readiness_green"
   and .green == true
   and .preview_count == 5
+  and .source_contract_count == (.source_contracts | keys | length)
+  and .preview_path_count == (.preview_paths | keys | length)
+  and .runtime_screen_layout_count == (.runtime_screen_layout | keys | length)
+  and .campaign_flow_count == (.campaign_flow | length)
+  and .first_minute_summary_field_count == (.first_minute_summary | keys | length)
+  and .victory_summary_field_count == (.victory_summary | keys | length)
+  and .base_assault_summary_field_count == (.base_assault_summary | keys | length)
+  and .aftermath_summary_field_count == (.aftermath_summary | keys | length)
+  and .open_world_summary_field_count == (.open_world_summary | keys | length)
+  and .gate_count == 10
+  and .passed_gate_count == 10
+  and .failed_gate_count == 0
   and .runtime_screen_mode == "player_runtime_campaign_outcome_screen"
   and .runtime_screen_gate == true
   and .evidence_board_only == false

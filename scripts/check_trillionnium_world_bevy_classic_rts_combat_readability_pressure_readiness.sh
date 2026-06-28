@@ -5,10 +5,51 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SUMMARY="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-combat-readability-pressure-readiness.json"
 PREVIEW_DIR="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-combat-readability-pressure-readiness"
 mkdir -p "$PREVIEW_DIR" "$(dirname "$SUMMARY")"
+SUMMARY_RAW="$(mktemp "${SUMMARY}.raw.XXXXXX")"
+SUMMARY_TMP="$(mktemp "${SUMMARY}.tmp.XXXXXX")"
+trap 'rm -f "$SUMMARY_RAW" "$SUMMARY_TMP"' EXIT
 
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_art_pack.sh" >/dev/null
 
-"$ROOT/scripts/run_trillionnium_world_bevy_artifact_command.sh" classic-rts-combat-readability-pressure-readiness "$PREVIEW_DIR" >"$SUMMARY"
+"$ROOT/scripts/run_trillionnium_world_bevy_artifact_command.sh" classic-rts-combat-readability-pressure-readiness "$PREVIEW_DIR" >"$SUMMARY_RAW"
+
+jq '
+  .source_contract_count = (.source_contracts | keys | length)
+  | .preview_path_count = (.preview_paths | keys | length)
+  | .runtime_screen_layout_count = (.runtime_screen_layout | keys | length)
+  | .combat_pressure_pixel_count_field_count = (.combat_pressure_pixel_counts | keys | length)
+  | .unit_status_summary_field_count = (.unit_status_summary | keys | length)
+  | .command_feedback_summary_field_count = (.command_feedback_summary | keys | length)
+  | .ability_telegraph_summary_field_count = (.ability_telegraph_summary | keys | length)
+  | .depth_summary_field_count = (.depth_summary | keys | length)
+  | .pressure_summary_field_count = (.pressure_summary | keys | length)
+  | .gate_count = ([
+      .unit_status_gate,
+      .command_feedback_gate,
+      .ability_telegraph_gate,
+      .depth_readability_gate,
+      .pressure_feedback_gate,
+      .source_policy_gate,
+      .preview_gate,
+      .runtime_screen_gate,
+      .player_first_combat_pressure_screen_gate,
+      .combat_readability_pressure_readiness_gate
+    ] | length)
+  | .passed_gate_count = ([
+      .unit_status_gate,
+      .command_feedback_gate,
+      .ability_telegraph_gate,
+      .depth_readability_gate,
+      .pressure_feedback_gate,
+      .source_policy_gate,
+      .preview_gate,
+      .runtime_screen_gate,
+      .player_first_combat_pressure_screen_gate,
+      .combat_readability_pressure_readiness_gate
+    ] | map(select(. == true)) | length)
+  | .failed_gate_count = (.gate_count - .passed_gate_count)
+' "$SUMMARY_RAW" >"$SUMMARY_TMP"
+mv "$SUMMARY_TMP" "$SUMMARY"
 
 jq -e '
   .contract_version == "trillionnium_world_bevy_classic_rts_combat_readability_pressure_readiness_v1"
@@ -16,6 +57,18 @@ jq -e '
   and .green == true
   and .preview_count == 6
   and .source_preview_count == 5
+  and .source_contract_count == (.source_contracts | keys | length)
+  and .preview_path_count == (.preview_paths | keys | length)
+  and .runtime_screen_layout_count == (.runtime_screen_layout | keys | length)
+  and .combat_pressure_pixel_count_field_count == (.combat_pressure_pixel_counts | keys | length)
+  and .unit_status_summary_field_count == (.unit_status_summary | keys | length)
+  and .command_feedback_summary_field_count == (.command_feedback_summary | keys | length)
+  and .ability_telegraph_summary_field_count == (.ability_telegraph_summary | keys | length)
+  and .depth_summary_field_count == (.depth_summary | keys | length)
+  and .pressure_summary_field_count == (.pressure_summary | keys | length)
+  and .gate_count == 10
+  and .passed_gate_count == 10
+  and .failed_gate_count == 0
   and .player_screen_format == "ppm_p3_rgb"
   and .player_screen_width == 1280
   and .player_screen_height == 768
