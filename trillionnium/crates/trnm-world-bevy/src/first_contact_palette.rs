@@ -175,7 +175,7 @@ pub(crate) fn art_landmark_color(role: &str) -> u32 {
 }
 
 pub(crate) fn gallery_muted_color(color: u32) -> u32 {
-    classic_mix_color(color, CLASSIC_RTS_TACTICAL_VIEWPORT_TILE_COLOR, 3, 5)
+    classic_mix_color(color, CLASSIC_RTS_TACTICAL_VIEWPORT_TILE_COLOR, 4, 5)
 }
 
 pub(crate) fn atlas_family_slot_color(role: &str, lower_lane: bool) -> u32 {

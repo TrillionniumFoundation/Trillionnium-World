@@ -161200,13 +161200,13 @@ mod tests {
             guard
                 .get("gallery_darken_numerator")
                 .and_then(Value::as_u64),
-            Some(2)
+            Some(4)
         );
         assert_eq!(
             guard
                 .get("gallery_darken_denominator")
                 .and_then(Value::as_u64),
-            Some(3)
+            Some(5)
         );
         assert_eq!(
             guard

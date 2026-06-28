@@ -295,8 +295,8 @@ pub fn first_contact_marker_budget_guard(runtime: &RtsFirstContactMarkerBudgetRu
     let gallery_mute_gate = muted_gallery_sample_count == family_samples.len()
         && gallery_mute_overlay_pixel_budget >= 22_000
         && gallery_slot_cue_pixel_budget <= 25
-        && gallery_darken_numerator == 2
-        && gallery_darken_denominator == 3
+        && gallery_darken_numerator == 4
+        && gallery_darken_denominator == 5
         && gallery_hot_marker_color_count == 0
         && gallery_presentation_signatures
             .iter()
@@ -474,8 +474,8 @@ mod tests {
         assert_eq!(summary.max_gallery_lane_frame_count, 6);
         assert_eq!(summary.lower_lane_gallery_sample_count, 3);
         assert_eq!(summary.gallery_slot_cue_pixel_budget, 25);
-        assert_eq!(summary.gallery_darken_numerator, 2);
-        assert_eq!(summary.gallery_darken_denominator, 3);
+        assert_eq!(summary.gallery_darken_numerator, 4);
+        assert_eq!(summary.gallery_darken_denominator, 5);
         assert_eq!(summary.lower_lane_rendered_frame_pixel_budget, 0);
         assert_eq!(summary.lower_lane_frame_suppressed_count, 3);
         assert_eq!(summary.lower_lane_mute_overlay_pixel_budget, 0);
@@ -558,13 +558,13 @@ mod tests {
             guard
                 .get("gallery_darken_numerator")
                 .and_then(Value::as_u64),
-            Some(2)
+            Some(4)
         );
         assert_eq!(
             guard
                 .get("gallery_darken_denominator")
                 .and_then(Value::as_u64),
-            Some(3)
+            Some(5)
         );
         assert_eq!(
             guard
