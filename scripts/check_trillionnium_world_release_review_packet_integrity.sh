@@ -1758,6 +1758,16 @@ require_artifact_json_expr production_desktop_review_packet_semantics native_bev
   and .desktop_keyboard_event_count == .desktop_review_summary.keyboard_event_count
   and .desktop_mouse_event_count == .desktop_review_summary.mouse_event_count
   and .desktop_mouse_slot_a_bytes == .desktop_review_summary.mouse_slot_a_bytes
+  and .production_review_summary_field_count == (.production_review_summary | keys | length)
+  and .desktop_review_summary_field_count == (.desktop_review_summary | keys | length)
+  and .artifact_label_count == ([.artifact_manifest[]?.label] | length)
+  and .artifact_path_count == ([.artifact_manifest[]?.path] | length)
+  and .artifact_label_count == .artifact_count
+  and .artifact_path_count == .artifact_count
+  and .manual_review_checklist_count == ((.manual_review_checklist // []) | length)
+  and .manual_review_step_count == ([.manual_review_checklist[]?.step] | length)
+  and .run_command_count == ((.run_commands // {}) | keys | length)
+  and .no_credit_boundary_count == ((.no_credit_boundaries // {}) | keys | length)
   and .android_s5_real_device_claimed == false
   and .public_launch_ready_claimed == false
   and .live_public_network_exposure_performed == false

@@ -169,6 +169,14 @@ jq -n \
     desktop_keyboard_event_count: $desktop.desktop_review_summary.keyboard_event_count,
     desktop_mouse_event_count: $desktop.desktop_review_summary.mouse_event_count,
     desktop_mouse_slot_a_bytes: $desktop.desktop_review_summary.mouse_slot_a_bytes,
+    production_review_summary_field_count: 30,
+    desktop_review_summary_field_count: 10,
+    artifact_label_count: ([$artifacts[].label] | length),
+    artifact_path_count: ([$artifacts[].path] | length),
+    manual_review_checklist_count: 6,
+    manual_review_step_count: 6,
+    run_command_count: 4,
+    no_credit_boundary_count: 6,
     android_s5_real_device_claimed: false,
     public_launch_ready_claimed: false,
     live_public_network_exposure_performed: false,
@@ -311,6 +319,16 @@ jq -e '
   and .desktop_keyboard_event_count == .desktop_review_summary.keyboard_event_count
   and .desktop_mouse_event_count == .desktop_review_summary.mouse_event_count
   and .desktop_mouse_slot_a_bytes == .desktop_review_summary.mouse_slot_a_bytes
+  and .production_review_summary_field_count == (.production_review_summary | keys | length)
+  and .desktop_review_summary_field_count == (.desktop_review_summary | keys | length)
+  and .artifact_label_count == ([.artifact_manifest[].label] | length)
+  and .artifact_path_count == ([.artifact_manifest[].path] | length)
+  and .artifact_label_count == .artifact_count
+  and .artifact_path_count == .artifact_count
+  and .manual_review_checklist_count == (.manual_review_checklist | length)
+  and .manual_review_step_count == ([.manual_review_checklist[].step] | length)
+  and .run_command_count == (.run_commands | keys | length)
+  and .no_credit_boundary_count == (.no_credit_boundaries | keys | length)
   and .android_s5_real_device_claimed == false
   and .public_launch_ready_claimed == false
   and .live_public_network_exposure_performed == false
@@ -390,6 +408,10 @@ jq -e '
     "$(jq -r '.desktop_review_summary.release_runner_pid' "$SUMMARY")"
   printf -- '- keyboard_events: `%s`\n' "$(jq -r '.desktop_review_summary.keyboard_event_count' "$SUMMARY")"
   printf -- '- mouse_events: `%s`\n' "$(jq -r '.desktop_review_summary.mouse_event_count' "$SUMMARY")"
+  printf -- '- artifact_label_count: `%s`\n' "$(jq -r '.artifact_label_count' "$SUMMARY")"
+  printf -- '- manual_review_checklist_count: `%s`\n' "$(jq -r '.manual_review_checklist_count' "$SUMMARY")"
+  printf -- '- run_command_count: `%s`\n' "$(jq -r '.run_command_count' "$SUMMARY")"
+  printf -- '- no_credit_boundary_count: `%s`\n' "$(jq -r '.no_credit_boundary_count' "$SUMMARY")"
   printf -- '- android_s5_real_device_claimed: `false`\n'
   printf -- '- public_launch_ready_claimed: `false`\n\n'
   printf '## Manual Review Checklist\n\n'
