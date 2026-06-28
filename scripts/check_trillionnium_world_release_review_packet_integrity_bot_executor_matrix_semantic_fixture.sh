@@ -25,9 +25,10 @@ jq -n \
     fixture_kind: "bot_executor_failure_recovery_matrix_semantic_negative_fixture",
     fixture_rule: "packet_integrity_must_reject_semantically_invalid_bot_executor_failure_recovery_matrix_artifacts_even_when_sha_bytes_contract_and_status_match",
     fake_packet_artifact_count: 121,
-    expected_semantic_failure_count: 3,
+    expected_semantic_failure_count: 4,
     expected_semantic_failure_names: [
       "bot_executor_failure_recovery_matrix_semantics",
+      "bot_executor_failure_recovery_matrix_count_semantics",
       "bot_executor_failure_recovery_matrix_log_semantics",
       "bot_executor_failure_recovery_matrix_ppm_semantics"
     ],
@@ -47,9 +48,10 @@ jq -e '
   and .status == "release_review_packet_integrity_bot_executor_matrix_semantic_fixture_green"
   and .green == true
   and .fake_packet_artifact_count == 121
-  and .expected_semantic_failure_count == 3
+  and .expected_semantic_failure_count == 4
   and .expected_semantic_failure_names == [
     "bot_executor_failure_recovery_matrix_semantics",
+    "bot_executor_failure_recovery_matrix_count_semantics",
     "bot_executor_failure_recovery_matrix_log_semantics",
     "bot_executor_failure_recovery_matrix_ppm_semantics"
   ]

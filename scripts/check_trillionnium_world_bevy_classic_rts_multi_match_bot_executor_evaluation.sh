@@ -3,11 +3,28 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SUMMARY="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-multi-match-bot-executor-evaluation.json"
+SUMMARY_RAW="$SUMMARY.raw.$$"
+SUMMARY_TMP="$SUMMARY.tmp.$$"
 PREVIEW_DIR="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-multi-match-bot-executor-evaluation"
 EVALUATION_LOG="$PREVIEW_DIR/multi-match-bot-executor-evaluation.matches.json"
 mkdir -p "$(dirname "$SUMMARY")"
+trap 'rm -f "$SUMMARY_RAW" "$SUMMARY_TMP"' EXIT
 
-"$ROOT/scripts/run_trillionnium_world_bevy_artifact_command.sh" classic-rts-multi-match-bot-executor-evaluation "$PREVIEW_DIR" >"$SUMMARY"
+"$ROOT/scripts/run_trillionnium_world_bevy_artifact_command.sh" classic-rts-multi-match-bot-executor-evaluation "$PREVIEW_DIR" >"$SUMMARY_RAW"
+
+jq '
+  ([.write_preview_gate, .source_replay_contract_gate, .source_replay_gate, .source_action_log_readback_gate, .variant_count_gate, .variant_diversity_gate, .multi_match_acceptance_gate, .multi_match_runtime_gate, .preview_gate, .evaluation_log_write_gate, .evaluation_log_readback_gate, .evaluation_log_gate, .boundary_gate, .multi_match_bot_executor_evaluation_gate]) as $gates
+  | .variant_summary_count = ((.variant_summaries // []) | length)
+  | .variant_seed_count = ((.variant_seed_values // []) | length)
+  | .variant_map_count = ((.variant_map_values // []) | length)
+  | .variant_economy_count = ((.variant_economy_values // []) | length)
+  | .preview_path_count = ((.preview_paths // {}) | keys | length)
+  | .source_replay_summary_field_count = ((.source_replay_summary // {}) | keys | length)
+  | .gate_count = ($gates | length)
+  | .passed_gate_count = ($gates | map(select(. == true)) | length)
+  | .failed_gate_count = (.gate_count - .passed_gate_count)
+' "$SUMMARY_RAW" >"$SUMMARY_TMP"
+mv "$SUMMARY_TMP" "$SUMMARY"
 
 jq -e '
   . as $root |
@@ -16,6 +33,20 @@ jq -e '
   and .multi_match_bot_executor_evaluation_state == "bevy_executor_action_log_runs_across_multiple_deterministic_match_variants_not_openra_ladder"
   and .variant_count == 4
   and .accepted_variant_count == 4
+  and .variant_summary_count == (.variant_summaries | length)
+  and .variant_summary_count == 4
+  and .variant_seed_count == (.variant_seed_values | length)
+  and .variant_seed_count == 4
+  and .variant_map_count == (.variant_map_values | length)
+  and .variant_map_count == 4
+  and .variant_economy_count == (.variant_economy_values | length)
+  and .variant_economy_count == 4
+  and .preview_path_count == (.preview_paths | keys | length)
+  and .preview_path_count >= 2
+  and .source_replay_summary_field_count == (.source_replay_summary | keys | length)
+  and .gate_count == 14
+  and .passed_gate_count == 14
+  and .failed_gate_count == 0
   and (.variant_seed_values | length) == 4
   and (.variant_map_values | length) == 4
   and (.variant_map_values | index("forest_relay") != null)

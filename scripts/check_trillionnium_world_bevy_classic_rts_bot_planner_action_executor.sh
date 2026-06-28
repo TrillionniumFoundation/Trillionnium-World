@@ -3,11 +3,28 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SUMMARY="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-bot-planner-action-executor.json"
+SUMMARY_RAW="$SUMMARY.raw.$$"
+SUMMARY_TMP="$SUMMARY.tmp.$$"
 PREVIEW_DIR="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-bot-planner-action-executor"
 ACTIONS="$PREVIEW_DIR/bot-planner-action-executor.actions.json"
 mkdir -p "$(dirname "$SUMMARY")"
+trap 'rm -f "$SUMMARY_RAW" "$SUMMARY_TMP"' EXIT
 
-"$ROOT/scripts/run_trillionnium_world_bevy_artifact_command.sh" classic-rts-bot-planner-action-executor "$PREVIEW_DIR" >"$SUMMARY"
+"$ROOT/scripts/run_trillionnium_world_bevy_artifact_command.sh" classic-rts-bot-planner-action-executor "$PREVIEW_DIR" >"$SUMMARY_RAW"
+
+jq '
+  ([.write_preview_gate, .source_contract_gate, .source_loop_gate, .action_mapping_gate, .executor_acceptance_gate, .runtime_mutation_gate, .terminal_source_alignment_gate, .preview_gate, .action_log_write_gate, .action_log_readback_gate, .action_log_gate, .boundary_gate, .bot_planner_action_executor_gate]) as $gates
+  | .action_label_count = ((.action_labels // []) | length)
+  | .expected_command_marker_count = ((.expected_command_markers // []) | length)
+  | .input_source_count = ((.input_sources // []) | length)
+  | .execution_log_count = ((.execution_log // []) | length)
+  | .preview_path_count = ((.preview_paths // {}) | keys | length)
+  | .final_runtime_summary_field_count = ((.final_runtime_summary // {}) | keys | length)
+  | .gate_count = ($gates | length)
+  | .passed_gate_count = ($gates | map(select(. == true)) | length)
+  | .failed_gate_count = (.gate_count - .passed_gate_count)
+' "$SUMMARY_RAW" >"$SUMMARY_TMP"
+mv "$SUMMARY_TMP" "$SUMMARY"
 
 jq -e '
   .contract_version == "trillionnium_world_bevy_classic_rts_bot_planner_action_executor_v1"
@@ -16,6 +33,20 @@ jq -e '
   and .executor_action_count == 6
   and .accepted_action_count == 6
   and .command_marker_hit_count == 6
+  and .action_label_count == (.action_labels | length)
+  and .action_label_count == 6
+  and .expected_command_marker_count == (.expected_command_markers | length)
+  and .expected_command_marker_count == 6
+  and .input_source_count == (.input_sources | length)
+  and .input_source_count == 1
+  and .execution_log_count == (.execution_log | length)
+  and .execution_log_count == 6
+  and .preview_path_count == (.preview_paths | keys | length)
+  and .preview_path_count >= 2
+  and .final_runtime_summary_field_count == (.final_runtime_summary | keys | length)
+  and .gate_count == 13
+  and .passed_gate_count == 13
+  and .failed_gate_count == 0
   and (.execution_log | length) == 6
   and (.execution_log | all(.source_decision_found == true and .accepted == true and .command_marker_hit == true))
   and (.execution_log | map(.planner_phase) == ([

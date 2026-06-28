@@ -3,11 +3,28 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SUMMARY="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-bot-planner-executor-replay-determinism.json"
+SUMMARY_RAW="$SUMMARY.raw.$$"
+SUMMARY_TMP="$SUMMARY.tmp.$$"
 PREVIEW_DIR="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-bot-planner-executor-replay-determinism"
 REPLAY_LOG="$PREVIEW_DIR/bot-planner-executor-replay-determinism.replay.json"
 mkdir -p "$(dirname "$SUMMARY")"
+trap 'rm -f "$SUMMARY_RAW" "$SUMMARY_TMP"' EXIT
 
-"$ROOT/scripts/run_trillionnium_world_bevy_artifact_command.sh" classic-rts-bot-planner-executor-replay-determinism "$PREVIEW_DIR" >"$SUMMARY"
+"$ROOT/scripts/run_trillionnium_world_bevy_artifact_command.sh" classic-rts-bot-planner-executor-replay-determinism "$PREVIEW_DIR" >"$SUMMARY_RAW"
+
+jq '
+  ([.write_preview_gate, .source_contract_gate, .source_executor_gate, .source_action_log_readback_gate, .replay_mapping_gate, .replay_acceptance_gate, .runtime_determinism_gate, .preview_gate, .replay_log_write_gate, .replay_log_readback_gate, .replay_log_gate, .boundary_gate, .bot_planner_executor_replay_determinism_gate]) as $gates
+  | .replayed_action_label_count = ((.replayed_action_labels // []) | length)
+  | .replay_input_source_count = ((.replay_input_sources // []) | length)
+  | .replay_execution_log_count = ((.replay_execution_log // []) | length)
+  | .preview_path_count = ((.preview_paths // {}) | keys | length)
+  | .source_final_runtime_summary_field_count = ((.source_final_runtime_summary // {}) | keys | length)
+  | .replay_final_runtime_summary_field_count = ((.replay_final_runtime_summary // {}) | keys | length)
+  | .gate_count = ($gates | length)
+  | .passed_gate_count = ($gates | map(select(. == true)) | length)
+  | .failed_gate_count = (.gate_count - .passed_gate_count)
+' "$SUMMARY_RAW" >"$SUMMARY_TMP"
+mv "$SUMMARY_TMP" "$SUMMARY"
 
 jq -e '
   .contract_version == "trillionnium_world_bevy_classic_rts_bot_planner_executor_replay_determinism_v1"
@@ -18,6 +35,19 @@ jq -e '
   and .accepted_replay_action_count == 6
   and .replay_command_marker_hit_count == 6
   and .command_delta_match_count == 6
+  and .replayed_action_label_count == (.replayed_action_labels | length)
+  and .replayed_action_label_count == 6
+  and .replay_input_source_count == (.replay_input_sources | length)
+  and .replay_input_source_count == 1
+  and .replay_execution_log_count == (.replay_execution_log | length)
+  and .replay_execution_log_count == 6
+  and .preview_path_count == (.preview_paths | keys | length)
+  and .preview_path_count >= 2
+  and .source_final_runtime_summary_field_count == (.source_final_runtime_summary | keys | length)
+  and .replay_final_runtime_summary_field_count == (.replay_final_runtime_summary | keys | length)
+  and .gate_count == 13
+  and .passed_gate_count == 13
+  and .failed_gate_count == 0
   and (.replay_execution_log | length) == 6
   and (.replay_execution_log | all(.action_label_parse_gate == true and .accepted == true and .command_marker_hit == true and .command_delta_match == true))
   and (.replay_execution_log | map(.source_planner_phase) == ([

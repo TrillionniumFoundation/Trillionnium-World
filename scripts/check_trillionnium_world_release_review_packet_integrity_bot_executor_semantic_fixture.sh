@@ -25,15 +25,18 @@ jq -n \
     fixture_kind: "bot_executor_source_chain_semantic_negative_fixture",
     fixture_rule: "packet_integrity_must_reject_semantically_invalid_bot_executor_source_chain_artifacts_even_when_sha_bytes_contract_and_status_match",
     fake_packet_artifact_count: 121,
-    expected_semantic_failure_count: 9,
+    expected_semantic_failure_count: 12,
     expected_semantic_failure_names: [
       "bot_planner_action_executor_semantics",
+      "bot_planner_action_executor_count_semantics",
       "bot_planner_action_executor_log_semantics",
       "bot_planner_action_executor_ppm_semantics",
       "bot_planner_executor_replay_determinism_semantics",
+      "bot_planner_executor_replay_determinism_count_semantics",
       "bot_planner_executor_replay_determinism_log_semantics",
       "bot_planner_executor_replay_determinism_ppm_semantics",
       "multi_match_bot_executor_evaluation_semantics",
+      "multi_match_bot_executor_evaluation_count_semantics",
       "multi_match_bot_executor_evaluation_log_semantics",
       "multi_match_bot_executor_evaluation_ppm_semantics"
     ],
@@ -53,15 +56,18 @@ jq -e '
   and .status == "release_review_packet_integrity_bot_executor_semantic_fixture_green"
   and .green == true
   and .fake_packet_artifact_count == 121
-  and .expected_semantic_failure_count == 9
+  and .expected_semantic_failure_count == 12
   and .expected_semantic_failure_names == [
     "bot_planner_action_executor_semantics",
+    "bot_planner_action_executor_count_semantics",
     "bot_planner_action_executor_log_semantics",
     "bot_planner_action_executor_ppm_semantics",
     "bot_planner_executor_replay_determinism_semantics",
+    "bot_planner_executor_replay_determinism_count_semantics",
     "bot_planner_executor_replay_determinism_log_semantics",
     "bot_planner_executor_replay_determinism_ppm_semantics",
     "multi_match_bot_executor_evaluation_semantics",
+    "multi_match_bot_executor_evaluation_count_semantics",
     "multi_match_bot_executor_evaluation_log_semantics",
     "multi_match_bot_executor_evaluation_ppm_semantics"
   ]

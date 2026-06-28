@@ -106,8 +106,8 @@ write_fixture_summary \
   "release_review_packet_integrity_bot_executor_semantic_fixture_green" \
   "bot_executor_source_chain_semantic_negative_fixture" \
   "packet_integrity_must_reject_semantically_invalid_bot_executor_source_chain_artifacts_even_when_sha_bytes_contract_and_status_match" \
-  9 \
-  '["bot_planner_action_executor_semantics","bot_planner_action_executor_log_semantics","bot_planner_action_executor_ppm_semantics","bot_planner_executor_replay_determinism_semantics","bot_planner_executor_replay_determinism_log_semantics","bot_planner_executor_replay_determinism_ppm_semantics","multi_match_bot_executor_evaluation_semantics","multi_match_bot_executor_evaluation_log_semantics","multi_match_bot_executor_evaluation_ppm_semantics"]'
+  12 \
+  '["bot_planner_action_executor_semantics","bot_planner_action_executor_count_semantics","bot_planner_action_executor_log_semantics","bot_planner_action_executor_ppm_semantics","bot_planner_executor_replay_determinism_semantics","bot_planner_executor_replay_determinism_count_semantics","bot_planner_executor_replay_determinism_log_semantics","bot_planner_executor_replay_determinism_ppm_semantics","multi_match_bot_executor_evaluation_semantics","multi_match_bot_executor_evaluation_count_semantics","multi_match_bot_executor_evaluation_log_semantics","multi_match_bot_executor_evaluation_ppm_semantics"]'
 
 write_fixture_summary \
   "$ACCEPTANCE_DIR/release-review-packet-integrity-bot-executor-matrix-semantic-fixture.json" \
@@ -115,8 +115,8 @@ write_fixture_summary \
   "release_review_packet_integrity_bot_executor_matrix_semantic_fixture_green" \
   "bot_executor_failure_recovery_matrix_semantic_negative_fixture" \
   "packet_integrity_must_reject_semantically_invalid_bot_executor_failure_recovery_matrix_artifacts_even_when_sha_bytes_contract_and_status_match" \
-  3 \
-  '["bot_executor_failure_recovery_matrix_semantics","bot_executor_failure_recovery_matrix_log_semantics","bot_executor_failure_recovery_matrix_ppm_semantics"]'
+  4 \
+  '["bot_executor_failure_recovery_matrix_semantics","bot_executor_failure_recovery_matrix_count_semantics","bot_executor_failure_recovery_matrix_log_semantics","bot_executor_failure_recovery_matrix_ppm_semantics"]'
 
 write_fixture_summary \
   "$ACCEPTANCE_DIR/release-review-packet-integrity-bot-gap-semantic-fixture.json" \
@@ -385,15 +385,19 @@ jq -n '[
   "classic_playtest_handoff_packet_semantics",
   "classic_playtest_handoff_packet_markdown_semantics",
   "bot_planner_action_executor_semantics",
+  "bot_planner_action_executor_count_semantics",
   "bot_planner_action_executor_log_semantics",
   "bot_planner_action_executor_ppm_semantics",
   "bot_planner_executor_replay_determinism_semantics",
+  "bot_planner_executor_replay_determinism_count_semantics",
   "bot_planner_executor_replay_determinism_log_semantics",
   "bot_planner_executor_replay_determinism_ppm_semantics",
   "multi_match_bot_executor_evaluation_semantics",
+  "multi_match_bot_executor_evaluation_count_semantics",
   "multi_match_bot_executor_evaluation_log_semantics",
   "multi_match_bot_executor_evaluation_ppm_semantics",
   "bot_executor_failure_recovery_matrix_semantics",
+  "bot_executor_failure_recovery_matrix_count_semantics",
   "bot_executor_failure_recovery_matrix_log_semantics",
   "bot_executor_failure_recovery_matrix_ppm_semantics",
   "bot_decision_state_gap_semantics",
@@ -455,4 +459,4 @@ for path in "${summary_paths[@]}"; do
 done
 
 SUCCESS=1
-printf 'TRILLIONNIUM_WORLD_RELEASE_REVIEW_PACKET_INTEGRITY_SEMANTIC_FIXTURE_SUITE_GREEN %s failures=52 summaries=%s\n' "$integrity_summary" "${#summary_paths[@]}"
+printf 'TRILLIONNIUM_WORLD_RELEASE_REVIEW_PACKET_INTEGRITY_SEMANTIC_FIXTURE_SUITE_GREEN %s failures=56 summaries=%s\n' "$integrity_summary" "${#summary_paths[@]}"
