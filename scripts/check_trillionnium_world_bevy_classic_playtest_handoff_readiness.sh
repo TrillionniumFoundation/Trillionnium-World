@@ -158,6 +158,12 @@ jq -n \
   }
   | .source_contract_count = (.source_contracts | keys | length)
   | .evidence_path_count = (.evidence_paths | keys | length)
+  | .handoff_summary_field_count = (.handoff_summary | keys | length)
+  | .title_action_count = (.handoff_summary.title_actions | length)
+  | .first_contact_runtime_review_contract_count = (.handoff_summary.first_contact_runtime_review_contracts | length)
+  | .first_contact_runtime_review_before_command_count = (.handoff_summary.first_contact_runtime_review_before_command_queue | length)
+  | .first_contact_runtime_review_after_command_count = (.handoff_summary.first_contact_runtime_review_after_command_queue | length)
+  | .first_contact_runtime_review_ready_state_label_count = (.handoff_summary.first_contact_runtime_review_ready_state_labels | length)
   | .gate_count = (.gates | keys | length)
   | .passed_gate_count = ([.gates[] | select(. == true)] | length)
   | .failed_gate_count = ([.gates[] | select(. != true)] | length)
@@ -169,6 +175,17 @@ jq -e '
   and .green == true
   and .source_contract_count == (.source_contracts | keys | length)
   and .evidence_path_count == (.evidence_paths | keys | length)
+  and .handoff_summary_field_count == (.handoff_summary | keys | length)
+  and .title_action_count == (.handoff_summary.title_actions | length)
+  and .title_action_count == 3
+  and .first_contact_runtime_review_contract_count == (.handoff_summary.first_contact_runtime_review_contracts | length)
+  and .first_contact_runtime_review_contract_count == .handoff_summary.first_contact_runtime_review_contract_count
+  and .first_contact_runtime_review_contract_count == 5
+  and .first_contact_runtime_review_before_command_count == (.handoff_summary.first_contact_runtime_review_before_command_queue | length)
+  and .first_contact_runtime_review_after_command_count == (.handoff_summary.first_contact_runtime_review_after_command_queue | length)
+  and .first_contact_runtime_review_after_command_count == 1
+  and .first_contact_runtime_review_ready_state_label_count == (.handoff_summary.first_contact_runtime_review_ready_state_labels | length)
+  and .first_contact_runtime_review_ready_state_label_count >= 4
   and .gate_count == (.gates | keys | length)
   and .passed_gate_count == ([.gates[] | select(. == true)] | length)
   and .failed_gate_count == ([.gates[] | select(. != true)] | length)

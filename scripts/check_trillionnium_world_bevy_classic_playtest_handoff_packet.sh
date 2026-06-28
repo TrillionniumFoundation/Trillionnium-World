@@ -116,7 +116,17 @@ jq -n \
     source_of_truth: "Classic playtest handoff packet binds the local Bevy human-playtest handoff to checksummed evidence artifacts and replayable commands. It is a local host-side playtest packet only, not public launch, S5 real-device, or OpenRA natural replay/headless parity credit."
   }
   | .source_contract_count = (.source_contracts | keys | length)
+  | .handoff_summary_field_count = (.handoff_summary | keys | length)
+  | .title_action_count = (.handoff_summary.title_actions | length)
+  | .first_contact_runtime_review_contract_count = (.handoff_summary.first_contact_runtime_review_contracts | length)
+  | .first_contact_runtime_review_before_command_count = (.handoff_summary.first_contact_runtime_review_before_command_queue | length)
+  | .first_contact_runtime_review_after_command_count = (.handoff_summary.first_contact_runtime_review_after_command_queue | length)
+  | .first_contact_runtime_review_ready_state_label_count = (.handoff_summary.first_contact_runtime_review_ready_state_labels | length)
   | .artifact_count = (.artifact_manifest | length)
+  | .artifact_label_count = ([.artifact_manifest[].label] | length)
+  | .artifact_path_count = ([.artifact_manifest[].path] | length)
+  | .run_command_count = (.run_commands | keys | length)
+  | .no_credit_boundary_count = (.no_credit_boundaries | keys | length)
   | .artifact_bytes_total = ([.artifact_manifest[].bytes] | add)
   | .gate_count = (.gates | keys | length)
   | .passed_gate_count = ([.gates[] | select(. == true)] | length)
@@ -134,7 +144,24 @@ jq -e '
   and .source_contracts.playtest_observability_readiness == "trillionnium_world_bevy_classic_rts_playtest_observability_readiness_v1"
   and .source_contracts.first_contact_runtime_review == "trnm_rts_evidence_bevy_runtime_adapter_v1"
   and .source_contract_count == (.source_contracts | keys | length)
+  and .handoff_summary_field_count == (.handoff_summary | keys | length)
+  and .title_action_count == (.handoff_summary.title_actions | length)
+  and .title_action_count == 3
+  and .first_contact_runtime_review_contract_count == (.handoff_summary.first_contact_runtime_review_contracts | length)
+  and .first_contact_runtime_review_contract_count == .handoff_summary.first_contact_runtime_review_contract_count
+  and .first_contact_runtime_review_contract_count == 5
+  and .first_contact_runtime_review_before_command_count == (.handoff_summary.first_contact_runtime_review_before_command_queue | length)
+  and .first_contact_runtime_review_after_command_count == (.handoff_summary.first_contact_runtime_review_after_command_queue | length)
+  and .first_contact_runtime_review_after_command_count == 1
+  and .first_contact_runtime_review_ready_state_label_count == (.handoff_summary.first_contact_runtime_review_ready_state_labels | length)
+  and .first_contact_runtime_review_ready_state_label_count >= 4
   and .artifact_count == (.artifact_manifest | length)
+  and .artifact_label_count == ([.artifact_manifest[].label] | length)
+  and .artifact_path_count == ([.artifact_manifest[].path] | length)
+  and .run_command_count == (.run_commands | keys | length)
+  and .run_command_count == 4
+  and .no_credit_boundary_count == (.no_credit_boundaries | keys | length)
+  and .no_credit_boundary_count == 3
   and .artifact_bytes_total == ([.artifact_manifest[].bytes] | add)
   and .gate_count == (.gates | keys | length)
   and .passed_gate_count == ([.gates[] | select(. == true)] | length)
@@ -183,6 +210,9 @@ jq -e '
   printf '%s\n' "- Contract: \`$(jq -r '.contract_version' "$SUMMARY")\`"
   printf '%s\n' "- Gate count: \`$(jq -r '.passed_gate_count' "$SUMMARY")\` / \`$(jq -r '.gate_count' "$SUMMARY")\` passed"
   printf '%s\n' "- Artifact count: \`$(jq -r '.artifact_count' "$SUMMARY")\`, bytes \`$(jq -r '.artifact_bytes_total' "$SUMMARY")\`"
+  printf '%s\n' "- Handoff summary fields: \`$(jq -r '.handoff_summary_field_count' "$SUMMARY")\`, title actions \`$(jq -r '.title_action_count' "$SUMMARY")\`"
+  printf '%s\n' "- Runtime review counts: contracts \`$(jq -r '.first_contact_runtime_review_contract_count' "$SUMMARY")\`, before commands \`$(jq -r '.first_contact_runtime_review_before_command_count' "$SUMMARY")\`, after commands \`$(jq -r '.first_contact_runtime_review_after_command_count' "$SUMMARY")\`, ready labels \`$(jq -r '.first_contact_runtime_review_ready_state_label_count' "$SUMMARY")\`"
+  printf '%s\n' "- Run command count: \`$(jq -r '.run_command_count' "$SUMMARY")\`, no-credit boundaries \`$(jq -r '.no_credit_boundary_count' "$SUMMARY")\`"
   printf '%s\n' \
     "- Runner: \`$(jq -r '.handoff_summary.runner_service' "$SUMMARY")\` PID \`$(jq -r '.handoff_summary.runner_main_pid' "$SUMMARY")\`"
   printf '%s\n' \

@@ -2540,7 +2540,7 @@ add_classic_playtest_handoff_packet_fixtures() {
         first_contact_runtime_review_contracts: ["trnm_rts_bevy_runtime_first_contact_player_screen_application_v1", "trnm_rts_bevy_runtime_first_contact_offline_adapter_runtime_application_v1", "trnm_rts_bevy_runtime_first_contact_offline_adapter_consumption_v1", "trnm_rts_bevy_runtime_first_contact_offline_adapter_session_transition_v1", "trnm_rts_bevy_runtime_first_contact_offline_adapter_lobby_ready_v1"],
         first_contact_runtime_review_before_command_queue: ["build:trnm.flux.relay", "train:trnm.worker", "attack:trnm.flux.beacon"],
         first_contact_runtime_review_after_command_queue: ["move:8,4"],
-        first_contact_runtime_review_ready_state_labels: ["authority:offline_loopback:no_socket", "player:local-player:ready", "bot:mirror_guard:ready"],
+        first_contact_runtime_review_ready_state_labels: ["authority:offline_loopback:no_socket", "player:local-player:ready", "bot:mirror_guard:ready", "player:mirror_guard:ready"],
         first_contact_runtime_review_command_stamp_tile: "8,4"
       },
       gates: {
@@ -2591,6 +2591,12 @@ add_classic_playtest_handoff_packet_fixtures() {
     }
     | .source_contract_count = (.source_contracts | keys | length)
     | .evidence_path_count = (.evidence_paths | keys | length)
+    | .handoff_summary_field_count = (.handoff_summary | keys | length)
+    | .title_action_count = (.handoff_summary.title_actions | length)
+    | .first_contact_runtime_review_contract_count = (.handoff_summary.first_contact_runtime_review_contracts | length)
+    | .first_contact_runtime_review_before_command_count = (.handoff_summary.first_contact_runtime_review_before_command_queue | length)
+    | .first_contact_runtime_review_after_command_count = (.handoff_summary.first_contact_runtime_review_after_command_queue | length)
+    | .first_contact_runtime_review_ready_state_label_count = (.handoff_summary.first_contact_runtime_review_ready_state_labels | length)
     | .gate_count = (.gates | keys | length)
     | .passed_gate_count = ([.gates[] | select(. == true)] | length)
     | .failed_gate_count = ([.gates[] | select(. != true)] | length)' >"$playtest_handoff_readiness_json"
@@ -2635,9 +2641,13 @@ add_classic_playtest_handoff_packet_fixtures() {
         endurance_elapsed_seconds: 128,
         endurance_peak_active_units: 32,
         first_contact_basin_map_id: "first_contact_basin",
+        first_contact_basin_actor_count: 39,
         first_contact_runtime_review_contract: "trnm_rts_evidence_bevy_runtime_adapter_v1",
         first_contact_runtime_review_contract_count: 5,
+        first_contact_runtime_review_contracts: ["trnm_rts_bevy_runtime_first_contact_player_screen_application_v1", "trnm_rts_bevy_runtime_first_contact_offline_adapter_runtime_application_v1", "trnm_rts_bevy_runtime_first_contact_offline_adapter_consumption_v1", "trnm_rts_bevy_runtime_first_contact_offline_adapter_session_transition_v1", "trnm_rts_bevy_runtime_first_contact_offline_adapter_lobby_ready_v1"],
+        first_contact_runtime_review_before_command_queue: ["build:trnm.flux.relay", "train:trnm.worker", "attack:trnm.flux.beacon"],
         first_contact_runtime_review_after_command_queue: ["move:8,4"],
+        first_contact_runtime_review_ready_state_labels: ["authority:offline_loopback:no_socket", "player:local-player:ready", "bot:mirror_guard:ready", "player:mirror_guard:ready"],
         first_contact_runtime_review_command_stamp_tile: "8,4"
       },
       gates: {
@@ -2677,7 +2687,17 @@ add_classic_playtest_handoff_packet_fixtures() {
       source_of_truth: "Classic playtest handoff packet binds the local Bevy human-playtest handoff to checksummed evidence artifacts and replayable commands. It is a local host-side playtest packet only, not public launch, S5 real-device, or OpenRA natural replay/headless parity credit."
     }
     | .source_contract_count = (.source_contracts | keys | length)
+    | .handoff_summary_field_count = (.handoff_summary | keys | length)
+    | .title_action_count = (.handoff_summary.title_actions | length)
+    | .first_contact_runtime_review_contract_count = (.handoff_summary.first_contact_runtime_review_contracts | length)
+    | .first_contact_runtime_review_before_command_count = (.handoff_summary.first_contact_runtime_review_before_command_queue | length)
+    | .first_contact_runtime_review_after_command_count = (.handoff_summary.first_contact_runtime_review_after_command_queue | length)
+    | .first_contact_runtime_review_ready_state_label_count = (.handoff_summary.first_contact_runtime_review_ready_state_labels | length)
     | .artifact_count = (.artifact_manifest | length)
+    | .artifact_label_count = ([.artifact_manifest[].label] | length)
+    | .artifact_path_count = ([.artifact_manifest[].path] | length)
+    | .run_command_count = (.run_commands | keys | length)
+    | .no_credit_boundary_count = (.no_credit_boundaries | keys | length)
     | .artifact_bytes_total = ([.artifact_manifest[].bytes] | add)
     | .gate_count = (.gates | keys | length)
     | .passed_gate_count = ([.gates[] | select(. == true)] | length)
