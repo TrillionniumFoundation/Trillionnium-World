@@ -2470,8 +2470,17 @@ add_classic_playtest_launcher_packet_fixtures() {
         player_launch_ready_gate: true
       },
       android_s5_real_device_claimed: false,
+      public_launch_ready: false,
+      public_launch_ready_claimed: false,
       source_of_truth: "A player-ready classic playtest launcher must expose CAMPAIGN title actions, persist and restore the campaign slot, resume into the Bevy-owned open-world state, and run on the live release trnm-world-bevy service with no CEX runtime path."
-    }' >"$playtest_launcher_json"
+    }
+    | .source_contract_count = ([.campaign_entry_contract, .runner_status_contract, .title_menu_contract, .state_snapshot_contract] | length)
+    | .title_action_count = (.player_entry.title_actions | length)
+    | .runner_cmdline_arg_count = (.live_runner.runtime.cmdline | length)
+    | .runner_selected_environment_count = (.live_runner.runtime.selected_environment | keys | length)
+    | .gate_count = (.gates | keys | length)
+    | .passed_gate_count = ([.gates[] | select(. == true)] | length)
+    | .failed_gate_count = ([.gates[] | select(. != true)] | length)' >"$playtest_launcher_json"
   add_artifact_from_path native_bevy_classic_playtest_launcher "Native/Bevy classic playtest launcher" "$playtest_launcher_json" release_review_input
 }
 

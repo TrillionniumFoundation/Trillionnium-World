@@ -96,8 +96,17 @@ jq -n \
       )
     },
     android_s5_real_device_claimed: false,
+    public_launch_ready: false,
+    public_launch_ready_claimed: false,
     source_of_truth: "A player-ready classic playtest launcher must expose CAMPAIGN title actions, persist and restore the campaign slot, resume into the Bevy-owned open-world state, and run on the live release trnm-world-bevy service with no CEX runtime path."
-  }' >"$SUMMARY"
+  }
+  | .source_contract_count = ([.campaign_entry_contract, .runner_status_contract, .title_menu_contract, .state_snapshot_contract] | length)
+  | .title_action_count = (.player_entry.title_actions | length)
+  | .runner_cmdline_arg_count = (.live_runner.runtime.cmdline | length)
+  | .runner_selected_environment_count = (.live_runner.runtime.selected_environment | keys | length)
+  | .gate_count = (.gates | keys | length)
+  | .passed_gate_count = ([.gates[] | select(. == true)] | length)
+  | .failed_gate_count = ([.gates[] | select(. != true)] | length)' >"$SUMMARY"
 
 jq -e '
   .contract_version == "trillionnium_world_bevy_classic_playtest_launcher_v1"
@@ -106,6 +115,16 @@ jq -e '
   and .title_menu_contract == "trillionnium_world_bevy_title_menu_v1"
   and .state_snapshot_contract == "trillionnium_world_bevy_state_snapshot_v1"
   and .green == true
+  and .source_contract_count == 4
+  and .title_action_count == (.player_entry.title_actions | length)
+  and .title_action_count == 3
+  and .runner_cmdline_arg_count == (.live_runner.runtime.cmdline | length)
+  and .runner_cmdline_arg_count == 2
+  and .runner_selected_environment_count == (.live_runner.runtime.selected_environment | keys | length)
+  and .gate_count == (.gates | keys | length)
+  and .passed_gate_count == ([.gates[] | select(. == true)] | length)
+  and .failed_gate_count == ([.gates[] | select(. != true)] | length)
+  and .failed_gate_count == 0
   and (.player_entry.title_actions | index("CAMPAIGN:START") != null)
   and (.player_entry.title_actions | index("CAMPAIGN:CONTINUE") != null)
   and (.player_entry.title_actions | index("CAMPAIGN:REPLAY") != null)
@@ -137,6 +156,8 @@ jq -e '
   and .gates.cex_path_gate == true
   and .gates.player_launch_ready_gate == true
   and .android_s5_real_device_claimed == false
+  and .public_launch_ready == false
+  and .public_launch_ready_claimed == false
 ' "$SUMMARY" >/dev/null
 
 printf 'TRILLIONNIUM_WORLD_BEVY_CLASSIC_PLAYTEST_LAUNCHER_GREEN %s\n' "$SUMMARY"
