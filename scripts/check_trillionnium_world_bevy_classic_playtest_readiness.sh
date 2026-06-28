@@ -2393,6 +2393,17 @@ mv "$SUMMARY_WITH_COUNTS" "$SUMMARY"
       rts_openra_engine_port_asset_parity_module_count: $rts_openra_engine_port_asset_parity[0].ported_engine_module_count,
       rts_openra_engine_port_asset_parity_widget_root_count: $rts_openra_engine_port_asset_parity[0].openra_widget_root_count,
       rts_openra_engine_port_asset_parity_screen_count: $rts_openra_engine_port_asset_parity[0].openra_chrome_screen_count,
+      rts_openra_engine_port_asset_parity_source_contract_count: $rts_openra_engine_port_asset_parity[0].source_contract_count,
+      rts_openra_engine_port_asset_parity_source_headline_field_count: $rts_openra_engine_port_asset_parity[0].source_headline_field_count,
+      rts_openra_engine_port_asset_parity_asset_manifest_field_count: $rts_openra_engine_port_asset_parity[0].asset_manifest_field_count,
+      rts_openra_engine_port_asset_parity_pixel_parity_field_count: $rts_openra_engine_port_asset_parity[0].pixel_parity_field_count,
+      rts_openra_engine_port_asset_parity_manifest_frame_id_count: $rts_openra_engine_port_asset_parity[0].pixel_parity_manifest_frame_id_count,
+      rts_openra_engine_port_asset_parity_sample_report_count: $rts_openra_engine_port_asset_parity[0].pixel_parity_sample_report_count,
+      rts_openra_engine_port_asset_parity_artifact_path_count: $rts_openra_engine_port_asset_parity[0].artifact_path_count,
+      rts_openra_engine_port_asset_parity_pixel_count_field_count: $rts_openra_engine_port_asset_parity[0].pixel_count_field_count,
+      rts_openra_engine_port_asset_parity_gate_count: $rts_openra_engine_port_asset_parity[0].gate_count,
+      rts_openra_engine_port_asset_parity_passed_gate_count: $rts_openra_engine_port_asset_parity[0].passed_gate_count,
+      rts_openra_engine_port_asset_parity_failed_gate_count: $rts_openra_engine_port_asset_parity[0].failed_gate_count,
       rts_openra_engine_port_asset_parity_sample_count: $rts_openra_engine_port_asset_parity[0].pixel_parity.sample_count,
       rts_openra_engine_port_asset_parity_sha_match_count: $rts_openra_engine_port_asset_parity[0].pixel_parity.sample_sha_match_count,
       rts_openra_engine_port_asset_parity_pixel_count: $rts_openra_engine_port_asset_parity[0].pixel_parity.sample_pixel_count,
@@ -4143,6 +4154,17 @@ run_validation_filter_in_chunks "$VALIDATION_FILTER" "$SUMMARY" "$VALIDATION_CHU
   and .headline.rts_openra_engine_port_asset_parity_module_count >= 10
   and .headline.rts_openra_engine_port_asset_parity_widget_root_count == 4
   and .headline.rts_openra_engine_port_asset_parity_screen_count == 8
+  and .headline.rts_openra_engine_port_asset_parity_source_contract_count == 3
+  and .headline.rts_openra_engine_port_asset_parity_source_headline_field_count == 8
+  and .headline.rts_openra_engine_port_asset_parity_asset_manifest_field_count == 10
+  and .headline.rts_openra_engine_port_asset_parity_pixel_parity_field_count == 15
+  and .headline.rts_openra_engine_port_asset_parity_manifest_frame_id_count == .headline.rts_openra_engine_port_asset_parity_sample_count
+  and .headline.rts_openra_engine_port_asset_parity_sample_report_count == .headline.rts_openra_engine_port_asset_parity_sample_count
+  and .headline.rts_openra_engine_port_asset_parity_artifact_path_count == 5
+  and .headline.rts_openra_engine_port_asset_parity_pixel_count_field_count == 4
+  and .headline.rts_openra_engine_port_asset_parity_gate_count == 10
+  and .headline.rts_openra_engine_port_asset_parity_passed_gate_count == 10
+  and .headline.rts_openra_engine_port_asset_parity_failed_gate_count == 0
   and .headline.rts_openra_engine_port_asset_parity_sample_count >= 12
   and .headline.rts_openra_engine_port_asset_parity_sha_match_count == .headline.rts_openra_engine_port_asset_parity_sample_count
   and .headline.rts_openra_engine_port_asset_parity_pixel_count >= 3000

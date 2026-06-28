@@ -5,9 +5,30 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SUMMARY="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-openra-engine-port-asset-parity.json"
 PREVIEW="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-openra-engine-port-asset-parity.ppm"
 PREVIEW_DIR="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-openra-engine-port-asset-parity"
+RAW_SUMMARY="$SUMMARY.raw.$$"
+TMP_SUMMARY="$SUMMARY.tmp.$$"
 mkdir -p "$(dirname "$SUMMARY")" "$PREVIEW_DIR"
+cleanup() {
+  rm -f "$RAW_SUMMARY" "$TMP_SUMMARY"
+}
+trap cleanup EXIT
 
-"$ROOT/scripts/run_trillionnium_world_bevy_artifact_command.sh" classic-rts-openra-engine-port-asset-parity "$PREVIEW" >"$SUMMARY"
+"$ROOT/scripts/run_trillionnium_world_bevy_artifact_command.sh" classic-rts-openra-engine-port-asset-parity "$PREVIEW" >"$RAW_SUMMARY"
+
+jq '
+  .source_contract_count = ((.source_contracts // {}) | keys | length)
+  | .source_headline_field_count = ((.source_headline // {}) | keys | length)
+  | .asset_manifest_field_count = ((.asset_manifest // {}) | keys | length)
+  | .pixel_parity_field_count = ((.pixel_parity // {}) | keys | length)
+  | .pixel_parity_manifest_frame_id_count = ((.pixel_parity.manifest_frame_ids // []) | length)
+  | .pixel_parity_sample_report_count = ((.pixel_parity.sample_reports // []) | length)
+  | .artifact_path_count = ((.artifact_paths // {}) | keys | length)
+  | .pixel_count_field_count = ((.pixel_counts // {}) | keys | length)
+  | .gate_count = ([.source_contract_gate, .source_green_gate, .engine_module_gate, .rules_mod_port_gate, .chrome_widget_port_gate, .asset_loader_port_gate, .pixel_perfect_asset_parity_gate, .write_gate, .no_copy_boundary_gate, .openra_engine_port_asset_parity_gate] | length)
+  | .passed_gate_count = ([.source_contract_gate, .source_green_gate, .engine_module_gate, .rules_mod_port_gate, .chrome_widget_port_gate, .asset_loader_port_gate, .pixel_perfect_asset_parity_gate, .write_gate, .no_copy_boundary_gate, .openra_engine_port_asset_parity_gate] | map(select(. == true)) | length)
+  | .failed_gate_count = ([.source_contract_gate, .source_green_gate, .engine_module_gate, .rules_mod_port_gate, .chrome_widget_port_gate, .asset_loader_port_gate, .pixel_perfect_asset_parity_gate, .write_gate, .no_copy_boundary_gate, .openra_engine_port_asset_parity_gate] | map(select(. != true)) | length)
+' "$RAW_SUMMARY" >"$TMP_SUMMARY"
+mv "$TMP_SUMMARY" "$SUMMARY"
 
 jq -e '
   .contract_version == "trillionnium_world_bevy_classic_rts_openra_engine_port_asset_parity_v1"
@@ -19,6 +40,14 @@ jq -e '
   and .engine_port_mode == "rust_reimplementation_of_openra_engine_foundation_owned_assets"
   and .openra_engine_port_scope == "moddata_ruleset_actor_world_order_chrome_widget_sprite_palette_asset_loader_replay_foundation"
   and .ported_engine_module_count >= 10
+  and .source_contract_count == (.source_contracts | keys | length)
+  and .source_headline_field_count == (.source_headline | keys | length)
+  and .asset_manifest_field_count == (.asset_manifest | keys | length)
+  and .pixel_parity_field_count == (.pixel_parity | keys | length)
+  and .pixel_parity_manifest_frame_id_count == (.pixel_parity.manifest_frame_ids | length)
+  and .pixel_parity_sample_report_count == (.pixel_parity.sample_reports | length)
+  and .artifact_path_count == (.artifact_paths | keys | length)
+  and .pixel_count_field_count == (.pixel_counts | keys | length)
   and ([.ported_engine_modules[]] | index("ModData: owned mod manifest, package load order, rules/chrome source registry") != null)
   and ([.ported_engine_modules[]] | index("Ruleset: actor rules, prerequisites, production, weapons, terrain, and traits") != null)
   and ([.ported_engine_modules[]] | index("OrderManager: deterministic issue-order queue, validation, rejection, and replay hooks") != null)
@@ -75,6 +104,9 @@ jq -e '
   and .write_gate == true
   and .no_copy_boundary_gate == true
   and .openra_engine_port_asset_parity_gate == true
+  and .gate_count == 10
+  and .passed_gate_count == 10
+  and .failed_gate_count == 0
   and .openra_style_engine_foundation_claimed == true
   and .openra_engine_port_foundation_claimed == false
   and .openra_engine_port_claimed == false
