@@ -3,9 +3,14 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SUMMARY="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-player-hud-debug-layer.json"
-SUMMARY_RAW="$SUMMARY.raw"
+SUMMARY_RAW="$SUMMARY.raw.$$"
+SUMMARY_TMP="$SUMMARY.tmp.$$"
 
 mkdir -p "$(dirname "$SUMMARY")"
+cleanup() {
+  rm -f "$SUMMARY_RAW" "$SUMMARY_TMP"
+}
+trap cleanup EXIT
 
 (
   cd "$ROOT/trillionnium"
@@ -13,7 +18,11 @@ mkdir -p "$(dirname "$SUMMARY")"
 )
 
 jq '
-  .status = "player_hud_debug_layer_green"
+  ([.player_hud_gate, .quest_layer_gate, .debug_layer_gate, .scene_debug_gate, .input_hint_gate, .panel_layer_gate, .runtime_gate]) as $gates
+  | .status = "player_hud_debug_layer_green"
+  | .gate_count = ($gates | length)
+  | .passed_gate_count = ($gates | map(select(. == true)) | length)
+  | .failed_gate_count = (.gate_count - .passed_gate_count)
   | .player_layer_panel_count = (.player_layer.panel_ids | length)
   | .debug_layer_panel_count = (.debug_layer.panel_ids | length)
   | .final_runtime_key_count = (.final_runtime | keys | length)
@@ -29,8 +38,8 @@ jq '
   | .warcraft_iii_asset_copied = false
   | .openra_asset_copied = false
   | .third_party_asset_copied = false
-' "$SUMMARY_RAW" >"$SUMMARY"
-rm -f "$SUMMARY_RAW"
+' "$SUMMARY_RAW" >"$SUMMARY_TMP"
+mv "$SUMMARY_TMP" "$SUMMARY"
 
 jq -e '
   .contract_version == "trillionnium_world_bevy_player_hud_debug_layer_v1"
@@ -43,6 +52,12 @@ jq -e '
   and .input_hint_gate == true
   and .panel_layer_gate == true
   and .runtime_gate == true
+  and .gate_count == ([.player_hud_gate, .quest_layer_gate, .debug_layer_gate, .scene_debug_gate, .input_hint_gate, .panel_layer_gate, .runtime_gate] | length)
+  and .gate_count == 7
+  and .passed_gate_count == ([.player_hud_gate, .quest_layer_gate, .debug_layer_gate, .scene_debug_gate, .input_hint_gate, .panel_layer_gate, .runtime_gate] | map(select(. == true)) | length)
+  and .passed_gate_count == 7
+  and .failed_gate_count == (.gate_count - .passed_gate_count)
+  and .failed_gate_count == 0
   and .player_layer_panel_count == (.player_layer.panel_ids | length)
   and .debug_layer_panel_count == (.debug_layer.panel_ids | length)
   and .final_runtime_key_count == (.final_runtime | keys | length)

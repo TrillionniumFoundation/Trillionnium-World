@@ -3,8 +3,13 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SUMMARY="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-action-coach.json"
-SUMMARY_RAW="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-action-coach.raw.json"
+SUMMARY_RAW="$SUMMARY.raw.$$"
+SUMMARY_TMP="$SUMMARY.tmp.$$"
 mkdir -p "$(dirname "$SUMMARY")"
+cleanup() {
+  rm -f "$SUMMARY_RAW" "$SUMMARY_TMP"
+}
+trap cleanup EXIT
 
 (
   cd "$ROOT/trillionnium"
@@ -12,7 +17,11 @@ mkdir -p "$(dirname "$SUMMARY")"
 )
 
 jq '
-  .status = "action_coach_green"
+  ([.coach_stage_gate, .enter_execution_gate, .final_next_gate, .input_hint_contract_gate]) as $gates
+  | .status = "action_coach_green"
+  | .gate_count = ($gates | length)
+  | .passed_gate_count = ($gates | map(select(. == true)) | length)
+  | .failed_gate_count = (.gate_count - .passed_gate_count)
   | .coach_stage_check_count = (.coach_stage_checks | length)
   | .matched_coach_stage_check_count = ([.coach_stage_checks[] | select(.action_matches == true and .clean_player_line == true)] | length)
   | .enter_execution_check_count = (.enter_execution_checks | length)
@@ -33,8 +42,8 @@ jq '
   | .warcraft_iii_asset_copied = false
   | .openra_asset_copied = false
   | .third_party_asset_copied = false
-' "$SUMMARY_RAW" >"$SUMMARY"
-rm -f "$SUMMARY_RAW"
+' "$SUMMARY_RAW" >"$SUMMARY_TMP"
+mv "$SUMMARY_TMP" "$SUMMARY"
 
 jq -e '
   .contract_version == "trillionnium_world_bevy_action_coach_v1"
@@ -44,6 +53,12 @@ jq -e '
   and .enter_execution_gate == true
   and .final_next_gate == true
   and .input_hint_contract_gate == true
+  and .gate_count == ([.coach_stage_gate, .enter_execution_gate, .final_next_gate, .input_hint_contract_gate] | length)
+  and .gate_count == 4
+  and .passed_gate_count == ([.coach_stage_gate, .enter_execution_gate, .final_next_gate, .input_hint_contract_gate] | map(select(. == true)) | length)
+  and .passed_gate_count == 4
+  and .failed_gate_count == (.gate_count - .passed_gate_count)
+  and .failed_gate_count == 0
   and .coach_stage_check_count == (.coach_stage_checks | length)
   and .coach_stage_check_count == 4
   and .matched_coach_stage_check_count == ([.coach_stage_checks[] | select(.action_matches == true and .clean_player_line == true)] | length)

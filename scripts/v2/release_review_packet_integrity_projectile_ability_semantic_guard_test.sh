@@ -1350,7 +1350,11 @@ jq -n '{
 }' >"$action_coach_json"
 action_coach_counts_json="$TMP_DIR/bevy-action-coach-counted.json"
 jq '
-  .coach_stage_check_count = (.coach_stage_checks | length)
+  ([.coach_stage_gate, .enter_execution_gate, .final_next_gate, .input_hint_contract_gate]) as $gates
+  | .gate_count = ($gates | length)
+  | .passed_gate_count = ($gates | map(select(. == true)) | length)
+  | .failed_gate_count = (.gate_count - .passed_gate_count)
+  | .coach_stage_check_count = (.coach_stage_checks | length)
   | .matched_coach_stage_check_count = ([.coach_stage_checks[] | select(.action_matches == true and .clean_player_line == true)] | length)
   | .enter_execution_check_count = (.enter_execution_checks | length)
   | .accepted_enter_execution_check_count = ([.enter_execution_checks[] | select(.accepted == true)] | length)
@@ -1431,7 +1435,11 @@ jq -n '{
 }' >"$player_hud_debug_layer_json"
 player_hud_debug_layer_counts_json="$player_hud_debug_layer_json.counts"
 jq '
-  .player_layer_panel_count = (.player_layer.panel_ids | length)
+  ([.player_hud_gate, .quest_layer_gate, .debug_layer_gate, .scene_debug_gate, .input_hint_gate, .panel_layer_gate, .runtime_gate]) as $gates
+  | .gate_count = ($gates | length)
+  | .passed_gate_count = ($gates | map(select(. == true)) | length)
+  | .failed_gate_count = (.gate_count - .passed_gate_count)
+  | .player_layer_panel_count = (.player_layer.panel_ids | length)
   | .debug_layer_panel_count = (.debug_layer.panel_ids | length)
   | .final_runtime_key_count = (.final_runtime | keys | length)
   | .final_runtime_completed_step_count = (.final_runtime.completed_steps | length)
@@ -1589,7 +1597,11 @@ jq -n '{
 }' >"$player_ui_rescue_json"
 player_ui_rescue_counts_json="$player_ui_rescue_json.counts"
 jq '
-  .player_layer_field_count = (.player_layer | keys | length)
+  ([.player_status_gate, .route_panel_gate, .quest_panel_gate, .action_layer_gate, .debug_deprioritized_gate, .event_log_separation_gate, .button_wall_deprioritized_gate, .contextual_deck_layout_gate, .right_rail_summary_gate, .top_hud_density_gate, .toast_lane_gate, .visual_hierarchy_gate, .art_direction_gate, .scene_readability_gate, .sprite_asset_quality_gate, .map_model_visual_gate, .map_occlusion_gate, .ui_polish_gate, .tileset_polish_gate, .authored_art_pack_gate, .runtime_gate]) as $gates
+  | .gate_count = ($gates | length)
+  | .passed_gate_count = ($gates | map(select(. == true)) | length)
+  | .failed_gate_count = (.gate_count - .passed_gate_count)
+  | .player_layer_field_count = (.player_layer | keys | length)
   | .action_row_count = (.action_row_policy.active_action_row_ids | length)
   | .art_direction_surface_count = .art_direction_policy.surface_count
   | .scene_readability_surface_count = .scene_readability_policy.surface_count

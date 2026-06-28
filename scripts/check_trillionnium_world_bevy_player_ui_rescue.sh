@@ -3,8 +3,13 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SUMMARY="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-player-ui-rescue.json"
-SUMMARY_RAW="$SUMMARY.raw"
+SUMMARY_RAW="$SUMMARY.raw.$$"
+SUMMARY_TMP="$SUMMARY.tmp.$$"
 mkdir -p "$(dirname "$SUMMARY")"
+cleanup() {
+  rm -f "$SUMMARY_RAW" "$SUMMARY_TMP"
+}
+trap cleanup EXIT
 
 (
   cd "$ROOT/trillionnium"
@@ -12,7 +17,33 @@ mkdir -p "$(dirname "$SUMMARY")"
 )
 
 jq '
-  .status = "player_ui_rescue_green"
+  ([
+    .player_status_gate,
+    .route_panel_gate,
+    .quest_panel_gate,
+    .action_layer_gate,
+    .debug_deprioritized_gate,
+    .event_log_separation_gate,
+    .button_wall_deprioritized_gate,
+    .contextual_deck_layout_gate,
+    .right_rail_summary_gate,
+    .top_hud_density_gate,
+    .toast_lane_gate,
+    .visual_hierarchy_gate,
+    .art_direction_gate,
+    .scene_readability_gate,
+    .sprite_asset_quality_gate,
+    .map_model_visual_gate,
+    .map_occlusion_gate,
+    .ui_polish_gate,
+    .tileset_polish_gate,
+    .authored_art_pack_gate,
+    .runtime_gate
+  ]) as $gates
+  | .status = "player_ui_rescue_green"
+  | .gate_count = ($gates | length)
+  | .passed_gate_count = ($gates | map(select(. == true)) | length)
+  | .failed_gate_count = (.gate_count - .passed_gate_count)
   | .player_layer_field_count = (.player_layer | keys | length)
   | .action_row_count = (.action_row_policy.active_action_row_ids | length)
   | .art_direction_surface_count = .art_direction_policy.surface_count
@@ -39,8 +70,8 @@ jq '
   | .warcraft_iii_asset_copied = false
   | .openra_asset_copied = false
   | .third_party_asset_copied = false
-' "$SUMMARY_RAW" >"$SUMMARY"
-rm -f "$SUMMARY_RAW"
+' "$SUMMARY_RAW" >"$SUMMARY_TMP"
+mv "$SUMMARY_TMP" "$SUMMARY"
 
 jq -e '
   .contract_version == "trillionnium_world_bevy_player_ui_rescue_v1"
@@ -67,6 +98,56 @@ jq -e '
   and .tileset_polish_gate == true
   and .authored_art_pack_gate == true
   and .runtime_gate == true
+  and .gate_count == ([
+    .player_status_gate,
+    .route_panel_gate,
+    .quest_panel_gate,
+    .action_layer_gate,
+    .debug_deprioritized_gate,
+    .event_log_separation_gate,
+    .button_wall_deprioritized_gate,
+    .contextual_deck_layout_gate,
+    .right_rail_summary_gate,
+    .top_hud_density_gate,
+    .toast_lane_gate,
+    .visual_hierarchy_gate,
+    .art_direction_gate,
+    .scene_readability_gate,
+    .sprite_asset_quality_gate,
+    .map_model_visual_gate,
+    .map_occlusion_gate,
+    .ui_polish_gate,
+    .tileset_polish_gate,
+    .authored_art_pack_gate,
+    .runtime_gate
+  ] | length)
+  and .gate_count == 21
+  and .passed_gate_count == ([
+    .player_status_gate,
+    .route_panel_gate,
+    .quest_panel_gate,
+    .action_layer_gate,
+    .debug_deprioritized_gate,
+    .event_log_separation_gate,
+    .button_wall_deprioritized_gate,
+    .contextual_deck_layout_gate,
+    .right_rail_summary_gate,
+    .top_hud_density_gate,
+    .toast_lane_gate,
+    .visual_hierarchy_gate,
+    .art_direction_gate,
+    .scene_readability_gate,
+    .sprite_asset_quality_gate,
+    .map_model_visual_gate,
+    .map_occlusion_gate,
+    .ui_polish_gate,
+    .tileset_polish_gate,
+    .authored_art_pack_gate,
+    .runtime_gate
+  ] | map(select(. == true)) | length)
+  and .passed_gate_count == 21
+  and .failed_gate_count == (.gate_count - .passed_gate_count)
+  and .failed_gate_count == 0
   and .player_layer_field_count == (.player_layer | keys | length)
   and .action_row_count == (.action_row_policy.active_action_row_ids | length)
   and .art_direction_surface_count == .art_direction_policy.surface_count
