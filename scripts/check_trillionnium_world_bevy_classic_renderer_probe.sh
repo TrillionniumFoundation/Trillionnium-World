@@ -3,10 +3,12 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SUMMARY="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-renderer-probe.json"
-SUMMARY_RAW="$SUMMARY.raw"
+SUMMARY_RAW="$SUMMARY.raw.$$"
+SUMMARY_TMP="$SUMMARY.tmp.$$"
 FRAME="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-renderer-probe.ppm"
 MANIFEST="$ROOT/assets/trnm-world/classic/manifest.json"
 mkdir -p "$(dirname "$SUMMARY")"
+trap 'rm -f "$SUMMARY_RAW" "$SUMMARY_TMP"' EXIT
 
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_asset_pack.sh" >/dev/null
 
@@ -18,6 +20,17 @@ mkdir -p "$(dirname "$SUMMARY")"
 
 jq '
   .status = "classic_renderer_probe_green"
+  | .ready_for_release_review = true
+  | .gate_count = 6
+  | .passed_gate_count = ([
+      .atlas_parse_gate,
+      .loaded_from_manifest,
+      .frame_nonblank_gate,
+      .hud_probe_gate,
+      .player_frame_color_gate,
+      .scene_frame_gate
+    ] | map(select(. == true)) | length)
+  | .failed_gate_count = (.gate_count - .passed_gate_count)
   | .android_s5_real_device_claimed = false
   | .external_evidence_ignored_for_current_renderer_probe_pass = true
   | .public_launch_ready = false
@@ -27,7 +40,8 @@ jq '
   | .warcraft_iii_asset_copied = false
   | .openra_asset_copied = false
   | .third_party_asset_copied = false
-' "$SUMMARY_RAW" >"$SUMMARY"
+' "$SUMMARY_RAW" >"$SUMMARY_TMP"
+mv "$SUMMARY_TMP" "$SUMMARY"
 
 test -s "$SUMMARY"
 test -s "$FRAME"
@@ -37,6 +51,10 @@ jq -e '
   .contract_version == "trillionnium_world_bevy_classic_renderer_probe_v1"
   and .status == "classic_renderer_probe_green"
   and .green == true
+  and .ready_for_release_review == true
+  and .gate_count == 6
+  and .passed_gate_count == 6
+  and .failed_gate_count == 0
   and .frame_format == "ppm_p3_rgb"
   and .frame_width == 640
   and .frame_height == 360

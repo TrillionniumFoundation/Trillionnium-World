@@ -7,8 +7,15 @@ MODEL_SCRIPT="$ROOT/scripts/check_trillionnium_world_bevy_classic_model_catalog.
 RENDERER_SCRIPT="$ROOT/scripts/check_trillionnium_world_bevy_classic_renderer_probe.sh"
 
 scene_required_lines=(
-  'SUMMARY_RAW="$SUMMARY.raw"'
+  'SUMMARY_RAW="$SUMMARY.raw.$$"'
+  'SUMMARY_TMP="$SUMMARY.tmp.$$"'
   'classic_scene_preview_green'
+  'ready_for_release_review == true'
+  'gate_count == 7'
+  'panel_summary_count == (.panel_summaries | length)'
+  'dynamic_landmark_frame_id_count == (.dynamic_landmark_frame_ids | length)'
+  'unique_panel_scene_count == ([.panel_summaries[].scene_id] | unique | length)'
+  'unique_panel_player_frame_count == ([.panel_summaries[].player_frame_id] | unique | length)'
   'trillionnium_world_bevy_classic_scene_preview_v1'
   'status == "classic_scene_preview_green"'
   'external_evidence_ignored_for_current_scene_preview_pass'
@@ -25,8 +32,13 @@ scene_required_lines=(
 )
 
 model_required_lines=(
-  'SUMMARY_RAW="$SUMMARY.raw"'
+  'SUMMARY_RAW="$SUMMARY.raw.$$"'
+  'SUMMARY_TMP="$SUMMARY.tmp.$$"'
   'classic_model_catalog_green'
+  'ready_for_release_review == true'
+  'gate_count == 8'
+  'frame_summary_count == (.frame_summaries | length)'
+  'role_family_count == (.role_counts | keys | length)'
   'trillionnium_world_bevy_classic_model_catalog_v1'
   'status == "classic_model_catalog_green"'
   'external_evidence_ignored_for_current_model_catalog_pass'
@@ -44,8 +56,11 @@ model_required_lines=(
 )
 
 renderer_required_lines=(
-  'SUMMARY_RAW="$SUMMARY.raw"'
+  'SUMMARY_RAW="$SUMMARY.raw.$$"'
+  'SUMMARY_TMP="$SUMMARY.tmp.$$"'
   'classic_renderer_probe_green'
+  'ready_for_release_review == true'
+  'gate_count == 6'
   'trillionnium_world_bevy_classic_renderer_probe_v1'
   'status == "classic_renderer_probe_green"'
   'external_evidence_ignored_for_current_renderer_probe_pass'

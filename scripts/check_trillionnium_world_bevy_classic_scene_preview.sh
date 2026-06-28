@@ -3,10 +3,12 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SUMMARY="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-scene-preview.json"
-SUMMARY_RAW="$SUMMARY.raw"
+SUMMARY_RAW="$SUMMARY.raw.$$"
+SUMMARY_TMP="$SUMMARY.tmp.$$"
 PREVIEW="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-scene-preview.ppm"
 MANIFEST="$ROOT/assets/trnm-world/classic/manifest.json"
 mkdir -p "$(dirname "$SUMMARY")"
+trap 'rm -f "$SUMMARY_RAW" "$SUMMARY_TMP"' EXIT
 
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_asset_pack.sh" >/dev/null
 
@@ -18,6 +20,22 @@ mkdir -p "$(dirname "$SUMMARY")"
 
 jq '
   .status = "classic_scene_preview_green"
+  | .ready_for_release_review = true
+  | .panel_summary_count = (.panel_summaries | length)
+  | .dynamic_landmark_frame_id_count = (.dynamic_landmark_frame_ids | length)
+  | .unique_panel_scene_count = ([.panel_summaries[].scene_id] | unique | length)
+  | .unique_panel_player_frame_count = ([.panel_summaries[].player_frame_id] | unique | length)
+  | .gate_count = 7
+  | .passed_gate_count = ([
+      .atlas_parse_gate,
+      .renderer_manifest_gate,
+      .direction_frame_gate,
+      .dynamic_landmark_animation_gate,
+      .preview_nonblank_gate,
+      .overlay_text_gate,
+      (.panel_count == (.panel_summaries | length))
+    ] | map(select(. == true)) | length)
+  | .failed_gate_count = (.gate_count - .passed_gate_count)
   | .android_s5_real_device_claimed = false
   | .external_evidence_ignored_for_current_scene_preview_pass = true
   | .public_launch_ready = false
@@ -27,7 +45,8 @@ jq '
   | .warcraft_iii_asset_copied = false
   | .openra_asset_copied = false
   | .third_party_asset_copied = false
-' "$SUMMARY_RAW" >"$SUMMARY"
+' "$SUMMARY_RAW" >"$SUMMARY_TMP"
+mv "$SUMMARY_TMP" "$SUMMARY"
 
 test -s "$SUMMARY"
 test -s "$PREVIEW"
@@ -37,6 +56,10 @@ jq -e '
   .contract_version == "trillionnium_world_bevy_classic_scene_preview_v1"
   and .status == "classic_scene_preview_green"
   and .green == true
+  and .ready_for_release_review == true
+  and .gate_count == 7
+  and .passed_gate_count == 7
+  and .failed_gate_count == 0
   and .preview_format == "ppm_p3_rgb"
   and .preview_width == 1280
   and .preview_height == 720
@@ -57,6 +80,10 @@ jq -e '
   and .atlas_parse_gate == true
   and .frame_count >= 43
   and .panel_count == 4
+  and .panel_summary_count == (.panel_summaries | length)
+  and .dynamic_landmark_frame_id_count == (.dynamic_landmark_frame_ids | length)
+  and .unique_panel_scene_count == ([.panel_summaries[].scene_id] | unique | length)
+  and .unique_panel_player_frame_count == ([.panel_summaries[].player_frame_id] | unique | length)
   and ([.panel_summaries[].player_frame_id] | unique | length) == 4
   and ([.panel_summaries[].player_frame_id] | index("actor_player_walk_east_1") != null)
   and ([.panel_summaries[].scene_id] | index("mirror_city_square") != null)

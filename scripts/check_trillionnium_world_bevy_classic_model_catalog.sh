@@ -3,10 +3,12 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SUMMARY="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-model-catalog.json"
-SUMMARY_RAW="$SUMMARY.raw"
+SUMMARY_RAW="$SUMMARY.raw.$$"
+SUMMARY_TMP="$SUMMARY.tmp.$$"
 CATALOG="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-model-catalog.ppm"
 MANIFEST="$ROOT/assets/trnm-world/classic/manifest.json"
 mkdir -p "$(dirname "$SUMMARY")"
+trap 'rm -f "$SUMMARY_RAW" "$SUMMARY_TMP"' EXIT
 
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_asset_pack.sh" >/dev/null
 
@@ -18,6 +20,21 @@ mkdir -p "$(dirname "$SUMMARY")"
 
 jq '
   .status = "classic_model_catalog_green"
+  | .ready_for_release_review = true
+  | .frame_summary_count = (.frame_summaries | length)
+  | .role_family_count = (.role_counts | keys | length)
+  | .gate_count = 8
+  | .passed_gate_count = ([
+      .atlas_parse_gate,
+      .catalog_sheet_gate,
+      .label_gate,
+      .all_frames_rendered_gate,
+      .player_direction_catalog_gate,
+      .actor_clip_catalog_gate,
+      .scene_reference_catalog_gate,
+      .role_coverage_gate
+    ] | map(select(. == true)) | length)
+  | .failed_gate_count = (.gate_count - .passed_gate_count)
   | .android_s5_real_device_claimed = false
   | .external_evidence_ignored_for_current_model_catalog_pass = true
   | .public_launch_ready = false
@@ -27,7 +44,8 @@ jq '
   | .warcraft_iii_asset_copied = false
   | .openra_asset_copied = false
   | .third_party_asset_copied = false
-' "$SUMMARY_RAW" >"$SUMMARY"
+' "$SUMMARY_RAW" >"$SUMMARY_TMP"
+mv "$SUMMARY_TMP" "$SUMMARY"
 
 test -s "$SUMMARY"
 test -s "$CATALOG"
@@ -37,6 +55,10 @@ jq -e '
   .contract_version == "trillionnium_world_bevy_classic_model_catalog_v1"
   and .status == "classic_model_catalog_green"
   and .green == true
+  and .ready_for_release_review == true
+  and .gate_count == 8
+  and .passed_gate_count == 8
+  and .failed_gate_count == 0
   and .catalog_format == "ppm_p3_rgb"
   and .catalog_width == 640
   and .catalog_height >= 1056
@@ -46,6 +68,8 @@ jq -e '
   and .columns == 4
   and .frame_count >= 43
   and .rendered_frame_count == .frame_count
+  and .frame_summary_count == (.frame_summaries | length)
+  and .role_family_count == (.role_counts | keys | length)
   and .unique_color_count >= 32
   and .non_background_pixels > 40000
   and .label_pixel_count > 2500
