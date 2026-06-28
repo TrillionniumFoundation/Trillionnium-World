@@ -1176,6 +1176,10 @@ jq -n '{
 in_match_hud_state_replication_json_tmp="$in_match_hud_state_replication_json.tmp"
 jq '
   .source_contract_count = (.source_contracts | keys | length)
+  | .runtime_screen_layout_count = (.runtime_screen_layout | keys | length)
+  | .hud_pixel_count_field_count = (.hud_pixel_counts | keys | length)
+  | .in_match_hud_player_first_pixel_count_field_count = (.in_match_hud_player_first_pixel_counts | keys | length)
+  | .hud_surface_name_count = (.hud_surface_names | length)
   | .selected_unit_count = (.selected_unit_ids | length)
   | .active_control_group_count = (.active_control_group_ids | length)
   | .command_queue_count = (.command_queue | length)
@@ -1186,6 +1190,9 @@ jq '
   | .combat_event_log_count = (.combat_event_log | length)
   | .visible_tile_count = (.visible_tile_ids | length)
   | .fogged_tile_count = (.fogged_tile_ids | length)
+  | .gate_count = ([.selection_gate, .command_gate, .resource_gate, .production_gate, .ability_gate, .combat_alert_gate, .minimap_objective_gate, .native_client_boundary_gate, .preview_gate, .runtime_screen_gate, .player_first_in_match_hud_screen_gate, .in_match_hud_state_replication_gate] | length)
+  | .passed_gate_count = ([.selection_gate, .command_gate, .resource_gate, .production_gate, .ability_gate, .combat_alert_gate, .minimap_objective_gate, .native_client_boundary_gate, .preview_gate, .runtime_screen_gate, .player_first_in_match_hud_screen_gate, .in_match_hud_state_replication_gate] | map(select(. == true)) | length)
+  | .failed_gate_count = (.gate_count - .passed_gate_count)
 ' "$in_match_hud_state_replication_json" >"$in_match_hud_state_replication_json_tmp"
 mv "$in_match_hud_state_replication_json_tmp" "$in_match_hud_state_replication_json"
 add_artifact_from_path native_bevy_classic_rts_in_match_hud_state_replication "Native/Bevy classic RTS in-match HUD/state replication" "$in_match_hud_state_replication_json" release_review_input
@@ -2321,6 +2328,13 @@ jq -n '{
     rts_campaign_outcome_ui_readiness_aftermath_player_first_view_non_background: 526242,
     rts_campaign_outcome_ui_readiness_open_world_player_first_view_non_background: 541668,
     rts_in_match_hud_state_replication_surface_count: 8,
+    rts_in_match_hud_state_replication_runtime_layout_count: 7,
+    rts_in_match_hud_state_replication_hud_pixel_field_count: 10,
+    rts_in_match_hud_state_replication_player_first_pixel_field_count: 7,
+    rts_in_match_hud_state_replication_surface_name_count: 8,
+    rts_in_match_hud_state_replication_gate_count: 12,
+    rts_in_match_hud_state_replication_passed_gate_count: 12,
+    rts_in_match_hud_state_replication_failed_gate_count: 0,
     rts_in_match_hud_state_replication_command_grid_pixel_count: 1240,
     rts_in_match_hud_state_replication_player_first_view_non_background: 541917,
     rts_in_match_hud_state_replication_player_first_view_frame_pixel_count: 15370,

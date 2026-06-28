@@ -3,26 +3,35 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SUMMARY="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-in-match-hud-state-replication.json"
-SUMMARY_RAW="$SUMMARY.raw"
+SUMMARY_RAW="$SUMMARY.raw.$$"
+SUMMARY_TMP="$SUMMARY.tmp.$$"
 PREVIEW="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-in-match-hud-state-replication.ppm"
 mkdir -p "$(dirname "$SUMMARY")"
+trap 'rm -f "$SUMMARY_RAW" "$SUMMARY_TMP"' EXIT
 
 "$ROOT/scripts/run_trillionnium_world_bevy_artifact_command.sh" classic-rts-in-match-hud-state-replication "$PREVIEW" >"$SUMMARY_RAW"
 
 jq '
-  .source_contract_count = (.source_contracts | keys | length)
-  | .selected_unit_count = (.selected_unit_ids | length)
-  | .active_control_group_count = (.active_control_group_ids | length)
-  | .command_queue_count = (.command_queue | length)
-  | .production_queue_count = (.production_queue | length)
-  | .build_queue_count = (.build_queue | length)
-  | .resource_spend_log_count = (.resource_spend_log | length)
-  | .ability_command_count = (.ability_command_ids | length)
-  | .combat_event_log_count = (.combat_event_log | length)
-  | .visible_tile_count = (.visible_tile_ids | length)
-  | .fogged_tile_count = (.fogged_tile_ids | length)
-' "$SUMMARY_RAW" >"$SUMMARY"
-rm -f "$SUMMARY_RAW"
+  .source_contract_count = ((.source_contracts // {}) | keys | length)
+  | .runtime_screen_layout_count = ((.runtime_screen_layout // {}) | keys | length)
+  | .hud_pixel_count_field_count = ((.hud_pixel_counts // {}) | keys | length)
+  | .in_match_hud_player_first_pixel_count_field_count = ((.in_match_hud_player_first_pixel_counts // {}) | keys | length)
+  | .hud_surface_name_count = ((.hud_surface_names // []) | length)
+  | .selected_unit_count = ((.selected_unit_ids // []) | length)
+  | .active_control_group_count = ((.active_control_group_ids // []) | length)
+  | .command_queue_count = ((.command_queue // []) | length)
+  | .production_queue_count = ((.production_queue // []) | length)
+  | .build_queue_count = ((.build_queue // []) | length)
+  | .resource_spend_log_count = ((.resource_spend_log // []) | length)
+  | .ability_command_count = ((.ability_command_ids // []) | length)
+  | .combat_event_log_count = ((.combat_event_log // []) | length)
+  | .visible_tile_count = ((.visible_tile_ids // []) | length)
+  | .fogged_tile_count = ((.fogged_tile_ids // []) | length)
+  | .gate_count = ([.selection_gate, .command_gate, .resource_gate, .production_gate, .ability_gate, .combat_alert_gate, .minimap_objective_gate, .native_client_boundary_gate, .preview_gate, .runtime_screen_gate, .player_first_in_match_hud_screen_gate, .in_match_hud_state_replication_gate] | length)
+  | .passed_gate_count = ([.selection_gate, .command_gate, .resource_gate, .production_gate, .ability_gate, .combat_alert_gate, .minimap_objective_gate, .native_client_boundary_gate, .preview_gate, .runtime_screen_gate, .player_first_in_match_hud_screen_gate, .in_match_hud_state_replication_gate] | map(select(. == true)) | length)
+  | .failed_gate_count = (.gate_count - .passed_gate_count)
+' "$SUMMARY_RAW" >"$SUMMARY_TMP"
+mv "$SUMMARY_TMP" "$SUMMARY"
 
 jq -e '
   .contract_version == "trillionnium_world_bevy_classic_rts_in_match_hud_state_replication_v1"
@@ -51,6 +60,10 @@ jq -e '
   and .runtime_screen_layout.bottom_command_grid == "move/train/build/attack command grid and queue"
   and .hud_surface_count == 8
   and .source_contract_count == (.source_contracts | keys | length)
+  and .runtime_screen_layout_count == (.runtime_screen_layout | keys | length)
+  and .hud_pixel_count_field_count == (.hud_pixel_counts | keys | length)
+  and .in_match_hud_player_first_pixel_count_field_count == (.in_match_hud_player_first_pixel_counts | keys | length)
+  and .hud_surface_name_count == (.hud_surface_names | length)
   and .selected_unit_count == (.selected_unit_ids | length)
   and .active_control_group_count == (.active_control_group_ids | length)
   and .command_queue_count == (.command_queue | length)
@@ -61,6 +74,9 @@ jq -e '
   and .combat_event_log_count == (.combat_event_log | length)
   and .visible_tile_count == (.visible_tile_ids | length)
   and .fogged_tile_count == (.fogged_tile_ids | length)
+  and .gate_count == 12
+  and .passed_gate_count == 12
+  and .failed_gate_count == 0
   and (.hud_surface_names | index("RESOURCES") != null)
   and (.hud_surface_names | index("SELECTION") != null)
   and (.hud_surface_names | index("COMMAND GRID") != null)

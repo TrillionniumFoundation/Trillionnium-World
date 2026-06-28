@@ -11,6 +11,10 @@ READINESS="$ROOT/scripts/check_trillionnium_world_bevy_classic_playtest_readines
 test -x "$SCRIPT"
 
 required_script_lines=(
+  'SUMMARY_RAW="$SUMMARY.raw.$$"'
+  'SUMMARY_TMP="$SUMMARY.tmp.$$"'
+  'trap '\''rm -f "$SUMMARY_RAW" "$SUMMARY_TMP"'\'' EXIT'
+  'mv "$SUMMARY_TMP" "$SUMMARY"'
   'classic-rts-in-match-hud-state-replication'
   'bevy-classic-rts-in-match-hud-state-replication.json'
   'bevy-classic-rts-in-match-hud-state-replication.ppm'
@@ -33,6 +37,10 @@ required_script_lines=(
   'runtime_screen_layout.bottom_command_grid'
   'hud_surface_count == 8'
   'source_contract_count == (.source_contracts | keys | length)'
+  'runtime_screen_layout_count == (.runtime_screen_layout | keys | length)'
+  'hud_pixel_count_field_count == (.hud_pixel_counts | keys | length)'
+  'in_match_hud_player_first_pixel_count_field_count == (.in_match_hud_player_first_pixel_counts | keys | length)'
+  'hud_surface_name_count == (.hud_surface_names | length)'
   'selected_unit_count == (.selected_unit_ids | length)'
   'active_control_group_count == (.active_control_group_ids | length)'
   'command_queue_count == (.command_queue | length)'
@@ -43,6 +51,9 @@ required_script_lines=(
   'combat_event_log_count == (.combat_event_log | length)'
   'visible_tile_count == (.visible_tile_ids | length)'
   'fogged_tile_count == (.fogged_tile_ids | length)'
+  'gate_count == 12'
+  'passed_gate_count == 12'
+  'failed_gate_count == 0'
   'in_match_hud_state_replication_gate == true'
   'external_evidence_ignored_for_current_replication_pass == true'
   'TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_IN_MATCH_HUD_STATE_REPLICATION_GREEN'
@@ -100,6 +111,13 @@ required_readiness_lines=(
   'rts_in_match_hud_state_replication'
   'classic_rts_in_match_hud_state_replication_green'
   'bevy-classic-rts-in-match-hud-state-replication.json'
+  'rts_in_match_hud_state_replication_runtime_layout_count: $rts_in_match_hud_state_replication[0].runtime_screen_layout_count'
+  'rts_in_match_hud_state_replication_hud_pixel_field_count: $rts_in_match_hud_state_replication[0].hud_pixel_count_field_count'
+  'rts_in_match_hud_state_replication_player_first_pixel_field_count: $rts_in_match_hud_state_replication[0].in_match_hud_player_first_pixel_count_field_count'
+  'rts_in_match_hud_state_replication_gate_count: $rts_in_match_hud_state_replication[0].gate_count'
+  '.headline.rts_in_match_hud_state_replication_runtime_layout_count == 7'
+  '.headline.rts_in_match_hud_state_replication_gate_count == 12'
+  '.headline.rts_in_match_hud_state_replication_failed_gate_count == 0'
 )
 
 for line in "${required_readiness_lines[@]}"; do
