@@ -2232,6 +2232,24 @@ mv "$SUMMARY_WITH_COUNTS" "$SUMMARY"
       rts_first_contact_basin_spec_map_id: $rts_first_contact_basin_spec[0].map_id,
       rts_first_contact_basin_spec_actor_count: $rts_first_contact_basin_spec[0].actor_count,
       rts_first_contact_basin_spec_spawn_count: $rts_first_contact_basin_spec[0].spawn_count,
+      rts_first_contact_basin_spec_contract_field_count: $rts_first_contact_basin_spec[0].contract_field_count,
+      rts_first_contact_basin_spec_guard_object_count: $rts_first_contact_basin_spec[0].guard_object_count,
+      rts_first_contact_basin_spec_guard_gate_count: $rts_first_contact_basin_spec[0].guard_gate_count,
+      rts_first_contact_basin_spec_top_level_gate_count: $rts_first_contact_basin_spec[0].top_level_gate_count,
+      rts_first_contact_basin_spec_map_model_actor_count: $rts_first_contact_basin_spec[0].rts_data_map_model_actor_count,
+      rts_first_contact_basin_spec_map_model_player_count: $rts_first_contact_basin_spec[0].rts_data_map_model_player_count,
+      rts_first_contact_basin_spec_map_model_rule_count: $rts_first_contact_basin_spec[0].rts_data_map_model_rule_count,
+      rts_first_contact_basin_spec_runtime_command_queue_count: $rts_first_contact_basin_spec[0].runtime_player_screen_command_queue_count,
+      rts_first_contact_basin_spec_runtime_production_queue_count: $rts_first_contact_basin_spec[0].runtime_player_screen_production_queue_count,
+      rts_first_contact_basin_spec_runtime_build_queue_count: $rts_first_contact_basin_spec[0].runtime_player_screen_build_queue_count,
+      rts_first_contact_basin_spec_runtime_visible_tile_count: $rts_first_contact_basin_spec[0].runtime_player_screen_visible_tile_count,
+      rts_first_contact_basin_spec_runtime_fogged_tile_count: $rts_first_contact_basin_spec[0].runtime_player_screen_fogged_tile_count,
+      rts_first_contact_basin_spec_runtime_ability_command_count: $rts_first_contact_basin_spec[0].runtime_player_screen_ability_command_count,
+      rts_first_contact_basin_spec_offline_command_queue_count: $rts_first_contact_basin_spec[0].offline_consumption_command_queue_count,
+      rts_first_contact_basin_spec_offline_production_queue_count: $rts_first_contact_basin_spec[0].offline_consumption_production_queue_count,
+      rts_first_contact_basin_spec_offline_build_queue_count: $rts_first_contact_basin_spec[0].offline_consumption_build_queue_count,
+      rts_first_contact_basin_spec_offline_ability_command_count: $rts_first_contact_basin_spec[0].offline_consumption_ability_command_count,
+      rts_first_contact_basin_spec_offline_ready_label_count: $rts_first_contact_basin_spec[0].offline_lobby_ready_label_count,
       rts_first_contact_runtime_review_contract: $rts_first_contact_basin_spec[0].rts_evidence_bevy_runtime_adapter.contract_version,
       rts_first_contact_runtime_review_contract_count: ($rts_first_contact_basin_spec[0].rts_evidence_bevy_runtime_adapter.first_contact_runtime_review_contracts | length),
       rts_first_contact_runtime_review_contracts: $rts_first_contact_basin_spec[0].rts_evidence_bevy_runtime_adapter.first_contact_runtime_review_contracts,
@@ -3988,6 +4006,24 @@ run_validation_filter_in_chunks "$VALIDATION_FILTER" "$SUMMARY" "$VALIDATION_CHU
   and .headline.rts_first_contact_basin_spec_map_id == "first_contact_basin"
   and .headline.rts_first_contact_basin_spec_actor_count == 39
   and .headline.rts_first_contact_basin_spec_spawn_count == 4
+  and .headline.rts_first_contact_basin_spec_contract_field_count == 32
+  and .headline.rts_first_contact_basin_spec_guard_object_count == 16
+  and .headline.rts_first_contact_basin_spec_guard_gate_count == 16
+  and .headline.rts_first_contact_basin_spec_top_level_gate_count == 45
+  and .headline.rts_first_contact_basin_spec_map_model_actor_count == 39
+  and .headline.rts_first_contact_basin_spec_map_model_player_count == 6
+  and .headline.rts_first_contact_basin_spec_map_model_rule_count == 19
+  and .headline.rts_first_contact_basin_spec_runtime_command_queue_count == 4
+  and .headline.rts_first_contact_basin_spec_runtime_production_queue_count == 3
+  and .headline.rts_first_contact_basin_spec_runtime_build_queue_count == 2
+  and .headline.rts_first_contact_basin_spec_runtime_visible_tile_count == 64
+  and .headline.rts_first_contact_basin_spec_runtime_fogged_tile_count == 6
+  and .headline.rts_first_contact_basin_spec_runtime_ability_command_count == 6
+  and .headline.rts_first_contact_basin_spec_offline_command_queue_count == 1
+  and .headline.rts_first_contact_basin_spec_offline_production_queue_count == 3
+  and .headline.rts_first_contact_basin_spec_offline_build_queue_count == 2
+  and .headline.rts_first_contact_basin_spec_offline_ability_command_count == 6
+  and .headline.rts_first_contact_basin_spec_offline_ready_label_count == 4
   and .headline.rts_first_contact_runtime_review_contract == "trnm_rts_evidence_bevy_runtime_adapter_v1"
   and .headline.rts_first_contact_runtime_review_contract_count == 5
   and (.headline.rts_first_contact_runtime_review_contracts | index("trnm_rts_bevy_runtime_first_contact_player_screen_application_v1") != null)

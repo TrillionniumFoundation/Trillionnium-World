@@ -1978,7 +1978,45 @@ add_first_contact_basin_source_manifest_packet_fixtures() {
     source_policy: "OpenRA engine code and third-party/proprietary RTS assets are not copied; First Contact Basin remains internal-only until GPL component review or replacement.",
     android_s5_real_device_claimed: false,
     public_launch_ready: false
-  }' >"$first_contact_basin_spec_json"
+  }
+  | .contract_field_count = ([keys[] | select(endswith("_contract"))] | length)
+  | .guard_object_count = ([to_entries[] | select((.key | test("^first_contact_.*_guard$")) and (.value | type == "object"))] | length)
+  | .guard_gate_count = ([to_entries[] | select((.key | test("^first_contact_.*_guard_gate$")) and (.value | type == "boolean"))] | length)
+  | .passed_guard_gate_count = ([to_entries[] | select((.key | test("^first_contact_.*_guard_gate$")) and .value == true)] | length)
+  | .failed_guard_gate_count = (.guard_gate_count - .passed_guard_gate_count)
+  | .top_level_gate_count = ([to_entries[] | select((.key | endswith("_gate")) and (.value | type == "boolean"))] | length)
+  | .passed_top_level_gate_count = ([to_entries[] | select((.key | endswith("_gate")) and .value == true)] | length)
+  | .failed_top_level_gate_count = (.top_level_gate_count - .passed_top_level_gate_count)
+  | .rts_data_map_model_field_count = ((.rts_data_map_model // {}) | keys | length)
+  | .rts_data_map_summary_field_count = ((.rts_data_map_summary // {}) | keys | length)
+  | .rts_data_map_model_actor_count = ((.rts_data_map_model.actors // []) | length)
+  | .rts_data_map_model_player_count = ((.rts_data_map_model.players // []) | length)
+  | .rts_data_map_model_rule_count = ((.rts_data_map_model.rules // []) | length)
+  | .rts_data_preview_actor_count = ((.rts_data_preview_actors // []) | length)
+  | .rts_data_player_startup_profile_count = ((.rts_data_player_startup_profiles // []) | length)
+  | .rts_data_actor_presentation_profile_count = ((.rts_data_actor_presentation_profiles // []) | length)
+  | .online_protocol_fixture_field_count = ((.rts_online_protocol_fixture // {}) | keys | length)
+  | .online_protocol_transport_field_count = ((.rts_online_protocol_fixture.transport // {}) | keys | length)
+  | .online_protocol_authority_field_count = ((.rts_online_protocol_fixture.authority // {}) | keys | length)
+  | .online_local_handoff_field_count = ((.rts_online_local_handoff // {}) | keys | length)
+  | .offline_adapter_field_count = ((.rts_online_offline_adapter // {}) | keys | length)
+  | .offline_consumption_field_count = ((.rts_online_offline_adapter_consumption // {}) | keys | length)
+  | .offline_session_transition_field_count = ((.rts_online_offline_adapter_session_transition // {}) | keys | length)
+  | .offline_lobby_ready_field_count = ((.rts_online_offline_adapter_lobby_ready // {}) | keys | length)
+  | .runtime_player_screen_command_queue_count = ((.rts_bevy_runtime_player_screen_application.command_queue // []) | length)
+  | .runtime_player_screen_production_queue_count = ((.rts_bevy_runtime_player_screen_application.production_queue // []) | length)
+  | .runtime_player_screen_build_queue_count = ((.rts_bevy_runtime_player_screen_application.build_queue // []) | length)
+  | .runtime_player_screen_visible_tile_count = ((.rts_bevy_runtime_player_screen_application.visible_tile_ids // []) | length)
+  | .runtime_player_screen_fogged_tile_count = ((.rts_bevy_runtime_player_screen_application.fogged_tile_ids // []) | length)
+  | .runtime_player_screen_ability_command_count = ((.rts_bevy_runtime_player_screen_application.ability_command_ids // []) | length)
+  | .offline_consumption_command_queue_count = ((.rts_online_offline_adapter_consumption.runtime_player_screen_review.command_queue // []) | length)
+  | .offline_consumption_production_queue_count = ((.rts_online_offline_adapter_consumption.runtime_player_screen_review.production_queue // []) | length)
+  | .offline_consumption_build_queue_count = ((.rts_online_offline_adapter_consumption.runtime_player_screen_review.build_queue // []) | length)
+  | .offline_consumption_visible_tile_count = ((.rts_online_offline_adapter_consumption.runtime_player_screen_review.visible_tile_ids // []) | length)
+  | .offline_consumption_fogged_tile_count = ((.rts_online_offline_adapter_consumption.runtime_player_screen_review.fogged_tile_ids // []) | length)
+  | .offline_consumption_ability_command_count = ((.rts_online_offline_adapter_consumption.runtime_player_screen_review.ability_command_ids // []) | length)
+  | .offline_lobby_ready_label_count = ((.rts_online_offline_adapter_lobby_ready.ready_state_labels // []) | length)
+  ' >"$first_contact_basin_spec_json"
   add_artifact_from_path native_bevy_classic_rts_first_contact_basin_spec "Native/Bevy classic RTS First Contact Basin spec" "$first_contact_basin_spec_json" release_review_input
 }
 

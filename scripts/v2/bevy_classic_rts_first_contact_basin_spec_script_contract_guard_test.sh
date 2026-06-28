@@ -1,0 +1,80 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+BASIN_SCRIPT="$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_first_contact_basin_spec.sh"
+READINESS_SCRIPT="$ROOT/scripts/check_trillionnium_world_bevy_classic_playtest_readiness.sh"
+INTEGRITY_SCRIPT="$ROOT/scripts/check_trillionnium_world_release_review_packet_integrity.sh"
+FIXTURE_LIB="$ROOT/scripts/v2/release_review_packet_integrity_visual_foundation_fixture_lib.sh"
+
+require_line() {
+  local file="$1"
+  local line="$2"
+  if ! grep -Fq -- "$line" "$file"; then
+    echo "[FAIL] $(basename "$file") missing contract line: $line" >&2
+    exit 1
+  fi
+}
+
+basin_lines=(
+  'RAW_OUT="$OUT.raw.$$"'
+  'TMP_OUT="$OUT.tmp.$$"'
+  'trap '\''rm -f "$RAW_OUT" "$TMP_OUT" "$JQ_FILTER"'\'' EXIT'
+  'classic-rts-first-contact-basin-spec >"$RAW_OUT"'
+  'mv "$TMP_OUT" "$OUT"'
+  'contract_field_count = ([keys[] | select(endswith("_contract"))] | length)'
+  'guard_object_count = ([to_entries[] | select((.key | test("^first_contact_.*_guard$")) and (.value | type == "object"))] | length)'
+  'top_level_gate_count = ([to_entries[] | select((.key | endswith("_gate")) and (.value | type == "boolean"))] | length)'
+  'rts_data_map_model_actor_count = ((.rts_data_map_model.actors // []) | length)'
+  'runtime_player_screen_command_queue_count = ((.rts_bevy_runtime_player_screen_application.command_queue // []) | length)'
+  'offline_lobby_ready_label_count = ((.rts_online_offline_adapter_lobby_ready.ready_state_labels // []) | length)'
+  '.guard_object_count == 16'
+  '.top_level_gate_count == 45'
+  '.rts_data_map_model_rule_count == 19'
+  '.runtime_player_screen_visible_tile_count == 64'
+  '.offline_lobby_ready_label_count == 4'
+)
+
+readiness_lines=(
+  'rts_first_contact_basin_spec_contract_field_count: $rts_first_contact_basin_spec[0].contract_field_count'
+  'rts_first_contact_basin_spec_guard_object_count: $rts_first_contact_basin_spec[0].guard_object_count'
+  'rts_first_contact_basin_spec_map_model_rule_count: $rts_first_contact_basin_spec[0].rts_data_map_model_rule_count'
+  'rts_first_contact_basin_spec_runtime_command_queue_count: $rts_first_contact_basin_spec[0].runtime_player_screen_command_queue_count'
+  'rts_first_contact_basin_spec_offline_ready_label_count: $rts_first_contact_basin_spec[0].offline_lobby_ready_label_count'
+  '.headline.rts_first_contact_basin_spec_contract_field_count == 32'
+  '.headline.rts_first_contact_basin_spec_top_level_gate_count == 45'
+  '.headline.rts_first_contact_basin_spec_runtime_visible_tile_count == 64'
+  '.headline.rts_first_contact_basin_spec_offline_ready_label_count == 4'
+)
+
+integrity_lines=(
+  'first_contact_basin_spec_count_semantics'
+  'runtime_player_screen_command_queue_count == ((.rts_bevy_runtime_player_screen_application.command_queue // []) | length)'
+  'offline_lobby_ready_label_count == ((.rts_online_offline_adapter_lobby_ready.ready_state_labels // []) | length)'
+  'First Contact Basin packet artifact exposes top-level contract, guard, map-model, runtime, online/offline adapter counts bound to nested structures'
+  'first_contact_basin_spec_semantics_first_contact_basin_spec_count_semantics'
+)
+
+fixture_lines=(
+  'contract_field_count = ([keys[] | select(endswith("_contract"))] | length)'
+  'runtime_player_screen_command_queue_count = ((.rts_bevy_runtime_player_screen_application.command_queue // []) | length)'
+  'offline_lobby_ready_label_count = ((.rts_online_offline_adapter_lobby_ready.ready_state_labels // []) | length)'
+)
+
+for line in "${basin_lines[@]}"; do
+  require_line "$BASIN_SCRIPT" "$line"
+done
+
+for line in "${readiness_lines[@]}"; do
+  require_line "$READINESS_SCRIPT" "$line"
+done
+
+for line in "${integrity_lines[@]}"; do
+  require_line "$INTEGRITY_SCRIPT" "$line"
+done
+
+for line in "${fixture_lines[@]}"; do
+  require_line "$FIXTURE_LIB" "$line"
+done
+
+echo "[PASS] classic RTS First Contact Basin spec script keeps atomic refresh, top-level basin counts, readiness headline, packet-integrity semantics, and semantic fixtures"

@@ -3,6 +3,8 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 OUT="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-first-contact-basin-spec.json"
+RAW_OUT="$OUT.raw.$$"
+TMP_OUT="$OUT.tmp.$$"
 SOURCE="$ROOT/trillionnium/crates/trnm-world-bevy/src/lib.rs"
 DATA_SOURCE="$ROOT/trillionnium/crates/trnm-rts-data/src/lib.rs"
 RUNTIME_SOURCE="$ROOT/trillionnium/crates/trnm-rts-bevy-runtime/src/lib.rs"
@@ -396,14 +398,70 @@ for line in "${required_online_source_lines[@]}"; do
   fi
 done
 
-"$ROOT/scripts/run_trillionnium_world_bevy_artifact_command.sh" classic-rts-first-contact-basin-spec >"$OUT"
-
 JQ_FILTER="$(mktemp)"
-trap 'rm -f "$JQ_FILTER"' EXIT
+trap 'rm -f "$RAW_OUT" "$TMP_OUT" "$JQ_FILTER"' EXIT
+
+"$ROOT/scripts/run_trillionnium_world_bevy_artifact_command.sh" classic-rts-first-contact-basin-spec >"$RAW_OUT"
+
+jq '
+  .contract_field_count = ([keys[] | select(endswith("_contract"))] | length)
+  | .guard_object_count = ([to_entries[] | select((.key | test("^first_contact_.*_guard$")) and (.value | type == "object"))] | length)
+  | .guard_gate_count = ([to_entries[] | select((.key | test("^first_contact_.*_guard_gate$")) and (.value | type == "boolean"))] | length)
+  | .passed_guard_gate_count = ([to_entries[] | select((.key | test("^first_contact_.*_guard_gate$")) and .value == true)] | length)
+  | .failed_guard_gate_count = (.guard_gate_count - .passed_guard_gate_count)
+  | .top_level_gate_count = ([to_entries[] | select((.key | endswith("_gate")) and (.value | type == "boolean"))] | length)
+  | .passed_top_level_gate_count = ([to_entries[] | select((.key | endswith("_gate")) and .value == true)] | length)
+  | .failed_top_level_gate_count = (.top_level_gate_count - .passed_top_level_gate_count)
+  | .rts_data_map_model_field_count = ((.rts_data_map_model // {}) | keys | length)
+  | .rts_data_map_summary_field_count = ((.rts_data_map_summary // {}) | keys | length)
+  | .rts_data_map_model_actor_count = ((.rts_data_map_model.actors // []) | length)
+  | .rts_data_map_model_player_count = ((.rts_data_map_model.players // []) | length)
+  | .rts_data_map_model_rule_count = ((.rts_data_map_model.rules // []) | length)
+  | .rts_data_preview_actor_count = ((.rts_data_preview_actors // []) | length)
+  | .rts_data_player_startup_profile_count = ((.rts_data_player_startup_profiles // []) | length)
+  | .rts_data_actor_presentation_profile_count = ((.rts_data_actor_presentation_profiles // []) | length)
+  | .online_protocol_fixture_field_count = ((.rts_online_protocol_fixture // {}) | keys | length)
+  | .online_protocol_transport_field_count = ((.rts_online_protocol_fixture.transport // {}) | keys | length)
+  | .online_protocol_authority_field_count = ((.rts_online_protocol_fixture.authority // {}) | keys | length)
+  | .online_local_handoff_field_count = ((.rts_online_local_handoff // {}) | keys | length)
+  | .offline_adapter_field_count = ((.rts_online_offline_adapter // {}) | keys | length)
+  | .offline_consumption_field_count = ((.rts_online_offline_adapter_consumption // {}) | keys | length)
+  | .offline_session_transition_field_count = ((.rts_online_offline_adapter_session_transition // {}) | keys | length)
+  | .offline_lobby_ready_field_count = ((.rts_online_offline_adapter_lobby_ready // {}) | keys | length)
+  | .runtime_player_screen_command_queue_count = ((.rts_bevy_runtime_player_screen_application.command_queue // []) | length)
+  | .runtime_player_screen_production_queue_count = ((.rts_bevy_runtime_player_screen_application.production_queue // []) | length)
+  | .runtime_player_screen_build_queue_count = ((.rts_bevy_runtime_player_screen_application.build_queue // []) | length)
+  | .runtime_player_screen_visible_tile_count = ((.rts_bevy_runtime_player_screen_application.visible_tile_ids // []) | length)
+  | .runtime_player_screen_fogged_tile_count = ((.rts_bevy_runtime_player_screen_application.fogged_tile_ids // []) | length)
+  | .runtime_player_screen_ability_command_count = ((.rts_bevy_runtime_player_screen_application.ability_command_ids // []) | length)
+  | .offline_consumption_command_queue_count = ((.rts_online_offline_adapter_consumption.runtime_player_screen_review.command_queue // []) | length)
+  | .offline_consumption_production_queue_count = ((.rts_online_offline_adapter_consumption.runtime_player_screen_review.production_queue // []) | length)
+  | .offline_consumption_build_queue_count = ((.rts_online_offline_adapter_consumption.runtime_player_screen_review.build_queue // []) | length)
+  | .offline_consumption_visible_tile_count = ((.rts_online_offline_adapter_consumption.runtime_player_screen_review.visible_tile_ids // []) | length)
+  | .offline_consumption_fogged_tile_count = ((.rts_online_offline_adapter_consumption.runtime_player_screen_review.fogged_tile_ids // []) | length)
+  | .offline_consumption_ability_command_count = ((.rts_online_offline_adapter_consumption.runtime_player_screen_review.ability_command_ids // []) | length)
+  | .offline_lobby_ready_label_count = ((.rts_online_offline_adapter_lobby_ready.ready_state_labels // []) | length)
+' "$RAW_OUT" >"$TMP_OUT"
+mv "$TMP_OUT" "$OUT"
 
 cat >"$JQ_FILTER" <<'JQ'
   .contract_version == "trillionnium_world_bevy_classic_rts_first_contact_basin_spec_v1"
   and .green == true
+  and .contract_field_count == ([keys[] | select(endswith("_contract"))] | length)
+  and .guard_object_count == ([to_entries[] | select((.key | test("^first_contact_.*_guard$")) and (.value | type == "object"))] | length)
+  and .guard_object_count == 16
+  and .guard_gate_count == ([to_entries[] | select((.key | test("^first_contact_.*_guard_gate$")) and (.value | type == "boolean"))] | length)
+  and .guard_gate_count == 16
+  and .passed_guard_gate_count == ([to_entries[] | select((.key | test("^first_contact_.*_guard_gate$")) and .value == true)] | length)
+  and .passed_guard_gate_count == 16
+  and .failed_guard_gate_count == (.guard_gate_count - .passed_guard_gate_count)
+  and .failed_guard_gate_count == 0
+  and .top_level_gate_count == ([to_entries[] | select((.key | endswith("_gate")) and (.value | type == "boolean"))] | length)
+  and .top_level_gate_count == 45
+  and .passed_top_level_gate_count == ([to_entries[] | select((.key | endswith("_gate")) and .value == true)] | length)
+  and .passed_top_level_gate_count == 45
+  and .failed_top_level_gate_count == (.top_level_gate_count - .passed_top_level_gate_count)
+  and .failed_top_level_gate_count == 0
   and .map_id == "first_contact_basin"
   and .map_size.width == 34
   and .map_size.height == 34
@@ -420,7 +478,17 @@ cat >"$JQ_FILTER" <<'JQ'
   and .rts_data_contract == "trnm_rts_data_map_model_v1"
   and .rts_data_map_model.contract_version == "trnm_rts_data_map_model_v1"
   and .rts_data_map_model.map_id == "first_contact_basin"
+  and .rts_data_map_model_field_count == (.rts_data_map_model | keys | length)
+  and .rts_data_map_model_field_count == 13
+  and .rts_data_map_summary_field_count == (.rts_data_map_summary | keys | length)
+  and .rts_data_map_summary_field_count == 22
   and (.rts_data_map_model.actors | length) == 39
+  and .rts_data_map_model_actor_count == (.rts_data_map_model.actors | length)
+  and .rts_data_map_model_actor_count == 39
+  and .rts_data_map_model_player_count == (.rts_data_map_model.players | length)
+  and .rts_data_map_model_player_count == 6
+  and .rts_data_map_model_rule_count == (.rts_data_map_model.rules | length)
+  and .rts_data_map_model_rule_count == 19
   and .rts_data_map_summary.actor_count == 39
   and .rts_data_map_summary.source_integration_mode == "gpl_internal_component"
   and .rts_data_source_manifest.integration_mode == "gpl_internal_component"
@@ -551,9 +619,13 @@ cat >"$JQ_FILTER" <<'JQ'
   and (.rts_data_preview_actor_projection.actor_samples[] | select(.source_actor_id == "Actor2" and .kind == "flux_bloom" and .tile.x == 12 and .tile.y == 16 and .source_rule_id == "trnm.flux.bloom" and .openra_preview_rule_id == "trnm.flux.bloom"))
   and (.rts_data_preview_actor_projection.actor_samples[] | select(.source_actor_id == "Actor5" and .kind == "spawn" and .owner == "Multi2" and .tile.x == 25 and .tile.y == 8))
   and (.rts_data_preview_actors | length) == 39
+  and .rts_data_preview_actor_count == (.rts_data_preview_actors | length)
+  and .rts_data_preview_actor_count == 39
   and (.rts_data_preview_actors[] | select(.source_actor_id == "Actor15" and .kind == "beacon" and .tile.x == 16 and .tile.y == 9 and .openra_preview_rule_id == "trnm.flux.beacon"))
   and (.rts_data_preview_actors[] | select(.source_actor_id == "Actor35" and .kind == "expansion_marker" and .tile.x == 11 and .tile.y == 8 and .source_rule_id == "trnm.expansion.marker" and .openra_preview_rule_id == "trnm.map.detail"))
   and (.rts_data_player_startup_profiles | length) == 4
+  and .rts_data_player_startup_profile_count == (.rts_data_player_startup_profiles | length)
+  and .rts_data_player_startup_profile_count == 4
   and (.rts_data_player_startup_profiles[] | select(.player_id == "Multi0" and .faction == "horizon" and .spawn_tile.x == 8 and .spawn_tile.y == 8 and .faction_unit_rule_id == "trnm.horizon.scout"))
   and (.rts_data_player_startup_profiles[] | select(.player_id == "Multi1" and .faction == "forge" and .spawn_tile.x == 25 and .spawn_tile.y == 25 and .faction_unit_rule_id == "trnm.forge.warden"))
   and (.rts_data_player_startup_profiles[] | select(.player_id == "Multi2" and .faction == "horizon" and .spawn_tile.x == 25 and .spawn_tile.y == 8 and .faction_unit_rule_id == "trnm.horizon.scout"))
@@ -565,6 +637,8 @@ cat >"$JQ_FILTER" <<'JQ'
   and .rts_data_actor_presentation_contract == "trnm_rts_data_first_contact_actor_presentation_v1"
   and .rts_data_actor_glyph_contract == "trnm_rts_data_first_contact_actor_glyph_v1"
   and (.rts_data_actor_presentation_profiles | length) >= 13
+  and .rts_data_actor_presentation_profile_count == (.rts_data_actor_presentation_profiles | length)
+  and .rts_data_actor_presentation_profile_count == 14
   and (.rts_data_actor_presentation_profiles[] | select(.rule_id == "mpspawn" and .glyph.body == "spawn_pad" and .glyph.accent == "owner_stripe" and .glyph.footprint_width_cells == 3))
   and (.rts_data_actor_presentation_profiles[] | select(.rule_id == "trnm.worker" and .color_role == "worker" and .glyph_role == "worker" and .structure == false and .selectable == true and .glyph.body == "unit" and .glyph.accent == "worker_cargo" and .glyph.selection_ring == true))
   and (.rts_data_actor_presentation_profiles[] | select(.rule_id == "trnm.command.core" and .color_role == "command_core" and .glyph_role == "command_core" and .structure == true and .health_bar_width >= 32 and .glyph.body == "structure" and .glyph.accent == "command_spire" and .glyph.footprint_width_cells == 2))
@@ -1396,10 +1470,22 @@ cat >"$JQ_FILTER" <<'JQ'
   and .rts_bevy_runtime_player_screen_application.camera_focus_tile_id == "16,16"
   and .rts_bevy_runtime_player_screen_application.command_destination_tile_id == "16,9"
   and .rts_bevy_runtime_player_screen_application.command_queue == .rts_data_player_screen_profile.command_queue
+  and .runtime_player_screen_command_queue_count == (.rts_bevy_runtime_player_screen_application.command_queue | length)
+  and .runtime_player_screen_command_queue_count == 4
   and .rts_bevy_runtime_player_screen_application.production_queue == .rts_data_player_screen_profile.production_queue
+  and .runtime_player_screen_production_queue_count == (.rts_bevy_runtime_player_screen_application.production_queue | length)
+  and .runtime_player_screen_production_queue_count == 3
   and .rts_bevy_runtime_player_screen_application.build_queue == .rts_data_player_screen_profile.build_queue
+  and .runtime_player_screen_build_queue_count == (.rts_bevy_runtime_player_screen_application.build_queue | length)
+  and .runtime_player_screen_build_queue_count == 2
   and .rts_bevy_runtime_player_screen_application.ability_command_ids == .rts_data_player_screen_chrome_profile.command_grid_slot_ids
+  and .runtime_player_screen_ability_command_count == (.rts_bevy_runtime_player_screen_application.ability_command_ids | length)
+  and .runtime_player_screen_ability_command_count == 6
   and (.rts_bevy_runtime_player_screen_application.visible_tile_ids | length) == 64
+  and .runtime_player_screen_visible_tile_count == (.rts_bevy_runtime_player_screen_application.visible_tile_ids | length)
+  and .runtime_player_screen_visible_tile_count == 64
+  and .runtime_player_screen_fogged_tile_count == (.rts_bevy_runtime_player_screen_application.fogged_tile_ids | length)
+  and .runtime_player_screen_fogged_tile_count == 6
   and (.rts_bevy_runtime_player_screen_application.group_route_tile_ids | index("16,9") != null)
   and .rts_bevy_runtime_player_screen_application.profile_application_gate == true
   and .rts_bevy_runtime_player_screen_application.command_surface_seed_gate == true
@@ -1784,6 +1870,8 @@ cat >"$JQ_FILTER" <<'JQ'
   and .rts_bevy_runtime_map_projection_gate == .rts_evidence_bevy_runtime_adapter.first_contact_runtime_map_projection_gate
   and .rts_online_contract == "trnm_rts_online_protocol_v1"
   and .rts_online_protocol_fixture.contract_version == "trnm_rts_online_first_contact_fixture_v1"
+  and .online_protocol_fixture_field_count == (.rts_online_protocol_fixture | keys | length)
+  and .online_protocol_fixture_field_count == 7
   and .rts_online_protocol_fixture.green == true
   and .rts_online_protocol_fixture.envelope.map_id == "first_contact_basin"
   and (.rts_online_protocol_fixture.envelope.update_sha256 | length) == 64
@@ -1795,6 +1883,8 @@ cat >"$JQ_FILTER" <<'JQ'
   and .rts_online_protocol_fixture.authority.authority_tick == 43
   and (.rts_online_protocol_fixture.authority.authority_sha256 | length) == 64
   and (.rts_online_protocol_fixture.authority.client_requests | length) == 1
+  and .online_protocol_authority_field_count == (.rts_online_protocol_fixture.authority | keys | length)
+  and .online_protocol_authority_field_count == 10
   and (.rts_online_protocol_fixture.authority.accepted_orders | length) == 1
   and (.rts_online_protocol_fixture.authority.accepted_orders[0].source == "server")
   and (.rts_online_protocol_fixture.authority.rejected_orders | length) == 1
@@ -1803,6 +1893,8 @@ cat >"$JQ_FILTER" <<'JQ'
   and (.rts_online_protocol_fixture.authority.scoped_updates[0].update_sha256 | length) == 64
   and (.rts_online_protocol_fixture.authority.scoped_updates[0].scope.visible_actor_ids | index("trnm.enemy.keep.fogged") == null)
   and .rts_online_protocol_fixture.transport.contract_version == "trnm_rts_online_loopback_transport_v1"
+  and .online_protocol_transport_field_count == (.rts_online_protocol_fixture.transport | keys | length)
+  and .online_protocol_transport_field_count == 14
   and .rts_online_protocol_fixture.transport.green == true
   and .rts_online_protocol_fixture.transport.session_id == "first-contact-loopback-session"
   and .rts_online_protocol_fixture.transport.request_frame.direction == "client_to_server"
@@ -1829,6 +1921,8 @@ cat >"$JQ_FILTER" <<'JQ'
   and .rts_online_protocol_gate == true
   and .rts_online_local_handoff_contract == "trnm_rts_online_local_handoff_v1"
   and .rts_online_local_handoff.contract_version == "trnm_rts_online_local_handoff_v1"
+  and .online_local_handoff_field_count == (.rts_online_local_handoff | keys | length)
+  and .online_local_handoff_field_count == 25
   and .rts_online_local_handoff.green == true
   and .rts_online_local_handoff.handoff_ready == true
   and .rts_online_local_handoff.handoff_id == "first-contact-local-loopback-handoff"
@@ -1911,8 +2005,12 @@ cat >"$JQ_FILTER" <<'JQ'
   and .rts_online_offline_adapter.socket_opened == false
   and .rts_online_offline_adapter.hosted_service_claimed == false
   and .rts_online_offline_adapter.public_launch_ready == false
+  and .offline_adapter_field_count == (.rts_online_offline_adapter | keys | length)
+  and .offline_adapter_field_count == 29
   and .rts_online_offline_adapter_gate == true
   and .rts_online_offline_adapter_consumption.contract_version == "trnm_rts_bevy_runtime_first_contact_offline_adapter_consumption_v1"
+  and .offline_consumption_field_count == (.rts_online_offline_adapter_consumption | keys | length)
+  and .offline_consumption_field_count == 45
   and .rts_online_offline_adapter_consumption.green == true
   and .rts_online_offline_adapter_consumption.adapter_contract == "trnm_rts_online_offline_adapter_v1"
   and .rts_online_offline_adapter_consumption.adapter_runtime_handoff_contract == "trnm_rts_online_offline_adapter_runtime_handoff_v1"
@@ -1961,16 +2059,28 @@ cat >"$JQ_FILTER" <<'JQ'
   and .rts_online_offline_adapter_consumption.runtime_player_screen_review.army_supply_cap == 22
   and .rts_online_offline_adapter_consumption.runtime_player_screen_review.objective_status == "secure first relay beacon and hold the center lane"
   and .rts_online_offline_adapter_consumption.runtime_player_screen_review.production_queue == ["train:guard", "train:worker", "upgrade:signal_blade"]
+  and .offline_consumption_production_queue_count == (.rts_online_offline_adapter_consumption.runtime_player_screen_review.production_queue | length)
+  and .offline_consumption_production_queue_count == 3
   and .rts_online_offline_adapter_consumption.runtime_player_screen_review.build_queue == ["build:watch_tower", "upgrade:training_hall"]
+  and .offline_consumption_build_queue_count == (.rts_online_offline_adapter_consumption.runtime_player_screen_review.build_queue | length)
+  and .offline_consumption_build_queue_count == 2
   and .rts_online_offline_adapter_consumption.runtime_player_screen_review.selected_unit_ids == ["trnm.worker.alpha"]
   and .rts_online_offline_adapter_consumption.runtime_player_screen_review.command_queue == ["move:8,4"]
+  and .offline_consumption_command_queue_count == (.rts_online_offline_adapter_consumption.runtime_player_screen_review.command_queue | length)
+  and .offline_consumption_command_queue_count == 1
   and .rts_online_offline_adapter_consumption.runtime_player_screen_review.command_destination_tile_id == "8,4"
   and .rts_online_offline_adapter_consumption.runtime_player_screen_review.group_route_tile_ids == ["8,4"]
   and .rts_online_offline_adapter_consumption.runtime_player_screen_review.visible_tile_count == 64
+  and .offline_consumption_visible_tile_count == ((.rts_online_offline_adapter_consumption.runtime_player_screen_review.visible_tile_ids // []) | length)
+  and .offline_consumption_visible_tile_count == 0
   and .rts_online_offline_adapter_consumption.runtime_player_screen_review.fogged_tile_count == 6
+  and .offline_consumption_fogged_tile_count == ((.rts_online_offline_adapter_consumption.runtime_player_screen_review.fogged_tile_ids // []) | length)
+  and .offline_consumption_fogged_tile_count == 0
   and .rts_online_offline_adapter_consumption.runtime_player_screen_review.selection_box_tile_count == 4
   and .rts_online_offline_adapter_consumption.runtime_player_screen_review.unit_health_percents == [96,78,71,34]
   and .rts_online_offline_adapter_consumption.runtime_player_screen_review.ability_command_ids == ["worker", "scout", "warden", "relay", "core", "signal"]
+  and .offline_consumption_ability_command_count == (.rts_online_offline_adapter_consumption.runtime_player_screen_review.ability_command_ids | length)
+  and .offline_consumption_ability_command_count == 6
   and .rts_online_offline_adapter_consumption.runtime_player_screen_review.ability_cooldown_percents == [0,0,16,0,42,25]
   and .rts_online_offline_adapter_consumption.runtime_player_screen_review.active_ability_id == "worker"
   and .rts_online_offline_adapter_consumption.local_session_handoff_gate == true
@@ -1995,6 +2105,8 @@ cat >"$JQ_FILTER" <<'JQ'
   and .rts_online_offline_adapter_consumption_gate == true
   and .rts_online_offline_adapter_session_transition_contract == "trnm_rts_bevy_runtime_first_contact_offline_adapter_session_transition_v1"
   and .rts_online_offline_adapter_session_transition.contract_version == "trnm_rts_bevy_runtime_first_contact_offline_adapter_session_transition_v1"
+  and .offline_session_transition_field_count == (.rts_online_offline_adapter_session_transition | keys | length)
+  and .offline_session_transition_field_count == 32
   and .rts_online_offline_adapter_session_transition.green == true
   and .rts_online_offline_adapter_session_transition.initial_application_contract == "trnm_rts_bevy_runtime_first_contact_player_screen_application_v1"
   and .rts_online_offline_adapter_session_transition.runtime_application_contract == "trnm_rts_bevy_runtime_first_contact_offline_adapter_runtime_application_v1"
@@ -2030,6 +2142,8 @@ cat >"$JQ_FILTER" <<'JQ'
   and .rts_online_offline_adapter_session_transition_gate == true
   and .rts_online_offline_adapter_lobby_ready_contract == "trnm_rts_bevy_runtime_first_contact_offline_adapter_lobby_ready_v1"
   and .rts_online_offline_adapter_lobby_ready.contract_version == "trnm_rts_bevy_runtime_first_contact_offline_adapter_lobby_ready_v1"
+  and .offline_lobby_ready_field_count == (.rts_online_offline_adapter_lobby_ready | keys | length)
+  and .offline_lobby_ready_field_count == 23
   and .rts_online_offline_adapter_lobby_ready.green == true
   and .rts_online_offline_adapter_lobby_ready.adapter_contract == "trnm_rts_online_offline_adapter_v1"
   and .rts_online_offline_adapter_lobby_ready.adapter_id == "first-contact-offline-loopback-adapter"
@@ -2045,6 +2159,8 @@ cat >"$JQ_FILTER" <<'JQ'
   and (.rts_online_offline_adapter_lobby_ready.ready_state_labels | index("player:mirror_guard:ready") != null)
   and (.rts_online_offline_adapter_lobby_ready.ready_state_labels | index("bot:mirror_guard:ready") != null)
   and (.rts_online_offline_adapter_lobby_ready.ready_state_labels | index("authority:offline_loopback:no_socket") != null)
+  and .offline_lobby_ready_label_count == (.rts_online_offline_adapter_lobby_ready.ready_state_labels | length)
+  and .offline_lobby_ready_label_count == 4
   and .rts_online_offline_adapter_lobby_ready.blocked_network_claim_labels == ["client_prediction:not_claimed", "rollback_netcode:not_claimed", "socket:not_claimed", "hosted_service:not_claimed", "public_launch:not_claimed"]
   and .rts_online_offline_adapter_lobby_ready.local_multiplayer_ready_gate == true
   and .rts_online_offline_adapter_lobby_ready.offline_bot_ready_gate == true
