@@ -142,6 +142,7 @@ required_source_lines=(
   'fn classic_draw_first_contact_art_readability_layer'
   'TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_MOTION_READABILITY_CONTRACT'
   'fn classic_first_contact_motion_readability_guard'
+  'first_contact_command_feedback_player_labels(&feedback)'
   'TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_ATLAS_READABILITY_CONTRACT'
   'fn classic_first_contact_atlas_readability_guard'
   'fn classic_first_contact_atlas_frame_family_samples'
@@ -1117,6 +1118,7 @@ cat >"$JQ_FILTER" <<'JQ'
   and .first_contact_motion_readability_guard.unique_animation_signature_count >= 13
   and .first_contact_motion_readability_guard.feedback_selected_group == "GROUP 1"
   and .first_contact_motion_readability_guard.feedback_active_order == "SECURE BEACON"
+  and .first_contact_motion_readability_guard.feedback_player_labels == ["GROUP 1 SECURING BEACON","QUEUE ADDED  ORDER READY","ROUTE BLOCKED MID VENT"]
   and .first_contact_motion_readability_guard.feedback_target_tile == "16,9"
   and .first_contact_motion_readability_guard.feedback_queued_after > .first_contact_motion_readability_guard.feedback_queued_before
   and .first_contact_motion_readability_guard.feedback_command_ack_progress > .first_contact_motion_readability_guard.feedback_cooldown_progress
@@ -1147,6 +1149,8 @@ cat >"$JQ_FILTER" <<'JQ'
   and .first_contact_motion_readability_guard.unit_state_motion_gate == true
   and .first_contact_motion_readability_guard.tactical_track_motion_gate == true
   and .first_contact_motion_readability_guard.command_feedback_motion_gate == true
+  and .first_contact_motion_readability_guard.feedback_raw_marker_gate == true
+  and .first_contact_motion_readability_guard.feedback_player_label_gate == true
   and .first_contact_motion_readability_guard.runtime_motion_gate == true
   and .first_contact_motion_readability_guard.unit_animation_frame_gate == true
   and .first_contact_motion_readability_guard.building_animation_frame_gate == true

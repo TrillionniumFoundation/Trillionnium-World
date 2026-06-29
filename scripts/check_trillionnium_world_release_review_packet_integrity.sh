@@ -943,6 +943,7 @@ require_artifact_json_expr first_contact_basin_spec_semantics native_bevy_classi
   and .first_contact_motion_readability_guard.unique_animation_signature_count >= 13
   and .first_contact_motion_readability_guard.feedback_selected_group == "GROUP 1"
   and .first_contact_motion_readability_guard.feedback_active_order == "SECURE BEACON"
+  and .first_contact_motion_readability_guard.feedback_player_labels == ["GROUP 1 SECURING BEACON","QUEUE ADDED  ORDER READY","ROUTE BLOCKED MID VENT"]
   and .first_contact_motion_readability_guard.feedback_target_tile == "16,9"
   and .first_contact_motion_readability_guard.feedback_queued_after > .first_contact_motion_readability_guard.feedback_queued_before
   and .first_contact_motion_readability_guard.feedback_command_ack_progress > .first_contact_motion_readability_guard.feedback_cooldown_progress
@@ -973,6 +974,8 @@ require_artifact_json_expr first_contact_basin_spec_semantics native_bevy_classi
   and .first_contact_motion_readability_guard.unit_state_motion_gate == true
   and .first_contact_motion_readability_guard.tactical_track_motion_gate == true
   and .first_contact_motion_readability_guard.command_feedback_motion_gate == true
+  and .first_contact_motion_readability_guard.feedback_raw_marker_gate == true
+  and .first_contact_motion_readability_guard.feedback_player_label_gate == true
   and .first_contact_motion_readability_guard.runtime_motion_gate == true
   and .first_contact_motion_readability_guard.unit_animation_frame_gate == true
   and .first_contact_motion_readability_guard.building_animation_frame_gate == true

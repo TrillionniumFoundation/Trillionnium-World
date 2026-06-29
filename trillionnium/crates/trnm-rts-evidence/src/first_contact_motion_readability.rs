@@ -3,8 +3,9 @@ use std::collections::BTreeSet;
 use trnm_rts_bevy_runtime::rts_runtime_tile_id;
 use trnm_rts_core::RtsTile;
 use trnm_rts_data::{
-    first_contact_samples, RtsCommandFeedbackProfile, RtsFirstContactVisualTelemetryProfile,
-    RtsOpeningLoopProfile, RtsTacticalTrackProfile, RtsVisualTelemetryColorRole,
+    first_contact_command_feedback_player_labels, first_contact_samples, RtsCommandFeedbackProfile,
+    RtsFirstContactVisualTelemetryProfile, RtsOpeningLoopProfile, RtsTacticalTrackProfile,
+    RtsVisualTelemetryColorRole,
 };
 
 use crate::{
@@ -35,6 +36,19 @@ fn first_contact_tile_id(tile: RtsTile) -> String {
 
 fn tile_id(tile: (i32, i32)) -> String {
     rts_runtime_tile_id(tile)
+}
+
+fn feedback_labels_without_raw_markers(
+    feedback: &RtsCommandFeedbackProfile,
+    labels: &[String],
+) -> bool {
+    labels.iter().all(|label| {
+        !label.contains("->")
+            && !label.contains("ACK")
+            && !label.contains(" CD ")
+            && !label.starts_with("Q ")
+            && label != &feedback.blocked_reason
+    })
 }
 
 fn primary_tactical_track(
@@ -161,6 +175,18 @@ pub fn first_contact_motion_readability_guard(
     ]);
     let route_tile_ids = runtime.route_tile_ids.clone();
     let combat_event_log = runtime.combat_event_log.clone();
+    let feedback_player_labels = first_contact_command_feedback_player_labels(feedback)
+        .into_iter()
+        .collect::<Vec<_>>();
+    let expected_feedback_player_labels = string_vec([
+        "GROUP 1 SECURING BEACON",
+        "QUEUE ADDED  ORDER READY",
+        "ROUTE BLOCKED MID VENT",
+    ]);
+    let feedback_raw_marker_gate =
+        feedback_labels_without_raw_markers(feedback, &feedback_player_labels);
+    let feedback_player_label_gate =
+        feedback_player_labels == expected_feedback_player_labels && feedback_raw_marker_gate;
     let unit_status_pixel_budget = telemetry.unit_statuses.len() * 64;
     let tactical_track_pixel_budget =
         primary_tactical_track_pixel_budget + secondary_tactical_track_pixel_budget;
@@ -224,7 +250,8 @@ pub fn first_contact_motion_readability_guard(
         && feedback.target_tile == opening.active_beacon_tile
         && feedback.queued_after > feedback.queued_before
         && feedback.command_ack_progress > feedback.cooldown_progress
-        && feedback_pixel_budget >= 190;
+        && feedback_pixel_budget >= 190
+        && feedback_player_label_gate;
     let runtime_motion_gate = runtime.walk_cycle_frame >= 2
         && runtime.combat_turn >= 3
         && runtime.training_progress_percent >= 60
@@ -327,6 +354,9 @@ pub fn first_contact_motion_readability_guard(
         "feedback_queued_after": feedback.queued_after,
         "feedback_command_ack_progress": feedback.command_ack_progress,
         "feedback_cooldown_progress": feedback.cooldown_progress,
+        "feedback_player_labels": feedback_player_labels,
+        "feedback_raw_marker_gate": feedback_raw_marker_gate,
+        "feedback_player_label_gate": feedback_player_label_gate,
         "feedback_pixel_budget": feedback_pixel_budget,
         "command_feedback_motion_gate": command_feedback_motion_gate,
         "walk_cycle_frame": runtime.walk_cycle_frame,
@@ -454,6 +484,26 @@ mod tests {
             Some(8)
         );
         assert_eq!(
+            guard.get("feedback_player_labels").cloned(),
+            Some(json!([
+                "GROUP 1 SECURING BEACON",
+                "QUEUE ADDED  ORDER READY",
+                "ROUTE BLOCKED MID VENT"
+            ]))
+        );
+        assert_eq!(
+            guard
+                .get("feedback_raw_marker_gate")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            guard
+                .get("feedback_player_label_gate")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
             guard
                 .get("building_animation_frame_count")
                 .and_then(Value::as_u64),
@@ -470,6 +520,8 @@ mod tests {
             "unit_state_motion_gate",
             "tactical_track_motion_gate",
             "command_feedback_motion_gate",
+            "feedback_raw_marker_gate",
+            "feedback_player_label_gate",
             "runtime_motion_gate",
             "unit_animation_frame_gate",
             "building_animation_frame_gate",

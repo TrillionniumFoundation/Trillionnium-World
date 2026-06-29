@@ -1658,6 +1658,44 @@ pub fn first_contact_command_feedback_profile() -> RtsCommandFeedbackProfile {
     }
 }
 
+pub fn first_contact_command_feedback_order_label(feedback: &RtsCommandFeedbackProfile) -> String {
+    let active_order = match feedback.active_order.as_str() {
+        "SECURE BEACON" => "SECURING BEACON",
+        order => order,
+    };
+    format!("{} {}", feedback.selected_group, active_order)
+}
+
+pub fn first_contact_command_feedback_queue_label(feedback: &RtsCommandFeedbackProfile) -> String {
+    if feedback.queued_after > feedback.queued_before {
+        "QUEUE ADDED  ORDER READY".to_string()
+    } else if feedback.command_ack_progress >= feedback.cooldown_progress {
+        "QUEUE HOLD  ORDER READY".to_string()
+    } else {
+        "QUEUE HOLD  ORDER COOLING".to_string()
+    }
+}
+
+pub fn first_contact_command_feedback_blocked_label(
+    feedback: &RtsCommandFeedbackProfile,
+) -> String {
+    let blocked_location = feedback
+        .blocked_reason
+        .strip_suffix(" BLOCKED")
+        .unwrap_or(feedback.blocked_reason.as_str());
+    format!("ROUTE BLOCKED {}", blocked_location)
+}
+
+pub fn first_contact_command_feedback_player_labels(
+    feedback: &RtsCommandFeedbackProfile,
+) -> [String; 3] {
+    [
+        first_contact_command_feedback_order_label(feedback),
+        first_contact_command_feedback_queue_label(feedback),
+        first_contact_command_feedback_blocked_label(feedback),
+    ]
+}
+
 pub fn first_contact_player_startup_profiles() -> Vec<RtsPlayerStartupProfile> {
     let opening = first_contact_opening_loop_profile();
     [
@@ -2556,6 +2594,14 @@ mod tests {
         assert_eq!(feedback.selected_group, "GROUP 1");
         assert!(feedback.queued_after > feedback.queued_before);
         assert!(feedback.command_ack_progress > feedback.cooldown_progress);
+        assert_eq!(
+            first_contact_command_feedback_player_labels(&feedback),
+            [
+                "GROUP 1 SECURING BEACON".to_string(),
+                "QUEUE ADDED  ORDER READY".to_string(),
+                "ROUTE BLOCKED MID VENT".to_string(),
+            ]
+        );
     }
 
     #[test]

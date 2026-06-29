@@ -1063,11 +1063,18 @@ add_first_contact_basin_source_manifest_packet_fixtures() {
       tactical_track_motion_gate: true,
       feedback_selected_group: "GROUP 1",
       feedback_active_order: "SECURE BEACON",
+      feedback_player_labels: [
+        "GROUP 1 SECURING BEACON",
+        "QUEUE ADDED  ORDER READY",
+        "ROUTE BLOCKED MID VENT"
+      ],
       feedback_target_tile: "16,9",
       feedback_queued_before: 2,
       feedback_queued_after: 3,
       feedback_command_ack_progress: 86,
       feedback_cooldown_progress: 32,
+      feedback_raw_marker_gate: true,
+      feedback_player_label_gate: true,
       feedback_pixel_budget: 190,
       command_feedback_motion_gate: true,
       walk_cycle_frame: 2,
