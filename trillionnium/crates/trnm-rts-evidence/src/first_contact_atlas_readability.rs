@@ -115,13 +115,13 @@ pub fn first_contact_atlas_readability_guard(
         .collect::<Vec<_>>();
     let secondary_objective_atlas_signatures = string_vec([
         "secondary_objective_atlas_frame_suppressed",
-        "secondary_objective_atlas_anchor_only",
+        "secondary_objective_atlas_micro_anchor_only",
     ]);
     let secondary_objective_atlas_sample_count = secondary_objective_atlas_samples.len();
     let secondary_objective_atlas_source_frame_pixel_budget =
         secondary_objective_atlas_sample_count * 16_usize * 16_usize * (2_usize).pow(2);
     let secondary_objective_atlas_rendered_frame_pixel_budget = 0_usize;
-    let secondary_objective_atlas_anchor_pixel_budget = secondary_objective_atlas_sample_count * 64;
+    let secondary_objective_atlas_anchor_pixel_budget = secondary_objective_atlas_sample_count * 24;
     let atlas_manifest_roles = runtime.atlas_manifest_roles.clone();
     let atlas_family_sample_tiles = family_samples
         .iter()
@@ -426,13 +426,13 @@ pub fn first_contact_atlas_readability_guard(
         && secondary_objective_atlas_sample_count == 1
         && secondary_objective_atlas_source_frame_pixel_budget >= 1_024
         && secondary_objective_atlas_rendered_frame_pixel_budget == 0
-        && secondary_objective_atlas_anchor_pixel_budget <= 64
+        && secondary_objective_atlas_anchor_pixel_budget <= 24
         && secondary_objective_atlas_signatures
             .iter()
             .any(|signature| signature == "secondary_objective_atlas_frame_suppressed")
         && secondary_objective_atlas_signatures
             .iter()
-            .any(|signature| signature == "secondary_objective_atlas_anchor_only");
+            .any(|signature| signature == "secondary_objective_atlas_micro_anchor_only");
     let no_copy_boundary_gate =
         !runtime.cex_runtime_player_client_allowed && !runtime.wgpu_required;
     let first_contact_atlas_readability_gate = atlas_manifest_gate
@@ -661,7 +661,7 @@ mod tests {
             guard
                 .get("secondary_objective_atlas_anchor_pixel_budget")
                 .and_then(Value::as_u64),
-            Some(64)
+            Some(24)
         );
         assert_eq!(
             guard

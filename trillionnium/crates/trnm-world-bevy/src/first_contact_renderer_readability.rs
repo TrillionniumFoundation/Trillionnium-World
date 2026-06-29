@@ -1,8 +1,8 @@
 #![cfg(not(target_os = "android"))]
 
 use crate::{
-    classic_darken, classic_draw_iso_ellipse, classic_draw_rect, classic_mix_color,
-    CLASSIC_RTS_COMMAND_SURFACE_TARGET_COLOR, CLASSIC_RTS_TACTICAL_VIEWPORT_TILE_COLOR,
+    classic_darken, classic_draw_rect, classic_mix_color, CLASSIC_RTS_COMMAND_SURFACE_TARGET_COLOR,
+    CLASSIC_RTS_TACTICAL_VIEWPORT_TILE_COLOR,
 };
 
 pub(crate) fn lower_secondary_beacon_lane(tile: (i32, i32), role: &str) -> bool {
@@ -46,32 +46,32 @@ pub(crate) fn draw_secondary_objective_atlas_anchor(
     height: usize,
     cx: i32,
     cy: i32,
-    cell_w: i32,
+    _cell_w: i32,
     cell_h: i32,
 ) {
     let anchor = classic_mix_color(
-        CLASSIC_RTS_COMMAND_SURFACE_TARGET_COLOR,
+        classic_darken(CLASSIC_RTS_COMMAND_SURFACE_TARGET_COLOR, 1, 4),
         CLASSIC_RTS_TACTICAL_VIEWPORT_TILE_COLOR,
         1,
-        4,
+        5,
     );
-    classic_draw_iso_ellipse(
+    classic_draw_rect(
         buffer,
         width,
         height,
-        cx,
+        cx - 1,
         cy + cell_h / 2 + 2,
-        (cell_w / 2).max(8),
         3,
+        1,
         anchor,
     );
     classic_draw_rect(
         buffer,
         width,
         height,
-        cx - cell_w / 2,
+        cx,
         cy + cell_h / 2 + 1,
-        cell_w,
+        1,
         1,
         classic_darken(anchor, 1, 4),
     );
@@ -79,10 +79,10 @@ pub(crate) fn draw_secondary_objective_atlas_anchor(
         buffer,
         width,
         height,
-        cx - 1,
-        cy - 2,
-        2,
-        5,
+        cx,
+        cy + cell_h / 2 + 4,
+        1,
+        1,
         classic_darken(anchor, 1, 5),
     );
 }

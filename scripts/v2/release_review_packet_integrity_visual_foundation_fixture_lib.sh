@@ -1118,10 +1118,10 @@ add_first_contact_basin_source_manifest_packet_fixtures() {
       secondary_objective_atlas_sample_count: 1,
       secondary_objective_atlas_source_frame_pixel_budget: 1024,
       secondary_objective_atlas_rendered_frame_pixel_budget: 0,
-      secondary_objective_atlas_anchor_pixel_budget: 64,
+      secondary_objective_atlas_anchor_pixel_budget: 24,
       secondary_objective_atlas_signatures: [
         "secondary_objective_atlas_frame_suppressed",
-        "secondary_objective_atlas_anchor_only"
+        "secondary_objective_atlas_micro_anchor_only"
       ],
       atlas_family_sample_tiles: ["4,14", "4,16", "4,18", "4,20", "29,14", "29,16", "29,18", "4,4", "6,4", "27,4", "29,4", "29,22", "29,24", "29,26"],
       atlas_family_roles: ["worker_unit_family", "worker_unit_family", "scout_unit_family", "scout_unit_family", "warden_unit_family", "warden_unit_family", "relay_unit_family", "command_core_structure_family", "command_core_structure_family", "relay_structure_family", "relay_structure_family", "beacon_objective_family", "beacon_objective_family", "beacon_objective_family"],

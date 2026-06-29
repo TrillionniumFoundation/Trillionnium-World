@@ -158604,7 +158604,7 @@ mod tests {
             guard
                 .get("secondary_objective_atlas_anchor_pixel_budget")
                 .and_then(Value::as_u64),
-            Some(64)
+            Some(24)
         );
         assert_eq!(
             guard
