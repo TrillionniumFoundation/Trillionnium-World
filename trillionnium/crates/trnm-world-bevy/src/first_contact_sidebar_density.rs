@@ -216,7 +216,7 @@ mod tests {
             guard
                 .get("build_palette_to_tactics_gap_px")
                 .and_then(Value::as_i64),
-            Some(16)
+            Some(24)
         );
         assert_eq!(
             guard.get("tactics_compact_badge_labels").cloned(),

@@ -770,7 +770,7 @@ add_first_contact_basin_source_manifest_packet_fixtures() {
       build_palette_slot_height_px: 40,
       build_palette_row_gap_px: 48,
       build_palette_inter_row_gap_px: 8,
-      build_palette_to_tactics_gap_px: 16,
+      build_palette_to_tactics_gap_px: 24,
       build_palette_labels: ["POWER", "TRAIN", "REFINE", "TOWER", "COMMAND", "RADAR", "WALL", "SIGNAL"],
       build_palette_badge_labels: ["PWR", "TRN", "REF", "TWR", "CMD", "RAD", "WAL", "SIG"],
       build_palette_badge_widths: [18, 18, 18, 18, 18, 18, 18, 18],

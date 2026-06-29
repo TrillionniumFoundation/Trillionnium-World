@@ -91,7 +91,7 @@ pub fn first_contact_sidebar_density_guard(
         && runtime.geometry.build_palette_slot_width_px == 46
         && runtime.geometry.build_palette_slot_height_px == 40
         && runtime.geometry.build_palette_inter_row_gap_px >= 8
-        && runtime.geometry.build_palette_to_tactics_gap_px >= 12;
+        && runtime.geometry.build_palette_to_tactics_gap_px >= 24;
     let palette_state_badge_gate = runtime.build_palette_state_labels
         == string_vec([
             "READY", "QUEUE", "READY", "QUEUE", "READY", "READY", "READY", "QUEUE",
@@ -275,7 +275,7 @@ mod tests {
                 build_palette_slot_height_px: 40,
                 build_palette_row_gap_px: 48,
                 build_palette_inter_row_gap_px: 8,
-                build_palette_to_tactics_gap_px: 16,
+                build_palette_to_tactics_gap_px: 24,
                 build_palette_state_badge_width_px: 24,
                 build_palette_state_badge_height_px: 10,
                 tactics_row_gap_px: 4,
@@ -320,7 +320,7 @@ mod tests {
             guard
                 .get("build_palette_to_tactics_gap_px")
                 .and_then(Value::as_i64),
-            Some(16)
+            Some(24)
         );
         assert_eq!(
             guard.get("tactics_compact_badge_labels").cloned(),

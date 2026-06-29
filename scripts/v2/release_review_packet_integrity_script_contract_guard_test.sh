@@ -237,7 +237,7 @@ required_lines=(
   'first_contact_sidebar_density_guard.production_to_palette_gap_px >= 16'
   'first_contact_sidebar_density_guard.build_palette_slot_height_px == 40'
   'first_contact_sidebar_density_guard.build_palette_row_gap_px == 48'
-  'first_contact_sidebar_density_guard.build_palette_to_tactics_gap_px >= 16'
+  'first_contact_sidebar_density_guard.build_palette_to_tactics_gap_px >= 24'
   'first_contact_sidebar_density_guard.build_palette_badge_labels == ["PWR","TRN","REF","TWR","CMD","RAD","WAL","SIG"]'
   'first_contact_sidebar_density_guard.build_palette_badge_widths | all(. <= 18)'
   'first_contact_sidebar_density_guard.build_palette_state_badge_labels == ["RDY","QUE","RDY","QUE","RDY","RDY","RDY","QUE"]'

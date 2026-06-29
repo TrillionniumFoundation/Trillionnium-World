@@ -959,7 +959,7 @@ cat >"$JQ_FILTER" <<'JQ'
   and .first_contact_sidebar_density_guard.build_palette_slot_height_px == 40
   and .first_contact_sidebar_density_guard.build_palette_row_gap_px == 48
   and .first_contact_sidebar_density_guard.build_palette_inter_row_gap_px >= 8
-  and .first_contact_sidebar_density_guard.build_palette_to_tactics_gap_px >= 16
+  and .first_contact_sidebar_density_guard.build_palette_to_tactics_gap_px >= 24
   and .first_contact_sidebar_density_guard.build_palette_labels == ["POWER","TRAIN","REFINE","TOWER","COMMAND","RADAR","WALL","SIGNAL"]
   and .first_contact_sidebar_density_guard.build_palette_badge_labels == ["PWR","TRN","REF","TWR","CMD","RAD","WAL","SIG"]
   and (.first_contact_sidebar_density_guard.build_palette_badge_widths | all(. <= 18))

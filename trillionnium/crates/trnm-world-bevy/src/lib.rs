@@ -786,7 +786,7 @@ const CLASSIC_FIRST_CONTACT_BUILD_PALETTE_SLOT_H_PX: i32 = 40;
 const CLASSIC_FIRST_CONTACT_BUILD_PALETTE_COLUMN_GAP_PX: i32 = 58;
 const CLASSIC_FIRST_CONTACT_BUILD_PALETTE_ROW_GAP_PX: i32 = 48;
 const CLASSIC_FIRST_CONTACT_BUILD_PALETTE_TITLE_TO_SLOT_Y_PX: i32 = 18;
-const CLASSIC_FIRST_CONTACT_BUILD_PALETTE_TO_TACTICS_Y_PX: i32 = 122;
+const CLASSIC_FIRST_CONTACT_BUILD_PALETTE_TO_TACTICS_Y_PX: i32 = 130;
 const CLASSIC_FIRST_CONTACT_BUILD_PALETTE_STATE_BADGE_W_PX: i32 = 24;
 const CLASSIC_FIRST_CONTACT_BUILD_PALETTE_STATE_BADGE_H_PX: i32 = 9;
 const CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_W_PX: i32 = 78;
@@ -148571,7 +148571,7 @@ mod tests {
             guard
                 .get("build_palette_to_tactics_gap_px")
                 .and_then(Value::as_i64),
-            Some(16)
+            Some(24)
         );
         assert_eq!(
             guard.get("tactics_compact_badge_labels").cloned(),
