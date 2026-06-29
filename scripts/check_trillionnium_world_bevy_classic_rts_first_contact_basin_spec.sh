@@ -9,6 +9,7 @@ SOURCE="$ROOT/trillionnium/crates/trnm-world-bevy/src/lib.rs"
 ART_RENDERER_SOURCE="$ROOT/trillionnium/crates/trnm-world-bevy/src/first_contact_art_renderer.rs"
 SILHOUETTE_RENDERER_SOURCE="$ROOT/trillionnium/crates/trnm-world-bevy/src/first_contact_silhouette_renderer.rs"
 FOCUS_RENDERER_SOURCE="$ROOT/trillionnium/crates/trnm-world-bevy/src/first_contact_focus_renderer.rs"
+RADAR_RENDERER_SOURCE="$ROOT/trillionnium/crates/trnm-world-bevy/src/first_contact_radar_renderer.rs"
 DATA_SOURCE="$ROOT/trillionnium/crates/trnm-rts-data/src/lib.rs"
 RUNTIME_SOURCE="$ROOT/trillionnium/crates/trnm-rts-bevy-runtime/src/lib.rs"
 ONLINE_SOURCE="$ROOT/trillionnium/crates/trnm-rts-online/src/lib.rs"
@@ -278,6 +279,21 @@ required_focus_renderer_source_lines=(
 for line in "${required_focus_renderer_source_lines[@]}"; do
   if ! grep -Fq "$line" "$FOCUS_RENDERER_SOURCE"; then
     echo "[FAIL] missing First Contact focus renderer source line: $line" >&2
+    exit 1
+  fi
+done
+
+required_radar_renderer_source_lines=(
+  'fn lane_sample_tiles'
+  'fn structure_tiles'
+  'fn pressure_tiles'
+  'fn objective_tiles'
+  'pub(super) fn draw_context'
+)
+
+for line in "${required_radar_renderer_source_lines[@]}"; do
+  if ! grep -Fq "$line" "$RADAR_RENDERER_SOURCE"; then
+    echo "[FAIL] missing First Contact radar renderer source line: $line" >&2
     exit 1
   fi
 done
