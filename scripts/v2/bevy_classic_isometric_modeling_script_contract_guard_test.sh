@@ -4,6 +4,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 SCRIPT="$ROOT/scripts/check_trillionnium_world_bevy_classic_isometric_modeling.sh"
 SOURCE="$ROOT/trillionnium/crates/trnm-world-bevy/src/lib.rs"
+RENDERER="$ROOT/trillionnium/crates/trnm-world-bevy/src/classic_isometric_renderer.rs"
 MAIN="$ROOT/trillionnium/crates/trnm-world-bevy/src/main.rs"
 
 required_script_lines=(
@@ -68,6 +69,8 @@ done
 required_source_lines=(
   'TRILLIONNIUM_WORLD_BEVY_CLASSIC_ISOMETRIC_MODELING_CONTRACT'
   'native_classic_isometric_modeling_evidence_json'
+  'mod classic_isometric_renderer'
+  'classic_isometric_renderer::classic_draw_isometric_scene'
   'classic_draw_isometric_scene'
   'classic_iso_project'
   'classic_draw_iso_diamond'
@@ -107,6 +110,30 @@ required_source_lines=(
 for line in "${required_source_lines[@]}"; do
   if ! grep -Fq "$line" "$SOURCE" "$MAIN"; then
     echo "[FAIL] missing isometric modeling source line: $line" >&2
+    exit 1
+  fi
+done
+
+required_renderer_lines=(
+  'pub(super) fn classic_draw_isometric_scene'
+  'pub(super) fn classic_iso_project'
+  'pub(super) fn classic_draw_iso_diamond'
+  'pub(super) fn classic_draw_iso_shadow'
+  'pub(super) fn classic_draw_iso_prism'
+  'pub(super) fn classic_draw_iso_procedural_model'
+  'pub(super) fn classic_draw_iso_terrain_detail'
+  'pub(super) fn classic_draw_iso_unit_overlay'
+  'pub(super) fn classic_draw_iso_command_feedback'
+  'pub(super) fn classic_scene_rts_model_entities'
+  'pub(super) fn classic_scene_rts_doodad_entities'
+  'pub(super) fn classic_scene_rts_environment_entities'
+  'pub(super) fn classic_scene_rts_neutral_unit_entities'
+  'classic_draw_rts_product_map_density_layer'
+)
+
+for line in "${required_renderer_lines[@]}"; do
+  if ! grep -Fq "$line" "$RENDERER"; then
+    echo "[FAIL] missing isometric renderer source line: $line" >&2
     exit 1
   fi
 done
