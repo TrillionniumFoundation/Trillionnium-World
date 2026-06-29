@@ -231,9 +231,9 @@ mod tests {
             completion_event_badge_labels,
             geometry: RtsFirstContactBottomPanelGeometrySnapshot {
                 bottom_panel_height_px: 148,
-                squad_chip_y_offset_px: 124,
+                squad_chip_y_offset_px: 120,
                 squad_chip_height_px: 11,
-                squad_chip_bottom_margin_min_px: 12,
+                squad_chip_bottom_margin_min_px: 16,
             },
         }
     }
@@ -299,7 +299,7 @@ mod tests {
             guard
                 .get("squad_chip_bottom_margin_px")
                 .and_then(Value::as_i64),
-            Some(13)
+            Some(17)
         );
 
         for gate in [

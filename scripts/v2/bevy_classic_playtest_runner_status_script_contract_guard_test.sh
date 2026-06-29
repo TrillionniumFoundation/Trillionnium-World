@@ -57,6 +57,8 @@ required_lines=(
   'map/HUD/command pixels'
   'non-dead HUD panels'
   'clipped-label edge safety'
+  'bottom_command_bottom_quiet_band'
+  'bottom-edge HUD strip'
   'gameplay-scene balance'
   'proof/debug/shortcut-manual default title strings are explicitly rejected'
   'x11_backend_gate'

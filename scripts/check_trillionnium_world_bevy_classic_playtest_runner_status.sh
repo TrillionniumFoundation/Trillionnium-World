@@ -328,6 +328,7 @@ for panel_id in ["top_hud", "right_hud", "bottom_command", "minimap"]:
 edge_safety_samples = [
     edge_safety_sample("right_hud_right_edge", [width - 10, 72, width, min(610, height)], 120, 240),
     edge_safety_sample("bottom_command_bottom_edge", [0, height - 10, width, height], 500, 900),
+    edge_safety_sample("bottom_command_bottom_quiet_band", [0, height - 4, width, height], 24, 40),
     edge_safety_sample("top_hud_top_edge", [0, 0, width, 6], 100, 180),
 ]
 forbidden_title_fragments = [
@@ -383,7 +384,7 @@ summary = {
     "forbidden_title_fragments": forbidden_title_fragments,
     "gates": gates,
     "green": all(gates.values()),
-    "source_of_truth": "The live classic playtest runner must show the First Contact Basin player screen as a real gameplay map/HUD/command surface, not merely a running process, proof/debug panel, empty/dead panel layout, clipped-label frame, or non-gameplay-looking screenshot.",
+    "source_of_truth": "The live classic playtest runner must show the First Contact Basin player screen as a real gameplay map/HUD/command surface, not merely a running process, proof/debug panel, empty/dead panel layout, clipped-label frame, bottom-edge HUD strip, or non-gameplay-looking screenshot.",
 }
 probe_path.write_text(json.dumps(summary, indent=2), encoding="utf-8")
 PY

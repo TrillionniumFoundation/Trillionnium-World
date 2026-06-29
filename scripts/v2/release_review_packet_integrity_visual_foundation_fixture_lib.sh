@@ -814,7 +814,7 @@ add_first_contact_basin_source_manifest_packet_fixtures() {
       feedback_width_gate: true,
       squad_strip_gate: true,
       squad_chip_width_gate: true,
-      squad_chip_bottom_margin_px: 13,
+      squad_chip_bottom_margin_px: 17,
       squad_chip_edge_clearance_gate: true,
       order_queue_badge_gate: true,
       selection_density_gate: true

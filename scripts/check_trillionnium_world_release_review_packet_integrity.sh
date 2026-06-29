@@ -826,7 +826,7 @@ require_artifact_json_expr first_contact_basin_spec_semantics native_bevy_classi
   and .first_contact_bottom_panel_readability_guard.feedback_width_gate == true
   and .first_contact_bottom_panel_readability_guard.squad_strip_gate == true
   and .first_contact_bottom_panel_readability_guard.squad_chip_width_gate == true
-  and .first_contact_bottom_panel_readability_guard.squad_chip_bottom_margin_px >= 12
+  and .first_contact_bottom_panel_readability_guard.squad_chip_bottom_margin_px >= 16
   and .first_contact_bottom_panel_readability_guard.squad_chip_edge_clearance_gate == true
   and .first_contact_bottom_panel_readability_guard.order_queue_badge_gate == true
   and .first_contact_bottom_panel_readability_guard.selection_density_gate == true
