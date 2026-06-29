@@ -6,6 +6,7 @@ OUT="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-first-contac
 RAW_OUT="$OUT.raw.$$"
 TMP_OUT="$OUT.tmp.$$"
 SOURCE="$ROOT/trillionnium/crates/trnm-world-bevy/src/lib.rs"
+ART_RENDERER_SOURCE="$ROOT/trillionnium/crates/trnm-world-bevy/src/first_contact_art_renderer.rs"
 SILHOUETTE_RENDERER_SOURCE="$ROOT/trillionnium/crates/trnm-world-bevy/src/first_contact_silhouette_renderer.rs"
 FOCUS_RENDERER_SOURCE="$ROOT/trillionnium/crates/trnm-world-bevy/src/first_contact_focus_renderer.rs"
 DATA_SOURCE="$ROOT/trillionnium/crates/trnm-rts-data/src/lib.rs"
@@ -226,6 +227,24 @@ required_source_lines=(
 for line in "${required_source_lines[@]}"; do
   if ! grep -Fq "$line" "$SOURCE"; then
     echo "[FAIL] missing First Contact RTS data actor derivation source line: $line" >&2
+    exit 1
+  fi
+done
+
+required_art_renderer_source_lines=(
+  'fn terrain_samples'
+  'fn building_samples'
+  'fn landmark_samples'
+  'fn draw_terrain_material_depth_detail'
+  'fn draw_terrain_detail'
+  'fn draw_building_detail'
+  'fn draw_landmark_detail'
+  'pub(super) fn draw_readability_layer'
+)
+
+for line in "${required_art_renderer_source_lines[@]}"; do
+  if ! grep -Fq "$line" "$ART_RENDERER_SOURCE"; then
+    echo "[FAIL] missing First Contact art renderer source line: $line" >&2
     exit 1
   fi
 done

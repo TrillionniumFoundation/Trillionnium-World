@@ -17,6 +17,7 @@ require_line() {
 }
 
 basin_lines=(
+  'ART_RENDERER_SOURCE="$ROOT/trillionnium/crates/trnm-world-bevy/src/first_contact_art_renderer.rs"'
   'SILHOUETTE_RENDERER_SOURCE="$ROOT/trillionnium/crates/trnm-world-bevy/src/first_contact_silhouette_renderer.rs"'
   'FOCUS_RENDERER_SOURCE="$ROOT/trillionnium/crates/trnm-world-bevy/src/first_contact_focus_renderer.rs"'
   'RAW_OUT="$OUT.raw.$$"'
@@ -24,6 +25,15 @@ basin_lines=(
   'trap '\''rm -f "$RAW_OUT" "$TMP_OUT" "$JQ_FILTER"'\'' EXIT'
   'classic-rts-first-contact-basin-spec >"$RAW_OUT"'
   'mv "$TMP_OUT" "$OUT"'
+  'required_art_renderer_source_lines=('
+  'fn terrain_samples'
+  'fn building_samples'
+  'fn landmark_samples'
+  'fn draw_terrain_material_depth_detail'
+  'fn draw_terrain_detail'
+  'fn draw_building_detail'
+  'fn draw_landmark_detail'
+  'pub(super) fn draw_readability_layer'
   'required_silhouette_renderer_source_lines=('
   'fn unit_samples'
   'fn structure_samples'
