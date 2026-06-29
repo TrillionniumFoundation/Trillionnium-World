@@ -17,11 +17,19 @@ require_line() {
 }
 
 basin_lines=(
+  'FOCUS_RENDERER_SOURCE="$ROOT/trillionnium/crates/trnm-world-bevy/src/first_contact_focus_renderer.rs"'
   'RAW_OUT="$OUT.raw.$$"'
   'TMP_OUT="$OUT.tmp.$$"'
   'trap '\''rm -f "$RAW_OUT" "$TMP_OUT" "$JQ_FILTER"'\'' EXIT'
   'classic-rts-first-contact-basin-spec >"$RAW_OUT"'
   'mv "$TMP_OUT" "$OUT"'
+  'required_focus_renderer_source_lines=('
+  'fn selection_combat_focus_route_tiles'
+  'fn route_clearance_tiles'
+  'fn draw_route_clearance_gutters'
+  'fn draw_focus_corner_brackets'
+  'fn draw_target_callout'
+  'pub(super) fn draw_selection_combat_focus_layer'
   'contract_field_count = ([keys[] | select(endswith("_contract"))] | length)'
   'guard_object_count = ([to_entries[] | select((.key | test("^first_contact_.*_guard$")) and (.value | type == "object"))] | length)'
   'top_level_gate_count = ([to_entries[] | select((.key | endswith("_gate")) and (.value | type == "boolean"))] | length)'

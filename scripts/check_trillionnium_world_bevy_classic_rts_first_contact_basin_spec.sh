@@ -6,6 +6,7 @@ OUT="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-first-contac
 RAW_OUT="$OUT.raw.$$"
 TMP_OUT="$OUT.tmp.$$"
 SOURCE="$ROOT/trillionnium/crates/trnm-world-bevy/src/lib.rs"
+FOCUS_RENDERER_SOURCE="$ROOT/trillionnium/crates/trnm-world-bevy/src/first_contact_focus_renderer.rs"
 DATA_SOURCE="$ROOT/trillionnium/crates/trnm-rts-data/src/lib.rs"
 RUNTIME_SOURCE="$ROOT/trillionnium/crates/trnm-rts-bevy-runtime/src/lib.rs"
 ONLINE_SOURCE="$ROOT/trillionnium/crates/trnm-rts-online/src/lib.rs"
@@ -153,12 +154,9 @@ required_source_lines=(
   'fn classic_draw_first_contact_terminal_legibility_layer'
   'TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_SELECTION_COMBAT_FOCUS_CONTRACT'
   'fn classic_first_contact_selection_combat_focus_readability_guard'
-  'fn classic_first_contact_route_clearance_tiles'
-  'fn classic_draw_first_contact_route_clearance_gutters'
   'fn classic_draw_first_contact_selection_combat_focus_layer'
   'TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_TARGET_CALLOUT_CONTRACT'
   'fn classic_first_contact_target_callout_guard'
-  'fn classic_draw_first_contact_target_callout'
   'TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_MARKER_BUDGET_CONTRACT'
   'fn classic_first_contact_atlas_family_lower_lane_tile'
   'fn classic_first_contact_marker_budget_guard'
@@ -227,6 +225,22 @@ required_source_lines=(
 for line in "${required_source_lines[@]}"; do
   if ! grep -Fq "$line" "$SOURCE"; then
     echo "[FAIL] missing First Contact RTS data actor derivation source line: $line" >&2
+    exit 1
+  fi
+done
+
+required_focus_renderer_source_lines=(
+  'fn selection_combat_focus_route_tiles'
+  'fn route_clearance_tiles'
+  'fn draw_route_clearance_gutters'
+  'fn draw_focus_corner_brackets'
+  'fn draw_target_callout'
+  'pub(super) fn draw_selection_combat_focus_layer'
+)
+
+for line in "${required_focus_renderer_source_lines[@]}"; do
+  if ! grep -Fq "$line" "$FOCUS_RENDERER_SOURCE"; then
+    echo "[FAIL] missing First Contact focus renderer source line: $line" >&2
     exit 1
   fi
 done
