@@ -5,6 +5,8 @@ ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 SCENE_SCRIPT="$ROOT/scripts/check_trillionnium_world_bevy_classic_scene_preview.sh"
 MODEL_SCRIPT="$ROOT/scripts/check_trillionnium_world_bevy_classic_model_catalog.sh"
 RENDERER_SCRIPT="$ROOT/scripts/check_trillionnium_world_bevy_classic_renderer_probe.sh"
+WORLD_BEVY_SRC="$ROOT/trillionnium/crates/trnm-world-bevy/src/lib.rs"
+MODEL_RENDERER_SRC="$ROOT/trillionnium/crates/trnm-world-bevy/src/classic_model_catalog_renderer.rs"
 
 scene_required_lines=(
   'SUMMARY_RAW="$SUMMARY.raw.$$"'
@@ -55,6 +57,28 @@ model_required_lines=(
   'third_party_asset_copied'
 )
 
+model_source_required_lines=(
+  'mod classic_model_catalog_renderer;'
+  'classic_model_catalog_renderer::native_classic_model_catalog_evidence_json'
+)
+
+model_renderer_required_lines=(
+  'pub(super) fn native_classic_model_catalog_evidence_json'
+  'classic_draw_rect'
+  'classic_blit_frame_scaled'
+  'classic_draw_text'
+  'classic_frame_visible_pixel_count'
+  'classic_frame_source_pixel'
+  'classic_catalog_frame_label'
+  'classic_catalog_role_label'
+  'classic_catalog_text_label'
+  'player_direction_catalog_gate'
+  'actor_clip_catalog_gate'
+  'scene_reference_catalog_gate'
+  'role_coverage_gate'
+  'The classic model catalog renders every project-owned manifest frame'
+)
+
 renderer_required_lines=(
   'SUMMARY_RAW="$SUMMARY.raw.$$"'
   'SUMMARY_TMP="$SUMMARY.tmp.$$"'
@@ -83,6 +107,20 @@ done
 for line in "${model_required_lines[@]}"; do
   if ! grep -Fq -- "$line" "$MODEL_SCRIPT"; then
     echo "[FAIL] classic model catalog missing line: $line" >&2
+    exit 1
+  fi
+done
+
+for line in "${model_source_required_lines[@]}"; do
+  if ! grep -Fq -- "$line" "$WORLD_BEVY_SRC"; then
+    echo "[FAIL] world-bevy source missing classic model catalog wrapper line: $line" >&2
+    exit 1
+  fi
+done
+
+for line in "${model_renderer_required_lines[@]}"; do
+  if ! grep -Fq -- "$line" "$MODEL_RENDERER_SRC"; then
+    echo "[FAIL] classic model catalog renderer missing line: $line" >&2
     exit 1
   fi
 done
