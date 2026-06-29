@@ -205,7 +205,7 @@ pub fn first_contact_player_screen_label_guard(
                 "TRAINING READY",
             ])
         && runtime.completion_event_badge_labels
-            == string_vec(["WRK RDY", "SIG RDY", "TWR RDY", "TRN RDY"])
+            == string_vec(["WRK READY", "SIG READY", "TWR READY", "TRN READY"])
         && runtime.tactics_queue_summary == "GUARD 64% TOWER 42%"
         && runtime.tactics_compact_badge_labels
             == string_vec(["SECURE", "BEACON", "16/16", "G64/T42", "IDLE"])
@@ -271,7 +271,7 @@ pub fn first_contact_player_screen_label_guard(
         .order_queue_badge_widths_px
         .iter()
         .chain(runtime.completion_event_badge_widths_px.iter())
-        .all(|width| *width <= 48);
+        .all(|width| *width <= 54);
     let tactics_summary_width_gate = runtime.tactics_queue_summary_width_px <= 120;
     let tactics_detail_width_gate = runtime
         .tactics_detail_widths_px
@@ -446,7 +446,7 @@ mod tests {
             "TRAINING READY",
         ]);
         let completion_event_badge_labels =
-            string_vec(["WRK RDY", "SIG RDY", "TWR RDY", "TRN RDY"]);
+            string_vec(["WRK READY", "SIG READY", "TWR READY", "TRN READY"]);
         let tactics_detail_labels = string_vec([
             "SECURE RELAY BEACON",
             "RELAY BEACON",

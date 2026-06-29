@@ -148182,13 +148182,13 @@ mod tests {
         );
         assert_eq!(
             classic_first_contact_order_queue_badge_label("upgrade_complete:signal_blade"),
-            "SIG RDY"
+            "SIG READY"
         );
         assert_eq!(
             classic_first_contact_order_queue_badge_label(
                 "build_complete:upgrade:training_hall->training_hall"
             ),
-            "TRN RDY"
+            "TRN READY"
         );
     }
 
@@ -148270,7 +148270,7 @@ mod tests {
         );
         assert_eq!(
             guard.get("completion_event_badge_labels").cloned(),
-            Some(json!(["WRK RDY", "SIG RDY", "TWR RDY", "TRN RDY"]))
+            Some(json!(["WRK READY", "SIG READY", "TWR READY", "TRN READY"]))
         );
         assert_eq!(
             guard.get("tactics_queue_summary").and_then(Value::as_str),
@@ -148646,7 +148646,7 @@ mod tests {
         );
         assert_eq!(
             guard.get("completion_event_badge_labels").cloned(),
-            Some(json!(["WRK RDY", "SIG RDY", "TWR RDY", "TRN RDY"]))
+            Some(json!(["WRK READY", "SIG READY", "TWR READY", "TRN READY"]))
         );
         for gate in [
             "raw_marker_gate",

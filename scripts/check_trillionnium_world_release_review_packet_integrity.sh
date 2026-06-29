@@ -818,7 +818,7 @@ require_artifact_json_expr first_contact_basin_spec_semantics native_bevy_classi
   and .first_contact_bottom_panel_readability_guard.build_feedback_label == "WATCH TOWER READY"
   and .first_contact_bottom_panel_readability_guard.squad_role_labels == ["WORKER","SCOUT","GUARD","RELAY"]
   and .first_contact_bottom_panel_readability_guard.order_queue_badge_labels == ["ATK BCN","TRN WRK","BLD RLY","MOV 16/9"]
-  and .first_contact_bottom_panel_readability_guard.completion_event_badge_labels == ["WRK RDY","SIG RDY","TWR RDY","TRN RDY"]
+  and .first_contact_bottom_panel_readability_guard.completion_event_badge_labels == ["WRK READY","SIG READY","TWR READY","TRN READY"]
   and (.first_contact_bottom_panel_readability_guard.feedback_labels | index("SIGNAL BLADE READY") != null)
   and (.first_contact_bottom_panel_readability_guard.feedback_labels | index("WATCH TOWER READY") != null)
   and .first_contact_bottom_panel_readability_guard.raw_marker_gate == true

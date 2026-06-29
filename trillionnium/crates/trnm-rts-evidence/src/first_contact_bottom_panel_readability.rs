@@ -125,12 +125,12 @@ pub fn first_contact_bottom_panel_readability_guard(
     let order_queue_badge_gate = order_queue_badge_labels
         == string_vec(["ATK BCN", "TRN WRK", "BLD RLY", "MOV 16/9"])
         && completion_event_badge_labels
-            == string_vec(["WRK RDY", "SIG RDY", "TWR RDY", "TRN RDY"])
+            == string_vec(["WRK READY", "SIG READY", "TWR READY", "TRN READY"])
         && runtime
             .order_queue_badge_widths_px
             .iter()
             .chain(runtime.completion_event_badge_widths_px.iter())
-            .all(|width| *width <= 48)
+            .all(|width| *width <= 54)
         && runtime.order_queue_badge_widths_px.len() >= order_queue_badge_labels.len()
         && runtime.completion_event_badge_widths_px.len() >= completion_event_badge_labels.len();
     let selection_density_gate = selected_unit_display_count >= 4
@@ -197,7 +197,7 @@ mod tests {
         ];
         let order_queue_badge_labels = string_vec(["ATK BCN", "TRN WRK", "BLD RLY", "MOV 16/9"]);
         let completion_event_badge_labels =
-            string_vec(["WRK RDY", "SIG RDY", "TWR RDY", "TRN RDY"]);
+            string_vec(["WRK READY", "SIG READY", "TWR READY", "TRN READY"]);
 
         RtsFirstContactBottomPanelRuntime {
             control_group_id: Some("1".to_string()),
@@ -293,7 +293,7 @@ mod tests {
         );
         assert_eq!(
             guard.get("completion_event_badge_labels").cloned(),
-            Some(json!(["WRK RDY", "SIG RDY", "TWR RDY", "TRN RDY"]))
+            Some(json!(["WRK READY", "SIG READY", "TWR READY", "TRN READY"]))
         );
         assert_eq!(
             guard

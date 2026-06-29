@@ -257,7 +257,7 @@ required_lines=(
   'first_contact_bottom_panel_readability_guard.build_feedback_label == "WATCH TOWER READY"'
   'first_contact_bottom_panel_readability_guard.squad_role_labels == ["WORKER","SCOUT","GUARD","RELAY"]'
   'first_contact_bottom_panel_readability_guard.order_queue_badge_labels == ["ATK BCN","TRN WRK","BLD RLY","MOV 16/9"]'
-  'first_contact_bottom_panel_readability_guard.completion_event_badge_labels == ["WRK RDY","SIG RDY","TWR RDY","TRN RDY"]'
+  'first_contact_bottom_panel_readability_guard.completion_event_badge_labels == ["WRK READY","SIG READY","TWR READY","TRN READY"]'
   'first_contact_bottom_panel_readability_guard.raw_marker_gate == true'
   'first_contact_bottom_panel_readability_guard.feedback_expected_gate == true'
   'first_contact_bottom_panel_readability_guard.squad_strip_gate == true'

@@ -808,7 +808,7 @@ add_first_contact_basin_source_manifest_packet_fixtures() {
       build_feedback_label: "WATCH TOWER READY",
       squad_role_labels: ["WORKER", "SCOUT", "GUARD", "RELAY"],
       order_queue_badge_labels: ["ATK BCN", "TRN WRK", "BLD RLY", "MOV 16/9"],
-      completion_event_badge_labels: ["WRK RDY", "SIG RDY", "TWR RDY", "TRN RDY"],
+      completion_event_badge_labels: ["WRK READY", "SIG READY", "TWR READY", "TRN READY"],
       raw_marker_gate: true,
       feedback_expected_gate: true,
       feedback_width_gate: true,

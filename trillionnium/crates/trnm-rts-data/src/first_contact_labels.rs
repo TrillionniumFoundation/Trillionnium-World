@@ -195,7 +195,7 @@ pub fn order_queue_badge_code_from_display_label(label: &str) -> String {
 pub fn order_queue_badge_detail_from_display_label(label: &str) -> String {
     let upper = label.to_ascii_uppercase();
     if upper.ends_with(" READY") {
-        return "RDY".to_string();
+        return "READY".to_string();
     }
     if upper.contains("BLOCKED") {
         let blocked_subject = upper
@@ -266,7 +266,7 @@ mod tests {
         );
         assert_eq!(
             order_queue_badge_label_from_display_label("TRAINING READY"),
-            "TRN RDY"
+            "TRN READY"
         );
     }
 }
