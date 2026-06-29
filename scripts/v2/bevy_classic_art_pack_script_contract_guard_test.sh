@@ -6,6 +6,7 @@ SCRIPT="$ROOT/scripts/check_trillionnium_world_bevy_classic_art_pack.sh"
 RUNNER="$ROOT/scripts/run_trillionnium_world_bevy_client.sh"
 RUNNER_STATUS="$ROOT/scripts/check_trillionnium_world_bevy_classic_playtest_runner_status.sh"
 SOURCE="$ROOT/trillionnium/crates/trnm-world-bevy/src/lib.rs"
+ART_PACK_RENDERER="$ROOT/trillionnium/crates/trnm-world-bevy/src/classic_art_pack_renderer.rs"
 MAIN="$ROOT/trillionnium/crates/trnm-world-bevy/src/main.rs"
 
 required_script_lines=(
@@ -119,6 +120,7 @@ done
 required_source_lines=(
   'TRILLIONNIUM_WORLD_BEVY_CLASSIC_ART_PACK_CONTRACT'
   'native_classic_art_pack_evidence_json'
+  'classic_art_pack_renderer'
   'classic-art-pack'
   'classic-artpack'
   'classic_art_pack_override_specs'
@@ -198,7 +200,7 @@ required_source_lines=(
 )
 
 for line in "${required_source_lines[@]}"; do
-  if ! grep -Fq "$line" "$SOURCE" "$MAIN"; then
+  if ! grep -Fq "$line" "$SOURCE" "$ART_PACK_RENDERER" "$MAIN"; then
     echo "[FAIL] missing classic art pack source line: $line" >&2
     exit 1
   fi
