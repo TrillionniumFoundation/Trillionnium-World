@@ -3,6 +3,8 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 SCRIPT="$ROOT/scripts/check_trillionnium_world_bevy_classic_player_motion_probe.sh"
+SOURCE="$ROOT/trillionnium/crates/trnm-world-bevy/src/lib.rs"
+PLAYER_MOTION_SOURCE="$ROOT/trillionnium/crates/trnm-world-bevy/src/classic_player_motion_renderer.rs"
 
 required_lines=(
   'bevy-classic-player-motion-probe.json'
@@ -50,6 +52,32 @@ required_lines=(
 for line in "${required_lines[@]}"; do
   if ! grep -Fq -- "$line" "$SCRIPT"; then
     echo "[FAIL] classic player motion probe missing line: $line" >&2
+    exit 1
+  fi
+done
+
+required_source_lines=(
+  'mod classic_player_motion_renderer;'
+  'classic_player_motion_renderer::native_classic_player_motion_probe_evidence_json(probe_path)'
+  'pub(super) fn native_classic_player_motion_probe_evidence_json'
+  'TRILLIONNIUM_WORLD_BEVY_CLASSIC_PLAYER_MOTION_PROBE_CONTRACT'
+  'NativeControlAction::Move'
+  'apply_live_native_action'
+  'classic_draw_frame_at_tile'
+  'classic_catalog_text_label'
+  'write_classic_rgb_buffer_ppm'
+  'accepted_input_gate'
+  'direction_coverage_gate'
+  'frame_match_gate'
+  'manifest_frame_gate'
+  'sheet_gate'
+  'label_gate'
+  'Classic player motion probe drives real NativeControlAction::Move inputs through apply_live_native_action'
+)
+
+for line in "${required_source_lines[@]}"; do
+  if ! grep -Fq -- "$line" "$SOURCE" "$PLAYER_MOTION_SOURCE"; then
+    echo "[FAIL] classic player motion probe missing source line: $line" >&2
     exit 1
   fi
 done
