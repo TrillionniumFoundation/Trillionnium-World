@@ -4,13 +4,14 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 SCRIPT="$ROOT/scripts/check_trillionnium_world_bevy_classic_asset_slot_map.sh"
 SOURCE="$ROOT/trillionnium/crates/trnm-world-bevy/src/lib.rs"
+ASSET_RENDERER_SOURCE="$ROOT/trillionnium/crates/trnm-world-bevy/src/classic_asset_boundary_renderer.rs"
 MAIN="$ROOT/trillionnium/crates/trnm-world-bevy/src/main.rs"
 
 required_script_lines=(
   'trillionnium_world_bevy_classic_asset_slot_map_v1'
   'bevy-classic-asset-slot-map.json'
   'classic-asset-slot-map'
-  'slot_count >= 58'
+  'slot_count >= 72'
   'category_counts.terrain'
   'category_counts.unit'
   'category_counts.building'
@@ -18,7 +19,7 @@ required_script_lines=(
   'category_counts.vfx_ui'
   'manifest_frame_slot_count >= 43'
   'procedural_model_slot_count >= 5'
-  'doodad_slot_count >= 4'
+  'doodad_slot_count >= 8'
   'vfx_slot_count >= 6'
   'manifest_frame_slots_gate == true'
   'procedural_slots_gate == true'
@@ -37,7 +38,9 @@ done
 
 required_source_lines=(
   'TRILLIONNIUM_WORLD_BEVY_CLASSIC_ASSET_SLOT_MAP_CONTRACT'
+  'mod classic_asset_boundary_renderer;'
   'native_classic_asset_slot_map_evidence_json'
+  'classic_asset_boundary_renderer::native_classic_asset_slot_map_evidence_json'
   'classic-asset-slot-map'
   'classic-slots'
   'manifest_frame'
@@ -63,7 +66,7 @@ required_source_lines=(
 )
 
 for line in "${required_source_lines[@]}"; do
-  if ! grep -Fq "$line" "$SOURCE" "$MAIN"; then
+  if ! grep -Fq "$line" "$SOURCE" "$ASSET_RENDERER_SOURCE" "$MAIN"; then
     echo "[FAIL] missing asset slot map source line: $line" >&2
     exit 1
   fi

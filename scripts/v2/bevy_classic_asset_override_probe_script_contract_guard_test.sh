@@ -4,6 +4,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 SCRIPT="$ROOT/scripts/check_trillionnium_world_bevy_classic_asset_override_probe.sh"
 SOURCE="$ROOT/trillionnium/crates/trnm-world-bevy/src/lib.rs"
+ASSET_RENDERER_SOURCE="$ROOT/trillionnium/crates/trnm-world-bevy/src/classic_asset_boundary_renderer.rs"
 MAIN="$ROOT/trillionnium/crates/trnm-world-bevy/src/main.rs"
 
 required_script_lines=(
@@ -30,7 +31,9 @@ done
 
 required_source_lines=(
   'TRILLIONNIUM_WORLD_BEVY_CLASSIC_ASSET_OVERRIDE_PROBE_CONTRACT'
+  'mod classic_asset_boundary_renderer;'
   'native_classic_asset_override_probe_evidence_json'
+  'classic_asset_boundary_renderer::native_classic_asset_override_probe_evidence_json'
   'classic-asset-override-probe'
   'classic-override-probe'
   'TRNM_WORLD_BEVY_CLASSIC_ASSET_OVERRIDE_DIR'
@@ -47,7 +50,7 @@ required_source_lines=(
 )
 
 for line in "${required_source_lines[@]}"; do
-  if ! grep -Fq "$line" "$SOURCE" "$MAIN"; then
+  if ! grep -Fq "$line" "$SOURCE" "$ASSET_RENDERER_SOURCE" "$MAIN"; then
     echo "[FAIL] missing asset override probe source line: $line" >&2
     exit 1
   fi
