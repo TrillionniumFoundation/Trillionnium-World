@@ -6,6 +6,7 @@ OUT="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-first-contac
 RAW_OUT="$OUT.raw.$$"
 TMP_OUT="$OUT.tmp.$$"
 SOURCE="$ROOT/trillionnium/crates/trnm-world-bevy/src/lib.rs"
+SILHOUETTE_RENDERER_SOURCE="$ROOT/trillionnium/crates/trnm-world-bevy/src/first_contact_silhouette_renderer.rs"
 FOCUS_RENDERER_SOURCE="$ROOT/trillionnium/crates/trnm-world-bevy/src/first_contact_focus_renderer.rs"
 DATA_SOURCE="$ROOT/trillionnium/crates/trnm-rts-data/src/lib.rs"
 RUNTIME_SOURCE="$ROOT/trillionnium/crates/trnm-rts-bevy-runtime/src/lib.rs"
@@ -225,6 +226,23 @@ required_source_lines=(
 for line in "${required_source_lines[@]}"; do
   if ! grep -Fq "$line" "$SOURCE"; then
     echo "[FAIL] missing First Contact RTS data actor derivation source line: $line" >&2
+    exit 1
+  fi
+done
+
+required_silhouette_renderer_source_lines=(
+  'fn unit_samples'
+  'fn structure_samples'
+  'fn terrain_samples'
+  'fn draw_unit'
+  'fn draw_structure'
+  'fn draw_terrain_marker'
+  'pub(super) fn draw_readability_layer'
+)
+
+for line in "${required_silhouette_renderer_source_lines[@]}"; do
+  if ! grep -Fq "$line" "$SILHOUETTE_RENDERER_SOURCE"; then
+    echo "[FAIL] missing First Contact silhouette renderer source line: $line" >&2
     exit 1
   fi
 done

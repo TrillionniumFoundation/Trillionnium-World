@@ -17,12 +17,21 @@ require_line() {
 }
 
 basin_lines=(
+  'SILHOUETTE_RENDERER_SOURCE="$ROOT/trillionnium/crates/trnm-world-bevy/src/first_contact_silhouette_renderer.rs"'
   'FOCUS_RENDERER_SOURCE="$ROOT/trillionnium/crates/trnm-world-bevy/src/first_contact_focus_renderer.rs"'
   'RAW_OUT="$OUT.raw.$$"'
   'TMP_OUT="$OUT.tmp.$$"'
   'trap '\''rm -f "$RAW_OUT" "$TMP_OUT" "$JQ_FILTER"'\'' EXIT'
   'classic-rts-first-contact-basin-spec >"$RAW_OUT"'
   'mv "$TMP_OUT" "$OUT"'
+  'required_silhouette_renderer_source_lines=('
+  'fn unit_samples'
+  'fn structure_samples'
+  'fn terrain_samples'
+  'fn draw_unit'
+  'fn draw_structure'
+  'fn draw_terrain_marker'
+  'pub(super) fn draw_readability_layer'
   'required_focus_renderer_source_lines=('
   'fn selection_combat_focus_route_tiles'
   'fn route_clearance_tiles'
