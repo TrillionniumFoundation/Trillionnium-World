@@ -91592,6 +91592,18 @@ fn classic_first_contact_runtime_core_visibility(world: &TrnmOpenRaLikeWorld) ->
         .map(|actor| actor.id.clone())
         .collect::<Vec<_>>();
     progress_bar_actor_ids.sort();
+    let mut selection_ring_candidate_actor_ids = visible_actors
+        .iter()
+        .filter(|actor| classic_first_contact_runtime_actor_selection_ring_candidate(actor))
+        .map(|actor| actor.id.clone())
+        .collect::<Vec<_>>();
+    selection_ring_candidate_actor_ids.sort();
+    let mut selection_ring_visible_actor_ids = visible_actors
+        .iter()
+        .filter(|actor| classic_first_contact_runtime_actor_selection_ring_visible(actor))
+        .map(|actor| actor.id.clone())
+        .collect::<Vec<_>>();
+    selection_ring_visible_actor_ids.sort();
     let visible_actor_id_set = visible_actor_ids
         .iter()
         .map(String::as_str)
@@ -91658,25 +91670,39 @@ fn classic_first_contact_runtime_core_visibility(world: &TrnmOpenRaLikeWorld) ->
         && progress_bar_actor_ids
             .iter()
             .any(|actor_id| actor_id == "map.actor15");
+    let selection_ring_gate = selection_ring_candidate_actor_ids.len() >= 24
+        && selection_ring_visible_actor_ids.is_empty()
+        && selection_ring_candidate_actor_ids
+            .iter()
+            .any(|actor_id| actor_id == "multi0.worker.0")
+        && selection_ring_candidate_actor_ids
+            .iter()
+            .any(|actor_id| actor_id == "multi0.line.0");
     let green = required_visible_gate
         && hidden_fixture_gate
         && bottom_fixture_gate
         && control_fixture_gate
         && visible_subset_gate
-        && inline_health_bar_gate;
+        && inline_health_bar_gate
+        && selection_ring_gate;
     json!({
         "green": green,
-        "source_path": "trnm-world-bevy classic_draw_first_contact_runtime_core_layer player-visible actor subset with control fixtures hidden and inline health bars decluttered",
+        "source_path": "trnm-world-bevy classic_draw_first_contact_runtime_core_layer player-visible actor subset with control fixtures hidden, inline health bars decluttered, and default selection rings suppressed",
         "runtime_core_visible_tile_y_max": CLASSIC_FIRST_CONTACT_RUNTIME_CORE_VISIBLE_TILE_Y_MAX,
         "runtime_core_actor_count": runtime_core_actor_count,
         "runtime_core_visible_actor_count": visible_actors.len(),
         "runtime_core_inline_health_bar_actor_count": inline_health_bar_actor_ids.len(),
         "runtime_core_suppressed_inline_health_bar_actor_count": visible_actors.len().saturating_sub(inline_health_bar_actor_ids.len()),
         "runtime_core_progress_bar_actor_count": progress_bar_actor_ids.len(),
+        "runtime_core_selection_ring_candidate_actor_count": selection_ring_candidate_actor_ids.len(),
+        "runtime_core_selection_ring_visible_actor_count": selection_ring_visible_actor_ids.len(),
+        "runtime_core_suppressed_selection_ring_actor_count": selection_ring_candidate_actor_ids.len().saturating_sub(selection_ring_visible_actor_ids.len()),
         "runtime_core_hidden_fixture_actor_count": hidden_fixture_actors.len(),
         "runtime_core_visible_actor_ids": visible_actor_ids,
         "runtime_core_inline_health_bar_actor_ids": inline_health_bar_actor_ids,
         "runtime_core_progress_bar_actor_ids": progress_bar_actor_ids,
+        "runtime_core_selection_ring_candidate_actor_ids": selection_ring_candidate_actor_ids,
+        "runtime_core_selection_ring_visible_actor_ids": selection_ring_visible_actor_ids,
         "runtime_core_hidden_fixture_actor_ids": hidden_fixture_actor_ids,
         "runtime_core_hidden_control_fixture_actor_count": hidden_control_fixture_actors.len(),
         "runtime_core_hidden_control_fixture_actor_ids": hidden_control_fixture_actor_ids,
@@ -91688,6 +91714,7 @@ fn classic_first_contact_runtime_core_visibility(world: &TrnmOpenRaLikeWorld) ->
         "runtime_core_visible_subset_gate": visible_subset_gate,
         "runtime_core_bottom_fixture_gate": bottom_fixture_gate,
         "runtime_core_inline_health_bar_gate": inline_health_bar_gate,
+        "runtime_core_selection_ring_gate": selection_ring_gate,
     })
 }
 
@@ -91869,6 +91896,20 @@ fn classic_first_contact_runtime_actor_selection_ring(actor: &TrnmOpenRaLikeActo
     classic_first_contact_actor_presentation(actor.rule_id)
         .map(|profile| profile.glyph.selection_ring)
         .unwrap_or(actor.owner == "Multi0")
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_first_contact_runtime_actor_selection_ring_candidate(
+    actor: &TrnmOpenRaLikeActorState,
+) -> bool {
+    actor.owner == "Multi0" && classic_first_contact_runtime_actor_selection_ring(actor)
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_first_contact_runtime_actor_selection_ring_visible(
+    _actor: &TrnmOpenRaLikeActorState,
+) -> bool {
+    false
 }
 
 #[cfg(not(target_os = "android"))]
@@ -92232,7 +92273,7 @@ fn classic_draw_first_contact_actor_glyph(
                 (size_h / 4).max(2),
             );
         }
-        if actor.owner == "Multi0" && classic_first_contact_runtime_actor_selection_ring(actor) {
+        if classic_first_contact_runtime_actor_selection_ring_visible(actor) {
             classic_draw_iso_ellipse(
                 buffer,
                 width,
@@ -150447,7 +150488,7 @@ mod tests {
             guard
                 .get("source_path")
                 .and_then(Value::as_str),
-            Some("trnm-world-bevy classic_draw_first_contact_runtime_core_layer player-visible actor subset with control fixtures hidden and inline health bars decluttered")
+            Some("trnm-world-bevy classic_draw_first_contact_runtime_core_layer player-visible actor subset with control fixtures hidden, inline health bars decluttered, and default selection rings suppressed")
         );
         assert_eq!(
             guard
@@ -150487,6 +150528,20 @@ mod tests {
                 .and_then(Value::as_u64),
             Some(2)
         );
+        assert!(guard
+            .get("runtime_core_selection_ring_candidate_actor_count")
+            .and_then(Value::as_u64)
+            .is_some_and(|count| count == 34));
+        assert_eq!(
+            guard
+                .get("runtime_core_selection_ring_visible_actor_count")
+                .and_then(Value::as_u64),
+            Some(0)
+        );
+        assert!(guard
+            .get("runtime_core_suppressed_selection_ring_actor_count")
+            .and_then(Value::as_u64)
+            .is_some_and(|count| count == 34));
         let visible_actor_ids = guard
             .get("runtime_core_visible_actor_ids")
             .and_then(Value::as_array)
@@ -150542,6 +150597,23 @@ mod tests {
                 "{guard:#}"
             );
         }
+        let selection_ring_candidate_actor_ids = guard
+            .get("runtime_core_selection_ring_candidate_actor_ids")
+            .and_then(Value::as_array)
+            .expect("runtime core selection ring candidate actor ids are listed");
+        for actor_id in ["multi0.worker.0", "multi0.line.0"] {
+            assert!(
+                selection_ring_candidate_actor_ids
+                    .iter()
+                    .any(|value| value.as_str() == Some(actor_id)),
+                "{guard:#}"
+            );
+        }
+        let selection_ring_visible_actor_ids = guard
+            .get("runtime_core_selection_ring_visible_actor_ids")
+            .and_then(Value::as_array)
+            .expect("runtime core selection ring visible actor ids are listed");
+        assert!(selection_ring_visible_actor_ids.is_empty(), "{guard:#}");
         let hidden_fixture_actor_ids = guard
             .get("runtime_core_hidden_fixture_actor_ids")
             .and_then(Value::as_array)
@@ -150575,6 +150647,7 @@ mod tests {
             "runtime_core_visible_subset_gate",
             "runtime_core_bottom_fixture_gate",
             "runtime_core_inline_health_bar_gate",
+            "runtime_core_selection_ring_gate",
         ] {
             assert_eq!(guard.get(gate).and_then(Value::as_bool), Some(true));
         }
