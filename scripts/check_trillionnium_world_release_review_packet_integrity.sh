@@ -925,6 +925,11 @@ require_artifact_json_expr first_contact_basin_spec_semantics native_bevy_classi
   and .first_contact_motion_readability_guard.action_verbs == ["worker","build","train","train","secure"]
   and .first_contact_motion_readability_guard.unit_status_badges == ["W","S","R","G"]
   and .first_contact_motion_readability_guard.unit_status_color_roles == ["health","mana","attack","confirm"]
+  and (.first_contact_motion_readability_guard.unit_state_motion_signatures | index("player_screen_warden_attack_micro_sparks") != null)
+  and .first_contact_motion_readability_guard.warden_attack_arm_count == 3
+  and .first_contact_motion_readability_guard.warden_attack_arm_width_px == 14
+  and .first_contact_motion_readability_guard.warden_attack_arm_height_px == 2
+  and .first_contact_motion_readability_guard.warden_attack_arm_pixel_budget <= 84
   and .first_contact_motion_readability_guard.track_roles == ["action_trail","npc_action","action_trail","npc_action","action_trail","npc_action"]
   and .first_contact_motion_readability_guard.animation_roles == ["worker","worker","worker","scout","scout","warden","warden","relay","command_core","command_core","relay_structure","beacon","beacon"]
   and (.first_contact_motion_readability_guard.animation_signatures | index("harvest_tool_swing_frame") != null)
@@ -981,6 +986,7 @@ require_artifact_json_expr first_contact_basin_spec_semantics native_bevy_classi
   and .first_contact_motion_readability_guard.animation_frame_richness_pixel_budget >= 520
   and .first_contact_motion_readability_guard.opening_action_gate == true
   and .first_contact_motion_readability_guard.unit_state_motion_gate == true
+  and .first_contact_motion_readability_guard.warden_attack_arm_gate == true
   and .first_contact_motion_readability_guard.tactical_track_motion_gate == true
   and .first_contact_motion_readability_guard.command_feedback_motion_gate == true
   and .first_contact_motion_readability_guard.feedback_raw_marker_gate == true

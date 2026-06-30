@@ -998,6 +998,15 @@ add_first_contact_basin_source_manifest_packet_fixtures() {
       unit_status_badges: ["W", "S", "R", "G"],
       unit_status_color_roles: ["health", "mana", "attack", "confirm"],
       unit_status_pixel_budget: 256,
+      unit_state_motion_signatures: [
+        "unit_status_badges",
+        "player_screen_warden_attack_micro_sparks"
+      ],
+      warden_attack_arm_count: 3,
+      warden_attack_arm_width_px: 14,
+      warden_attack_arm_height_px: 2,
+      warden_attack_arm_pixel_budget: 84,
+      warden_attack_arm_gate: true,
       unit_state_motion_gate: true,
       track_roles: ["action_trail", "npc_action", "action_trail", "npc_action", "action_trail", "npc_action"],
       animation_sample_tiles: ["12,16", "10,12", "14,11", "25,8", "24,10", "8,25", "10,23", "11,8", "8,8", "9,9", "11,8", "16,9", "16,10"],

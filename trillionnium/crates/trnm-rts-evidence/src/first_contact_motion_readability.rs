@@ -28,6 +28,9 @@ pub struct RtsFirstContactMotionReadabilityRuntime {
     pub feedback_move_trail_step_count_per_origin: usize,
     pub feedback_move_trail_tick_width_px: usize,
     pub feedback_move_trail_tick_height_px: usize,
+    pub warden_attack_arm_count: usize,
+    pub warden_attack_arm_width_px: usize,
+    pub warden_attack_arm_height_px: usize,
 }
 
 fn string_vec<const N: usize>(values: [&str; N]) -> Vec<String> {
@@ -206,6 +209,20 @@ pub fn first_contact_motion_readability_guard(
     let feedback_move_trail_pixel_budget = feedback_move_trail_tick_count
         * runtime.feedback_move_trail_tick_width_px
         * runtime.feedback_move_trail_tick_height_px;
+    let warden_attack_arm_pixel_budget = runtime.warden_attack_arm_count
+        * runtime.warden_attack_arm_width_px
+        * runtime.warden_attack_arm_height_px;
+    let unit_state_motion_signatures = string_vec([
+        "unit_status_badges",
+        "player_screen_warden_attack_micro_sparks",
+    ]);
+    let warden_attack_arm_gate = runtime.warden_attack_arm_count == 3
+        && runtime.warden_attack_arm_width_px == 14
+        && runtime.warden_attack_arm_height_px == 2
+        && warden_attack_arm_pixel_budget <= 84
+        && unit_state_motion_signatures
+            .iter()
+            .any(|signature| signature.as_str() == "player_screen_warden_attack_micro_sparks");
     let command_feedback_motion_signatures = string_vec([
         "feedback_player_labels",
         "battlefield_command_feedback_micro_trail",
@@ -238,7 +255,8 @@ pub fn first_contact_motion_readability_guard(
             .unit_statuses
             .iter()
             .all(|status| status.health_percent >= 60 && status.shield_percent > 0)
-        && unit_status_pixel_budget >= 256;
+        && unit_status_pixel_budget >= 256
+        && warden_attack_arm_gate;
     let tactical_track_motion_gate = telemetry.tactical_tracks.len() == 6
         && action_trail_count == 3
         && npc_action_count == 3
@@ -355,6 +373,12 @@ pub fn first_contact_motion_readability_guard(
         "unit_status_badges": unit_status_badges,
         "unit_status_color_roles": unit_status_color_roles,
         "unit_status_pixel_budget": unit_status_pixel_budget,
+        "unit_state_motion_signatures": unit_state_motion_signatures,
+        "warden_attack_arm_count": runtime.warden_attack_arm_count,
+        "warden_attack_arm_width_px": runtime.warden_attack_arm_width_px,
+        "warden_attack_arm_height_px": runtime.warden_attack_arm_height_px,
+        "warden_attack_arm_pixel_budget": warden_attack_arm_pixel_budget,
+        "warden_attack_arm_gate": warden_attack_arm_gate,
         "unit_state_motion_gate": unit_state_motion_gate,
         "track_roles": track_roles,
         "track_samples": track_sample_objects,
@@ -447,6 +471,9 @@ mod tests {
             feedback_move_trail_step_count_per_origin: 10,
             feedback_move_trail_tick_width_px: 2,
             feedback_move_trail_tick_height_px: 2,
+            warden_attack_arm_count: 3,
+            warden_attack_arm_width_px: 14,
+            warden_attack_arm_height_px: 2,
         };
         let guard = first_contact_motion_readability_guard(
             &trnm_rts_data::first_contact_opening_loop_profile(),
@@ -517,6 +544,30 @@ mod tests {
                 .get("unit_animation_frame_count")
                 .and_then(Value::as_u64),
             Some(8)
+        );
+        assert_eq!(
+            guard
+                .get("unit_state_motion_signatures")
+                .and_then(Value::as_array)
+                .map(|signatures| {
+                    signatures
+                        .iter()
+                        .any(|value| value.as_str() == Some("unit_status_badges"))
+                        && signatures.iter().any(|value| {
+                            value.as_str() == Some("player_screen_warden_attack_micro_sparks")
+                        })
+                }),
+            Some(true)
+        );
+        assert_eq!(
+            guard
+                .get("warden_attack_arm_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(84)
+        );
+        assert_eq!(
+            guard.get("warden_attack_arm_gate").and_then(Value::as_bool),
+            Some(true)
         );
         assert_eq!(
             guard.get("feedback_player_labels").cloned(),
@@ -597,6 +648,7 @@ mod tests {
         for gate in [
             "opening_action_gate",
             "unit_state_motion_gate",
+            "warden_attack_arm_gate",
             "tactical_track_motion_gate",
             "command_feedback_motion_gate",
             "feedback_raw_marker_gate",

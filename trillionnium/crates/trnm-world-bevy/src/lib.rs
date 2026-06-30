@@ -822,6 +822,9 @@ const CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK_MOVE_TRAIL_ORIGIN_COUNT: usize = 2;
 const CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK_MOVE_TRAIL_STEP_COUNT: usize = 10;
 const CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK_MOVE_TRAIL_TICK_W_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK_MOVE_TRAIL_TICK_H_PX: i32 = 2;
+const CLASSIC_FIRST_CONTACT_WARDEN_ATTACK_ARM_COUNT: usize = 3;
+const CLASSIC_FIRST_CONTACT_PLAYER_WARDEN_ATTACK_ARM_W_PX: i32 = 14;
+const CLASSIC_FIRST_CONTACT_PLAYER_WARDEN_ATTACK_ARM_H_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_OWNER_PLAYER_COLOR: u32 = 0x67c980;
 const CLASSIC_FIRST_CONTACT_OWNER_ENEMY_COLOR: u32 = 0xd47967;
 const CLASSIC_FIRST_CONTACT_NON_FOCUS_OWNER_IDENTITY_PIXEL_BUDGET: usize = 192;
@@ -92971,6 +92974,7 @@ fn classic_draw_first_contact_unit_state_layers(
     map_y: i32,
     cell_w: i32,
     cell_h: i32,
+    player_screen: bool,
 ) {
     let telemetry = classic_first_contact_visual_telemetry();
     for status in telemetry.unit_statuses {
@@ -93100,15 +93104,31 @@ fn classic_draw_first_contact_unit_state_layers(
     }
 
     let warden = classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, (8, 25));
-    for arm in 0..3 {
+    for arm in 0..CLASSIC_FIRST_CONTACT_WARDEN_ATTACK_ARM_COUNT {
+        let arm = arm as i32;
+        let arm_w = if player_screen {
+            CLASSIC_FIRST_CONTACT_PLAYER_WARDEN_ATTACK_ARM_W_PX
+        } else {
+            cell_w * 3
+        };
+        let arm_h = if player_screen {
+            CLASSIC_FIRST_CONTACT_PLAYER_WARDEN_ATTACK_ARM_H_PX
+        } else {
+            2
+        };
+        let arm_x = if player_screen {
+            warden.0 + cell_w / 2 + arm * 7
+        } else {
+            warden.0 + cell_w / 2
+        };
         classic_draw_rect(
             buffer,
             width,
             height,
-            warden.0 + cell_w / 2,
+            arm_x,
             warden.1 - cell_h + arm * 8,
-            cell_w * 3,
-            2,
+            arm_w,
+            arm_h,
             CLASSIC_RTS_SELECTION_FEEDBACK_ATTACK_COLOR,
         );
     }
@@ -95866,7 +95886,14 @@ fn classic_draw_first_contact_basin_scene(
         buffer, width, height, assets, map_x, map_y, cell_w, cell_h,
     );
     classic_draw_first_contact_unit_state_layers(
-        buffer, width, height, map_x, map_y, cell_w, cell_h,
+        buffer,
+        width,
+        height,
+        map_x,
+        map_y,
+        cell_w,
+        cell_h,
+        player_screen,
     );
     classic_draw_first_contact_combat_phase_layers(
         buffer, width, height, map_x, map_y, cell_w, cell_h,
@@ -101868,6 +101895,9 @@ fn classic_first_contact_motion_readability_guard() -> Value {
             CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK_MOVE_TRAIL_TICK_W_PX as usize,
         feedback_move_trail_tick_height_px:
             CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK_MOVE_TRAIL_TICK_H_PX as usize,
+        warden_attack_arm_count: CLASSIC_FIRST_CONTACT_WARDEN_ATTACK_ARM_COUNT,
+        warden_attack_arm_width_px: CLASSIC_FIRST_CONTACT_PLAYER_WARDEN_ATTACK_ARM_W_PX as usize,
+        warden_attack_arm_height_px: CLASSIC_FIRST_CONTACT_PLAYER_WARDEN_ATTACK_ARM_H_PX as usize,
     };
     trnm_rts_evidence::first_contact_motion_readability_guard(
         &opening,
@@ -149824,6 +149854,46 @@ mod tests {
             Some(json!(["W", "S", "R", "G"]))
         );
         assert_eq!(
+            guard
+                .get("unit_state_motion_signatures")
+                .and_then(Value::as_array)
+                .map(|signatures| {
+                    signatures
+                        .iter()
+                        .any(|value| value.as_str() == Some("unit_status_badges"))
+                        && signatures.iter().any(|value| {
+                            value.as_str() == Some("player_screen_warden_attack_micro_sparks")
+                        })
+                }),
+            Some(true)
+        );
+        assert_eq!(
+            guard.get("warden_attack_arm_count").and_then(Value::as_u64),
+            Some(3)
+        );
+        assert_eq!(
+            guard
+                .get("warden_attack_arm_width_px")
+                .and_then(Value::as_u64),
+            Some(14)
+        );
+        assert_eq!(
+            guard
+                .get("warden_attack_arm_height_px")
+                .and_then(Value::as_u64),
+            Some(2)
+        );
+        assert_eq!(
+            guard
+                .get("warden_attack_arm_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(84)
+        );
+        assert_eq!(
+            guard.get("warden_attack_arm_gate").and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
             guard.get("feedback_player_labels").cloned(),
             Some(json!([
                 "GROUP 1 SECURING BEACON",
@@ -149975,6 +150045,7 @@ mod tests {
         for gate in [
             "opening_action_gate",
             "unit_state_motion_gate",
+            "warden_attack_arm_gate",
             "tactical_track_motion_gate",
             "command_feedback_motion_gate",
             "feedback_raw_marker_gate",
