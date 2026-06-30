@@ -105,8 +105,8 @@ pub fn first_contact_selection_combat_focus_guard(
         "selected_corner_brackets",
         "selected_role_badge_micro_pips",
         "wide_route_dashes",
-        "route_ack_step_ticks",
-        "compact_route_ack_ticks",
+        "route_ack_step_micro_dots",
+        "route_ack_micro_dots",
         "route_clearance_corner_cues",
         "attack_target_lock_brackets",
         "compact_target_lock_cross",
@@ -155,10 +155,10 @@ pub fn first_contact_selection_combat_focus_guard(
         && route_line_step_count >= 10
         && geometry.route_dash_width_px == 16
         && geometry.route_dash_height_px == 3
-        && geometry.route_ack_tick_width_px == 8
+        && geometry.route_ack_tick_width_px == 2
         && geometry.route_ack_tick_height_px == 2
-        && route_ack_tick_pixel_budget <= 96
-        && route_focus_pixel_budget <= 288;
+        && route_ack_tick_pixel_budget == 24
+        && route_focus_pixel_budget <= 216;
     let route_clearance_gate = route_clearance_tile_ids
         == string_vec([
             "13,11", "14,10", "14,12", "15,9", "15,10", "16,8", "16,11", "17,9", "17,10",
@@ -192,7 +192,7 @@ pub fn first_contact_selection_combat_focus_guard(
             .any(|signature| signature.as_str() == "route_clearance_corner_cues")
         && focus_signatures
             .iter()
-            .any(|signature| signature.as_str() == "compact_route_ack_ticks")
+            .any(|signature| signature.as_str() == "route_ack_micro_dots")
         && focus_signatures
             .iter()
             .any(|signature| signature.as_str() == "compact_target_lock_cross")
@@ -448,7 +448,7 @@ mod tests {
                 selected_focus_bracket_pixels_per_tile: 64,
                 route_dash_width_px: 16,
                 route_dash_height_px: 3,
-                route_ack_tick_width_px: 8,
+                route_ack_tick_width_px: 2,
                 route_ack_tick_height_px: 2,
                 route_clearance_corner_cue_width_px: 6,
                 route_clearance_corner_cue_height_px: 2,

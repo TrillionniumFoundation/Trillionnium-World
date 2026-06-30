@@ -189,7 +189,7 @@ where
             "lower_lane_shadow_suppressed",
             "lower_lane_ghost_anchors",
             "lower_lane_single_point_ghost_anchors",
-            "compact_route_ack_ticks",
+            "route_ack_micro_dots",
             "perimeter_gallery_lane_budget",
             "interactive_focus_kept_hot",
             "non_focus_owner_identity_muted",
@@ -368,7 +368,7 @@ pub fn first_contact_marker_budget_guard(runtime: &RtsFirstContactMarkerBudgetRu
         && route_focus_tiles == string_vec(["14,11", "15,11", "16,10", "16,9"])
         && interactive_hot_marker_role_count >= 5
         && selected_role_badge_tick_pixel_budget == 16
-        && interactive_focus_pixel_budget >= 832;
+        && interactive_focus_pixel_budget == 764;
     let non_focus_owner_identity_gate = non_focus_owner_identity_colors.len() == 2
         && non_focus_owner_identity_hot_color_count == 0
         && non_focus_owner_identity_pixel_budget <= 192
@@ -494,7 +494,7 @@ mod tests {
             selected_focus_bracket_pixels_per_tile: 64,
             route_dash_width_px: 16,
             route_dash_height_px: 3,
-            route_ack_tick_width_px: 8,
+            route_ack_tick_width_px: 2,
             route_ack_tick_height_px: 2,
         }
     }
