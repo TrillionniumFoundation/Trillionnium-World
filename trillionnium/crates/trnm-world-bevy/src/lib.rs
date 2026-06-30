@@ -796,9 +796,9 @@ const CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_X_OFFSET_PX: i32 = 42;
 const CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_Y_OFFSET_PX: i32 = -42;
 const CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_HEALTH_BAR_W_PX: i32 = 54;
 const CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_HEALTH_BAR_H_PX: i32 = 3;
-const CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_CLEARANCE_PAD_PX: i32 = 5;
-const CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_LEADER_CLEARANCE_W_PX: i32 = 34;
-const CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_LEADER_CLEARANCE_H_PX: i32 = 6;
+const CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_CLEARANCE_PAD_PX: i32 = 0;
+const CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_LEADER_CLEARANCE_W_PX: i32 = 0;
+const CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_LEADER_CLEARANCE_H_PX: i32 = 0;
 const CLASSIC_FIRST_CONTACT_TARGET_PREFLIGHT_RING_COUNT: i32 = 2;
 const CLASSIC_FIRST_CONTACT_TARGET_PREFLIGHT_RING_THICKNESS_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_TARGET_PREFLIGHT_CROSS_LONG_PX: i32 = 16;
@@ -150555,7 +150555,7 @@ mod tests {
             guard
                 .get("target_callout_clearance_pad_px")
                 .and_then(Value::as_i64),
-            Some(5)
+            Some(0)
         );
         assert_eq!(
             guard
@@ -150576,7 +150576,7 @@ mod tests {
                 .map(|signatures| {
                     signatures
                         .iter()
-                        .any(|value| value.as_str() == Some("target_callout_clearance_gutter"))
+                        .any(|value| value.as_str() == Some("compact_target_callout_plate"))
                         && signatures
                             .iter()
                             .any(|value| value.as_str() == Some("prefocus_target_rings_capped"))

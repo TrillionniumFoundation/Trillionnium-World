@@ -308,17 +308,18 @@ pub fn first_contact_target_callout_guard(
         (geometry.target_callout_width_px * geometry.target_callout_height_px) as usize;
     let target_callout_leader_pixel_budget = 64_usize;
     let target_callout_clearance_pixel_budget =
-        ((geometry.target_callout_width_px + geometry.target_callout_clearance_pad_px * 2)
+        (((geometry.target_callout_width_px + geometry.target_callout_clearance_pad_px * 2)
             * (geometry.target_callout_height_px + geometry.target_callout_clearance_pad_px * 2)
             + geometry.target_callout_leader_clearance_width_px
-                * geometry.target_callout_leader_clearance_height_px) as usize;
+                * geometry.target_callout_leader_clearance_height_px) as usize)
+            .saturating_sub(target_callout_pixel_budget);
     let target_prefocus_ring_count = geometry.target_preflight_ring_count;
     let target_prefocus_marker_pixel_budget = target_prefocus_ring_count * 96
         + (geometry.target_preflight_cross_long_px
             * geometry.target_preflight_cross_thickness_px
             * 2) as usize;
     let target_callout_signatures = string_vec([
-        "target_callout_clearance_gutter",
+        "compact_target_callout_plate",
         "target_subject_label",
         "target_health_strip",
         "short_leader_ticks",
@@ -341,10 +342,10 @@ pub fn first_contact_target_callout_guard(
         && geometry.target_callout_y_offset_px == -42
         && target_callout_pixel_budget >= 1_560;
     let target_leader_gate = target_callout_leader_pixel_budget >= 64;
-    let target_callout_clearance_gate = geometry.target_callout_clearance_pad_px == 5
-        && geometry.target_callout_leader_clearance_width_px == 34
-        && geometry.target_callout_leader_clearance_height_px == 6
-        && target_callout_clearance_pixel_budget >= 2_844;
+    let target_callout_clearance_gate = geometry.target_callout_clearance_pad_px == 0
+        && geometry.target_callout_leader_clearance_width_px == 0
+        && geometry.target_callout_leader_clearance_height_px == 0
+        && target_callout_clearance_pixel_budget == 0;
     let target_prefocus_marker_gate = target_prefocus_ring_count == 2
         && geometry.target_preflight_ring_thickness_px == 2
         && geometry.target_preflight_cross_long_px == 16
@@ -353,7 +354,7 @@ pub fn first_contact_target_callout_guard(
     let target_signature_gate = target_callout_signatures.len() == 7
         && target_callout_signatures
             .iter()
-            .any(|signature| signature == "target_callout_clearance_gutter")
+            .any(|signature| signature == "compact_target_callout_plate")
         && target_callout_signatures
             .iter()
             .any(|signature| signature == "target_subject_label")
@@ -386,7 +387,7 @@ pub fn first_contact_target_callout_guard(
         "readout_surface_contract": TRNM_RTS_BEVY_RUNTIME_FIRST_CONTACT_READOUT_SURFACE_CONTRACT,
         "subject_surface_contract": TRNM_RTS_BEVY_RUNTIME_FIRST_CONTACT_SUBJECT_SURFACE_CONTRACT,
         "green": target_callout_gate,
-        "source_path": "trnm-world-bevy classic_draw_first_contact_selection_combat_focus_layer target callout with clearance gutter inside final focus layer",
+        "source_path": "trnm-world-bevy classic_draw_first_contact_selection_combat_focus_layer compact target callout plate inside final focus layer",
         "target_tile": target_tile,
         "target_subject": target_subject,
         "target_label": target_label,
@@ -463,9 +464,9 @@ mod tests {
                 target_callout_y_offset_px: -42,
                 target_callout_health_bar_width_px: 54,
                 target_callout_health_bar_height_px: 3,
-                target_callout_clearance_pad_px: 5,
-                target_callout_leader_clearance_width_px: 34,
-                target_callout_leader_clearance_height_px: 6,
+                target_callout_clearance_pad_px: 0,
+                target_callout_leader_clearance_width_px: 0,
+                target_callout_leader_clearance_height_px: 0,
                 target_preflight_ring_count: 2,
                 target_preflight_ring_thickness_px: 2,
                 target_preflight_cross_long_px: 16,

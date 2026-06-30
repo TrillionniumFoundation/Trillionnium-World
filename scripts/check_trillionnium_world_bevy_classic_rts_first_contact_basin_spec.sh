@@ -1417,7 +1417,7 @@ cat >"$JQ_FILTER" <<'JQ'
   and .first_contact_target_callout_contract == "trillionnium_world_bevy_classic_rts_first_contact_target_callout_v1"
   and .first_contact_target_callout_guard.contract_version == "trillionnium_world_bevy_classic_rts_first_contact_target_callout_v1"
   and .first_contact_target_callout_guard.green == true
-  and .first_contact_target_callout_guard.source_path == "trnm-world-bevy classic_draw_first_contact_selection_combat_focus_layer target callout with clearance gutter inside final focus layer"
+  and .first_contact_target_callout_guard.source_path == "trnm-world-bevy classic_draw_first_contact_selection_combat_focus_layer compact target callout plate inside final focus layer"
   and .first_contact_target_callout_guard.target_tile == "16,9"
   and .first_contact_target_callout_guard.target_subject == "BEACON"
   and .first_contact_target_callout_guard.target_label == "BEACON 38%"
@@ -1432,16 +1432,16 @@ cat >"$JQ_FILTER" <<'JQ'
   and .first_contact_target_callout_guard.target_callout_health_bar_height_px == 3
   and .first_contact_target_callout_guard.target_callout_pixel_budget >= 1560
   and .first_contact_target_callout_guard.target_callout_leader_pixel_budget >= 64
-  and .first_contact_target_callout_guard.target_callout_clearance_pad_px == 5
-  and .first_contact_target_callout_guard.target_callout_leader_clearance_width_px == 34
-  and .first_contact_target_callout_guard.target_callout_leader_clearance_height_px == 6
-  and .first_contact_target_callout_guard.target_callout_clearance_pixel_budget >= 2844
+  and .first_contact_target_callout_guard.target_callout_clearance_pad_px == 0
+  and .first_contact_target_callout_guard.target_callout_leader_clearance_width_px == 0
+  and .first_contact_target_callout_guard.target_callout_leader_clearance_height_px == 0
+  and .first_contact_target_callout_guard.target_callout_clearance_pixel_budget == 0
   and .first_contact_target_callout_guard.target_prefocus_ring_count == 2
   and .first_contact_target_callout_guard.target_prefocus_ring_thickness_px == 2
   and .first_contact_target_callout_guard.target_prefocus_cross_long_px == 16
   and .first_contact_target_callout_guard.target_prefocus_cross_thickness_px == 2
   and .first_contact_target_callout_guard.target_prefocus_marker_pixel_budget <= 256
-  and (.first_contact_target_callout_guard.target_callout_signatures | index("target_callout_clearance_gutter") != null)
+  and (.first_contact_target_callout_guard.target_callout_signatures | index("compact_target_callout_plate") != null)
   and (.first_contact_target_callout_guard.target_callout_signatures | index("target_subject_label") != null)
   and (.first_contact_target_callout_guard.target_callout_signatures | index("target_health_strip") != null)
   and (.first_contact_target_callout_guard.target_callout_signatures | index("prefocus_target_rings_capped") != null)
