@@ -22,6 +22,9 @@ pub struct RtsFirstContactFocusReadabilityGeometrySnapshot {
     pub route_dash_height_px: usize,
     pub route_ack_tick_width_px: usize,
     pub route_ack_tick_height_px: usize,
+    pub route_clearance_corner_cue_width_px: usize,
+    pub route_clearance_corner_cue_height_px: usize,
+    pub route_clearance_corner_cues_per_tile: usize,
     pub target_lock_cross_long_px: i32,
     pub target_lock_cross_thickness_px: i32,
     pub target_lock_ack_tick_width_px: i32,
@@ -105,7 +108,7 @@ pub fn first_contact_selection_combat_focus_guard(
         "wide_route_dashes",
         "route_ack_step_ticks",
         "compact_route_ack_ticks",
-        "route_clearance_gutters",
+        "route_clearance_corner_cues",
         "attack_target_lock_brackets",
         "compact_target_lock_cross",
         "blocked_warning_cross",
@@ -127,8 +130,13 @@ pub fn first_contact_selection_combat_focus_guard(
     let route_ack_tick_pixel_budget =
         route_ack_tick_count * geometry.route_ack_tick_width_px * geometry.route_ack_tick_height_px;
     let route_focus_pixel_budget = route_dash_pixel_budget + route_ack_tick_pixel_budget;
-    let route_clearance_pixel_budget = route_clearance_tile_ids.len() * 88;
-    let route_clearance_edge_pixel_budget = route_clearance_tile_ids.len() * 16;
+    let route_clearance_corner_cue_count =
+        route_clearance_tile_ids.len() * geometry.route_clearance_corner_cues_per_tile;
+    let route_clearance_corner_cue_pixel_budget = route_clearance_corner_cue_count
+        * geometry.route_clearance_corner_cue_width_px
+        * geometry.route_clearance_corner_cue_height_px;
+    let route_clearance_gutter_fill_pixel_budget = 0_usize;
+    let route_clearance_pixel_budget = route_clearance_corner_cue_pixel_budget;
     let combat_target_cross_pixel_budget =
         (geometry.target_lock_cross_long_px * geometry.target_lock_cross_thickness_px * 2) as usize;
     let combat_target_ack_tick_pixel_budget =
@@ -157,8 +165,12 @@ pub fn first_contact_selection_combat_focus_guard(
             "13,11", "14,10", "14,12", "15,9", "15,10", "16,8", "16,11", "17,9", "17,10",
         ])
         && route_clearance_overlap_tiles.is_empty()
-        && route_clearance_pixel_budget >= 792
-        && route_clearance_edge_pixel_budget >= 144;
+        && geometry.route_clearance_corner_cues_per_tile == 4
+        && geometry.route_clearance_corner_cue_width_px == 6
+        && geometry.route_clearance_corner_cue_height_px == 2
+        && route_clearance_gutter_fill_pixel_budget == 0
+        && route_clearance_corner_cue_pixel_budget == 432
+        && route_clearance_pixel_budget <= 432;
     let combat_target_focus_gate = target_focus_tile == "16,9"
         && geometry.target_lock_cross_long_px == 28
         && geometry.target_lock_cross_thickness_px == 3
@@ -178,7 +190,7 @@ pub fn first_contact_selection_combat_focus_guard(
             .any(|signature| signature.as_str() == "compact_selected_role_badge_ticks")
         && focus_signatures
             .iter()
-            .any(|signature| signature.as_str() == "route_clearance_gutters")
+            .any(|signature| signature.as_str() == "route_clearance_corner_cues")
         && focus_signatures
             .iter()
             .any(|signature| signature.as_str() == "compact_route_ack_ticks")
@@ -254,8 +266,13 @@ pub fn first_contact_selection_combat_focus_guard(
         "route_dash_pixel_budget": route_dash_pixel_budget,
         "route_ack_tick_pixel_budget": route_ack_tick_pixel_budget,
         "route_focus_pixel_budget": route_focus_pixel_budget,
+        "route_clearance_corner_cue_count": route_clearance_corner_cue_count,
+        "route_clearance_corner_cue_width_px": geometry.route_clearance_corner_cue_width_px,
+        "route_clearance_corner_cue_height_px": geometry.route_clearance_corner_cue_height_px,
+        "route_clearance_corner_cues_per_tile": geometry.route_clearance_corner_cues_per_tile,
+        "route_clearance_corner_cue_pixel_budget": route_clearance_corner_cue_pixel_budget,
+        "route_clearance_gutter_fill_pixel_budget": route_clearance_gutter_fill_pixel_budget,
         "route_clearance_pixel_budget": route_clearance_pixel_budget,
-        "route_clearance_edge_pixel_budget": route_clearance_edge_pixel_budget,
         "combat_target_cross_long_px": geometry.target_lock_cross_long_px,
         "combat_target_cross_thickness_px": geometry.target_lock_cross_thickness_px,
         "combat_target_ack_tick_width_px": geometry.target_lock_ack_tick_width_px,
@@ -433,6 +450,9 @@ mod tests {
                 route_dash_height_px: 3,
                 route_ack_tick_width_px: 8,
                 route_ack_tick_height_px: 2,
+                route_clearance_corner_cue_width_px: 6,
+                route_clearance_corner_cue_height_px: 2,
+                route_clearance_corner_cues_per_tile: 4,
                 target_lock_cross_long_px: 28,
                 target_lock_cross_thickness_px: 3,
                 target_lock_ack_tick_width_px: 18,

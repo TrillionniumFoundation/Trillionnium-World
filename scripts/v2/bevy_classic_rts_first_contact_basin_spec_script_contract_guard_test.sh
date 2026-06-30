@@ -46,7 +46,7 @@ basin_lines=(
   'required_focus_renderer_source_lines=('
   'fn selection_combat_focus_route_tiles'
   'fn route_clearance_tiles'
-  'fn draw_route_clearance_gutters'
+  'fn draw_route_clearance_corner_cues'
   'fn draw_focus_corner_brackets'
   'fn draw_target_callout'
   'pub(super) fn draw_selection_combat_focus_layer'

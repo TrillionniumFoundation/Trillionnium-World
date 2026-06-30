@@ -814,6 +814,10 @@ const CLASSIC_FIRST_CONTACT_ROUTE_DASH_WIDTH_PX: i32 = 16;
 const CLASSIC_FIRST_CONTACT_ROUTE_DASH_HEIGHT_PX: i32 = 3;
 const CLASSIC_FIRST_CONTACT_ROUTE_ACK_TICK_WIDTH_PX: i32 = 8;
 const CLASSIC_FIRST_CONTACT_ROUTE_ACK_TICK_HEIGHT_PX: i32 = 2;
+const CLASSIC_FIRST_CONTACT_ROUTE_CLEARANCE_CORNER_CUE_W_PX: i32 = 6;
+const CLASSIC_FIRST_CONTACT_ROUTE_CLEARANCE_CORNER_CUE_H_PX: i32 = 2;
+const CLASSIC_FIRST_CONTACT_ROUTE_CLEARANCE_CORNER_CUE_INSET_PX: i32 = 5;
+const CLASSIC_FIRST_CONTACT_ROUTE_CLEARANCE_CORNER_CUES_PER_TILE: usize = 4;
 const CLASSIC_FIRST_CONTACT_OWNER_PLAYER_COLOR: u32 = 0x67c980;
 const CLASSIC_FIRST_CONTACT_OWNER_ENEMY_COLOR: u32 = 0xd47967;
 const CLASSIC_FIRST_CONTACT_NON_FOCUS_OWNER_IDENTITY_PIXEL_BUDGET: usize = 192;
@@ -150322,7 +150326,7 @@ mod tests {
                             .any(|value| value.as_str() == Some("compact_target_lock_cross"))
                         && signatures
                             .iter()
-                            .any(|value| value.as_str() == Some("route_clearance_gutters"))
+                            .any(|value| value.as_str() == Some("route_clearance_corner_cues"))
                         && signatures
                             .iter()
                             .any(|value| value.as_str() == Some("compact_route_ack_ticks"))
@@ -150392,9 +150396,39 @@ mod tests {
         );
         assert_eq!(
             guard
+                .get("route_clearance_corner_cue_count")
+                .and_then(Value::as_u64),
+            Some(36)
+        );
+        assert_eq!(
+            guard
+                .get("route_clearance_corner_cue_width_px")
+                .and_then(Value::as_u64),
+            Some(6)
+        );
+        assert_eq!(
+            guard
+                .get("route_clearance_corner_cue_height_px")
+                .and_then(Value::as_u64),
+            Some(2)
+        );
+        assert_eq!(
+            guard
+                .get("route_clearance_corner_cue_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(432)
+        );
+        assert_eq!(
+            guard
+                .get("route_clearance_gutter_fill_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(0)
+        );
+        assert_eq!(
+            guard
                 .get("route_clearance_pixel_budget")
                 .and_then(Value::as_u64),
-            Some(792)
+            Some(432)
         );
         assert_eq!(
             guard

@@ -7,6 +7,9 @@ use crate::{
     classic_parse_rts_tile, classic_rts_tile_id, classic_text_advance_px, first_contact_readouts,
     first_contact_tiles, NativeFirstPlayableRuntime,
     CLASSIC_FIRST_CONTACT_ROUTE_ACK_TICK_HEIGHT_PX, CLASSIC_FIRST_CONTACT_ROUTE_ACK_TICK_WIDTH_PX,
+    CLASSIC_FIRST_CONTACT_ROUTE_CLEARANCE_CORNER_CUES_PER_TILE,
+    CLASSIC_FIRST_CONTACT_ROUTE_CLEARANCE_CORNER_CUE_H_PX,
+    CLASSIC_FIRST_CONTACT_ROUTE_CLEARANCE_CORNER_CUE_W_PX,
     CLASSIC_FIRST_CONTACT_ROUTE_DASH_HEIGHT_PX, CLASSIC_FIRST_CONTACT_ROUTE_DASH_WIDTH_PX,
     CLASSIC_FIRST_CONTACT_SELECTED_FOCUS_BRACKET_PIXELS_PER_TILE,
     CLASSIC_FIRST_CONTACT_SELECTED_ROLE_BADGE_TICK_H_PX,
@@ -59,6 +62,12 @@ fn focus_geometry_snapshot() -> trnm_rts_evidence::RtsFirstContactFocusReadabili
         route_dash_height_px: CLASSIC_FIRST_CONTACT_ROUTE_DASH_HEIGHT_PX as usize,
         route_ack_tick_width_px: CLASSIC_FIRST_CONTACT_ROUTE_ACK_TICK_WIDTH_PX as usize,
         route_ack_tick_height_px: CLASSIC_FIRST_CONTACT_ROUTE_ACK_TICK_HEIGHT_PX as usize,
+        route_clearance_corner_cue_width_px: CLASSIC_FIRST_CONTACT_ROUTE_CLEARANCE_CORNER_CUE_W_PX
+            as usize,
+        route_clearance_corner_cue_height_px: CLASSIC_FIRST_CONTACT_ROUTE_CLEARANCE_CORNER_CUE_H_PX
+            as usize,
+        route_clearance_corner_cues_per_tile:
+            CLASSIC_FIRST_CONTACT_ROUTE_CLEARANCE_CORNER_CUES_PER_TILE,
         target_lock_cross_long_px: CLASSIC_FIRST_CONTACT_TARGET_LOCK_CROSS_LONG_PX,
         target_lock_cross_thickness_px: CLASSIC_FIRST_CONTACT_TARGET_LOCK_CROSS_THICKNESS_PX,
         target_lock_ack_tick_width_px: CLASSIC_FIRST_CONTACT_TARGET_LOCK_ACK_TICK_W_PX,

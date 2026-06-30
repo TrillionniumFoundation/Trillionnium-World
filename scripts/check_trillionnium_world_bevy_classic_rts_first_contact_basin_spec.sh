@@ -287,7 +287,7 @@ done
 required_focus_renderer_source_lines=(
   'fn selection_combat_focus_route_tiles'
   'fn route_clearance_tiles'
-  'fn draw_route_clearance_gutters'
+  'fn draw_route_clearance_corner_cues'
   'fn draw_focus_corner_brackets'
   'fn draw_target_callout'
   'pub(super) fn draw_selection_combat_focus_layer'
@@ -1367,7 +1367,7 @@ cat >"$JQ_FILTER" <<'JQ'
   and (.first_contact_selection_combat_focus_guard.focus_signatures | index("compact_selected_role_badge_ticks") != null)
   and (.first_contact_selection_combat_focus_guard.focus_signatures | index("wide_route_dashes") != null)
   and (.first_contact_selection_combat_focus_guard.focus_signatures | index("compact_route_ack_ticks") != null)
-  and (.first_contact_selection_combat_focus_guard.focus_signatures | index("route_clearance_gutters") != null)
+  and (.first_contact_selection_combat_focus_guard.focus_signatures | index("route_clearance_corner_cues") != null)
   and (.first_contact_selection_combat_focus_guard.focus_signatures | index("attack_target_lock_brackets") != null)
   and (.first_contact_selection_combat_focus_guard.focus_signatures | index("compact_target_lock_cross") != null)
   and (.first_contact_selection_combat_focus_guard.focus_signatures | index("blocked_warning_cross") != null)
@@ -1384,8 +1384,13 @@ cat >"$JQ_FILTER" <<'JQ'
   and .first_contact_selection_combat_focus_guard.selected_focus_pixel_budget <= 328
   and .first_contact_selection_combat_focus_guard.route_ack_tick_pixel_budget <= 96
   and .first_contact_selection_combat_focus_guard.route_focus_pixel_budget <= 288
-  and .first_contact_selection_combat_focus_guard.route_clearance_pixel_budget >= 792
-  and .first_contact_selection_combat_focus_guard.route_clearance_edge_pixel_budget >= 144
+  and .first_contact_selection_combat_focus_guard.route_clearance_corner_cue_count == 36
+  and .first_contact_selection_combat_focus_guard.route_clearance_corner_cue_width_px == 6
+  and .first_contact_selection_combat_focus_guard.route_clearance_corner_cue_height_px == 2
+  and .first_contact_selection_combat_focus_guard.route_clearance_corner_cues_per_tile == 4
+  and .first_contact_selection_combat_focus_guard.route_clearance_corner_cue_pixel_budget == 432
+  and .first_contact_selection_combat_focus_guard.route_clearance_gutter_fill_pixel_budget == 0
+  and .first_contact_selection_combat_focus_guard.route_clearance_pixel_budget <= 432
   and .first_contact_selection_combat_focus_guard.combat_target_cross_long_px == 28
   and .first_contact_selection_combat_focus_guard.combat_target_cross_thickness_px == 3
   and .first_contact_selection_combat_focus_guard.combat_target_ack_tick_width_px == 18

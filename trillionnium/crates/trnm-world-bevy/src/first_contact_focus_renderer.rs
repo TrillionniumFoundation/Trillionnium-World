@@ -6,6 +6,9 @@ use crate::{
     classic_first_contact_tile_tuple, classic_mix_color, classic_parse_rts_tile,
     first_contact_readouts, first_contact_tiles, NativeFirstPlayableRuntime,
     CLASSIC_FIRST_CONTACT_ROUTE_ACK_TICK_HEIGHT_PX, CLASSIC_FIRST_CONTACT_ROUTE_ACK_TICK_WIDTH_PX,
+    CLASSIC_FIRST_CONTACT_ROUTE_CLEARANCE_CORNER_CUE_H_PX,
+    CLASSIC_FIRST_CONTACT_ROUTE_CLEARANCE_CORNER_CUE_INSET_PX,
+    CLASSIC_FIRST_CONTACT_ROUTE_CLEARANCE_CORNER_CUE_W_PX,
     CLASSIC_FIRST_CONTACT_ROUTE_DASH_HEIGHT_PX, CLASSIC_FIRST_CONTACT_ROUTE_DASH_WIDTH_PX,
     CLASSIC_FIRST_CONTACT_SELECTED_ROLE_BADGE_TICK_H_PX,
     CLASSIC_FIRST_CONTACT_SELECTED_ROLE_BADGE_TICK_W_PX,
@@ -39,7 +42,7 @@ fn route_clearance_tiles(runtime: &NativeFirstPlayableRuntime) -> Vec<(i32, i32)
 }
 
 #[allow(clippy::too_many_arguments)]
-fn draw_route_clearance_gutters(
+fn draw_route_clearance_corner_cues(
     buffer: &mut [u32],
     width: usize,
     height: usize,
@@ -49,31 +52,25 @@ fn draw_route_clearance_gutters(
     cell_w: i32,
     cell_h: i32,
 ) {
-    let gutter_fill = classic_mix_color(CLASSIC_RTS_TACTICAL_VIEWPORT_TILE_COLOR, 0x010302, 1, 3);
-    let gutter_edge = classic_darken(CLASSIC_RTS_SELECTION_FEEDBACK_ACK_COLOR, 1, 6);
+    let cue_color = classic_darken(CLASSIC_RTS_SELECTION_FEEDBACK_ACK_COLOR, 1, 7);
+    let cue_w = CLASSIC_FIRST_CONTACT_ROUTE_CLEARANCE_CORNER_CUE_W_PX;
+    let cue_h = CLASSIC_FIRST_CONTACT_ROUTE_CLEARANCE_CORNER_CUE_H_PX;
+    let inset = CLASSIC_FIRST_CONTACT_ROUTE_CLEARANCE_CORNER_CUE_INSET_PX;
     for tile in route_clearance_tiles(runtime) {
         let (tile_x, tile_y) =
             classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, tile);
-        classic_draw_rect(
-            buffer,
-            width,
-            height,
-            tile_x + 4,
-            tile_y + 4,
-            (cell_w - 8).max(8),
-            (cell_h - 8).max(6),
-            gutter_fill,
-        );
-        classic_draw_rect(
-            buffer,
-            width,
-            height,
-            tile_x + cell_w / 2 - 8,
-            tile_y + cell_h / 2 - 1,
-            16,
-            2,
-            gutter_edge,
-        );
+        let left_x = tile_x + inset;
+        let right_x = tile_x + cell_w - inset - cue_w;
+        let top_y = tile_y + inset;
+        let bottom_y = tile_y + cell_h - inset - cue_h;
+        for (x, y) in [
+            (left_x, top_y),
+            (right_x, top_y),
+            (left_x, bottom_y),
+            (right_x, bottom_y),
+        ] {
+            classic_draw_rect(buffer, width, height, x, y, cue_w, cue_h, cue_color);
+        }
     }
 }
 
@@ -234,7 +231,7 @@ pub(super) fn draw_selection_combat_focus_layer(
         .unwrap_or_else(|| classic_first_contact_tile_tuple(feedback.target_tile));
     let blocked_tile = classic_first_contact_tile_tuple(feedback.blocked_tile);
 
-    draw_route_clearance_gutters(buffer, width, height, runtime, map_x, map_y, cell_w, cell_h);
+    draw_route_clearance_corner_cues(buffer, width, height, runtime, map_x, map_y, cell_w, cell_h);
 
     for (index, tile) in route_tiles.iter().enumerate() {
         let (tile_x, tile_y) =
