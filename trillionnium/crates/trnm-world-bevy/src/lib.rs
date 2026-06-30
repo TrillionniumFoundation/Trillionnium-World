@@ -832,6 +832,9 @@ const CLASSIC_RTS_MODEL_IDENTITY_RELAY_COLOR: u32 = 0x8fffd2;
 const CLASSIC_RTS_MODEL_IDENTITY_BEACON_COLOR: u32 = 0xffee86;
 const CLASSIC_RTS_MODEL_IDENTITY_UNIT_COLOR: u32 = 0xd8f1ff;
 const CLASSIC_RTS_MODEL_IDENTITY_FACTION_COLOR: u32 = 0xff9f7a;
+const CLASSIC_FIRST_CONTACT_PLAYER_RELAY_IDENTITY_RAIL_COUNT: usize = 6;
+const CLASSIC_FIRST_CONTACT_PLAYER_RELAY_IDENTITY_RAIL_W_PX: i32 = 16;
+const CLASSIC_FIRST_CONTACT_PLAYER_RELAY_IDENTITY_RAIL_H_PX: i32 = 2;
 const CLASSIC_RTS_TACTICAL_VIEWPORT_FRAME_COLOR: u32 = 0xbfd7c8;
 const CLASSIC_RTS_TACTICAL_VIEWPORT_TILE_COLOR: u32 = 0x35513d;
 const CLASSIC_RTS_TACTICAL_VIEWPORT_SHADOW_COLOR: u32 = 0x101916;
@@ -93984,6 +93987,7 @@ fn classic_draw_first_contact_model_identity_layers(
     map_y: i32,
     cell_w: i32,
     cell_h: i32,
+    player_screen: bool,
 ) {
     let command_cores = classic_first_contact_base_owner_identity_tiles();
     for (tile, faction_color) in command_cores {
@@ -94083,14 +94087,24 @@ fn classic_draw_first_contact_model_identity_layers(
             cell_h * 2 + 4,
             CLASSIC_RTS_MODEL_IDENTITY_RELAY_COLOR,
         );
+        let relay_crossbar_w = if player_screen {
+            CLASSIC_FIRST_CONTACT_PLAYER_RELAY_IDENTITY_RAIL_W_PX
+        } else {
+            cell_w * 2
+        };
+        let relay_crossbar_h = if player_screen {
+            CLASSIC_FIRST_CONTACT_PLAYER_RELAY_IDENTITY_RAIL_H_PX
+        } else {
+            4
+        };
         classic_draw_rect(
             buffer,
             width,
             height,
-            cx - cell_w,
+            cx - relay_crossbar_w / 2,
             cy - cell_h / 2,
-            cell_w * 2,
-            4,
+            relay_crossbar_w,
+            relay_crossbar_h,
             CLASSIC_RTS_MODEL_IDENTITY_RELAY_COLOR,
         );
         classic_draw_rect(
@@ -95250,6 +95264,7 @@ fn classic_draw_first_contact_readability_overlays(
     map_y: i32,
     cell_w: i32,
     cell_h: i32,
+    player_screen: bool,
 ) {
     for tile_id in &runtime.rts_group_route_tile_ids {
         let Some(tile) = classic_parse_rts_tile(tile_id) else {
@@ -95403,34 +95418,67 @@ fn classic_draw_first_contact_readability_overlays(
             classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, tile);
         let cx = tile_x + cell_w / 2;
         let cy = tile_y + cell_h / 2;
+        let compact_relay_identity =
+            player_screen && color == CLASSIC_RTS_MODEL_IDENTITY_RELAY_COLOR;
+        let identity_rail_w = if compact_relay_identity {
+            CLASSIC_FIRST_CONTACT_PLAYER_RELAY_IDENTITY_RAIL_W_PX
+        } else {
+            cell_w * 2 + 4
+        };
+        let identity_top_rail_h = if compact_relay_identity {
+            CLASSIC_FIRST_CONTACT_PLAYER_RELAY_IDENTITY_RAIL_H_PX
+        } else {
+            4
+        };
+        let identity_bottom_rail_h = if compact_relay_identity {
+            CLASSIC_FIRST_CONTACT_PLAYER_RELAY_IDENTITY_RAIL_H_PX
+        } else {
+            3
+        };
+        let identity_rail_x = if compact_relay_identity {
+            cx - identity_rail_w / 2
+        } else {
+            cx - cell_w - 2
+        };
+        let identity_shadow_w = if compact_relay_identity {
+            identity_rail_w + 4
+        } else {
+            cell_w * 2 + 8
+        };
+        let identity_shadow_h = if compact_relay_identity { 2 } else { 4 };
+        let identity_shadow_x = if compact_relay_identity {
+            cx - identity_shadow_w / 2
+        } else {
+            cx - cell_w - 4
+        };
         classic_draw_rect(
             buffer,
             width,
             height,
-            cx - cell_w - 4,
+            identity_shadow_x,
             cy + cell_h + 6,
-            cell_w * 2 + 8,
-            4,
+            identity_shadow_w,
+            identity_shadow_h,
             CLASSIC_RTS_TACTICAL_VIEWPORT_SHADOW_COLOR,
         );
         classic_draw_rect(
             buffer,
             width,
             height,
-            cx - cell_w - 2,
+            identity_rail_x,
             cy - cell_h * 2 - 8,
-            cell_w * 2 + 4,
-            4,
+            identity_rail_w,
+            identity_top_rail_h,
             color,
         );
         classic_draw_rect(
             buffer,
             width,
             height,
-            cx - cell_w - 2,
+            identity_rail_x,
             cy + cell_h + 2,
-            cell_w * 2 + 4,
-            3,
+            identity_rail_w,
+            identity_bottom_rail_h,
             color,
         );
     }
@@ -95781,7 +95829,14 @@ fn classic_draw_first_contact_basin_scene(
     }
     classic_draw_first_contact_starting_army(buffer, width, height, map_x, map_y, cell_w, cell_h);
     classic_draw_first_contact_model_identity_layers(
-        buffer, width, height, map_x, map_y, cell_w, cell_h,
+        buffer,
+        width,
+        height,
+        map_x,
+        map_y,
+        cell_w,
+        cell_h,
+        player_screen,
     );
     classic_draw_first_contact_silhouette_readability_layer(
         buffer, width, height, map_x, map_y, cell_w, cell_h,
@@ -95848,7 +95903,15 @@ fn classic_draw_first_contact_basin_scene(
     }
     classic_draw_first_contact_opening_actions(buffer, width, height, map_x, map_y, cell_w, cell_h);
     classic_draw_first_contact_readability_overlays(
-        buffer, width, height, runtime, map_x, map_y, cell_w, cell_h,
+        buffer,
+        width,
+        height,
+        runtime,
+        map_x,
+        map_y,
+        cell_w,
+        cell_h,
+        player_screen,
     );
     classic_draw_first_contact_visual_hierarchy_layer(
         buffer, width, height, runtime, map_x, map_y, cell_w, cell_h,
@@ -102047,6 +102110,12 @@ fn classic_first_contact_marker_budget_guard(runtime: &NativeFirstPlayableRuntim
         non_focus_owner_identity_hot_color_count,
         non_focus_owner_identity_pixel_budget:
             CLASSIC_FIRST_CONTACT_NON_FOCUS_OWNER_IDENTITY_PIXEL_BUDGET,
+        player_screen_relay_identity_rail_count:
+            CLASSIC_FIRST_CONTACT_PLAYER_RELAY_IDENTITY_RAIL_COUNT,
+        player_screen_relay_identity_rail_width_px:
+            CLASSIC_FIRST_CONTACT_PLAYER_RELAY_IDENTITY_RAIL_W_PX as usize,
+        player_screen_relay_identity_rail_height_px:
+            CLASSIC_FIRST_CONTACT_PLAYER_RELAY_IDENTITY_RAIL_H_PX as usize,
         focus_geometry: trnm_rts_evidence::RtsFirstContactFocusGeometrySnapshot {
             selected_role_badge_tick_width_px: CLASSIC_FIRST_CONTACT_SELECTED_ROLE_BADGE_TICK_W_PX
                 as usize,
@@ -151080,6 +151149,30 @@ mod tests {
             Some(0)
         );
         assert_eq!(
+            guard
+                .get("player_screen_relay_identity_rail_count")
+                .and_then(Value::as_u64),
+            Some(6)
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_relay_identity_rail_width_px")
+                .and_then(Value::as_u64),
+            Some(16)
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_relay_identity_rail_height_px")
+                .and_then(Value::as_u64),
+            Some(2)
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_relay_identity_rail_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(192)
+        );
+        assert_eq!(
             guard.get("tactical_track_count").and_then(Value::as_u64),
             Some(6)
         );
@@ -151137,6 +151230,12 @@ mod tests {
             .expect("gallery signatures listed")
             .iter()
             .any(|value| value.as_str() == Some("player_screen_hover_route_path_suppressed")));
+        assert!(guard
+            .get("gallery_presentation_signatures")
+            .and_then(Value::as_array)
+            .expect("gallery signatures listed")
+            .iter()
+            .any(|value| value.as_str() == Some("player_screen_relay_identity_micro_rails")));
         assert_eq!(
             guard
                 .get("non_focus_owner_identity_pixel_budget")

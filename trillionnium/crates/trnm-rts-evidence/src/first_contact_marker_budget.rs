@@ -44,6 +44,9 @@ pub struct RtsFirstContactMarkerBudgetRuntime {
     pub non_focus_owner_identity_colors: Vec<String>,
     pub non_focus_owner_identity_hot_color_count: usize,
     pub non_focus_owner_identity_pixel_budget: usize,
+    pub player_screen_relay_identity_rail_count: usize,
+    pub player_screen_relay_identity_rail_width_px: usize,
+    pub player_screen_relay_identity_rail_height_px: usize,
     pub focus_geometry: RtsFirstContactFocusGeometrySnapshot,
 }
 
@@ -195,6 +198,7 @@ where
             "non_focus_owner_identity_muted",
             "player_screen_primary_tactical_track_only",
             "player_screen_hover_route_path_suppressed",
+            "player_screen_relay_identity_micro_rails",
         ],
     }
 }
@@ -271,6 +275,14 @@ pub fn first_contact_marker_budget_guard(runtime: &RtsFirstContactMarkerBudgetRu
     let non_focus_owner_identity_colors = runtime.non_focus_owner_identity_colors.clone();
     let non_focus_owner_identity_hot_color_count = runtime.non_focus_owner_identity_hot_color_count;
     let non_focus_owner_identity_pixel_budget = runtime.non_focus_owner_identity_pixel_budget;
+    let player_screen_relay_identity_rail_count = runtime.player_screen_relay_identity_rail_count;
+    let player_screen_relay_identity_rail_width_px =
+        runtime.player_screen_relay_identity_rail_width_px;
+    let player_screen_relay_identity_rail_height_px =
+        runtime.player_screen_relay_identity_rail_height_px;
+    let player_screen_relay_identity_rail_pixel_budget = player_screen_relay_identity_rail_count
+        * player_screen_relay_identity_rail_width_px
+        * player_screen_relay_identity_rail_height_px;
     let gallery_presentation_signatures = gallery_summary
         .gallery_presentation_signatures
         .iter()
@@ -390,6 +402,13 @@ pub fn first_contact_marker_budget_guard(runtime: &RtsFirstContactMarkerBudgetRu
         && gallery_presentation_signatures
             .iter()
             .any(|signature| signature == "player_screen_hover_route_path_suppressed");
+    let player_screen_relay_identity_rail_gate = player_screen_relay_identity_rail_count == 6
+        && player_screen_relay_identity_rail_width_px == 16
+        && player_screen_relay_identity_rail_height_px == 2
+        && player_screen_relay_identity_rail_pixel_budget <= 192
+        && gallery_presentation_signatures
+            .iter()
+            .any(|signature| signature == "player_screen_relay_identity_micro_rails");
     let marker_budget_layer_order_gate = marker_budget_layer_draw_order
         .iter()
         .position(|layer| layer == "atlas_gallery_muted")
@@ -423,6 +442,7 @@ pub fn first_contact_marker_budget_guard(runtime: &RtsFirstContactMarkerBudgetRu
         && non_focus_owner_identity_gate
         && player_screen_tactical_track_gate
         && player_screen_hover_route_path_gate
+        && player_screen_relay_identity_rail_gate
         && marker_budget_layer_order_gate;
 
     json!({
@@ -465,6 +485,10 @@ pub fn first_contact_marker_budget_guard(runtime: &RtsFirstContactMarkerBudgetRu
         "non_focus_owner_identity_colors": non_focus_owner_identity_colors,
         "non_focus_owner_identity_hot_color_count": non_focus_owner_identity_hot_color_count,
         "non_focus_owner_identity_pixel_budget": non_focus_owner_identity_pixel_budget,
+        "player_screen_relay_identity_rail_count": player_screen_relay_identity_rail_count,
+        "player_screen_relay_identity_rail_width_px": player_screen_relay_identity_rail_width_px,
+        "player_screen_relay_identity_rail_height_px": player_screen_relay_identity_rail_height_px,
+        "player_screen_relay_identity_rail_pixel_budget": player_screen_relay_identity_rail_pixel_budget,
         "selected_role_badge_tick_pixel_budget": selected_role_badge_tick_pixel_budget,
         "selected_focus_tiles": selected_focus_tiles,
         "route_focus_tiles": route_focus_tiles,
@@ -478,6 +502,7 @@ pub fn first_contact_marker_budget_guard(runtime: &RtsFirstContactMarkerBudgetRu
         "non_focus_owner_identity_gate": non_focus_owner_identity_gate,
         "player_screen_tactical_track_gate": player_screen_tactical_track_gate,
         "player_screen_hover_route_path_gate": player_screen_hover_route_path_gate,
+        "player_screen_relay_identity_rail_gate": player_screen_relay_identity_rail_gate,
         "marker_budget_layer_order_gate": marker_budget_layer_order_gate,
         "first_contact_marker_budget_gate": first_contact_marker_budget_gate,
     })
@@ -520,6 +545,9 @@ mod tests {
             non_focus_owner_identity_colors: string_vec(["457953", "6a5e4b"]),
             non_focus_owner_identity_hot_color_count: 0,
             non_focus_owner_identity_pixel_budget: 192,
+            player_screen_relay_identity_rail_count: 6,
+            player_screen_relay_identity_rail_width_px: 16,
+            player_screen_relay_identity_rail_height_px: 2,
             focus_geometry: focus_geometry(),
         }
     }
@@ -588,6 +616,9 @@ mod tests {
         assert!(summary
             .gallery_presentation_signatures
             .contains(&"non_focus_owner_identity_muted"));
+        assert!(summary
+            .gallery_presentation_signatures
+            .contains(&"player_screen_relay_identity_micro_rails"));
     }
 
     #[test]
@@ -649,6 +680,30 @@ mod tests {
         assert_eq!(
             guard
                 .get("non_focus_owner_identity_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(192)
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_relay_identity_rail_count")
+                .and_then(Value::as_u64),
+            Some(6)
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_relay_identity_rail_width_px")
+                .and_then(Value::as_u64),
+            Some(16)
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_relay_identity_rail_height_px")
+                .and_then(Value::as_u64),
+            Some(2)
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_relay_identity_rail_pixel_budget")
                 .and_then(Value::as_u64),
             Some(192)
         );
@@ -786,6 +841,12 @@ mod tests {
             .is_some_and(|signatures| signatures.iter().any(|signature| {
                 signature.as_str() == Some("player_screen_hover_route_path_suppressed")
             })));
+        assert!(guard
+            .get("gallery_presentation_signatures")
+            .and_then(Value::as_array)
+            .is_some_and(|signatures| signatures.iter().any(|signature| {
+                signature.as_str() == Some("player_screen_relay_identity_micro_rails")
+            })));
 
         for gate in [
             "gallery_lane_budget_gate",
@@ -795,6 +856,7 @@ mod tests {
             "non_focus_owner_identity_gate",
             "player_screen_tactical_track_gate",
             "player_screen_hover_route_path_gate",
+            "player_screen_relay_identity_rail_gate",
             "marker_budget_layer_order_gate",
             "first_contact_marker_budget_gate",
         ] {
