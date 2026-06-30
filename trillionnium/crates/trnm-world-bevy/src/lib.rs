@@ -818,6 +818,10 @@ const CLASSIC_FIRST_CONTACT_ROUTE_CLEARANCE_CORNER_CUE_W_PX: i32 = 6;
 const CLASSIC_FIRST_CONTACT_ROUTE_CLEARANCE_CORNER_CUE_H_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_ROUTE_CLEARANCE_CORNER_CUE_INSET_PX: i32 = 5;
 const CLASSIC_FIRST_CONTACT_ROUTE_CLEARANCE_CORNER_CUES_PER_TILE: usize = 4;
+const CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK_MOVE_TRAIL_ORIGIN_COUNT: usize = 2;
+const CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK_MOVE_TRAIL_STEP_COUNT: usize = 10;
+const CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK_MOVE_TRAIL_TICK_W_PX: i32 = 2;
+const CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK_MOVE_TRAIL_TICK_H_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_OWNER_PLAYER_COLOR: u32 = 0x67c980;
 const CLASSIC_FIRST_CONTACT_OWNER_ENEMY_COLOR: u32 = 0xd47967;
 const CLASSIC_FIRST_CONTACT_NON_FOCUS_OWNER_IDENTITY_PIXEL_BUDGET: usize = 192;
@@ -93339,18 +93343,26 @@ fn classic_draw_first_contact_command_feedback_layers(
         classic_darken(CLASSIC_RTS_SELECTION_FEEDBACK_ACK_COLOR, 1, 4),
     );
 
-    for origin in [selected_origin, scout_origin] {
-        for step in 0..=9 {
-            let x = origin.0 + (target_cx - origin.0) * step / 9;
-            let y = origin.1 + (target_cy - origin.1) * step / 9;
+    let feedback_move_trail_divisor = (CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK_MOVE_TRAIL_STEP_COUNT
+        .saturating_sub(1) as i32)
+        .max(1);
+    for origin in [selected_origin, scout_origin]
+        .iter()
+        .take(CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK_MOVE_TRAIL_ORIGIN_COUNT)
+    {
+        let (origin_x, origin_y) = *origin;
+        for step in 0..CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK_MOVE_TRAIL_STEP_COUNT {
+            let step = step as i32;
+            let x = origin_x + (target_cx - origin_x) * step / feedback_move_trail_divisor;
+            let y = origin_y + (target_cy - origin_y) * step / feedback_move_trail_divisor;
             classic_draw_rect(
                 buffer,
                 width,
                 height,
                 x + cell_w / 2,
                 y + cell_h / 2,
-                8,
-                3,
+                CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK_MOVE_TRAIL_TICK_W_PX,
+                CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK_MOVE_TRAIL_TICK_H_PX,
                 CLASSIC_RTS_SELECTION_FEEDBACK_MOVE_COLOR,
             );
         }
@@ -101770,6 +101782,14 @@ fn classic_first_contact_motion_readability_guard() -> Value {
         route_tile_ids: runtime.rts_group_route_tile_ids.clone(),
         attack_target_id: runtime.rts_attack_target_id.clone(),
         combat_event_log: runtime.rts_combat_event_log.clone(),
+        feedback_move_trail_origin_count:
+            CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK_MOVE_TRAIL_ORIGIN_COUNT,
+        feedback_move_trail_step_count_per_origin:
+            CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK_MOVE_TRAIL_STEP_COUNT,
+        feedback_move_trail_tick_width_px:
+            CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK_MOVE_TRAIL_TICK_W_PX as usize,
+        feedback_move_trail_tick_height_px:
+            CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK_MOVE_TRAIL_TICK_H_PX as usize,
     };
     trnm_rts_evidence::first_contact_motion_readability_guard(
         &opening,
@@ -149720,6 +149740,50 @@ mod tests {
             Some(true)
         );
         assert_eq!(
+            guard
+                .get("command_feedback_motion_signatures")
+                .and_then(Value::as_array)
+                .map(|signatures| {
+                    signatures
+                        .iter()
+                        .any(|value| value.as_str() == Some("feedback_player_labels"))
+                        && signatures.iter().any(|value| {
+                            value.as_str() == Some("battlefield_command_feedback_micro_trail")
+                        })
+                }),
+            Some(true)
+        );
+        assert_eq!(
+            guard
+                .get("feedback_move_trail_tick_count")
+                .and_then(Value::as_u64),
+            Some(20)
+        );
+        assert_eq!(
+            guard
+                .get("feedback_move_trail_tick_width_px")
+                .and_then(Value::as_u64),
+            Some(2)
+        );
+        assert_eq!(
+            guard
+                .get("feedback_move_trail_tick_height_px")
+                .and_then(Value::as_u64),
+            Some(2)
+        );
+        assert_eq!(
+            guard
+                .get("feedback_move_trail_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(80)
+        );
+        assert_eq!(
+            guard
+                .get("feedback_battlefield_trail_gate")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
             guard.get("animation_roles").cloned(),
             Some(json!([
                 "worker",
@@ -149811,6 +149875,7 @@ mod tests {
             "command_feedback_motion_gate",
             "feedback_raw_marker_gate",
             "feedback_player_label_gate",
+            "feedback_battlefield_trail_gate",
             "runtime_motion_gate",
             "unit_animation_frame_gate",
             "building_animation_frame_gate",

@@ -1077,6 +1077,17 @@ add_first_contact_basin_source_manifest_packet_fixtures() {
       feedback_raw_marker_gate: true,
       feedback_player_label_gate: true,
       feedback_pixel_budget: 190,
+      command_feedback_motion_signatures: [
+        "feedback_player_labels",
+        "battlefield_command_feedback_micro_trail"
+      ],
+      feedback_move_trail_origin_count: 2,
+      feedback_move_trail_step_count_per_origin: 10,
+      feedback_move_trail_tick_count: 20,
+      feedback_move_trail_tick_width_px: 2,
+      feedback_move_trail_tick_height_px: 2,
+      feedback_move_trail_pixel_budget: 80,
+      feedback_battlefield_trail_gate: true,
       command_feedback_motion_gate: true,
       walk_cycle_frame: 2,
       combat_turn: 3,

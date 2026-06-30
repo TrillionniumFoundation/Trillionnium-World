@@ -968,6 +968,14 @@ require_artifact_json_expr first_contact_basin_spec_semantics native_bevy_classi
   and (.first_contact_motion_readability_guard.tactical_track_density_signatures | index("secondary_tracks_faded_into_terrain") != null)
   and (.first_contact_motion_readability_guard.tactical_track_density_signatures | index("secondary_tracks_one_pixel") != null)
   and .first_contact_motion_readability_guard.feedback_pixel_budget >= 190
+  and (.first_contact_motion_readability_guard.command_feedback_motion_signatures | index("battlefield_command_feedback_micro_trail") != null)
+  and .first_contact_motion_readability_guard.feedback_move_trail_origin_count == 2
+  and .first_contact_motion_readability_guard.feedback_move_trail_step_count_per_origin == 10
+  and .first_contact_motion_readability_guard.feedback_move_trail_tick_count == 20
+  and .first_contact_motion_readability_guard.feedback_move_trail_tick_width_px == 2
+  and .first_contact_motion_readability_guard.feedback_move_trail_tick_height_px == 2
+  and .first_contact_motion_readability_guard.feedback_move_trail_pixel_budget <= 80
+  and .first_contact_motion_readability_guard.feedback_battlefield_trail_gate == true
   and .first_contact_motion_readability_guard.animation_frame_pixel_budget >= 1144
   and .first_contact_motion_readability_guard.animation_frame_richness_sample_count >= 13
   and .first_contact_motion_readability_guard.animation_frame_richness_pixel_budget >= 520

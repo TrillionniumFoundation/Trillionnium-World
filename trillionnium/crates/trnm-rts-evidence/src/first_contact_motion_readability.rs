@@ -24,6 +24,10 @@ pub struct RtsFirstContactMotionReadabilityRuntime {
     pub route_tile_ids: Vec<String>,
     pub attack_target_id: Option<String>,
     pub combat_event_log: Vec<String>,
+    pub feedback_move_trail_origin_count: usize,
+    pub feedback_move_trail_step_count_per_origin: usize,
+    pub feedback_move_trail_tick_width_px: usize,
+    pub feedback_move_trail_tick_height_px: usize,
 }
 
 fn string_vec<const N: usize>(values: [&str; N]) -> Vec<String> {
@@ -197,6 +201,24 @@ pub fn first_contact_motion_readability_guard(
     let feedback_pixel_budget = usize::from(feedback.command_ack_progress)
         + usize::from(feedback.cooldown_progress)
         + usize::from(feedback.queued_after) * 24;
+    let feedback_move_trail_tick_count = runtime.feedback_move_trail_origin_count
+        * runtime.feedback_move_trail_step_count_per_origin;
+    let feedback_move_trail_pixel_budget = feedback_move_trail_tick_count
+        * runtime.feedback_move_trail_tick_width_px
+        * runtime.feedback_move_trail_tick_height_px;
+    let command_feedback_motion_signatures = string_vec([
+        "feedback_player_labels",
+        "battlefield_command_feedback_micro_trail",
+    ]);
+    let feedback_battlefield_trail_gate = runtime.feedback_move_trail_origin_count == 2
+        && runtime.feedback_move_trail_step_count_per_origin == 10
+        && feedback_move_trail_tick_count == 20
+        && runtime.feedback_move_trail_tick_width_px == 2
+        && runtime.feedback_move_trail_tick_height_px == 2
+        && feedback_move_trail_pixel_budget <= 80
+        && command_feedback_motion_signatures
+            .iter()
+            .any(|signature| signature.as_str() == "battlefield_command_feedback_micro_trail");
     let animation_frame_pixel_budget = animation_samples.len() * 88;
     let animation_frame_richness_sample_count = animation_samples.len();
     let animation_frame_richness_pixel_budget = animation_frame_richness_sample_count * 40;
@@ -251,7 +273,8 @@ pub fn first_contact_motion_readability_guard(
         && feedback.queued_after > feedback.queued_before
         && feedback.command_ack_progress > feedback.cooldown_progress
         && feedback_pixel_budget >= 190
-        && feedback_player_label_gate;
+        && feedback_player_label_gate
+        && feedback_battlefield_trail_gate;
     let runtime_motion_gate = runtime.walk_cycle_frame >= 2
         && runtime.combat_turn >= 3
         && runtime.training_progress_percent >= 60
@@ -358,6 +381,14 @@ pub fn first_contact_motion_readability_guard(
         "feedback_raw_marker_gate": feedback_raw_marker_gate,
         "feedback_player_label_gate": feedback_player_label_gate,
         "feedback_pixel_budget": feedback_pixel_budget,
+        "command_feedback_motion_signatures": command_feedback_motion_signatures,
+        "feedback_move_trail_origin_count": runtime.feedback_move_trail_origin_count,
+        "feedback_move_trail_step_count_per_origin": runtime.feedback_move_trail_step_count_per_origin,
+        "feedback_move_trail_tick_count": feedback_move_trail_tick_count,
+        "feedback_move_trail_tick_width_px": runtime.feedback_move_trail_tick_width_px,
+        "feedback_move_trail_tick_height_px": runtime.feedback_move_trail_tick_height_px,
+        "feedback_move_trail_pixel_budget": feedback_move_trail_pixel_budget,
+        "feedback_battlefield_trail_gate": feedback_battlefield_trail_gate,
         "command_feedback_motion_gate": command_feedback_motion_gate,
         "walk_cycle_frame": runtime.walk_cycle_frame,
         "combat_turn": runtime.combat_turn,
@@ -412,6 +443,10 @@ mod tests {
                 "worker_carry_supply".to_string(),
                 "secure_beacon:16,9".to_string(),
             ],
+            feedback_move_trail_origin_count: 2,
+            feedback_move_trail_step_count_per_origin: 10,
+            feedback_move_trail_tick_width_px: 2,
+            feedback_move_trail_tick_height_px: 2,
         };
         let guard = first_contact_motion_readability_guard(
             &trnm_rts_data::first_contact_opening_loop_profile(),
@@ -505,6 +540,50 @@ mod tests {
         );
         assert_eq!(
             guard
+                .get("command_feedback_motion_signatures")
+                .and_then(Value::as_array)
+                .map(|signatures| {
+                    signatures
+                        .iter()
+                        .any(|value| value.as_str() == Some("feedback_player_labels"))
+                        && signatures.iter().any(|value| {
+                            value.as_str() == Some("battlefield_command_feedback_micro_trail")
+                        })
+                }),
+            Some(true)
+        );
+        assert_eq!(
+            guard
+                .get("feedback_move_trail_tick_count")
+                .and_then(Value::as_u64),
+            Some(20)
+        );
+        assert_eq!(
+            guard
+                .get("feedback_move_trail_tick_width_px")
+                .and_then(Value::as_u64),
+            Some(2)
+        );
+        assert_eq!(
+            guard
+                .get("feedback_move_trail_tick_height_px")
+                .and_then(Value::as_u64),
+            Some(2)
+        );
+        assert_eq!(
+            guard
+                .get("feedback_move_trail_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(80)
+        );
+        assert_eq!(
+            guard
+                .get("feedback_battlefield_trail_gate")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            guard
                 .get("building_animation_frame_count")
                 .and_then(Value::as_u64),
             Some(3)
@@ -522,6 +601,7 @@ mod tests {
             "command_feedback_motion_gate",
             "feedback_raw_marker_gate",
             "feedback_player_label_gate",
+            "feedback_battlefield_trail_gate",
             "runtime_motion_gate",
             "unit_animation_frame_gate",
             "building_animation_frame_gate",
