@@ -91580,6 +91580,18 @@ fn classic_first_contact_runtime_core_visibility(world: &TrnmOpenRaLikeWorld) ->
         .collect::<Vec<_>>();
     hidden_fixture_tile_ids.sort();
     hidden_fixture_tile_ids.dedup();
+    let mut inline_health_bar_actor_ids = visible_actors
+        .iter()
+        .filter(|actor| classic_first_contact_runtime_actor_inline_health_bar_visible(actor))
+        .map(|actor| actor.id.clone())
+        .collect::<Vec<_>>();
+    inline_health_bar_actor_ids.sort();
+    let mut progress_bar_actor_ids = visible_actors
+        .iter()
+        .filter(|actor| classic_first_contact_runtime_actor_progress_bar_visible(actor))
+        .map(|actor| actor.id.clone())
+        .collect::<Vec<_>>();
+    progress_bar_actor_ids.sort();
     let visible_actor_id_set = visible_actor_ids
         .iter()
         .map(String::as_str)
@@ -91635,19 +91647,36 @@ fn classic_first_contact_runtime_core_visibility(world: &TrnmOpenRaLikeWorld) ->
                 || actor.tile.1 <= CLASSIC_FIRST_CONTACT_RUNTIME_CORE_VISIBLE_TILE_Y_MAX
                     && !classic_first_contact_runtime_core_control_fixture_actor(actor)
         });
+    let inline_health_bar_gate = visible_actors
+        .len()
+        .saturating_sub(inline_health_bar_actor_ids.len())
+        >= 28
+        && inline_health_bar_actor_ids.len() <= 6
+        && !inline_health_bar_actor_ids
+            .iter()
+            .any(|actor_id| actor_id == "multi0.command.core" || actor_id == "multi0.worker.0")
+        && progress_bar_actor_ids
+            .iter()
+            .any(|actor_id| actor_id == "map.actor15");
     let green = required_visible_gate
         && hidden_fixture_gate
         && bottom_fixture_gate
         && control_fixture_gate
-        && visible_subset_gate;
+        && visible_subset_gate
+        && inline_health_bar_gate;
     json!({
         "green": green,
-        "source_path": "trnm-world-bevy classic_draw_first_contact_runtime_core_layer player-visible actor subset with control fixtures hidden",
+        "source_path": "trnm-world-bevy classic_draw_first_contact_runtime_core_layer player-visible actor subset with control fixtures hidden and inline health bars decluttered",
         "runtime_core_visible_tile_y_max": CLASSIC_FIRST_CONTACT_RUNTIME_CORE_VISIBLE_TILE_Y_MAX,
         "runtime_core_actor_count": runtime_core_actor_count,
         "runtime_core_visible_actor_count": visible_actors.len(),
+        "runtime_core_inline_health_bar_actor_count": inline_health_bar_actor_ids.len(),
+        "runtime_core_suppressed_inline_health_bar_actor_count": visible_actors.len().saturating_sub(inline_health_bar_actor_ids.len()),
+        "runtime_core_progress_bar_actor_count": progress_bar_actor_ids.len(),
         "runtime_core_hidden_fixture_actor_count": hidden_fixture_actors.len(),
         "runtime_core_visible_actor_ids": visible_actor_ids,
+        "runtime_core_inline_health_bar_actor_ids": inline_health_bar_actor_ids,
+        "runtime_core_progress_bar_actor_ids": progress_bar_actor_ids,
         "runtime_core_hidden_fixture_actor_ids": hidden_fixture_actor_ids,
         "runtime_core_hidden_control_fixture_actor_count": hidden_control_fixture_actors.len(),
         "runtime_core_hidden_control_fixture_actor_ids": hidden_control_fixture_actor_ids,
@@ -91658,6 +91687,7 @@ fn classic_first_contact_runtime_core_visibility(world: &TrnmOpenRaLikeWorld) ->
         "runtime_core_control_fixture_gate": control_fixture_gate,
         "runtime_core_visible_subset_gate": visible_subset_gate,
         "runtime_core_bottom_fixture_gate": bottom_fixture_gate,
+        "runtime_core_inline_health_bar_gate": inline_health_bar_gate,
     })
 }
 
@@ -91767,6 +91797,22 @@ fn classic_first_contact_runtime_actor_health_percent(actor: &TrnmOpenRaLikeActo
         .unwrap_or_else(|| actor.hp.max(1))
         .max(1);
     ((actor.hp.min(max_hp) * 100) / max_hp) as u8
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_first_contact_runtime_actor_inline_health_bar_visible(
+    actor: &TrnmOpenRaLikeActorState,
+) -> bool {
+    classic_first_contact_runtime_actor_health_percent(actor) < 100
+        && actor.build_progress >= 100
+        && actor.capture_progress == 0
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_first_contact_runtime_actor_progress_bar_visible(
+    actor: &TrnmOpenRaLikeActorState,
+) -> bool {
+    actor.build_progress < 100 || actor.capture_progress > 0
 }
 
 #[cfg(not(target_os = "android"))]
@@ -92300,16 +92346,18 @@ fn classic_draw_first_contact_actor_glyph(
             _ => {}
         }
     }
-    classic_draw_first_contact_actor_health_bar(
-        buffer,
-        width,
-        height,
-        base_x,
-        center_y + size_h / 2 + 2,
-        classic_first_contact_runtime_actor_health_bar_width(actor, size_w.max(10)),
-        classic_first_contact_runtime_actor_health_percent(actor),
-        color,
-    );
+    if classic_first_contact_runtime_actor_inline_health_bar_visible(actor) {
+        classic_draw_first_contact_actor_health_bar(
+            buffer,
+            width,
+            height,
+            base_x,
+            center_y + size_h / 2 + 2,
+            classic_first_contact_runtime_actor_health_bar_width(actor, size_w.max(10)),
+            classic_first_contact_runtime_actor_health_percent(actor),
+            color,
+        );
+    }
 }
 
 #[cfg(not(target_os = "android"))]
@@ -92336,7 +92384,7 @@ fn classic_draw_first_contact_runtime_core_layer(
         classic_draw_first_contact_actor_glyph(
             buffer, width, height, actor, tile_x, tile_y, size_w, size_h, color,
         );
-        if actor.build_progress < 100 || actor.capture_progress > 0 {
+        if classic_first_contact_runtime_actor_progress_bar_visible(actor) {
             let progress = if actor.build_progress < 100 {
                 actor.build_progress
             } else {
@@ -150399,7 +150447,7 @@ mod tests {
             guard
                 .get("source_path")
                 .and_then(Value::as_str),
-            Some("trnm-world-bevy classic_draw_first_contact_runtime_core_layer player-visible actor subset with control fixtures hidden")
+            Some("trnm-world-bevy classic_draw_first_contact_runtime_core_layer player-visible actor subset with control fixtures hidden and inline health bars decluttered")
         );
         assert_eq!(
             guard
@@ -150421,6 +150469,24 @@ mod tests {
             .get("runtime_core_hidden_fixture_actor_count")
             .and_then(Value::as_u64)
             .is_some_and(|count| count >= 8));
+        assert_eq!(
+            guard
+                .get("runtime_core_inline_health_bar_actor_count")
+                .and_then(Value::as_u64),
+            Some(5)
+        );
+        assert_eq!(
+            guard
+                .get("runtime_core_suppressed_inline_health_bar_actor_count")
+                .and_then(Value::as_u64),
+            Some(29)
+        );
+        assert_eq!(
+            guard
+                .get("runtime_core_progress_bar_actor_count")
+                .and_then(Value::as_u64),
+            Some(2)
+        );
         let visible_actor_ids = guard
             .get("runtime_core_visible_actor_ids")
             .and_then(Value::as_array)
@@ -150433,6 +150499,44 @@ mod tests {
         ] {
             assert!(
                 visible_actor_ids
+                    .iter()
+                    .any(|value| value.as_str() == Some(actor_id)),
+                "{guard:#}"
+            );
+        }
+        let inline_health_bar_actor_ids = guard
+            .get("runtime_core_inline_health_bar_actor_ids")
+            .and_then(Value::as_array)
+            .expect("runtime core inline health bar actor ids are listed");
+        for actor_id in [
+            "multi0.damaged.relay",
+            "multi0.line.0",
+            "multi0.scout.intel",
+            "multi0.veteran.warden",
+            "multi0.warden.capture",
+        ] {
+            assert!(
+                inline_health_bar_actor_ids
+                    .iter()
+                    .any(|value| value.as_str() == Some(actor_id)),
+                "{guard:#}"
+            );
+        }
+        for actor_id in ["multi0.command.core", "multi0.worker.0", "map.actor15"] {
+            assert!(
+                !inline_health_bar_actor_ids
+                    .iter()
+                    .any(|value| value.as_str() == Some(actor_id)),
+                "{guard:#}"
+            );
+        }
+        let progress_bar_actor_ids = guard
+            .get("runtime_core_progress_bar_actor_ids")
+            .and_then(Value::as_array)
+            .expect("runtime core progress bar actor ids are listed");
+        for actor_id in ["map.actor15", "multi0.worker.1"] {
+            assert!(
+                progress_bar_actor_ids
                     .iter()
                     .any(|value| value.as_str() == Some(actor_id)),
                 "{guard:#}"
@@ -150470,6 +150574,7 @@ mod tests {
             "runtime_core_control_fixture_gate",
             "runtime_core_visible_subset_gate",
             "runtime_core_bottom_fixture_gate",
+            "runtime_core_inline_health_bar_gate",
         ] {
             assert_eq!(guard.get(gate).and_then(Value::as_bool), Some(true));
         }
