@@ -167,6 +167,11 @@ required_source_lines=(
   'fn classic_first_contact_owner_identity_color'
   'fn classic_first_contact_base_owner_identity_tiles'
   'fn classic_first_contact_marker_budget_guard'
+  'CLASSIC_FIRST_CONTACT_RUNTIME_CORE_VISIBLE_TILE_Y_MAX'
+  'fn classic_first_contact_runtime_core_actor_candidate'
+  'fn classic_first_contact_runtime_core_actor_player_visible'
+  'fn classic_first_contact_runtime_core_visibility'
+  'let first_contact_runtime_core_visibility_gate'
   'TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_SIDEBAR_DENSITY_CONTRACT'
   'fn classic_first_contact_sidebar_density_guard'
   'fn classic_first_contact_palette_state_badge_label'
@@ -528,9 +533,9 @@ cat >"$JQ_FILTER" <<'JQ'
   and .failed_guard_gate_count == (.guard_gate_count - .passed_guard_gate_count)
   and .failed_guard_gate_count == 0
   and .top_level_gate_count == ([to_entries[] | select((.key | endswith("_gate")) and (.value | type == "boolean"))] | length)
-  and .top_level_gate_count == 45
+  and .top_level_gate_count == 46
   and .passed_top_level_gate_count == ([to_entries[] | select((.key | endswith("_gate")) and .value == true)] | length)
-  and .passed_top_level_gate_count == 45
+  and .passed_top_level_gate_count == 46
   and .failed_top_level_gate_count == (.top_level_gate_count - .passed_top_level_gate_count)
   and .failed_top_level_gate_count == 0
   and .map_id == "first_contact_basin"
@@ -1497,6 +1502,30 @@ cat >"$JQ_FILTER" <<'JQ'
   and .first_contact_marker_budget_guard.marker_budget_layer_order_gate == true
   and .first_contact_marker_budget_guard.first_contact_marker_budget_gate == true
   and .first_contact_marker_budget_guard_gate == true
+  and .first_contact_runtime_core_visibility.green == true
+  and .first_contact_runtime_core_visibility.source_path == "trnm-world-bevy classic_draw_first_contact_runtime_core_layer player-visible actor subset"
+  and .first_contact_runtime_core_visibility.runtime_core_visible_tile_y_max == 28
+  and .first_contact_runtime_core_visibility.runtime_core_actor_count == 83
+  and .first_contact_runtime_core_visibility.runtime_core_visible_actor_count == 53
+  and .first_contact_runtime_core_visibility.runtime_core_hidden_fixture_actor_count == 30
+  and .first_contact_runtime_core_visibility.runtime_core_required_visible_actor_ids == ["multi0.command.core","multi0.worker.0","multi0.flux.relay","map.actor15"]
+  and (.first_contact_runtime_core_visibility.runtime_core_visible_actor_ids | index("multi0.command.core") != null)
+  and (.first_contact_runtime_core_visibility.runtime_core_visible_actor_ids | index("multi0.worker.0") != null)
+  and (.first_contact_runtime_core_visibility.runtime_core_visible_actor_ids | index("multi0.flux.relay") != null)
+  and (.first_contact_runtime_core_visibility.runtime_core_visible_actor_ids | index("map.actor15") != null)
+  and (.first_contact_runtime_core_visibility.runtime_core_visible_actor_ids | index("multi0.formation.lead") == null)
+  and (.first_contact_runtime_core_visibility.runtime_core_visible_actor_ids | index("multi0.queue.reject.runner") == null)
+  and (.first_contact_runtime_core_visibility.runtime_core_visible_actor_ids | index("multi0.override.runner") == null)
+  and (.first_contact_runtime_core_visibility.runtime_core_hidden_fixture_actor_ids | index("multi0.formation.lead") != null)
+  and (.first_contact_runtime_core_visibility.runtime_core_hidden_fixture_actor_ids | index("multi0.queue.reject.runner") != null)
+  and (.first_contact_runtime_core_visibility.runtime_core_hidden_fixture_actor_ids | index("multi0.override.runner") != null)
+  and (.first_contact_runtime_core_visibility.runtime_core_hidden_fixture_tile_ids | index("18,31") != null)
+  and (.first_contact_runtime_core_visibility.runtime_core_hidden_fixture_tile_ids | index("31,31") != null)
+  and .first_contact_runtime_core_visibility.runtime_core_required_visible_gate == true
+  and .first_contact_runtime_core_visibility.runtime_core_hidden_fixture_gate == true
+  and .first_contact_runtime_core_visibility.runtime_core_visible_subset_gate == true
+  and .first_contact_runtime_core_visibility.runtime_core_bottom_fixture_gate == true
+  and .first_contact_runtime_core_visibility_gate == true
   and .rts_data_player_screen_chrome_profile.group_summary_prefix == "GROUP"
   and .rts_data_player_screen_chrome_profile.group_summary_suffix == "UNITS SELECTED"
   and .rts_data_player_screen_chrome_profile.production_slot_visible_count == 4

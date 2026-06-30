@@ -1319,6 +1319,30 @@ require_artifact_json_expr first_contact_basin_spec_semantics native_bevy_classi
   and .first_contact_marker_budget_guard.marker_budget_layer_order_gate == true
   and .first_contact_marker_budget_guard.first_contact_marker_budget_gate == true
   and .first_contact_marker_budget_guard_gate == true
+  and .first_contact_runtime_core_visibility.green == true
+  and .first_contact_runtime_core_visibility.source_path == "trnm-world-bevy classic_draw_first_contact_runtime_core_layer player-visible actor subset"
+  and .first_contact_runtime_core_visibility.runtime_core_visible_tile_y_max == 28
+  and .first_contact_runtime_core_visibility.runtime_core_actor_count == 83
+  and .first_contact_runtime_core_visibility.runtime_core_visible_actor_count == 53
+  and .first_contact_runtime_core_visibility.runtime_core_hidden_fixture_actor_count == 30
+  and .first_contact_runtime_core_visibility.runtime_core_required_visible_actor_ids == ["multi0.command.core","multi0.worker.0","multi0.flux.relay","map.actor15"]
+  and (.first_contact_runtime_core_visibility.runtime_core_visible_actor_ids | index("multi0.command.core") != null)
+  and (.first_contact_runtime_core_visibility.runtime_core_visible_actor_ids | index("multi0.worker.0") != null)
+  and (.first_contact_runtime_core_visibility.runtime_core_visible_actor_ids | index("multi0.flux.relay") != null)
+  and (.first_contact_runtime_core_visibility.runtime_core_visible_actor_ids | index("map.actor15") != null)
+  and (.first_contact_runtime_core_visibility.runtime_core_visible_actor_ids | index("multi0.formation.lead") == null)
+  and (.first_contact_runtime_core_visibility.runtime_core_visible_actor_ids | index("multi0.queue.reject.runner") == null)
+  and (.first_contact_runtime_core_visibility.runtime_core_visible_actor_ids | index("multi0.override.runner") == null)
+  and (.first_contact_runtime_core_visibility.runtime_core_hidden_fixture_actor_ids | index("multi0.formation.lead") != null)
+  and (.first_contact_runtime_core_visibility.runtime_core_hidden_fixture_actor_ids | index("multi0.queue.reject.runner") != null)
+  and (.first_contact_runtime_core_visibility.runtime_core_hidden_fixture_actor_ids | index("multi0.override.runner") != null)
+  and (.first_contact_runtime_core_visibility.runtime_core_hidden_fixture_tile_ids | index("18,31") != null)
+  and (.first_contact_runtime_core_visibility.runtime_core_hidden_fixture_tile_ids | index("31,31") != null)
+  and .first_contact_runtime_core_visibility.runtime_core_required_visible_gate == true
+  and .first_contact_runtime_core_visibility.runtime_core_hidden_fixture_gate == true
+  and .first_contact_runtime_core_visibility.runtime_core_visible_subset_gate == true
+  and .first_contact_runtime_core_visibility.runtime_core_bottom_fixture_gate == true
+  and .first_contact_runtime_core_visibility_gate == true
   and .rts_online_protocol_fixture.transport.contract_version == "trnm_rts_online_loopback_transport_v1"
   and .rts_online_protocol_fixture.transport.green == true
   and .rts_online_protocol_fixture.transport.socket_opened == false

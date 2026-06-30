@@ -1429,6 +1429,23 @@ add_first_contact_basin_source_manifest_packet_fixtures() {
       first_contact_marker_budget_gate: true
     },
     first_contact_marker_budget_guard_gate: true,
+    first_contact_runtime_core_visibility: {
+      green: true,
+      source_path: "trnm-world-bevy classic_draw_first_contact_runtime_core_layer player-visible actor subset",
+      runtime_core_visible_tile_y_max: 28,
+      runtime_core_actor_count: 83,
+      runtime_core_visible_actor_count: 53,
+      runtime_core_hidden_fixture_actor_count: 30,
+      runtime_core_visible_actor_ids: ["map.actor0", "map.actor15", "multi0.append.runner", "multi0.append.seed", "multi0.append.wing", "multi0.attackmove.warden", "multi0.capture.contested.warden", "multi0.clear.seed", "multi0.clear.wing", "multi0.command.core", "multi0.damaged.relay", "multi0.flux.relay", "multi0.focus.warden.a", "multi0.focus.warden.b", "multi0.guard.sentinel", "multi0.line.0", "multi0.obstruction.blocker", "multi0.obstruction.follower", "multi0.obstruction.leader", "multi0.patrol.warden", "multi0.priority.guard", "multi0.reassignment.stale", "multi0.rebuild.old.seed", "multi0.rebuild.old.wing", "multi0.recall.formation.old.seed", "multi0.recall.formation.old.wing", "multi0.recall.order.old.seed", "multi0.recall.order.old.wing", "multi0.recall.override.old.seed", "multi0.recall.override.old.wing", "multi0.recall.rebuild.old.seed", "multi0.recall.rebuild.old.wing", "multi0.remove.runner", "multi0.remove.seed", "multi0.remove.wing", "multi0.reservation.lead", "multi0.reservation.wing", "multi0.scout.intel", "multi0.scout.spotter", "multi0.stance.aggressive", "multi0.stance.guard", "multi0.stance.spotter", "multi0.stop.warden", "multi0.striker.0", "multi0.traffic.lead", "multi0.traffic.stuck.blocker", "multi0.traffic.stuck.runner", "multi0.traffic.yield", "multi0.veteran.warden", "multi0.warden.capture", "multi0.worker.0", "multi0.worker.1", "multi0.worker.repair"],
+      runtime_core_hidden_fixture_actor_ids: ["multi0.assignment.runner", "multi0.assignment.wing", "multi0.chain.runner", "multi0.formation.blocked.lead", "multi0.formation.blocked.left", "multi0.formation.blocked.right", "multi0.formation.lead", "multi0.formation.left", "multi0.formation.prune.runner", "multi0.formation.right", "multi0.formation.slot.blocker", "multi0.formation.validation.runner", "multi0.group.validation.runner", "multi0.override.runner", "multi0.queue.prune.runner", "multi0.queue.reject.runner", "multi0.reassignment.runner", "multi0.reassignment.wing", "multi0.rebuild.runner", "multi0.rebuild.wing", "multi0.recall.formation.runner", "multi0.recall.formation.wing", "multi0.recall.order.runner", "multi0.recall.order.wing", "multi0.recall.override.runner", "multi0.recall.override.wing", "multi0.recall.rebuild.runner", "multi0.recall.rebuild.wing", "multi0.stance.holdfire", "multi0.stance.prune.runner"],
+      runtime_core_hidden_fixture_tile_ids: ["1,30", "11,31", "13,31", "17,29", "17,30", "18,29", "18,30", "18,31", "19,29", "19,30", "2,30", "2,31", "20,30", "21,29", "22,30", "24,29", "26,29", "28,29", "28,30", "3,29", "3,30", "3,31", "30,29", "30,30", "31,29", "31,31", "32,29"],
+      runtime_core_required_visible_actor_ids: ["multi0.command.core", "multi0.worker.0", "multi0.flux.relay", "map.actor15"],
+      runtime_core_required_visible_gate: true,
+      runtime_core_hidden_fixture_gate: true,
+      runtime_core_visible_subset_gate: true,
+      runtime_core_bottom_fixture_gate: true
+    },
+    first_contact_runtime_core_visibility_gate: true,
     rts_data_player_screen_layout_gate: true,
     rts_data_player_screen_chrome_gate: true,
     rts_data_player_screen_gate: true,

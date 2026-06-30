@@ -817,6 +817,7 @@ const CLASSIC_FIRST_CONTACT_ROUTE_ACK_TICK_HEIGHT_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_OWNER_PLAYER_COLOR: u32 = 0x67c980;
 const CLASSIC_FIRST_CONTACT_OWNER_ENEMY_COLOR: u32 = 0xd47967;
 const CLASSIC_FIRST_CONTACT_NON_FOCUS_OWNER_IDENTITY_PIXEL_BUDGET: usize = 192;
+const CLASSIC_FIRST_CONTACT_RUNTIME_CORE_VISIBLE_TILE_Y_MAX: i32 = 28;
 const CLASSIC_RTS_PRODUCT_MODEL_VOLUME_COLOR: u32 = 0x6e89a8;
 const CLASSIC_RTS_MODEL_IDENTITY_CORE_COLOR: u32 = 0xb7c8ff;
 const CLASSIC_RTS_MODEL_IDENTITY_RELAY_COLOR: u32 = 0x8fffd2;
@@ -26791,6 +26792,14 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         .get("green")
         .and_then(Value::as_bool)
         == Some(true);
+    let first_contact_runtime_core_preview_world =
+        classic_first_contact_openra_like_core_preview_world();
+    let first_contact_runtime_core_visibility =
+        classic_first_contact_runtime_core_visibility(&first_contact_runtime_core_preview_world);
+    let first_contact_runtime_core_visibility_gate = first_contact_runtime_core_visibility
+        .get("green")
+        .and_then(Value::as_bool)
+        == Some(true);
     let green = map_actor_gate
         && map_topology_gate
         && rules_gate
@@ -26831,6 +26840,7 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         && first_contact_selection_combat_focus_guard_gate
         && first_contact_target_callout_guard_gate
         && first_contact_marker_budget_guard_gate
+        && first_contact_runtime_core_visibility_gate
         && ui_runtime_gate;
     serde_json::to_string_pretty(&json!({
         "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_BASIN_SPEC_CONTRACT,
@@ -26974,13 +26984,15 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         "first_contact_marker_budget_contract": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_MARKER_BUDGET_CONTRACT,
         "first_contact_marker_budget_guard": first_contact_marker_budget_guard,
         "first_contact_marker_budget_guard_gate": first_contact_marker_budget_guard_gate,
+        "first_contact_runtime_core_visibility": first_contact_runtime_core_visibility,
+        "first_contact_runtime_core_visibility_gate": first_contact_runtime_core_visibility_gate,
         "bevy_data_actor_parity_gate": bevy_data_actor_parity_gate,
         "bevy_map_model_adapter_gate": bevy_map_model_adapter_gate,
         "ui_runtime_gate": ui_runtime_gate,
         "source_mod_map": "TrillionniumRTS/mods/trnm/maps/first-contact-basin/map.yaml",
         "source_mod_rules": "TrillionniumRTS/mods/trnm/rules/trnm.yaml",
         "source_policy": "Trillionnium-owned runtime now consumes the Bevy-free trnm-rts-data map model derived from the internal TrillionniumRTS seed; OpenRA engine code and third-party/proprietary RTS assets are not copied.",
-        "source_of_truth": "This spec evidence locks the trnm-rts-data First Contact Basin map/rule/player-screen vocabulary that the Bevy desktop RTS UI consumes: 39 map actors, 4 spawns, 11 Flux blooms, 4 Beacons, 4 expansions, unit status overlays, tactical tracks, live player-screen camera/visibility/command defaults, player-screen layout/chrome dimensions, player-facing HUD panel labels, role-specific command-grid glyphs, compact right-sidebar production/build-palette/tactics density, bottom-panel squad/status readability, terrain/unit/structure silhouettes, authored terrain material and building facade details, unit/building motion readability cues, animation-cycle frame signatures, project-owned atlas frame usage for terrain/unit/structure/objective sprites, screenshot-informed visual hierarchy de-emphasis for the opening command corridor, screenshot-informed central combat clutter reduction around non-focus core tiles, screenshot-informed target/blocked terminal quiet bands that keep route endpoints readable, screenshot-informed selection/combat focus brackets and compact route ACK ticks for the opening command route, a compact BEACON target callout with health strip inside the final focus layer, muted non-interactive gallery marker/color budgets and compact build-palette status badges that keep the focus layer visually hot, source manifest tracking, the initial unit/structure rules surfaced in the command and rules panels, and a no-socket offline adapter contract that reaches actual local player-screen/session handoff consumption plus Bevy-free session-transition and lobby-ready reviews through retained/pruned control-group command history."
+        "source_of_truth": "This spec evidence locks the trnm-rts-data First Contact Basin map/rule/player-screen vocabulary that the Bevy desktop RTS UI consumes: 39 map actors, 4 spawns, 11 Flux blooms, 4 Beacons, 4 expansions, unit status overlays, tactical tracks, live player-screen camera/visibility/command defaults, player-screen layout/chrome dimensions, player-facing HUD panel labels, role-specific command-grid glyphs, compact right-sidebar production/build-palette/tactics density, bottom-panel squad/status readability, terrain/unit/structure silhouettes, authored terrain material and building facade details, unit/building motion readability cues, animation-cycle frame signatures, project-owned atlas frame usage for terrain/unit/structure/objective sprites, screenshot-informed visual hierarchy de-emphasis for the opening command corridor, screenshot-informed central combat clutter reduction around non-focus core tiles, screenshot-informed target/blocked terminal quiet bands that keep route endpoints readable, screenshot-informed selection/combat focus brackets and compact route ACK ticks for the opening command route, a compact BEACON target callout with health strip inside the final focus layer, muted non-interactive gallery marker/color budgets and compact build-palette status badges that keep the focus layer visually hot, a player-visible runtime-core actor subset that hides bottom-row control-group fixtures without changing the complete simulation world, source manifest tracking, the initial unit/structure rules surfaced in the command and rules panels, and a no-socket offline adapter contract that reaches actual local player-screen/session handoff consumption plus Bevy-free session-transition and lobby-ready reviews through retained/pruned control-group command history."
     }))
     .expect("first contact basin spec evidence serializes")
 }
@@ -91370,6 +91382,110 @@ fn classic_first_contact_openra_like_core_preview_world() -> TrnmOpenRaLikeWorld
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_first_contact_runtime_core_actor_candidate(actor: &TrnmOpenRaLikeActorState) -> bool {
+    actor.owner == "Multi0"
+        || actor.id == "multi1.command.core"
+        || actor.id == "map.actor15"
+        || actor.id == "multi0.flux.relay"
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_first_contact_runtime_core_actor_player_visible(
+    actor: &TrnmOpenRaLikeActorState,
+) -> bool {
+    classic_first_contact_runtime_core_actor_candidate(actor)
+        && !(actor.owner == "Multi0"
+            && actor.tile.1 > CLASSIC_FIRST_CONTACT_RUNTIME_CORE_VISIBLE_TILE_Y_MAX)
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_first_contact_runtime_core_visibility(world: &TrnmOpenRaLikeWorld) -> Value {
+    let runtime_core_actor_count = world
+        .actors
+        .iter()
+        .filter(|actor| classic_first_contact_runtime_core_actor_candidate(actor))
+        .count();
+    let visible_actors = world
+        .actors
+        .iter()
+        .filter(|actor| classic_first_contact_runtime_core_actor_player_visible(actor))
+        .collect::<Vec<_>>();
+    let hidden_fixture_actors = world
+        .actors
+        .iter()
+        .filter(|actor| {
+            classic_first_contact_runtime_core_actor_candidate(actor)
+                && !classic_first_contact_runtime_core_actor_player_visible(actor)
+        })
+        .collect::<Vec<_>>();
+    let mut visible_actor_ids = visible_actors
+        .iter()
+        .map(|actor| actor.id.clone())
+        .collect::<Vec<_>>();
+    visible_actor_ids.sort();
+    let mut hidden_fixture_actor_ids = hidden_fixture_actors
+        .iter()
+        .map(|actor| actor.id.clone())
+        .collect::<Vec<_>>();
+    hidden_fixture_actor_ids.sort();
+    let mut hidden_fixture_tile_ids = hidden_fixture_actors
+        .iter()
+        .map(|actor| classic_rts_tile_id(actor.tile))
+        .collect::<Vec<_>>();
+    hidden_fixture_tile_ids.sort();
+    hidden_fixture_tile_ids.dedup();
+    let visible_actor_id_set = visible_actor_ids
+        .iter()
+        .map(String::as_str)
+        .collect::<HashSet<_>>();
+    let required_visible_actor_ids = [
+        "multi0.command.core",
+        "multi0.worker.0",
+        "multi0.flux.relay",
+        "map.actor15",
+    ];
+    let required_visible_gate = required_visible_actor_ids
+        .iter()
+        .all(|actor_id| visible_actor_id_set.contains(actor_id));
+    let hidden_fixture_gate = !hidden_fixture_actors.is_empty()
+        && hidden_fixture_actors.iter().all(|actor| {
+            actor.owner == "Multi0"
+                && actor.tile.1 > CLASSIC_FIRST_CONTACT_RUNTIME_CORE_VISIBLE_TILE_Y_MAX
+        })
+        && hidden_fixture_actor_ids
+            .iter()
+            .any(|actor_id| actor_id == "multi0.formation.lead")
+        && hidden_fixture_actor_ids
+            .iter()
+            .any(|actor_id| actor_id == "multi0.queue.reject.runner")
+        && hidden_fixture_actor_ids
+            .iter()
+            .any(|actor_id| actor_id == "multi0.override.runner");
+    let visible_subset_gate = runtime_core_actor_count > visible_actors.len()
+        && visible_actors.iter().all(|actor| {
+            actor.owner != "Multi0"
+                || actor.tile.1 <= CLASSIC_FIRST_CONTACT_RUNTIME_CORE_VISIBLE_TILE_Y_MAX
+        });
+    let green = required_visible_gate && hidden_fixture_gate && visible_subset_gate;
+    json!({
+        "green": green,
+        "source_path": "trnm-world-bevy classic_draw_first_contact_runtime_core_layer player-visible actor subset",
+        "runtime_core_visible_tile_y_max": CLASSIC_FIRST_CONTACT_RUNTIME_CORE_VISIBLE_TILE_Y_MAX,
+        "runtime_core_actor_count": runtime_core_actor_count,
+        "runtime_core_visible_actor_count": visible_actors.len(),
+        "runtime_core_hidden_fixture_actor_count": hidden_fixture_actors.len(),
+        "runtime_core_visible_actor_ids": visible_actor_ids,
+        "runtime_core_hidden_fixture_actor_ids": hidden_fixture_actor_ids,
+        "runtime_core_hidden_fixture_tile_ids": hidden_fixture_tile_ids,
+        "runtime_core_required_visible_actor_ids": required_visible_actor_ids,
+        "runtime_core_required_visible_gate": required_visible_gate,
+        "runtime_core_hidden_fixture_gate": hidden_fixture_gate,
+        "runtime_core_visible_subset_gate": visible_subset_gate,
+        "runtime_core_bottom_fixture_gate": green,
+    })
+}
+
+#[cfg(not(target_os = "android"))]
 fn classic_openra_like_world_snapshot_json(world: &TrnmOpenRaLikeWorld) -> Value {
     json!({
         "tick": world.tick,
@@ -92032,12 +92148,11 @@ fn classic_draw_first_contact_runtime_core_layer(
     cell_h: i32,
     world: &TrnmOpenRaLikeWorld,
 ) {
-    for actor in world.actors.iter().filter(|actor| {
-        actor.owner == "Multi0"
-            || actor.id == "multi1.command.core"
-            || actor.id == "map.actor15"
-            || actor.id == "multi0.flux.relay"
-    }) {
+    for actor in world
+        .actors
+        .iter()
+        .filter(|actor| classic_first_contact_runtime_core_actor_player_visible(actor))
+    {
         let (tile_x, tile_y) =
             classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, actor.tile);
         let color = classic_first_contact_runtime_actor_color(actor);
@@ -150040,6 +150155,92 @@ mod tests {
                 ((8, 25), owner_colors[1]),
             ]
         );
+    }
+
+    #[cfg(not(target_os = "android"))]
+    #[test]
+    fn classic_first_contact_runtime_core_visibility_filters_bottom_fixture_rows() {
+        let world = classic_first_contact_openra_like_core_preview_world();
+        let guard = classic_first_contact_runtime_core_visibility(&world);
+
+        assert_eq!(
+            guard.get("green").and_then(Value::as_bool),
+            Some(true),
+            "{guard:#}"
+        );
+        assert_eq!(
+            guard
+                .get("source_path")
+                .and_then(Value::as_str),
+            Some("trnm-world-bevy classic_draw_first_contact_runtime_core_layer player-visible actor subset")
+        );
+        assert_eq!(
+            guard
+                .get("runtime_core_visible_tile_y_max")
+                .and_then(Value::as_i64),
+            Some(i64::from(
+                CLASSIC_FIRST_CONTACT_RUNTIME_CORE_VISIBLE_TILE_Y_MAX
+            ))
+        );
+        assert!(
+            guard
+                .get("runtime_core_actor_count")
+                .and_then(Value::as_u64)
+                > guard
+                    .get("runtime_core_visible_actor_count")
+                    .and_then(Value::as_u64)
+        );
+        assert!(guard
+            .get("runtime_core_hidden_fixture_actor_count")
+            .and_then(Value::as_u64)
+            .is_some_and(|count| count >= 8));
+        let visible_actor_ids = guard
+            .get("runtime_core_visible_actor_ids")
+            .and_then(Value::as_array)
+            .expect("runtime core visible actor ids are listed");
+        for actor_id in [
+            "multi0.command.core",
+            "multi0.worker.0",
+            "multi0.flux.relay",
+            "map.actor15",
+        ] {
+            assert!(
+                visible_actor_ids
+                    .iter()
+                    .any(|value| value.as_str() == Some(actor_id)),
+                "{guard:#}"
+            );
+        }
+        let hidden_fixture_actor_ids = guard
+            .get("runtime_core_hidden_fixture_actor_ids")
+            .and_then(Value::as_array)
+            .expect("runtime core hidden fixture actor ids are listed");
+        for actor_id in [
+            "multi0.formation.lead",
+            "multi0.override.runner",
+            "multi0.queue.reject.runner",
+        ] {
+            assert!(
+                hidden_fixture_actor_ids
+                    .iter()
+                    .any(|value| value.as_str() == Some(actor_id)),
+                "{guard:#}"
+            );
+            assert!(
+                !visible_actor_ids
+                    .iter()
+                    .any(|value| value.as_str() == Some(actor_id)),
+                "{guard:#}"
+            );
+        }
+        for gate in [
+            "runtime_core_required_visible_gate",
+            "runtime_core_hidden_fixture_gate",
+            "runtime_core_visible_subset_gate",
+            "runtime_core_bottom_fixture_gate",
+        ] {
+            assert_eq!(guard.get(gate).and_then(Value::as_bool), Some(true));
+        }
     }
 
     #[cfg(not(target_os = "android"))]

@@ -4016,7 +4016,7 @@ run_validation_filter_in_chunks "$VALIDATION_FILTER" "$SUMMARY" "$VALIDATION_CHU
   and .headline.rts_first_contact_basin_spec_contract_field_count == 32
   and .headline.rts_first_contact_basin_spec_guard_object_count == 16
   and .headline.rts_first_contact_basin_spec_guard_gate_count == 16
-  and .headline.rts_first_contact_basin_spec_top_level_gate_count == 45
+  and .headline.rts_first_contact_basin_spec_top_level_gate_count == 46
   and .headline.rts_first_contact_basin_spec_map_model_actor_count == 39
   and .headline.rts_first_contact_basin_spec_map_model_player_count == 6
   and .headline.rts_first_contact_basin_spec_map_model_rule_count == 19
