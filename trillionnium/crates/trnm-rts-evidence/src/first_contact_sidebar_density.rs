@@ -31,6 +31,7 @@ pub struct RtsFirstContactSidebarDensityRuntime {
     pub production_empty_slot_status_badge_labels: Vec<String>,
     pub production_empty_slot_status_badge_widths_px: Vec<i32>,
     pub production_empty_slot_badge_label: String,
+    pub production_empty_slot_badge_width_px: i32,
     pub build_palette_visible_count: usize,
     pub build_palette_column_count: usize,
     pub build_palette_labels: Vec<String>,
@@ -75,7 +76,8 @@ pub fn first_contact_sidebar_density_guard(
         && runtime.production_slot_status_badge_labels == string_vec(["Q1", "Q2", "Q3", "B2"])
         && runtime.production_empty_slot_status_badge_labels
             == string_vec(["ADD", "ADD", "ADD", "ADD"])
-        && runtime.production_empty_slot_badge_label == "RDY"
+        && runtime.production_empty_slot_badge_label == "READY"
+        && runtime.production_empty_slot_badge_width_px <= 36
         && runtime
             .production_slot_badge_widths_px
             .iter()
@@ -155,6 +157,7 @@ pub fn first_contact_sidebar_density_guard(
         "production_empty_slot_status_badge_labels": runtime.production_empty_slot_status_badge_labels,
         "production_empty_slot_status_badge_widths": runtime.production_empty_slot_status_badge_widths_px,
         "production_empty_slot_badge_label": runtime.production_empty_slot_badge_label,
+        "production_empty_slot_badge_width_px": runtime.production_empty_slot_badge_width_px,
         "production_to_palette_gap_px": runtime.geometry.production_to_palette_gap_px,
         "build_palette_visible_count": build_palette_visible_count,
         "build_palette_column_count": build_palette_column_count,
@@ -253,7 +256,8 @@ mod tests {
             production_slot_status_labels,
             production_slot_status_badge_labels,
             production_empty_slot_status_badge_labels,
-            production_empty_slot_badge_label: "RDY".to_string(),
+            production_empty_slot_badge_label: "READY".to_string(),
+            production_empty_slot_badge_width_px: first_contact_text_advance_px("READY"),
             build_palette_visible_count: 8,
             build_palette_column_count: 4,
             build_palette_badge_widths_px: widths(&build_palette_badge_labels),
@@ -303,6 +307,18 @@ mod tests {
         assert_eq!(
             guard.get("production_slot_status_badge_labels").cloned(),
             Some(json!(["Q1", "Q2", "Q3", "B2"]))
+        );
+        assert_eq!(
+            guard
+                .get("production_empty_slot_badge_label")
+                .and_then(Value::as_str),
+            Some("READY")
+        );
+        assert_eq!(
+            guard
+                .get("production_empty_slot_badge_width_px")
+                .and_then(Value::as_i64),
+            Some(30)
         );
         assert_eq!(
             guard.get("build_palette_badge_labels").cloned(),

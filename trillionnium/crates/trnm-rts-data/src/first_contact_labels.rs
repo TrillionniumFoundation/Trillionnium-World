@@ -38,7 +38,7 @@ pub fn build_palette_badge_label(slot_label: &str) -> String {
 pub fn production_slot_badge_label(slot_label: &str) -> String {
     match slot_label.to_ascii_uppercase().as_str() {
         "GUARD" => "GRD".to_string(),
-        "READY" => "RDY".to_string(),
+        "READY" => "READY".to_string(),
         "SIGNAL" => "SIG".to_string(),
         "TRAINING" => "TRN".to_string(),
         "WORKER" => "WRK".to_string(),
@@ -253,6 +253,7 @@ mod tests {
         assert_eq!(palette_state_badge_label("READY"), "RDY");
         assert_eq!(build_palette_badge_label("COMMAND"), "CMD");
         assert_eq!(production_slot_badge_label("TRAINING"), "TRN");
+        assert_eq!(production_slot_badge_label("READY"), "READY");
         assert_eq!(production_status_badge_label("Q3 64 R"), "Q3");
         assert_eq!(tactics_queue_badge_label("WORKER 42% TOWER 66%"), "W42/T66");
         assert_eq!(tactics_queue_badge_label("TRAIN SI"), "TRN SIG");

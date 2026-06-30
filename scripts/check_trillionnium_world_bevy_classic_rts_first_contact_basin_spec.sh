@@ -946,7 +946,8 @@ cat >"$JQ_FILTER" <<'JQ'
   and .first_contact_sidebar_density_guard.production_slot_status_labels == ["Q1 64 R","Q2 42 R","Q3 64 R","B2 42 R"]
   and .first_contact_sidebar_density_guard.production_slot_status_badge_labels == ["Q1","Q2","Q3","B2"]
   and .first_contact_sidebar_density_guard.production_empty_slot_status_badge_labels == ["ADD","ADD","ADD","ADD"]
-  and .first_contact_sidebar_density_guard.production_empty_slot_badge_label == "RDY"
+  and .first_contact_sidebar_density_guard.production_empty_slot_badge_label == "READY"
+  and .first_contact_sidebar_density_guard.production_empty_slot_badge_width_px == 30
   and .first_contact_sidebar_density_guard.production_slot_labels == ["GUARD","WORKER","SIGNAL","TRAINING"]
   and .first_contact_sidebar_density_guard.production_slot_badge_labels == ["GRD","WRK","SIG","TRN"]
   and (.first_contact_sidebar_density_guard.production_slot_badge_widths | all(. <= 18))

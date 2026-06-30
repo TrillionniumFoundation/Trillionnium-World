@@ -148555,7 +148555,13 @@ mod tests {
             guard
                 .get("production_empty_slot_badge_label")
                 .and_then(Value::as_str),
-            Some("RDY")
+            Some("READY")
+        );
+        assert_eq!(
+            guard
+                .get("production_empty_slot_badge_width_px")
+                .and_then(Value::as_i64),
+            Some(30)
         );
         assert_eq!(
             guard

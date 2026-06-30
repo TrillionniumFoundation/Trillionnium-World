@@ -60,6 +60,8 @@ pub(crate) fn sidebar_density_guard(
     let production_empty_slot_badge_label = classic_first_contact_production_slot_badge_label(
         &classic_rts_queue_slot_label(&chrome.production_empty_label),
     );
+    let production_empty_slot_badge_width_px =
+        classic_text_advance_px(&production_empty_slot_badge_label, 1);
     let production_slot_status_badge_widths = production_slot_status_badge_labels
         .iter()
         .map(|label| classic_text_advance_px(label, 1))
@@ -148,6 +150,7 @@ pub(crate) fn sidebar_density_guard(
         production_empty_slot_status_badge_labels,
         production_empty_slot_status_badge_widths_px: production_empty_slot_status_badge_widths,
         production_empty_slot_badge_label,
+        production_empty_slot_badge_width_px,
         build_palette_visible_count,
         build_palette_column_count,
         build_palette_labels,
@@ -199,6 +202,18 @@ mod tests {
         assert_eq!(
             guard.get("production_slot_status_badge_labels").cloned(),
             Some(json!(["Q1", "Q2", "Q3", "B2"]))
+        );
+        assert_eq!(
+            guard
+                .get("production_empty_slot_badge_label")
+                .and_then(Value::as_str),
+            Some("READY")
+        );
+        assert_eq!(
+            guard
+                .get("production_empty_slot_badge_width_px")
+                .and_then(Value::as_i64),
+            Some(30)
         );
         assert_eq!(
             guard.get("build_palette_badge_labels").cloned(),
