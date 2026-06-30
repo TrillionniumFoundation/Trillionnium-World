@@ -1370,6 +1370,7 @@ cat >"$JQ_FILTER" <<'JQ'
   and (.first_contact_selection_combat_focus_guard.focus_signatures | index("route_clearance_corner_cues") != null)
   and (.first_contact_selection_combat_focus_guard.focus_signatures | index("attack_target_lock_brackets") != null)
   and (.first_contact_selection_combat_focus_guard.focus_signatures | index("compact_target_lock_cross") != null)
+  and (.first_contact_selection_combat_focus_guard.focus_signatures | index("target_ack_micro_tick") != null)
   and (.first_contact_selection_combat_focus_guard.focus_signatures | index("blocked_warning_cross") != null)
   and .first_contact_selection_combat_focus_guard.route_dash_count >= 4
   and .first_contact_selection_combat_focus_guard.route_ack_tick_count >= 6
@@ -1393,11 +1394,11 @@ cat >"$JQ_FILTER" <<'JQ'
   and .first_contact_selection_combat_focus_guard.route_clearance_pixel_budget <= 432
   and .first_contact_selection_combat_focus_guard.combat_target_cross_long_px == 28
   and .first_contact_selection_combat_focus_guard.combat_target_cross_thickness_px == 3
-  and .first_contact_selection_combat_focus_guard.combat_target_ack_tick_width_px == 18
-  and .first_contact_selection_combat_focus_guard.combat_target_ack_tick_height_px == 4
+  and .first_contact_selection_combat_focus_guard.combat_target_ack_tick_width_px == 4
+  and .first_contact_selection_combat_focus_guard.combat_target_ack_tick_height_px == 2
   and .first_contact_selection_combat_focus_guard.combat_target_cross_pixel_budget <= 168
-  and .first_contact_selection_combat_focus_guard.combat_target_ack_tick_pixel_budget <= 72
-  and .first_contact_selection_combat_focus_guard.combat_target_pixel_budget <= 240
+  and .first_contact_selection_combat_focus_guard.combat_target_ack_tick_pixel_budget == 8
+  and .first_contact_selection_combat_focus_guard.combat_target_pixel_budget <= 176
   and .first_contact_selection_combat_focus_guard.blocked_warning_pixel_budget >= 72
   and .first_contact_selection_combat_focus_guard.selected_focus_gate == true
   and .first_contact_selection_combat_focus_guard.route_focus_gate == true

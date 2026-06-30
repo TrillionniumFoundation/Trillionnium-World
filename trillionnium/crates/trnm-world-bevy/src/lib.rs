@@ -805,8 +805,8 @@ const CLASSIC_FIRST_CONTACT_TARGET_PREFLIGHT_CROSS_LONG_PX: i32 = 16;
 const CLASSIC_FIRST_CONTACT_TARGET_PREFLIGHT_CROSS_THICKNESS_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_TARGET_LOCK_CROSS_LONG_PX: i32 = 28;
 const CLASSIC_FIRST_CONTACT_TARGET_LOCK_CROSS_THICKNESS_PX: i32 = 3;
-const CLASSIC_FIRST_CONTACT_TARGET_LOCK_ACK_TICK_W_PX: i32 = 18;
-const CLASSIC_FIRST_CONTACT_TARGET_LOCK_ACK_TICK_H_PX: i32 = 4;
+const CLASSIC_FIRST_CONTACT_TARGET_LOCK_ACK_TICK_W_PX: i32 = 4;
+const CLASSIC_FIRST_CONTACT_TARGET_LOCK_ACK_TICK_H_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_SELECTED_ROLE_BADGE_TICK_W_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_SELECTED_ROLE_BADGE_TICK_H_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_SELECTED_FOCUS_BRACKET_PIXELS_PER_TILE: usize = 64;
@@ -150326,6 +150326,9 @@ mod tests {
                             .any(|value| value.as_str() == Some("compact_target_lock_cross"))
                         && signatures
                             .iter()
+                            .any(|value| value.as_str() == Some("target_ack_micro_tick"))
+                        && signatures
+                            .iter()
                             .any(|value| value.as_str() == Some("route_clearance_corner_cues"))
                         && signatures
                             .iter()
@@ -150446,13 +150449,13 @@ mod tests {
             guard
                 .get("combat_target_ack_tick_width_px")
                 .and_then(Value::as_u64),
-            Some(18)
+            Some(4)
         );
         assert_eq!(
             guard
                 .get("combat_target_ack_tick_height_px")
                 .and_then(Value::as_u64),
-            Some(4)
+            Some(2)
         );
         assert_eq!(
             guard
@@ -150464,13 +150467,13 @@ mod tests {
             guard
                 .get("combat_target_ack_tick_pixel_budget")
                 .and_then(Value::as_u64),
-            Some(72)
+            Some(8)
         );
         assert_eq!(
             guard
                 .get("combat_target_pixel_budget")
                 .and_then(Value::as_u64),
-            Some(240)
+            Some(176)
         );
         assert_eq!(
             guard
