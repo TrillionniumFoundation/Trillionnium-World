@@ -172,6 +172,7 @@ required_source_lines=(
   'fn classic_first_contact_marker_budget_guard'
   'CLASSIC_FIRST_CONTACT_RUNTIME_CORE_VISIBLE_TILE_Y_MAX'
   'fn classic_first_contact_runtime_core_actor_candidate'
+  'fn classic_first_contact_runtime_core_semantic_fixture_actor'
   'fn classic_first_contact_runtime_core_actor_player_visible'
   'fn classic_first_contact_runtime_actor_selection_ring_candidate'
   'fn classic_first_contact_runtime_actor_selection_ring_visible'
@@ -1520,27 +1521,28 @@ cat >"$JQ_FILTER" <<'JQ'
   and .first_contact_marker_budget_guard.first_contact_marker_budget_gate == true
   and .first_contact_marker_budget_guard_gate == true
   and .first_contact_runtime_core_visibility.green == true
-  and .first_contact_runtime_core_visibility.source_path == "trnm-world-bevy classic_draw_first_contact_runtime_core_layer player-visible actor subset with control fixtures hidden, inline health bars decluttered, default selection rings suppressed, and unit role accents muted"
+  and .first_contact_runtime_core_visibility.source_path == "trnm-world-bevy classic_draw_first_contact_runtime_core_layer player-visible actor subset with control and semantic fixtures hidden, inline health bars decluttered, default selection rings suppressed, and unit role accents muted"
   and .first_contact_runtime_core_visibility.runtime_core_visible_tile_y_max == 28
   and .first_contact_runtime_core_visibility.runtime_core_actor_count == 83
-  and .first_contact_runtime_core_visibility.runtime_core_visible_actor_count == 34
-  and .first_contact_runtime_core_visibility.runtime_core_inline_health_bar_actor_count == 5
-  and .first_contact_runtime_core_visibility.runtime_core_suppressed_inline_health_bar_actor_count == 29
+  and .first_contact_runtime_core_visibility.runtime_core_visible_actor_count == 14
+  and .first_contact_runtime_core_visibility.runtime_core_inline_health_bar_actor_count == 4
+  and .first_contact_runtime_core_visibility.runtime_core_suppressed_inline_health_bar_actor_count == 10
   and .first_contact_runtime_core_visibility.runtime_core_progress_bar_actor_count == 2
-  and .first_contact_runtime_core_visibility.runtime_core_selection_ring_candidate_actor_count == 34
+  and .first_contact_runtime_core_visibility.runtime_core_selection_ring_candidate_actor_count == 14
   and .first_contact_runtime_core_visibility.runtime_core_selection_ring_visible_actor_count == 0
-  and .first_contact_runtime_core_visibility.runtime_core_suppressed_selection_ring_actor_count == 34
-  and .first_contact_runtime_core_visibility.runtime_core_unit_role_accent_candidate_actor_count == 29
+  and .first_contact_runtime_core_visibility.runtime_core_suppressed_selection_ring_actor_count == 14
+  and .first_contact_runtime_core_visibility.runtime_core_unit_role_accent_candidate_actor_count == 9
   and .first_contact_runtime_core_visibility.runtime_core_unit_role_accent_visible_actor_count == 0
-  and .first_contact_runtime_core_visibility.runtime_core_suppressed_unit_role_accent_actor_count == 29
-  and .first_contact_runtime_core_visibility.runtime_core_hidden_fixture_actor_count == 49
+  and .first_contact_runtime_core_visibility.runtime_core_suppressed_unit_role_accent_actor_count == 9
+  and .first_contact_runtime_core_visibility.runtime_core_hidden_fixture_actor_count == 69
   and .first_contact_runtime_core_visibility.runtime_core_hidden_control_fixture_actor_count == 48
+  and .first_contact_runtime_core_visibility.runtime_core_hidden_semantic_fixture_actor_count == 20
   and .first_contact_runtime_core_visibility.runtime_core_required_visible_actor_ids == ["multi0.command.core","multi0.worker.0","multi0.flux.relay","map.actor15"]
   and (.first_contact_runtime_core_visibility.runtime_core_inline_health_bar_actor_ids | index("multi0.damaged.relay") != null)
   and (.first_contact_runtime_core_visibility.runtime_core_inline_health_bar_actor_ids | index("multi0.line.0") != null)
   and (.first_contact_runtime_core_visibility.runtime_core_inline_health_bar_actor_ids | index("multi0.scout.intel") != null)
-  and (.first_contact_runtime_core_visibility.runtime_core_inline_health_bar_actor_ids | index("multi0.veteran.warden") != null)
   and (.first_contact_runtime_core_visibility.runtime_core_inline_health_bar_actor_ids | index("multi0.warden.capture") != null)
+  and (.first_contact_runtime_core_visibility.runtime_core_inline_health_bar_actor_ids | index("multi0.veteran.warden") == null)
   and (.first_contact_runtime_core_visibility.runtime_core_inline_health_bar_actor_ids | index("multi0.command.core") == null)
   and (.first_contact_runtime_core_visibility.runtime_core_inline_health_bar_actor_ids | index("multi0.worker.0") == null)
   and (.first_contact_runtime_core_visibility.runtime_core_inline_health_bar_actor_ids | index("map.actor15") == null)
@@ -1564,7 +1566,22 @@ cat >"$JQ_FILTER" <<'JQ'
   and (.first_contact_runtime_core_visibility.runtime_core_visible_actor_ids | index("multi0.recall.order.old.seed") == null)
   and (.first_contact_runtime_core_visibility.runtime_core_visible_actor_ids | index("multi0.queue.reject.runner") == null)
   and (.first_contact_runtime_core_visibility.runtime_core_visible_actor_ids | index("multi0.override.runner") == null)
+  and (.first_contact_runtime_core_visibility.runtime_core_visible_actor_ids | index("multi0.obstruction.leader") == null)
+  and (.first_contact_runtime_core_visibility.runtime_core_visible_actor_ids | index("multi0.reservation.lead") == null)
+  and (.first_contact_runtime_core_visibility.runtime_core_visible_actor_ids | index("multi0.traffic.stuck.runner") == null)
+  and (.first_contact_runtime_core_visibility.runtime_core_visible_actor_ids | index("multi0.focus.warden.a") == null)
+  and (.first_contact_runtime_core_visibility.runtime_core_visible_actor_ids | index("multi0.priority.guard") == null)
+  and (.first_contact_runtime_core_visibility.runtime_core_visible_actor_ids | index("multi0.attackmove.warden") == null)
   and (.first_contact_runtime_core_visibility.runtime_core_hidden_fixture_actor_ids | index("multi0.formation.lead") != null)
+  and (.first_contact_runtime_core_visibility.runtime_core_hidden_fixture_actor_ids | index("multi0.obstruction.leader") != null)
+  and (.first_contact_runtime_core_visibility.runtime_core_hidden_fixture_actor_ids | index("multi0.reservation.lead") != null)
+  and (.first_contact_runtime_core_visibility.runtime_core_hidden_fixture_actor_ids | index("multi0.traffic.stuck.runner") != null)
+  and (.first_contact_runtime_core_visibility.runtime_core_hidden_semantic_fixture_actor_ids | index("multi0.obstruction.leader") != null)
+  and (.first_contact_runtime_core_visibility.runtime_core_hidden_semantic_fixture_actor_ids | index("multi0.reservation.lead") != null)
+  and (.first_contact_runtime_core_visibility.runtime_core_hidden_semantic_fixture_actor_ids | index("multi0.traffic.stuck.runner") != null)
+  and (.first_contact_runtime_core_visibility.runtime_core_hidden_semantic_fixture_actor_ids | index("multi0.focus.warden.a") != null)
+  and (.first_contact_runtime_core_visibility.runtime_core_hidden_semantic_fixture_actor_ids | index("multi0.priority.guard") != null)
+  and (.first_contact_runtime_core_visibility.runtime_core_hidden_semantic_fixture_actor_ids | index("multi0.attackmove.warden") != null)
   and (.first_contact_runtime_core_visibility.runtime_core_hidden_control_fixture_actor_ids | index("multi0.append.seed") != null)
   and (.first_contact_runtime_core_visibility.runtime_core_hidden_control_fixture_actor_ids | index("multi0.remove.seed") != null)
   and (.first_contact_runtime_core_visibility.runtime_core_hidden_control_fixture_actor_ids | index("multi0.recall.order.old.seed") != null)
@@ -1578,6 +1595,7 @@ cat >"$JQ_FILTER" <<'JQ'
   and .first_contact_runtime_core_visibility.runtime_core_required_visible_gate == true
   and .first_contact_runtime_core_visibility.runtime_core_hidden_fixture_gate == true
   and .first_contact_runtime_core_visibility.runtime_core_control_fixture_gate == true
+  and .first_contact_runtime_core_visibility.runtime_core_semantic_fixture_gate == true
   and .first_contact_runtime_core_visibility.runtime_core_visible_subset_gate == true
   and .first_contact_runtime_core_visibility.runtime_core_bottom_fixture_gate == true
   and .first_contact_runtime_core_visibility.runtime_core_inline_health_bar_gate == true

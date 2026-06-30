@@ -91520,11 +91520,33 @@ fn classic_first_contact_runtime_core_control_fixture_actor(
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_first_contact_runtime_core_semantic_fixture_actor(
+    actor: &TrnmOpenRaLikeActorState,
+) -> bool {
+    if actor.owner != "Multi0" {
+        return false;
+    }
+    let actor_id = actor.id.as_str();
+    actor_id.starts_with("multi0.attackmove.")
+        || actor_id.starts_with("multi0.capture.contested.")
+        || actor_id.starts_with("multi0.focus.")
+        || actor_id.starts_with("multi0.obstruction.")
+        || actor_id.starts_with("multi0.patrol.")
+        || actor_id.starts_with("multi0.priority.")
+        || actor_id.starts_with("multi0.reservation.")
+        || (actor_id.starts_with("multi0.stance.") && !actor_id.starts_with("multi0.stance.prune"))
+        || actor_id.starts_with("multi0.stop.")
+        || actor_id.starts_with("multi0.traffic.")
+        || actor_id.starts_with("multi0.veteran.")
+}
+
+#[cfg(not(target_os = "android"))]
 fn classic_first_contact_runtime_core_actor_player_visible(
     actor: &TrnmOpenRaLikeActorState,
 ) -> bool {
     classic_first_contact_runtime_core_actor_candidate(actor)
         && !classic_first_contact_runtime_core_control_fixture_actor(actor)
+        && !classic_first_contact_runtime_core_semantic_fixture_actor(actor)
         && !(actor.owner == "Multi0"
             && actor.tile.1 > CLASSIC_FIRST_CONTACT_RUNTIME_CORE_VISIBLE_TILE_Y_MAX)
 }
@@ -91559,6 +91581,15 @@ fn classic_first_contact_runtime_core_visibility(world: &TrnmOpenRaLikeWorld) ->
         .copied()
         .filter(|actor| classic_first_contact_runtime_core_control_fixture_actor(actor))
         .collect::<Vec<_>>();
+    let hidden_semantic_fixture_actors = hidden_fixture_actors
+        .iter()
+        .copied()
+        .filter(|actor| {
+            classic_first_contact_runtime_core_semantic_fixture_actor(actor)
+                && !classic_first_contact_runtime_core_control_fixture_actor(actor)
+                && actor.tile.1 <= CLASSIC_FIRST_CONTACT_RUNTIME_CORE_VISIBLE_TILE_Y_MAX
+        })
+        .collect::<Vec<_>>();
     let mut visible_actor_ids = visible_actors
         .iter()
         .map(|actor| actor.id.clone())
@@ -91574,6 +91605,11 @@ fn classic_first_contact_runtime_core_visibility(world: &TrnmOpenRaLikeWorld) ->
         .map(|actor| actor.id.clone())
         .collect::<Vec<_>>();
     hidden_control_fixture_actor_ids.sort();
+    let mut hidden_semantic_fixture_actor_ids = hidden_semantic_fixture_actors
+        .iter()
+        .map(|actor| actor.id.clone())
+        .collect::<Vec<_>>();
+    hidden_semantic_fixture_actor_ids.sort();
     let mut hidden_fixture_tile_ids = hidden_fixture_actors
         .iter()
         .map(|actor| classic_rts_tile_id(actor.tile))
@@ -91633,7 +91669,8 @@ fn classic_first_contact_runtime_core_visibility(world: &TrnmOpenRaLikeWorld) ->
         && hidden_fixture_actors.iter().all(|actor| {
             actor.owner == "Multi0"
                 && (actor.tile.1 > CLASSIC_FIRST_CONTACT_RUNTIME_CORE_VISIBLE_TILE_Y_MAX
-                    || classic_first_contact_runtime_core_control_fixture_actor(actor))
+                    || classic_first_contact_runtime_core_control_fixture_actor(actor)
+                    || classic_first_contact_runtime_core_semantic_fixture_actor(actor))
         });
     let bottom_fixture_gate = !hidden_bottom_fixture_actors.is_empty()
         && hidden_bottom_fixture_actors.iter().all(|actor| {
@@ -91665,24 +91702,53 @@ fn classic_first_contact_runtime_core_visibility(world: &TrnmOpenRaLikeWorld) ->
         && visible_actors
             .iter()
             .all(|actor| !classic_first_contact_runtime_core_control_fixture_actor(actor));
+    let semantic_fixture_gate = !hidden_semantic_fixture_actors.is_empty()
+        && hidden_semantic_fixture_actors.iter().all(|actor| {
+            actor.owner == "Multi0"
+                && actor.tile.1 <= CLASSIC_FIRST_CONTACT_RUNTIME_CORE_VISIBLE_TILE_Y_MAX
+                && !classic_first_contact_runtime_core_control_fixture_actor(actor)
+                && classic_first_contact_runtime_core_semantic_fixture_actor(actor)
+        })
+        && hidden_semantic_fixture_actor_ids
+            .iter()
+            .any(|actor_id| actor_id == "multi0.obstruction.leader")
+        && hidden_semantic_fixture_actor_ids
+            .iter()
+            .any(|actor_id| actor_id == "multi0.reservation.lead")
+        && hidden_semantic_fixture_actor_ids
+            .iter()
+            .any(|actor_id| actor_id == "multi0.traffic.stuck.runner")
+        && hidden_semantic_fixture_actor_ids
+            .iter()
+            .any(|actor_id| actor_id == "multi0.focus.warden.a")
+        && hidden_semantic_fixture_actor_ids
+            .iter()
+            .any(|actor_id| actor_id == "multi0.priority.guard")
+        && hidden_semantic_fixture_actor_ids
+            .iter()
+            .any(|actor_id| actor_id == "multi0.attackmove.warden")
+        && visible_actors
+            .iter()
+            .all(|actor| !classic_first_contact_runtime_core_semantic_fixture_actor(actor));
     let visible_subset_gate = runtime_core_actor_count > visible_actors.len()
         && visible_actors.iter().all(|actor| {
             actor.owner != "Multi0"
                 || actor.tile.1 <= CLASSIC_FIRST_CONTACT_RUNTIME_CORE_VISIBLE_TILE_Y_MAX
                     && !classic_first_contact_runtime_core_control_fixture_actor(actor)
+                    && !classic_first_contact_runtime_core_semantic_fixture_actor(actor)
         });
     let inline_health_bar_gate = visible_actors
         .len()
         .saturating_sub(inline_health_bar_actor_ids.len())
-        >= 28
-        && inline_health_bar_actor_ids.len() <= 6
+        >= 8
+        && inline_health_bar_actor_ids.len() <= 5
         && !inline_health_bar_actor_ids
             .iter()
             .any(|actor_id| actor_id == "multi0.command.core" || actor_id == "multi0.worker.0")
         && progress_bar_actor_ids
             .iter()
             .any(|actor_id| actor_id == "map.actor15");
-    let selection_ring_gate = selection_ring_candidate_actor_ids.len() >= 24
+    let selection_ring_gate = selection_ring_candidate_actor_ids.len() >= 12
         && selection_ring_visible_actor_ids.is_empty()
         && selection_ring_candidate_actor_ids
             .iter()
@@ -91690,7 +91756,7 @@ fn classic_first_contact_runtime_core_visibility(world: &TrnmOpenRaLikeWorld) ->
         && selection_ring_candidate_actor_ids
             .iter()
             .any(|actor_id| actor_id == "multi0.line.0");
-    let unit_role_accent_gate = unit_role_accent_candidate_actor_ids.len() >= 24
+    let unit_role_accent_gate = unit_role_accent_candidate_actor_ids.len() >= 8
         && unit_role_accent_visible_actor_ids.is_empty()
         && unit_role_accent_candidate_actor_ids
             .iter()
@@ -91708,13 +91774,14 @@ fn classic_first_contact_runtime_core_visibility(world: &TrnmOpenRaLikeWorld) ->
         && hidden_fixture_gate
         && bottom_fixture_gate
         && control_fixture_gate
+        && semantic_fixture_gate
         && visible_subset_gate
         && inline_health_bar_gate
         && selection_ring_gate
         && unit_role_accent_gate;
     json!({
         "green": green,
-        "source_path": "trnm-world-bevy classic_draw_first_contact_runtime_core_layer player-visible actor subset with control fixtures hidden, inline health bars decluttered, default selection rings suppressed, and unit role accents muted",
+        "source_path": "trnm-world-bevy classic_draw_first_contact_runtime_core_layer player-visible actor subset with control and semantic fixtures hidden, inline health bars decluttered, default selection rings suppressed, and unit role accents muted",
         "runtime_core_visible_tile_y_max": CLASSIC_FIRST_CONTACT_RUNTIME_CORE_VISIBLE_TILE_Y_MAX,
         "runtime_core_actor_count": runtime_core_actor_count,
         "runtime_core_visible_actor_count": visible_actors.len(),
@@ -91738,11 +91805,14 @@ fn classic_first_contact_runtime_core_visibility(world: &TrnmOpenRaLikeWorld) ->
         "runtime_core_hidden_fixture_actor_ids": hidden_fixture_actor_ids,
         "runtime_core_hidden_control_fixture_actor_count": hidden_control_fixture_actors.len(),
         "runtime_core_hidden_control_fixture_actor_ids": hidden_control_fixture_actor_ids,
+        "runtime_core_hidden_semantic_fixture_actor_count": hidden_semantic_fixture_actors.len(),
+        "runtime_core_hidden_semantic_fixture_actor_ids": hidden_semantic_fixture_actor_ids,
         "runtime_core_hidden_fixture_tile_ids": hidden_fixture_tile_ids,
         "runtime_core_required_visible_actor_ids": required_visible_actor_ids,
         "runtime_core_required_visible_gate": required_visible_gate,
         "runtime_core_hidden_fixture_gate": hidden_fixture_gate,
         "runtime_core_control_fixture_gate": control_fixture_gate,
+        "runtime_core_semantic_fixture_gate": semantic_fixture_gate,
         "runtime_core_visible_subset_gate": visible_subset_gate,
         "runtime_core_bottom_fixture_gate": bottom_fixture_gate,
         "runtime_core_inline_health_bar_gate": inline_health_bar_gate,
@@ -150544,7 +150614,7 @@ mod tests {
             guard
                 .get("source_path")
                 .and_then(Value::as_str),
-            Some("trnm-world-bevy classic_draw_first_contact_runtime_core_layer player-visible actor subset with control fixtures hidden, inline health bars decluttered, default selection rings suppressed, and unit role accents muted")
+            Some("trnm-world-bevy classic_draw_first_contact_runtime_core_layer player-visible actor subset with control and semantic fixtures hidden, inline health bars decluttered, default selection rings suppressed, and unit role accents muted")
         );
         assert_eq!(
             guard
@@ -150570,13 +150640,13 @@ mod tests {
             guard
                 .get("runtime_core_inline_health_bar_actor_count")
                 .and_then(Value::as_u64),
-            Some(5)
+            Some(4)
         );
         assert_eq!(
             guard
                 .get("runtime_core_suppressed_inline_health_bar_actor_count")
                 .and_then(Value::as_u64),
-            Some(29)
+            Some(10)
         );
         assert_eq!(
             guard
@@ -150587,7 +150657,7 @@ mod tests {
         assert!(guard
             .get("runtime_core_selection_ring_candidate_actor_count")
             .and_then(Value::as_u64)
-            .is_some_and(|count| count == 34));
+            .is_some_and(|count| count == 14));
         assert_eq!(
             guard
                 .get("runtime_core_selection_ring_visible_actor_count")
@@ -150597,11 +150667,11 @@ mod tests {
         assert!(guard
             .get("runtime_core_suppressed_selection_ring_actor_count")
             .and_then(Value::as_u64)
-            .is_some_and(|count| count == 34));
+            .is_some_and(|count| count == 14));
         assert!(guard
             .get("runtime_core_unit_role_accent_candidate_actor_count")
             .and_then(Value::as_u64)
-            .is_some_and(|count| count >= 24));
+            .is_some_and(|count| count == 9));
         assert_eq!(
             guard
                 .get("runtime_core_unit_role_accent_visible_actor_count")
@@ -150611,7 +150681,7 @@ mod tests {
         assert!(guard
             .get("runtime_core_suppressed_unit_role_accent_actor_count")
             .and_then(Value::as_u64)
-            .is_some_and(|count| count >= 24));
+            .is_some_and(|count| count == 9));
         let visible_actor_ids = guard
             .get("runtime_core_visible_actor_ids")
             .and_then(Value::as_array)
@@ -150637,7 +150707,6 @@ mod tests {
             "multi0.damaged.relay",
             "multi0.line.0",
             "multi0.scout.intel",
-            "multi0.veteran.warden",
             "multi0.warden.capture",
         ] {
             assert!(
@@ -150732,10 +150801,36 @@ mod tests {
                 "{guard:#}"
             );
         }
+        let hidden_semantic_fixture_actor_ids = guard
+            .get("runtime_core_hidden_semantic_fixture_actor_ids")
+            .and_then(Value::as_array)
+            .expect("runtime core hidden semantic fixture actor ids are listed");
+        for actor_id in [
+            "multi0.attackmove.warden",
+            "multi0.focus.warden.a",
+            "multi0.obstruction.leader",
+            "multi0.priority.guard",
+            "multi0.reservation.lead",
+            "multi0.traffic.stuck.runner",
+        ] {
+            assert!(
+                hidden_semantic_fixture_actor_ids
+                    .iter()
+                    .any(|value| value.as_str() == Some(actor_id)),
+                "{guard:#}"
+            );
+            assert!(
+                !visible_actor_ids
+                    .iter()
+                    .any(|value| value.as_str() == Some(actor_id)),
+                "{guard:#}"
+            );
+        }
         for gate in [
             "runtime_core_required_visible_gate",
             "runtime_core_hidden_fixture_gate",
             "runtime_core_control_fixture_gate",
+            "runtime_core_semantic_fixture_gate",
             "runtime_core_visible_subset_gate",
             "runtime_core_bottom_fixture_gate",
             "runtime_core_inline_health_bar_gate",
