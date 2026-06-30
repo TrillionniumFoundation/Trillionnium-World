@@ -43,6 +43,7 @@ jq -e '
   and .command_surface_gate == true
   and .model_fidelity_gate == true
   and .npc_animation_gate == true
+  and .motion_state_sample_gate == true
   and .mature_rts_hud_gate == true
   and .original_art_policy_gate == true
   and .warcraft_iii_asset_copied == false

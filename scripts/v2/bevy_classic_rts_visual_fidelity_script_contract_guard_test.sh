@@ -15,6 +15,7 @@ required_script_lines=(
   'mature_rts_hud_gate == true'
   'model_fidelity_gate == true'
   'npc_animation_gate == true'
+  'motion_state_sample_gate == true'
   'desktop_product_visual_alignment_gate == true'
   'basin_command_feedback_pixel_count > 420'
   'basin_model_identity_pixel_count > 700'
@@ -33,6 +34,7 @@ done
 required_source_lines=(
   'TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_VISUAL_FIDELITY_CONTRACT'
   'native_classic_rts_visual_fidelity_evidence_json'
+  'classic_draw_rts_visual_fidelity_motion_samples'
   'classic_draw_rts_fidelity_overlay'
   'classic_draw_rts_fidelity_portrait'
   'classic_draw_rts_fidelity_unit_card'

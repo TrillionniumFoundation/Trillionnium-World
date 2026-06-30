@@ -14297,6 +14297,59 @@ pub fn native_classic_rts_scripted_demo_replay_evidence_json(preview_path: &str)
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_draw_rts_visual_fidelity_motion_samples(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+) {
+    let x = (width as i32 - 220).max(12);
+    let y = 26_i32;
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        x,
+        y,
+        "MOTION STATES",
+        1,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
+    for row in 0..4 {
+        let sample_y = y + 14 + row * 10;
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            x,
+            sample_y,
+            76,
+            3,
+            CLASSIC_RTS_FIDELITY_ACTION_TRAIL_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            x + 88,
+            sample_y,
+            76,
+            3,
+            CLASSIC_RTS_FIDELITY_NPC_ACTION_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            x + 4,
+            sample_y + 4,
+            148,
+            2,
+            CLASSIC_RTS_FIDELITY_ANIMATION_GHOST_COLOR,
+        );
+    }
+}
+
+#[cfg(not(target_os = "android"))]
 pub fn native_classic_rts_visual_fidelity_evidence_json(preview_path: &str) -> String {
     const PANEL_WIDTH: usize = 960;
     const PANEL_HEIGHT: usize = 540;
@@ -14311,6 +14364,7 @@ pub fn native_classic_rts_visual_fidelity_evidence_json(preview_path: &str) -> S
         &runtime,
         &assets,
     );
+    classic_draw_rts_visual_fidelity_motion_samples(&mut preview_pixels, PANEL_WIDTH, PANEL_HEIGHT);
     let write_gate =
         write_classic_rgb_buffer_ppm(preview_path, PANEL_WIDTH, PANEL_HEIGHT, &preview_pixels)
             .is_ok();
@@ -14449,6 +14503,7 @@ pub fn native_classic_rts_visual_fidelity_evidence_json(preview_path: &str) -> S
             .rts_combat_event_log
             .iter()
             .any(|entry| entry.contains("creep_counter"));
+    let motion_state_sample_gate = action_trail_pixel_count > 120 && npc_action_pixel_count > 100;
     let mature_rts_hud_gate = fidelity_panel_pixel_count > 16_000
         && command_surface_gate
         && model_fidelity_gate
@@ -14511,6 +14566,7 @@ pub fn native_classic_rts_visual_fidelity_evidence_json(preview_path: &str) -> S
         "command_surface_gate": command_surface_gate,
         "model_fidelity_gate": model_fidelity_gate,
         "npc_animation_gate": npc_animation_gate,
+        "motion_state_sample_gate": motion_state_sample_gate,
         "mature_rts_hud_gate": mature_rts_hud_gate,
         "desktop_product_visual_alignment_gate": desktop_product_visual_alignment_gate,
         "original_art_policy_gate": original_art_policy_gate,
@@ -91390,10 +91446,34 @@ fn classic_first_contact_runtime_core_actor_candidate(actor: &TrnmOpenRaLikeActo
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_first_contact_runtime_core_control_fixture_actor(
+    actor: &TrnmOpenRaLikeActorState,
+) -> bool {
+    if actor.owner != "Multi0" {
+        return false;
+    }
+    let actor_id = actor.id.as_str();
+    actor_id.starts_with("multi0.assignment.")
+        || actor_id.starts_with("multi0.reassignment.")
+        || actor_id.starts_with("multi0.append.")
+        || actor_id.starts_with("multi0.remove.")
+        || actor_id.starts_with("multi0.clear.")
+        || actor_id.starts_with("multi0.rebuild.")
+        || actor_id.starts_with("multi0.recall.")
+        || actor_id.starts_with("multi0.formation.")
+        || actor_id.starts_with("multi0.override.")
+        || actor_id.starts_with("multi0.queue.")
+        || actor_id.starts_with("multi0.chain.")
+        || actor_id.starts_with("multi0.group.validation.")
+        || actor_id.starts_with("multi0.stance.prune")
+}
+
+#[cfg(not(target_os = "android"))]
 fn classic_first_contact_runtime_core_actor_player_visible(
     actor: &TrnmOpenRaLikeActorState,
 ) -> bool {
     classic_first_contact_runtime_core_actor_candidate(actor)
+        && !classic_first_contact_runtime_core_control_fixture_actor(actor)
         && !(actor.owner == "Multi0"
             && actor.tile.1 > CLASSIC_FIRST_CONTACT_RUNTIME_CORE_VISIBLE_TILE_Y_MAX)
 }
@@ -91418,6 +91498,16 @@ fn classic_first_contact_runtime_core_visibility(world: &TrnmOpenRaLikeWorld) ->
                 && !classic_first_contact_runtime_core_actor_player_visible(actor)
         })
         .collect::<Vec<_>>();
+    let hidden_bottom_fixture_actors = hidden_fixture_actors
+        .iter()
+        .copied()
+        .filter(|actor| actor.tile.1 > CLASSIC_FIRST_CONTACT_RUNTIME_CORE_VISIBLE_TILE_Y_MAX)
+        .collect::<Vec<_>>();
+    let hidden_control_fixture_actors = hidden_fixture_actors
+        .iter()
+        .copied()
+        .filter(|actor| classic_first_contact_runtime_core_control_fixture_actor(actor))
+        .collect::<Vec<_>>();
     let mut visible_actor_ids = visible_actors
         .iter()
         .map(|actor| actor.id.clone())
@@ -91428,6 +91518,11 @@ fn classic_first_contact_runtime_core_visibility(world: &TrnmOpenRaLikeWorld) ->
         .map(|actor| actor.id.clone())
         .collect::<Vec<_>>();
     hidden_fixture_actor_ids.sort();
+    let mut hidden_control_fixture_actor_ids = hidden_control_fixture_actors
+        .iter()
+        .map(|actor| actor.id.clone())
+        .collect::<Vec<_>>();
+    hidden_control_fixture_actor_ids.sort();
     let mut hidden_fixture_tile_ids = hidden_fixture_actors
         .iter()
         .map(|actor| classic_rts_tile_id(actor.tile))
@@ -91450,6 +91545,12 @@ fn classic_first_contact_runtime_core_visibility(world: &TrnmOpenRaLikeWorld) ->
     let hidden_fixture_gate = !hidden_fixture_actors.is_empty()
         && hidden_fixture_actors.iter().all(|actor| {
             actor.owner == "Multi0"
+                && (actor.tile.1 > CLASSIC_FIRST_CONTACT_RUNTIME_CORE_VISIBLE_TILE_Y_MAX
+                    || classic_first_contact_runtime_core_control_fixture_actor(actor))
+        });
+    let bottom_fixture_gate = !hidden_bottom_fixture_actors.is_empty()
+        && hidden_bottom_fixture_actors.iter().all(|actor| {
+            actor.owner == "Multi0"
                 && actor.tile.1 > CLASSIC_FIRST_CONTACT_RUNTIME_CORE_VISIBLE_TILE_Y_MAX
         })
         && hidden_fixture_actor_ids
@@ -91461,27 +91562,51 @@ fn classic_first_contact_runtime_core_visibility(world: &TrnmOpenRaLikeWorld) ->
         && hidden_fixture_actor_ids
             .iter()
             .any(|actor_id| actor_id == "multi0.override.runner");
+    let control_fixture_gate = !hidden_control_fixture_actors.is_empty()
+        && hidden_control_fixture_actor_ids
+            .iter()
+            .any(|actor_id| actor_id == "multi0.append.seed")
+        && hidden_control_fixture_actor_ids
+            .iter()
+            .any(|actor_id| actor_id == "multi0.remove.seed")
+        && hidden_control_fixture_actor_ids
+            .iter()
+            .any(|actor_id| actor_id == "multi0.recall.order.old.seed")
+        && hidden_control_fixture_actor_ids
+            .iter()
+            .any(|actor_id| actor_id == "multi0.recall.override.old.seed")
+        && visible_actors
+            .iter()
+            .all(|actor| !classic_first_contact_runtime_core_control_fixture_actor(actor));
     let visible_subset_gate = runtime_core_actor_count > visible_actors.len()
         && visible_actors.iter().all(|actor| {
             actor.owner != "Multi0"
                 || actor.tile.1 <= CLASSIC_FIRST_CONTACT_RUNTIME_CORE_VISIBLE_TILE_Y_MAX
+                    && !classic_first_contact_runtime_core_control_fixture_actor(actor)
         });
-    let green = required_visible_gate && hidden_fixture_gate && visible_subset_gate;
+    let green = required_visible_gate
+        && hidden_fixture_gate
+        && bottom_fixture_gate
+        && control_fixture_gate
+        && visible_subset_gate;
     json!({
         "green": green,
-        "source_path": "trnm-world-bevy classic_draw_first_contact_runtime_core_layer player-visible actor subset",
+        "source_path": "trnm-world-bevy classic_draw_first_contact_runtime_core_layer player-visible actor subset with control fixtures hidden",
         "runtime_core_visible_tile_y_max": CLASSIC_FIRST_CONTACT_RUNTIME_CORE_VISIBLE_TILE_Y_MAX,
         "runtime_core_actor_count": runtime_core_actor_count,
         "runtime_core_visible_actor_count": visible_actors.len(),
         "runtime_core_hidden_fixture_actor_count": hidden_fixture_actors.len(),
         "runtime_core_visible_actor_ids": visible_actor_ids,
         "runtime_core_hidden_fixture_actor_ids": hidden_fixture_actor_ids,
+        "runtime_core_hidden_control_fixture_actor_count": hidden_control_fixture_actors.len(),
+        "runtime_core_hidden_control_fixture_actor_ids": hidden_control_fixture_actor_ids,
         "runtime_core_hidden_fixture_tile_ids": hidden_fixture_tile_ids,
         "runtime_core_required_visible_actor_ids": required_visible_actor_ids,
         "runtime_core_required_visible_gate": required_visible_gate,
         "runtime_core_hidden_fixture_gate": hidden_fixture_gate,
+        "runtime_core_control_fixture_gate": control_fixture_gate,
         "runtime_core_visible_subset_gate": visible_subset_gate,
-        "runtime_core_bottom_fixture_gate": green,
+        "runtime_core_bottom_fixture_gate": bottom_fixture_gate,
     })
 }
 
@@ -150172,7 +150297,7 @@ mod tests {
             guard
                 .get("source_path")
                 .and_then(Value::as_str),
-            Some("trnm-world-bevy classic_draw_first_contact_runtime_core_layer player-visible actor subset")
+            Some("trnm-world-bevy classic_draw_first_contact_runtime_core_layer player-visible actor subset with control fixtures hidden")
         );
         assert_eq!(
             guard
@@ -150219,6 +150344,10 @@ mod tests {
             "multi0.formation.lead",
             "multi0.override.runner",
             "multi0.queue.reject.runner",
+            "multi0.append.seed",
+            "multi0.remove.seed",
+            "multi0.recall.order.old.seed",
+            "multi0.recall.override.old.seed",
         ] {
             assert!(
                 hidden_fixture_actor_ids
@@ -150236,6 +150365,7 @@ mod tests {
         for gate in [
             "runtime_core_required_visible_gate",
             "runtime_core_hidden_fixture_gate",
+            "runtime_core_control_fixture_gate",
             "runtime_core_visible_subset_gate",
             "runtime_core_bottom_fixture_gate",
         ] {
