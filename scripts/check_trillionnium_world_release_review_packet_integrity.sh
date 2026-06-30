@@ -1290,6 +1290,9 @@ require_artifact_json_expr first_contact_basin_spec_semantics native_bevy_classi
   and .first_contact_marker_budget_guard.gallery_hot_marker_color_count == 0
   and .first_contact_marker_budget_guard.lower_lane_hot_marker_color_count == 0
   and .first_contact_marker_budget_guard.interactive_hot_marker_role_count >= 5
+  and .first_contact_marker_budget_guard.non_focus_owner_identity_colors == ["457953","6a5e4b"]
+  and .first_contact_marker_budget_guard.non_focus_owner_identity_hot_color_count == 0
+  and .first_contact_marker_budget_guard.non_focus_owner_identity_pixel_budget <= 192
   and .first_contact_marker_budget_guard.selected_role_badge_tick_pixel_budget <= 72
   and .first_contact_marker_budget_guard.interactive_focus_pixel_budget >= 890
   and .first_contact_marker_budget_guard.selected_focus_tiles == ["14,11","15,11","15,12","17,12"]
@@ -1306,11 +1309,13 @@ require_artifact_json_expr first_contact_basin_spec_semantics native_bevy_classi
   and (.first_contact_marker_budget_guard.gallery_presentation_signatures | index("lower_lane_single_point_ghost_anchors") != null)
   and (.first_contact_marker_budget_guard.gallery_presentation_signatures | index("compact_route_ack_ticks") != null)
   and (.first_contact_marker_budget_guard.gallery_presentation_signatures | index("interactive_focus_kept_hot") != null)
+  and (.first_contact_marker_budget_guard.gallery_presentation_signatures | index("non_focus_owner_identity_muted") != null)
   and .first_contact_marker_budget_guard.marker_budget_layer_draw_order == ["atlas_readability","atlas_gallery_muted","visual_hierarchy_deemphasis","central_clarity_deemphasis","terminal_legibility_deemphasis","selection_combat_focus"]
   and .first_contact_marker_budget_guard.gallery_lane_budget_gate == true
   and .first_contact_marker_budget_guard.gallery_mute_gate == true
   and .first_contact_marker_budget_guard.lower_lane_gallery_deemphasis_gate == true
   and .first_contact_marker_budget_guard.interactive_focus_preservation_gate == true
+  and .first_contact_marker_budget_guard.non_focus_owner_identity_gate == true
   and .first_contact_marker_budget_guard.marker_budget_layer_order_gate == true
   and .first_contact_marker_budget_guard.first_contact_marker_budget_gate == true
   and .first_contact_marker_budget_guard_gate == true

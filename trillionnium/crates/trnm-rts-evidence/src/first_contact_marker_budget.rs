@@ -35,6 +35,9 @@ pub struct RtsFirstContactMarkerBudgetRuntime {
     pub selected_tiles: Vec<(i32, i32)>,
     pub route_tiles: Vec<(i32, i32)>,
     pub frame_pixel_areas: Vec<(String, usize)>,
+    pub non_focus_owner_identity_colors: Vec<String>,
+    pub non_focus_owner_identity_hot_color_count: usize,
+    pub non_focus_owner_identity_pixel_budget: usize,
     pub focus_geometry: RtsFirstContactFocusGeometrySnapshot,
 }
 
@@ -183,6 +186,7 @@ where
             "compact_route_ack_ticks",
             "perimeter_gallery_lane_budget",
             "interactive_focus_kept_hot",
+            "non_focus_owner_identity_muted",
         ],
     }
 }
@@ -247,6 +251,9 @@ pub fn first_contact_marker_budget_guard(runtime: &RtsFirstContactMarkerBudgetRu
     let gallery_hot_marker_color_count = gallery_summary.gallery_hot_marker_color_count;
     let lower_lane_hot_marker_color_count = gallery_summary.lower_lane_hot_marker_color_count;
     let interactive_hot_marker_role_count = gallery_summary.interactive_hot_marker_role_count;
+    let non_focus_owner_identity_colors = runtime.non_focus_owner_identity_colors.clone();
+    let non_focus_owner_identity_hot_color_count = runtime.non_focus_owner_identity_hot_color_count;
+    let non_focus_owner_identity_pixel_budget = runtime.non_focus_owner_identity_pixel_budget;
     let gallery_presentation_signatures = gallery_summary
         .gallery_presentation_signatures
         .iter()
@@ -345,6 +352,15 @@ pub fn first_contact_marker_budget_guard(runtime: &RtsFirstContactMarkerBudgetRu
         && interactive_hot_marker_role_count >= 5
         && selected_role_badge_tick_pixel_budget <= 72
         && interactive_focus_pixel_budget >= 890;
+    let non_focus_owner_identity_gate = non_focus_owner_identity_colors.len() == 2
+        && non_focus_owner_identity_hot_color_count == 0
+        && non_focus_owner_identity_pixel_budget <= 192
+        && !non_focus_owner_identity_colors
+            .iter()
+            .any(|color| color == "67c980" || color == "d47967")
+        && gallery_presentation_signatures
+            .iter()
+            .any(|signature| signature == "non_focus_owner_identity_muted");
     let marker_budget_layer_order_gate = marker_budget_layer_draw_order
         .iter()
         .position(|layer| layer == "atlas_gallery_muted")
@@ -375,6 +391,7 @@ pub fn first_contact_marker_budget_guard(runtime: &RtsFirstContactMarkerBudgetRu
         && gallery_mute_gate
         && lower_lane_gallery_deemphasis_gate
         && interactive_focus_preservation_gate
+        && non_focus_owner_identity_gate
         && marker_budget_layer_order_gate;
 
     json!({
@@ -408,6 +425,9 @@ pub fn first_contact_marker_budget_guard(runtime: &RtsFirstContactMarkerBudgetRu
         "gallery_hot_marker_color_count": gallery_hot_marker_color_count,
         "lower_lane_hot_marker_color_count": lower_lane_hot_marker_color_count,
         "interactive_hot_marker_role_count": interactive_hot_marker_role_count,
+        "non_focus_owner_identity_colors": non_focus_owner_identity_colors,
+        "non_focus_owner_identity_hot_color_count": non_focus_owner_identity_hot_color_count,
+        "non_focus_owner_identity_pixel_budget": non_focus_owner_identity_pixel_budget,
         "selected_role_badge_tick_pixel_budget": selected_role_badge_tick_pixel_budget,
         "selected_focus_tiles": selected_focus_tiles,
         "route_focus_tiles": route_focus_tiles,
@@ -418,6 +438,7 @@ pub fn first_contact_marker_budget_guard(runtime: &RtsFirstContactMarkerBudgetRu
         "gallery_mute_gate": gallery_mute_gate,
         "lower_lane_gallery_deemphasis_gate": lower_lane_gallery_deemphasis_gate,
         "interactive_focus_preservation_gate": interactive_focus_preservation_gate,
+        "non_focus_owner_identity_gate": non_focus_owner_identity_gate,
         "marker_budget_layer_order_gate": marker_budget_layer_order_gate,
         "first_contact_marker_budget_gate": first_contact_marker_budget_gate,
     })
@@ -451,6 +472,9 @@ mod tests {
             selected_tiles: vec![(14, 11), (15, 11), (15, 12), (17, 12)],
             route_tiles: vec![(14, 11), (15, 11), (16, 10), (16, 9)],
             frame_pixel_areas,
+            non_focus_owner_identity_colors: string_vec(["457953", "6a5e4b"]),
+            non_focus_owner_identity_hot_color_count: 0,
+            non_focus_owner_identity_pixel_budget: 192,
             focus_geometry: focus_geometry(),
         }
     }
@@ -510,6 +534,9 @@ mod tests {
         assert!(summary
             .gallery_presentation_signatures
             .contains(&"interactive_focus_kept_hot"));
+        assert!(summary
+            .gallery_presentation_signatures
+            .contains(&"non_focus_owner_identity_muted"));
     }
 
     #[test]
@@ -557,6 +584,28 @@ mod tests {
                 .get("gallery_slot_cue_pixel_budget")
                 .and_then(Value::as_u64),
             Some(14)
+        );
+        assert_eq!(
+            guard.get("non_focus_owner_identity_colors").cloned(),
+            Some(json!(["457953", "6a5e4b"]))
+        );
+        assert_eq!(
+            guard
+                .get("non_focus_owner_identity_hot_color_count")
+                .and_then(Value::as_u64),
+            Some(0)
+        );
+        assert_eq!(
+            guard
+                .get("non_focus_owner_identity_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(192)
+        );
+        assert_eq!(
+            guard
+                .get("non_focus_owner_identity_gate")
+                .and_then(Value::as_bool),
+            Some(true)
         );
         assert_eq!(
             guard
@@ -621,12 +670,19 @@ mod tests {
                 .iter()
                 .any(|signature| signature.as_str()
                     == Some("perimeter_gallery_single_pixel_anchors"))));
+        assert!(guard
+            .get("gallery_presentation_signatures")
+            .and_then(Value::as_array)
+            .is_some_and(|signatures| signatures
+                .iter()
+                .any(|signature| signature.as_str() == Some("non_focus_owner_identity_muted"))));
 
         for gate in [
             "gallery_lane_budget_gate",
             "gallery_mute_gate",
             "lower_lane_gallery_deemphasis_gate",
             "interactive_focus_preservation_gate",
+            "non_focus_owner_identity_gate",
             "marker_budget_layer_order_gate",
             "first_contact_marker_budget_gate",
         ] {

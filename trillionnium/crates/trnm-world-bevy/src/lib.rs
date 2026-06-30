@@ -814,6 +814,9 @@ const CLASSIC_FIRST_CONTACT_ROUTE_DASH_WIDTH_PX: i32 = 16;
 const CLASSIC_FIRST_CONTACT_ROUTE_DASH_HEIGHT_PX: i32 = 3;
 const CLASSIC_FIRST_CONTACT_ROUTE_ACK_TICK_WIDTH_PX: i32 = 8;
 const CLASSIC_FIRST_CONTACT_ROUTE_ACK_TICK_HEIGHT_PX: i32 = 2;
+const CLASSIC_FIRST_CONTACT_OWNER_PLAYER_COLOR: u32 = 0x67c980;
+const CLASSIC_FIRST_CONTACT_OWNER_ENEMY_COLOR: u32 = 0xd47967;
+const CLASSIC_FIRST_CONTACT_NON_FOCUS_OWNER_IDENTITY_PIXEL_BUDGET: usize = 192;
 const CLASSIC_RTS_PRODUCT_MODEL_VOLUME_COLOR: u32 = 0x6e89a8;
 const CLASSIC_RTS_MODEL_IDENTITY_CORE_COLOR: u32 = 0xb7c8ff;
 const CLASSIC_RTS_MODEL_IDENTITY_RELAY_COLOR: u32 = 0x8fffd2;
@@ -5939,6 +5942,52 @@ fn classic_darken(color: u32, numerator: u32, denominator: u32) -> u32 {
 
 fn classic_lighten(color: u32, numerator: u32, denominator: u32) -> u32 {
     classic_mix_color(color, 0xffffff, numerator, denominator)
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_first_contact_non_focus_owner_identity_color(owner_color: u32) -> u32 {
+    classic_mix_color(owner_color, CLASSIC_RTS_TACTICAL_VIEWPORT_TILE_COLOR, 2, 3)
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_first_contact_owner_identity_color(owner: &str) -> u32 {
+    match owner {
+        "Multi0" | "Multi2" => classic_first_contact_non_focus_owner_identity_color(
+            CLASSIC_FIRST_CONTACT_OWNER_PLAYER_COLOR,
+        ),
+        "Multi1" | "Multi3" => classic_first_contact_non_focus_owner_identity_color(
+            CLASSIC_FIRST_CONTACT_OWNER_ENEMY_COLOR,
+        ),
+        _ => CLASSIC_RTS_PRODUCT_MODEL_VOLUME_COLOR,
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_first_contact_non_focus_owner_identity_colors() -> [u32; 2] {
+    [
+        classic_first_contact_non_focus_owner_identity_color(
+            CLASSIC_FIRST_CONTACT_OWNER_PLAYER_COLOR,
+        ),
+        classic_first_contact_non_focus_owner_identity_color(
+            CLASSIC_FIRST_CONTACT_OWNER_ENEMY_COLOR,
+        ),
+    ]
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_first_contact_base_owner_identity_tiles() -> [((i32, i32), u32); 4] {
+    let [player_color, enemy_color] = classic_first_contact_non_focus_owner_identity_colors();
+    [
+        ((8, 8), player_color),
+        ((25, 8), player_color),
+        ((25, 25), enemy_color),
+        ((8, 25), enemy_color),
+    ]
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_first_contact_color_hex(color: u32) -> String {
+    format!("{color:06x}")
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -92979,11 +93028,7 @@ fn classic_draw_first_contact_actor(
         .unwrap_or(RtsActorGlyphAccent::None);
     match glyph_body {
         RtsActorGlyphBody::SpawnPad => {
-            let owner_color = match actor.owner.as_str() {
-                "Multi0" | "Multi2" => 0x67c980,
-                "Multi1" | "Multi3" => 0xd47967,
-                _ => CLASSIC_RTS_PRODUCT_MODEL_VOLUME_COLOR,
-            };
+            let owner_color = classic_first_contact_owner_identity_color(actor.owner.as_str());
             classic_draw_rect(
                 buffer,
                 width,
@@ -93320,12 +93365,7 @@ fn classic_draw_first_contact_starting_army(
     cell_w: i32,
     cell_h: i32,
 ) {
-    let armies = [
-        ((8, 8), 0x67c980),
-        ((25, 8), 0x67c980),
-        ((25, 25), 0xd47967),
-        ((8, 25), 0xd47967),
-    ];
+    let armies = classic_first_contact_base_owner_identity_tiles();
     for (tile, owner_color) in armies {
         let (tile_x, tile_y) =
             classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, tile);
@@ -93423,12 +93463,7 @@ fn classic_draw_first_contact_model_identity_layers(
     cell_w: i32,
     cell_h: i32,
 ) {
-    let command_cores = [
-        ((8, 8), 0x67c980),
-        ((25, 8), 0x67c980),
-        ((25, 25), 0xd47967),
-        ((8, 25), 0xd47967),
-    ];
+    let command_cores = classic_first_contact_base_owner_identity_tiles();
     for (tile, faction_color) in command_cores {
         let (tile_x, tile_y) =
             classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, tile);
@@ -94579,25 +94614,25 @@ fn classic_draw_first_contact_tactical_viewport(
             (14, 11),
             "WK",
             CLASSIC_RTS_HARVEST_ANIMATION_CARRY_LOAD_COLOR,
-            0x67c980,
+            CLASSIC_FIRST_CONTACT_OWNER_PLAYER_COLOR,
         ),
         (
             (15, 12),
             "SC",
             CLASSIC_RTS_MODEL_IDENTITY_UNIT_COLOR,
-            0x67c980,
+            CLASSIC_FIRST_CONTACT_OWNER_PLAYER_COLOR,
         ),
         (
             (17, 12),
             "WD",
             CLASSIC_RTS_STATUS_ROLE_BADGE_COLOR,
-            0x67c980,
+            CLASSIC_FIRST_CONTACT_OWNER_PLAYER_COLOR,
         ),
         (
             (18, 13),
             "ST",
             CLASSIC_RTS_SELECTION_FEEDBACK_ATTACK_COLOR,
-            0xd47967,
+            CLASSIC_FIRST_CONTACT_OWNER_ENEMY_COLOR,
         ),
     ];
     for (tile, label, role_color, faction_color) in units {
@@ -94834,14 +94869,14 @@ fn classic_draw_first_contact_readability_overlays(
         CLASSIC_RTS_SELECTION_FEEDBACK_ACK_COLOR,
     );
 
-    for (tile, color) in [
-        ((8, 8), 0x67c980),
-        ((25, 8), 0x67c980),
-        ((25, 25), 0xd47967),
-        ((8, 25), 0xd47967),
+    let relay_identity_tiles = [
         ((11, 8), CLASSIC_RTS_MODEL_IDENTITY_RELAY_COLOR),
         ((22, 25), CLASSIC_RTS_MODEL_IDENTITY_RELAY_COLOR),
-    ] {
+    ];
+    for (tile, color) in classic_first_contact_base_owner_identity_tiles()
+        .into_iter()
+        .chain(relay_identity_tiles)
+    {
         let (tile_x, tile_y) =
             classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, tile);
         let cx = tile_x + cell_w / 2;
@@ -101435,10 +101470,25 @@ fn classic_first_contact_marker_budget_guard(runtime: &NativeFirstPlayableRuntim
         .iter()
         .filter_map(|tile_id| classic_parse_rts_tile(tile_id))
         .collect::<Vec<_>>();
+    let non_focus_owner_identity_colors = classic_first_contact_non_focus_owner_identity_colors();
+    let non_focus_owner_identity_hot_color_count = non_focus_owner_identity_colors
+        .iter()
+        .filter(|color| {
+            **color == CLASSIC_FIRST_CONTACT_OWNER_PLAYER_COLOR
+                || **color == CLASSIC_FIRST_CONTACT_OWNER_ENEMY_COLOR
+        })
+        .count();
     let marker_runtime = trnm_rts_evidence::RtsFirstContactMarkerBudgetRuntime {
         selected_tiles,
         route_tiles: first_contact_tiles::selection_combat_focus_route_tiles(runtime),
         frame_pixel_areas,
+        non_focus_owner_identity_colors: non_focus_owner_identity_colors
+            .iter()
+            .map(|color| classic_first_contact_color_hex(*color))
+            .collect(),
+        non_focus_owner_identity_hot_color_count,
+        non_focus_owner_identity_pixel_budget:
+            CLASSIC_FIRST_CONTACT_NON_FOCUS_OWNER_IDENTITY_PIXEL_BUDGET,
         focus_geometry: trnm_rts_evidence::RtsFirstContactFocusGeometrySnapshot {
             selected_role_badge_tick_width_px: CLASSIC_FIRST_CONTACT_SELECTED_ROLE_BADGE_TICK_W_PX
                 as usize,
@@ -149967,6 +150017,33 @@ mod tests {
 
     #[cfg(not(target_os = "android"))]
     #[test]
+    fn classic_first_contact_non_focus_owner_identity_colors_stay_muted() {
+        let owner_colors = classic_first_contact_non_focus_owner_identity_colors();
+
+        assert_eq!(owner_colors, [0x457953, 0x6a5e4b]);
+        assert!(!owner_colors.contains(&CLASSIC_FIRST_CONTACT_OWNER_PLAYER_COLOR));
+        assert!(!owner_colors.contains(&CLASSIC_FIRST_CONTACT_OWNER_ENEMY_COLOR));
+        assert_eq!(
+            classic_first_contact_owner_identity_color("Multi0"),
+            owner_colors[0]
+        );
+        assert_eq!(
+            classic_first_contact_owner_identity_color("Multi3"),
+            owner_colors[1]
+        );
+        assert_eq!(
+            classic_first_contact_base_owner_identity_tiles(),
+            [
+                ((8, 8), owner_colors[0]),
+                ((25, 8), owner_colors[0]),
+                ((25, 25), owner_colors[1]),
+                ((8, 25), owner_colors[1]),
+            ]
+        );
+    }
+
+    #[cfg(not(target_os = "android"))]
+    #[test]
     fn classic_first_contact_marker_budget_guard_mutes_noninteractive_gallery() {
         let runtime = classic_first_contact_player_screen_runtime();
         let guard = classic_first_contact_marker_budget_guard(&runtime);
@@ -150092,6 +150169,22 @@ mod tests {
             Some(5)
         );
         assert_eq!(
+            guard.get("non_focus_owner_identity_colors").cloned(),
+            Some(json!(["457953", "6a5e4b"]))
+        );
+        assert_eq!(
+            guard
+                .get("non_focus_owner_identity_hot_color_count")
+                .and_then(Value::as_u64),
+            Some(0)
+        );
+        assert_eq!(
+            guard
+                .get("non_focus_owner_identity_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(192)
+        );
+        assert_eq!(
             guard
                 .get("gallery_presentation_signatures")
                 .and_then(Value::as_array)
@@ -150114,6 +150207,9 @@ mod tests {
                         && signatures
                             .iter()
                             .any(|value| value.as_str() == Some("compact_route_ack_ticks"))
+                        && signatures
+                            .iter()
+                            .any(|value| value.as_str() == Some("non_focus_owner_identity_muted"))
                         && signatures
                             .iter()
                             .any(|value| value.as_str() == Some("lower_lane_gallery_deemphasis"))
@@ -150159,6 +150255,7 @@ mod tests {
             "gallery_mute_gate",
             "lower_lane_gallery_deemphasis_gate",
             "interactive_focus_preservation_gate",
+            "non_focus_owner_identity_gate",
             "marker_budget_layer_order_gate",
             "first_contact_marker_budget_gate",
         ] {

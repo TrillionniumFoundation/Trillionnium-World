@@ -56,6 +56,9 @@ basin_lines=(
   'fn pressure_tiles'
   'fn objective_tiles'
   'pub(super) fn draw_context'
+  'fn classic_first_contact_non_focus_owner_identity_color'
+  'fn classic_first_contact_owner_identity_color'
+  'fn classic_first_contact_base_owner_identity_tiles'
   'contract_field_count = ([keys[] | select(endswith("_contract"))] | length)'
   'guard_object_count = ([to_entries[] | select((.key | test("^first_contact_.*_guard$")) and (.value | type == "object"))] | length)'
   'top_level_gate_count = ([to_entries[] | select((.key | endswith("_gate")) and (.value | type == "boolean"))] | length)'
@@ -85,6 +88,8 @@ integrity_lines=(
   'first_contact_basin_spec_count_semantics'
   'runtime_player_screen_command_queue_count == ((.rts_bevy_runtime_player_screen_application.command_queue // []) | length)'
   'offline_lobby_ready_label_count == ((.rts_online_offline_adapter_lobby_ready.ready_state_labels // []) | length)'
+  'first_contact_marker_budget_guard.non_focus_owner_identity_colors == ["457953","6a5e4b"]'
+  'first_contact_marker_budget_guard.non_focus_owner_identity_gate == true'
   'First Contact Basin packet artifact exposes top-level contract, guard, map-model, runtime, online/offline adapter counts bound to nested structures'
   'first_contact_basin_spec_semantics_first_contact_basin_spec_count_semantics'
 )
@@ -93,6 +98,8 @@ fixture_lines=(
   'contract_field_count = ([keys[] | select(endswith("_contract"))] | length)'
   'runtime_player_screen_command_queue_count = ((.rts_bevy_runtime_player_screen_application.command_queue // []) | length)'
   'offline_lobby_ready_label_count = ((.rts_online_offline_adapter_lobby_ready.ready_state_labels // []) | length)'
+  'non_focus_owner_identity_colors: ["457953", "6a5e4b"]'
+  'non_focus_owner_identity_gate: true'
 )
 
 for line in "${basin_lines[@]}"; do
