@@ -835,6 +835,7 @@ const CLASSIC_RTS_MODEL_IDENTITY_FACTION_COLOR: u32 = 0xff9f7a;
 const CLASSIC_FIRST_CONTACT_PLAYER_RELAY_IDENTITY_RAIL_COUNT: usize = 6;
 const CLASSIC_FIRST_CONTACT_PLAYER_RELAY_IDENTITY_RAIL_W_PX: i32 = 16;
 const CLASSIC_FIRST_CONTACT_PLAYER_RELAY_IDENTITY_RAIL_H_PX: i32 = 2;
+const CLASSIC_FIRST_CONTACT_LEGACY_MIDFIELD_STATUS_BAR_PIXEL_BUDGET: usize = 0;
 const CLASSIC_RTS_TACTICAL_VIEWPORT_FRAME_COLOR: u32 = 0xbfd7c8;
 const CLASSIC_RTS_TACTICAL_VIEWPORT_TILE_COLOR: u32 = 0x35513d;
 const CLASSIC_RTS_TACTICAL_VIEWPORT_SHADOW_COLOR: u32 = 0x101916;
@@ -84214,6 +84215,14 @@ fn classic_player_frame_id(
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_first_contact_player_screen_suppresses_legacy_midfield_status_bars(
+    scene_id: &str,
+    player_screen: bool,
+) -> bool {
+    scene_id == "first_contact_basin" && player_screen
+}
+
+#[cfg(not(target_os = "android"))]
 fn classic_draw_scene(
     buffer: &mut [u32],
     width: usize,
@@ -84266,23 +84275,29 @@ fn classic_draw_scene(
         );
     }
 
-    let xp_width = (runtime.xp.min(100) as i32 * 180) / 100;
-    classic_draw_rect(buffer, width, height, 96, 302, 184, 10, 0x29312b);
-    classic_draw_rect(buffer, width, height, 98, 304, xp_width, 6, 0x7fcf6b);
-    let danger =
-        runtime.last_feedback.contains("blocked") || runtime.objective_status.contains("required");
-    classic_draw_rect(
-        buffer,
-        width,
-        height,
-        300,
-        302,
-        244,
-        10,
-        if danger { 0x8a342e } else { 0x2f5d75 },
-    );
+    let player_screen = classic_player_screen_mode_enabled();
+    if !classic_first_contact_player_screen_suppresses_legacy_midfield_status_bars(
+        scene_id,
+        player_screen,
+    ) {
+        let xp_width = (runtime.xp.min(100) as i32 * 180) / 100;
+        classic_draw_rect(buffer, width, height, 96, 302, 184, 10, 0x29312b);
+        classic_draw_rect(buffer, width, height, 98, 304, xp_width, 6, 0x7fcf6b);
+        let danger = runtime.last_feedback.contains("blocked")
+            || runtime.objective_status.contains("required");
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            300,
+            302,
+            244,
+            10,
+            if danger { 0x8a342e } else { 0x2f5d75 },
+        );
+    }
     if scene_id == "first_contact_basin" {
-        if !classic_player_screen_mode_enabled() {
+        if !player_screen {
             classic_draw_first_contact_top_overlay(
                 buffer,
                 width,
@@ -102116,6 +102131,8 @@ fn classic_first_contact_marker_budget_guard(runtime: &NativeFirstPlayableRuntim
             CLASSIC_FIRST_CONTACT_PLAYER_RELAY_IDENTITY_RAIL_W_PX as usize,
         player_screen_relay_identity_rail_height_px:
             CLASSIC_FIRST_CONTACT_PLAYER_RELAY_IDENTITY_RAIL_H_PX as usize,
+        player_screen_legacy_midfield_status_bar_pixel_budget:
+            CLASSIC_FIRST_CONTACT_LEGACY_MIDFIELD_STATUS_BAR_PIXEL_BUDGET,
         focus_geometry: trnm_rts_evidence::RtsFirstContactFocusGeometrySnapshot {
             selected_role_badge_tick_width_px: CLASSIC_FIRST_CONTACT_SELECTED_ROLE_BADGE_TICK_W_PX
                 as usize,
@@ -148664,6 +148681,24 @@ mod tests {
     fn classic_player_screen_hud_formats_camera_and_selection_count_for_readability() {
         assert_eq!(classic_hud_tile_label("5,4"), "5/4");
         assert_eq!(classic_hud_tile_label("16,9"), "16/9");
+        assert!(
+            classic_first_contact_player_screen_suppresses_legacy_midfield_status_bars(
+                "first_contact_basin",
+                true
+            )
+        );
+        assert!(
+            !classic_first_contact_player_screen_suppresses_legacy_midfield_status_bars(
+                "first_contact_basin",
+                false
+            )
+        );
+        assert!(
+            !classic_first_contact_player_screen_suppresses_legacy_midfield_status_bars(
+                "mirror_city_square",
+                true
+            )
+        );
 
         let mut runtime = NativeFirstPlayableRuntime {
             rts_camera_focus_tile_id: Some("5,4".to_string()),
@@ -151173,6 +151208,12 @@ mod tests {
             Some(192)
         );
         assert_eq!(
+            guard
+                .get("player_screen_legacy_midfield_status_bar_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(0)
+        );
+        assert_eq!(
             guard.get("tactical_track_count").and_then(Value::as_u64),
             Some(6)
         );
@@ -151236,6 +151277,13 @@ mod tests {
             .expect("gallery signatures listed")
             .iter()
             .any(|value| value.as_str() == Some("player_screen_relay_identity_micro_rails")));
+        assert!(guard
+            .get("gallery_presentation_signatures")
+            .and_then(Value::as_array)
+            .expect("gallery signatures listed")
+            .iter()
+            .any(|value| value.as_str()
+                == Some("player_screen_legacy_midfield_status_bars_suppressed")));
         assert_eq!(
             guard
                 .get("non_focus_owner_identity_pixel_budget")
