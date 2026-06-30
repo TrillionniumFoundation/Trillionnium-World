@@ -103,8 +103,7 @@ pub fn first_contact_selection_combat_focus_guard(
     let route_clearance_overlap_tiles = runtime.route_clearance_overlap_tiles.clone();
     let focus_signatures = string_vec([
         "selected_corner_brackets",
-        "selected_role_badge_ticks",
-        "compact_selected_role_badge_ticks",
+        "selected_role_badge_micro_pips",
         "wide_route_dashes",
         "route_ack_step_ticks",
         "compact_route_ack_ticks",
@@ -146,10 +145,10 @@ pub fn first_contact_selection_combat_focus_guard(
     let blocked_warning_pixel_budget = 84;
     let selected_focus_gate = selected_focus_tiles
         == string_vec(["14,11", "15,11", "15,12", "17,12"])
-        && geometry.selected_role_badge_tick_width_px == 6
-        && geometry.selected_role_badge_tick_height_px == 3
-        && selected_role_badge_tick_pixel_budget <= 72
-        && (320..=328).contains(&selected_focus_pixel_budget);
+        && geometry.selected_role_badge_tick_width_px == 2
+        && geometry.selected_role_badge_tick_height_px == 2
+        && selected_role_badge_tick_pixel_budget == 16
+        && (272..=288).contains(&selected_focus_pixel_budget);
     let route_focus_gate = route_focus_tiles == string_vec(["14,11", "15,11", "16,10", "16,9"])
         && route_dash_count >= 4
         && route_ack_tick_count >= 6
@@ -181,13 +180,13 @@ pub fn first_contact_selection_combat_focus_guard(
         && combat_target_pixel_budget <= 240;
     let blocked_warning_focus_gate =
         blocked_focus_tile == "15,16" && blocked_warning_pixel_budget >= 72;
-    let focus_signature_gate = focus_signatures.len() == 10
+    let focus_signature_gate = focus_signatures.len() == 9
         && focus_signatures
             .iter()
             .any(|signature| signature.as_str() == "attack_target_lock_brackets")
         && focus_signatures
             .iter()
-            .any(|signature| signature.as_str() == "compact_selected_role_badge_ticks")
+            .any(|signature| signature.as_str() == "selected_role_badge_micro_pips")
         && focus_signatures
             .iter()
             .any(|signature| signature.as_str() == "route_clearance_corner_cues")
@@ -444,8 +443,8 @@ mod tests {
             target_label_width_px: 54,
             target_health_percent: 38,
             geometry: RtsFirstContactFocusReadabilityGeometrySnapshot {
-                selected_role_badge_tick_width_px: 6,
-                selected_role_badge_tick_height_px: 3,
+                selected_role_badge_tick_width_px: 2,
+                selected_role_badge_tick_height_px: 2,
                 selected_focus_bracket_pixels_per_tile: 64,
                 route_dash_width_px: 16,
                 route_dash_height_px: 3,

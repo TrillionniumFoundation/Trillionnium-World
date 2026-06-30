@@ -807,8 +807,8 @@ const CLASSIC_FIRST_CONTACT_TARGET_LOCK_CROSS_LONG_PX: i32 = 28;
 const CLASSIC_FIRST_CONTACT_TARGET_LOCK_CROSS_THICKNESS_PX: i32 = 3;
 const CLASSIC_FIRST_CONTACT_TARGET_LOCK_ACK_TICK_W_PX: i32 = 18;
 const CLASSIC_FIRST_CONTACT_TARGET_LOCK_ACK_TICK_H_PX: i32 = 4;
-const CLASSIC_FIRST_CONTACT_SELECTED_ROLE_BADGE_TICK_W_PX: i32 = 6;
-const CLASSIC_FIRST_CONTACT_SELECTED_ROLE_BADGE_TICK_H_PX: i32 = 3;
+const CLASSIC_FIRST_CONTACT_SELECTED_ROLE_BADGE_TICK_W_PX: i32 = 2;
+const CLASSIC_FIRST_CONTACT_SELECTED_ROLE_BADGE_TICK_H_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_SELECTED_FOCUS_BRACKET_PIXELS_PER_TILE: usize = 64;
 const CLASSIC_FIRST_CONTACT_ROUTE_DASH_WIDTH_PX: i32 = 16;
 const CLASSIC_FIRST_CONTACT_ROUTE_DASH_HEIGHT_PX: i32 = 3;
@@ -150315,9 +150315,9 @@ mod tests {
                     signatures
                         .iter()
                         .any(|value| value.as_str() == Some("selected_corner_brackets"))
-                        && signatures.iter().any(|value| {
-                            value.as_str() == Some("compact_selected_role_badge_ticks")
-                        })
+                        && signatures
+                            .iter()
+                            .any(|value| value.as_str() == Some("selected_role_badge_micro_pips"))
                         && signatures
                             .iter()
                             .any(|value| value.as_str() == Some("attack_target_lock_brackets"))
@@ -150344,25 +150344,25 @@ mod tests {
             guard
                 .get("selected_focus_pixel_budget")
                 .and_then(Value::as_u64),
-            Some(328)
+            Some(272)
         );
         assert_eq!(
             guard
                 .get("selected_role_badge_tick_width_px")
                 .and_then(Value::as_u64),
-            Some(6)
+            Some(2)
         );
         assert_eq!(
             guard
                 .get("selected_role_badge_tick_height_px")
                 .and_then(Value::as_u64),
-            Some(3)
+            Some(2)
         );
         assert_eq!(
             guard
                 .get("selected_role_badge_tick_pixel_budget")
                 .and_then(Value::as_u64),
-            Some(72)
+            Some(16)
         );
         assert_eq!(
             guard.get("route_dash_width_px").and_then(Value::as_u64),
