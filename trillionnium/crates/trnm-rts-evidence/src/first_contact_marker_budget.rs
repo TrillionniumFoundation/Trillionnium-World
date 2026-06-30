@@ -35,6 +35,12 @@ pub struct RtsFirstContactMarkerBudgetRuntime {
     pub selected_tiles: Vec<(i32, i32)>,
     pub route_tiles: Vec<(i32, i32)>,
     pub frame_pixel_areas: Vec<(String, usize)>,
+    pub tactical_track_count: usize,
+    pub player_screen_tactical_track_count: usize,
+    pub player_screen_primary_tactical_track_count: usize,
+    pub player_screen_secondary_tactical_track_count: usize,
+    pub hover_route_path_marker_count: usize,
+    pub player_screen_hover_route_path_marker_count: usize,
     pub non_focus_owner_identity_colors: Vec<String>,
     pub non_focus_owner_identity_hot_color_count: usize,
     pub non_focus_owner_identity_pixel_budget: usize,
@@ -187,6 +193,8 @@ where
             "perimeter_gallery_lane_budget",
             "interactive_focus_kept_hot",
             "non_focus_owner_identity_muted",
+            "player_screen_primary_tactical_track_only",
+            "player_screen_hover_route_path_suppressed",
         ],
     }
 }
@@ -251,6 +259,15 @@ pub fn first_contact_marker_budget_guard(runtime: &RtsFirstContactMarkerBudgetRu
     let gallery_hot_marker_color_count = gallery_summary.gallery_hot_marker_color_count;
     let lower_lane_hot_marker_color_count = gallery_summary.lower_lane_hot_marker_color_count;
     let interactive_hot_marker_role_count = gallery_summary.interactive_hot_marker_role_count;
+    let tactical_track_count = runtime.tactical_track_count;
+    let player_screen_tactical_track_count = runtime.player_screen_tactical_track_count;
+    let player_screen_primary_tactical_track_count =
+        runtime.player_screen_primary_tactical_track_count;
+    let player_screen_secondary_tactical_track_count =
+        runtime.player_screen_secondary_tactical_track_count;
+    let hover_route_path_marker_count = runtime.hover_route_path_marker_count;
+    let player_screen_hover_route_path_marker_count =
+        runtime.player_screen_hover_route_path_marker_count;
     let non_focus_owner_identity_colors = runtime.non_focus_owner_identity_colors.clone();
     let non_focus_owner_identity_hot_color_count = runtime.non_focus_owner_identity_hot_color_count;
     let non_focus_owner_identity_pixel_budget = runtime.non_focus_owner_identity_pixel_budget;
@@ -361,6 +378,18 @@ pub fn first_contact_marker_budget_guard(runtime: &RtsFirstContactMarkerBudgetRu
         && gallery_presentation_signatures
             .iter()
             .any(|signature| signature == "non_focus_owner_identity_muted");
+    let player_screen_tactical_track_gate = tactical_track_count == 6
+        && player_screen_tactical_track_count == 1
+        && player_screen_primary_tactical_track_count == 1
+        && player_screen_secondary_tactical_track_count == 0
+        && gallery_presentation_signatures
+            .iter()
+            .any(|signature| signature == "player_screen_primary_tactical_track_only");
+    let player_screen_hover_route_path_gate = hover_route_path_marker_count > 0
+        && player_screen_hover_route_path_marker_count == 0
+        && gallery_presentation_signatures
+            .iter()
+            .any(|signature| signature == "player_screen_hover_route_path_suppressed");
     let marker_budget_layer_order_gate = marker_budget_layer_draw_order
         .iter()
         .position(|layer| layer == "atlas_gallery_muted")
@@ -392,13 +421,15 @@ pub fn first_contact_marker_budget_guard(runtime: &RtsFirstContactMarkerBudgetRu
         && lower_lane_gallery_deemphasis_gate
         && interactive_focus_preservation_gate
         && non_focus_owner_identity_gate
+        && player_screen_tactical_track_gate
+        && player_screen_hover_route_path_gate
         && marker_budget_layer_order_gate;
 
     json!({
         "contract_version": TRNM_RTS_EVIDENCE_FIRST_CONTACT_MARKER_BUDGET_CONTRACT,
         "tile_surface_contract": TRNM_RTS_BEVY_RUNTIME_FIRST_CONTACT_TILE_SURFACE_CONTRACT,
         "green": first_contact_marker_budget_gate,
-        "source_path": "trnm-world-bevy muted First Contact atlas gallery presentation plus final selection/combat focus layer",
+        "source_path": "trnm-world-bevy muted First Contact atlas gallery presentation plus player-screen tactical/hover marker budgets and final selection/combat focus layer",
         "gallery_sample_count": family_samples.len(),
         "muted_gallery_sample_count": muted_gallery_sample_count,
         "gallery_lanes": gallery_lanes,
@@ -425,6 +456,12 @@ pub fn first_contact_marker_budget_guard(runtime: &RtsFirstContactMarkerBudgetRu
         "gallery_hot_marker_color_count": gallery_hot_marker_color_count,
         "lower_lane_hot_marker_color_count": lower_lane_hot_marker_color_count,
         "interactive_hot_marker_role_count": interactive_hot_marker_role_count,
+        "tactical_track_count": tactical_track_count,
+        "player_screen_tactical_track_count": player_screen_tactical_track_count,
+        "player_screen_primary_tactical_track_count": player_screen_primary_tactical_track_count,
+        "player_screen_secondary_tactical_track_count": player_screen_secondary_tactical_track_count,
+        "hover_route_path_marker_count": hover_route_path_marker_count,
+        "player_screen_hover_route_path_marker_count": player_screen_hover_route_path_marker_count,
         "non_focus_owner_identity_colors": non_focus_owner_identity_colors,
         "non_focus_owner_identity_hot_color_count": non_focus_owner_identity_hot_color_count,
         "non_focus_owner_identity_pixel_budget": non_focus_owner_identity_pixel_budget,
@@ -439,6 +476,8 @@ pub fn first_contact_marker_budget_guard(runtime: &RtsFirstContactMarkerBudgetRu
         "lower_lane_gallery_deemphasis_gate": lower_lane_gallery_deemphasis_gate,
         "interactive_focus_preservation_gate": interactive_focus_preservation_gate,
         "non_focus_owner_identity_gate": non_focus_owner_identity_gate,
+        "player_screen_tactical_track_gate": player_screen_tactical_track_gate,
+        "player_screen_hover_route_path_gate": player_screen_hover_route_path_gate,
         "marker_budget_layer_order_gate": marker_budget_layer_order_gate,
         "first_contact_marker_budget_gate": first_contact_marker_budget_gate,
     })
@@ -472,6 +511,12 @@ mod tests {
             selected_tiles: vec![(14, 11), (15, 11), (15, 12), (17, 12)],
             route_tiles: vec![(14, 11), (15, 11), (16, 10), (16, 9)],
             frame_pixel_areas,
+            tactical_track_count: 6,
+            player_screen_tactical_track_count: 1,
+            player_screen_primary_tactical_track_count: 1,
+            player_screen_secondary_tactical_track_count: 0,
+            hover_route_path_marker_count: 8,
+            player_screen_hover_route_path_marker_count: 0,
             non_focus_owner_identity_colors: string_vec(["457953", "6a5e4b"]),
             non_focus_owner_identity_hot_color_count: 0,
             non_focus_owner_identity_pixel_budget: 192,
@@ -513,6 +558,12 @@ mod tests {
         assert_eq!(summary.gallery_hot_marker_color_count, 0);
         assert_eq!(summary.lower_lane_hot_marker_color_count, 0);
         assert_eq!(summary.interactive_hot_marker_role_count, 5);
+        assert!(summary
+            .gallery_presentation_signatures
+            .contains(&"player_screen_primary_tactical_track_only"));
+        assert!(summary
+            .gallery_presentation_signatures
+            .contains(&"player_screen_hover_route_path_suppressed"));
         assert!(summary
             .gallery_presentation_signatures
             .contains(&"lower_lane_single_point_ghost_anchors"));
@@ -608,6 +659,52 @@ mod tests {
             Some(true)
         );
         assert_eq!(
+            guard.get("tactical_track_count").and_then(Value::as_u64),
+            Some(6)
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_tactical_track_count")
+                .and_then(Value::as_u64),
+            Some(1)
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_primary_tactical_track_count")
+                .and_then(Value::as_u64),
+            Some(1)
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_secondary_tactical_track_count")
+                .and_then(Value::as_u64),
+            Some(0)
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_tactical_track_gate")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            guard
+                .get("hover_route_path_marker_count")
+                .and_then(Value::as_u64),
+            Some(8)
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_hover_route_path_marker_count")
+                .and_then(Value::as_u64),
+            Some(0)
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_hover_route_path_gate")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
             guard
                 .get("gallery_darken_numerator")
                 .and_then(Value::as_u64),
@@ -676,6 +773,19 @@ mod tests {
             .is_some_and(|signatures| signatures
                 .iter()
                 .any(|signature| signature.as_str() == Some("non_focus_owner_identity_muted"))));
+        assert!(guard
+            .get("gallery_presentation_signatures")
+            .and_then(Value::as_array)
+            .is_some_and(|signatures| signatures
+                .iter()
+                .any(|signature| signature.as_str()
+                    == Some("player_screen_primary_tactical_track_only"))));
+        assert!(guard
+            .get("gallery_presentation_signatures")
+            .and_then(Value::as_array)
+            .is_some_and(|signatures| signatures.iter().any(|signature| {
+                signature.as_str() == Some("player_screen_hover_route_path_suppressed")
+            })));
 
         for gate in [
             "gallery_lane_budget_gate",
@@ -683,6 +793,8 @@ mod tests {
             "lower_lane_gallery_deemphasis_gate",
             "interactive_focus_preservation_gate",
             "non_focus_owner_identity_gate",
+            "player_screen_tactical_track_gate",
+            "player_screen_hover_route_path_gate",
             "marker_budget_layer_order_gate",
             "first_contact_marker_budget_gate",
         ] {

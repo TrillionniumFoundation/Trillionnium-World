@@ -59,6 +59,9 @@ basin_lines=(
   'fn classic_first_contact_non_focus_owner_identity_color'
   'fn classic_first_contact_owner_identity_color'
   'fn classic_first_contact_base_owner_identity_tiles'
+  'fn classic_first_contact_player_visible_tactical_tracks'
+  'fn classic_first_contact_player_screen_suppresses_hover_route_path'
+  'fn classic_rts_hover_target_preview_path_marker_count'
   'CLASSIC_FIRST_CONTACT_RUNTIME_CORE_VISIBLE_TILE_Y_MAX'
   'fn classic_first_contact_runtime_core_actor_candidate'
   'fn classic_first_contact_runtime_core_actor_player_visible'
@@ -102,6 +105,12 @@ integrity_lines=(
   'offline_lobby_ready_label_count == ((.rts_online_offline_adapter_lobby_ready.ready_state_labels // []) | length)'
   'first_contact_marker_budget_guard.non_focus_owner_identity_colors == ["457953","6a5e4b"]'
   'first_contact_marker_budget_guard.non_focus_owner_identity_gate == true'
+  'first_contact_marker_budget_guard.player_screen_tactical_track_count == 1'
+  'first_contact_marker_budget_guard.player_screen_secondary_tactical_track_count == 0'
+  'first_contact_marker_budget_guard.player_screen_tactical_track_gate == true'
+  'first_contact_marker_budget_guard.hover_route_path_marker_count == 8'
+  'first_contact_marker_budget_guard.player_screen_hover_route_path_marker_count == 0'
+  'first_contact_marker_budget_guard.player_screen_hover_route_path_gate == true'
   'First Contact Basin packet artifact exposes top-level contract, guard, map-model, runtime, online/offline adapter counts bound to nested structures'
   'first_contact_basin_spec_semantics_first_contact_basin_spec_count_semantics'
 )
@@ -112,6 +121,12 @@ fixture_lines=(
   'offline_lobby_ready_label_count = ((.rts_online_offline_adapter_lobby_ready.ready_state_labels // []) | length)'
   'non_focus_owner_identity_colors: ["457953", "6a5e4b"]'
   'non_focus_owner_identity_gate: true'
+  'player_screen_tactical_track_count: 1'
+  'player_screen_secondary_tactical_track_count: 0'
+  'player_screen_tactical_track_gate: true'
+  'hover_route_path_marker_count: 8'
+  'player_screen_hover_route_path_marker_count: 0'
+  'player_screen_hover_route_path_gate: true'
 )
 
 for line in "${basin_lines[@]}"; do

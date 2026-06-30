@@ -83058,6 +83058,39 @@ fn classic_draw_rts_drag_select_preview_overlay(
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_first_contact_player_screen_suppresses_hover_route_path(
+    runtime: &NativeFirstPlayableRuntime,
+    player_screen: bool,
+) -> bool {
+    player_screen && classic_scene_id(runtime) == "first_contact_basin"
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_rts_hover_target_preview_path_marker_count(
+    runtime: &NativeFirstPlayableRuntime,
+    player_screen: bool,
+) -> usize {
+    if classic_first_contact_player_screen_suppresses_hover_route_path(runtime, player_screen)
+        || runtime.rts_hover_source != "classic_rts_mouse_viewport"
+        || classic_rts_hover_target_preview_kind(&runtime.rts_hover_affordance).is_none()
+    {
+        return 0;
+    }
+    let Some(tile_id) = runtime.rts_hover_tile_id.as_deref() else {
+        return 0;
+    };
+    let Some(tile) = classic_parse_rts_tile(tile_id) else {
+        return 0;
+    };
+    let source_tile = classic_rts_primary_selected_tile(runtime).unwrap_or((5, 5));
+    classic_rts_line_path_tiles(source_tile, tile)
+        .into_iter()
+        .take(8)
+        .filter(|route_tile_id| classic_parse_rts_tile(route_tile_id).is_some())
+        .count()
+}
+
+#[cfg(not(target_os = "android"))]
 fn classic_draw_rts_hover_preview_overlay(
     buffer: &mut [u32],
     width: usize,
@@ -83147,34 +83180,40 @@ fn classic_draw_rts_hover_preview_overlay(
                     classic_rts_hover_target_preview_kind(&runtime.rts_hover_affordance)
                 {
                     let target_color = classic_rts_hover_target_preview_color(kind);
-                    let source_tile = classic_rts_primary_selected_tile(runtime).unwrap_or((5, 5));
-                    for route_tile_id in classic_rts_line_path_tiles(source_tile, tile)
-                        .iter()
-                        .take(8)
-                    {
-                        if let Some(route_tile) = classic_parse_rts_tile(route_tile_id) {
-                            let (route_x, route_y) =
-                                classic_rts_viewport_tile_center(&layout, route_tile);
-                            classic_draw_rect(
-                                buffer,
-                                width,
-                                height,
-                                route_x - 11,
-                                route_y + 20,
-                                22,
-                                4,
-                                CLASSIC_RTS_TARGET_PREVIEW_PATH_COLOR,
-                            );
-                            classic_draw_rect(
-                                buffer,
-                                width,
-                                height,
-                                route_x - 2,
-                                route_y + 12,
-                                4,
-                                20,
-                                CLASSIC_RTS_TARGET_PREVIEW_PATH_COLOR,
-                            );
+                    if !classic_first_contact_player_screen_suppresses_hover_route_path(
+                        runtime,
+                        classic_player_screen_mode_enabled(),
+                    ) {
+                        let source_tile =
+                            classic_rts_primary_selected_tile(runtime).unwrap_or((5, 5));
+                        for route_tile_id in classic_rts_line_path_tiles(source_tile, tile)
+                            .iter()
+                            .take(8)
+                        {
+                            if let Some(route_tile) = classic_parse_rts_tile(route_tile_id) {
+                                let (route_x, route_y) =
+                                    classic_rts_viewport_tile_center(&layout, route_tile);
+                                classic_draw_rect(
+                                    buffer,
+                                    width,
+                                    height,
+                                    route_x - 11,
+                                    route_y + 20,
+                                    22,
+                                    4,
+                                    CLASSIC_RTS_TARGET_PREVIEW_PATH_COLOR,
+                                );
+                                classic_draw_rect(
+                                    buffer,
+                                    width,
+                                    height,
+                                    route_x - 2,
+                                    route_y + 12,
+                                    4,
+                                    20,
+                                    CLASSIC_RTS_TARGET_PREVIEW_PATH_COLOR,
+                                );
+                            }
                         }
                     }
                     classic_draw_rect(
@@ -84514,6 +84553,18 @@ fn classic_first_contact_visual_telemetry_color(role: RtsVisualTelemetryColorRol
 #[cfg(not(target_os = "android"))]
 fn classic_first_contact_primary_tactical_track(track: &RtsTacticalTrackProfile) -> bool {
     first_contact_palette::primary_tactical_track(track)
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_first_contact_player_visible_tactical_tracks(
+    telemetry: &RtsFirstContactVisualTelemetryProfile,
+    player_screen: bool,
+) -> Vec<&RtsTacticalTrackProfile> {
+    telemetry
+        .tactical_tracks
+        .iter()
+        .filter(|track| !player_screen || classic_first_contact_primary_tactical_track(track))
+        .collect()
 }
 
 #[cfg(not(target_os = "android"))]
@@ -95533,10 +95584,13 @@ fn classic_draw_first_contact_basin_scene(
         &core_world,
     );
 
-    for track in classic_first_contact_visual_telemetry().tactical_tracks {
+    let visual_telemetry = classic_first_contact_visual_telemetry();
+    for track in
+        classic_first_contact_player_visible_tactical_tracks(&visual_telemetry, player_screen)
+    {
         let from = classic_first_contact_tile_tuple(track.from_tile);
         let to = classic_first_contact_tile_tuple(track.to_tile);
-        let color = classic_first_contact_tactical_track_render_color(&track);
+        let color = classic_first_contact_tactical_track_render_color(track);
         let (track_x, track_y) =
             classic_first_contact_tactical_track_render_offset(cell_w, cell_h, &track);
         let track_w = classic_first_contact_tactical_track_render_width(cell_w, &track);
@@ -101710,6 +101764,25 @@ fn classic_first_contact_marker_budget_guard(runtime: &NativeFirstPlayableRuntim
         .iter()
         .filter_map(|tile_id| classic_parse_rts_tile(tile_id))
         .collect::<Vec<_>>();
+    let visual_telemetry = classic_first_contact_visual_telemetry();
+    let player_screen_tactical_tracks =
+        classic_first_contact_player_visible_tactical_tracks(&visual_telemetry, true);
+    let player_screen_primary_tactical_track_count = player_screen_tactical_tracks
+        .iter()
+        .filter(|track| classic_first_contact_primary_tactical_track(*track))
+        .count();
+    let player_screen_secondary_tactical_track_count = player_screen_tactical_tracks
+        .len()
+        .saturating_sub(player_screen_primary_tactical_track_count);
+    let mut hover_route_path_probe = runtime.clone();
+    hover_route_path_probe.rts_hover_source = "classic_rts_mouse_viewport".to_string();
+    hover_route_path_probe.rts_hover_tile_id = Some("24,31".to_string());
+    hover_route_path_probe.rts_hover_player_label = "MAP MOVE READY 24,31".to_string();
+    hover_route_path_probe.rts_hover_affordance = "viewport_move".to_string();
+    let hover_route_path_marker_count =
+        classic_rts_hover_target_preview_path_marker_count(&hover_route_path_probe, false);
+    let player_screen_hover_route_path_marker_count =
+        classic_rts_hover_target_preview_path_marker_count(&hover_route_path_probe, true);
     let non_focus_owner_identity_colors = classic_first_contact_non_focus_owner_identity_colors();
     let non_focus_owner_identity_hot_color_count = non_focus_owner_identity_colors
         .iter()
@@ -101722,6 +101795,12 @@ fn classic_first_contact_marker_budget_guard(runtime: &NativeFirstPlayableRuntim
         selected_tiles,
         route_tiles: first_contact_tiles::selection_combat_focus_route_tiles(runtime),
         frame_pixel_areas,
+        tactical_track_count: visual_telemetry.tactical_tracks.len(),
+        player_screen_tactical_track_count: player_screen_tactical_tracks.len(),
+        player_screen_primary_tactical_track_count,
+        player_screen_secondary_tactical_track_count,
+        hover_route_path_marker_count,
+        player_screen_hover_route_path_marker_count,
         non_focus_owner_identity_colors: non_focus_owner_identity_colors
             .iter()
             .map(|color| classic_first_contact_color_hex(*color))
@@ -145687,6 +145766,29 @@ mod tests {
             "MAP CURSOR MOVE READY"
         );
         assert!(hover_runtime.rts_cursor_allowed);
+        let hover_path_marker_count =
+            classic_rts_hover_target_preview_path_marker_count(&hover_runtime, false);
+        assert!(hover_path_marker_count > 0);
+        assert_eq!(
+            classic_rts_hover_target_preview_path_marker_count(&hover_runtime, true),
+            hover_path_marker_count
+        );
+        let mut first_contact_hover_runtime = hover_runtime.clone();
+        first_contact_hover_runtime.map_scene = "first_contact_basin".to_string();
+        assert!(
+            classic_first_contact_player_screen_suppresses_hover_route_path(
+                &first_contact_hover_runtime,
+                true
+            )
+        );
+        assert_eq!(
+            classic_rts_hover_target_preview_path_marker_count(&first_contact_hover_runtime, false),
+            hover_path_marker_count
+        );
+        assert_eq!(
+            classic_rts_hover_target_preview_path_marker_count(&first_contact_hover_runtime, true),
+            0
+        );
         let sidebar_hover =
             apply_classic_rts_hover_preview_runtime(&mut hover_runtime, 1280, 720, 1200, 365)
                 .expect("sidebar hover previews build queue");
@@ -150509,6 +150611,64 @@ mod tests {
                 .and_then(Value::as_u64),
             Some(0)
         );
+        assert_eq!(
+            guard.get("tactical_track_count").and_then(Value::as_u64),
+            Some(6)
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_tactical_track_count")
+                .and_then(Value::as_u64),
+            Some(1)
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_primary_tactical_track_count")
+                .and_then(Value::as_u64),
+            Some(1)
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_secondary_tactical_track_count")
+                .and_then(Value::as_u64),
+            Some(0)
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_tactical_track_gate")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            guard
+                .get("hover_route_path_marker_count")
+                .and_then(Value::as_u64),
+            Some(8)
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_hover_route_path_marker_count")
+                .and_then(Value::as_u64),
+            Some(0)
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_hover_route_path_gate")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert!(guard
+            .get("gallery_presentation_signatures")
+            .and_then(Value::as_array)
+            .expect("gallery signatures listed")
+            .iter()
+            .any(|value| value.as_str() == Some("player_screen_primary_tactical_track_only")));
+        assert!(guard
+            .get("gallery_presentation_signatures")
+            .and_then(Value::as_array)
+            .expect("gallery signatures listed")
+            .iter()
+            .any(|value| value.as_str() == Some("player_screen_hover_route_path_suppressed")));
         assert_eq!(
             guard
                 .get("non_focus_owner_identity_pixel_budget")

@@ -166,6 +166,9 @@ required_source_lines=(
   'fn classic_first_contact_non_focus_owner_identity_color'
   'fn classic_first_contact_owner_identity_color'
   'fn classic_first_contact_base_owner_identity_tiles'
+  'fn classic_first_contact_player_visible_tactical_tracks'
+  'fn classic_first_contact_player_screen_suppresses_hover_route_path'
+  'fn classic_rts_hover_target_preview_path_marker_count'
   'fn classic_first_contact_marker_budget_guard'
   'CLASSIC_FIRST_CONTACT_RUNTIME_CORE_VISIBLE_TILE_Y_MAX'
   'fn classic_first_contact_runtime_core_actor_candidate'
@@ -1449,7 +1452,7 @@ cat >"$JQ_FILTER" <<'JQ'
   and .first_contact_marker_budget_contract == "trillionnium_world_bevy_classic_rts_first_contact_marker_budget_v1"
   and .first_contact_marker_budget_guard.contract_version == "trillionnium_world_bevy_classic_rts_first_contact_marker_budget_v1"
   and .first_contact_marker_budget_guard.green == true
-  and .first_contact_marker_budget_guard.source_path == "trnm-world-bevy muted First Contact atlas gallery presentation plus final selection/combat focus layer"
+  and .first_contact_marker_budget_guard.source_path == "trnm-world-bevy muted First Contact atlas gallery presentation plus player-screen tactical/hover marker budgets and final selection/combat focus layer"
   and .first_contact_marker_budget_guard.gallery_sample_count == 14
   and .first_contact_marker_budget_guard.muted_gallery_sample_count == 14
   and .first_contact_marker_budget_guard.busy_core_tiles == []
@@ -1473,6 +1476,12 @@ cat >"$JQ_FILTER" <<'JQ'
   and .first_contact_marker_budget_guard.gallery_hot_marker_color_count == 0
   and .first_contact_marker_budget_guard.lower_lane_hot_marker_color_count == 0
   and .first_contact_marker_budget_guard.interactive_hot_marker_role_count >= 5
+  and .first_contact_marker_budget_guard.tactical_track_count == 6
+  and .first_contact_marker_budget_guard.player_screen_tactical_track_count == 1
+  and .first_contact_marker_budget_guard.player_screen_primary_tactical_track_count == 1
+  and .first_contact_marker_budget_guard.player_screen_secondary_tactical_track_count == 0
+  and .first_contact_marker_budget_guard.hover_route_path_marker_count == 8
+  and .first_contact_marker_budget_guard.player_screen_hover_route_path_marker_count == 0
   and .first_contact_marker_budget_guard.non_focus_owner_identity_colors == ["457953","6a5e4b"]
   and .first_contact_marker_budget_guard.non_focus_owner_identity_hot_color_count == 0
   and .first_contact_marker_budget_guard.non_focus_owner_identity_pixel_budget <= 192
@@ -1493,12 +1502,16 @@ cat >"$JQ_FILTER" <<'JQ'
   and (.first_contact_marker_budget_guard.gallery_presentation_signatures | index("compact_route_ack_ticks") != null)
   and (.first_contact_marker_budget_guard.gallery_presentation_signatures | index("interactive_focus_kept_hot") != null)
   and (.first_contact_marker_budget_guard.gallery_presentation_signatures | index("non_focus_owner_identity_muted") != null)
+  and (.first_contact_marker_budget_guard.gallery_presentation_signatures | index("player_screen_primary_tactical_track_only") != null)
+  and (.first_contact_marker_budget_guard.gallery_presentation_signatures | index("player_screen_hover_route_path_suppressed") != null)
   and .first_contact_marker_budget_guard.marker_budget_layer_draw_order == ["atlas_readability","atlas_gallery_muted","visual_hierarchy_deemphasis","central_clarity_deemphasis","terminal_legibility_deemphasis","selection_combat_focus"]
   and .first_contact_marker_budget_guard.gallery_lane_budget_gate == true
   and .first_contact_marker_budget_guard.gallery_mute_gate == true
   and .first_contact_marker_budget_guard.lower_lane_gallery_deemphasis_gate == true
   and .first_contact_marker_budget_guard.interactive_focus_preservation_gate == true
   and .first_contact_marker_budget_guard.non_focus_owner_identity_gate == true
+  and .first_contact_marker_budget_guard.player_screen_tactical_track_gate == true
+  and .first_contact_marker_budget_guard.player_screen_hover_route_path_gate == true
   and .first_contact_marker_budget_guard.marker_budget_layer_order_gate == true
   and .first_contact_marker_budget_guard.first_contact_marker_budget_gate == true
   and .first_contact_marker_budget_guard_gate == true
