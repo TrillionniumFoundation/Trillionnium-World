@@ -15,6 +15,7 @@ fn tile_id(tile: (i32, i32)) -> String {
 
 pub fn first_contact_silhouette_readability_guard() -> Value {
     let terrain_samples = first_contact_samples::silhouette_terrain_samples();
+    let preview_resource_samples = first_contact_samples::silhouette_preview_resource_samples();
     let unit_samples = first_contact_samples::silhouette_unit_samples();
     let structure_samples = first_contact_samples::silhouette_structure_samples();
     let terrain_sample_tiles = terrain_samples
@@ -26,6 +27,18 @@ pub fn first_contact_silhouette_readability_guard() -> Value {
         .map(|(_, role, _)| (*role).to_string())
         .collect::<Vec<_>>();
     let terrain_signatures = terrain_samples
+        .iter()
+        .map(|(_, _, signature)| (*signature).to_string())
+        .collect::<Vec<_>>();
+    let preview_resource_sample_tiles = preview_resource_samples
+        .iter()
+        .map(|(tile, _, _)| tile_id(*tile))
+        .collect::<Vec<_>>();
+    let preview_resource_roles = preview_resource_samples
+        .iter()
+        .map(|(_, role, _)| (*role).to_string())
+        .collect::<Vec<_>>();
+    let preview_resource_signatures = preview_resource_samples
         .iter()
         .map(|(_, _, signature)| (*signature).to_string())
         .collect::<Vec<_>>();
@@ -63,6 +76,16 @@ pub fn first_contact_silhouette_readability_guard() -> Value {
             })
         })
         .collect::<Vec<_>>();
+    let preview_resource_sample_objects = preview_resource_samples
+        .iter()
+        .map(|(tile, role, signature)| {
+            json!({
+                "tile": tile_id(*tile),
+                "role": role,
+                "signature": signature,
+            })
+        })
+        .collect::<Vec<_>>();
     let unit_sample_objects = unit_samples
         .iter()
         .map(|(tile, role, signature)| {
@@ -84,6 +107,10 @@ pub fn first_contact_silhouette_readability_guard() -> Value {
         })
         .collect::<Vec<_>>();
     let unique_terrain_signature_count = terrain_signatures.iter().collect::<BTreeSet<_>>().len();
+    let unique_preview_resource_signature_count = preview_resource_signatures
+        .iter()
+        .collect::<BTreeSet<_>>()
+        .len();
     let unique_unit_signature_count = unit_signatures.iter().collect::<BTreeSet<_>>().len();
     let unique_structure_signature_count =
         structure_signatures.iter().collect::<BTreeSet<_>>().len();
@@ -100,6 +127,14 @@ pub fn first_contact_silhouette_readability_guard() -> Value {
         .filter(|role| role.as_str() == "beacon")
         .count();
     let terrain_zone_pixel_budget = terrain_samples.len() * 32;
+    let preview_resource_bloom_count = preview_resource_samples.len();
+    let preview_resource_bloom_cues_per_cluster = 4usize;
+    let preview_resource_bloom_cue_width_px = 6usize;
+    let preview_resource_bloom_cue_height_px = 2usize;
+    let preview_resource_bloom_pixel_budget = preview_resource_bloom_count
+        * preview_resource_bloom_cues_per_cluster
+        * preview_resource_bloom_cue_width_px
+        * preview_resource_bloom_cue_height_px;
     let unit_silhouette_pixel_budget = unit_samples.len() * 86;
     let structure_roofline_pixel_budget = structure_samples.len() * 96;
     let beacon_spire_pixel_budget = beacon_count * 72;
@@ -121,12 +156,18 @@ pub fn first_contact_silhouette_readability_guard() -> Value {
         == string_vec(["worker", "scout", "warden", "relay"])
         && unique_unit_signature_count == 4
         && unit_silhouette_pixel_budget >= 344;
+    let preview_resource_bloom_gate = preview_resource_roles
+        == vec!["flux_bloom".to_string(); preview_resource_bloom_count]
+        && unique_preview_resource_signature_count == 1
+        && preview_resource_bloom_count == 11
+        && preview_resource_bloom_pixel_budget >= 528;
     let structure_roofline_gate = command_core_count >= 4
         && relay_count >= 2
         && unique_structure_signature_count >= 3
         && structure_roofline_pixel_budget >= 960;
     let beacon_spire_gate = beacon_count == 4 && beacon_spire_pixel_budget >= 288;
     let map_object_silhouette_gate = terrain_zone_gate
+        && preview_resource_bloom_gate
         && unit_role_silhouette_gate
         && structure_roofline_gate
         && beacon_spire_gate;
@@ -142,6 +183,16 @@ pub fn first_contact_silhouette_readability_guard() -> Value {
         "terrain_samples": terrain_sample_objects,
         "terrain_zone_pixel_budget": terrain_zone_pixel_budget,
         "terrain_zone_gate": terrain_zone_gate,
+        "preview_resource_sample_tiles": preview_resource_sample_tiles,
+        "preview_resource_roles": preview_resource_roles,
+        "preview_resource_signatures": preview_resource_signatures,
+        "preview_resource_samples": preview_resource_sample_objects,
+        "preview_resource_bloom_count": preview_resource_bloom_count,
+        "preview_resource_bloom_cues_per_cluster": preview_resource_bloom_cues_per_cluster,
+        "preview_resource_bloom_cue_width_px": preview_resource_bloom_cue_width_px,
+        "preview_resource_bloom_cue_height_px": preview_resource_bloom_cue_height_px,
+        "preview_resource_bloom_pixel_budget": preview_resource_bloom_pixel_budget,
+        "preview_resource_bloom_gate": preview_resource_bloom_gate,
         "unit_sample_tiles": unit_sample_tiles,
         "unit_roles": unit_roles,
         "unit_signatures": unit_signatures,
@@ -195,6 +246,30 @@ mod tests {
             Some(json!(["worker", "scout", "warden", "relay"]))
         );
         assert_eq!(
+            guard
+                .get("preview_resource_bloom_count")
+                .and_then(Value::as_u64),
+            Some(11)
+        );
+        assert_eq!(
+            guard
+                .get("preview_resource_bloom_cues_per_cluster")
+                .and_then(Value::as_u64),
+            Some(4)
+        );
+        assert_eq!(
+            guard
+                .get("preview_resource_bloom_cue_width_px")
+                .and_then(Value::as_u64),
+            Some(6)
+        );
+        assert_eq!(
+            guard
+                .get("preview_resource_bloom_cue_height_px")
+                .and_then(Value::as_u64),
+            Some(2)
+        );
+        assert_eq!(
             guard.get("unit_signatures").cloned(),
             Some(json!([
                 "cargo_pack",
@@ -226,6 +301,7 @@ mod tests {
         );
         for gate in [
             "terrain_zone_gate",
+            "preview_resource_bloom_gate",
             "unit_role_silhouette_gate",
             "structure_roofline_gate",
             "beacon_spire_gate",

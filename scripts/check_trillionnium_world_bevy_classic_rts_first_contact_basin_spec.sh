@@ -1032,6 +1032,11 @@ cat >"$JQ_FILTER" <<'JQ'
   and .first_contact_silhouette_readability_guard.command_core_silhouette_count == 4
   and .first_contact_silhouette_readability_guard.relay_silhouette_count == 2
   and .first_contact_silhouette_readability_guard.beacon_silhouette_count == 4
+  and .first_contact_silhouette_readability_guard.preview_resource_bloom_count == 11
+  and (.first_contact_silhouette_readability_guard.preview_resource_signatures | index("resource_bloom_micro_shadow_cues") != null)
+  and .first_contact_silhouette_readability_guard.preview_resource_bloom_cues_per_cluster == 4
+  and .first_contact_silhouette_readability_guard.preview_resource_bloom_cue_width_px == 6
+  and .first_contact_silhouette_readability_guard.preview_resource_bloom_cue_height_px == 2
   and (.first_contact_silhouette_readability_guard.terrain_signatures | index("base_corner_frame") != null)
   and (.first_contact_silhouette_readability_guard.terrain_signatures | index("flux_glint_cluster") != null)
   and (.first_contact_silhouette_readability_guard.terrain_signatures | index("basin_cross_rim") != null)
@@ -1039,10 +1044,12 @@ cat >"$JQ_FILTER" <<'JQ'
   and (.first_contact_silhouette_readability_guard.structure_signatures | index("tall_signal_mast") != null)
   and (.first_contact_silhouette_readability_guard.structure_signatures | index("vertical_beacon_spire") != null)
   and .first_contact_silhouette_readability_guard.terrain_zone_pixel_budget >= 288
+  and .first_contact_silhouette_readability_guard.preview_resource_bloom_pixel_budget >= 528
   and .first_contact_silhouette_readability_guard.unit_silhouette_pixel_budget >= 344
   and .first_contact_silhouette_readability_guard.structure_roofline_pixel_budget >= 960
   and .first_contact_silhouette_readability_guard.beacon_spire_pixel_budget >= 288
   and .first_contact_silhouette_readability_guard.terrain_zone_gate == true
+  and .first_contact_silhouette_readability_guard.preview_resource_bloom_gate == true
   and .first_contact_silhouette_readability_guard.unit_role_silhouette_gate == true
   and .first_contact_silhouette_readability_guard.structure_roofline_gate == true
   and .first_contact_silhouette_readability_guard.beacon_spire_gate == true

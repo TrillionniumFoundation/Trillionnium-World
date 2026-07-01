@@ -93725,16 +93725,24 @@ fn classic_draw_first_contact_actor(
             );
         }
         RtsActorGlyphBody::ResourceBloom => {
-            classic_draw_rect(
-                buffer,
-                width,
-                height,
-                cx - cell_w,
-                cy - cell_h,
-                cell_w * 2,
-                cell_h * 2,
-                classic_darken(CLASSIC_RTS_PRODUCT_RESOURCE_COLOR, 1, 8),
-            );
+            let preview_shadow_color = classic_darken(CLASSIC_RTS_PRODUCT_RESOURCE_COLOR, 1, 8);
+            for (cue_x, cue_y) in [
+                (cx - cell_w + 2, cy - cell_h + 2),
+                (cx + cell_w - 8, cy - cell_h + 2),
+                (cx - cell_w + 2, cy + cell_h - 4),
+                (cx + cell_w - 8, cy + cell_h - 4),
+            ] {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    cue_x,
+                    cue_y,
+                    6,
+                    2,
+                    preview_shadow_color,
+                );
+            }
             classic_draw_rect(
                 buffer,
                 width,
@@ -149709,6 +149717,30 @@ mod tests {
             Some(json!(["worker", "scout", "warden", "relay"]))
         );
         assert_eq!(
+            guard
+                .get("preview_resource_bloom_count")
+                .and_then(Value::as_u64),
+            Some(11)
+        );
+        assert_eq!(
+            guard
+                .get("preview_resource_bloom_cues_per_cluster")
+                .and_then(Value::as_u64),
+            Some(4)
+        );
+        assert_eq!(
+            guard
+                .get("preview_resource_bloom_cue_width_px")
+                .and_then(Value::as_u64),
+            Some(6)
+        );
+        assert_eq!(
+            guard
+                .get("preview_resource_bloom_cue_height_px")
+                .and_then(Value::as_u64),
+            Some(2)
+        );
+        assert_eq!(
             guard.get("unit_signatures").cloned(),
             Some(json!([
                 "cargo_pack",
@@ -149740,6 +149772,7 @@ mod tests {
         );
         for gate in [
             "terrain_zone_gate",
+            "preview_resource_bloom_gate",
             "unit_role_silhouette_gate",
             "structure_roofline_gate",
             "beacon_spire_gate",

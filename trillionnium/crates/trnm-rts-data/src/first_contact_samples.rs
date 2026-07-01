@@ -41,6 +41,22 @@ pub fn silhouette_terrain_samples() -> Vec<TileRoleSignature> {
     ]
 }
 
+pub fn silhouette_preview_resource_samples() -> Vec<TileRoleSignature> {
+    vec![
+        ((12, 16), "flux_bloom", "resource_bloom_micro_shadow_cues"),
+        ((21, 16), "flux_bloom", "resource_bloom_micro_shadow_cues"),
+        ((16, 12), "flux_bloom", "resource_bloom_micro_shadow_cues"),
+        ((16, 21), "flux_bloom", "resource_bloom_micro_shadow_cues"),
+        ((8, 16), "flux_bloom", "resource_bloom_micro_shadow_cues"),
+        ((25, 16), "flux_bloom", "resource_bloom_micro_shadow_cues"),
+        ((10, 10), "flux_bloom", "resource_bloom_micro_shadow_cues"),
+        ((23, 23), "flux_bloom", "resource_bloom_micro_shadow_cues"),
+        ((23, 10), "flux_bloom", "resource_bloom_micro_shadow_cues"),
+        ((10, 23), "flux_bloom", "resource_bloom_micro_shadow_cues"),
+        ((16, 16), "flux_bloom", "resource_bloom_micro_shadow_cues"),
+    ]
+}
+
 pub fn art_terrain_samples() -> Vec<TileRoleSignature> {
     vec![
         ((8, 8), "base_concrete", "foundation_panel_seams"),
@@ -419,6 +435,7 @@ mod tests {
         assert_eq!(silhouette_unit_samples().len(), 4);
         assert_eq!(silhouette_structure_samples().len(), 10);
         assert_eq!(silhouette_terrain_samples().len(), 9);
+        assert_eq!(silhouette_preview_resource_samples().len(), 11);
         assert_eq!(art_terrain_samples().len(), 9);
         assert_eq!(art_building_samples().len(), 10);
         assert_eq!(art_landmark_samples().len(), 16);
