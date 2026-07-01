@@ -18,10 +18,15 @@ fn lower_secondary_beacon_terrain_detail(tile: (i32, i32), role: &str, signature
 }
 
 fn lower_secondary_beacon_landmark_detail(tile: (i32, i32), role: &str, signature: &str) -> bool {
+    tile == (16, 23) && role == "beacon_lane" && signature == "lane_power_pylons"
+}
+
+fn secondary_beacon_capture_ring_detail(tile: (i32, i32), role: &str, signature: &str) -> bool {
     matches!(
         (tile, role, signature),
-        ((16, 23), "beacon_lane", "lane_power_pylons")
-            | ((16, 24), "beacon_ring", "beacon_capture_rings")
+        ((16, 24), "beacon_ring", "beacon_capture_rings")
+            | ((9, 16), "beacon_ring", "beacon_capture_rings")
+            | ((24, 16), "beacon_ring", "beacon_capture_rings")
     )
 }
 
@@ -134,10 +139,33 @@ pub fn first_contact_art_readability_guard() -> Value {
     let lower_secondary_beacon_art_signatures = string_vec([
         "lower_secondary_beacon_micro_chevrons",
         "lower_secondary_beacon_power_pylons_capped",
-        "lower_secondary_beacon_capture_ring_reduced",
     ]);
     let lower_secondary_beacon_art_sample_count = lower_secondary_beacon_art_samples.len();
     let lower_secondary_beacon_art_pixel_budget = lower_secondary_beacon_art_sample_count * 32;
+    let secondary_beacon_capture_ring_samples = landmark_samples
+        .iter()
+        .filter(|(tile, role, signature)| {
+            secondary_beacon_capture_ring_detail(*tile, role, signature)
+        })
+        .map(|(tile, role, signature)| {
+            json!({
+                "tile": tile_id(*tile),
+                "role": role,
+                "signature": signature,
+            })
+        })
+        .collect::<Vec<_>>();
+    let secondary_beacon_capture_ring_signatures =
+        string_vec(["secondary_beacon_capture_micro_cues"]);
+    let secondary_beacon_capture_ring_count = secondary_beacon_capture_ring_samples.len();
+    let secondary_beacon_capture_ring_cues_per_ring = 4_usize;
+    let secondary_beacon_capture_ring_cue_count =
+        secondary_beacon_capture_ring_count * secondary_beacon_capture_ring_cues_per_ring;
+    let secondary_beacon_capture_ring_cue_width_px = 8_usize;
+    let secondary_beacon_capture_ring_cue_height_px = 2_usize;
+    let secondary_beacon_capture_ring_pixel_budget = secondary_beacon_capture_ring_cue_count
+        * secondary_beacon_capture_ring_cue_width_px
+        * secondary_beacon_capture_ring_cue_height_px;
     let unique_terrain_signature_count = terrain_material_signatures
         .iter()
         .collect::<BTreeSet<_>>()
@@ -249,28 +277,47 @@ pub fn first_contact_art_readability_guard() -> Value {
                 "role": "beacon_lane",
                 "signature": "lane_power_pylons",
             }),
-            json!({
-                "tile": "16,24",
-                "role": "beacon_ring",
-                "signature": "beacon_capture_rings",
-            }),
         ]
-        && lower_secondary_beacon_art_pixel_budget <= 96
+        && lower_secondary_beacon_art_pixel_budget <= 64
         && lower_secondary_beacon_art_signatures
             .iter()
             .any(|signature| signature == "lower_secondary_beacon_micro_chevrons")
         && lower_secondary_beacon_art_signatures
             .iter()
-            .any(|signature| signature == "lower_secondary_beacon_power_pylons_capped")
-        && lower_secondary_beacon_art_signatures
+            .any(|signature| signature == "lower_secondary_beacon_power_pylons_capped");
+    let secondary_beacon_capture_ring_gate = secondary_beacon_capture_ring_samples
+        == vec![
+            json!({
+                "tile": "16,24",
+                "role": "beacon_ring",
+                "signature": "beacon_capture_rings",
+            }),
+            json!({
+                "tile": "9,16",
+                "role": "beacon_ring",
+                "signature": "beacon_capture_rings",
+            }),
+            json!({
+                "tile": "24,16",
+                "role": "beacon_ring",
+                "signature": "beacon_capture_rings",
+            }),
+        ]
+        && secondary_beacon_capture_ring_count == 3
+        && secondary_beacon_capture_ring_cues_per_ring == 4
+        && secondary_beacon_capture_ring_cue_width_px == 8
+        && secondary_beacon_capture_ring_cue_height_px == 2
+        && secondary_beacon_capture_ring_pixel_budget <= 192
+        && secondary_beacon_capture_ring_signatures
             .iter()
-            .any(|signature| signature == "lower_secondary_beacon_capture_ring_reduced");
+            .any(|signature| signature == "secondary_beacon_capture_micro_cues");
     let authored_map_art_gate = terrain_material_gate
         && terrain_material_depth_gate
         && building_facade_gate
         && map_landmark_detail_gate
         && runtime_actor_depth_gate
-        && lower_secondary_beacon_art_deemphasis_gate;
+        && lower_secondary_beacon_art_deemphasis_gate
+        && secondary_beacon_capture_ring_gate;
     let green = authored_map_art_gate;
 
     json!({
@@ -318,6 +365,15 @@ pub fn first_contact_art_readability_guard() -> Value {
         "lower_secondary_beacon_art_pixel_budget": lower_secondary_beacon_art_pixel_budget,
         "lower_secondary_beacon_art_signatures": lower_secondary_beacon_art_signatures,
         "lower_secondary_beacon_art_deemphasis_gate": lower_secondary_beacon_art_deemphasis_gate,
+        "secondary_beacon_capture_ring_samples": secondary_beacon_capture_ring_samples,
+        "secondary_beacon_capture_ring_count": secondary_beacon_capture_ring_count,
+        "secondary_beacon_capture_ring_cues_per_ring": secondary_beacon_capture_ring_cues_per_ring,
+        "secondary_beacon_capture_ring_cue_count": secondary_beacon_capture_ring_cue_count,
+        "secondary_beacon_capture_ring_cue_width_px": secondary_beacon_capture_ring_cue_width_px,
+        "secondary_beacon_capture_ring_cue_height_px": secondary_beacon_capture_ring_cue_height_px,
+        "secondary_beacon_capture_ring_pixel_budget": secondary_beacon_capture_ring_pixel_budget,
+        "secondary_beacon_capture_ring_signatures": secondary_beacon_capture_ring_signatures,
+        "secondary_beacon_capture_ring_gate": secondary_beacon_capture_ring_gate,
         "authored_map_art_gate": authored_map_art_gate,
     })
 }
@@ -423,11 +479,6 @@ mod tests {
                     "tile": "16,23",
                     "role": "beacon_lane",
                     "signature": "lane_power_pylons",
-                },
-                {
-                    "tile": "16,24",
-                    "role": "beacon_ring",
-                    "signature": "beacon_capture_rings",
                 }
             ]))
         );
@@ -435,7 +486,51 @@ mod tests {
             guard
                 .get("lower_secondary_beacon_art_pixel_budget")
                 .and_then(Value::as_u64),
-            Some(96)
+            Some(64)
+        );
+        assert_eq!(
+            guard.get("secondary_beacon_capture_ring_samples").cloned(),
+            Some(json!([
+                {
+                    "tile": "16,24",
+                    "role": "beacon_ring",
+                    "signature": "beacon_capture_rings",
+                },
+                {
+                    "tile": "9,16",
+                    "role": "beacon_ring",
+                    "signature": "beacon_capture_rings",
+                },
+                {
+                    "tile": "24,16",
+                    "role": "beacon_ring",
+                    "signature": "beacon_capture_rings",
+                }
+            ]))
+        );
+        assert_eq!(
+            guard
+                .get("secondary_beacon_capture_ring_cue_count")
+                .and_then(Value::as_u64),
+            Some(12)
+        );
+        assert_eq!(
+            guard
+                .get("secondary_beacon_capture_ring_cue_width_px")
+                .and_then(Value::as_u64),
+            Some(8)
+        );
+        assert_eq!(
+            guard
+                .get("secondary_beacon_capture_ring_cue_height_px")
+                .and_then(Value::as_u64),
+            Some(2)
+        );
+        assert_eq!(
+            guard
+                .get("secondary_beacon_capture_ring_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(192)
         );
         assert_eq!(
             guard
@@ -458,6 +553,7 @@ mod tests {
             "map_landmark_detail_gate",
             "runtime_actor_depth_gate",
             "lower_secondary_beacon_art_deemphasis_gate",
+            "secondary_beacon_capture_ring_gate",
             "authored_map_art_gate",
         ] {
             assert_eq!(guard.get(gate).and_then(Value::as_bool), Some(true));

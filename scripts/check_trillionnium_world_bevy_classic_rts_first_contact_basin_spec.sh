@@ -1094,18 +1094,26 @@ cat >"$JQ_FILTER" <<'JQ'
   and (.first_contact_art_readability_guard.runtime_actor_depth_signatures | index("runtime_relay_mast_braces") != null)
   and (.first_contact_art_readability_guard.runtime_actor_depth_signatures | index("runtime_beacon_core_glow_rungs") != null)
   and .first_contact_art_readability_guard.runtime_actor_depth_pixel_budget >= 480
-  and .first_contact_art_readability_guard.lower_secondary_beacon_art_samples == [{"tile":"16,24","role":"beacon_lane","signature":"painted_lane_chevrons"},{"tile":"16,23","role":"beacon_lane","signature":"lane_power_pylons"},{"tile":"16,24","role":"beacon_ring","signature":"beacon_capture_rings"}]
-  and .first_contact_art_readability_guard.lower_secondary_beacon_art_sample_count == 3
-  and .first_contact_art_readability_guard.lower_secondary_beacon_art_pixel_budget <= 96
+  and .first_contact_art_readability_guard.lower_secondary_beacon_art_samples == [{"tile":"16,24","role":"beacon_lane","signature":"painted_lane_chevrons"},{"tile":"16,23","role":"beacon_lane","signature":"lane_power_pylons"}]
+  and .first_contact_art_readability_guard.lower_secondary_beacon_art_sample_count == 2
+  and .first_contact_art_readability_guard.lower_secondary_beacon_art_pixel_budget <= 64
   and (.first_contact_art_readability_guard.lower_secondary_beacon_art_signatures | index("lower_secondary_beacon_micro_chevrons") != null)
   and (.first_contact_art_readability_guard.lower_secondary_beacon_art_signatures | index("lower_secondary_beacon_power_pylons_capped") != null)
-  and (.first_contact_art_readability_guard.lower_secondary_beacon_art_signatures | index("lower_secondary_beacon_capture_ring_reduced") != null)
+  and .first_contact_art_readability_guard.secondary_beacon_capture_ring_samples == [{"tile":"16,24","role":"beacon_ring","signature":"beacon_capture_rings"},{"tile":"9,16","role":"beacon_ring","signature":"beacon_capture_rings"},{"tile":"24,16","role":"beacon_ring","signature":"beacon_capture_rings"}]
+  and .first_contact_art_readability_guard.secondary_beacon_capture_ring_count == 3
+  and .first_contact_art_readability_guard.secondary_beacon_capture_ring_cues_per_ring == 4
+  and .first_contact_art_readability_guard.secondary_beacon_capture_ring_cue_count == 12
+  and .first_contact_art_readability_guard.secondary_beacon_capture_ring_cue_width_px == 8
+  and .first_contact_art_readability_guard.secondary_beacon_capture_ring_cue_height_px == 2
+  and .first_contact_art_readability_guard.secondary_beacon_capture_ring_pixel_budget <= 192
+  and (.first_contact_art_readability_guard.secondary_beacon_capture_ring_signatures | index("secondary_beacon_capture_micro_cues") != null)
   and .first_contact_art_readability_guard.terrain_material_gate == true
   and .first_contact_art_readability_guard.terrain_material_depth_gate == true
   and .first_contact_art_readability_guard.building_facade_gate == true
   and .first_contact_art_readability_guard.map_landmark_detail_gate == true
   and .first_contact_art_readability_guard.runtime_actor_depth_gate == true
   and .first_contact_art_readability_guard.lower_secondary_beacon_art_deemphasis_gate == true
+  and .first_contact_art_readability_guard.secondary_beacon_capture_ring_gate == true
   and .first_contact_art_readability_guard.authored_map_art_gate == true
   and .first_contact_art_readability_guard_gate == true
   and .first_contact_motion_readability_contract == "trillionnium_world_bevy_classic_rts_first_contact_motion_readability_v1"

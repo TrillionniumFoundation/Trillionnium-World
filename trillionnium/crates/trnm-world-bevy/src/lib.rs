@@ -149851,6 +149851,37 @@ mod tests {
         );
         assert_eq!(
             guard
+                .get("secondary_beacon_capture_ring_samples")
+                .and_then(Value::as_array)
+                .map(|samples| samples.len()),
+            Some(3)
+        );
+        assert_eq!(
+            guard
+                .get("secondary_beacon_capture_ring_cue_count")
+                .and_then(Value::as_u64),
+            Some(12)
+        );
+        assert_eq!(
+            guard
+                .get("secondary_beacon_capture_ring_cue_width_px")
+                .and_then(Value::as_u64),
+            Some(8)
+        );
+        assert_eq!(
+            guard
+                .get("secondary_beacon_capture_ring_cue_height_px")
+                .and_then(Value::as_u64),
+            Some(2)
+        );
+        assert_eq!(
+            guard
+                .get("secondary_beacon_capture_ring_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(192)
+        );
+        assert_eq!(
+            guard
                 .get("runtime_actor_depth_signatures")
                 .and_then(Value::as_array)
                 .map(|signatures| {
@@ -149903,6 +149934,7 @@ mod tests {
             "building_facade_gate",
             "map_landmark_detail_gate",
             "runtime_actor_depth_gate",
+            "secondary_beacon_capture_ring_gate",
             "authored_map_art_gate",
         ] {
             assert_eq!(guard.get(gate).and_then(Value::as_bool), Some(true));

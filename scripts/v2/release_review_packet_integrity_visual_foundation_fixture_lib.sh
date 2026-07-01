@@ -970,17 +970,30 @@ add_first_contact_basin_source_manifest_packet_fixtures() {
       runtime_actor_depth_gate: true,
       lower_secondary_beacon_art_samples: [
         {tile: "16,24", role: "beacon_lane", signature: "painted_lane_chevrons"},
-        {tile: "16,23", role: "beacon_lane", signature: "lane_power_pylons"},
-        {tile: "16,24", role: "beacon_ring", signature: "beacon_capture_rings"}
+        {tile: "16,23", role: "beacon_lane", signature: "lane_power_pylons"}
       ],
-      lower_secondary_beacon_art_sample_count: 3,
-      lower_secondary_beacon_art_pixel_budget: 96,
+      lower_secondary_beacon_art_sample_count: 2,
+      lower_secondary_beacon_art_pixel_budget: 64,
       lower_secondary_beacon_art_signatures: [
         "lower_secondary_beacon_micro_chevrons",
-        "lower_secondary_beacon_power_pylons_capped",
-        "lower_secondary_beacon_capture_ring_reduced"
+        "lower_secondary_beacon_power_pylons_capped"
       ],
       lower_secondary_beacon_art_deemphasis_gate: true,
+      secondary_beacon_capture_ring_samples: [
+        {tile: "16,24", role: "beacon_ring", signature: "beacon_capture_rings"},
+        {tile: "9,16", role: "beacon_ring", signature: "beacon_capture_rings"},
+        {tile: "24,16", role: "beacon_ring", signature: "beacon_capture_rings"}
+      ],
+      secondary_beacon_capture_ring_count: 3,
+      secondary_beacon_capture_ring_cues_per_ring: 4,
+      secondary_beacon_capture_ring_cue_count: 12,
+      secondary_beacon_capture_ring_cue_width_px: 8,
+      secondary_beacon_capture_ring_cue_height_px: 2,
+      secondary_beacon_capture_ring_pixel_budget: 192,
+      secondary_beacon_capture_ring_signatures: [
+        "secondary_beacon_capture_micro_cues"
+      ],
+      secondary_beacon_capture_ring_gate: true,
       authored_map_art_gate: true
     },
     first_contact_art_readability_guard_gate: true,

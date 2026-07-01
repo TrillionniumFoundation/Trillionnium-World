@@ -18,7 +18,6 @@ pub(crate) fn lower_secondary_beacon_art_detail(
         (tile, role, signature),
         ((16, 24), "beacon_lane", "painted_lane_chevrons")
             | ((16, 23), "beacon_lane", "lane_power_pylons")
-            | ((16, 24), "beacon_ring", "beacon_capture_rings")
     )
 }
 
@@ -28,6 +27,19 @@ pub(crate) fn lower_secondary_beacon_art_color(color: u32) -> u32 {
         CLASSIC_RTS_TACTICAL_VIEWPORT_TILE_COLOR,
         2,
         3,
+    )
+}
+
+pub(crate) fn secondary_beacon_capture_ring_detail(
+    tile: (i32, i32),
+    role: &str,
+    signature: &str,
+) -> bool {
+    matches!(
+        (tile, role, signature),
+        ((16, 24), "beacon_ring", "beacon_capture_rings")
+            | ((9, 16), "beacon_ring", "beacon_capture_rings")
+            | ((24, 16), "beacon_ring", "beacon_capture_rings")
     )
 }
 
@@ -107,8 +119,28 @@ mod tests {
             "beacon_lane",
             "lane_power_pylons"
         ));
-        assert!(lower_secondary_beacon_art_detail(
+        assert!(!lower_secondary_beacon_art_detail(
             (16, 24),
+            "beacon_ring",
+            "beacon_capture_rings"
+        ));
+        assert!(secondary_beacon_capture_ring_detail(
+            (16, 24),
+            "beacon_ring",
+            "beacon_capture_rings"
+        ));
+        assert!(secondary_beacon_capture_ring_detail(
+            (9, 16),
+            "beacon_ring",
+            "beacon_capture_rings"
+        ));
+        assert!(secondary_beacon_capture_ring_detail(
+            (24, 16),
+            "beacon_ring",
+            "beacon_capture_rings"
+        ));
+        assert!(!secondary_beacon_capture_ring_detail(
+            (16, 9),
             "beacon_ring",
             "beacon_capture_rings"
         ));

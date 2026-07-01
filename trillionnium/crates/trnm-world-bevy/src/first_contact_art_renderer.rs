@@ -576,6 +576,22 @@ pub(super) fn draw_landmark_detail(
             }
         }
         "beacon_capture_rings" => {
+            if first_contact_renderer_readability::secondary_beacon_capture_ring_detail(
+                tile, role, signature,
+            ) {
+                let quiet =
+                    first_contact_renderer_readability::lower_secondary_beacon_art_color(color);
+                let edge = classic_darken(quiet, 1, 4);
+                for (x, y, cue_color) in [
+                    (cx - 4, cy - cell_h / 2, quiet),
+                    (cx - cell_w / 2, cy - cell_h / 5, edge),
+                    (cx + cell_w / 2 - 8, cy + cell_h / 5, edge),
+                    (cx - 4, cy + cell_h / 2 - 2, quiet),
+                ] {
+                    classic_draw_rect(buffer, width, height, x, y, 8, 2, cue_color);
+                }
+                return;
+            }
             if first_contact_renderer_readability::lower_secondary_beacon_art_detail(
                 tile, role, signature,
             ) {
