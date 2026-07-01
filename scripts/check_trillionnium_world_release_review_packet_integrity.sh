@@ -1147,9 +1147,13 @@ require_artifact_json_expr first_contact_basin_spec_semantics native_bevy_classi
   and .first_contact_central_clarity_guard.quiet_tiles == ["13,10","14,10","15,10","17,10","18,10","13,11","16,11","17,11","18,11","13,12","14,12","16,12","18,12"]
   and .first_contact_central_clarity_guard.focus_corridor_tiles == ["14,11","15,11","15,12","15,16","16,9","16,10","17,12"]
   and .first_contact_central_clarity_guard.focus_overlap_tiles == []
-  and .first_contact_central_clarity_guard.quiet_tile_pixel_budget >= 1248
-  and .first_contact_central_clarity_guard.quiet_edge_pixel_budget >= 234
-  and (.first_contact_central_clarity_guard.clarity_signatures | index("central_negative_space_tiles") != null)
+  and .first_contact_central_clarity_guard.central_quiet_cue_width_px == 6
+  and .first_contact_central_clarity_guard.central_quiet_cue_height_px == 2
+  and .first_contact_central_clarity_guard.central_quiet_cues_per_tile == 2
+  and .first_contact_central_clarity_guard.quiet_tile_fill_pixel_budget == 0
+  and .first_contact_central_clarity_guard.quiet_tile_pixel_budget <= 312
+  and .first_contact_central_clarity_guard.quiet_edge_pixel_budget <= 156
+  and (.first_contact_central_clarity_guard.clarity_signatures | index("central_negative_space_micro_edge_cues") != null)
   and (.first_contact_central_clarity_guard.clarity_signatures | index("focus_corridor_not_muted") != null)
   and (.first_contact_central_clarity_guard.clarity_layer_draw_order | index("visual_hierarchy_deemphasis")) == 14
   and (.first_contact_central_clarity_guard.clarity_layer_draw_order | index("central_clarity_deemphasis")) == 15

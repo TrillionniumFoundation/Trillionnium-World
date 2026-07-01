@@ -814,6 +814,9 @@ const CLASSIC_FIRST_CONTACT_CORRIDOR_DEEMPHASIS_CUE_W_PX: i32 = 8;
 const CLASSIC_FIRST_CONTACT_CORRIDOR_DEEMPHASIS_CUE_H_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_ROUTE_SPINE_SHADOW_CUE_W_PX: i32 = 6;
 const CLASSIC_FIRST_CONTACT_ROUTE_SPINE_SHADOW_CUE_H_PX: i32 = 2;
+const CLASSIC_FIRST_CONTACT_CENTRAL_QUIET_CUE_W_PX: i32 = 6;
+const CLASSIC_FIRST_CONTACT_CENTRAL_QUIET_CUE_H_PX: i32 = 2;
+const CLASSIC_FIRST_CONTACT_CENTRAL_QUIET_CUES_PER_TILE: usize = 2;
 const CLASSIC_FIRST_CONTACT_ROUTE_DASH_WIDTH_PX: i32 = 8;
 const CLASSIC_FIRST_CONTACT_ROUTE_DASH_HEIGHT_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_ROUTE_ACK_TICK_WIDTH_PX: i32 = 2;
@@ -150532,7 +150535,35 @@ mod tests {
         );
         assert_eq!(
             guard.get("quiet_tile_pixel_budget").and_then(Value::as_u64),
-            Some(1_248)
+            Some(312)
+        );
+        assert_eq!(
+            guard
+                .get("central_quiet_cue_width_px")
+                .and_then(Value::as_u64),
+            Some(6)
+        );
+        assert_eq!(
+            guard
+                .get("central_quiet_cue_height_px")
+                .and_then(Value::as_u64),
+            Some(2)
+        );
+        assert_eq!(
+            guard
+                .get("central_quiet_cues_per_tile")
+                .and_then(Value::as_u64),
+            Some(2)
+        );
+        assert_eq!(
+            guard
+                .get("quiet_tile_fill_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(0)
+        );
+        assert_eq!(
+            guard.get("quiet_edge_pixel_budget").and_then(Value::as_u64),
+            Some(156)
         );
         assert_eq!(
             guard

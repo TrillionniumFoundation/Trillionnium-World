@@ -303,12 +303,20 @@ pub fn first_contact_central_clarity_guard(
     let central_core_tile_count = 18_usize;
     let central_quiet_tile_count = quiet_tiles.len();
     let central_focus_tile_count = central_core_tile_count.saturating_sub(central_quiet_tile_count);
-    let quiet_tile_pixel_budget = central_quiet_tile_count * 96;
-    let quiet_edge_pixel_budget = central_quiet_tile_count * 18;
+    let central_quiet_cue_width_px = 6_usize;
+    let central_quiet_cue_height_px = 2_usize;
+    let central_quiet_cues_per_tile = 2_usize;
+    let quiet_tile_fill_pixel_budget = 0_usize;
+    let quiet_tile_pixel_budget = central_quiet_tile_count
+        * central_quiet_cue_width_px
+        * central_quiet_cue_height_px
+        * central_quiet_cues_per_tile;
+    let quiet_edge_pixel_budget =
+        central_quiet_tile_count * central_quiet_cue_width_px * central_quiet_cue_height_px;
     let clarity_signatures = string_vec([
-        "central_negative_space_tiles",
+        "central_negative_space_micro_edge_cues",
         "focus_corridor_not_muted",
-        "quiet_edge_separators",
+        "quiet_edge_micro_cues",
         "selection_focus_still_last",
     ]);
     let clarity_layer_draw_order = readability_layer_draw_order();
@@ -319,15 +327,19 @@ pub fn first_contact_central_clarity_guard(
         ])
         && central_quiet_tile_count == 13
         && central_focus_tile_count == 5
-        && quiet_tile_pixel_budget >= 1_248;
+        && central_quiet_cue_width_px == 6
+        && central_quiet_cue_height_px == 2
+        && central_quiet_cues_per_tile == 2
+        && quiet_tile_fill_pixel_budget == 0
+        && quiet_tile_pixel_budget <= 312;
     let focus_overlap_gate = focus_overlap_tiles.is_empty()
         && focus_corridor_tile_ids
             == string_vec(["14,11", "15,11", "15,12", "15,16", "16,9", "16,10", "17,12"]);
-    let quiet_edge_gate = quiet_edge_pixel_budget >= 234;
+    let quiet_edge_gate = quiet_edge_pixel_budget <= 156;
     let clarity_signature_gate = clarity_signatures.len() == 4
         && clarity_signatures
             .iter()
-            .any(|signature| signature == "central_negative_space_tiles")
+            .any(|signature| signature == "central_negative_space_micro_edge_cues")
         && clarity_signatures
             .iter()
             .any(|signature| signature == "focus_corridor_not_muted");
@@ -367,6 +379,10 @@ pub fn first_contact_central_clarity_guard(
         "quiet_tiles": quiet_tile_ids,
         "focus_corridor_tiles": focus_corridor_tile_ids,
         "focus_overlap_tiles": focus_overlap_tiles,
+        "central_quiet_cue_width_px": central_quiet_cue_width_px,
+        "central_quiet_cue_height_px": central_quiet_cue_height_px,
+        "central_quiet_cues_per_tile": central_quiet_cues_per_tile,
+        "quiet_tile_fill_pixel_budget": quiet_tile_fill_pixel_budget,
         "quiet_tile_pixel_budget": quiet_tile_pixel_budget,
         "quiet_edge_pixel_budget": quiet_edge_pixel_budget,
         "clarity_signatures": clarity_signatures,
@@ -570,6 +586,12 @@ mod tests {
         );
         assert_eq!(central["green"].as_bool(), Some(true));
         assert_eq!(central["central_quiet_tile_count"].as_u64(), Some(13));
+        assert_eq!(central["central_quiet_cue_width_px"].as_u64(), Some(6));
+        assert_eq!(central["central_quiet_cue_height_px"].as_u64(), Some(2));
+        assert_eq!(central["central_quiet_cues_per_tile"].as_u64(), Some(2));
+        assert_eq!(central["quiet_tile_fill_pixel_budget"].as_u64(), Some(0));
+        assert_eq!(central["quiet_tile_pixel_budget"].as_u64(), Some(312));
+        assert_eq!(central["quiet_edge_pixel_budget"].as_u64(), Some(156));
         assert_eq!(
             central["focus_overlap_tiles"].as_array().map(Vec::len),
             Some(0)

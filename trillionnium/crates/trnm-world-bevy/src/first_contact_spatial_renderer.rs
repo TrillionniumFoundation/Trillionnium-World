@@ -5,6 +5,8 @@ use crate::{
     classic_first_contact_command_feedback, classic_first_contact_tile_screen,
     classic_first_contact_tile_tuple, classic_mix_color, classic_parse_rts_tile,
     first_contact_tiles, NativeFirstPlayableRuntime,
+    CLASSIC_FIRST_CONTACT_CENTRAL_QUIET_CUES_PER_TILE,
+    CLASSIC_FIRST_CONTACT_CENTRAL_QUIET_CUE_H_PX, CLASSIC_FIRST_CONTACT_CENTRAL_QUIET_CUE_W_PX,
     CLASSIC_FIRST_CONTACT_CORRIDOR_DEEMPHASIS_CUE_H_PX,
     CLASSIC_FIRST_CONTACT_CORRIDOR_DEEMPHASIS_CUE_W_PX,
     CLASSIC_FIRST_CONTACT_ROUTE_SPINE_SHADOW_CUE_H_PX,
@@ -219,26 +221,22 @@ pub(super) fn draw_central_clarity_layer(
     for tile in central_clarity_quiet_tiles(runtime) {
         let (tile_x, tile_y) =
             classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, tile);
-        classic_draw_rect(
-            buffer,
-            width,
-            height,
-            tile_x + 2,
-            tile_y + 3,
-            (cell_w - 4).max(4),
-            (cell_h - 5).max(5),
-            quiet_fill,
+        let cue_w = CLASSIC_FIRST_CONTACT_CENTRAL_QUIET_CUE_W_PX;
+        let cue_h = CLASSIC_FIRST_CONTACT_CENTRAL_QUIET_CUE_H_PX;
+        let left_x = tile_x + 5;
+        let right_x = tile_x + cell_w - 5 - cue_w;
+        let mid_y = tile_y + cell_h / 2;
+        let cues = [
+            (left_x, mid_y - 3, quiet_fill),
+            (right_x, mid_y + 2, quiet_edge),
+        ];
+        debug_assert_eq!(
+            cues.len(),
+            CLASSIC_FIRST_CONTACT_CENTRAL_QUIET_CUES_PER_TILE
         );
-        classic_draw_rect(
-            buffer,
-            width,
-            height,
-            tile_x + 4,
-            tile_y + cell_h / 2,
-            (cell_w - 8).max(3),
-            1,
-            quiet_edge,
-        );
+        for (x, y, color) in cues {
+            classic_draw_rect(buffer, width, height, x, y, cue_w, cue_h, color);
+        }
     }
 }
 
