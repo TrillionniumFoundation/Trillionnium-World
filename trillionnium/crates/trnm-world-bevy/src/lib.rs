@@ -810,6 +810,8 @@ const CLASSIC_FIRST_CONTACT_TARGET_LOCK_ACK_TICK_H_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_SELECTED_ROLE_BADGE_TICK_W_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_SELECTED_ROLE_BADGE_TICK_H_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_SELECTED_FOCUS_BRACKET_PIXELS_PER_TILE: usize = 64;
+const CLASSIC_FIRST_CONTACT_CORRIDOR_DEEMPHASIS_CUE_W_PX: i32 = 8;
+const CLASSIC_FIRST_CONTACT_CORRIDOR_DEEMPHASIS_CUE_H_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_ROUTE_SPINE_SHADOW_CUE_W_PX: i32 = 6;
 const CLASSIC_FIRST_CONTACT_ROUTE_SPINE_SHADOW_CUE_H_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_ROUTE_DASH_WIDTH_PX: i32 = 8;
@@ -150407,7 +150409,7 @@ mod tests {
                 .map(|signatures| {
                     signatures
                         .iter()
-                        .any(|value| value.as_str() == Some("route_corridor_deemphasis"))
+                        .any(|value| value.as_str() == Some("route_corridor_micro_edge_cues"))
                         && signatures
                             .iter()
                             .any(|value| value.as_str() == Some("perimeter_gallery_preserved"))
@@ -150416,9 +150418,27 @@ mod tests {
         );
         assert_eq!(
             guard
+                .get("corridor_deemphasis_cue_width_px")
+                .and_then(Value::as_u64),
+            Some(8)
+        );
+        assert_eq!(
+            guard
+                .get("corridor_deemphasis_cue_height_px")
+                .and_then(Value::as_u64),
+            Some(2)
+        );
+        assert_eq!(
+            guard
+                .get("corridor_deemphasis_cues_per_tile")
+                .and_then(Value::as_u64),
+            Some(2)
+        );
+        assert_eq!(
+            guard
                 .get("corridor_deemphasis_pixel_budget")
                 .and_then(Value::as_u64),
-            Some(546)
+            Some(224)
         );
         assert_eq!(
             guard

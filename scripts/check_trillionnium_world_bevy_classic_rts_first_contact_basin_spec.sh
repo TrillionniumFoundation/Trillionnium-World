@@ -1300,12 +1300,15 @@ cat >"$JQ_FILTER" <<'JQ'
   and .first_contact_visual_hierarchy_guard.blocked_focus_tile == "15,16"
   and .first_contact_visual_hierarchy_guard.unique_gallery_lanes == ["east_gallery","north_gallery","west_gallery"]
   and .first_contact_visual_hierarchy_guard.atlas_family_busy_core_tiles == []
-  and (.first_contact_visual_hierarchy_guard.hierarchy_signatures | index("route_corridor_deemphasis") != null)
+  and (.first_contact_visual_hierarchy_guard.hierarchy_signatures | index("route_corridor_micro_edge_cues") != null)
   and (.first_contact_visual_hierarchy_guard.hierarchy_signatures | index("route_spine_micro_shadow_cues") != null)
   and (.first_contact_visual_hierarchy_guard.hierarchy_signatures | index("attack_target_micro_backplate") != null)
   and (.first_contact_visual_hierarchy_guard.hierarchy_signatures | index("blocked_warning_micro_backplate") != null)
   and (.first_contact_visual_hierarchy_guard.hierarchy_signatures | index("perimeter_gallery_preserved") != null)
-  and .first_contact_visual_hierarchy_guard.corridor_deemphasis_pixel_budget >= 546
+  and .first_contact_visual_hierarchy_guard.corridor_deemphasis_cue_width_px == 8
+  and .first_contact_visual_hierarchy_guard.corridor_deemphasis_cue_height_px == 2
+  and .first_contact_visual_hierarchy_guard.corridor_deemphasis_cues_per_tile == 2
+  and .first_contact_visual_hierarchy_guard.corridor_deemphasis_pixel_budget <= 224
   and .first_contact_visual_hierarchy_guard.route_spine_shadow_cue_width_px == 6
   and .first_contact_visual_hierarchy_guard.route_spine_shadow_cue_height_px == 2
   and .first_contact_visual_hierarchy_guard.route_spine_shadow_pixel_budget <= 120

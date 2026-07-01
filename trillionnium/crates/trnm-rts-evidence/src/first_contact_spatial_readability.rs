@@ -165,14 +165,20 @@ pub fn first_contact_visual_hierarchy_guard(
     unique_gallery_lanes.sort();
     unique_gallery_lanes.dedup();
     let hierarchy_signatures = string_vec([
-        "route_corridor_deemphasis",
+        "route_corridor_micro_edge_cues",
         "route_spine_micro_shadow_cues",
         "selected_halo_backplates",
         "attack_target_micro_backplate",
         "blocked_warning_micro_backplate",
         "perimeter_gallery_preserved",
     ]);
-    let corridor_deemphasis_pixel_budget = corridor_tiles.len() * 78;
+    let corridor_deemphasis_cue_width_px = 8;
+    let corridor_deemphasis_cue_height_px = 2;
+    let corridor_deemphasis_cues_per_tile = 2;
+    let corridor_deemphasis_pixel_budget = corridor_tiles.len()
+        * corridor_deemphasis_cue_width_px
+        * corridor_deemphasis_cue_height_px
+        * corridor_deemphasis_cues_per_tile;
     let route_spine_shadow_cue_width_px = 6;
     let route_spine_shadow_cue_height_px = 2;
     let route_spine_shadow_pixel_budget =
@@ -182,7 +188,13 @@ pub fn first_contact_visual_hierarchy_guard(
     let blocked_backplate_pixel_budget = 72;
     let corridor_tile_gate = corridor_tiles
         == string_vec(["14,11", "15,11", "15,12", "15,16", "16,9", "16,10", "17,12"])
-        && corridor_deemphasis_pixel_budget >= 546;
+        && corridor_deemphasis_cue_width_px == 8
+        && corridor_deemphasis_cue_height_px == 2
+        && corridor_deemphasis_cues_per_tile == 2
+        && corridor_deemphasis_pixel_budget <= 224
+        && hierarchy_signatures
+            .iter()
+            .any(|signature| signature == "route_corridor_micro_edge_cues");
     let route_spine_gate = route_focus_tiles == string_vec(["14,11", "15,11", "16,10", "16,9"])
         && route_line_step_count >= 10
         && route_spine_shadow_cue_width_px == 6
@@ -201,7 +213,7 @@ pub fn first_contact_visual_hierarchy_guard(
     let hierarchy_signature_gate = hierarchy_signatures.len() == 6
         && hierarchy_signatures
             .iter()
-            .any(|signature| signature == "route_corridor_deemphasis")
+            .any(|signature| signature == "route_corridor_micro_edge_cues")
         && hierarchy_signatures
             .iter()
             .any(|signature| signature == "perimeter_gallery_preserved");
@@ -253,6 +265,9 @@ pub fn first_contact_visual_hierarchy_guard(
         "atlas_family_busy_core_tiles": atlas_family_busy_core_tiles,
         "unique_gallery_lanes": unique_gallery_lanes,
         "hierarchy_signatures": hierarchy_signatures,
+        "corridor_deemphasis_cue_width_px": corridor_deemphasis_cue_width_px,
+        "corridor_deemphasis_cue_height_px": corridor_deemphasis_cue_height_px,
+        "corridor_deemphasis_cues_per_tile": corridor_deemphasis_cues_per_tile,
         "corridor_deemphasis_pixel_budget": corridor_deemphasis_pixel_budget,
         "route_spine_shadow_cue_width_px": route_spine_shadow_cue_width_px,
         "route_spine_shadow_cue_height_px": route_spine_shadow_cue_height_px,
@@ -507,6 +522,22 @@ mod tests {
             Some(7)
         );
         assert_eq!(hierarchy["route_line_step_count"].as_u64(), Some(10));
+        assert_eq!(
+            hierarchy["corridor_deemphasis_cue_width_px"].as_u64(),
+            Some(8)
+        );
+        assert_eq!(
+            hierarchy["corridor_deemphasis_cue_height_px"].as_u64(),
+            Some(2)
+        );
+        assert_eq!(
+            hierarchy["corridor_deemphasis_cues_per_tile"].as_u64(),
+            Some(2)
+        );
+        assert_eq!(
+            hierarchy["corridor_deemphasis_pixel_budget"].as_u64(),
+            Some(224)
+        );
         assert_eq!(
             hierarchy["route_spine_shadow_cue_width_px"].as_u64(),
             Some(6)

@@ -5,6 +5,8 @@ use crate::{
     classic_first_contact_command_feedback, classic_first_contact_tile_screen,
     classic_first_contact_tile_tuple, classic_mix_color, classic_parse_rts_tile,
     first_contact_tiles, NativeFirstPlayableRuntime,
+    CLASSIC_FIRST_CONTACT_CORRIDOR_DEEMPHASIS_CUE_H_PX,
+    CLASSIC_FIRST_CONTACT_CORRIDOR_DEEMPHASIS_CUE_W_PX,
     CLASSIC_FIRST_CONTACT_ROUTE_SPINE_SHADOW_CUE_H_PX,
     CLASSIC_FIRST_CONTACT_ROUTE_SPINE_SHADOW_CUE_W_PX, CLASSIC_RTS_COMMAND_SURFACE_TARGET_COLOR,
     CLASSIC_RTS_PRODUCT_LANE_COLOR, CLASSIC_RTS_SELECTION_FEEDBACK_ERROR_COLOR,
@@ -96,24 +98,29 @@ pub(super) fn draw_visual_hierarchy_layer(
     for tile in visual_hierarchy_corridor_tiles(runtime) {
         let (tile_x, tile_y) =
             classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, tile);
+        let cue_w = CLASSIC_FIRST_CONTACT_CORRIDOR_DEEMPHASIS_CUE_W_PX;
+        let cue_h = CLASSIC_FIRST_CONTACT_CORRIDOR_DEEMPHASIS_CUE_H_PX;
+        let left_x = tile_x + 4;
+        let right_x = tile_x + cell_w - 4 - cue_w;
+        let mid_y = tile_y + cell_h / 2;
         classic_draw_rect(
             buffer,
             width,
             height,
-            tile_x + 1,
-            tile_y + cell_h / 2 - 5,
-            cell_w - 2,
-            (cell_h / 2 + 8).max(8),
+            left_x,
+            mid_y - 3,
+            cue_w,
+            cue_h,
             corridor_color,
         );
         classic_draw_rect(
             buffer,
             width,
             height,
-            tile_x + 3,
-            tile_y + cell_h / 2 + 2,
-            cell_w - 6,
-            2,
+            right_x,
+            mid_y + 3,
+            cue_w,
+            cue_h,
             CLASSIC_RTS_TACTICAL_VIEWPORT_SHADOW_COLOR,
         );
     }
