@@ -810,8 +810,8 @@ const CLASSIC_FIRST_CONTACT_TARGET_LOCK_ACK_TICK_H_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_SELECTED_ROLE_BADGE_TICK_W_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_SELECTED_ROLE_BADGE_TICK_H_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_SELECTED_FOCUS_BRACKET_PIXELS_PER_TILE: usize = 64;
-const CLASSIC_FIRST_CONTACT_ROUTE_DASH_WIDTH_PX: i32 = 16;
-const CLASSIC_FIRST_CONTACT_ROUTE_DASH_HEIGHT_PX: i32 = 3;
+const CLASSIC_FIRST_CONTACT_ROUTE_DASH_WIDTH_PX: i32 = 8;
+const CLASSIC_FIRST_CONTACT_ROUTE_DASH_HEIGHT_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_ROUTE_ACK_TICK_WIDTH_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_ROUTE_ACK_TICK_HEIGHT_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_ROUTE_CLEARANCE_CORNER_CUE_W_PX: i32 = 6;
@@ -150668,11 +150668,11 @@ mod tests {
         );
         assert_eq!(
             guard.get("route_dash_width_px").and_then(Value::as_u64),
-            Some(16)
+            Some(8)
         );
         assert_eq!(
             guard.get("route_dash_height_px").and_then(Value::as_u64),
-            Some(3)
+            Some(2)
         );
         assert_eq!(
             guard.get("route_ack_tick_width_px").and_then(Value::as_u64),
@@ -150694,7 +150694,7 @@ mod tests {
             guard
                 .get("route_focus_pixel_budget")
                 .and_then(Value::as_u64),
-            Some(216)
+            Some(88)
         );
         assert_eq!(
             guard

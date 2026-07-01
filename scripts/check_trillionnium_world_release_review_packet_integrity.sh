@@ -1194,7 +1194,7 @@ require_artifact_json_expr first_contact_basin_spec_semantics native_bevy_classi
   and .first_contact_selection_combat_focus_guard.blocked_focus_tile == "15,16"
   and (.first_contact_selection_combat_focus_guard.focus_signatures | index("selected_corner_brackets") != null)
   and (.first_contact_selection_combat_focus_guard.focus_signatures | index("selected_role_badge_micro_pips") != null)
-  and (.first_contact_selection_combat_focus_guard.focus_signatures | index("wide_route_dashes") != null)
+  and (.first_contact_selection_combat_focus_guard.focus_signatures | index("compact_route_dashes") != null)
   and (.first_contact_selection_combat_focus_guard.focus_signatures | index("route_ack_micro_dots") != null)
   and (.first_contact_selection_combat_focus_guard.focus_signatures | index("route_clearance_corner_cues") != null)
   and (.first_contact_selection_combat_focus_guard.focus_signatures | index("attack_target_lock_brackets") != null)
@@ -1204,8 +1204,8 @@ require_artifact_json_expr first_contact_basin_spec_semantics native_bevy_classi
   and .first_contact_selection_combat_focus_guard.route_dash_count >= 4
   and .first_contact_selection_combat_focus_guard.route_ack_tick_count >= 6
   and .first_contact_selection_combat_focus_guard.route_line_step_count >= 10
-  and .first_contact_selection_combat_focus_guard.route_dash_width_px == 16
-  and .first_contact_selection_combat_focus_guard.route_dash_height_px == 3
+  and .first_contact_selection_combat_focus_guard.route_dash_width_px == 8
+  and .first_contact_selection_combat_focus_guard.route_dash_height_px == 2
   and .first_contact_selection_combat_focus_guard.route_ack_tick_width_px == 2
   and .first_contact_selection_combat_focus_guard.route_ack_tick_height_px == 2
   and .first_contact_selection_combat_focus_guard.selected_role_badge_tick_width_px == 2
@@ -1213,7 +1213,8 @@ require_artifact_json_expr first_contact_basin_spec_semantics native_bevy_classi
   and .first_contact_selection_combat_focus_guard.selected_role_badge_tick_pixel_budget == 16
   and .first_contact_selection_combat_focus_guard.selected_focus_pixel_budget <= 288
   and .first_contact_selection_combat_focus_guard.route_ack_tick_pixel_budget == 24
-  and .first_contact_selection_combat_focus_guard.route_focus_pixel_budget <= 216
+  and .first_contact_selection_combat_focus_guard.route_dash_pixel_budget == 64
+  and .first_contact_selection_combat_focus_guard.route_focus_pixel_budget <= 88
   and .first_contact_selection_combat_focus_guard.route_clearance_corner_cue_count == 36
   and .first_contact_selection_combat_focus_guard.route_clearance_corner_cue_width_px == 6
   and .first_contact_selection_combat_focus_guard.route_clearance_corner_cue_height_px == 2
@@ -1331,10 +1332,11 @@ require_artifact_json_expr first_contact_basin_spec_semantics native_bevy_classi
   and .first_contact_marker_budget_guard.player_screen_relay_identity_rail_pixel_budget <= 192
   and .first_contact_marker_budget_guard.player_screen_legacy_midfield_status_bar_pixel_budget == 0
   and .first_contact_marker_budget_guard.selected_role_badge_tick_pixel_budget == 16
-  and .first_contact_marker_budget_guard.interactive_focus_pixel_budget == 764
+  and .first_contact_marker_budget_guard.interactive_focus_pixel_budget == 636
   and .first_contact_marker_budget_guard.selected_focus_tiles == ["14,11","15,11","15,12","17,12"]
   and .first_contact_marker_budget_guard.route_focus_tiles == ["14,11","15,11","16,10","16,9"]
   and (.first_contact_marker_budget_guard.gallery_presentation_signatures | index("darkened_gallery_frames") != null)
+  and (.first_contact_marker_budget_guard.gallery_presentation_signatures | index("compact_route_dashes") != null)
   and (.first_contact_marker_budget_guard.gallery_presentation_signatures | index("perimeter_gallery_edge_anchors") != null)
   and (.first_contact_marker_budget_guard.gallery_presentation_signatures | index("perimeter_gallery_single_pixel_anchors") != null)
   and (.first_contact_marker_budget_guard.gallery_presentation_signatures | index("lower_lane_gallery_deemphasis") != null)

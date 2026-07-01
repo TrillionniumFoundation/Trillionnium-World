@@ -104,7 +104,7 @@ pub fn first_contact_selection_combat_focus_guard(
     let focus_signatures = string_vec([
         "selected_corner_brackets",
         "selected_role_badge_micro_pips",
-        "wide_route_dashes",
+        "compact_route_dashes",
         "route_ack_step_micro_dots",
         "route_ack_micro_dots",
         "route_clearance_corner_cues",
@@ -154,12 +154,13 @@ pub fn first_contact_selection_combat_focus_guard(
         && route_dash_count >= 4
         && route_ack_tick_count >= 6
         && route_line_step_count >= 10
-        && geometry.route_dash_width_px == 16
-        && geometry.route_dash_height_px == 3
+        && geometry.route_dash_width_px == 8
+        && geometry.route_dash_height_px == 2
         && geometry.route_ack_tick_width_px == 2
         && geometry.route_ack_tick_height_px == 2
         && route_ack_tick_pixel_budget == 24
-        && route_focus_pixel_budget <= 216;
+        && route_dash_pixel_budget == 64
+        && route_focus_pixel_budget <= 88;
     let route_clearance_gate = route_clearance_tile_ids
         == string_vec([
             "13,11", "14,10", "14,12", "15,9", "15,10", "16,8", "16,11", "17,9", "17,10",
@@ -450,8 +451,8 @@ mod tests {
                 selected_role_badge_tick_width_px: 2,
                 selected_role_badge_tick_height_px: 2,
                 selected_focus_bracket_pixels_per_tile: 64,
-                route_dash_width_px: 16,
-                route_dash_height_px: 3,
+                route_dash_width_px: 8,
+                route_dash_height_px: 2,
                 route_ack_tick_width_px: 2,
                 route_ack_tick_height_px: 2,
                 route_clearance_corner_cue_width_px: 6,
