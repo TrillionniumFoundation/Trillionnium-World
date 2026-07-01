@@ -168,15 +168,15 @@ pub fn first_contact_visual_hierarchy_guard(
         "route_corridor_deemphasis",
         "route_spine_shadow",
         "selected_halo_backplates",
-        "attack_target_backplate",
-        "blocked_warning_backplate",
+        "attack_target_micro_backplate",
+        "blocked_warning_micro_backplate",
         "perimeter_gallery_preserved",
     ]);
     let corridor_deemphasis_pixel_budget = corridor_tiles.len() * 78;
     let route_spine_shadow_pixel_budget = route_line_step_count * 18;
     let selected_halo_pixel_budget = selected_focus_tiles.len() * 96;
-    let target_backplate_pixel_budget = 192;
-    let blocked_backplate_pixel_budget = 132;
+    let target_backplate_pixel_budget = 96;
+    let blocked_backplate_pixel_budget = 72;
     let corridor_tile_gate = corridor_tiles
         == string_vec(["14,11", "15,11", "15,12", "15,16", "16,9", "16,10", "17,12"])
         && corridor_deemphasis_pixel_budget >= 546;
@@ -186,8 +186,8 @@ pub fn first_contact_visual_hierarchy_guard(
     let selected_halo_gate = selected_focus_tiles.len() == 4 && selected_halo_pixel_budget >= 384;
     let combat_backplate_gate = target_focus_tile == "16,9"
         && blocked_focus_tile == "15,16"
-        && target_backplate_pixel_budget >= 180
-        && blocked_backplate_pixel_budget >= 120;
+        && target_backplate_pixel_budget == 96
+        && blocked_backplate_pixel_budget == 72;
     let gallery_preservation_gate = atlas_family_busy_core_tiles.is_empty()
         && unique_gallery_lanes == string_vec(["east_gallery", "north_gallery", "west_gallery"]);
     let hierarchy_signature_gate = hierarchy_signatures.len() == 6
@@ -497,6 +497,14 @@ mod tests {
             Some(7)
         );
         assert_eq!(hierarchy["route_line_step_count"].as_u64(), Some(10));
+        assert_eq!(
+            hierarchy["target_backplate_pixel_budget"].as_u64(),
+            Some(96)
+        );
+        assert_eq!(
+            hierarchy["blocked_backplate_pixel_budget"].as_u64(),
+            Some(72)
+        );
 
         let central = first_contact_central_clarity_guard(&runtime);
         assert_eq!(

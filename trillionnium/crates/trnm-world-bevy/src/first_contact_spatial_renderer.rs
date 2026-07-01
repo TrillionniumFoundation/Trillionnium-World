@@ -41,6 +41,44 @@ fn terminal_legibility_blocked_quiet_tiles() -> Vec<(i32, i32)> {
 }
 
 #[allow(clippy::too_many_arguments)]
+fn draw_micro_backplate_corners(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    x: i32,
+    y: i32,
+    w: i32,
+    h: i32,
+    corner_w: i32,
+    corner_h: i32,
+    color: u32,
+) {
+    for (corner_x, corner_y, sx, sy) in [
+        (x, y, 1, 1),
+        (x + w - corner_w, y, -1, 1),
+        (x, y + h - corner_h, 1, -1),
+        (x + w - corner_w, y + h - corner_h, -1, -1),
+    ] {
+        classic_draw_rect(
+            buffer, width, height, corner_x, corner_y, corner_w, 2, color,
+        );
+        let vertical_x = if sx > 0 {
+            corner_x
+        } else {
+            corner_x + corner_w - 2
+        };
+        let vertical_y = if sy > 0 {
+            corner_y
+        } else {
+            corner_y + corner_h - 2
+        };
+        classic_draw_rect(
+            buffer, width, height, vertical_x, vertical_y, 2, corner_h, color,
+        );
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
 pub(super) fn draw_visual_hierarchy_layer(
     buffer: &mut [u32],
     width: usize,
@@ -126,7 +164,7 @@ pub(super) fn draw_visual_hierarchy_layer(
         .unwrap_or_else(|| classic_first_contact_tile_tuple(feedback.target_tile));
     let (target_x, target_y) =
         classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, target_tile);
-    classic_draw_rect(
+    draw_micro_backplate_corners(
         buffer,
         width,
         height,
@@ -134,13 +172,15 @@ pub(super) fn draw_visual_hierarchy_layer(
         target_y + cell_h / 2 - 10,
         cell_w + 12,
         cell_h + 12,
+        8,
+        6,
         classic_mix_color(CLASSIC_RTS_COMMAND_SURFACE_TARGET_COLOR, 0x050a08, 1, 5),
     );
 
     let blocked_tile = classic_first_contact_tile_tuple(feedback.blocked_tile);
     let (blocked_x, blocked_y) =
         classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, blocked_tile);
-    classic_draw_rect(
+    draw_micro_backplate_corners(
         buffer,
         width,
         height,
@@ -148,6 +188,8 @@ pub(super) fn draw_visual_hierarchy_layer(
         blocked_y + cell_h / 2 - 6,
         cell_w - 4,
         cell_h + 4,
+        6,
+        5,
         classic_mix_color(CLASSIC_RTS_SELECTION_FEEDBACK_ERROR_COLOR, 0x050a08, 1, 6),
     );
 }

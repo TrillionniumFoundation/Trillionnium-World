@@ -150426,6 +150426,18 @@ mod tests {
         );
         assert_eq!(
             guard
+                .get("target_backplate_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(96)
+        );
+        assert_eq!(
+            guard
+                .get("blocked_backplate_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(72)
+        );
+        assert_eq!(
+            guard
                 .get("hierarchy_layer_draw_order")
                 .and_then(Value::as_array)
                 .map(|order| {
