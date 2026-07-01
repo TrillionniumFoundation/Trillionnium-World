@@ -4,7 +4,9 @@ use crate::{
     classic_darken, classic_draw_iso_ellipse, classic_draw_rect,
     classic_first_contact_command_feedback, classic_first_contact_tile_screen,
     classic_first_contact_tile_tuple, classic_mix_color, classic_parse_rts_tile,
-    first_contact_tiles, NativeFirstPlayableRuntime, CLASSIC_RTS_COMMAND_SURFACE_TARGET_COLOR,
+    first_contact_tiles, NativeFirstPlayableRuntime,
+    CLASSIC_FIRST_CONTACT_ROUTE_SPINE_SHADOW_CUE_H_PX,
+    CLASSIC_FIRST_CONTACT_ROUTE_SPINE_SHADOW_CUE_W_PX, CLASSIC_RTS_COMMAND_SURFACE_TARGET_COLOR,
     CLASSIC_RTS_PRODUCT_LANE_COLOR, CLASSIC_RTS_SELECTION_FEEDBACK_ERROR_COLOR,
     CLASSIC_RTS_TACTICAL_VIEWPORT_SHADOW_COLOR, CLASSIC_RTS_TACTICAL_VIEWPORT_TILE_COLOR,
 };
@@ -130,10 +132,10 @@ pub(super) fn draw_visual_hierarchy_layer(
                 buffer,
                 width,
                 height,
-                tile_x + cell_w / 2 - 8,
-                tile_y + cell_h / 2 - 4,
-                18,
-                8,
+                tile_x + cell_w / 2 - CLASSIC_FIRST_CONTACT_ROUTE_SPINE_SHADOW_CUE_W_PX / 2,
+                tile_y + cell_h / 2 - CLASSIC_FIRST_CONTACT_ROUTE_SPINE_SHADOW_CUE_H_PX / 2,
+                CLASSIC_FIRST_CONTACT_ROUTE_SPINE_SHADOW_CUE_W_PX,
+                CLASSIC_FIRST_CONTACT_ROUTE_SPINE_SHADOW_CUE_H_PX,
                 CLASSIC_RTS_TACTICAL_VIEWPORT_SHADOW_COLOR,
             );
         }

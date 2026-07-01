@@ -166,14 +166,17 @@ pub fn first_contact_visual_hierarchy_guard(
     unique_gallery_lanes.dedup();
     let hierarchy_signatures = string_vec([
         "route_corridor_deemphasis",
-        "route_spine_shadow",
+        "route_spine_micro_shadow_cues",
         "selected_halo_backplates",
         "attack_target_micro_backplate",
         "blocked_warning_micro_backplate",
         "perimeter_gallery_preserved",
     ]);
     let corridor_deemphasis_pixel_budget = corridor_tiles.len() * 78;
-    let route_spine_shadow_pixel_budget = route_line_step_count * 18;
+    let route_spine_shadow_cue_width_px = 6;
+    let route_spine_shadow_cue_height_px = 2;
+    let route_spine_shadow_pixel_budget =
+        route_line_step_count * route_spine_shadow_cue_width_px * route_spine_shadow_cue_height_px;
     let selected_halo_pixel_budget = selected_focus_tiles.len() * 96;
     let target_backplate_pixel_budget = 96;
     let blocked_backplate_pixel_budget = 72;
@@ -182,7 +185,12 @@ pub fn first_contact_visual_hierarchy_guard(
         && corridor_deemphasis_pixel_budget >= 546;
     let route_spine_gate = route_focus_tiles == string_vec(["14,11", "15,11", "16,10", "16,9"])
         && route_line_step_count >= 10
-        && route_spine_shadow_pixel_budget >= 180;
+        && route_spine_shadow_cue_width_px == 6
+        && route_spine_shadow_cue_height_px == 2
+        && route_spine_shadow_pixel_budget <= 120
+        && hierarchy_signatures
+            .iter()
+            .any(|signature| signature == "route_spine_micro_shadow_cues");
     let selected_halo_gate = selected_focus_tiles.len() == 4 && selected_halo_pixel_budget >= 384;
     let combat_backplate_gate = target_focus_tile == "16,9"
         && blocked_focus_tile == "15,16"
@@ -246,6 +254,8 @@ pub fn first_contact_visual_hierarchy_guard(
         "unique_gallery_lanes": unique_gallery_lanes,
         "hierarchy_signatures": hierarchy_signatures,
         "corridor_deemphasis_pixel_budget": corridor_deemphasis_pixel_budget,
+        "route_spine_shadow_cue_width_px": route_spine_shadow_cue_width_px,
+        "route_spine_shadow_cue_height_px": route_spine_shadow_cue_height_px,
         "route_spine_shadow_pixel_budget": route_spine_shadow_pixel_budget,
         "selected_halo_pixel_budget": selected_halo_pixel_budget,
         "target_backplate_pixel_budget": target_backplate_pixel_budget,
@@ -497,6 +507,18 @@ mod tests {
             Some(7)
         );
         assert_eq!(hierarchy["route_line_step_count"].as_u64(), Some(10));
+        assert_eq!(
+            hierarchy["route_spine_shadow_cue_width_px"].as_u64(),
+            Some(6)
+        );
+        assert_eq!(
+            hierarchy["route_spine_shadow_cue_height_px"].as_u64(),
+            Some(2)
+        );
+        assert_eq!(
+            hierarchy["route_spine_shadow_pixel_budget"].as_u64(),
+            Some(120)
+        );
         assert_eq!(
             hierarchy["target_backplate_pixel_budget"].as_u64(),
             Some(96)

@@ -1110,11 +1110,14 @@ require_artifact_json_expr first_contact_basin_spec_semantics native_bevy_classi
   and .first_contact_visual_hierarchy_guard.unique_gallery_lanes == ["east_gallery","north_gallery","west_gallery"]
   and .first_contact_visual_hierarchy_guard.atlas_family_busy_core_tiles == []
   and (.first_contact_visual_hierarchy_guard.hierarchy_signatures | index("route_corridor_deemphasis") != null)
+  and (.first_contact_visual_hierarchy_guard.hierarchy_signatures | index("route_spine_micro_shadow_cues") != null)
   and (.first_contact_visual_hierarchy_guard.hierarchy_signatures | index("attack_target_micro_backplate") != null)
   and (.first_contact_visual_hierarchy_guard.hierarchy_signatures | index("blocked_warning_micro_backplate") != null)
   and (.first_contact_visual_hierarchy_guard.hierarchy_signatures | index("perimeter_gallery_preserved") != null)
   and .first_contact_visual_hierarchy_guard.corridor_deemphasis_pixel_budget >= 546
-  and .first_contact_visual_hierarchy_guard.route_spine_shadow_pixel_budget >= 180
+  and .first_contact_visual_hierarchy_guard.route_spine_shadow_cue_width_px == 6
+  and .first_contact_visual_hierarchy_guard.route_spine_shadow_cue_height_px == 2
+  and .first_contact_visual_hierarchy_guard.route_spine_shadow_pixel_budget <= 120
   and .first_contact_visual_hierarchy_guard.selected_halo_pixel_budget >= 384
   and .first_contact_visual_hierarchy_guard.target_backplate_pixel_budget == 96
   and .first_contact_visual_hierarchy_guard.blocked_backplate_pixel_budget == 72
