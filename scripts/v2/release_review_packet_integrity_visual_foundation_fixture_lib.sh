@@ -1000,8 +1000,14 @@ add_first_contact_basin_source_manifest_packet_fixtures() {
       unit_status_pixel_budget: 256,
       unit_state_motion_signatures: [
         "unit_status_badges",
+        "player_screen_production_training_micro_sparks",
         "player_screen_warden_attack_micro_sparks"
       ],
+      production_training_spark_count: 3,
+      production_training_spark_width_px: 4,
+      production_training_spark_height_px: 2,
+      production_training_spark_pixel_budget: 24,
+      production_training_spark_gate: true,
       warden_attack_arm_count: 3,
       warden_attack_arm_width_px: 14,
       warden_attack_arm_height_px: 2,

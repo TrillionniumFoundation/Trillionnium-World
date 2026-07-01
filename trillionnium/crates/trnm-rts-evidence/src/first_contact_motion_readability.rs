@@ -31,6 +31,9 @@ pub struct RtsFirstContactMotionReadabilityRuntime {
     pub warden_attack_arm_count: usize,
     pub warden_attack_arm_width_px: usize,
     pub warden_attack_arm_height_px: usize,
+    pub production_training_spark_count: usize,
+    pub production_training_spark_width_px: usize,
+    pub production_training_spark_height_px: usize,
 }
 
 fn string_vec<const N: usize>(values: [&str; N]) -> Vec<String> {
@@ -212,10 +215,21 @@ pub fn first_contact_motion_readability_guard(
     let warden_attack_arm_pixel_budget = runtime.warden_attack_arm_count
         * runtime.warden_attack_arm_width_px
         * runtime.warden_attack_arm_height_px;
+    let production_training_spark_pixel_budget = runtime.production_training_spark_count
+        * runtime.production_training_spark_width_px
+        * runtime.production_training_spark_height_px;
     let unit_state_motion_signatures = string_vec([
         "unit_status_badges",
+        "player_screen_production_training_micro_sparks",
         "player_screen_warden_attack_micro_sparks",
     ]);
+    let production_training_spark_gate = runtime.production_training_spark_count == 3
+        && runtime.production_training_spark_width_px == 4
+        && runtime.production_training_spark_height_px == 2
+        && production_training_spark_pixel_budget <= 24
+        && unit_state_motion_signatures.iter().any(|signature| {
+            signature.as_str() == "player_screen_production_training_micro_sparks"
+        });
     let warden_attack_arm_gate = runtime.warden_attack_arm_count == 3
         && runtime.warden_attack_arm_width_px == 14
         && runtime.warden_attack_arm_height_px == 2
@@ -256,6 +270,7 @@ pub fn first_contact_motion_readability_guard(
             .iter()
             .all(|status| status.health_percent >= 60 && status.shield_percent > 0)
         && unit_status_pixel_budget >= 256
+        && production_training_spark_gate
         && warden_attack_arm_gate;
     let tactical_track_motion_gate = telemetry.tactical_tracks.len() == 6
         && action_trail_count == 3
@@ -374,6 +389,11 @@ pub fn first_contact_motion_readability_guard(
         "unit_status_color_roles": unit_status_color_roles,
         "unit_status_pixel_budget": unit_status_pixel_budget,
         "unit_state_motion_signatures": unit_state_motion_signatures,
+        "production_training_spark_count": runtime.production_training_spark_count,
+        "production_training_spark_width_px": runtime.production_training_spark_width_px,
+        "production_training_spark_height_px": runtime.production_training_spark_height_px,
+        "production_training_spark_pixel_budget": production_training_spark_pixel_budget,
+        "production_training_spark_gate": production_training_spark_gate,
         "warden_attack_arm_count": runtime.warden_attack_arm_count,
         "warden_attack_arm_width_px": runtime.warden_attack_arm_width_px,
         "warden_attack_arm_height_px": runtime.warden_attack_arm_height_px,
@@ -474,6 +494,9 @@ mod tests {
             warden_attack_arm_count: 3,
             warden_attack_arm_width_px: 14,
             warden_attack_arm_height_px: 2,
+            production_training_spark_count: 3,
+            production_training_spark_width_px: 4,
+            production_training_spark_height_px: 2,
         };
         let guard = first_contact_motion_readability_guard(
             &trnm_rts_data::first_contact_opening_loop_profile(),
@@ -554,9 +577,24 @@ mod tests {
                         .iter()
                         .any(|value| value.as_str() == Some("unit_status_badges"))
                         && signatures.iter().any(|value| {
+                            value.as_str() == Some("player_screen_production_training_micro_sparks")
+                        })
+                        && signatures.iter().any(|value| {
                             value.as_str() == Some("player_screen_warden_attack_micro_sparks")
                         })
                 }),
+            Some(true)
+        );
+        assert_eq!(
+            guard
+                .get("production_training_spark_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(24)
+        );
+        assert_eq!(
+            guard
+                .get("production_training_spark_gate")
+                .and_then(Value::as_bool),
             Some(true)
         );
         assert_eq!(
@@ -648,6 +686,7 @@ mod tests {
         for gate in [
             "opening_action_gate",
             "unit_state_motion_gate",
+            "production_training_spark_gate",
             "warden_attack_arm_gate",
             "tactical_track_motion_gate",
             "command_feedback_motion_gate",

@@ -114,6 +114,12 @@ basin_lines=(
   'first_contact_runtime_core_visibility.runtime_core_selection_ring_gate == true'
   'first_contact_runtime_core_visibility.runtime_core_unit_role_accent_gate == true'
   'first_contact_runtime_core_visibility_gate == true'
+  'first_contact_motion_readability_guard.unit_state_motion_signatures | index("player_screen_production_training_micro_sparks")'
+  'first_contact_motion_readability_guard.production_training_spark_count == 3'
+  'first_contact_motion_readability_guard.production_training_spark_width_px == 4'
+  'first_contact_motion_readability_guard.production_training_spark_height_px == 2'
+  'first_contact_motion_readability_guard.production_training_spark_pixel_budget <= 24'
+  'first_contact_motion_readability_guard.production_training_spark_gate == true'
   '.rts_data_map_model_rule_count == 19'
   '.runtime_player_screen_visible_tile_count == 64'
   '.offline_lobby_ready_label_count == 4'
@@ -149,6 +155,12 @@ integrity_lines=(
   'first_contact_marker_budget_guard.hover_route_path_marker_count == 8'
   'first_contact_marker_budget_guard.player_screen_hover_route_path_marker_count == 0'
   'first_contact_marker_budget_guard.player_screen_hover_route_path_gate == true'
+  'first_contact_motion_readability_guard.unit_state_motion_signatures | index("player_screen_production_training_micro_sparks")'
+  'first_contact_motion_readability_guard.production_training_spark_count == 3'
+  'first_contact_motion_readability_guard.production_training_spark_width_px == 4'
+  'first_contact_motion_readability_guard.production_training_spark_height_px == 2'
+  'first_contact_motion_readability_guard.production_training_spark_pixel_budget <= 24'
+  'first_contact_motion_readability_guard.production_training_spark_gate == true'
   'First Contact Basin packet artifact exposes top-level contract, guard, map-model, runtime, online/offline adapter counts bound to nested structures'
   'first_contact_basin_spec_semantics_first_contact_basin_spec_count_semantics'
 )
@@ -171,6 +183,12 @@ fixture_lines=(
   'hover_route_path_marker_count: 8'
   'player_screen_hover_route_path_marker_count: 0'
   'player_screen_hover_route_path_gate: true'
+  'player_screen_production_training_micro_sparks'
+  'production_training_spark_count: 3'
+  'production_training_spark_width_px: 4'
+  'production_training_spark_height_px: 2'
+  'production_training_spark_pixel_budget: 24'
+  'production_training_spark_gate: true'
 )
 
 for line in "${basin_lines[@]}"; do

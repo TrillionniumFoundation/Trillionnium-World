@@ -1116,6 +1116,11 @@ cat >"$JQ_FILTER" <<'JQ'
   and .first_contact_motion_readability_guard.action_verbs == ["worker","build","train","train","secure"]
   and .first_contact_motion_readability_guard.unit_status_badges == ["W","S","R","G"]
   and .first_contact_motion_readability_guard.unit_status_color_roles == ["health","mana","attack","confirm"]
+  and (.first_contact_motion_readability_guard.unit_state_motion_signatures | index("player_screen_production_training_micro_sparks") != null)
+  and .first_contact_motion_readability_guard.production_training_spark_count == 3
+  and .first_contact_motion_readability_guard.production_training_spark_width_px == 4
+  and .first_contact_motion_readability_guard.production_training_spark_height_px == 2
+  and .first_contact_motion_readability_guard.production_training_spark_pixel_budget <= 24
   and (.first_contact_motion_readability_guard.unit_state_motion_signatures | index("player_screen_warden_attack_micro_sparks") != null)
   and .first_contact_motion_readability_guard.warden_attack_arm_count == 3
   and .first_contact_motion_readability_guard.warden_attack_arm_width_px == 14
@@ -1177,6 +1182,7 @@ cat >"$JQ_FILTER" <<'JQ'
   and .first_contact_motion_readability_guard.animation_frame_richness_pixel_budget >= 520
   and .first_contact_motion_readability_guard.opening_action_gate == true
   and .first_contact_motion_readability_guard.unit_state_motion_gate == true
+  and .first_contact_motion_readability_guard.production_training_spark_gate == true
   and .first_contact_motion_readability_guard.warden_attack_arm_gate == true
   and .first_contact_motion_readability_guard.tactical_track_motion_gate == true
   and .first_contact_motion_readability_guard.command_feedback_motion_gate == true
