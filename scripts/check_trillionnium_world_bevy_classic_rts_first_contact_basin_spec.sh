@@ -1216,6 +1216,12 @@ cat >"$JQ_FILTER" <<'JQ'
   and .first_contact_motion_readability_guard.unit_state_motion_gate == true
   and .first_contact_motion_readability_guard.production_training_spark_gate == true
   and .first_contact_motion_readability_guard.warden_attack_arm_gate == true
+  and (.first_contact_motion_readability_guard.player_screen_animation_signatures | index("player_screen_worker_carry_load_micro_pips") != null)
+  and .first_contact_motion_readability_guard.carry_load_pip_count == 4
+  and .first_contact_motion_readability_guard.carry_load_pip_width_px == 4
+  and .first_contact_motion_readability_guard.carry_load_pip_height_px == 2
+  and .first_contact_motion_readability_guard.carry_load_pip_pixel_budget <= 32
+  and .first_contact_motion_readability_guard.carry_load_pip_gate == true
   and .first_contact_motion_readability_guard.shield_charge_arc_gate == true
   and .first_contact_motion_readability_guard.sensor_sweep_tick_gate == true
   and .first_contact_motion_readability_guard.combat_hit_flash_spark_gate == true

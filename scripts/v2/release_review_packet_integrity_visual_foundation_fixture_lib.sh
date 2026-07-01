@@ -1036,9 +1036,15 @@ add_first_contact_basin_source_manifest_packet_fixtures() {
       warden_attack_arm_pixel_budget: 84,
       warden_attack_arm_gate: true,
       player_screen_animation_signatures: [
+        "player_screen_worker_carry_load_micro_pips",
         "player_screen_shield_charge_micro_arcs",
         "player_screen_sensor_sweep_micro_ticks"
       ],
+      carry_load_pip_count: 4,
+      carry_load_pip_width_px: 4,
+      carry_load_pip_height_px: 2,
+      carry_load_pip_pixel_budget: 32,
+      carry_load_pip_gate: true,
       shield_charge_arc_count: 3,
       shield_charge_arc_width_px: 10,
       shield_charge_arc_height_px: 2,

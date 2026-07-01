@@ -848,6 +848,9 @@ const CLASSIC_FIRST_CONTACT_PLAYER_SHIELD_CHARGE_ARC_H_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_PLAYER_SENSOR_SWEEP_TICK_COUNT: usize = 3;
 const CLASSIC_FIRST_CONTACT_PLAYER_SENSOR_SWEEP_TICK_W_PX: i32 = 8;
 const CLASSIC_FIRST_CONTACT_PLAYER_SENSOR_SWEEP_TICK_H_PX: i32 = 2;
+const CLASSIC_FIRST_CONTACT_PLAYER_CARRY_LOAD_PIP_COUNT: usize = 4;
+const CLASSIC_FIRST_CONTACT_PLAYER_CARRY_LOAD_PIP_W_PX: i32 = 4;
+const CLASSIC_FIRST_CONTACT_PLAYER_CARRY_LOAD_PIP_H_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_COMBAT_HIT_FLASH_SITE_COUNT: usize = 4;
 const CLASSIC_FIRST_CONTACT_PLAYER_HIT_FLASH_SPARKS_PER_SITE: usize = 2;
 const CLASSIC_FIRST_CONTACT_PLAYER_HIT_FLASH_SPARK_W_PX: i32 = 6;
@@ -94672,16 +94675,32 @@ fn classic_draw_first_contact_animation_cycle_detail(
                     CLASSIC_RTS_ACTION_CADENCE_CARRY_BOB_COLOR,
                 );
             }
-            classic_draw_rect(
-                buffer,
-                width,
-                height,
-                cx - cell_w,
-                cy + cell_h / 2,
-                cell_w * 2,
-                3,
-                CLASSIC_RTS_HARVEST_ANIMATION_CARRY_LOAD_COLOR,
-            );
+            if player_screen {
+                for pip in 0..CLASSIC_FIRST_CONTACT_PLAYER_CARRY_LOAD_PIP_COUNT {
+                    let pip = pip as i32;
+                    classic_draw_rect(
+                        buffer,
+                        width,
+                        height,
+                        cx - 18 + pip * 12,
+                        cy + cell_h / 2 + (pip % 2),
+                        CLASSIC_FIRST_CONTACT_PLAYER_CARRY_LOAD_PIP_W_PX,
+                        CLASSIC_FIRST_CONTACT_PLAYER_CARRY_LOAD_PIP_H_PX,
+                        CLASSIC_RTS_HARVEST_ANIMATION_CARRY_LOAD_COLOR,
+                    );
+                }
+            } else {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    cx - cell_w,
+                    cy + cell_h / 2,
+                    cell_w * 2,
+                    3,
+                    CLASSIC_RTS_HARVEST_ANIMATION_CARRY_LOAD_COLOR,
+                );
+            }
         }
         "locomotion_footfall_pair" => {
             for step in 0..4 {
@@ -102060,6 +102079,9 @@ fn classic_first_contact_motion_readability_guard() -> Value {
         sensor_sweep_tick_count: CLASSIC_FIRST_CONTACT_PLAYER_SENSOR_SWEEP_TICK_COUNT,
         sensor_sweep_tick_width_px: CLASSIC_FIRST_CONTACT_PLAYER_SENSOR_SWEEP_TICK_W_PX as usize,
         sensor_sweep_tick_height_px: CLASSIC_FIRST_CONTACT_PLAYER_SENSOR_SWEEP_TICK_H_PX as usize,
+        carry_load_pip_count: CLASSIC_FIRST_CONTACT_PLAYER_CARRY_LOAD_PIP_COUNT,
+        carry_load_pip_width_px: CLASSIC_FIRST_CONTACT_PLAYER_CARRY_LOAD_PIP_W_PX as usize,
+        carry_load_pip_height_px: CLASSIC_FIRST_CONTACT_PLAYER_CARRY_LOAD_PIP_H_PX as usize,
         combat_hit_flash_site_count: CLASSIC_FIRST_CONTACT_COMBAT_HIT_FLASH_SITE_COUNT,
         combat_hit_flash_sparks_per_site: CLASSIC_FIRST_CONTACT_PLAYER_HIT_FLASH_SPARKS_PER_SITE,
         combat_hit_flash_spark_width_px: CLASSIC_FIRST_CONTACT_PLAYER_HIT_FLASH_SPARK_W_PX as usize,
@@ -150178,11 +150200,37 @@ mod tests {
                 .and_then(Value::as_array)
                 .map(|signatures| {
                     signatures.iter().any(|value| {
+                        value.as_str() == Some("player_screen_worker_carry_load_micro_pips")
+                    }) && signatures.iter().any(|value| {
                         value.as_str() == Some("player_screen_shield_charge_micro_arcs")
                     }) && signatures.iter().any(|value| {
                         value.as_str() == Some("player_screen_sensor_sweep_micro_ticks")
                     })
                 }),
+            Some(true)
+        );
+        assert_eq!(
+            guard.get("carry_load_pip_count").and_then(Value::as_u64),
+            Some(4)
+        );
+        assert_eq!(
+            guard.get("carry_load_pip_width_px").and_then(Value::as_u64),
+            Some(4)
+        );
+        assert_eq!(
+            guard
+                .get("carry_load_pip_height_px")
+                .and_then(Value::as_u64),
+            Some(2)
+        );
+        assert_eq!(
+            guard
+                .get("carry_load_pip_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(32)
+        );
+        assert_eq!(
+            guard.get("carry_load_pip_gate").and_then(Value::as_bool),
             Some(true)
         );
         assert_eq!(

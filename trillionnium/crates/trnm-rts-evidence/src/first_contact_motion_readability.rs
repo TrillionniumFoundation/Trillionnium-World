@@ -44,6 +44,9 @@ pub struct RtsFirstContactMotionReadabilityRuntime {
     pub sensor_sweep_tick_count: usize,
     pub sensor_sweep_tick_width_px: usize,
     pub sensor_sweep_tick_height_px: usize,
+    pub carry_load_pip_count: usize,
+    pub carry_load_pip_width_px: usize,
+    pub carry_load_pip_height_px: usize,
     pub combat_hit_flash_site_count: usize,
     pub combat_hit_flash_sparks_per_site: usize,
     pub combat_hit_flash_spark_width_px: usize,
@@ -241,6 +244,9 @@ pub fn first_contact_motion_readability_guard(
     let sensor_sweep_tick_pixel_budget = runtime.sensor_sweep_tick_count
         * runtime.sensor_sweep_tick_width_px
         * runtime.sensor_sweep_tick_height_px;
+    let carry_load_pip_pixel_budget = runtime.carry_load_pip_count
+        * runtime.carry_load_pip_width_px
+        * runtime.carry_load_pip_height_px;
     let combat_hit_flash_spark_count =
         runtime.combat_hit_flash_site_count * runtime.combat_hit_flash_sparks_per_site;
     let combat_hit_flash_spark_pixel_budget = combat_hit_flash_spark_count
@@ -252,9 +258,17 @@ pub fn first_contact_motion_readability_guard(
         "player_screen_warden_attack_micro_sparks",
     ]);
     let player_screen_animation_signatures = string_vec([
+        "player_screen_worker_carry_load_micro_pips",
         "player_screen_shield_charge_micro_arcs",
         "player_screen_sensor_sweep_micro_ticks",
     ]);
+    let carry_load_pip_gate = runtime.carry_load_pip_count == 4
+        && runtime.carry_load_pip_width_px == 4
+        && runtime.carry_load_pip_height_px == 2
+        && carry_load_pip_pixel_budget <= 32
+        && player_screen_animation_signatures
+            .iter()
+            .any(|signature| signature.as_str() == "player_screen_worker_carry_load_micro_pips");
     let production_training_spark_gate = runtime.production_training_spark_count == 3
         && runtime.production_training_spark_width_px == 4
         && runtime.production_training_spark_height_px == 2
@@ -394,6 +408,7 @@ pub fn first_contact_motion_readability_guard(
         && tactical_track_motion_gate
         && command_feedback_motion_gate
         && runtime_motion_gate
+        && carry_load_pip_gate
         && shield_charge_arc_gate
         && sensor_sweep_tick_gate
         && combat_hit_flash_spark_gate;
@@ -476,6 +491,11 @@ pub fn first_contact_motion_readability_guard(
         "warden_attack_arm_pixel_budget": warden_attack_arm_pixel_budget,
         "warden_attack_arm_gate": warden_attack_arm_gate,
         "player_screen_animation_signatures": player_screen_animation_signatures,
+        "carry_load_pip_count": runtime.carry_load_pip_count,
+        "carry_load_pip_width_px": runtime.carry_load_pip_width_px,
+        "carry_load_pip_height_px": runtime.carry_load_pip_height_px,
+        "carry_load_pip_pixel_budget": carry_load_pip_pixel_budget,
+        "carry_load_pip_gate": carry_load_pip_gate,
         "shield_charge_arc_count": runtime.shield_charge_arc_count,
         "shield_charge_arc_width_px": runtime.shield_charge_arc_width_px,
         "shield_charge_arc_height_px": runtime.shield_charge_arc_height_px,
@@ -602,6 +622,9 @@ mod tests {
             sensor_sweep_tick_count: 3,
             sensor_sweep_tick_width_px: 8,
             sensor_sweep_tick_height_px: 2,
+            carry_load_pip_count: 4,
+            carry_load_pip_width_px: 4,
+            carry_load_pip_height_px: 2,
             combat_hit_flash_site_count: 4,
             combat_hit_flash_sparks_per_site: 2,
             combat_hit_flash_spark_width_px: 6,
@@ -701,9 +724,35 @@ mod tests {
         );
         assert_eq!(
             guard
+                .get("secondary_tactical_track_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(80)
+        );
+        assert_eq!(
+            guard
                 .get("tactical_track_pixel_budget")
                 .and_then(Value::as_u64),
             Some(128)
+        );
+        assert_eq!(
+            guard
+                .get("tactical_track_density_signatures")
+                .and_then(Value::as_array)
+                .map(|signatures| {
+                    signatures
+                        .iter()
+                        .any(|value| value.as_str() == Some("primary_relay_beacon_track_kept_hot"))
+                        && signatures
+                            .iter()
+                            .any(|value| value.as_str() == Some("secondary_tracks_dimmed"))
+                        && signatures.iter().any(|value| {
+                            value.as_str() == Some("secondary_tracks_faded_into_terrain")
+                        })
+                        && signatures
+                            .iter()
+                            .any(|value| value.as_str() == Some("secondary_tracks_one_pixel"))
+                }),
+            Some(true)
         );
         assert_eq!(
             guard
@@ -769,11 +818,37 @@ mod tests {
                 .and_then(Value::as_array)
                 .map(|signatures| {
                     signatures.iter().any(|value| {
+                        value.as_str() == Some("player_screen_worker_carry_load_micro_pips")
+                    }) && signatures.iter().any(|value| {
                         value.as_str() == Some("player_screen_shield_charge_micro_arcs")
                     }) && signatures.iter().any(|value| {
                         value.as_str() == Some("player_screen_sensor_sweep_micro_ticks")
                     })
                 }),
+            Some(true)
+        );
+        assert_eq!(
+            guard.get("carry_load_pip_count").and_then(Value::as_u64),
+            Some(4)
+        );
+        assert_eq!(
+            guard.get("carry_load_pip_width_px").and_then(Value::as_u64),
+            Some(4)
+        );
+        assert_eq!(
+            guard
+                .get("carry_load_pip_height_px")
+                .and_then(Value::as_u64),
+            Some(2)
+        );
+        assert_eq!(
+            guard
+                .get("carry_load_pip_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(32)
+        );
+        assert_eq!(
+            guard.get("carry_load_pip_gate").and_then(Value::as_bool),
             Some(true)
         );
         assert_eq!(
