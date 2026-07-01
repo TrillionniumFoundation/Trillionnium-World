@@ -37,6 +37,9 @@ pub struct RtsFirstContactMotionReadabilityRuntime {
     pub shield_charge_arc_count: usize,
     pub shield_charge_arc_width_px: usize,
     pub shield_charge_arc_height_px: usize,
+    pub sensor_sweep_tick_count: usize,
+    pub sensor_sweep_tick_width_px: usize,
+    pub sensor_sweep_tick_height_px: usize,
     pub combat_hit_flash_site_count: usize,
     pub combat_hit_flash_sparks_per_site: usize,
     pub combat_hit_flash_spark_width_px: usize,
@@ -228,6 +231,9 @@ pub fn first_contact_motion_readability_guard(
     let shield_charge_arc_pixel_budget = runtime.shield_charge_arc_count
         * runtime.shield_charge_arc_width_px
         * runtime.shield_charge_arc_height_px;
+    let sensor_sweep_tick_pixel_budget = runtime.sensor_sweep_tick_count
+        * runtime.sensor_sweep_tick_width_px
+        * runtime.sensor_sweep_tick_height_px;
     let combat_hit_flash_spark_count =
         runtime.combat_hit_flash_site_count * runtime.combat_hit_flash_sparks_per_site;
     let combat_hit_flash_spark_pixel_budget = combat_hit_flash_spark_count
@@ -238,7 +244,10 @@ pub fn first_contact_motion_readability_guard(
         "player_screen_production_training_micro_sparks",
         "player_screen_warden_attack_micro_sparks",
     ]);
-    let player_screen_animation_signatures = string_vec(["player_screen_shield_charge_micro_arcs"]);
+    let player_screen_animation_signatures = string_vec([
+        "player_screen_shield_charge_micro_arcs",
+        "player_screen_sensor_sweep_micro_ticks",
+    ]);
     let production_training_spark_gate = runtime.production_training_spark_count == 3
         && runtime.production_training_spark_width_px == 4
         && runtime.production_training_spark_height_px == 2
@@ -260,6 +269,13 @@ pub fn first_contact_motion_readability_guard(
         && player_screen_animation_signatures
             .iter()
             .any(|signature| signature.as_str() == "player_screen_shield_charge_micro_arcs");
+    let sensor_sweep_tick_gate = runtime.sensor_sweep_tick_count == 3
+        && runtime.sensor_sweep_tick_width_px == 8
+        && runtime.sensor_sweep_tick_height_px == 2
+        && sensor_sweep_tick_pixel_budget <= 48
+        && player_screen_animation_signatures
+            .iter()
+            .any(|signature| signature.as_str() == "player_screen_sensor_sweep_micro_ticks");
     let combat_phase_motion_signatures = string_vec(["player_screen_combat_hit_micro_sparks"]);
     let combat_hit_flash_spark_gate = runtime.combat_hit_flash_site_count == 4
         && runtime.combat_hit_flash_sparks_per_site == 2
@@ -362,6 +378,7 @@ pub fn first_contact_motion_readability_guard(
         && command_feedback_motion_gate
         && runtime_motion_gate
         && shield_charge_arc_gate
+        && sensor_sweep_tick_gate
         && combat_hit_flash_spark_gate;
     let unit_animation_frame_gate = unit_animation_frame_count >= 8
         && animation_roles.iter().any(|role| role.as_str() == "worker")
@@ -440,6 +457,11 @@ pub fn first_contact_motion_readability_guard(
         "shield_charge_arc_height_px": runtime.shield_charge_arc_height_px,
         "shield_charge_arc_pixel_budget": shield_charge_arc_pixel_budget,
         "shield_charge_arc_gate": shield_charge_arc_gate,
+        "sensor_sweep_tick_count": runtime.sensor_sweep_tick_count,
+        "sensor_sweep_tick_width_px": runtime.sensor_sweep_tick_width_px,
+        "sensor_sweep_tick_height_px": runtime.sensor_sweep_tick_height_px,
+        "sensor_sweep_tick_pixel_budget": sensor_sweep_tick_pixel_budget,
+        "sensor_sweep_tick_gate": sensor_sweep_tick_gate,
         "combat_phase_motion_signatures": combat_phase_motion_signatures,
         "combat_hit_flash_site_count": runtime.combat_hit_flash_site_count,
         "combat_hit_flash_sparks_per_site": runtime.combat_hit_flash_sparks_per_site,
@@ -549,6 +571,9 @@ mod tests {
             shield_charge_arc_count: 3,
             shield_charge_arc_width_px: 10,
             shield_charge_arc_height_px: 2,
+            sensor_sweep_tick_count: 3,
+            sensor_sweep_tick_width_px: 8,
+            sensor_sweep_tick_height_px: 2,
             combat_hit_flash_site_count: 4,
             combat_hit_flash_sparks_per_site: 2,
             combat_hit_flash_spark_width_px: 6,
@@ -670,6 +695,8 @@ mod tests {
                 .map(|signatures| {
                     signatures.iter().any(|value| {
                         value.as_str() == Some("player_screen_shield_charge_micro_arcs")
+                    }) && signatures.iter().any(|value| {
+                        value.as_str() == Some("player_screen_sensor_sweep_micro_ticks")
                     })
                 }),
             Some(true)
@@ -682,6 +709,16 @@ mod tests {
         );
         assert_eq!(
             guard.get("shield_charge_arc_gate").and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            guard
+                .get("sensor_sweep_tick_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(48)
+        );
+        assert_eq!(
+            guard.get("sensor_sweep_tick_gate").and_then(Value::as_bool),
             Some(true)
         );
         assert_eq!(
@@ -789,6 +826,7 @@ mod tests {
             "production_training_spark_gate",
             "warden_attack_arm_gate",
             "shield_charge_arc_gate",
+            "sensor_sweep_tick_gate",
             "combat_hit_flash_spark_gate",
             "tactical_track_motion_gate",
             "command_feedback_motion_gate",

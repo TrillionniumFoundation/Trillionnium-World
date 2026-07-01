@@ -940,6 +940,11 @@ require_artifact_json_expr first_contact_basin_spec_semantics native_bevy_classi
   and .first_contact_motion_readability_guard.shield_charge_arc_width_px == 10
   and .first_contact_motion_readability_guard.shield_charge_arc_height_px == 2
   and .first_contact_motion_readability_guard.shield_charge_arc_pixel_budget <= 60
+  and (.first_contact_motion_readability_guard.player_screen_animation_signatures | index("player_screen_sensor_sweep_micro_ticks") != null)
+  and .first_contact_motion_readability_guard.sensor_sweep_tick_count == 3
+  and .first_contact_motion_readability_guard.sensor_sweep_tick_width_px == 8
+  and .first_contact_motion_readability_guard.sensor_sweep_tick_height_px == 2
+  and .first_contact_motion_readability_guard.sensor_sweep_tick_pixel_budget <= 48
   and (.first_contact_motion_readability_guard.combat_phase_motion_signatures | index("player_screen_combat_hit_micro_sparks") != null)
   and .first_contact_motion_readability_guard.combat_hit_flash_site_count == 4
   and .first_contact_motion_readability_guard.combat_hit_flash_sparks_per_site == 2
@@ -1006,6 +1011,7 @@ require_artifact_json_expr first_contact_basin_spec_semantics native_bevy_classi
   and .first_contact_motion_readability_guard.production_training_spark_gate == true
   and .first_contact_motion_readability_guard.warden_attack_arm_gate == true
   and .first_contact_motion_readability_guard.shield_charge_arc_gate == true
+  and .first_contact_motion_readability_guard.sensor_sweep_tick_gate == true
   and .first_contact_motion_readability_guard.combat_hit_flash_spark_gate == true
   and .first_contact_motion_readability_guard.tactical_track_motion_gate == true
   and .first_contact_motion_readability_guard.command_feedback_motion_gate == true

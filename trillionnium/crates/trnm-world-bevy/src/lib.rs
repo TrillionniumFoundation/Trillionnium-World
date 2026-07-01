@@ -841,6 +841,9 @@ const CLASSIC_FIRST_CONTACT_PLAYER_PRODUCTION_TRAINING_SPARK_H_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_PLAYER_SHIELD_CHARGE_ARC_COUNT: usize = 3;
 const CLASSIC_FIRST_CONTACT_PLAYER_SHIELD_CHARGE_ARC_W_PX: i32 = 10;
 const CLASSIC_FIRST_CONTACT_PLAYER_SHIELD_CHARGE_ARC_H_PX: i32 = 2;
+const CLASSIC_FIRST_CONTACT_PLAYER_SENSOR_SWEEP_TICK_COUNT: usize = 3;
+const CLASSIC_FIRST_CONTACT_PLAYER_SENSOR_SWEEP_TICK_W_PX: i32 = 8;
+const CLASSIC_FIRST_CONTACT_PLAYER_SENSOR_SWEEP_TICK_H_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_COMBAT_HIT_FLASH_SITE_COUNT: usize = 4;
 const CLASSIC_FIRST_CONTACT_PLAYER_HIT_FLASH_SPARKS_PER_SITE: usize = 2;
 const CLASSIC_FIRST_CONTACT_PLAYER_HIT_FLASH_SPARK_W_PX: i32 = 6;
@@ -94701,28 +94704,52 @@ fn classic_draw_first_contact_animation_cycle_detail(
             }
         }
         "sensor_sweep_arc" => {
-            for radius in [cell_w / 2, cell_w, cell_w + cell_w / 2] {
-                classic_draw_iso_ellipse(
+            if player_screen {
+                let cues = [
+                    (cx - cell_w - 3, cy - cell_h - 5),
+                    (cx - 4, cy - cell_h - 10),
+                    (cx + cell_w - 5, cy - cell_h - 5),
+                ];
+                debug_assert_eq!(
+                    cues.len(),
+                    CLASSIC_FIRST_CONTACT_PLAYER_SENSOR_SWEEP_TICK_COUNT
+                );
+                for (x, y) in cues {
+                    classic_draw_rect(
+                        buffer,
+                        width,
+                        height,
+                        x,
+                        y,
+                        CLASSIC_FIRST_CONTACT_PLAYER_SENSOR_SWEEP_TICK_W_PX,
+                        CLASSIC_FIRST_CONTACT_PLAYER_SENSOR_SWEEP_TICK_H_PX,
+                        CLASSIC_RTS_SELECTION_FEEDBACK_CONFIRM_COLOR,
+                    );
+                }
+            } else {
+                for radius in [cell_w / 2, cell_w, cell_w + cell_w / 2] {
+                    classic_draw_iso_ellipse(
+                        buffer,
+                        width,
+                        height,
+                        cx,
+                        cy - cell_h,
+                        radius.max(8),
+                        (radius / 3).max(3),
+                        CLASSIC_RTS_SELECTION_FEEDBACK_CONFIRM_COLOR,
+                    );
+                }
+                classic_draw_rect(
                     buffer,
                     width,
                     height,
-                    cx,
-                    cy - cell_h,
-                    radius.max(8),
-                    (radius / 3).max(3),
-                    CLASSIC_RTS_SELECTION_FEEDBACK_CONFIRM_COLOR,
+                    cx - 2,
+                    cy - cell_h * 2,
+                    4,
+                    cell_h * 2,
+                    CLASSIC_RTS_STATUS_MANA_BAR_COLOR,
                 );
             }
-            classic_draw_rect(
-                buffer,
-                width,
-                height,
-                cx - 2,
-                cy - cell_h * 2,
-                4,
-                cell_h * 2,
-                CLASSIC_RTS_STATUS_MANA_BAR_COLOR,
-            );
         }
         "turn_arc_frame" => {
             for step in 0..6 {
@@ -102020,6 +102047,9 @@ fn classic_first_contact_motion_readability_guard() -> Value {
         shield_charge_arc_count: CLASSIC_FIRST_CONTACT_PLAYER_SHIELD_CHARGE_ARC_COUNT,
         shield_charge_arc_width_px: CLASSIC_FIRST_CONTACT_PLAYER_SHIELD_CHARGE_ARC_W_PX as usize,
         shield_charge_arc_height_px: CLASSIC_FIRST_CONTACT_PLAYER_SHIELD_CHARGE_ARC_H_PX as usize,
+        sensor_sweep_tick_count: CLASSIC_FIRST_CONTACT_PLAYER_SENSOR_SWEEP_TICK_COUNT,
+        sensor_sweep_tick_width_px: CLASSIC_FIRST_CONTACT_PLAYER_SENSOR_SWEEP_TICK_W_PX as usize,
+        sensor_sweep_tick_height_px: CLASSIC_FIRST_CONTACT_PLAYER_SENSOR_SWEEP_TICK_H_PX as usize,
         combat_hit_flash_site_count: CLASSIC_FIRST_CONTACT_COMBAT_HIT_FLASH_SITE_COUNT,
         combat_hit_flash_sparks_per_site: CLASSIC_FIRST_CONTACT_PLAYER_HIT_FLASH_SPARKS_PER_SITE,
         combat_hit_flash_spark_width_px: CLASSIC_FIRST_CONTACT_PLAYER_HIT_FLASH_SPARK_W_PX as usize,
@@ -150060,6 +150090,8 @@ mod tests {
                 .map(|signatures| {
                     signatures.iter().any(|value| {
                         value.as_str() == Some("player_screen_shield_charge_micro_arcs")
+                    }) && signatures.iter().any(|value| {
+                        value.as_str() == Some("player_screen_sensor_sweep_micro_ticks")
                     })
                 }),
             Some(true)
@@ -150088,6 +150120,32 @@ mod tests {
         );
         assert_eq!(
             guard.get("shield_charge_arc_gate").and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            guard.get("sensor_sweep_tick_count").and_then(Value::as_u64),
+            Some(3)
+        );
+        assert_eq!(
+            guard
+                .get("sensor_sweep_tick_width_px")
+                .and_then(Value::as_u64),
+            Some(8)
+        );
+        assert_eq!(
+            guard
+                .get("sensor_sweep_tick_height_px")
+                .and_then(Value::as_u64),
+            Some(2)
+        );
+        assert_eq!(
+            guard
+                .get("sensor_sweep_tick_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(48)
+        );
+        assert_eq!(
+            guard.get("sensor_sweep_tick_gate").and_then(Value::as_bool),
             Some(true)
         );
         assert_eq!(
@@ -150292,6 +150350,7 @@ mod tests {
             "production_training_spark_gate",
             "warden_attack_arm_gate",
             "shield_charge_arc_gate",
+            "sensor_sweep_tick_gate",
             "combat_hit_flash_spark_gate",
             "tactical_track_motion_gate",
             "command_feedback_motion_gate",

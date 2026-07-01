@@ -1014,13 +1014,19 @@ add_first_contact_basin_source_manifest_packet_fixtures() {
       warden_attack_arm_pixel_budget: 84,
       warden_attack_arm_gate: true,
       player_screen_animation_signatures: [
-        "player_screen_shield_charge_micro_arcs"
+        "player_screen_shield_charge_micro_arcs",
+        "player_screen_sensor_sweep_micro_ticks"
       ],
       shield_charge_arc_count: 3,
       shield_charge_arc_width_px: 10,
       shield_charge_arc_height_px: 2,
       shield_charge_arc_pixel_budget: 60,
       shield_charge_arc_gate: true,
+      sensor_sweep_tick_count: 3,
+      sensor_sweep_tick_width_px: 8,
+      sensor_sweep_tick_height_px: 2,
+      sensor_sweep_tick_pixel_budget: 48,
+      sensor_sweep_tick_gate: true,
       combat_phase_motion_signatures: [
         "player_screen_combat_hit_micro_sparks"
       ],
