@@ -988,7 +988,7 @@ add_first_contact_basin_source_manifest_packet_fixtures() {
     first_contact_motion_readability_guard: {
       contract_version: "trillionnium_world_bevy_classic_rts_first_contact_motion_readability_v1",
       green: true,
-      source_path: "trnm-world-bevy classic_draw_first_contact_opening_actions + classic_draw_first_contact_unit_state_layers + classic_draw_first_contact_command_feedback_layers + classic_draw_first_contact_animation_readability_layer",
+      source_path: "trnm-world-bevy classic_draw_first_contact_opening_actions + classic_draw_first_contact_unit_state_layers + classic_draw_first_contact_combat_phase_layers + classic_draw_first_contact_command_feedback_layers + classic_draw_first_contact_animation_readability_layer",
       active_relay_tile: "11,8",
       active_beacon_tile: "16,9",
       opening_action_ids: ["worker_harvest_flux", "build_flux_relay", "train_worker", "train_horizon_scout", "secure_flux_beacon"],
@@ -1021,6 +1021,16 @@ add_first_contact_basin_source_manifest_packet_fixtures() {
       shield_charge_arc_height_px: 2,
       shield_charge_arc_pixel_budget: 60,
       shield_charge_arc_gate: true,
+      combat_phase_motion_signatures: [
+        "player_screen_combat_hit_micro_sparks"
+      ],
+      combat_hit_flash_site_count: 4,
+      combat_hit_flash_sparks_per_site: 2,
+      combat_hit_flash_spark_count: 8,
+      combat_hit_flash_spark_width_px: 6,
+      combat_hit_flash_spark_height_px: 2,
+      combat_hit_flash_spark_pixel_budget: 96,
+      combat_hit_flash_spark_gate: true,
       unit_state_motion_gate: true,
       track_roles: ["action_trail", "npc_action", "action_trail", "npc_action", "action_trail", "npc_action"],
       animation_sample_tiles: ["12,16", "10,12", "14,11", "25,8", "24,10", "8,25", "10,23", "11,8", "8,8", "9,9", "11,8", "16,9", "16,10"],

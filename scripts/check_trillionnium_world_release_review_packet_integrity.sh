@@ -920,7 +920,7 @@ require_artifact_json_expr first_contact_basin_spec_semantics native_bevy_classi
   and .first_contact_motion_readability_contract == "trillionnium_world_bevy_classic_rts_first_contact_motion_readability_v1"
   and .first_contact_motion_readability_guard.contract_version == "trillionnium_world_bevy_classic_rts_first_contact_motion_readability_v1"
   and .first_contact_motion_readability_guard.green == true
-  and .first_contact_motion_readability_guard.source_path == "trnm-world-bevy classic_draw_first_contact_opening_actions + classic_draw_first_contact_unit_state_layers + classic_draw_first_contact_command_feedback_layers + classic_draw_first_contact_animation_readability_layer"
+  and .first_contact_motion_readability_guard.source_path == "trnm-world-bevy classic_draw_first_contact_opening_actions + classic_draw_first_contact_unit_state_layers + classic_draw_first_contact_combat_phase_layers + classic_draw_first_contact_command_feedback_layers + classic_draw_first_contact_animation_readability_layer"
   and .first_contact_motion_readability_guard.opening_action_ids == ["worker_harvest_flux","build_flux_relay","train_worker","train_horizon_scout","secure_flux_beacon"]
   and .first_contact_motion_readability_guard.action_verbs == ["worker","build","train","train","secure"]
   and .first_contact_motion_readability_guard.unit_status_badges == ["W","S","R","G"]
@@ -940,6 +940,13 @@ require_artifact_json_expr first_contact_basin_spec_semantics native_bevy_classi
   and .first_contact_motion_readability_guard.shield_charge_arc_width_px == 10
   and .first_contact_motion_readability_guard.shield_charge_arc_height_px == 2
   and .first_contact_motion_readability_guard.shield_charge_arc_pixel_budget <= 60
+  and (.first_contact_motion_readability_guard.combat_phase_motion_signatures | index("player_screen_combat_hit_micro_sparks") != null)
+  and .first_contact_motion_readability_guard.combat_hit_flash_site_count == 4
+  and .first_contact_motion_readability_guard.combat_hit_flash_sparks_per_site == 2
+  and .first_contact_motion_readability_guard.combat_hit_flash_spark_count == 8
+  and .first_contact_motion_readability_guard.combat_hit_flash_spark_width_px == 6
+  and .first_contact_motion_readability_guard.combat_hit_flash_spark_height_px == 2
+  and .first_contact_motion_readability_guard.combat_hit_flash_spark_pixel_budget <= 96
   and .first_contact_motion_readability_guard.track_roles == ["action_trail","npc_action","action_trail","npc_action","action_trail","npc_action"]
   and .first_contact_motion_readability_guard.animation_roles == ["worker","worker","worker","scout","scout","warden","warden","relay","command_core","command_core","relay_structure","beacon","beacon"]
   and (.first_contact_motion_readability_guard.animation_signatures | index("harvest_tool_swing_frame") != null)
@@ -999,6 +1006,7 @@ require_artifact_json_expr first_contact_basin_spec_semantics native_bevy_classi
   and .first_contact_motion_readability_guard.production_training_spark_gate == true
   and .first_contact_motion_readability_guard.warden_attack_arm_gate == true
   and .first_contact_motion_readability_guard.shield_charge_arc_gate == true
+  and .first_contact_motion_readability_guard.combat_hit_flash_spark_gate == true
   and .first_contact_motion_readability_guard.tactical_track_motion_gate == true
   and .first_contact_motion_readability_guard.command_feedback_motion_gate == true
   and .first_contact_motion_readability_guard.feedback_raw_marker_gate == true

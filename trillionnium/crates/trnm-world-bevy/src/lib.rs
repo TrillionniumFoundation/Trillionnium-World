@@ -841,6 +841,10 @@ const CLASSIC_FIRST_CONTACT_PLAYER_PRODUCTION_TRAINING_SPARK_H_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_PLAYER_SHIELD_CHARGE_ARC_COUNT: usize = 3;
 const CLASSIC_FIRST_CONTACT_PLAYER_SHIELD_CHARGE_ARC_W_PX: i32 = 10;
 const CLASSIC_FIRST_CONTACT_PLAYER_SHIELD_CHARGE_ARC_H_PX: i32 = 2;
+const CLASSIC_FIRST_CONTACT_COMBAT_HIT_FLASH_SITE_COUNT: usize = 4;
+const CLASSIC_FIRST_CONTACT_PLAYER_HIT_FLASH_SPARKS_PER_SITE: usize = 2;
+const CLASSIC_FIRST_CONTACT_PLAYER_HIT_FLASH_SPARK_W_PX: i32 = 6;
+const CLASSIC_FIRST_CONTACT_PLAYER_HIT_FLASH_SPARK_H_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_OWNER_PLAYER_COLOR: u32 = 0x67c980;
 const CLASSIC_FIRST_CONTACT_OWNER_ENEMY_COLOR: u32 = 0xd47967;
 const CLASSIC_FIRST_CONTACT_NON_FOCUS_OWNER_IDENTITY_PIXEL_BUDGET: usize = 192;
@@ -93176,6 +93180,7 @@ fn classic_draw_first_contact_combat_phase_layers(
     map_y: i32,
     cell_w: i32,
     cell_h: i32,
+    player_screen: bool,
 ) {
     let contacts: [((i32, i32), (i32, i32), u32); 4] = [
         ((8, 8), (16, 9), CLASSIC_ISO_ATTACK_ARC_COLOR),
@@ -93216,29 +93221,56 @@ fn classic_draw_first_contact_combat_phase_layers(
         }
     }
 
-    for (tile, offset) in [((16, 9), 0), ((16, 12), 6), ((16, 21), 12), ((16, 24), 18)] {
+    let hit_flash_sites = [((16, 9), 0), ((16, 12), 6), ((16, 21), 12), ((16, 24), 18)];
+    debug_assert_eq!(
+        hit_flash_sites.len(),
+        CLASSIC_FIRST_CONTACT_COMBAT_HIT_FLASH_SITE_COUNT
+    );
+    for (tile, offset) in hit_flash_sites {
         let (tile_x, tile_y) =
             classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, tile);
-        classic_draw_rect(
-            buffer,
-            width,
-            height,
-            tile_x + cell_w / 2 - 4,
-            tile_y + cell_h / 2 - 4 - offset / 6,
-            8,
-            8,
-            CLASSIC_ISO_HIT_FLASH_COLOR,
-        );
-        classic_draw_rect(
-            buffer,
-            width,
-            height,
-            tile_x + cell_w / 2 - 2,
-            tile_y + cell_h / 2 - 10 - offset / 8,
-            4,
-            20,
-            CLASSIC_ISO_HIT_FLASH_COLOR,
-        );
+        let cx = tile_x + cell_w / 2;
+        let cy = tile_y + cell_h / 2;
+        if player_screen {
+            let sparks = [(cx - 7, cy - 6 - offset / 6), (cx + 2, cy + 3 - offset / 8)];
+            debug_assert_eq!(
+                sparks.len(),
+                CLASSIC_FIRST_CONTACT_PLAYER_HIT_FLASH_SPARKS_PER_SITE
+            );
+            for (x, y) in sparks {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    x,
+                    y,
+                    CLASSIC_FIRST_CONTACT_PLAYER_HIT_FLASH_SPARK_W_PX,
+                    CLASSIC_FIRST_CONTACT_PLAYER_HIT_FLASH_SPARK_H_PX,
+                    CLASSIC_ISO_HIT_FLASH_COLOR,
+                );
+            }
+        } else {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                cx - 4,
+                cy - 4 - offset / 6,
+                8,
+                8,
+                CLASSIC_ISO_HIT_FLASH_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                cx - 2,
+                cy - 10 - offset / 8,
+                4,
+                20,
+                CLASSIC_ISO_HIT_FLASH_COLOR,
+            );
+        }
     }
 
     let opening = classic_first_contact_opening_loop();
@@ -95970,7 +96002,14 @@ fn classic_draw_first_contact_basin_scene(
         player_screen,
     );
     classic_draw_first_contact_combat_phase_layers(
-        buffer, width, height, map_x, map_y, cell_w, cell_h,
+        buffer,
+        width,
+        height,
+        map_x,
+        map_y,
+        cell_w,
+        cell_h,
+        player_screen,
     );
     classic_draw_first_contact_command_feedback_layers(
         buffer, width, height, map_x, map_y, cell_w, cell_h,
@@ -101981,6 +102020,11 @@ fn classic_first_contact_motion_readability_guard() -> Value {
         shield_charge_arc_count: CLASSIC_FIRST_CONTACT_PLAYER_SHIELD_CHARGE_ARC_COUNT,
         shield_charge_arc_width_px: CLASSIC_FIRST_CONTACT_PLAYER_SHIELD_CHARGE_ARC_W_PX as usize,
         shield_charge_arc_height_px: CLASSIC_FIRST_CONTACT_PLAYER_SHIELD_CHARGE_ARC_H_PX as usize,
+        combat_hit_flash_site_count: CLASSIC_FIRST_CONTACT_COMBAT_HIT_FLASH_SITE_COUNT,
+        combat_hit_flash_sparks_per_site: CLASSIC_FIRST_CONTACT_PLAYER_HIT_FLASH_SPARKS_PER_SITE,
+        combat_hit_flash_spark_width_px: CLASSIC_FIRST_CONTACT_PLAYER_HIT_FLASH_SPARK_W_PX as usize,
+        combat_hit_flash_spark_height_px: CLASSIC_FIRST_CONTACT_PLAYER_HIT_FLASH_SPARK_H_PX
+            as usize,
     };
     trnm_rts_evidence::first_contact_motion_readability_guard(
         &opening,
@@ -150047,6 +150091,53 @@ mod tests {
             Some(true)
         );
         assert_eq!(
+            guard
+                .get("combat_phase_motion_signatures")
+                .and_then(Value::as_array)
+                .map(|signatures| {
+                    signatures.iter().any(|value| {
+                        value.as_str() == Some("player_screen_combat_hit_micro_sparks")
+                    })
+                }),
+            Some(true)
+        );
+        assert_eq!(
+            guard
+                .get("combat_hit_flash_site_count")
+                .and_then(Value::as_u64),
+            Some(4)
+        );
+        assert_eq!(
+            guard
+                .get("combat_hit_flash_sparks_per_site")
+                .and_then(Value::as_u64),
+            Some(2)
+        );
+        assert_eq!(
+            guard
+                .get("combat_hit_flash_spark_width_px")
+                .and_then(Value::as_u64),
+            Some(6)
+        );
+        assert_eq!(
+            guard
+                .get("combat_hit_flash_spark_height_px")
+                .and_then(Value::as_u64),
+            Some(2)
+        );
+        assert_eq!(
+            guard
+                .get("combat_hit_flash_spark_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(96)
+        );
+        assert_eq!(
+            guard
+                .get("combat_hit_flash_spark_gate")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
             guard.get("feedback_player_labels").cloned(),
             Some(json!([
                 "GROUP 1 SECURING BEACON",
@@ -150201,6 +150292,7 @@ mod tests {
             "production_training_spark_gate",
             "warden_attack_arm_gate",
             "shield_charge_arc_gate",
+            "combat_hit_flash_spark_gate",
             "tactical_track_motion_gate",
             "command_feedback_motion_gate",
             "feedback_raw_marker_gate",

@@ -37,6 +37,10 @@ pub struct RtsFirstContactMotionReadabilityRuntime {
     pub shield_charge_arc_count: usize,
     pub shield_charge_arc_width_px: usize,
     pub shield_charge_arc_height_px: usize,
+    pub combat_hit_flash_site_count: usize,
+    pub combat_hit_flash_sparks_per_site: usize,
+    pub combat_hit_flash_spark_width_px: usize,
+    pub combat_hit_flash_spark_height_px: usize,
 }
 
 fn string_vec<const N: usize>(values: [&str; N]) -> Vec<String> {
@@ -224,6 +228,11 @@ pub fn first_contact_motion_readability_guard(
     let shield_charge_arc_pixel_budget = runtime.shield_charge_arc_count
         * runtime.shield_charge_arc_width_px
         * runtime.shield_charge_arc_height_px;
+    let combat_hit_flash_spark_count =
+        runtime.combat_hit_flash_site_count * runtime.combat_hit_flash_sparks_per_site;
+    let combat_hit_flash_spark_pixel_budget = combat_hit_flash_spark_count
+        * runtime.combat_hit_flash_spark_width_px
+        * runtime.combat_hit_flash_spark_height_px;
     let unit_state_motion_signatures = string_vec([
         "unit_status_badges",
         "player_screen_production_training_micro_sparks",
@@ -251,6 +260,16 @@ pub fn first_contact_motion_readability_guard(
         && player_screen_animation_signatures
             .iter()
             .any(|signature| signature.as_str() == "player_screen_shield_charge_micro_arcs");
+    let combat_phase_motion_signatures = string_vec(["player_screen_combat_hit_micro_sparks"]);
+    let combat_hit_flash_spark_gate = runtime.combat_hit_flash_site_count == 4
+        && runtime.combat_hit_flash_sparks_per_site == 2
+        && combat_hit_flash_spark_count == 8
+        && runtime.combat_hit_flash_spark_width_px == 6
+        && runtime.combat_hit_flash_spark_height_px == 2
+        && combat_hit_flash_spark_pixel_budget <= 96
+        && combat_phase_motion_signatures
+            .iter()
+            .any(|signature| signature.as_str() == "player_screen_combat_hit_micro_sparks");
     let command_feedback_motion_signatures = string_vec([
         "feedback_player_labels",
         "battlefield_command_feedback_micro_trail",
@@ -342,7 +361,8 @@ pub fn first_contact_motion_readability_guard(
         && tactical_track_motion_gate
         && command_feedback_motion_gate
         && runtime_motion_gate
-        && shield_charge_arc_gate;
+        && shield_charge_arc_gate
+        && combat_hit_flash_spark_gate;
     let unit_animation_frame_gate = unit_animation_frame_count >= 8
         && animation_roles.iter().any(|role| role.as_str() == "worker")
         && animation_roles.iter().any(|role| role.as_str() == "scout")
@@ -393,7 +413,7 @@ pub fn first_contact_motion_readability_guard(
     json!({
         "contract_version": TRNM_RTS_EVIDENCE_FIRST_CONTACT_MOTION_READABILITY_CONTRACT,
         "green": green,
-        "source_path": "trnm-world-bevy classic_draw_first_contact_opening_actions + classic_draw_first_contact_unit_state_layers + classic_draw_first_contact_command_feedback_layers + classic_draw_first_contact_animation_readability_layer",
+        "source_path": "trnm-world-bevy classic_draw_first_contact_opening_actions + classic_draw_first_contact_unit_state_layers + classic_draw_first_contact_combat_phase_layers + classic_draw_first_contact_command_feedback_layers + classic_draw_first_contact_animation_readability_layer",
         "active_relay_tile": active_relay_tile_id,
         "active_beacon_tile": active_beacon_tile_id,
         "opening_action_ids": opening_action_ids,
@@ -420,6 +440,14 @@ pub fn first_contact_motion_readability_guard(
         "shield_charge_arc_height_px": runtime.shield_charge_arc_height_px,
         "shield_charge_arc_pixel_budget": shield_charge_arc_pixel_budget,
         "shield_charge_arc_gate": shield_charge_arc_gate,
+        "combat_phase_motion_signatures": combat_phase_motion_signatures,
+        "combat_hit_flash_site_count": runtime.combat_hit_flash_site_count,
+        "combat_hit_flash_sparks_per_site": runtime.combat_hit_flash_sparks_per_site,
+        "combat_hit_flash_spark_count": combat_hit_flash_spark_count,
+        "combat_hit_flash_spark_width_px": runtime.combat_hit_flash_spark_width_px,
+        "combat_hit_flash_spark_height_px": runtime.combat_hit_flash_spark_height_px,
+        "combat_hit_flash_spark_pixel_budget": combat_hit_flash_spark_pixel_budget,
+        "combat_hit_flash_spark_gate": combat_hit_flash_spark_gate,
         "unit_state_motion_gate": unit_state_motion_gate,
         "track_roles": track_roles,
         "track_samples": track_sample_objects,
@@ -521,6 +549,10 @@ mod tests {
             shield_charge_arc_count: 3,
             shield_charge_arc_width_px: 10,
             shield_charge_arc_height_px: 2,
+            combat_hit_flash_site_count: 4,
+            combat_hit_flash_sparks_per_site: 2,
+            combat_hit_flash_spark_width_px: 6,
+            combat_hit_flash_spark_height_px: 2,
         };
         let guard = first_contact_motion_readability_guard(
             &trnm_rts_data::first_contact_opening_loop_profile(),
@@ -653,6 +685,29 @@ mod tests {
             Some(true)
         );
         assert_eq!(
+            guard
+                .get("combat_phase_motion_signatures")
+                .and_then(Value::as_array)
+                .map(|signatures| {
+                    signatures.iter().any(|value| {
+                        value.as_str() == Some("player_screen_combat_hit_micro_sparks")
+                    })
+                }),
+            Some(true)
+        );
+        assert_eq!(
+            guard
+                .get("combat_hit_flash_spark_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(96)
+        );
+        assert_eq!(
+            guard
+                .get("combat_hit_flash_spark_gate")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
             guard.get("feedback_player_labels").cloned(),
             Some(json!([
                 "GROUP 1 SECURING BEACON",
@@ -734,6 +789,7 @@ mod tests {
             "production_training_spark_gate",
             "warden_attack_arm_gate",
             "shield_charge_arc_gate",
+            "combat_hit_flash_spark_gate",
             "tactical_track_motion_gate",
             "command_feedback_motion_gate",
             "feedback_raw_marker_gate",
