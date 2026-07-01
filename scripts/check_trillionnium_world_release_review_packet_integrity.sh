@@ -989,6 +989,13 @@ require_artifact_json_expr first_contact_basin_spec_semantics native_bevy_classi
   and (.first_contact_motion_readability_guard.combat_event_log | index("worker_carry_supply") != null)
   and (.first_contact_motion_readability_guard.combat_event_log | index("secure_beacon:16,9") != null)
   and .first_contact_motion_readability_guard.progress_meter_pixel_budget >= 200
+  and (.first_contact_motion_readability_guard.opening_action_motion_signatures | index("opening_action_path_micro_dots") != null)
+  and .first_contact_motion_readability_guard.opening_action_path_count == 3
+  and .first_contact_motion_readability_guard.opening_action_path_step_count == 24
+  and .first_contact_motion_readability_guard.opening_action_path_dot_width_px == 2
+  and .first_contact_motion_readability_guard.opening_action_path_dot_height_px == 2
+  and .first_contact_motion_readability_guard.opening_action_path_pixel_budget <= 96
+  and .first_contact_motion_readability_guard.opening_action_path_gate == true
   and .first_contact_motion_readability_guard.unit_status_pixel_budget >= 256
   and .first_contact_motion_readability_guard.primary_tactical_track_count == 1
   and .first_contact_motion_readability_guard.secondary_tactical_track_count == 5

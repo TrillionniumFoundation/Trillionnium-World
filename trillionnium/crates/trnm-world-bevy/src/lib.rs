@@ -832,6 +832,10 @@ const CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK_MOVE_TRAIL_ORIGIN_COUNT: usize = 2;
 const CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK_MOVE_TRAIL_STEP_COUNT: usize = 10;
 const CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK_MOVE_TRAIL_TICK_W_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK_MOVE_TRAIL_TICK_H_PX: i32 = 2;
+const CLASSIC_FIRST_CONTACT_OPENING_ACTION_PATH_COUNT: usize = 3;
+const CLASSIC_FIRST_CONTACT_OPENING_ACTION_PATH_STEP_COUNT: usize = 24;
+const CLASSIC_FIRST_CONTACT_OPENING_ACTION_PATH_DOT_W_PX: i32 = 2;
+const CLASSIC_FIRST_CONTACT_OPENING_ACTION_PATH_DOT_H_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_WARDEN_ATTACK_ARM_COUNT: usize = 3;
 const CLASSIC_FIRST_CONTACT_PLAYER_WARDEN_ATTACK_ARM_W_PX: i32 = 14;
 const CLASSIC_FIRST_CONTACT_PLAYER_WARDEN_ATTACK_ARM_H_PX: i32 = 2;
@@ -92905,10 +92909,10 @@ fn classic_draw_first_contact_opening_actions(
                 buffer,
                 width,
                 height,
-                tile_x + cell_w / 3,
-                tile_y + cell_h / 2,
-                (cell_w / 2).max(5),
-                3,
+                tile_x + cell_w / 2 - CLASSIC_FIRST_CONTACT_OPENING_ACTION_PATH_DOT_W_PX / 2,
+                tile_y + cell_h / 2 - CLASSIC_FIRST_CONTACT_OPENING_ACTION_PATH_DOT_H_PX / 2,
+                CLASSIC_FIRST_CONTACT_OPENING_ACTION_PATH_DOT_W_PX,
+                CLASSIC_FIRST_CONTACT_OPENING_ACTION_PATH_DOT_H_PX,
                 color,
             );
         }
@@ -102035,6 +102039,12 @@ fn classic_first_contact_motion_readability_guard() -> Value {
             CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK_MOVE_TRAIL_TICK_W_PX as usize,
         feedback_move_trail_tick_height_px:
             CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK_MOVE_TRAIL_TICK_H_PX as usize,
+        opening_action_path_count: CLASSIC_FIRST_CONTACT_OPENING_ACTION_PATH_COUNT,
+        opening_action_path_step_count: CLASSIC_FIRST_CONTACT_OPENING_ACTION_PATH_STEP_COUNT,
+        opening_action_path_dot_width_px: CLASSIC_FIRST_CONTACT_OPENING_ACTION_PATH_DOT_W_PX
+            as usize,
+        opening_action_path_dot_height_px: CLASSIC_FIRST_CONTACT_OPENING_ACTION_PATH_DOT_H_PX
+            as usize,
         warden_attack_arm_count: CLASSIC_FIRST_CONTACT_WARDEN_ATTACK_ARM_COUNT,
         warden_attack_arm_width_px: CLASSIC_FIRST_CONTACT_PLAYER_WARDEN_ATTACK_ARM_W_PX as usize,
         warden_attack_arm_height_px: CLASSIC_FIRST_CONTACT_PLAYER_WARDEN_ATTACK_ARM_H_PX as usize,
@@ -149978,6 +149988,53 @@ mod tests {
         );
         assert_eq!(
             guard
+                .get("opening_action_motion_signatures")
+                .and_then(Value::as_array)
+                .map(|signatures| {
+                    signatures
+                        .iter()
+                        .any(|value| value.as_str() == Some("opening_action_path_micro_dots"))
+                }),
+            Some(true)
+        );
+        assert_eq!(
+            guard
+                .get("opening_action_path_count")
+                .and_then(Value::as_u64),
+            Some(3)
+        );
+        assert_eq!(
+            guard
+                .get("opening_action_path_step_count")
+                .and_then(Value::as_u64),
+            Some(24)
+        );
+        assert_eq!(
+            guard
+                .get("opening_action_path_dot_width_px")
+                .and_then(Value::as_u64),
+            Some(2)
+        );
+        assert_eq!(
+            guard
+                .get("opening_action_path_dot_height_px")
+                .and_then(Value::as_u64),
+            Some(2)
+        );
+        assert_eq!(
+            guard
+                .get("opening_action_path_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(96)
+        );
+        assert_eq!(
+            guard
+                .get("opening_action_path_gate")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            guard
                 .get("primary_tactical_track_count")
                 .and_then(Value::as_u64),
             Some(1)
@@ -150378,6 +150435,7 @@ mod tests {
         );
         for gate in [
             "opening_action_gate",
+            "opening_action_path_gate",
             "unit_state_motion_gate",
             "production_training_spark_gate",
             "warden_attack_arm_gate",

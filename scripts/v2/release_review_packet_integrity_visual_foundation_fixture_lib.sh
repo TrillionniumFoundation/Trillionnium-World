@@ -1007,6 +1007,15 @@ add_first_contact_basin_source_manifest_packet_fixtures() {
       opening_action_ids: ["worker_harvest_flux", "build_flux_relay", "train_worker", "train_horizon_scout", "secure_flux_beacon"],
       action_verbs: ["worker", "build", "train", "train", "secure"],
       progress_meter_pixel_budget: 210,
+      opening_action_motion_signatures: [
+        "opening_action_path_micro_dots"
+      ],
+      opening_action_path_count: 3,
+      opening_action_path_step_count: 24,
+      opening_action_path_dot_width_px: 2,
+      opening_action_path_dot_height_px: 2,
+      opening_action_path_pixel_budget: 96,
+      opening_action_path_gate: true,
       opening_action_gate: true,
       unit_status_badges: ["W", "S", "R", "G"],
       unit_status_color_roles: ["health", "mana", "attack", "confirm"],

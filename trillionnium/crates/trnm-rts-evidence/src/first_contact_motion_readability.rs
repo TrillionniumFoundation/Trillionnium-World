@@ -28,6 +28,10 @@ pub struct RtsFirstContactMotionReadabilityRuntime {
     pub feedback_move_trail_step_count_per_origin: usize,
     pub feedback_move_trail_tick_width_px: usize,
     pub feedback_move_trail_tick_height_px: usize,
+    pub opening_action_path_count: usize,
+    pub opening_action_path_step_count: usize,
+    pub opening_action_path_dot_width_px: usize,
+    pub opening_action_path_dot_height_px: usize,
     pub warden_attack_arm_count: usize,
     pub warden_attack_arm_width_px: usize,
     pub warden_attack_arm_height_px: usize,
@@ -222,6 +226,9 @@ pub fn first_contact_motion_readability_guard(
     let feedback_move_trail_pixel_budget = feedback_move_trail_tick_count
         * runtime.feedback_move_trail_tick_width_px
         * runtime.feedback_move_trail_tick_height_px;
+    let opening_action_path_pixel_budget = runtime.opening_action_path_step_count
+        * runtime.opening_action_path_dot_width_px
+        * runtime.opening_action_path_dot_height_px;
     let warden_attack_arm_pixel_budget = runtime.warden_attack_arm_count
         * runtime.warden_attack_arm_width_px
         * runtime.warden_attack_arm_height_px;
@@ -299,6 +306,15 @@ pub fn first_contact_motion_readability_guard(
         && command_feedback_motion_signatures
             .iter()
             .any(|signature| signature.as_str() == "battlefield_command_feedback_micro_trail");
+    let opening_action_motion_signatures = string_vec(["opening_action_path_micro_dots"]);
+    let opening_action_path_gate = runtime.opening_action_path_count == 3
+        && runtime.opening_action_path_step_count == 24
+        && runtime.opening_action_path_dot_width_px == 2
+        && runtime.opening_action_path_dot_height_px == 2
+        && opening_action_path_pixel_budget <= 96
+        && opening_action_motion_signatures
+            .iter()
+            .any(|signature| signature.as_str() == "opening_action_path_micro_dots");
     let animation_frame_pixel_budget = animation_samples.len() * 88;
     let animation_frame_richness_sample_count = animation_samples.len();
     let animation_frame_richness_pixel_budget = animation_frame_richness_sample_count * 40;
@@ -311,7 +327,8 @@ pub fn first_contact_motion_readability_guard(
             "secure_flux_beacon",
         ])
         && action_verbs == string_vec(["worker", "build", "train", "train", "secure"])
-        && progress_meter_pixel_budget >= 200;
+        && progress_meter_pixel_budget >= 200
+        && opening_action_path_gate;
     let unit_state_motion_gate = unit_status_badges == string_vec(["W", "S", "R", "G"])
         && unit_status_color_roles == string_vec(["health", "mana", "attack", "confirm"])
         && telemetry
@@ -436,6 +453,13 @@ pub fn first_contact_motion_readability_guard(
         "opening_action_ids": opening_action_ids,
         "action_verbs": action_verbs,
         "progress_meter_pixel_budget": progress_meter_pixel_budget,
+        "opening_action_motion_signatures": opening_action_motion_signatures,
+        "opening_action_path_count": runtime.opening_action_path_count,
+        "opening_action_path_step_count": runtime.opening_action_path_step_count,
+        "opening_action_path_dot_width_px": runtime.opening_action_path_dot_width_px,
+        "opening_action_path_dot_height_px": runtime.opening_action_path_dot_height_px,
+        "opening_action_path_pixel_budget": opening_action_path_pixel_budget,
+        "opening_action_path_gate": opening_action_path_gate,
         "opening_action_gate": opening_action_gate,
         "unit_status_badges": unit_status_badges,
         "unit_status_color_roles": unit_status_color_roles,
@@ -562,6 +586,10 @@ mod tests {
             feedback_move_trail_step_count_per_origin: 10,
             feedback_move_trail_tick_width_px: 2,
             feedback_move_trail_tick_height_px: 2,
+            opening_action_path_count: 3,
+            opening_action_path_step_count: 24,
+            opening_action_path_dot_width_px: 2,
+            opening_action_path_dot_height_px: 2,
             warden_attack_arm_count: 3,
             warden_attack_arm_width_px: 14,
             warden_attack_arm_height_px: 2,
@@ -611,6 +639,53 @@ mod tests {
                 "action_trail",
                 "npc_action"
             ]))
+        );
+        assert_eq!(
+            guard
+                .get("opening_action_motion_signatures")
+                .and_then(Value::as_array)
+                .map(|signatures| {
+                    signatures
+                        .iter()
+                        .any(|value| value.as_str() == Some("opening_action_path_micro_dots"))
+                }),
+            Some(true)
+        );
+        assert_eq!(
+            guard
+                .get("opening_action_path_count")
+                .and_then(Value::as_u64),
+            Some(3)
+        );
+        assert_eq!(
+            guard
+                .get("opening_action_path_step_count")
+                .and_then(Value::as_u64),
+            Some(24)
+        );
+        assert_eq!(
+            guard
+                .get("opening_action_path_dot_width_px")
+                .and_then(Value::as_u64),
+            Some(2)
+        );
+        assert_eq!(
+            guard
+                .get("opening_action_path_dot_height_px")
+                .and_then(Value::as_u64),
+            Some(2)
+        );
+        assert_eq!(
+            guard
+                .get("opening_action_path_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(96)
+        );
+        assert_eq!(
+            guard
+                .get("opening_action_path_gate")
+                .and_then(Value::as_bool),
+            Some(true)
         );
         assert_eq!(
             guard
@@ -822,6 +897,7 @@ mod tests {
         );
         for gate in [
             "opening_action_gate",
+            "opening_action_path_gate",
             "unit_state_motion_gate",
             "production_training_spark_gate",
             "warden_attack_arm_gate",
