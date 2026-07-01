@@ -34,6 +34,9 @@ pub struct RtsFirstContactMotionReadabilityRuntime {
     pub production_training_spark_count: usize,
     pub production_training_spark_width_px: usize,
     pub production_training_spark_height_px: usize,
+    pub shield_charge_arc_count: usize,
+    pub shield_charge_arc_width_px: usize,
+    pub shield_charge_arc_height_px: usize,
 }
 
 fn string_vec<const N: usize>(values: [&str; N]) -> Vec<String> {
@@ -218,11 +221,15 @@ pub fn first_contact_motion_readability_guard(
     let production_training_spark_pixel_budget = runtime.production_training_spark_count
         * runtime.production_training_spark_width_px
         * runtime.production_training_spark_height_px;
+    let shield_charge_arc_pixel_budget = runtime.shield_charge_arc_count
+        * runtime.shield_charge_arc_width_px
+        * runtime.shield_charge_arc_height_px;
     let unit_state_motion_signatures = string_vec([
         "unit_status_badges",
         "player_screen_production_training_micro_sparks",
         "player_screen_warden_attack_micro_sparks",
     ]);
+    let player_screen_animation_signatures = string_vec(["player_screen_shield_charge_micro_arcs"]);
     let production_training_spark_gate = runtime.production_training_spark_count == 3
         && runtime.production_training_spark_width_px == 4
         && runtime.production_training_spark_height_px == 2
@@ -237,6 +244,13 @@ pub fn first_contact_motion_readability_guard(
         && unit_state_motion_signatures
             .iter()
             .any(|signature| signature.as_str() == "player_screen_warden_attack_micro_sparks");
+    let shield_charge_arc_gate = runtime.shield_charge_arc_count == 3
+        && runtime.shield_charge_arc_width_px == 10
+        && runtime.shield_charge_arc_height_px == 2
+        && shield_charge_arc_pixel_budget <= 60
+        && player_screen_animation_signatures
+            .iter()
+            .any(|signature| signature.as_str() == "player_screen_shield_charge_micro_arcs");
     let command_feedback_motion_signatures = string_vec([
         "feedback_player_labels",
         "battlefield_command_feedback_micro_trail",
@@ -327,7 +341,8 @@ pub fn first_contact_motion_readability_guard(
         && unit_state_motion_gate
         && tactical_track_motion_gate
         && command_feedback_motion_gate
-        && runtime_motion_gate;
+        && runtime_motion_gate
+        && shield_charge_arc_gate;
     let unit_animation_frame_gate = unit_animation_frame_count >= 8
         && animation_roles.iter().any(|role| role.as_str() == "worker")
         && animation_roles.iter().any(|role| role.as_str() == "scout")
@@ -399,6 +414,12 @@ pub fn first_contact_motion_readability_guard(
         "warden_attack_arm_height_px": runtime.warden_attack_arm_height_px,
         "warden_attack_arm_pixel_budget": warden_attack_arm_pixel_budget,
         "warden_attack_arm_gate": warden_attack_arm_gate,
+        "player_screen_animation_signatures": player_screen_animation_signatures,
+        "shield_charge_arc_count": runtime.shield_charge_arc_count,
+        "shield_charge_arc_width_px": runtime.shield_charge_arc_width_px,
+        "shield_charge_arc_height_px": runtime.shield_charge_arc_height_px,
+        "shield_charge_arc_pixel_budget": shield_charge_arc_pixel_budget,
+        "shield_charge_arc_gate": shield_charge_arc_gate,
         "unit_state_motion_gate": unit_state_motion_gate,
         "track_roles": track_roles,
         "track_samples": track_sample_objects,
@@ -497,6 +518,9 @@ mod tests {
             production_training_spark_count: 3,
             production_training_spark_width_px: 4,
             production_training_spark_height_px: 2,
+            shield_charge_arc_count: 3,
+            shield_charge_arc_width_px: 10,
+            shield_charge_arc_height_px: 2,
         };
         let guard = first_contact_motion_readability_guard(
             &trnm_rts_data::first_contact_opening_loop_profile(),
@@ -608,6 +632,27 @@ mod tests {
             Some(true)
         );
         assert_eq!(
+            guard
+                .get("player_screen_animation_signatures")
+                .and_then(Value::as_array)
+                .map(|signatures| {
+                    signatures.iter().any(|value| {
+                        value.as_str() == Some("player_screen_shield_charge_micro_arcs")
+                    })
+                }),
+            Some(true)
+        );
+        assert_eq!(
+            guard
+                .get("shield_charge_arc_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(60)
+        );
+        assert_eq!(
+            guard.get("shield_charge_arc_gate").and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
             guard.get("feedback_player_labels").cloned(),
             Some(json!([
                 "GROUP 1 SECURING BEACON",
@@ -688,6 +733,7 @@ mod tests {
             "unit_state_motion_gate",
             "production_training_spark_gate",
             "warden_attack_arm_gate",
+            "shield_charge_arc_gate",
             "tactical_track_motion_gate",
             "command_feedback_motion_gate",
             "feedback_raw_marker_gate",

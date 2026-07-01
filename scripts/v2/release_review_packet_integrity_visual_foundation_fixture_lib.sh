@@ -1013,6 +1013,14 @@ add_first_contact_basin_source_manifest_packet_fixtures() {
       warden_attack_arm_height_px: 2,
       warden_attack_arm_pixel_budget: 84,
       warden_attack_arm_gate: true,
+      player_screen_animation_signatures: [
+        "player_screen_shield_charge_micro_arcs"
+      ],
+      shield_charge_arc_count: 3,
+      shield_charge_arc_width_px: 10,
+      shield_charge_arc_height_px: 2,
+      shield_charge_arc_pixel_budget: 60,
+      shield_charge_arc_gate: true,
       unit_state_motion_gate: true,
       track_roles: ["action_trail", "npc_action", "action_trail", "npc_action", "action_trail", "npc_action"],
       animation_sample_tiles: ["12,16", "10,12", "14,11", "25,8", "24,10", "8,25", "10,23", "11,8", "8,8", "9,9", "11,8", "16,9", "16,10"],

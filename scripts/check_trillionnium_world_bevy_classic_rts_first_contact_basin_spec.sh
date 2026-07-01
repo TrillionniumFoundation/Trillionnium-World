@@ -1126,6 +1126,11 @@ cat >"$JQ_FILTER" <<'JQ'
   and .first_contact_motion_readability_guard.warden_attack_arm_width_px == 14
   and .first_contact_motion_readability_guard.warden_attack_arm_height_px == 2
   and .first_contact_motion_readability_guard.warden_attack_arm_pixel_budget <= 84
+  and (.first_contact_motion_readability_guard.player_screen_animation_signatures | index("player_screen_shield_charge_micro_arcs") != null)
+  and .first_contact_motion_readability_guard.shield_charge_arc_count == 3
+  and .first_contact_motion_readability_guard.shield_charge_arc_width_px == 10
+  and .first_contact_motion_readability_guard.shield_charge_arc_height_px == 2
+  and .first_contact_motion_readability_guard.shield_charge_arc_pixel_budget <= 60
   and .first_contact_motion_readability_guard.track_roles == ["action_trail","npc_action","action_trail","npc_action","action_trail","npc_action"]
   and .first_contact_motion_readability_guard.animation_roles == ["worker","worker","worker","scout","scout","warden","warden","relay","command_core","command_core","relay_structure","beacon","beacon"]
   and (.first_contact_motion_readability_guard.animation_signatures | index("harvest_tool_swing_frame") != null)
@@ -1184,6 +1189,7 @@ cat >"$JQ_FILTER" <<'JQ'
   and .first_contact_motion_readability_guard.unit_state_motion_gate == true
   and .first_contact_motion_readability_guard.production_training_spark_gate == true
   and .first_contact_motion_readability_guard.warden_attack_arm_gate == true
+  and .first_contact_motion_readability_guard.shield_charge_arc_gate == true
   and .first_contact_motion_readability_guard.tactical_track_motion_gate == true
   and .first_contact_motion_readability_guard.command_feedback_motion_gate == true
   and .first_contact_motion_readability_guard.feedback_raw_marker_gate == true
