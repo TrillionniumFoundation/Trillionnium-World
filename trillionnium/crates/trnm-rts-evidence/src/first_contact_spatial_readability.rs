@@ -423,13 +423,26 @@ pub fn first_contact_terminal_legibility_guard(
         .copied()
         .map(tile_id)
         .collect::<Vec<_>>();
-    let target_quiet_pixel_budget = target_quiet_tiles.len() * 96;
-    let blocked_quiet_pixel_budget = blocked_quiet_tiles.len() * 96;
-    let target_edge_pixel_budget = target_quiet_tiles.len() * 18;
-    let blocked_edge_pixel_budget = blocked_quiet_tiles.len() * 18;
+    let terminal_quiet_cue_width_px = 6_usize;
+    let terminal_quiet_cue_height_px = 2_usize;
+    let terminal_quiet_cues_per_tile = 2_usize;
+    let target_quiet_fill_pixel_budget = 0_usize;
+    let blocked_quiet_fill_pixel_budget = 0_usize;
+    let target_quiet_pixel_budget = target_quiet_tiles.len()
+        * terminal_quiet_cue_width_px
+        * terminal_quiet_cue_height_px
+        * terminal_quiet_cues_per_tile;
+    let blocked_quiet_pixel_budget = blocked_quiet_tiles.len()
+        * terminal_quiet_cue_width_px
+        * terminal_quiet_cue_height_px
+        * terminal_quiet_cues_per_tile;
+    let target_edge_pixel_budget =
+        target_quiet_tiles.len() * terminal_quiet_cue_width_px * terminal_quiet_cue_height_px;
+    let blocked_edge_pixel_budget =
+        blocked_quiet_tiles.len() * terminal_quiet_cue_width_px * terminal_quiet_cue_height_px;
     let terminal_signatures = string_vec([
-        "target_terminal_quiet_band",
-        "blocked_terminal_quiet_column",
+        "target_terminal_micro_edge_cues",
+        "blocked_terminal_micro_edge_cues",
         "route_terminal_focus_preserved",
         "focus_markers_still_last",
     ]);
@@ -437,21 +450,32 @@ pub fn first_contact_terminal_legibility_guard(
     let target_terminal_quiet_gate = target_quiet_tile_ids
         == string_vec(["15,8", "16,8", "17,8", "15,9", "17,9"])
         && target_focus_tile == "16,9"
-        && target_quiet_pixel_budget >= 480;
+        && terminal_quiet_cue_width_px == 6
+        && terminal_quiet_cue_height_px == 2
+        && terminal_quiet_cues_per_tile == 2
+        && target_quiet_fill_pixel_budget == 0
+        && target_quiet_pixel_budget <= 120;
     let blocked_terminal_quiet_gate = blocked_quiet_tile_ids
         == string_vec([
             "14,15", "15,15", "16,15", "14,16", "16,16", "14,17", "15,17", "16,17",
         ])
         && blocked_focus_tile == "15,16"
-        && blocked_quiet_pixel_budget >= 768;
+        && terminal_quiet_cue_width_px == 6
+        && terminal_quiet_cue_height_px == 2
+        && terminal_quiet_cues_per_tile == 2
+        && blocked_quiet_fill_pixel_budget == 0
+        && blocked_quiet_pixel_budget <= 192;
     let terminal_focus_preservation_gate = focus_overlap_tiles.is_empty()
         && terminal_focus_tile_ids == string_vec(["15,16", "16,9", "16,10"]);
     let terminal_edge_budget_gate =
-        target_edge_pixel_budget >= 90 && blocked_edge_pixel_budget >= 144;
+        target_edge_pixel_budget <= 60 && blocked_edge_pixel_budget <= 96;
     let terminal_signature_gate = terminal_signatures.len() == 4
         && terminal_signatures
             .iter()
-            .any(|signature| signature == "target_terminal_quiet_band")
+            .any(|signature| signature == "target_terminal_micro_edge_cues")
+        && terminal_signatures
+            .iter()
+            .any(|signature| signature == "blocked_terminal_micro_edge_cues")
         && terminal_signatures
             .iter()
             .any(|signature| signature == "route_terminal_focus_preserved");
@@ -487,6 +511,11 @@ pub fn first_contact_terminal_legibility_guard(
         "focus_overlap_tiles": focus_overlap_tiles,
         "target_focus_tile": target_focus_tile,
         "blocked_focus_tile": blocked_focus_tile,
+        "terminal_quiet_cue_width_px": terminal_quiet_cue_width_px,
+        "terminal_quiet_cue_height_px": terminal_quiet_cue_height_px,
+        "terminal_quiet_cues_per_tile": terminal_quiet_cues_per_tile,
+        "target_quiet_fill_pixel_budget": target_quiet_fill_pixel_budget,
+        "blocked_quiet_fill_pixel_budget": blocked_quiet_fill_pixel_budget,
         "target_quiet_pixel_budget": target_quiet_pixel_budget,
         "blocked_quiet_pixel_budget": blocked_quiet_pixel_budget,
         "target_edge_pixel_budget": target_edge_pixel_budget,
@@ -610,6 +639,18 @@ mod tests {
         );
         assert_eq!(terminal["green"].as_bool(), Some(true));
         assert_eq!(terminal["terminal_quiet_tile_count"].as_u64(), Some(13));
+        assert_eq!(terminal["terminal_quiet_cue_width_px"].as_u64(), Some(6));
+        assert_eq!(terminal["terminal_quiet_cue_height_px"].as_u64(), Some(2));
+        assert_eq!(terminal["terminal_quiet_cues_per_tile"].as_u64(), Some(2));
+        assert_eq!(terminal["target_quiet_fill_pixel_budget"].as_u64(), Some(0));
+        assert_eq!(
+            terminal["blocked_quiet_fill_pixel_budget"].as_u64(),
+            Some(0)
+        );
+        assert_eq!(terminal["target_quiet_pixel_budget"].as_u64(), Some(120));
+        assert_eq!(terminal["blocked_quiet_pixel_budget"].as_u64(), Some(192));
+        assert_eq!(terminal["target_edge_pixel_budget"].as_u64(), Some(60));
+        assert_eq!(terminal["blocked_edge_pixel_budget"].as_u64(), Some(96));
         assert_eq!(
             terminal["terminal_focus_tiles"].as_array().map(Vec::len),
             Some(3)

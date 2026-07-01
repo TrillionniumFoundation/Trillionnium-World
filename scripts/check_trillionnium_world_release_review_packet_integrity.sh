@@ -1177,11 +1177,17 @@ require_artifact_json_expr first_contact_basin_spec_semantics native_bevy_classi
   and .first_contact_terminal_legibility_guard.focus_overlap_tiles == []
   and .first_contact_terminal_legibility_guard.target_focus_tile == "16,9"
   and .first_contact_terminal_legibility_guard.blocked_focus_tile == "15,16"
-  and .first_contact_terminal_legibility_guard.target_quiet_pixel_budget >= 480
-  and .first_contact_terminal_legibility_guard.blocked_quiet_pixel_budget >= 768
-  and .first_contact_terminal_legibility_guard.target_edge_pixel_budget >= 90
-  and .first_contact_terminal_legibility_guard.blocked_edge_pixel_budget >= 144
-  and (.first_contact_terminal_legibility_guard.terminal_signatures | index("target_terminal_quiet_band") != null)
+  and .first_contact_terminal_legibility_guard.terminal_quiet_cue_width_px == 6
+  and .first_contact_terminal_legibility_guard.terminal_quiet_cue_height_px == 2
+  and .first_contact_terminal_legibility_guard.terminal_quiet_cues_per_tile == 2
+  and .first_contact_terminal_legibility_guard.target_quiet_fill_pixel_budget == 0
+  and .first_contact_terminal_legibility_guard.blocked_quiet_fill_pixel_budget == 0
+  and .first_contact_terminal_legibility_guard.target_quiet_pixel_budget <= 120
+  and .first_contact_terminal_legibility_guard.blocked_quiet_pixel_budget <= 192
+  and .first_contact_terminal_legibility_guard.target_edge_pixel_budget <= 60
+  and .first_contact_terminal_legibility_guard.blocked_edge_pixel_budget <= 96
+  and (.first_contact_terminal_legibility_guard.terminal_signatures | index("target_terminal_micro_edge_cues") != null)
+  and (.first_contact_terminal_legibility_guard.terminal_signatures | index("blocked_terminal_micro_edge_cues") != null)
   and (.first_contact_terminal_legibility_guard.terminal_signatures | index("route_terminal_focus_preserved") != null)
   and (.first_contact_terminal_legibility_guard.terminal_layer_draw_order | index("central_clarity_deemphasis")) == 15
   and (.first_contact_terminal_legibility_guard.terminal_layer_draw_order | index("terminal_legibility_deemphasis")) == 16

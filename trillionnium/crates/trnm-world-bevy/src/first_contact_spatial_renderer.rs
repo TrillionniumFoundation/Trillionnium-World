@@ -10,9 +10,12 @@ use crate::{
     CLASSIC_FIRST_CONTACT_CORRIDOR_DEEMPHASIS_CUE_H_PX,
     CLASSIC_FIRST_CONTACT_CORRIDOR_DEEMPHASIS_CUE_W_PX,
     CLASSIC_FIRST_CONTACT_ROUTE_SPINE_SHADOW_CUE_H_PX,
-    CLASSIC_FIRST_CONTACT_ROUTE_SPINE_SHADOW_CUE_W_PX, CLASSIC_RTS_COMMAND_SURFACE_TARGET_COLOR,
-    CLASSIC_RTS_PRODUCT_LANE_COLOR, CLASSIC_RTS_SELECTION_FEEDBACK_ERROR_COLOR,
-    CLASSIC_RTS_TACTICAL_VIEWPORT_SHADOW_COLOR, CLASSIC_RTS_TACTICAL_VIEWPORT_TILE_COLOR,
+    CLASSIC_FIRST_CONTACT_ROUTE_SPINE_SHADOW_CUE_W_PX,
+    CLASSIC_FIRST_CONTACT_TERMINAL_QUIET_CUES_PER_TILE,
+    CLASSIC_FIRST_CONTACT_TERMINAL_QUIET_CUE_H_PX, CLASSIC_FIRST_CONTACT_TERMINAL_QUIET_CUE_W_PX,
+    CLASSIC_RTS_COMMAND_SURFACE_TARGET_COLOR, CLASSIC_RTS_PRODUCT_LANE_COLOR,
+    CLASSIC_RTS_SELECTION_FEEDBACK_ERROR_COLOR, CLASSIC_RTS_TACTICAL_VIEWPORT_SHADOW_COLOR,
+    CLASSIC_RTS_TACTICAL_VIEWPORT_TILE_COLOR,
 };
 use trnm_rts_bevy_runtime as rts_bevy_runtime;
 
@@ -255,26 +258,19 @@ pub(super) fn draw_terminal_legibility_layer(
     for tile in terminal_legibility_target_quiet_tiles() {
         let (tile_x, tile_y) =
             classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, tile);
-        classic_draw_rect(
-            buffer,
-            width,
-            height,
-            tile_x + 2,
-            tile_y + 2,
-            (cell_w - 4).max(4),
-            (cell_h - 6).max(4),
-            target_fill,
+        let cue_w = CLASSIC_FIRST_CONTACT_TERMINAL_QUIET_CUE_W_PX;
+        let cue_h = CLASSIC_FIRST_CONTACT_TERMINAL_QUIET_CUE_H_PX;
+        let cues = [
+            (tile_x + 5, tile_y + 3, target_fill),
+            (tile_x + cell_w - 5 - cue_w, tile_y + 5, target_edge),
+        ];
+        debug_assert_eq!(
+            cues.len(),
+            CLASSIC_FIRST_CONTACT_TERMINAL_QUIET_CUES_PER_TILE
         );
-        classic_draw_rect(
-            buffer,
-            width,
-            height,
-            tile_x + 5,
-            tile_y + 4,
-            (cell_w - 10).max(3),
-            1,
-            target_edge,
-        );
+        for (x, y, color) in cues {
+            classic_draw_rect(buffer, width, height, x, y, cue_w, cue_h, color);
+        }
     }
 
     let blocked_fill = classic_mix_color(CLASSIC_RTS_TACTICAL_VIEWPORT_TILE_COLOR, 0x020102, 1, 2);
@@ -282,25 +278,22 @@ pub(super) fn draw_terminal_legibility_layer(
     for tile in terminal_legibility_blocked_quiet_tiles() {
         let (tile_x, tile_y) =
             classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, tile);
-        classic_draw_rect(
-            buffer,
-            width,
-            height,
-            tile_x + 2,
-            tile_y + 4,
-            (cell_w - 4).max(4),
-            (cell_h - 4).max(4),
-            blocked_fill,
+        let cue_w = CLASSIC_FIRST_CONTACT_TERMINAL_QUIET_CUE_W_PX;
+        let cue_h = CLASSIC_FIRST_CONTACT_TERMINAL_QUIET_CUE_H_PX;
+        let cues = [
+            (tile_x + 5, tile_y + cell_h / 2 - 3, blocked_fill),
+            (
+                tile_x + cell_w - 5 - cue_w,
+                tile_y + cell_h / 2 + 2,
+                blocked_edge,
+            ),
+        ];
+        debug_assert_eq!(
+            cues.len(),
+            CLASSIC_FIRST_CONTACT_TERMINAL_QUIET_CUES_PER_TILE
         );
-        classic_draw_rect(
-            buffer,
-            width,
-            height,
-            tile_x + 4,
-            tile_y + cell_h - 4,
-            (cell_w - 8).max(3),
-            1,
-            blocked_edge,
-        );
+        for (x, y, color) in cues {
+            classic_draw_rect(buffer, width, height, x, y, cue_w, cue_h, color);
+        }
     }
 }
