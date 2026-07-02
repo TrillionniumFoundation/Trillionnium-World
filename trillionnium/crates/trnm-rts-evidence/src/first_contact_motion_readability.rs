@@ -31,9 +31,13 @@ pub struct RtsFirstContactMotionReadabilityRuntime {
     pub feedback_panel_cue_count: usize,
     pub feedback_panel_cue_width_px: usize,
     pub feedback_panel_cue_height_px: usize,
+    pub feedback_panel_backplate_width_px: usize,
+    pub feedback_panel_backplate_height_px: usize,
     pub feedback_progress_pip_slot_count: usize,
     pub feedback_progress_pip_width_px: usize,
     pub feedback_progress_pip_height_px: usize,
+    pub feedback_progress_backplate_width_px: usize,
+    pub feedback_progress_backplate_height_px: usize,
     pub opening_action_path_count: usize,
     pub opening_action_path_step_count: usize,
     pub opening_action_path_dot_width_px: usize,
@@ -250,6 +254,8 @@ pub fn first_contact_motion_readability_guard(
     let feedback_panel_cue_pixel_budget = runtime.feedback_panel_cue_count
         * runtime.feedback_panel_cue_width_px
         * runtime.feedback_panel_cue_height_px;
+    let feedback_panel_backplate_pixel_budget =
+        runtime.feedback_panel_backplate_width_px * runtime.feedback_panel_backplate_height_px;
     let feedback_progress_pip_count = |percent: u8| -> usize {
         ((usize::from(percent) * runtime.feedback_progress_pip_slot_count + 50) / 100)
             .clamp(1, runtime.feedback_progress_pip_slot_count)
@@ -261,6 +267,9 @@ pub fn first_contact_motion_readability_guard(
     let feedback_progress_pip_pixel_budget = feedback_progress_pip_count
         * runtime.feedback_progress_pip_width_px
         * runtime.feedback_progress_pip_height_px;
+    let feedback_progress_backplate_pixel_budget = runtime.feedback_progress_pip_slot_count
+        * runtime.feedback_progress_backplate_width_px
+        * runtime.feedback_progress_backplate_height_px;
     let opening_action_path_pixel_budget = runtime.opening_action_path_step_count
         * runtime.opening_action_path_dot_width_px
         * runtime.opening_action_path_dot_height_px;
@@ -387,7 +396,9 @@ pub fn first_contact_motion_readability_guard(
         "feedback_player_labels",
         "battlefield_command_feedback_micro_trail",
         "command_feedback_panel_micro_cues",
+        "command_feedback_panel_backplate_suppressed",
         "command_feedback_progress_micro_pips",
+        "command_feedback_progress_backplates_suppressed",
     ]);
     let feedback_panel_micro_cue_gate = runtime.feedback_panel_cue_count == 8
         && runtime.feedback_panel_cue_width_px == 6
@@ -396,6 +407,12 @@ pub fn first_contact_motion_readability_guard(
         && command_feedback_motion_signatures
             .iter()
             .any(|signature| signature.as_str() == "command_feedback_panel_micro_cues");
+    let feedback_panel_backplate_gate = runtime.feedback_panel_backplate_width_px == 0
+        && runtime.feedback_panel_backplate_height_px == 0
+        && feedback_panel_backplate_pixel_budget == 0
+        && command_feedback_motion_signatures
+            .iter()
+            .any(|signature| signature.as_str() == "command_feedback_panel_backplate_suppressed");
     let feedback_progress_micro_pip_gate = runtime.feedback_progress_pip_slot_count == 7
         && runtime.feedback_progress_pip_width_px == 6
         && runtime.feedback_progress_pip_height_px == 2
@@ -406,6 +423,12 @@ pub fn first_contact_motion_readability_guard(
         && command_feedback_motion_signatures
             .iter()
             .any(|signature| signature.as_str() == "command_feedback_progress_micro_pips");
+    let feedback_progress_backplate_gate = runtime.feedback_progress_backplate_width_px == 0
+        && runtime.feedback_progress_backplate_height_px == 0
+        && feedback_progress_backplate_pixel_budget == 0
+        && command_feedback_motion_signatures.iter().any(|signature| {
+            signature.as_str() == "command_feedback_progress_backplates_suppressed"
+        });
     let feedback_battlefield_trail_gate = runtime.feedback_move_trail_origin_count == 2
         && runtime.feedback_move_trail_step_count_per_origin == 10
         && feedback_move_trail_tick_count == 20
@@ -485,7 +508,9 @@ pub fn first_contact_motion_readability_guard(
         && feedback_player_label_gate
         && feedback_battlefield_trail_gate
         && feedback_panel_micro_cue_gate
-        && feedback_progress_micro_pip_gate;
+        && feedback_panel_backplate_gate
+        && feedback_progress_micro_pip_gate
+        && feedback_progress_backplate_gate;
     let runtime_motion_gate = runtime.walk_cycle_frame >= 2
         && runtime.combat_turn >= 3
         && runtime.training_progress_percent >= 60
@@ -667,7 +692,11 @@ pub fn first_contact_motion_readability_guard(
         "feedback_panel_cue_width_px": runtime.feedback_panel_cue_width_px,
         "feedback_panel_cue_height_px": runtime.feedback_panel_cue_height_px,
         "feedback_panel_cue_pixel_budget": feedback_panel_cue_pixel_budget,
+        "feedback_panel_backplate_width_px": runtime.feedback_panel_backplate_width_px,
+        "feedback_panel_backplate_height_px": runtime.feedback_panel_backplate_height_px,
+        "feedback_panel_backplate_pixel_budget": feedback_panel_backplate_pixel_budget,
         "feedback_panel_micro_cue_gate": feedback_panel_micro_cue_gate,
+        "feedback_panel_backplate_gate": feedback_panel_backplate_gate,
         "feedback_progress_pip_slot_count": runtime.feedback_progress_pip_slot_count,
         "feedback_ack_progress_pip_count": feedback_ack_progress_pip_count,
         "feedback_cooldown_pip_count": feedback_cooldown_pip_count,
@@ -675,7 +704,11 @@ pub fn first_contact_motion_readability_guard(
         "feedback_progress_pip_width_px": runtime.feedback_progress_pip_width_px,
         "feedback_progress_pip_height_px": runtime.feedback_progress_pip_height_px,
         "feedback_progress_pip_pixel_budget": feedback_progress_pip_pixel_budget,
+        "feedback_progress_backplate_width_px": runtime.feedback_progress_backplate_width_px,
+        "feedback_progress_backplate_height_px": runtime.feedback_progress_backplate_height_px,
+        "feedback_progress_backplate_pixel_budget": feedback_progress_backplate_pixel_budget,
         "feedback_progress_micro_pip_gate": feedback_progress_micro_pip_gate,
+        "feedback_progress_backplate_gate": feedback_progress_backplate_gate,
         "feedback_move_trail_origin_count": runtime.feedback_move_trail_origin_count,
         "feedback_move_trail_step_count_per_origin": runtime.feedback_move_trail_step_count_per_origin,
         "feedback_move_trail_tick_count": feedback_move_trail_tick_count,
@@ -744,9 +777,13 @@ mod tests {
             feedback_panel_cue_count: 8,
             feedback_panel_cue_width_px: 6,
             feedback_panel_cue_height_px: 2,
+            feedback_panel_backplate_width_px: 0,
+            feedback_panel_backplate_height_px: 0,
             feedback_progress_pip_slot_count: 7,
             feedback_progress_pip_width_px: 6,
             feedback_progress_pip_height_px: 2,
+            feedback_progress_backplate_width_px: 0,
+            feedback_progress_backplate_height_px: 0,
             opening_action_path_count: 3,
             opening_action_path_step_count: 24,
             opening_action_path_dot_width_px: 2,
@@ -1138,7 +1175,14 @@ mod tests {
                             value.as_str() == Some("command_feedback_panel_micro_cues")
                         })
                         && signatures.iter().any(|value| {
+                            value.as_str() == Some("command_feedback_panel_backplate_suppressed")
+                        })
+                        && signatures.iter().any(|value| {
                             value.as_str() == Some("command_feedback_progress_micro_pips")
+                        })
+                        && signatures.iter().any(|value| {
+                            value.as_str()
+                                == Some("command_feedback_progress_backplates_suppressed")
                         })
                 }),
             Some(true)
@@ -1157,7 +1201,19 @@ mod tests {
         );
         assert_eq!(
             guard
+                .get("feedback_panel_backplate_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(0)
+        );
+        assert_eq!(
+            guard
                 .get("feedback_panel_micro_cue_gate")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            guard
+                .get("feedback_panel_backplate_gate")
                 .and_then(Value::as_bool),
             Some(true)
         );
@@ -1193,7 +1249,19 @@ mod tests {
         );
         assert_eq!(
             guard
+                .get("feedback_progress_backplate_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(0)
+        );
+        assert_eq!(
+            guard
                 .get("feedback_progress_micro_pip_gate")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            guard
+                .get("feedback_progress_backplate_gate")
                 .and_then(Value::as_bool),
             Some(true)
         );
@@ -1257,7 +1325,9 @@ mod tests {
             "feedback_player_label_gate",
             "feedback_battlefield_trail_gate",
             "feedback_panel_micro_cue_gate",
+            "feedback_panel_backplate_gate",
             "feedback_progress_micro_pip_gate",
+            "feedback_progress_backplate_gate",
             "runtime_motion_gate",
             "unit_animation_frame_gate",
             "building_animation_frame_gate",

@@ -835,9 +835,13 @@ const CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK_MOVE_TRAIL_TICK_H_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK_PANEL_CUE_COUNT: usize = 8;
 const CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK_PANEL_CUE_W_PX: i32 = 6;
 const CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK_PANEL_CUE_H_PX: i32 = 2;
+const CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK_PANEL_BACKPLATE_W_PX: i32 = 0;
+const CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK_PANEL_BACKPLATE_H_PX: i32 = 0;
 const CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK_PROGRESS_SLOT_COUNT: usize = 7;
 const CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK_PROGRESS_PIP_W_PX: i32 = 6;
 const CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK_PROGRESS_PIP_H_PX: i32 = 2;
+const CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK_PROGRESS_BACKPLATE_W_PX: i32 = 0;
+const CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK_PROGRESS_BACKPLATE_H_PX: i32 = 0;
 const CLASSIC_FIRST_CONTACT_OPENING_ACTION_PATH_COUNT: usize = 3;
 const CLASSIC_FIRST_CONTACT_OPENING_ACTION_PATH_STEP_COUNT: usize = 24;
 const CLASSIC_FIRST_CONTACT_OPENING_ACTION_PATH_DOT_W_PX: i32 = 2;
@@ -93524,6 +93528,7 @@ fn classic_draw_first_contact_command_feedback_layers(
     map_y: i32,
     cell_w: i32,
     cell_h: i32,
+    player_screen: bool,
 ) {
     let feedback = classic_first_contact_command_feedback();
     let feedback_labels = first_contact_command_feedback_player_labels(&feedback);
@@ -93658,16 +93663,18 @@ fn classic_draw_first_contact_command_feedback_layers(
 
     let hud_x = map_x + 10;
     let hud_y = map_y + cell_h * 30 + 8;
-    classic_draw_rect(
-        buffer,
-        width,
-        height,
-        hud_x,
-        hud_y,
-        cell_w * 17,
-        50,
-        CLASSIC_RTS_PRODUCT_UI_CHROME_COLOR,
-    );
+    if !player_screen {
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            hud_x,
+            hud_y,
+            cell_w * 17,
+            50,
+            CLASSIC_RTS_PRODUCT_UI_CHROME_COLOR,
+        );
+    }
     let panel_cue_span = ((cell_w * 17 - CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK_PANEL_CUE_W_PX)
         / (CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK_PANEL_CUE_COUNT.saturating_sub(1) as i32))
         .max(CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK_PANEL_CUE_W_PX + 2);
@@ -93724,16 +93731,18 @@ fn classic_draw_first_contact_command_feedback_layers(
     };
     let ack_pip_count = progress_pip_count(feedback.command_ack_progress);
     let cd_pip_count = progress_pip_count(feedback.cooldown_progress);
-    classic_draw_rect(
-        buffer,
-        width,
-        height,
-        hud_x + cell_w * 9,
-        hud_y + 25,
-        cell_w * 7,
-        5,
-        CLASSIC_RTS_STRUCTURE_FOUNDATION_SHADOW_COLOR,
-    );
+    if !player_screen {
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            hud_x + cell_w * 9,
+            hud_y + 25,
+            cell_w * 7,
+            5,
+            CLASSIC_RTS_STRUCTURE_FOUNDATION_SHADOW_COLOR,
+        );
+    }
     for pip in 0..ack_pip_count {
         classic_draw_rect(
             buffer,
@@ -93746,16 +93755,18 @@ fn classic_draw_first_contact_command_feedback_layers(
             CLASSIC_RTS_SELECTION_FEEDBACK_ACK_COLOR,
         );
     }
-    classic_draw_rect(
-        buffer,
-        width,
-        height,
-        hud_x + cell_w * 9,
-        hud_y + 36,
-        cell_w * 7,
-        5,
-        CLASSIC_RTS_STRUCTURE_FOUNDATION_SHADOW_COLOR,
-    );
+    if !player_screen {
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            hud_x + cell_w * 9,
+            hud_y + 36,
+            cell_w * 7,
+            5,
+            CLASSIC_RTS_STRUCTURE_FOUNDATION_SHADOW_COLOR,
+        );
+    }
     for pip in 0..cd_pip_count {
         classic_draw_rect(
             buffer,
@@ -96419,7 +96430,14 @@ fn classic_draw_first_contact_basin_scene(
         player_screen,
     );
     classic_draw_first_contact_command_feedback_layers(
-        buffer, width, height, map_x, map_y, cell_w, cell_h,
+        buffer,
+        width,
+        height,
+        map_x,
+        map_y,
+        cell_w,
+        cell_h,
+        player_screen,
     );
     classic_draw_first_contact_runtime_core_layer(
         buffer,
@@ -102420,12 +102438,20 @@ fn classic_first_contact_motion_readability_guard() -> Value {
         feedback_panel_cue_width_px: CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK_PANEL_CUE_W_PX as usize,
         feedback_panel_cue_height_px: CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK_PANEL_CUE_H_PX
             as usize,
+        feedback_panel_backplate_width_px:
+            CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK_PANEL_BACKPLATE_W_PX as usize,
+        feedback_panel_backplate_height_px:
+            CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK_PANEL_BACKPLATE_H_PX as usize,
         feedback_progress_pip_slot_count:
             CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK_PROGRESS_SLOT_COUNT,
         feedback_progress_pip_width_px: CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK_PROGRESS_PIP_W_PX
             as usize,
         feedback_progress_pip_height_px: CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK_PROGRESS_PIP_H_PX
             as usize,
+        feedback_progress_backplate_width_px:
+            CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK_PROGRESS_BACKPLATE_W_PX as usize,
+        feedback_progress_backplate_height_px:
+            CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK_PROGRESS_BACKPLATE_H_PX as usize,
         opening_action_path_count: CLASSIC_FIRST_CONTACT_OPENING_ACTION_PATH_COUNT,
         opening_action_path_step_count: CLASSIC_FIRST_CONTACT_OPENING_ACTION_PATH_STEP_COUNT,
         opening_action_path_dot_width_px: CLASSIC_FIRST_CONTACT_OPENING_ACTION_PATH_DOT_W_PX
@@ -151019,7 +151045,14 @@ mod tests {
                             value.as_str() == Some("command_feedback_panel_micro_cues")
                         })
                         && signatures.iter().any(|value| {
+                            value.as_str() == Some("command_feedback_panel_backplate_suppressed")
+                        })
+                        && signatures.iter().any(|value| {
                             value.as_str() == Some("command_feedback_progress_micro_pips")
+                        })
+                        && signatures.iter().any(|value| {
+                            value.as_str()
+                                == Some("command_feedback_progress_backplates_suppressed")
                         })
                 }),
             Some(true)
@@ -151038,7 +151071,19 @@ mod tests {
         );
         assert_eq!(
             guard
+                .get("feedback_panel_backplate_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(0)
+        );
+        assert_eq!(
+            guard
                 .get("feedback_panel_micro_cue_gate")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            guard
+                .get("feedback_panel_backplate_gate")
                 .and_then(Value::as_bool),
             Some(true)
         );
@@ -151074,7 +151119,19 @@ mod tests {
         );
         assert_eq!(
             guard
+                .get("feedback_progress_backplate_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(0)
+        );
+        assert_eq!(
+            guard
                 .get("feedback_progress_micro_pip_gate")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            guard
+                .get("feedback_progress_backplate_gate")
                 .and_then(Value::as_bool),
             Some(true)
         );
@@ -151211,7 +151268,9 @@ mod tests {
             "feedback_player_label_gate",
             "feedback_battlefield_trail_gate",
             "feedback_panel_micro_cue_gate",
+            "feedback_panel_backplate_gate",
             "feedback_progress_micro_pip_gate",
+            "feedback_progress_backplate_gate",
             "runtime_motion_gate",
             "unit_animation_frame_gate",
             "building_animation_frame_gate",
