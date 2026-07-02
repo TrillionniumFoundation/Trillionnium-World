@@ -18,6 +18,7 @@ pub fn first_contact_silhouette_readability_guard() -> Value {
     let preview_resource_samples = first_contact_samples::silhouette_preview_resource_samples();
     let unit_samples = first_contact_samples::silhouette_unit_samples();
     let structure_samples = first_contact_samples::silhouette_structure_samples();
+    let art_landmark_samples = first_contact_samples::art_landmark_samples();
     let terrain_sample_tiles = terrain_samples
         .iter()
         .map(|(tile, _, _)| tile_id(*tile))
@@ -183,6 +184,38 @@ pub fn first_contact_silhouette_readability_guard() -> Value {
         * player_screen_secondary_beacon_body_cues_per_beacon
         * player_screen_secondary_beacon_body_cue_width_px
         * player_screen_secondary_beacon_body_cue_height_px;
+    let player_screen_secondary_beacon_actor_body_samples = art_landmark_samples
+        .iter()
+        .filter_map(|(tile, role, signature)| {
+            if *role == "beacon_ring"
+                && *signature == "beacon_capture_rings"
+                && *tile != player_screen_target_beacon
+            {
+                Some(json!({
+                    "tile": tile_id(*tile),
+                    "role": role,
+                    "signature": "beacon_ring_actor_body",
+                }))
+            } else {
+                None
+            }
+        })
+        .collect::<Vec<_>>();
+    let player_screen_secondary_beacon_actor_body_signatures = string_vec([
+        "player_screen_secondary_beacon_actor_body_micro_cues",
+        "player_screen_secondary_beacon_hot_actor_body_suppressed",
+    ]);
+    let player_screen_secondary_beacon_actor_body_count =
+        player_screen_secondary_beacon_actor_body_samples.len();
+    let player_screen_secondary_beacon_actor_body_cues_per_beacon = 4usize;
+    let player_screen_secondary_beacon_actor_body_cue_width_px = 8usize;
+    let player_screen_secondary_beacon_actor_body_cue_height_px = 2usize;
+    let player_screen_secondary_beacon_actor_body_pixel_budget =
+        player_screen_secondary_beacon_actor_body_count
+            * player_screen_secondary_beacon_actor_body_cues_per_beacon
+            * player_screen_secondary_beacon_actor_body_cue_width_px
+            * player_screen_secondary_beacon_actor_body_cue_height_px;
+    let player_screen_secondary_beacon_hot_actor_body_pixel_budget = 0usize;
     let terrain_zone_pixel_budget = terrain_samples.len() * 32;
     let preview_resource_bloom_count = preview_resource_samples.len();
     let preview_resource_bloom_cues_per_cluster = 4usize;
@@ -244,13 +277,31 @@ pub fn first_contact_silhouette_readability_guard() -> Value {
         && player_screen_secondary_beacon_body_signatures
             .iter()
             .any(|signature| signature == "player_screen_secondary_beacon_body_micro_cues");
+    let player_screen_secondary_beacon_actor_body_gate =
+        player_screen_secondary_beacon_actor_body_count == 3
+            && player_screen_secondary_beacon_actor_body_cues_per_beacon == 4
+            && player_screen_secondary_beacon_actor_body_cue_width_px == 8
+            && player_screen_secondary_beacon_actor_body_cue_height_px == 2
+            && player_screen_secondary_beacon_actor_body_pixel_budget <= 192
+            && player_screen_secondary_beacon_hot_actor_body_pixel_budget == 0
+            && player_screen_secondary_beacon_actor_body_signatures
+                .iter()
+                .any(|signature| {
+                    signature == "player_screen_secondary_beacon_actor_body_micro_cues"
+                })
+            && player_screen_secondary_beacon_actor_body_signatures
+                .iter()
+                .any(|signature| {
+                    signature == "player_screen_secondary_beacon_hot_actor_body_suppressed"
+                });
     let map_object_silhouette_gate = terrain_zone_gate
         && preview_resource_bloom_gate
         && unit_role_silhouette_gate
         && structure_roofline_gate
         && player_screen_command_core_faction_gate
         && beacon_spire_gate
-        && player_screen_secondary_beacon_body_gate;
+        && player_screen_secondary_beacon_body_gate
+        && player_screen_secondary_beacon_actor_body_gate;
     let green = map_object_silhouette_gate;
 
     json!({
@@ -304,6 +355,15 @@ pub fn first_contact_silhouette_readability_guard() -> Value {
         "player_screen_secondary_beacon_body_pixel_budget": player_screen_secondary_beacon_body_pixel_budget,
         "player_screen_secondary_beacon_body_signatures": player_screen_secondary_beacon_body_signatures,
         "player_screen_secondary_beacon_body_gate": player_screen_secondary_beacon_body_gate,
+        "player_screen_secondary_beacon_actor_body_samples": player_screen_secondary_beacon_actor_body_samples,
+        "player_screen_secondary_beacon_actor_body_count": player_screen_secondary_beacon_actor_body_count,
+        "player_screen_secondary_beacon_actor_body_cues_per_beacon": player_screen_secondary_beacon_actor_body_cues_per_beacon,
+        "player_screen_secondary_beacon_actor_body_cue_width_px": player_screen_secondary_beacon_actor_body_cue_width_px,
+        "player_screen_secondary_beacon_actor_body_cue_height_px": player_screen_secondary_beacon_actor_body_cue_height_px,
+        "player_screen_secondary_beacon_actor_body_pixel_budget": player_screen_secondary_beacon_actor_body_pixel_budget,
+        "player_screen_secondary_beacon_hot_actor_body_pixel_budget": player_screen_secondary_beacon_hot_actor_body_pixel_budget,
+        "player_screen_secondary_beacon_actor_body_signatures": player_screen_secondary_beacon_actor_body_signatures,
+        "player_screen_secondary_beacon_actor_body_gate": player_screen_secondary_beacon_actor_body_gate,
         "structure_roofline_pixel_budget": structure_roofline_pixel_budget,
         "beacon_spire_pixel_budget": beacon_spire_pixel_budget,
         "structure_roofline_gate": structure_roofline_gate,
@@ -505,6 +565,65 @@ mod tests {
         );
         assert_eq!(
             guard
+                .get("player_screen_secondary_beacon_actor_body_samples")
+                .cloned(),
+            Some(json!([
+                {"tile": "16,24", "role": "beacon_ring", "signature": "beacon_ring_actor_body"},
+                {"tile": "9,16", "role": "beacon_ring", "signature": "beacon_ring_actor_body"},
+                {"tile": "24,16", "role": "beacon_ring", "signature": "beacon_ring_actor_body"}
+            ]))
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_secondary_beacon_actor_body_count")
+                .and_then(Value::as_u64),
+            Some(3)
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_secondary_beacon_actor_body_cues_per_beacon")
+                .and_then(Value::as_u64),
+            Some(4)
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_secondary_beacon_actor_body_cue_width_px")
+                .and_then(Value::as_u64),
+            Some(8)
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_secondary_beacon_actor_body_cue_height_px")
+                .and_then(Value::as_u64),
+            Some(2)
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_secondary_beacon_actor_body_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(192)
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_secondary_beacon_hot_actor_body_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(0)
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_secondary_beacon_actor_body_signatures")
+                .and_then(Value::as_array)
+                .map(|signatures| signatures.iter().any(|signature| {
+                    signature.as_str()
+                        == Some("player_screen_secondary_beacon_actor_body_micro_cues")
+                }) && signatures.iter().any(|signature| {
+                    signature.as_str()
+                        == Some("player_screen_secondary_beacon_hot_actor_body_suppressed")
+                })),
+            Some(true)
+        );
+        assert_eq!(
+            guard
                 .get("terrain_signatures")
                 .and_then(Value::as_array)
                 .map(|signatures| signatures.len()),
@@ -518,6 +637,7 @@ mod tests {
             "player_screen_command_core_faction_gate",
             "beacon_spire_gate",
             "player_screen_secondary_beacon_body_gate",
+            "player_screen_secondary_beacon_actor_body_gate",
             "map_object_silhouette_gate",
         ] {
             assert_eq!(guard.get(gate).and_then(Value::as_bool), Some(true));

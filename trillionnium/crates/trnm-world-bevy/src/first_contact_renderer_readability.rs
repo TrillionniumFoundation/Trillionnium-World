@@ -53,6 +53,19 @@ pub(crate) fn player_screen_secondary_beacon_body(
     player_screen && tile != target_tile && role == "beacon" && signature == "vertical_beacon_spire"
 }
 
+pub(crate) fn player_screen_secondary_beacon_actor_body(
+    tile: (i32, i32),
+    role: &str,
+    signature: &str,
+    player_screen: bool,
+    target_tile: (i32, i32),
+) -> bool {
+    player_screen
+        && tile != target_tile
+        && ((role == "beacon" && signature == "objective_beacon_actor_body")
+            || (role == "beacon_ring" && signature == "beacon_ring_actor_body"))
+}
+
 pub(crate) fn secondary_objective_atlas_asset(
     tile: (i32, i32),
     role: &str,
@@ -166,10 +179,31 @@ mod tests {
             true,
             (16, 9)
         ));
+        assert!(player_screen_secondary_beacon_actor_body(
+            (16, 24),
+            "beacon",
+            "objective_beacon_actor_body",
+            true,
+            (16, 9)
+        ));
         assert!(player_screen_secondary_beacon_body(
             (9, 16),
             "beacon",
             "vertical_beacon_spire",
+            true,
+            (16, 9)
+        ));
+        assert!(player_screen_secondary_beacon_actor_body(
+            (9, 16),
+            "beacon",
+            "objective_beacon_actor_body",
+            true,
+            (16, 9)
+        ));
+        assert!(player_screen_secondary_beacon_actor_body(
+            (24, 16),
+            "beacon_ring",
+            "beacon_ring_actor_body",
             true,
             (16, 9)
         ));
@@ -180,10 +214,31 @@ mod tests {
             true,
             (16, 9)
         ));
+        assert!(!player_screen_secondary_beacon_actor_body(
+            (16, 9),
+            "beacon_ring",
+            "beacon_ring_actor_body",
+            true,
+            (16, 9)
+        ));
+        assert!(!player_screen_secondary_beacon_actor_body(
+            (16, 9),
+            "beacon",
+            "objective_beacon_actor_body",
+            true,
+            (16, 9)
+        ));
         assert!(!player_screen_secondary_beacon_body(
             (16, 24),
             "beacon",
             "vertical_beacon_spire",
+            false,
+            (16, 9)
+        ));
+        assert!(!player_screen_secondary_beacon_actor_body(
+            (16, 24),
+            "beacon",
+            "objective_beacon_actor_body",
             false,
             (16, 9)
         ));

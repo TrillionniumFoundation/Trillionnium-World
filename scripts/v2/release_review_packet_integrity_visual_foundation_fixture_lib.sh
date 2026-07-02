@@ -922,6 +922,22 @@ add_first_contact_basin_source_manifest_packet_fixtures() {
       player_screen_secondary_beacon_body_pixel_budget: 240,
       player_screen_secondary_beacon_body_signatures: ["player_screen_secondary_beacon_body_micro_cues"],
       player_screen_secondary_beacon_body_gate: true,
+      player_screen_secondary_beacon_actor_body_samples: [
+        {tile: "16,24", role: "beacon_ring", signature: "beacon_ring_actor_body"},
+        {tile: "9,16", role: "beacon_ring", signature: "beacon_ring_actor_body"},
+        {tile: "24,16", role: "beacon_ring", signature: "beacon_ring_actor_body"}
+      ],
+      player_screen_secondary_beacon_actor_body_count: 3,
+      player_screen_secondary_beacon_actor_body_cues_per_beacon: 4,
+      player_screen_secondary_beacon_actor_body_cue_width_px: 8,
+      player_screen_secondary_beacon_actor_body_cue_height_px: 2,
+      player_screen_secondary_beacon_actor_body_pixel_budget: 192,
+      player_screen_secondary_beacon_hot_actor_body_pixel_budget: 0,
+      player_screen_secondary_beacon_actor_body_signatures: [
+        "player_screen_secondary_beacon_actor_body_micro_cues",
+        "player_screen_secondary_beacon_hot_actor_body_suppressed"
+      ],
+      player_screen_secondary_beacon_actor_body_gate: true,
       structure_roofline_pixel_budget: 960,
       beacon_spire_pixel_budget: 288,
       structure_roofline_gate: true,

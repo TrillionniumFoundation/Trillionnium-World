@@ -858,6 +858,15 @@ require_artifact_json_expr first_contact_basin_spec_semantics native_bevy_classi
   and .first_contact_silhouette_readability_guard.player_screen_secondary_beacon_body_cue_height_px == 2
   and .first_contact_silhouette_readability_guard.player_screen_secondary_beacon_body_pixel_budget <= 240
   and (.first_contact_silhouette_readability_guard.player_screen_secondary_beacon_body_signatures | index("player_screen_secondary_beacon_body_micro_cues") != null)
+  and .first_contact_silhouette_readability_guard.player_screen_secondary_beacon_actor_body_samples == [{"tile":"16,24","role":"beacon_ring","signature":"beacon_ring_actor_body"},{"tile":"9,16","role":"beacon_ring","signature":"beacon_ring_actor_body"},{"tile":"24,16","role":"beacon_ring","signature":"beacon_ring_actor_body"}]
+  and .first_contact_silhouette_readability_guard.player_screen_secondary_beacon_actor_body_count == 3
+  and .first_contact_silhouette_readability_guard.player_screen_secondary_beacon_actor_body_cues_per_beacon == 4
+  and .first_contact_silhouette_readability_guard.player_screen_secondary_beacon_actor_body_cue_width_px == 8
+  and .first_contact_silhouette_readability_guard.player_screen_secondary_beacon_actor_body_cue_height_px == 2
+  and .first_contact_silhouette_readability_guard.player_screen_secondary_beacon_actor_body_pixel_budget <= 192
+  and .first_contact_silhouette_readability_guard.player_screen_secondary_beacon_hot_actor_body_pixel_budget == 0
+  and (.first_contact_silhouette_readability_guard.player_screen_secondary_beacon_actor_body_signatures | index("player_screen_secondary_beacon_actor_body_micro_cues") != null)
+  and (.first_contact_silhouette_readability_guard.player_screen_secondary_beacon_actor_body_signatures | index("player_screen_secondary_beacon_hot_actor_body_suppressed") != null)
   and .first_contact_silhouette_readability_guard.preview_resource_bloom_count == 11
   and (.first_contact_silhouette_readability_guard.preview_resource_signatures | index("resource_bloom_micro_shadow_cues") != null)
   and .first_contact_silhouette_readability_guard.preview_resource_bloom_cues_per_cluster == 4
@@ -881,6 +890,7 @@ require_artifact_json_expr first_contact_basin_spec_semantics native_bevy_classi
   and .first_contact_silhouette_readability_guard.player_screen_command_core_faction_gate == true
   and .first_contact_silhouette_readability_guard.beacon_spire_gate == true
   and .first_contact_silhouette_readability_guard.player_screen_secondary_beacon_body_gate == true
+  and .first_contact_silhouette_readability_guard.player_screen_secondary_beacon_actor_body_gate == true
   and .first_contact_silhouette_readability_guard.map_object_silhouette_gate == true
   and .first_contact_silhouette_readability_guard_gate == true
   and .first_contact_art_readability_contract == "trillionnium_world_bevy_classic_rts_first_contact_art_readability_v1"

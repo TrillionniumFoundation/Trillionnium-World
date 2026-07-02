@@ -828,6 +828,9 @@ const CLASSIC_FIRST_CONTACT_ROUTE_CLEARANCE_CORNER_CUE_W_PX: i32 = 6;
 const CLASSIC_FIRST_CONTACT_ROUTE_CLEARANCE_CORNER_CUE_H_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_ROUTE_CLEARANCE_CORNER_CUE_INSET_PX: i32 = 5;
 const CLASSIC_FIRST_CONTACT_ROUTE_CLEARANCE_CORNER_CUES_PER_TILE: usize = 4;
+const CLASSIC_FIRST_CONTACT_PLAYER_SECONDARY_BEACON_ACTOR_BODY_CUE_COUNT: usize = 4;
+const CLASSIC_FIRST_CONTACT_PLAYER_SECONDARY_BEACON_ACTOR_BODY_CUE_W_PX: i32 = 8;
+const CLASSIC_FIRST_CONTACT_PLAYER_SECONDARY_BEACON_ACTOR_BODY_CUE_H_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK_MOVE_TRAIL_ORIGIN_COUNT: usize = 2;
 const CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK_MOVE_TRAIL_STEP_COUNT: usize = 10;
 const CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK_MOVE_TRAIL_TICK_W_PX: i32 = 2;
@@ -93810,14 +93813,12 @@ fn classic_draw_first_contact_actor(
     map_y: i32,
     cell_w: i32,
     cell_h: i32,
+    player_screen: bool,
+    target_tile: (i32, i32),
 ) {
-    let (tile_x, tile_y) = classic_first_contact_tile_screen(
-        map_x,
-        map_y,
-        cell_w,
-        cell_h,
-        classic_first_contact_tile_tuple(actor.tile),
-    );
+    let actor_tile = classic_first_contact_tile_tuple(actor.tile);
+    let (tile_x, tile_y) =
+        classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, actor_tile);
     let cx = tile_x + cell_w / 2;
     let cy = tile_y + cell_h / 2;
     let rule_id = actor.source_rule_id.as_str();
@@ -93954,26 +93955,61 @@ fn classic_draw_first_contact_actor(
             );
         }
         RtsActorGlyphBody::ObjectiveBeacon => {
-            classic_draw_rect(
-                buffer,
-                width,
-                height,
-                cx - cell_w - 4,
-                cy - cell_h / 2 - 4,
-                cell_w * 2 + 8,
-                cell_h + 8,
-                classic_darken(CLASSIC_RTS_PRODUCT_UI_ACCENT_COLOR, 1, 5),
-            );
-            classic_draw_rect(
-                buffer,
-                width,
-                height,
-                cx - cell_w,
-                cy - cell_h / 2,
-                cell_w * 2,
-                cell_h,
-                CLASSIC_RTS_PRODUCT_UI_ACCENT_COLOR,
-            );
+            if first_contact_renderer_readability::player_screen_secondary_beacon_actor_body(
+                actor_tile,
+                "beacon",
+                "objective_beacon_actor_body",
+                player_screen,
+                target_tile,
+            ) {
+                let quiet = first_contact_renderer_readability::lower_secondary_beacon_art_color(
+                    CLASSIC_RTS_PRODUCT_UI_ACCENT_COLOR,
+                );
+                let edge = classic_darken(quiet, 1, 4);
+                let cues = [
+                    (-cell_w + 4, -cell_h / 2, quiet),
+                    (cell_w - 12, -cell_h / 2, edge),
+                    (-cell_w + 4, cell_h / 2 + 2, edge),
+                    (cell_w - 12, cell_h / 2 + 2, quiet),
+                ];
+                debug_assert_eq!(
+                    cues.len(),
+                    CLASSIC_FIRST_CONTACT_PLAYER_SECONDARY_BEACON_ACTOR_BODY_CUE_COUNT
+                );
+                for (dx, dy, color) in cues {
+                    classic_draw_rect(
+                        buffer,
+                        width,
+                        height,
+                        cx + dx,
+                        cy + dy,
+                        CLASSIC_FIRST_CONTACT_PLAYER_SECONDARY_BEACON_ACTOR_BODY_CUE_W_PX,
+                        CLASSIC_FIRST_CONTACT_PLAYER_SECONDARY_BEACON_ACTOR_BODY_CUE_H_PX,
+                        color,
+                    );
+                }
+            } else {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    cx - cell_w - 4,
+                    cy - cell_h / 2 - 4,
+                    cell_w * 2 + 8,
+                    cell_h + 8,
+                    classic_darken(CLASSIC_RTS_PRODUCT_UI_ACCENT_COLOR, 1, 5),
+                );
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    cx - cell_w,
+                    cy - cell_h / 2,
+                    cell_w * 2,
+                    cell_h,
+                    CLASSIC_RTS_PRODUCT_UI_ACCENT_COLOR,
+                );
+            }
             classic_draw_rect(
                 buffer,
                 width,
@@ -94062,46 +94098,97 @@ fn classic_draw_first_contact_actor(
             );
         }
         RtsActorGlyphBody::BeaconRing => {
-            classic_draw_rect(
-                buffer,
-                width,
-                height,
-                tile_x - cell_w / 2,
-                tile_y - cell_h / 2,
-                cell_w * 2,
-                3,
-                CLASSIC_RTS_PRODUCT_UI_ACCENT_COLOR,
-            );
-            classic_draw_rect(
-                buffer,
-                width,
-                height,
-                tile_x - cell_w / 2,
-                tile_y + cell_h + cell_h / 2,
-                cell_w * 2,
-                3,
-                CLASSIC_RTS_PRODUCT_UI_ACCENT_COLOR,
-            );
-            classic_draw_rect(
-                buffer,
-                width,
-                height,
-                tile_x - cell_w / 2,
-                tile_y - cell_h / 2,
-                3,
-                cell_h * 2,
-                CLASSIC_RTS_PRODUCT_UI_ACCENT_COLOR,
-            );
-            classic_draw_rect(
-                buffer,
-                width,
-                height,
-                tile_x + cell_w + cell_w / 2,
-                tile_y - cell_h / 2,
-                3,
-                cell_h * 2,
-                CLASSIC_RTS_PRODUCT_UI_ACCENT_COLOR,
-            );
+            if first_contact_renderer_readability::player_screen_secondary_beacon_actor_body(
+                actor_tile,
+                "beacon_ring",
+                "beacon_ring_actor_body",
+                player_screen,
+                target_tile,
+            ) {
+                let quiet = first_contact_renderer_readability::lower_secondary_beacon_art_color(
+                    CLASSIC_RTS_PRODUCT_UI_ACCENT_COLOR,
+                );
+                let edge = classic_darken(quiet, 1, 4);
+                let cues = [
+                    (tile_x - cell_w / 2, tile_y - cell_h / 2, quiet),
+                    (
+                        tile_x + cell_w + cell_w / 2
+                            - CLASSIC_FIRST_CONTACT_PLAYER_SECONDARY_BEACON_ACTOR_BODY_CUE_W_PX,
+                        tile_y - cell_h / 2,
+                        edge,
+                    ),
+                    (
+                        tile_x - cell_w / 2,
+                        tile_y + cell_h + cell_h / 2
+                            - CLASSIC_FIRST_CONTACT_PLAYER_SECONDARY_BEACON_ACTOR_BODY_CUE_H_PX,
+                        edge,
+                    ),
+                    (
+                        tile_x + cell_w + cell_w / 2
+                            - CLASSIC_FIRST_CONTACT_PLAYER_SECONDARY_BEACON_ACTOR_BODY_CUE_W_PX,
+                        tile_y + cell_h + cell_h / 2
+                            - CLASSIC_FIRST_CONTACT_PLAYER_SECONDARY_BEACON_ACTOR_BODY_CUE_H_PX,
+                        quiet,
+                    ),
+                ];
+                debug_assert_eq!(
+                    cues.len(),
+                    CLASSIC_FIRST_CONTACT_PLAYER_SECONDARY_BEACON_ACTOR_BODY_CUE_COUNT
+                );
+                for (cue_x, cue_y, color) in cues {
+                    classic_draw_rect(
+                        buffer,
+                        width,
+                        height,
+                        cue_x,
+                        cue_y,
+                        CLASSIC_FIRST_CONTACT_PLAYER_SECONDARY_BEACON_ACTOR_BODY_CUE_W_PX,
+                        CLASSIC_FIRST_CONTACT_PLAYER_SECONDARY_BEACON_ACTOR_BODY_CUE_H_PX,
+                        color,
+                    );
+                }
+            } else {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    tile_x - cell_w / 2,
+                    tile_y - cell_h / 2,
+                    cell_w * 2,
+                    3,
+                    CLASSIC_RTS_PRODUCT_UI_ACCENT_COLOR,
+                );
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    tile_x - cell_w / 2,
+                    tile_y + cell_h + cell_h / 2,
+                    cell_w * 2,
+                    3,
+                    CLASSIC_RTS_PRODUCT_UI_ACCENT_COLOR,
+                );
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    tile_x - cell_w / 2,
+                    tile_y - cell_h / 2,
+                    3,
+                    cell_h * 2,
+                    CLASSIC_RTS_PRODUCT_UI_ACCENT_COLOR,
+                );
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    tile_x + cell_w + cell_w / 2,
+                    tile_y - cell_h / 2,
+                    3,
+                    cell_h * 2,
+                    CLASSIC_RTS_PRODUCT_UI_ACCENT_COLOR,
+                );
+            }
         }
         RtsActorGlyphBody::ExpansionMarker => {
             classic_draw_rect(
@@ -96360,7 +96447,16 @@ fn classic_draw_first_contact_basin_scene(
 
     for actor in classic_first_contact_map_actors_from_rts_data() {
         classic_draw_first_contact_actor(
-            buffer, width, height, actor, map_x, map_y, cell_w, cell_h,
+            buffer,
+            width,
+            height,
+            actor,
+            map_x,
+            map_y,
+            cell_w,
+            cell_h,
+            player_screen,
+            target_tile,
         );
     }
     classic_draw_first_contact_starting_army(buffer, width, height, map_x, map_y, cell_w, cell_h);
@@ -150285,6 +150381,65 @@ mod tests {
         );
         assert_eq!(
             guard
+                .get("player_screen_secondary_beacon_actor_body_samples")
+                .cloned(),
+            Some(serde_json::json!([
+                {"tile": "16,24", "role": "beacon_ring", "signature": "beacon_ring_actor_body"},
+                {"tile": "9,16", "role": "beacon_ring", "signature": "beacon_ring_actor_body"},
+                {"tile": "24,16", "role": "beacon_ring", "signature": "beacon_ring_actor_body"}
+            ]))
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_secondary_beacon_actor_body_count")
+                .and_then(Value::as_u64),
+            Some(3)
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_secondary_beacon_actor_body_cues_per_beacon")
+                .and_then(Value::as_u64),
+            Some(4)
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_secondary_beacon_actor_body_cue_width_px")
+                .and_then(Value::as_u64),
+            Some(8)
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_secondary_beacon_actor_body_cue_height_px")
+                .and_then(Value::as_u64),
+            Some(2)
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_secondary_beacon_actor_body_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(192)
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_secondary_beacon_hot_actor_body_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(0)
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_secondary_beacon_actor_body_signatures")
+                .and_then(Value::as_array)
+                .map(|signatures| signatures.iter().any(|signature| {
+                    signature.as_str()
+                        == Some("player_screen_secondary_beacon_actor_body_micro_cues")
+                }) && signatures.iter().any(|signature| {
+                    signature.as_str()
+                        == Some("player_screen_secondary_beacon_hot_actor_body_suppressed")
+                })),
+            Some(true)
+        );
+        assert_eq!(
+            guard
                 .get("terrain_signatures")
                 .and_then(Value::as_array)
                 .map(|signatures| signatures.len() >= 9),
@@ -150298,6 +150453,7 @@ mod tests {
             "player_screen_command_core_faction_gate",
             "beacon_spire_gate",
             "player_screen_secondary_beacon_body_gate",
+            "player_screen_secondary_beacon_actor_body_gate",
             "map_object_silhouette_gate",
         ] {
             assert_eq!(guard.get(gate).and_then(Value::as_bool), Some(true));
