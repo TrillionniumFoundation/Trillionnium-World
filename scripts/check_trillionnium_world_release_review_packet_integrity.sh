@@ -1038,6 +1038,19 @@ require_artifact_json_expr first_contact_basin_spec_semantics native_bevy_classi
   and (.first_contact_motion_readability_guard.tactical_track_density_signatures | index("secondary_tracks_one_pixel") != null)
   and .first_contact_motion_readability_guard.feedback_pixel_budget >= 190
   and (.first_contact_motion_readability_guard.command_feedback_motion_signatures | index("battlefield_command_feedback_micro_trail") != null)
+  and (.first_contact_motion_readability_guard.command_feedback_motion_signatures | index("command_feedback_panel_micro_cues") != null)
+  and .first_contact_motion_readability_guard.feedback_panel_cue_count == 8
+  and .first_contact_motion_readability_guard.feedback_panel_cue_width_px == 6
+  and .first_contact_motion_readability_guard.feedback_panel_cue_height_px == 2
+  and .first_contact_motion_readability_guard.feedback_panel_cue_pixel_budget <= 96
+  and (.first_contact_motion_readability_guard.command_feedback_motion_signatures | index("command_feedback_progress_micro_pips") != null)
+  and .first_contact_motion_readability_guard.feedback_progress_pip_slot_count == 7
+  and .first_contact_motion_readability_guard.feedback_ack_progress_pip_count == 6
+  and .first_contact_motion_readability_guard.feedback_cooldown_pip_count == 2
+  and .first_contact_motion_readability_guard.feedback_progress_pip_count == 8
+  and .first_contact_motion_readability_guard.feedback_progress_pip_width_px == 6
+  and .first_contact_motion_readability_guard.feedback_progress_pip_height_px == 2
+  and .first_contact_motion_readability_guard.feedback_progress_pip_pixel_budget <= 96
   and .first_contact_motion_readability_guard.feedback_move_trail_origin_count == 2
   and .first_contact_motion_readability_guard.feedback_move_trail_step_count_per_origin == 10
   and .first_contact_motion_readability_guard.feedback_move_trail_tick_count == 20
@@ -1069,6 +1082,8 @@ require_artifact_json_expr first_contact_basin_spec_semantics native_bevy_classi
   and .first_contact_motion_readability_guard.command_feedback_motion_gate == true
   and .first_contact_motion_readability_guard.feedback_raw_marker_gate == true
   and .first_contact_motion_readability_guard.feedback_player_label_gate == true
+  and .first_contact_motion_readability_guard.feedback_panel_micro_cue_gate == true
+  and .first_contact_motion_readability_guard.feedback_progress_micro_pip_gate == true
   and .first_contact_motion_readability_guard.runtime_motion_gate == true
   and .first_contact_motion_readability_guard.unit_animation_frame_gate == true
   and .first_contact_motion_readability_guard.building_animation_frame_gate == true
