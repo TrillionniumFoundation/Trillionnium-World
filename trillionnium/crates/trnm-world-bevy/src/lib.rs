@@ -845,6 +845,15 @@ const CLASSIC_FIRST_CONTACT_PLAYER_PRODUCTION_TRAINING_SPARK_H_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_PLAYER_ANIMATION_TRAINING_TICK_COUNT: usize = 3;
 const CLASSIC_FIRST_CONTACT_PLAYER_ANIMATION_TRAINING_TICK_W_PX: i32 = 4;
 const CLASSIC_FIRST_CONTACT_PLAYER_ANIMATION_TRAINING_TICK_H_PX: i32 = 2;
+const CLASSIC_FIRST_CONTACT_PLAYER_SPAWN_DOOR_SHUTTER_COUNT: usize = 7;
+const CLASSIC_FIRST_CONTACT_PLAYER_SPAWN_DOOR_SHUTTER_W_PX: i32 = 4;
+const CLASSIC_FIRST_CONTACT_PLAYER_SPAWN_DOOR_SHUTTER_H_PX: i32 = 2;
+const CLASSIC_FIRST_CONTACT_PLAYER_RALLY_FLAG_PENNANT_COUNT: usize = 5;
+const CLASSIC_FIRST_CONTACT_PLAYER_RALLY_FLAG_PENNANT_W_PX: i32 = 6;
+const CLASSIC_FIRST_CONTACT_PLAYER_RALLY_FLAG_PENNANT_H_PX: i32 = 2;
+const CLASSIC_FIRST_CONTACT_PLAYER_FORMATION_JOIN_PIP_COUNT: usize = 3;
+const CLASSIC_FIRST_CONTACT_PLAYER_FORMATION_JOIN_PIP_W_PX: i32 = 4;
+const CLASSIC_FIRST_CONTACT_PLAYER_FORMATION_JOIN_PIP_H_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_PLAYER_SHIELD_CHARGE_ARC_COUNT: usize = 3;
 const CLASSIC_FIRST_CONTACT_PLAYER_SHIELD_CHARGE_ARC_W_PX: i32 = 10;
 const CLASSIC_FIRST_CONTACT_PLAYER_SHIELD_CHARGE_ARC_H_PX: i32 = 2;
@@ -93312,46 +93321,88 @@ fn classic_draw_first_contact_combat_phase_layers(
 
     let spawn_x = core.0 + cell_w;
     let spawn_y = core.1 + cell_h * 2;
-    classic_draw_rect(
-        buffer,
-        width,
-        height,
-        spawn_x - 12,
-        spawn_y - 8,
-        24,
-        6,
-        CLASSIC_RTS_PRODUCTION_SPAWN_DOOR_COLOR,
-    );
-    classic_draw_rect(
-        buffer,
-        width,
-        height,
-        spawn_x - 5,
-        spawn_y - 22,
-        10,
-        14,
-        CLASSIC_RTS_PRODUCTION_SPAWN_FORMATION_JOIN_COLOR,
-    );
-    classic_draw_rect(
-        buffer,
-        width,
-        height,
-        spawn_x + 12,
-        spawn_y - 30,
-        4,
-        22,
-        CLASSIC_RTS_PRODUCTION_SPAWN_RALLY_FLAG_COLOR,
-    );
-    classic_draw_rect(
-        buffer,
-        width,
-        height,
-        spawn_x + 16,
-        spawn_y - 30,
-        18,
-        8,
-        CLASSIC_RTS_PRODUCTION_SPAWN_RALLY_FLAG_COLOR,
-    );
+    if player_screen {
+        for shutter in 0..3 {
+            let shutter = shutter as i32;
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                spawn_x - 10 + shutter * 7,
+                spawn_y - 5 + (shutter % 2),
+                CLASSIC_FIRST_CONTACT_PLAYER_SPAWN_DOOR_SHUTTER_W_PX,
+                CLASSIC_FIRST_CONTACT_PLAYER_SPAWN_DOOR_SHUTTER_H_PX,
+                CLASSIC_RTS_PRODUCTION_SPAWN_DOOR_COLOR,
+            );
+        }
+        for pip in 0..CLASSIC_FIRST_CONTACT_PLAYER_FORMATION_JOIN_PIP_COUNT {
+            let pip = pip as i32;
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                spawn_x - 7 + pip * 6,
+                spawn_y - 17 + (pip % 2),
+                CLASSIC_FIRST_CONTACT_PLAYER_FORMATION_JOIN_PIP_W_PX,
+                CLASSIC_FIRST_CONTACT_PLAYER_FORMATION_JOIN_PIP_H_PX,
+                CLASSIC_RTS_PRODUCTION_SPAWN_FORMATION_JOIN_COLOR,
+            );
+        }
+        for pennant in 0..2 {
+            let pennant = pennant as i32;
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                spawn_x + 12 + pennant * 7,
+                spawn_y - 26 + pennant,
+                CLASSIC_FIRST_CONTACT_PLAYER_RALLY_FLAG_PENNANT_W_PX,
+                CLASSIC_FIRST_CONTACT_PLAYER_RALLY_FLAG_PENNANT_H_PX,
+                CLASSIC_RTS_PRODUCTION_SPAWN_RALLY_FLAG_COLOR,
+            );
+        }
+    } else {
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            spawn_x - 12,
+            spawn_y - 8,
+            24,
+            6,
+            CLASSIC_RTS_PRODUCTION_SPAWN_DOOR_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            spawn_x - 5,
+            spawn_y - 22,
+            10,
+            14,
+            CLASSIC_RTS_PRODUCTION_SPAWN_FORMATION_JOIN_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            spawn_x + 12,
+            spawn_y - 30,
+            4,
+            22,
+            CLASSIC_RTS_PRODUCTION_SPAWN_RALLY_FLAG_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            spawn_x + 16,
+            spawn_y - 30,
+            18,
+            8,
+            CLASSIC_RTS_PRODUCTION_SPAWN_RALLY_FLAG_COLOR,
+        );
+    }
     for flash in 0..4 {
         classic_draw_rect(
             buffer,
@@ -94926,27 +94977,42 @@ fn classic_draw_first_contact_animation_cycle_detail(
             }
         }
         "spawn_door_open_frame" => {
-            classic_draw_rect(
-                buffer,
-                width,
-                height,
-                cx - cell_w,
-                cy + cell_h + 2,
-                cell_w * 2,
-                6,
-                CLASSIC_RTS_PRODUCTION_SPAWN_DOOR_COLOR,
-            );
-            for panel in 0..4 {
+            if player_screen {
+                for panel in 0..4 {
+                    classic_draw_rect(
+                        buffer,
+                        width,
+                        height,
+                        cx - cell_w + 5 + panel * 12,
+                        cy + cell_h + 5 + (panel % 2),
+                        CLASSIC_FIRST_CONTACT_PLAYER_SPAWN_DOOR_SHUTTER_W_PX,
+                        CLASSIC_FIRST_CONTACT_PLAYER_SPAWN_DOOR_SHUTTER_H_PX,
+                        CLASSIC_RTS_PRODUCTION_SPAWN_DOOR_COLOR,
+                    );
+                }
+            } else {
                 classic_draw_rect(
                     buffer,
                     width,
                     height,
-                    cx - cell_w + panel * 13,
-                    cy + cell_h + 9 + (panel % 2) * 4,
-                    9,
-                    18,
+                    cx - cell_w,
+                    cy + cell_h + 2,
+                    cell_w * 2,
+                    6,
                     CLASSIC_RTS_PRODUCTION_SPAWN_DOOR_COLOR,
                 );
+                for panel in 0..4 {
+                    classic_draw_rect(
+                        buffer,
+                        width,
+                        height,
+                        cx - cell_w + panel * 13,
+                        cy + cell_h + 9 + (panel % 2) * 4,
+                        9,
+                        18,
+                        CLASSIC_RTS_PRODUCTION_SPAWN_DOOR_COLOR,
+                    );
+                }
             }
         }
         "construction_spark_ladder" => {
@@ -94998,27 +95064,43 @@ fn classic_draw_first_contact_animation_cycle_detail(
             );
         }
         "rally_flag_flutter" => {
-            classic_draw_rect(
-                buffer,
-                width,
-                height,
-                cx - 3,
-                cy - cell_h * 2,
-                6,
-                cell_h * 3,
-                CLASSIC_RTS_PRODUCTION_SPAWN_RALLY_FLAG_COLOR,
-            );
-            for stripe in 0..4 {
+            if player_screen {
+                for pennant in 0..3 {
+                    let pennant = pennant as i32;
+                    classic_draw_rect(
+                        buffer,
+                        width,
+                        height,
+                        cx + 2 + (pennant % 2) * 2,
+                        cy - cell_h * 2 + 4 + pennant * 6,
+                        CLASSIC_FIRST_CONTACT_PLAYER_RALLY_FLAG_PENNANT_W_PX,
+                        CLASSIC_FIRST_CONTACT_PLAYER_RALLY_FLAG_PENNANT_H_PX,
+                        CLASSIC_RTS_PRODUCTION_SPAWN_RALLY_FLAG_COLOR,
+                    );
+                }
+            } else {
                 classic_draw_rect(
                     buffer,
                     width,
                     height,
-                    cx + 2,
-                    cy - cell_h * 2 + stripe * 8,
-                    28 - stripe * 4,
+                    cx - 3,
+                    cy - cell_h * 2,
                     6,
+                    cell_h * 3,
                     CLASSIC_RTS_PRODUCTION_SPAWN_RALLY_FLAG_COLOR,
                 );
+                for stripe in 0..4 {
+                    classic_draw_rect(
+                        buffer,
+                        width,
+                        height,
+                        cx + 2,
+                        cy - cell_h * 2 + stripe * 8,
+                        28 - stripe * 4,
+                        6,
+                        CLASSIC_RTS_PRODUCTION_SPAWN_RALLY_FLAG_COLOR,
+                    );
+                }
             }
         }
         _ => {}
@@ -102105,6 +102187,15 @@ fn classic_first_contact_motion_readability_guard() -> Value {
             as usize,
         animation_training_tick_height_px: CLASSIC_FIRST_CONTACT_PLAYER_ANIMATION_TRAINING_TICK_H_PX
             as usize,
+        spawn_door_shutter_count: CLASSIC_FIRST_CONTACT_PLAYER_SPAWN_DOOR_SHUTTER_COUNT,
+        spawn_door_shutter_width_px: CLASSIC_FIRST_CONTACT_PLAYER_SPAWN_DOOR_SHUTTER_W_PX as usize,
+        spawn_door_shutter_height_px: CLASSIC_FIRST_CONTACT_PLAYER_SPAWN_DOOR_SHUTTER_H_PX as usize,
+        rally_flag_pennant_count: CLASSIC_FIRST_CONTACT_PLAYER_RALLY_FLAG_PENNANT_COUNT,
+        rally_flag_pennant_width_px: CLASSIC_FIRST_CONTACT_PLAYER_RALLY_FLAG_PENNANT_W_PX as usize,
+        rally_flag_pennant_height_px: CLASSIC_FIRST_CONTACT_PLAYER_RALLY_FLAG_PENNANT_H_PX as usize,
+        formation_join_pip_count: CLASSIC_FIRST_CONTACT_PLAYER_FORMATION_JOIN_PIP_COUNT,
+        formation_join_pip_width_px: CLASSIC_FIRST_CONTACT_PLAYER_FORMATION_JOIN_PIP_W_PX as usize,
+        formation_join_pip_height_px: CLASSIC_FIRST_CONTACT_PLAYER_FORMATION_JOIN_PIP_H_PX as usize,
         shield_charge_arc_count: CLASSIC_FIRST_CONTACT_PLAYER_SHIELD_CHARGE_ARC_COUNT,
         shield_charge_arc_width_px: CLASSIC_FIRST_CONTACT_PLAYER_SHIELD_CHARGE_ARC_W_PX as usize,
         shield_charge_arc_height_px: CLASSIC_FIRST_CONTACT_PLAYER_SHIELD_CHARGE_ARC_H_PX as usize,
@@ -150576,6 +150667,9 @@ mod tests {
             "unit_state_motion_gate",
             "production_training_spark_gate",
             "warden_attack_arm_gate",
+            "spawn_door_shutter_gate",
+            "rally_flag_pennant_gate",
+            "formation_join_pip_gate",
             "shield_charge_arc_gate",
             "sensor_sweep_tick_gate",
             "combat_hit_flash_spark_gate",

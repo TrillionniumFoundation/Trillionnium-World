@@ -1146,6 +1146,21 @@ cat >"$JQ_FILTER" <<'JQ'
   and .first_contact_motion_readability_guard.animation_training_tick_width_px == 4
   and .first_contact_motion_readability_guard.animation_training_tick_height_px == 2
   and .first_contact_motion_readability_guard.animation_training_tick_pixel_budget <= 24
+  and (.first_contact_motion_readability_guard.player_screen_animation_signatures | index("player_screen_spawn_door_micro_shutters") != null)
+  and .first_contact_motion_readability_guard.spawn_door_shutter_count == 7
+  and .first_contact_motion_readability_guard.spawn_door_shutter_width_px == 4
+  and .first_contact_motion_readability_guard.spawn_door_shutter_height_px == 2
+  and .first_contact_motion_readability_guard.spawn_door_shutter_pixel_budget <= 56
+  and (.first_contact_motion_readability_guard.player_screen_animation_signatures | index("player_screen_rally_flag_micro_pennants") != null)
+  and .first_contact_motion_readability_guard.rally_flag_pennant_count == 5
+  and .first_contact_motion_readability_guard.rally_flag_pennant_width_px == 6
+  and .first_contact_motion_readability_guard.rally_flag_pennant_height_px == 2
+  and .first_contact_motion_readability_guard.rally_flag_pennant_pixel_budget <= 60
+  and (.first_contact_motion_readability_guard.player_screen_animation_signatures | index("player_screen_formation_join_micro_pips") != null)
+  and .first_contact_motion_readability_guard.formation_join_pip_count == 3
+  and .first_contact_motion_readability_guard.formation_join_pip_width_px == 4
+  and .first_contact_motion_readability_guard.formation_join_pip_height_px == 2
+  and .first_contact_motion_readability_guard.formation_join_pip_pixel_budget <= 24
   and (.first_contact_motion_readability_guard.player_screen_animation_signatures | index("player_screen_shield_charge_micro_arcs") != null)
   and .first_contact_motion_readability_guard.shield_charge_arc_count == 3
   and .first_contact_motion_readability_guard.shield_charge_arc_width_px == 10
@@ -1229,6 +1244,9 @@ cat >"$JQ_FILTER" <<'JQ'
   and .first_contact_motion_readability_guard.production_training_spark_gate == true
   and .first_contact_motion_readability_guard.warden_attack_arm_gate == true
   and .first_contact_motion_readability_guard.animation_training_tick_gate == true
+  and .first_contact_motion_readability_guard.spawn_door_shutter_gate == true
+  and .first_contact_motion_readability_guard.rally_flag_pennant_gate == true
+  and .first_contact_motion_readability_guard.formation_join_pip_gate == true
   and (.first_contact_motion_readability_guard.player_screen_animation_signatures | index("player_screen_worker_carry_load_micro_pips") != null)
   and .first_contact_motion_readability_guard.carry_load_pip_count == 4
   and .first_contact_motion_readability_guard.carry_load_pip_width_px == 4

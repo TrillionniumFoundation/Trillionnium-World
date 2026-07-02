@@ -41,6 +41,15 @@ pub struct RtsFirstContactMotionReadabilityRuntime {
     pub animation_training_tick_count: usize,
     pub animation_training_tick_width_px: usize,
     pub animation_training_tick_height_px: usize,
+    pub spawn_door_shutter_count: usize,
+    pub spawn_door_shutter_width_px: usize,
+    pub spawn_door_shutter_height_px: usize,
+    pub rally_flag_pennant_count: usize,
+    pub rally_flag_pennant_width_px: usize,
+    pub rally_flag_pennant_height_px: usize,
+    pub formation_join_pip_count: usize,
+    pub formation_join_pip_width_px: usize,
+    pub formation_join_pip_height_px: usize,
     pub shield_charge_arc_count: usize,
     pub shield_charge_arc_width_px: usize,
     pub shield_charge_arc_height_px: usize,
@@ -244,6 +253,15 @@ pub fn first_contact_motion_readability_guard(
     let animation_training_tick_pixel_budget = runtime.animation_training_tick_count
         * runtime.animation_training_tick_width_px
         * runtime.animation_training_tick_height_px;
+    let spawn_door_shutter_pixel_budget = runtime.spawn_door_shutter_count
+        * runtime.spawn_door_shutter_width_px
+        * runtime.spawn_door_shutter_height_px;
+    let rally_flag_pennant_pixel_budget = runtime.rally_flag_pennant_count
+        * runtime.rally_flag_pennant_width_px
+        * runtime.rally_flag_pennant_height_px;
+    let formation_join_pip_pixel_budget = runtime.formation_join_pip_count
+        * runtime.formation_join_pip_width_px
+        * runtime.formation_join_pip_height_px;
     let shield_charge_arc_pixel_budget = runtime.shield_charge_arc_count
         * runtime.shield_charge_arc_width_px
         * runtime.shield_charge_arc_height_px;
@@ -265,6 +283,9 @@ pub fn first_contact_motion_readability_guard(
     ]);
     let player_screen_animation_signatures = string_vec([
         "player_screen_animation_training_lane_micro_ticks",
+        "player_screen_spawn_door_micro_shutters",
+        "player_screen_rally_flag_micro_pennants",
+        "player_screen_formation_join_micro_pips",
         "player_screen_worker_carry_load_micro_pips",
         "player_screen_shield_charge_micro_arcs",
         "player_screen_sensor_sweep_micro_ticks",
@@ -276,6 +297,27 @@ pub fn first_contact_motion_readability_guard(
         && player_screen_animation_signatures.iter().any(|signature| {
             signature.as_str() == "player_screen_animation_training_lane_micro_ticks"
         });
+    let spawn_door_shutter_gate = runtime.spawn_door_shutter_count == 7
+        && runtime.spawn_door_shutter_width_px == 4
+        && runtime.spawn_door_shutter_height_px == 2
+        && spawn_door_shutter_pixel_budget <= 56
+        && player_screen_animation_signatures
+            .iter()
+            .any(|signature| signature.as_str() == "player_screen_spawn_door_micro_shutters");
+    let rally_flag_pennant_gate = runtime.rally_flag_pennant_count == 5
+        && runtime.rally_flag_pennant_width_px == 6
+        && runtime.rally_flag_pennant_height_px == 2
+        && rally_flag_pennant_pixel_budget <= 60
+        && player_screen_animation_signatures
+            .iter()
+            .any(|signature| signature.as_str() == "player_screen_rally_flag_micro_pennants");
+    let formation_join_pip_gate = runtime.formation_join_pip_count == 3
+        && runtime.formation_join_pip_width_px == 4
+        && runtime.formation_join_pip_height_px == 2
+        && formation_join_pip_pixel_budget <= 24
+        && player_screen_animation_signatures
+            .iter()
+            .any(|signature| signature.as_str() == "player_screen_formation_join_micro_pips");
     let carry_load_pip_gate = runtime.carry_load_pip_count == 4
         && runtime.carry_load_pip_width_px == 4
         && runtime.carry_load_pip_height_px == 2
@@ -424,6 +466,9 @@ pub fn first_contact_motion_readability_guard(
         && command_feedback_motion_gate
         && runtime_motion_gate
         && animation_training_tick_gate
+        && spawn_door_shutter_gate
+        && rally_flag_pennant_gate
+        && formation_join_pip_gate
         && carry_load_pip_gate
         && shield_charge_arc_gate
         && sensor_sweep_tick_gate
@@ -512,6 +557,21 @@ pub fn first_contact_motion_readability_guard(
         "animation_training_tick_height_px": runtime.animation_training_tick_height_px,
         "animation_training_tick_pixel_budget": animation_training_tick_pixel_budget,
         "animation_training_tick_gate": animation_training_tick_gate,
+        "spawn_door_shutter_count": runtime.spawn_door_shutter_count,
+        "spawn_door_shutter_width_px": runtime.spawn_door_shutter_width_px,
+        "spawn_door_shutter_height_px": runtime.spawn_door_shutter_height_px,
+        "spawn_door_shutter_pixel_budget": spawn_door_shutter_pixel_budget,
+        "spawn_door_shutter_gate": spawn_door_shutter_gate,
+        "rally_flag_pennant_count": runtime.rally_flag_pennant_count,
+        "rally_flag_pennant_width_px": runtime.rally_flag_pennant_width_px,
+        "rally_flag_pennant_height_px": runtime.rally_flag_pennant_height_px,
+        "rally_flag_pennant_pixel_budget": rally_flag_pennant_pixel_budget,
+        "rally_flag_pennant_gate": rally_flag_pennant_gate,
+        "formation_join_pip_count": runtime.formation_join_pip_count,
+        "formation_join_pip_width_px": runtime.formation_join_pip_width_px,
+        "formation_join_pip_height_px": runtime.formation_join_pip_height_px,
+        "formation_join_pip_pixel_budget": formation_join_pip_pixel_budget,
+        "formation_join_pip_gate": formation_join_pip_gate,
         "carry_load_pip_count": runtime.carry_load_pip_count,
         "carry_load_pip_width_px": runtime.carry_load_pip_width_px,
         "carry_load_pip_height_px": runtime.carry_load_pip_height_px,
@@ -640,6 +700,15 @@ mod tests {
             animation_training_tick_count: 3,
             animation_training_tick_width_px: 4,
             animation_training_tick_height_px: 2,
+            spawn_door_shutter_count: 7,
+            spawn_door_shutter_width_px: 4,
+            spawn_door_shutter_height_px: 2,
+            rally_flag_pennant_count: 5,
+            rally_flag_pennant_width_px: 6,
+            rally_flag_pennant_height_px: 2,
+            formation_join_pip_count: 3,
+            formation_join_pip_width_px: 4,
+            formation_join_pip_height_px: 2,
             shield_charge_arc_count: 3,
             shield_charge_arc_width_px: 10,
             shield_charge_arc_height_px: 2,
@@ -844,6 +913,12 @@ mod tests {
                     signatures.iter().any(|value| {
                         value.as_str() == Some("player_screen_animation_training_lane_micro_ticks")
                     }) && signatures.iter().any(|value| {
+                        value.as_str() == Some("player_screen_spawn_door_micro_shutters")
+                    }) && signatures.iter().any(|value| {
+                        value.as_str() == Some("player_screen_rally_flag_micro_pennants")
+                    }) && signatures.iter().any(|value| {
+                        value.as_str() == Some("player_screen_formation_join_micro_pips")
+                    }) && signatures.iter().any(|value| {
                         value.as_str() == Some("player_screen_worker_carry_load_micro_pips")
                     }) && signatures.iter().any(|value| {
                         value.as_str() == Some("player_screen_shield_charge_micro_arcs")
@@ -862,6 +937,42 @@ mod tests {
         assert_eq!(
             guard
                 .get("animation_training_tick_gate")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            guard
+                .get("spawn_door_shutter_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(56)
+        );
+        assert_eq!(
+            guard
+                .get("spawn_door_shutter_gate")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            guard
+                .get("rally_flag_pennant_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(60)
+        );
+        assert_eq!(
+            guard
+                .get("rally_flag_pennant_gate")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            guard
+                .get("formation_join_pip_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(24)
+        );
+        assert_eq!(
+            guard
+                .get("formation_join_pip_gate")
                 .and_then(Value::as_bool),
             Some(true)
         );
@@ -1014,6 +1125,9 @@ mod tests {
             "unit_state_motion_gate",
             "production_training_spark_gate",
             "warden_attack_arm_gate",
+            "spawn_door_shutter_gate",
+            "rally_flag_pennant_gate",
+            "formation_join_pip_gate",
             "shield_charge_arc_gate",
             "sensor_sweep_tick_gate",
             "combat_hit_flash_spark_gate",
