@@ -94804,7 +94804,7 @@ fn classic_draw_first_contact_art_terrain_detail(
     signature: &str,
 ) {
     first_contact_art_renderer::draw_terrain_detail(
-        buffer, width, height, map_x, map_y, cell_w, cell_h, tile, role, signature,
+        buffer, width, height, map_x, map_y, cell_w, cell_h, tile, role, signature, false,
     );
 }
 
@@ -150624,6 +150624,120 @@ mod tests {
             Some(192)
         );
         assert_eq!(
+            guard
+                .get("player_screen_resource_crystal_shard_samples")
+                .cloned(),
+            Some(json!([
+                {"tile": "12,16", "role": "resource_crystal", "signature": "flux_crystal_shards"},
+                {"tile": "21,16", "role": "resource_crystal", "signature": "flux_crystal_shards"}
+            ]))
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_resource_crystal_shard_count")
+                .and_then(Value::as_u64),
+            Some(2)
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_resource_crystal_shards_per_cluster")
+                .and_then(Value::as_u64),
+            Some(4)
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_resource_crystal_shard_width_px")
+                .and_then(Value::as_u64),
+            Some(4)
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_resource_crystal_shard_height_px")
+                .and_then(Value::as_u64),
+            Some(2)
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_resource_crystal_shard_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(64)
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_resource_crystal_hot_shard_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(0)
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_resource_crystal_shard_signatures")
+                .and_then(Value::as_array)
+                .map(|signatures| signatures.iter().any(|signature| {
+                    signature.as_str() == Some("player_screen_resource_crystal_micro_shards")
+                }) && signatures.iter().any(|signature| {
+                    signature.as_str()
+                        == Some("player_screen_resource_crystal_hot_shards_suppressed")
+                })),
+            Some(true)
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_resource_cluster_sparkle_samples")
+                .cloned(),
+            Some(json!([
+                {"tile": "12,16", "role": "resource_cluster", "signature": "crystal_shadow_sparkles"},
+                {"tile": "21,16", "role": "resource_cluster", "signature": "crystal_shadow_sparkles"}
+            ]))
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_resource_cluster_sparkle_count")
+                .and_then(Value::as_u64),
+            Some(2)
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_resource_cluster_sparkles_per_cluster")
+                .and_then(Value::as_u64),
+            Some(4)
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_resource_cluster_sparkle_width_px")
+                .and_then(Value::as_u64),
+            Some(4)
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_resource_cluster_sparkle_height_px")
+                .and_then(Value::as_u64),
+            Some(2)
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_resource_cluster_sparkle_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(64)
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_resource_cluster_hot_glint_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(0)
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_resource_cluster_sparkle_signatures")
+                .and_then(Value::as_array)
+                .map(|signatures| signatures.iter().any(|signature| {
+                    signature.as_str() == Some("player_screen_resource_cluster_micro_sparkles")
+                }) && signatures.iter().any(|signature| {
+                    signature.as_str()
+                        == Some("player_screen_resource_cluster_hot_glints_suppressed")
+                })),
+            Some(true)
+        );
+        assert_eq!(
             guard.get("player_screen_command_core_art_samples").cloned(),
             Some(json!([
                 {"tile": "8,8", "role": "command_core", "signature": "lit_window_rows"},
@@ -150767,6 +150881,8 @@ mod tests {
             "map_landmark_detail_gate",
             "runtime_actor_depth_gate",
             "secondary_beacon_capture_ring_gate",
+            "player_screen_resource_crystal_shard_gate",
+            "player_screen_resource_cluster_sparkle_gate",
             "player_screen_command_core_art_gate",
             "player_screen_base_gate_lamp_gate",
             "authored_map_art_gate",

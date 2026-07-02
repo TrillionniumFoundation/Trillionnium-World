@@ -1062,6 +1062,36 @@ add_first_contact_basin_source_manifest_packet_fixtures() {
         "secondary_beacon_capture_micro_cues"
       ],
       secondary_beacon_capture_ring_gate: true,
+      player_screen_resource_crystal_shard_samples: [
+        {tile: "12,16", role: "resource_crystal", signature: "flux_crystal_shards"},
+        {tile: "21,16", role: "resource_crystal", signature: "flux_crystal_shards"}
+      ],
+      player_screen_resource_crystal_shard_count: 2,
+      player_screen_resource_crystal_shards_per_cluster: 4,
+      player_screen_resource_crystal_shard_width_px: 4,
+      player_screen_resource_crystal_shard_height_px: 2,
+      player_screen_resource_crystal_shard_pixel_budget: 64,
+      player_screen_resource_crystal_hot_shard_pixel_budget: 0,
+      player_screen_resource_crystal_shard_signatures: [
+        "player_screen_resource_crystal_micro_shards",
+        "player_screen_resource_crystal_hot_shards_suppressed"
+      ],
+      player_screen_resource_crystal_shard_gate: true,
+      player_screen_resource_cluster_sparkle_samples: [
+        {tile: "12,16", role: "resource_cluster", signature: "crystal_shadow_sparkles"},
+        {tile: "21,16", role: "resource_cluster", signature: "crystal_shadow_sparkles"}
+      ],
+      player_screen_resource_cluster_sparkle_count: 2,
+      player_screen_resource_cluster_sparkles_per_cluster: 4,
+      player_screen_resource_cluster_sparkle_width_px: 4,
+      player_screen_resource_cluster_sparkle_height_px: 2,
+      player_screen_resource_cluster_sparkle_pixel_budget: 64,
+      player_screen_resource_cluster_hot_glint_pixel_budget: 0,
+      player_screen_resource_cluster_sparkle_signatures: [
+        "player_screen_resource_cluster_micro_sparkles",
+        "player_screen_resource_cluster_hot_glints_suppressed"
+      ],
+      player_screen_resource_cluster_sparkle_gate: true,
       player_screen_command_core_art_samples: [
         {tile: "8,8", role: "command_core", signature: "lit_window_rows"},
         {tile: "25,8", role: "command_core", signature: "lit_window_rows"},

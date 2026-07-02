@@ -17,6 +17,10 @@ fn lower_secondary_beacon_terrain_detail(tile: (i32, i32), role: &str, signature
     tile == (16, 24) && role == "beacon_lane" && signature == "painted_lane_chevrons"
 }
 
+fn resource_crystal_shard_detail(_tile: (i32, i32), role: &str, signature: &str) -> bool {
+    role == "resource_crystal" && signature == "flux_crystal_shards"
+}
+
 fn lower_secondary_beacon_landmark_detail(tile: (i32, i32), role: &str, signature: &str) -> bool {
     tile == (16, 23) && role == "beacon_lane" && signature == "lane_power_pylons"
 }
@@ -28,6 +32,10 @@ fn secondary_beacon_capture_ring_detail(tile: (i32, i32), role: &str, signature:
             | ((9, 16), "beacon_ring", "beacon_capture_rings")
             | ((24, 16), "beacon_ring", "beacon_capture_rings")
     )
+}
+
+fn resource_cluster_sparkle_detail(_tile: (i32, i32), role: &str, signature: &str) -> bool {
+    role == "resource_cluster" && signature == "crystal_shadow_sparkles"
 }
 
 fn command_core_art_detail(_tile: (i32, i32), role: &str, signature: &str) -> bool {
@@ -174,6 +182,58 @@ pub fn first_contact_art_readability_guard() -> Value {
     let secondary_beacon_capture_ring_pixel_budget = secondary_beacon_capture_ring_cue_count
         * secondary_beacon_capture_ring_cue_width_px
         * secondary_beacon_capture_ring_cue_height_px;
+    let player_screen_resource_crystal_shard_samples = terrain_samples
+        .iter()
+        .filter(|(tile, role, signature)| resource_crystal_shard_detail(*tile, role, signature))
+        .map(|(tile, role, signature)| {
+            json!({
+                "tile": tile_id(*tile),
+                "role": role,
+                "signature": signature,
+            })
+        })
+        .collect::<Vec<_>>();
+    let player_screen_resource_crystal_shard_signatures = string_vec([
+        "player_screen_resource_crystal_micro_shards",
+        "player_screen_resource_crystal_hot_shards_suppressed",
+    ]);
+    let player_screen_resource_crystal_shard_count =
+        player_screen_resource_crystal_shard_samples.len();
+    let player_screen_resource_crystal_shards_per_cluster = 4usize;
+    let player_screen_resource_crystal_shard_width_px = 4usize;
+    let player_screen_resource_crystal_shard_height_px = 2usize;
+    let player_screen_resource_crystal_shard_pixel_budget =
+        player_screen_resource_crystal_shard_count
+            * player_screen_resource_crystal_shards_per_cluster
+            * player_screen_resource_crystal_shard_width_px
+            * player_screen_resource_crystal_shard_height_px;
+    let player_screen_resource_crystal_hot_shard_pixel_budget = 0usize;
+    let player_screen_resource_cluster_sparkle_samples = landmark_samples
+        .iter()
+        .filter(|(tile, role, signature)| resource_cluster_sparkle_detail(*tile, role, signature))
+        .map(|(tile, role, signature)| {
+            json!({
+                "tile": tile_id(*tile),
+                "role": role,
+                "signature": signature,
+            })
+        })
+        .collect::<Vec<_>>();
+    let player_screen_resource_cluster_sparkle_signatures = string_vec([
+        "player_screen_resource_cluster_micro_sparkles",
+        "player_screen_resource_cluster_hot_glints_suppressed",
+    ]);
+    let player_screen_resource_cluster_sparkle_count =
+        player_screen_resource_cluster_sparkle_samples.len();
+    let player_screen_resource_cluster_sparkles_per_cluster = 4usize;
+    let player_screen_resource_cluster_sparkle_width_px = 4usize;
+    let player_screen_resource_cluster_sparkle_height_px = 2usize;
+    let player_screen_resource_cluster_sparkle_pixel_budget =
+        player_screen_resource_cluster_sparkle_count
+            * player_screen_resource_cluster_sparkles_per_cluster
+            * player_screen_resource_cluster_sparkle_width_px
+            * player_screen_resource_cluster_sparkle_height_px;
+    let player_screen_resource_cluster_hot_glint_pixel_budget = 0usize;
     let player_screen_command_core_art_samples = building_samples
         .iter()
         .filter(|(tile, role, signature)| command_core_art_detail(*tile, role, signature))
@@ -367,6 +427,56 @@ pub fn first_contact_art_readability_guard() -> Value {
         && secondary_beacon_capture_ring_signatures
             .iter()
             .any(|signature| signature == "secondary_beacon_capture_micro_cues");
+    let player_screen_resource_crystal_shard_gate = player_screen_resource_crystal_shard_samples
+        == vec![
+            json!({
+                "tile": "12,16",
+                "role": "resource_crystal",
+                "signature": "flux_crystal_shards",
+            }),
+            json!({
+                "tile": "21,16",
+                "role": "resource_crystal",
+                "signature": "flux_crystal_shards",
+            }),
+        ]
+        && player_screen_resource_crystal_shard_count == 2
+        && player_screen_resource_crystal_shards_per_cluster == 4
+        && player_screen_resource_crystal_shard_width_px == 4
+        && player_screen_resource_crystal_shard_height_px == 2
+        && player_screen_resource_crystal_shard_pixel_budget <= 64
+        && player_screen_resource_crystal_hot_shard_pixel_budget == 0
+        && player_screen_resource_crystal_shard_signatures
+            .iter()
+            .any(|signature| signature == "player_screen_resource_crystal_micro_shards")
+        && player_screen_resource_crystal_shard_signatures
+            .iter()
+            .any(|signature| signature == "player_screen_resource_crystal_hot_shards_suppressed");
+    let player_screen_resource_cluster_sparkle_gate = player_screen_resource_cluster_sparkle_samples
+        == vec![
+            json!({
+                "tile": "12,16",
+                "role": "resource_cluster",
+                "signature": "crystal_shadow_sparkles",
+            }),
+            json!({
+                "tile": "21,16",
+                "role": "resource_cluster",
+                "signature": "crystal_shadow_sparkles",
+            }),
+        ]
+        && player_screen_resource_cluster_sparkle_count == 2
+        && player_screen_resource_cluster_sparkles_per_cluster == 4
+        && player_screen_resource_cluster_sparkle_width_px == 4
+        && player_screen_resource_cluster_sparkle_height_px == 2
+        && player_screen_resource_cluster_sparkle_pixel_budget <= 64
+        && player_screen_resource_cluster_hot_glint_pixel_budget == 0
+        && player_screen_resource_cluster_sparkle_signatures
+            .iter()
+            .any(|signature| signature == "player_screen_resource_cluster_micro_sparkles")
+        && player_screen_resource_cluster_sparkle_signatures
+            .iter()
+            .any(|signature| signature == "player_screen_resource_cluster_hot_glints_suppressed");
     let player_screen_command_core_art_gate = player_screen_command_core_art_samples
         == vec![
             json!({
@@ -444,6 +554,8 @@ pub fn first_contact_art_readability_guard() -> Value {
         && runtime_actor_depth_gate
         && lower_secondary_beacon_art_deemphasis_gate
         && secondary_beacon_capture_ring_gate
+        && player_screen_resource_crystal_shard_gate
+        && player_screen_resource_cluster_sparkle_gate
         && player_screen_command_core_art_gate
         && player_screen_base_gate_lamp_gate;
     let green = authored_map_art_gate;
@@ -502,6 +614,24 @@ pub fn first_contact_art_readability_guard() -> Value {
         "secondary_beacon_capture_ring_pixel_budget": secondary_beacon_capture_ring_pixel_budget,
         "secondary_beacon_capture_ring_signatures": secondary_beacon_capture_ring_signatures,
         "secondary_beacon_capture_ring_gate": secondary_beacon_capture_ring_gate,
+        "player_screen_resource_crystal_shard_samples": player_screen_resource_crystal_shard_samples,
+        "player_screen_resource_crystal_shard_count": player_screen_resource_crystal_shard_count,
+        "player_screen_resource_crystal_shards_per_cluster": player_screen_resource_crystal_shards_per_cluster,
+        "player_screen_resource_crystal_shard_width_px": player_screen_resource_crystal_shard_width_px,
+        "player_screen_resource_crystal_shard_height_px": player_screen_resource_crystal_shard_height_px,
+        "player_screen_resource_crystal_shard_pixel_budget": player_screen_resource_crystal_shard_pixel_budget,
+        "player_screen_resource_crystal_hot_shard_pixel_budget": player_screen_resource_crystal_hot_shard_pixel_budget,
+        "player_screen_resource_crystal_shard_signatures": player_screen_resource_crystal_shard_signatures,
+        "player_screen_resource_crystal_shard_gate": player_screen_resource_crystal_shard_gate,
+        "player_screen_resource_cluster_sparkle_samples": player_screen_resource_cluster_sparkle_samples,
+        "player_screen_resource_cluster_sparkle_count": player_screen_resource_cluster_sparkle_count,
+        "player_screen_resource_cluster_sparkles_per_cluster": player_screen_resource_cluster_sparkles_per_cluster,
+        "player_screen_resource_cluster_sparkle_width_px": player_screen_resource_cluster_sparkle_width_px,
+        "player_screen_resource_cluster_sparkle_height_px": player_screen_resource_cluster_sparkle_height_px,
+        "player_screen_resource_cluster_sparkle_pixel_budget": player_screen_resource_cluster_sparkle_pixel_budget,
+        "player_screen_resource_cluster_hot_glint_pixel_budget": player_screen_resource_cluster_hot_glint_pixel_budget,
+        "player_screen_resource_cluster_sparkle_signatures": player_screen_resource_cluster_sparkle_signatures,
+        "player_screen_resource_cluster_sparkle_gate": player_screen_resource_cluster_sparkle_gate,
         "player_screen_command_core_art_samples": player_screen_command_core_art_samples,
         "player_screen_command_core_art_count": player_screen_command_core_art_count,
         "player_screen_command_core_art_ticks_per_core": player_screen_command_core_art_ticks_per_core,
@@ -679,6 +809,120 @@ mod tests {
             Some(192)
         );
         assert_eq!(
+            guard
+                .get("player_screen_resource_crystal_shard_samples")
+                .cloned(),
+            Some(json!([
+                {"tile": "12,16", "role": "resource_crystal", "signature": "flux_crystal_shards"},
+                {"tile": "21,16", "role": "resource_crystal", "signature": "flux_crystal_shards"}
+            ]))
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_resource_crystal_shard_count")
+                .and_then(Value::as_u64),
+            Some(2)
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_resource_crystal_shards_per_cluster")
+                .and_then(Value::as_u64),
+            Some(4)
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_resource_crystal_shard_width_px")
+                .and_then(Value::as_u64),
+            Some(4)
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_resource_crystal_shard_height_px")
+                .and_then(Value::as_u64),
+            Some(2)
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_resource_crystal_shard_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(64)
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_resource_crystal_hot_shard_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(0)
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_resource_crystal_shard_signatures")
+                .and_then(Value::as_array)
+                .map(|signatures| signatures.iter().any(|signature| {
+                    signature.as_str() == Some("player_screen_resource_crystal_micro_shards")
+                }) && signatures.iter().any(|signature| {
+                    signature.as_str()
+                        == Some("player_screen_resource_crystal_hot_shards_suppressed")
+                })),
+            Some(true)
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_resource_cluster_sparkle_samples")
+                .cloned(),
+            Some(json!([
+                {"tile": "12,16", "role": "resource_cluster", "signature": "crystal_shadow_sparkles"},
+                {"tile": "21,16", "role": "resource_cluster", "signature": "crystal_shadow_sparkles"}
+            ]))
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_resource_cluster_sparkle_count")
+                .and_then(Value::as_u64),
+            Some(2)
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_resource_cluster_sparkles_per_cluster")
+                .and_then(Value::as_u64),
+            Some(4)
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_resource_cluster_sparkle_width_px")
+                .and_then(Value::as_u64),
+            Some(4)
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_resource_cluster_sparkle_height_px")
+                .and_then(Value::as_u64),
+            Some(2)
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_resource_cluster_sparkle_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(64)
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_resource_cluster_hot_glint_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(0)
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_resource_cluster_sparkle_signatures")
+                .and_then(Value::as_array)
+                .map(|signatures| signatures.iter().any(|signature| {
+                    signature.as_str() == Some("player_screen_resource_cluster_micro_sparkles")
+                }) && signatures.iter().any(|signature| {
+                    signature.as_str()
+                        == Some("player_screen_resource_cluster_hot_glints_suppressed")
+                })),
+            Some(true)
+        );
+        assert_eq!(
             guard.get("player_screen_command_core_art_samples").cloned(),
             Some(json!([
                 {"tile": "8,8", "role": "command_core", "signature": "lit_window_rows"},
@@ -801,6 +1045,8 @@ mod tests {
             "runtime_actor_depth_gate",
             "lower_secondary_beacon_art_deemphasis_gate",
             "secondary_beacon_capture_ring_gate",
+            "player_screen_resource_crystal_shard_gate",
+            "player_screen_resource_cluster_sparkle_gate",
             "player_screen_command_core_art_gate",
             "player_screen_base_gate_lamp_gate",
             "authored_map_art_gate",

@@ -43,6 +43,22 @@ pub(crate) fn secondary_beacon_capture_ring_detail(
     )
 }
 
+pub(crate) fn player_screen_resource_cluster_sparkles(
+    role: &str,
+    signature: &str,
+    player_screen: bool,
+) -> bool {
+    player_screen && role == "resource_cluster" && signature == "crystal_shadow_sparkles"
+}
+
+pub(crate) fn player_screen_resource_crystal_shards(
+    role: &str,
+    signature: &str,
+    player_screen: bool,
+) -> bool {
+    player_screen && role == "resource_crystal" && signature == "flux_crystal_shards"
+}
+
 pub(crate) fn player_screen_secondary_beacon_body(
     tile: (i32, i32),
     role: &str,
@@ -161,6 +177,31 @@ mod tests {
             (24, 16),
             "beacon_ring",
             "beacon_capture_rings"
+        ));
+        assert!(player_screen_resource_cluster_sparkles(
+            "resource_cluster",
+            "crystal_shadow_sparkles",
+            true
+        ));
+        assert!(!player_screen_resource_cluster_sparkles(
+            "resource_cluster",
+            "crystal_shadow_sparkles",
+            false
+        ));
+        assert!(!player_screen_resource_cluster_sparkles(
+            "beacon",
+            "crystal_shadow_sparkles",
+            true
+        ));
+        assert!(player_screen_resource_crystal_shards(
+            "resource_crystal",
+            "flux_crystal_shards",
+            true
+        ));
+        assert!(!player_screen_resource_crystal_shards(
+            "resource_crystal",
+            "flux_crystal_shards",
+            false
         ));
         assert!(!secondary_beacon_capture_ring_detail(
             (16, 9),

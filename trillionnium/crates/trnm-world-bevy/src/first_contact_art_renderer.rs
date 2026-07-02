@@ -178,6 +178,7 @@ pub(super) fn draw_terrain_detail(
     tile: (i32, i32),
     role: &str,
     signature: &str,
+    player_screen: bool,
 ) {
     let (tile_x, tile_y) = classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, tile);
     let cx = tile_x + cell_w / 2;
@@ -219,6 +220,29 @@ pub(super) fn draw_terrain_detail(
             }
         }
         "flux_crystal_shards" => {
+            if first_contact_renderer_readability::player_screen_resource_crystal_shards(
+                role,
+                signature,
+                player_screen,
+            ) {
+                let quiet = classic_darken(color, 1, 3);
+                let edge = classic_darken(color, 1, 5);
+                for (dx, dy, shard_color) in
+                    [(-9, 1, quiet), (0, -6, edge), (9, 2, quiet), (3, 7, edge)]
+                {
+                    classic_draw_rect(
+                        buffer,
+                        width,
+                        height,
+                        cx + dx - 2,
+                        cy + dy - 1,
+                        4,
+                        2,
+                        shard_color,
+                    );
+                }
+                return;
+            }
             for (dx, dy, size) in [(-9, 1, 5), (0, -6, 7), (9, 2, 4), (3, 7, 3)] {
                 classic_draw_rect(
                     buffer,
@@ -512,6 +536,23 @@ pub(super) fn draw_landmark_detail(
             }
         }
         "crystal_shadow_sparkles" => {
+            if first_contact_renderer_readability::player_screen_resource_cluster_sparkles(
+                role,
+                signature,
+                player_screen,
+            ) {
+                let quiet = classic_darken(color, 1, 3);
+                let edge = classic_darken(color, 1, 5);
+                for (dx, dy, sparkle_color) in [
+                    (-11, -8, quiet),
+                    (-2, -13, edge),
+                    (8, -6, quiet),
+                    (13, 2, edge),
+                ] {
+                    classic_draw_rect(buffer, width, height, cx + dx, cy + dy, 4, 2, sparkle_color);
+                }
+                return;
+            }
             classic_draw_iso_ellipse(
                 buffer,
                 width,
@@ -737,7 +778,17 @@ pub(super) fn draw_readability_layer(
     }
     for (tile, role, signature) in terrain_samples() {
         draw_terrain_detail(
-            buffer, width, height, map_x, map_y, cell_w, cell_h, tile, role, signature,
+            buffer,
+            width,
+            height,
+            map_x,
+            map_y,
+            cell_w,
+            cell_h,
+            tile,
+            role,
+            signature,
+            player_screen,
         );
     }
     for (tile, role, signature) in building_samples() {
