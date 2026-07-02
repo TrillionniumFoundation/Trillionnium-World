@@ -950,6 +950,11 @@ require_artifact_json_expr first_contact_basin_spec_semantics native_bevy_classi
   and .first_contact_motion_readability_guard.warden_attack_arm_width_px == 14
   and .first_contact_motion_readability_guard.warden_attack_arm_height_px == 2
   and .first_contact_motion_readability_guard.warden_attack_arm_pixel_budget <= 84
+  and (.first_contact_motion_readability_guard.player_screen_animation_signatures | index("player_screen_animation_training_lane_micro_ticks") != null)
+  and .first_contact_motion_readability_guard.animation_training_tick_count == 3
+  and .first_contact_motion_readability_guard.animation_training_tick_width_px == 4
+  and .first_contact_motion_readability_guard.animation_training_tick_height_px == 2
+  and .first_contact_motion_readability_guard.animation_training_tick_pixel_budget <= 24
   and (.first_contact_motion_readability_guard.player_screen_animation_signatures | index("player_screen_shield_charge_micro_arcs") != null)
   and .first_contact_motion_readability_guard.shield_charge_arc_count == 3
   and .first_contact_motion_readability_guard.shield_charge_arc_width_px == 10
@@ -1032,6 +1037,7 @@ require_artifact_json_expr first_contact_basin_spec_semantics native_bevy_classi
   and .first_contact_motion_readability_guard.unit_state_motion_gate == true
   and .first_contact_motion_readability_guard.production_training_spark_gate == true
   and .first_contact_motion_readability_guard.warden_attack_arm_gate == true
+  and .first_contact_motion_readability_guard.animation_training_tick_gate == true
   and (.first_contact_motion_readability_guard.player_screen_animation_signatures | index("player_screen_worker_carry_load_micro_pips") != null)
   and .first_contact_motion_readability_guard.carry_load_pip_count == 4
   and .first_contact_motion_readability_guard.carry_load_pip_width_px == 4

@@ -1058,10 +1058,16 @@ add_first_contact_basin_source_manifest_packet_fixtures() {
       warden_attack_arm_pixel_budget: 84,
       warden_attack_arm_gate: true,
       player_screen_animation_signatures: [
+        "player_screen_animation_training_lane_micro_ticks",
         "player_screen_worker_carry_load_micro_pips",
         "player_screen_shield_charge_micro_arcs",
         "player_screen_sensor_sweep_micro_ticks"
       ],
+      animation_training_tick_count: 3,
+      animation_training_tick_width_px: 4,
+      animation_training_tick_height_px: 2,
+      animation_training_tick_pixel_budget: 24,
+      animation_training_tick_gate: true,
       carry_load_pip_count: 4,
       carry_load_pip_width_px: 4,
       carry_load_pip_height_px: 2,

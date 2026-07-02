@@ -38,6 +38,9 @@ pub struct RtsFirstContactMotionReadabilityRuntime {
     pub production_training_spark_count: usize,
     pub production_training_spark_width_px: usize,
     pub production_training_spark_height_px: usize,
+    pub animation_training_tick_count: usize,
+    pub animation_training_tick_width_px: usize,
+    pub animation_training_tick_height_px: usize,
     pub shield_charge_arc_count: usize,
     pub shield_charge_arc_width_px: usize,
     pub shield_charge_arc_height_px: usize,
@@ -238,6 +241,9 @@ pub fn first_contact_motion_readability_guard(
     let production_training_spark_pixel_budget = runtime.production_training_spark_count
         * runtime.production_training_spark_width_px
         * runtime.production_training_spark_height_px;
+    let animation_training_tick_pixel_budget = runtime.animation_training_tick_count
+        * runtime.animation_training_tick_width_px
+        * runtime.animation_training_tick_height_px;
     let shield_charge_arc_pixel_budget = runtime.shield_charge_arc_count
         * runtime.shield_charge_arc_width_px
         * runtime.shield_charge_arc_height_px;
@@ -258,10 +264,18 @@ pub fn first_contact_motion_readability_guard(
         "player_screen_warden_attack_micro_sparks",
     ]);
     let player_screen_animation_signatures = string_vec([
+        "player_screen_animation_training_lane_micro_ticks",
         "player_screen_worker_carry_load_micro_pips",
         "player_screen_shield_charge_micro_arcs",
         "player_screen_sensor_sweep_micro_ticks",
     ]);
+    let animation_training_tick_gate = runtime.animation_training_tick_count == 3
+        && runtime.animation_training_tick_width_px == 4
+        && runtime.animation_training_tick_height_px == 2
+        && animation_training_tick_pixel_budget <= 24
+        && player_screen_animation_signatures.iter().any(|signature| {
+            signature.as_str() == "player_screen_animation_training_lane_micro_ticks"
+        });
     let carry_load_pip_gate = runtime.carry_load_pip_count == 4
         && runtime.carry_load_pip_width_px == 4
         && runtime.carry_load_pip_height_px == 2
@@ -351,7 +365,8 @@ pub fn first_contact_motion_readability_guard(
             .all(|status| status.health_percent >= 60 && status.shield_percent > 0)
         && unit_status_pixel_budget >= 256
         && production_training_spark_gate
-        && warden_attack_arm_gate;
+        && warden_attack_arm_gate
+        && animation_training_tick_gate;
     let tactical_track_motion_gate = telemetry.tactical_tracks.len() == 6
         && action_trail_count == 3
         && npc_action_count == 3
@@ -408,6 +423,7 @@ pub fn first_contact_motion_readability_guard(
         && tactical_track_motion_gate
         && command_feedback_motion_gate
         && runtime_motion_gate
+        && animation_training_tick_gate
         && carry_load_pip_gate
         && shield_charge_arc_gate
         && sensor_sweep_tick_gate
@@ -491,6 +507,11 @@ pub fn first_contact_motion_readability_guard(
         "warden_attack_arm_pixel_budget": warden_attack_arm_pixel_budget,
         "warden_attack_arm_gate": warden_attack_arm_gate,
         "player_screen_animation_signatures": player_screen_animation_signatures,
+        "animation_training_tick_count": runtime.animation_training_tick_count,
+        "animation_training_tick_width_px": runtime.animation_training_tick_width_px,
+        "animation_training_tick_height_px": runtime.animation_training_tick_height_px,
+        "animation_training_tick_pixel_budget": animation_training_tick_pixel_budget,
+        "animation_training_tick_gate": animation_training_tick_gate,
         "carry_load_pip_count": runtime.carry_load_pip_count,
         "carry_load_pip_width_px": runtime.carry_load_pip_width_px,
         "carry_load_pip_height_px": runtime.carry_load_pip_height_px,
@@ -616,6 +637,9 @@ mod tests {
             production_training_spark_count: 3,
             production_training_spark_width_px: 4,
             production_training_spark_height_px: 2,
+            animation_training_tick_count: 3,
+            animation_training_tick_width_px: 4,
+            animation_training_tick_height_px: 2,
             shield_charge_arc_count: 3,
             shield_charge_arc_width_px: 10,
             shield_charge_arc_height_px: 2,
@@ -818,6 +842,8 @@ mod tests {
                 .and_then(Value::as_array)
                 .map(|signatures| {
                     signatures.iter().any(|value| {
+                        value.as_str() == Some("player_screen_animation_training_lane_micro_ticks")
+                    }) && signatures.iter().any(|value| {
                         value.as_str() == Some("player_screen_worker_carry_load_micro_pips")
                     }) && signatures.iter().any(|value| {
                         value.as_str() == Some("player_screen_shield_charge_micro_arcs")
@@ -825,6 +851,18 @@ mod tests {
                         value.as_str() == Some("player_screen_sensor_sweep_micro_ticks")
                     })
                 }),
+            Some(true)
+        );
+        assert_eq!(
+            guard
+                .get("animation_training_tick_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(24)
+        );
+        assert_eq!(
+            guard
+                .get("animation_training_tick_gate")
+                .and_then(Value::as_bool),
             Some(true)
         );
         assert_eq!(

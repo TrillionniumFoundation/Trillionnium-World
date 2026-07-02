@@ -842,6 +842,9 @@ const CLASSIC_FIRST_CONTACT_PLAYER_WARDEN_ATTACK_ARM_H_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_PLAYER_PRODUCTION_TRAINING_SPARK_COUNT: usize = 3;
 const CLASSIC_FIRST_CONTACT_PLAYER_PRODUCTION_TRAINING_SPARK_W_PX: i32 = 4;
 const CLASSIC_FIRST_CONTACT_PLAYER_PRODUCTION_TRAINING_SPARK_H_PX: i32 = 2;
+const CLASSIC_FIRST_CONTACT_PLAYER_ANIMATION_TRAINING_TICK_COUNT: usize = 3;
+const CLASSIC_FIRST_CONTACT_PLAYER_ANIMATION_TRAINING_TICK_W_PX: i32 = 4;
+const CLASSIC_FIRST_CONTACT_PLAYER_ANIMATION_TRAINING_TICK_H_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_PLAYER_SHIELD_CHARGE_ARC_COUNT: usize = 3;
 const CLASSIC_FIRST_CONTACT_PLAYER_SHIELD_CHARGE_ARC_W_PX: i32 = 10;
 const CLASSIC_FIRST_CONTACT_PLAYER_SHIELD_CHARGE_ARC_H_PX: i32 = 2;
@@ -94873,37 +94876,53 @@ fn classic_draw_first_contact_animation_cycle_detail(
             }
         }
         "training_tick_lane" => {
-            classic_draw_rect(
-                buffer,
-                width,
-                height,
-                cx - cell_w,
-                cy - cell_h * 2 - 13,
-                cell_w * 2,
-                7,
-                CLASSIC_RTS_STRUCTURE_FOUNDATION_SHADOW_COLOR,
-            );
-            classic_draw_rect(
-                buffer,
-                width,
-                height,
-                cx - cell_w + 3,
-                cy - cell_h * 2 - 11,
-                cell_w + cell_w / 2,
-                3,
-                CLASSIC_RTS_PRODUCTION_SPAWN_TRAINING_TICK_COLOR,
-            );
-            for tick in 0..5 {
+            if player_screen {
+                for tick in 0..CLASSIC_FIRST_CONTACT_PLAYER_ANIMATION_TRAINING_TICK_COUNT {
+                    let tick = tick as i32;
+                    classic_draw_rect(
+                        buffer,
+                        width,
+                        height,
+                        cx - cell_w + 6 + tick * 10,
+                        cy - cell_h * 2 - 6 + (tick % 2),
+                        CLASSIC_FIRST_CONTACT_PLAYER_ANIMATION_TRAINING_TICK_W_PX,
+                        CLASSIC_FIRST_CONTACT_PLAYER_ANIMATION_TRAINING_TICK_H_PX,
+                        CLASSIC_RTS_PRODUCTION_SPAWN_TRAINING_TICK_COLOR,
+                    );
+                }
+            } else {
                 classic_draw_rect(
                     buffer,
                     width,
                     height,
-                    cx - cell_w + 5 + tick * 8,
-                    cy - cell_h * 2 - 4,
-                    5,
-                    12,
+                    cx - cell_w,
+                    cy - cell_h * 2 - 13,
+                    cell_w * 2,
+                    7,
+                    CLASSIC_RTS_STRUCTURE_FOUNDATION_SHADOW_COLOR,
+                );
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    cx - cell_w + 3,
+                    cy - cell_h * 2 - 11,
+                    cell_w + cell_w / 2,
+                    3,
                     CLASSIC_RTS_PRODUCTION_SPAWN_TRAINING_TICK_COLOR,
                 );
+                for tick in 0..5 {
+                    classic_draw_rect(
+                        buffer,
+                        width,
+                        height,
+                        cx - cell_w + 5 + tick * 8,
+                        cy - cell_h * 2 - 4,
+                        5,
+                        12,
+                        CLASSIC_RTS_PRODUCTION_SPAWN_TRAINING_TICK_COLOR,
+                    );
+                }
             }
         }
         "spawn_door_open_frame" => {
@@ -102081,6 +102100,11 @@ fn classic_first_contact_motion_readability_guard() -> Value {
             CLASSIC_FIRST_CONTACT_PLAYER_PRODUCTION_TRAINING_SPARK_W_PX as usize,
         production_training_spark_height_px:
             CLASSIC_FIRST_CONTACT_PLAYER_PRODUCTION_TRAINING_SPARK_H_PX as usize,
+        animation_training_tick_count: CLASSIC_FIRST_CONTACT_PLAYER_ANIMATION_TRAINING_TICK_COUNT,
+        animation_training_tick_width_px: CLASSIC_FIRST_CONTACT_PLAYER_ANIMATION_TRAINING_TICK_W_PX
+            as usize,
+        animation_training_tick_height_px: CLASSIC_FIRST_CONTACT_PLAYER_ANIMATION_TRAINING_TICK_H_PX
+            as usize,
         shield_charge_arc_count: CLASSIC_FIRST_CONTACT_PLAYER_SHIELD_CHARGE_ARC_COUNT,
         shield_charge_arc_width_px: CLASSIC_FIRST_CONTACT_PLAYER_SHIELD_CHARGE_ARC_W_PX as usize,
         shield_charge_arc_height_px: CLASSIC_FIRST_CONTACT_PLAYER_SHIELD_CHARGE_ARC_H_PX as usize,
@@ -150233,6 +150257,8 @@ mod tests {
                 .and_then(Value::as_array)
                 .map(|signatures| {
                     signatures.iter().any(|value| {
+                        value.as_str() == Some("player_screen_animation_training_lane_micro_ticks")
+                    }) && signatures.iter().any(|value| {
                         value.as_str() == Some("player_screen_worker_carry_load_micro_pips")
                     }) && signatures.iter().any(|value| {
                         value.as_str() == Some("player_screen_shield_charge_micro_arcs")
@@ -150240,6 +150266,36 @@ mod tests {
                         value.as_str() == Some("player_screen_sensor_sweep_micro_ticks")
                     })
                 }),
+            Some(true)
+        );
+        assert_eq!(
+            guard
+                .get("animation_training_tick_count")
+                .and_then(Value::as_u64),
+            Some(3)
+        );
+        assert_eq!(
+            guard
+                .get("animation_training_tick_width_px")
+                .and_then(Value::as_u64),
+            Some(4)
+        );
+        assert_eq!(
+            guard
+                .get("animation_training_tick_height_px")
+                .and_then(Value::as_u64),
+            Some(2)
+        );
+        assert_eq!(
+            guard
+                .get("animation_training_tick_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(24)
+        );
+        assert_eq!(
+            guard
+                .get("animation_training_tick_gate")
+                .and_then(Value::as_bool),
             Some(true)
         );
         assert_eq!(
