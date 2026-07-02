@@ -118,6 +118,33 @@ pub fn first_contact_silhouette_readability_guard() -> Value {
         .iter()
         .filter(|role| role.as_str() == "command_core")
         .count();
+    let player_screen_command_core_faction_samples = structure_samples
+        .iter()
+        .filter_map(|(tile, role, signature)| {
+            if *role == "command_core" && *signature == "stepped_roof_core" {
+                Some(json!({
+                    "tile": tile_id(*tile),
+                    "role": role,
+                    "signature": signature,
+                }))
+            } else {
+                None
+            }
+        })
+        .collect::<Vec<_>>();
+    let player_screen_command_core_faction_signatures = string_vec([
+        "player_screen_command_core_faction_micro_ticks",
+        "player_screen_command_core_roof_body_muted",
+    ]);
+    let player_screen_command_core_faction_count = player_screen_command_core_faction_samples.len();
+    let player_screen_command_core_faction_ticks_per_core = 4usize;
+    let player_screen_command_core_faction_tick_width_px = 6usize;
+    let player_screen_command_core_faction_tick_height_px = 2usize;
+    let player_screen_command_core_faction_pixel_budget = player_screen_command_core_faction_count
+        * player_screen_command_core_faction_ticks_per_core
+        * player_screen_command_core_faction_tick_width_px
+        * player_screen_command_core_faction_tick_height_px;
+    let player_screen_command_core_hot_roof_pixel_budget = 0usize;
     let relay_count = structure_roles
         .iter()
         .filter(|role| role.as_str() == "relay")
@@ -195,6 +222,18 @@ pub fn first_contact_silhouette_readability_guard() -> Value {
         && relay_count >= 2
         && unique_structure_signature_count >= 3
         && structure_roofline_pixel_budget >= 960;
+    let player_screen_command_core_faction_gate = player_screen_command_core_faction_count == 4
+        && player_screen_command_core_faction_ticks_per_core == 4
+        && player_screen_command_core_faction_tick_width_px == 6
+        && player_screen_command_core_faction_tick_height_px == 2
+        && player_screen_command_core_faction_pixel_budget <= 192
+        && player_screen_command_core_hot_roof_pixel_budget == 0
+        && player_screen_command_core_faction_signatures
+            .iter()
+            .any(|signature| signature == "player_screen_command_core_faction_micro_ticks")
+        && player_screen_command_core_faction_signatures
+            .iter()
+            .any(|signature| signature == "player_screen_command_core_roof_body_muted");
     let beacon_spire_gate = beacon_count == 4 && beacon_spire_pixel_budget >= 288;
     let player_screen_secondary_beacon_body_gate = player_screen_target_beacon_tile == "16,9"
         && player_screen_secondary_beacon_body_count == 3
@@ -209,6 +248,7 @@ pub fn first_contact_silhouette_readability_guard() -> Value {
         && preview_resource_bloom_gate
         && unit_role_silhouette_gate
         && structure_roofline_gate
+        && player_screen_command_core_faction_gate
         && beacon_spire_gate
         && player_screen_secondary_beacon_body_gate;
     let green = map_object_silhouette_gate;
@@ -244,6 +284,15 @@ pub fn first_contact_silhouette_readability_guard() -> Value {
         "structure_signatures": structure_signatures,
         "structure_samples": structure_sample_objects,
         "command_core_silhouette_count": command_core_count,
+        "player_screen_command_core_faction_samples": player_screen_command_core_faction_samples,
+        "player_screen_command_core_faction_count": player_screen_command_core_faction_count,
+        "player_screen_command_core_faction_ticks_per_core": player_screen_command_core_faction_ticks_per_core,
+        "player_screen_command_core_faction_tick_width_px": player_screen_command_core_faction_tick_width_px,
+        "player_screen_command_core_faction_tick_height_px": player_screen_command_core_faction_tick_height_px,
+        "player_screen_command_core_faction_pixel_budget": player_screen_command_core_faction_pixel_budget,
+        "player_screen_command_core_hot_roof_pixel_budget": player_screen_command_core_hot_roof_pixel_budget,
+        "player_screen_command_core_faction_signatures": player_screen_command_core_faction_signatures,
+        "player_screen_command_core_faction_gate": player_screen_command_core_faction_gate,
         "relay_silhouette_count": relay_count,
         "beacon_silhouette_count": beacon_count,
         "player_screen_target_beacon_tile": player_screen_target_beacon_tile,
@@ -334,6 +383,64 @@ mod tests {
             Some(4)
         );
         assert_eq!(
+            guard
+                .get("player_screen_command_core_faction_samples")
+                .cloned(),
+            Some(json!([
+                {"tile": "8,8", "role": "command_core", "signature": "stepped_roof_core"},
+                {"tile": "25,8", "role": "command_core", "signature": "stepped_roof_core"},
+                {"tile": "25,25", "role": "command_core", "signature": "stepped_roof_core"},
+                {"tile": "8,25", "role": "command_core", "signature": "stepped_roof_core"}
+            ]))
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_command_core_faction_count")
+                .and_then(Value::as_u64),
+            Some(4)
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_command_core_faction_ticks_per_core")
+                .and_then(Value::as_u64),
+            Some(4)
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_command_core_faction_tick_width_px")
+                .and_then(Value::as_u64),
+            Some(6)
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_command_core_faction_tick_height_px")
+                .and_then(Value::as_u64),
+            Some(2)
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_command_core_faction_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(192)
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_command_core_hot_roof_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(0)
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_command_core_faction_signatures")
+                .and_then(Value::as_array)
+                .map(|signatures| signatures.iter().any(|signature| {
+                    signature.as_str() == Some("player_screen_command_core_faction_micro_ticks")
+                }) && signatures.iter().any(|signature| {
+                    signature.as_str() == Some("player_screen_command_core_roof_body_muted")
+                })),
+            Some(true)
+        );
+        assert_eq!(
             guard.get("relay_silhouette_count").and_then(Value::as_u64),
             Some(2)
         );
@@ -408,6 +515,7 @@ mod tests {
             "preview_resource_bloom_gate",
             "unit_role_silhouette_gate",
             "structure_roofline_gate",
+            "player_screen_command_core_faction_gate",
             "beacon_spire_gate",
             "player_screen_secondary_beacon_body_gate",
             "map_object_silhouette_gate",

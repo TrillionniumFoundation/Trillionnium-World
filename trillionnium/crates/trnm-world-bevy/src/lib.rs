@@ -886,6 +886,9 @@ const CLASSIC_RTS_MODEL_IDENTITY_FACTION_COLOR: u32 = 0xff9f7a;
 const CLASSIC_FIRST_CONTACT_PLAYER_RELAY_IDENTITY_RAIL_COUNT: usize = 6;
 const CLASSIC_FIRST_CONTACT_PLAYER_RELAY_IDENTITY_RAIL_W_PX: i32 = 16;
 const CLASSIC_FIRST_CONTACT_PLAYER_RELAY_IDENTITY_RAIL_H_PX: i32 = 2;
+const CLASSIC_FIRST_CONTACT_PLAYER_COMMAND_CORE_FACTION_TICK_COUNT: usize = 4;
+const CLASSIC_FIRST_CONTACT_PLAYER_COMMAND_CORE_FACTION_TICK_W_PX: i32 = 6;
+const CLASSIC_FIRST_CONTACT_PLAYER_COMMAND_CORE_FACTION_TICK_H_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_LEGACY_MIDFIELD_STATUS_BAR_PIXEL_BUDGET: usize = 0;
 const CLASSIC_FIRST_CONTACT_PLAYER_SECONDARY_BEACON_COUNT: usize = 3;
 const CLASSIC_FIRST_CONTACT_PLAYER_SECONDARY_BEACON_MARKER_CUES_PER_BEACON: usize = 6;
@@ -94234,16 +94237,32 @@ fn classic_draw_first_contact_model_identity_layers(
             5,
             faction_color,
         );
-        classic_draw_rect(
-            buffer,
-            width,
-            height,
-            cx - 2,
-            cy - cell_h * 2 - 10,
-            4,
-            12,
-            CLASSIC_RTS_MODEL_IDENTITY_FACTION_COLOR,
-        );
+        if player_screen {
+            let tick_color = classic_darken(CLASSIC_RTS_MODEL_IDENTITY_FACTION_COLOR, 1, 3);
+            for tick in 0..CLASSIC_FIRST_CONTACT_PLAYER_COMMAND_CORE_FACTION_TICK_COUNT {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    cx - cell_w + 5 + tick as i32 * 12,
+                    cy - cell_h * 2 - 10 + (tick as i32 % 2),
+                    CLASSIC_FIRST_CONTACT_PLAYER_COMMAND_CORE_FACTION_TICK_W_PX,
+                    CLASSIC_FIRST_CONTACT_PLAYER_COMMAND_CORE_FACTION_TICK_H_PX,
+                    tick_color,
+                );
+            }
+        } else {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                cx - 2,
+                cy - cell_h * 2 - 10,
+                4,
+                12,
+                CLASSIC_RTS_MODEL_IDENTITY_FACTION_COLOR,
+            );
+        }
         classic_draw_rect(
             buffer,
             width,
@@ -94610,7 +94629,7 @@ fn classic_draw_first_contact_art_building_detail(
     signature: &str,
 ) {
     first_contact_art_renderer::draw_building_detail(
-        buffer, width, height, map_x, map_y, cell_w, cell_h, tile, role, signature,
+        buffer, width, height, map_x, map_y, cell_w, cell_h, tile, role, signature, false,
     );
 }
 
@@ -94644,9 +94663,17 @@ fn classic_draw_first_contact_art_readability_layer(
     map_y: i32,
     cell_w: i32,
     cell_h: i32,
+    player_screen: bool,
 ) {
     first_contact_art_renderer::draw_readability_layer(
-        buffer, width, height, map_x, map_y, cell_w, cell_h,
+        buffer,
+        width,
+        height,
+        map_x,
+        map_y,
+        cell_w,
+        cell_h,
+        player_screen,
     );
 }
 
@@ -96252,7 +96279,14 @@ fn classic_draw_first_contact_basin_scene(
         target_tile,
     );
     classic_draw_first_contact_art_readability_layer(
-        buffer, width, height, map_x, map_y, cell_w, cell_h,
+        buffer,
+        width,
+        height,
+        map_x,
+        map_y,
+        cell_w,
+        cell_h,
+        player_screen,
     );
     classic_draw_first_contact_animation_readability_layer(
         buffer,
@@ -150005,6 +150039,64 @@ mod tests {
             Some(4)
         );
         assert_eq!(
+            guard
+                .get("player_screen_command_core_faction_samples")
+                .cloned(),
+            Some(json!([
+                {"tile": "8,8", "role": "command_core", "signature": "stepped_roof_core"},
+                {"tile": "25,8", "role": "command_core", "signature": "stepped_roof_core"},
+                {"tile": "25,25", "role": "command_core", "signature": "stepped_roof_core"},
+                {"tile": "8,25", "role": "command_core", "signature": "stepped_roof_core"}
+            ]))
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_command_core_faction_count")
+                .and_then(Value::as_u64),
+            Some(4)
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_command_core_faction_ticks_per_core")
+                .and_then(Value::as_u64),
+            Some(4)
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_command_core_faction_tick_width_px")
+                .and_then(Value::as_u64),
+            Some(6)
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_command_core_faction_tick_height_px")
+                .and_then(Value::as_u64),
+            Some(2)
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_command_core_faction_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(192)
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_command_core_hot_roof_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(0)
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_command_core_faction_signatures")
+                .and_then(Value::as_array)
+                .map(|signatures| signatures.iter().any(|signature| {
+                    signature.as_str() == Some("player_screen_command_core_faction_micro_ticks")
+                }) && signatures.iter().any(|signature| {
+                    signature.as_str() == Some("player_screen_command_core_roof_body_muted")
+                })),
+            Some(true)
+        );
+        assert_eq!(
             guard.get("relay_silhouette_count").and_then(Value::as_u64),
             Some(2)
         );
@@ -150079,6 +150171,7 @@ mod tests {
             "preview_resource_bloom_gate",
             "unit_role_silhouette_gate",
             "structure_roofline_gate",
+            "player_screen_command_core_faction_gate",
             "beacon_spire_gate",
             "player_screen_secondary_beacon_body_gate",
             "map_object_silhouette_gate",
@@ -150251,6 +150344,62 @@ mod tests {
             Some(192)
         );
         assert_eq!(
+            guard.get("player_screen_command_core_art_samples").cloned(),
+            Some(json!([
+                {"tile": "8,8", "role": "command_core", "signature": "lit_window_rows"},
+                {"tile": "25,8", "role": "command_core", "signature": "lit_window_rows"},
+                {"tile": "25,25", "role": "command_core", "signature": "lit_window_rows"},
+                {"tile": "8,25", "role": "command_core", "signature": "lit_window_rows"}
+            ]))
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_command_core_art_count")
+                .and_then(Value::as_u64),
+            Some(4)
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_command_core_art_ticks_per_core")
+                .and_then(Value::as_u64),
+            Some(4)
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_command_core_art_tick_width_px")
+                .and_then(Value::as_u64),
+            Some(6)
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_command_core_art_tick_height_px")
+                .and_then(Value::as_u64),
+            Some(2)
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_command_core_art_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(192)
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_command_core_hot_facade_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(0)
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_command_core_art_signatures")
+                .and_then(Value::as_array)
+                .map(|signatures| signatures.iter().any(|signature| {
+                    signature.as_str() == Some("player_screen_command_core_art_micro_ticks")
+                }) && signatures.iter().any(|signature| {
+                    signature.as_str() == Some("player_screen_command_core_hot_facade_suppressed")
+                })),
+            Some(true)
+        );
+        assert_eq!(
             guard
                 .get("runtime_actor_depth_signatures")
                 .and_then(Value::as_array)
@@ -150305,6 +150454,7 @@ mod tests {
             "map_landmark_detail_gate",
             "runtime_actor_depth_gate",
             "secondary_beacon_capture_ring_gate",
+            "player_screen_command_core_art_gate",
             "authored_map_art_gate",
         ] {
             assert_eq!(guard.get(gate).and_then(Value::as_bool), Some(true));

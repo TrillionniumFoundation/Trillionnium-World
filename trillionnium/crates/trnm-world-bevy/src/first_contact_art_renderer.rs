@@ -3,8 +3,11 @@
 use crate::{
     classic_darken, classic_draw_iso_ellipse, classic_draw_rect, classic_first_contact_tile_screen,
     classic_lighten, first_contact_palette, first_contact_renderer_readability,
-    CLASSIC_RTS_OBJECTIVE_COLOR, CLASSIC_RTS_PRODUCT_LANE_COLOR,
-    CLASSIC_RTS_STRUCTURE_FOUNDATION_SHADOW_COLOR, CLASSIC_RTS_TACTICAL_VIEWPORT_SHADOW_COLOR,
+    CLASSIC_FIRST_CONTACT_PLAYER_COMMAND_CORE_FACTION_TICK_COUNT,
+    CLASSIC_FIRST_CONTACT_PLAYER_COMMAND_CORE_FACTION_TICK_H_PX,
+    CLASSIC_FIRST_CONTACT_PLAYER_COMMAND_CORE_FACTION_TICK_W_PX, CLASSIC_RTS_OBJECTIVE_COLOR,
+    CLASSIC_RTS_PRODUCT_LANE_COLOR, CLASSIC_RTS_STRUCTURE_FOUNDATION_SHADOW_COLOR,
+    CLASSIC_RTS_TACTICAL_VIEWPORT_SHADOW_COLOR,
 };
 use trnm_rts_data::first_contact_samples;
 
@@ -312,6 +315,7 @@ pub(super) fn draw_building_detail(
     tile: (i32, i32),
     role: &str,
     signature: &str,
+    player_screen: bool,
 ) {
     let (tile_x, tile_y) = classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, tile);
     let cx = tile_x + cell_w / 2;
@@ -319,28 +323,59 @@ pub(super) fn draw_building_detail(
     let color = building_color(role);
     match signature {
         "lit_window_rows" => {
-            for row in 0..3 {
-                classic_draw_rect(
-                    buffer,
-                    width,
-                    height,
-                    cx - cell_w + 7,
-                    cy - cell_h * 2 + 8 + row * 8,
-                    cell_w * 2 - 14,
-                    2,
-                    color,
-                );
-                for col in 0..4 {
+            if player_screen && role == "command_core" {
+                let window_color = classic_darken(color, 3, 5);
+                let tick_color = classic_darken(color, 1, 3);
+                for row in 0..3 {
+                    for col in 0..4 {
+                        classic_draw_rect(
+                            buffer,
+                            width,
+                            height,
+                            cx - cell_w + 9 + col * 11,
+                            cy - cell_h * 2 + 6 + row * 8,
+                            5,
+                            1,
+                            window_color,
+                        );
+                    }
+                }
+                for tick in 0..CLASSIC_FIRST_CONTACT_PLAYER_COMMAND_CORE_FACTION_TICK_COUNT {
                     classic_draw_rect(
                         buffer,
                         width,
                         height,
-                        cx - cell_w + 10 + col * 9,
-                        cy - cell_h * 2 + 5 + row * 8,
-                        4,
-                        5,
-                        classic_darken(color, 1, 4),
+                        cx - cell_w + 8 + tick as i32 * 12,
+                        cy - cell_h * 2 + 12 + (tick as i32 % 2) * 8,
+                        CLASSIC_FIRST_CONTACT_PLAYER_COMMAND_CORE_FACTION_TICK_W_PX,
+                        CLASSIC_FIRST_CONTACT_PLAYER_COMMAND_CORE_FACTION_TICK_H_PX,
+                        tick_color,
                     );
+                }
+            } else {
+                for row in 0..3 {
+                    classic_draw_rect(
+                        buffer,
+                        width,
+                        height,
+                        cx - cell_w + 7,
+                        cy - cell_h * 2 + 8 + row * 8,
+                        cell_w * 2 - 14,
+                        2,
+                        color,
+                    );
+                    for col in 0..4 {
+                        classic_draw_rect(
+                            buffer,
+                            width,
+                            height,
+                            cx - cell_w + 10 + col * 9,
+                            cy - cell_h * 2 + 5 + row * 8,
+                            4,
+                            5,
+                            classic_darken(color, 1, 4),
+                        );
+                    }
                 }
             }
         }
@@ -665,6 +700,7 @@ pub(super) fn draw_readability_layer(
     map_y: i32,
     cell_w: i32,
     cell_h: i32,
+    player_screen: bool,
 ) {
     for (tile, role, _) in terrain_samples() {
         draw_terrain_material_depth_detail(
@@ -678,7 +714,17 @@ pub(super) fn draw_readability_layer(
     }
     for (tile, role, signature) in building_samples() {
         draw_building_detail(
-            buffer, width, height, map_x, map_y, cell_w, cell_h, tile, role, signature,
+            buffer,
+            width,
+            height,
+            map_x,
+            map_y,
+            cell_w,
+            cell_h,
+            tile,
+            role,
+            signature,
+            player_screen,
         );
     }
     for (tile, role, signature) in landmark_samples() {

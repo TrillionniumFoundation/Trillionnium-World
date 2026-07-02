@@ -891,6 +891,22 @@ add_first_contact_basin_source_manifest_packet_fixtures() {
         {tile: "24,16", role: "beacon", signature: "vertical_beacon_spire"}
       ],
       command_core_silhouette_count: 4,
+      player_screen_command_core_faction_samples: [
+        {tile: "8,8", role: "command_core", signature: "stepped_roof_core"},
+        {tile: "25,8", role: "command_core", signature: "stepped_roof_core"},
+        {tile: "25,25", role: "command_core", signature: "stepped_roof_core"},
+        {tile: "8,25", role: "command_core", signature: "stepped_roof_core"}
+      ],
+      player_screen_command_core_faction_count: 4,
+      player_screen_command_core_faction_ticks_per_core: 4,
+      player_screen_command_core_faction_tick_width_px: 6,
+      player_screen_command_core_faction_tick_height_px: 2,
+      player_screen_command_core_faction_pixel_budget: 192,
+      player_screen_command_core_hot_roof_pixel_budget: 0,
+      player_screen_command_core_faction_signatures: [
+        "player_screen_command_core_faction_micro_ticks",
+        "player_screen_command_core_roof_body_muted"
+      ],
       relay_silhouette_count: 2,
       beacon_silhouette_count: 4,
       player_screen_target_beacon_tile: "16,9",
@@ -909,6 +925,7 @@ add_first_contact_basin_source_manifest_packet_fixtures() {
       structure_roofline_pixel_budget: 960,
       beacon_spire_pixel_budget: 288,
       structure_roofline_gate: true,
+      player_screen_command_core_faction_gate: true,
       beacon_spire_gate: true,
       map_object_silhouette_gate: true
     },
@@ -1029,6 +1046,23 @@ add_first_contact_basin_source_manifest_packet_fixtures() {
         "secondary_beacon_capture_micro_cues"
       ],
       secondary_beacon_capture_ring_gate: true,
+      player_screen_command_core_art_samples: [
+        {tile: "8,8", role: "command_core", signature: "lit_window_rows"},
+        {tile: "25,8", role: "command_core", signature: "lit_window_rows"},
+        {tile: "25,25", role: "command_core", signature: "lit_window_rows"},
+        {tile: "8,25", role: "command_core", signature: "lit_window_rows"}
+      ],
+      player_screen_command_core_art_count: 4,
+      player_screen_command_core_art_ticks_per_core: 4,
+      player_screen_command_core_art_tick_width_px: 6,
+      player_screen_command_core_art_tick_height_px: 2,
+      player_screen_command_core_art_pixel_budget: 192,
+      player_screen_command_core_hot_facade_pixel_budget: 0,
+      player_screen_command_core_art_signatures: [
+        "player_screen_command_core_art_micro_ticks",
+        "player_screen_command_core_hot_facade_suppressed"
+      ],
+      player_screen_command_core_art_gate: true,
       authored_map_art_gate: true
     },
     first_contact_art_readability_guard_gate: true,

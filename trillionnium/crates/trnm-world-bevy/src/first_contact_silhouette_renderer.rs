@@ -2,7 +2,10 @@
 
 use crate::{
     classic_darken, classic_draw_iso_ellipse, classic_draw_rect, classic_first_contact_tile_screen,
-    first_contact_palette, first_contact_renderer_readability, CLASSIC_ISO_OUTLINE_COLOR,
+    first_contact_palette, first_contact_renderer_readability,
+    CLASSIC_FIRST_CONTACT_PLAYER_COMMAND_CORE_FACTION_TICK_COUNT,
+    CLASSIC_FIRST_CONTACT_PLAYER_COMMAND_CORE_FACTION_TICK_H_PX,
+    CLASSIC_FIRST_CONTACT_PLAYER_COMMAND_CORE_FACTION_TICK_W_PX, CLASSIC_ISO_OUTLINE_COLOR,
     CLASSIC_RTS_CAPTURE_BAR_COLOR, CLASSIC_RTS_COMMANDER_AURA_COLOR,
     CLASSIC_RTS_HARVEST_NODE_COLOR, CLASSIC_RTS_MODEL_IDENTITY_FACTION_COLOR,
     CLASSIC_RTS_STRUCTURE_HEALTH_COLOR, CLASSIC_RTS_STRUCTURE_REPAIR_BEAM_COLOR,
@@ -165,7 +168,11 @@ fn draw_structure(
     let (tile_x, tile_y) = classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, tile);
     let cx = tile_x + cell_w / 2;
     let cy = tile_y + cell_h / 2;
-    let color = structure_color(kind);
+    let color = if player_screen && kind == "command_core" && signature == "stepped_roof_core" {
+        classic_darken(CLASSIC_RTS_MODEL_IDENTITY_FACTION_COLOR, 3, 5)
+    } else {
+        structure_color(kind)
+    };
     classic_draw_rect(
         buffer,
         width,
@@ -200,16 +207,32 @@ fn draw_structure(
                 14,
                 color,
             );
-            classic_draw_rect(
-                buffer,
-                width,
-                height,
-                cx - cell_w,
-                cy - cell_h + 2,
-                cell_w * 2,
-                3,
-                CLASSIC_RTS_MODEL_IDENTITY_FACTION_COLOR,
-            );
+            if player_screen {
+                let tick_color = classic_darken(CLASSIC_RTS_MODEL_IDENTITY_FACTION_COLOR, 1, 3);
+                for tick in 0..CLASSIC_FIRST_CONTACT_PLAYER_COMMAND_CORE_FACTION_TICK_COUNT {
+                    classic_draw_rect(
+                        buffer,
+                        width,
+                        height,
+                        cx - cell_w + 5 + tick as i32 * 12,
+                        cy - cell_h + 2 + (tick as i32 % 2),
+                        CLASSIC_FIRST_CONTACT_PLAYER_COMMAND_CORE_FACTION_TICK_W_PX,
+                        CLASSIC_FIRST_CONTACT_PLAYER_COMMAND_CORE_FACTION_TICK_H_PX,
+                        tick_color,
+                    );
+                }
+            } else {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    cx - cell_w,
+                    cy - cell_h + 2,
+                    cell_w * 2,
+                    3,
+                    CLASSIC_RTS_MODEL_IDENTITY_FACTION_COLOR,
+                );
+            }
         }
         "tall_signal_mast" => {
             classic_draw_rect(

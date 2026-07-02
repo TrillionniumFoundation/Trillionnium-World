@@ -1030,6 +1030,15 @@ cat >"$JQ_FILTER" <<'JQ'
   and .first_contact_silhouette_readability_guard.unit_roles == ["worker","scout","warden","relay"]
   and .first_contact_silhouette_readability_guard.unit_signatures == ["cargo_pack","sensor_mast","shield_plate","relay_courier"]
   and .first_contact_silhouette_readability_guard.command_core_silhouette_count == 4
+  and .first_contact_silhouette_readability_guard.player_screen_command_core_faction_samples == [{"tile":"8,8","role":"command_core","signature":"stepped_roof_core"},{"tile":"25,8","role":"command_core","signature":"stepped_roof_core"},{"tile":"25,25","role":"command_core","signature":"stepped_roof_core"},{"tile":"8,25","role":"command_core","signature":"stepped_roof_core"}]
+  and .first_contact_silhouette_readability_guard.player_screen_command_core_faction_count == 4
+  and .first_contact_silhouette_readability_guard.player_screen_command_core_faction_ticks_per_core == 4
+  and .first_contact_silhouette_readability_guard.player_screen_command_core_faction_tick_width_px == 6
+  and .first_contact_silhouette_readability_guard.player_screen_command_core_faction_tick_height_px == 2
+  and .first_contact_silhouette_readability_guard.player_screen_command_core_faction_pixel_budget <= 192
+  and .first_contact_silhouette_readability_guard.player_screen_command_core_hot_roof_pixel_budget == 0
+  and (.first_contact_silhouette_readability_guard.player_screen_command_core_faction_signatures | index("player_screen_command_core_faction_micro_ticks") != null)
+  and (.first_contact_silhouette_readability_guard.player_screen_command_core_faction_signatures | index("player_screen_command_core_roof_body_muted") != null)
   and .first_contact_silhouette_readability_guard.relay_silhouette_count == 2
   and .first_contact_silhouette_readability_guard.beacon_silhouette_count == 4
   and .first_contact_silhouette_readability_guard.player_screen_target_beacon_tile == "16,9"
@@ -1060,6 +1069,7 @@ cat >"$JQ_FILTER" <<'JQ'
   and .first_contact_silhouette_readability_guard.preview_resource_bloom_gate == true
   and .first_contact_silhouette_readability_guard.unit_role_silhouette_gate == true
   and .first_contact_silhouette_readability_guard.structure_roofline_gate == true
+  and .first_contact_silhouette_readability_guard.player_screen_command_core_faction_gate == true
   and .first_contact_silhouette_readability_guard.beacon_spire_gate == true
   and .first_contact_silhouette_readability_guard.player_screen_secondary_beacon_body_gate == true
   and .first_contact_silhouette_readability_guard.map_object_silhouette_gate == true
@@ -1123,6 +1133,15 @@ cat >"$JQ_FILTER" <<'JQ'
   and .first_contact_art_readability_guard.secondary_beacon_capture_ring_cue_height_px == 2
   and .first_contact_art_readability_guard.secondary_beacon_capture_ring_pixel_budget <= 192
   and (.first_contact_art_readability_guard.secondary_beacon_capture_ring_signatures | index("secondary_beacon_capture_micro_cues") != null)
+  and .first_contact_art_readability_guard.player_screen_command_core_art_samples == [{"tile":"8,8","role":"command_core","signature":"lit_window_rows"},{"tile":"25,8","role":"command_core","signature":"lit_window_rows"},{"tile":"25,25","role":"command_core","signature":"lit_window_rows"},{"tile":"8,25","role":"command_core","signature":"lit_window_rows"}]
+  and .first_contact_art_readability_guard.player_screen_command_core_art_count == 4
+  and .first_contact_art_readability_guard.player_screen_command_core_art_ticks_per_core == 4
+  and .first_contact_art_readability_guard.player_screen_command_core_art_tick_width_px == 6
+  and .first_contact_art_readability_guard.player_screen_command_core_art_tick_height_px == 2
+  and .first_contact_art_readability_guard.player_screen_command_core_art_pixel_budget <= 192
+  and .first_contact_art_readability_guard.player_screen_command_core_hot_facade_pixel_budget == 0
+  and (.first_contact_art_readability_guard.player_screen_command_core_art_signatures | index("player_screen_command_core_art_micro_ticks") != null)
+  and (.first_contact_art_readability_guard.player_screen_command_core_art_signatures | index("player_screen_command_core_hot_facade_suppressed") != null)
   and .first_contact_art_readability_guard.terrain_material_gate == true
   and .first_contact_art_readability_guard.terrain_material_depth_gate == true
   and .first_contact_art_readability_guard.building_facade_gate == true
@@ -1130,6 +1149,7 @@ cat >"$JQ_FILTER" <<'JQ'
   and .first_contact_art_readability_guard.runtime_actor_depth_gate == true
   and .first_contact_art_readability_guard.lower_secondary_beacon_art_deemphasis_gate == true
   and .first_contact_art_readability_guard.secondary_beacon_capture_ring_gate == true
+  and .first_contact_art_readability_guard.player_screen_command_core_art_gate == true
   and .first_contact_art_readability_guard.authored_map_art_gate == true
   and .first_contact_art_readability_guard_gate == true
   and .first_contact_motion_readability_contract == "trillionnium_world_bevy_classic_rts_first_contact_motion_readability_v1"
