@@ -887,6 +887,10 @@ const CLASSIC_FIRST_CONTACT_PLAYER_RELAY_IDENTITY_RAIL_COUNT: usize = 6;
 const CLASSIC_FIRST_CONTACT_PLAYER_RELAY_IDENTITY_RAIL_W_PX: i32 = 16;
 const CLASSIC_FIRST_CONTACT_PLAYER_RELAY_IDENTITY_RAIL_H_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_LEGACY_MIDFIELD_STATUS_BAR_PIXEL_BUDGET: usize = 0;
+const CLASSIC_FIRST_CONTACT_PLAYER_SECONDARY_BEACON_COUNT: usize = 3;
+const CLASSIC_FIRST_CONTACT_PLAYER_SECONDARY_BEACON_MARKER_CUES_PER_BEACON: usize = 6;
+const CLASSIC_FIRST_CONTACT_PLAYER_SECONDARY_BEACON_MARKER_CUE_W_PX: i32 = 6;
+const CLASSIC_FIRST_CONTACT_PLAYER_SECONDARY_BEACON_MARKER_CUE_H_PX: i32 = 2;
 const CLASSIC_RTS_TACTICAL_VIEWPORT_FRAME_COLOR: u32 = 0xbfd7c8;
 const CLASSIC_RTS_TACTICAL_VIEWPORT_TILE_COLOR: u32 = 0x35513d;
 const CLASSIC_RTS_TACTICAL_VIEWPORT_SHADOW_COLOR: u32 = 0x101916;
@@ -94466,9 +94470,19 @@ fn classic_draw_first_contact_silhouette_readability_layer(
     map_y: i32,
     cell_w: i32,
     cell_h: i32,
+    player_screen: bool,
+    target_tile: (i32, i32),
 ) {
     first_contact_silhouette_renderer::draw_readability_layer(
-        buffer, width, height, map_x, map_y, cell_w, cell_h,
+        buffer,
+        width,
+        height,
+        map_x,
+        map_y,
+        cell_w,
+        cell_h,
+        player_screen,
+        target_tile,
     );
 }
 
@@ -95804,6 +95818,42 @@ fn classic_draw_first_contact_readability_overlays(
             classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, tile);
         let cx = tile_x + cell_w / 2;
         let cy = tile_y + cell_h / 2;
+        if player_screen && tile != target_tile {
+            let quiet_objective =
+                first_contact_renderer_readability::lower_secondary_beacon_art_color(
+                    CLASSIC_RTS_OBJECTIVE_COLOR,
+                );
+            let quiet_capture =
+                first_contact_renderer_readability::lower_secondary_beacon_art_color(
+                    CLASSIC_RTS_CAPTURE_BAR_COLOR,
+                );
+            let edge = classic_darken(quiet_objective, 1, 4);
+            let cues = [
+                (cx - 3, cy + cell_h + 3, quiet_objective),
+                (cx - cell_w / 2 + 1, cy + cell_h + 6, edge),
+                (cx + cell_w / 2 - 7, cy + cell_h + 6, edge),
+                (cx - 3, cy + cell_h + 10, quiet_objective),
+                (cx - cell_w / 2, cy - cell_h * 2 - 6, quiet_capture),
+                (cx + cell_w / 2 - 6, cy - cell_h * 2 - 6, quiet_capture),
+            ];
+            debug_assert_eq!(
+                cues.len(),
+                CLASSIC_FIRST_CONTACT_PLAYER_SECONDARY_BEACON_MARKER_CUES_PER_BEACON
+            );
+            for (x, y, color) in cues {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    x,
+                    y,
+                    CLASSIC_FIRST_CONTACT_PLAYER_SECONDARY_BEACON_MARKER_CUE_W_PX,
+                    CLASSIC_FIRST_CONTACT_PLAYER_SECONDARY_BEACON_MARKER_CUE_H_PX,
+                    color,
+                );
+            }
+            continue;
+        }
         classic_draw_iso_ellipse(
             buffer,
             width,
@@ -96034,6 +96084,8 @@ fn classic_draw_first_contact_basin_scene(
 ) {
     let player_screen = classic_player_screen_mode_enabled();
     let player_screen_profile = classic_first_contact_player_screen_profile();
+    let command_feedback = classic_first_contact_command_feedback();
+    let target_tile = classic_first_contact_tile_tuple(command_feedback.target_tile);
     let screen_layout = if player_screen {
         player_screen_profile.layout.player_map
     } else {
@@ -96155,7 +96207,15 @@ fn classic_draw_first_contact_basin_scene(
         player_screen,
     );
     classic_draw_first_contact_silhouette_readability_layer(
-        buffer, width, height, map_x, map_y, cell_w, cell_h,
+        buffer,
+        width,
+        height,
+        map_x,
+        map_y,
+        cell_w,
+        cell_h,
+        player_screen,
+        target_tile,
     );
     classic_draw_first_contact_art_readability_layer(
         buffer, width, height, map_x, map_y, cell_w, cell_h,
@@ -102508,6 +102568,13 @@ fn classic_first_contact_marker_budget_guard(runtime: &NativeFirstPlayableRuntim
             CLASSIC_FIRST_CONTACT_PLAYER_RELAY_IDENTITY_RAIL_H_PX as usize,
         player_screen_legacy_midfield_status_bar_pixel_budget:
             CLASSIC_FIRST_CONTACT_LEGACY_MIDFIELD_STATUS_BAR_PIXEL_BUDGET,
+        player_screen_secondary_beacon_count: CLASSIC_FIRST_CONTACT_PLAYER_SECONDARY_BEACON_COUNT,
+        player_screen_secondary_beacon_marker_cues_per_beacon:
+            CLASSIC_FIRST_CONTACT_PLAYER_SECONDARY_BEACON_MARKER_CUES_PER_BEACON,
+        player_screen_secondary_beacon_marker_cue_width_px:
+            CLASSIC_FIRST_CONTACT_PLAYER_SECONDARY_BEACON_MARKER_CUE_W_PX as usize,
+        player_screen_secondary_beacon_marker_cue_height_px:
+            CLASSIC_FIRST_CONTACT_PLAYER_SECONDARY_BEACON_MARKER_CUE_H_PX as usize,
         focus_geometry: trnm_rts_evidence::RtsFirstContactFocusGeometrySnapshot {
             selected_role_badge_tick_width_px: CLASSIC_FIRST_CONTACT_SELECTED_ROLE_BADGE_TICK_W_PX
                 as usize,
@@ -152133,6 +152200,42 @@ mod tests {
             Some(0)
         );
         assert_eq!(
+            guard
+                .get("player_screen_secondary_beacon_count")
+                .and_then(Value::as_u64),
+            Some(3)
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_secondary_beacon_marker_cues_per_beacon")
+                .and_then(Value::as_u64),
+            Some(6)
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_secondary_beacon_marker_cue_count")
+                .and_then(Value::as_u64),
+            Some(18)
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_secondary_beacon_marker_cue_width_px")
+                .and_then(Value::as_u64),
+            Some(6)
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_secondary_beacon_marker_cue_height_px")
+                .and_then(Value::as_u64),
+            Some(2)
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_secondary_beacon_marker_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(216)
+        );
+        assert_eq!(
             guard.get("tactical_track_count").and_then(Value::as_u64),
             Some(6)
         );
@@ -152203,6 +152306,12 @@ mod tests {
             .iter()
             .any(|value| value.as_str()
                 == Some("player_screen_legacy_midfield_status_bars_suppressed")));
+        assert!(guard
+            .get("gallery_presentation_signatures")
+            .and_then(Value::as_array)
+            .expect("gallery signatures listed")
+            .iter()
+            .any(|value| value.as_str() == Some("player_screen_secondary_beacon_micro_markers")));
         assert_eq!(
             guard
                 .get("non_focus_owner_identity_pixel_budget")
@@ -152281,6 +152390,7 @@ mod tests {
             "lower_lane_gallery_deemphasis_gate",
             "interactive_focus_preservation_gate",
             "non_focus_owner_identity_gate",
+            "player_screen_secondary_beacon_marker_gate",
             "marker_budget_layer_order_gate",
             "first_contact_marker_budget_gate",
         ] {

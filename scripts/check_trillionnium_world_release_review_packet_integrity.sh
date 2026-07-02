@@ -1436,6 +1436,12 @@ require_artifact_json_expr first_contact_basin_spec_semantics native_bevy_classi
   and .first_contact_marker_budget_guard.player_screen_relay_identity_rail_height_px == 2
   and .first_contact_marker_budget_guard.player_screen_relay_identity_rail_pixel_budget <= 192
   and .first_contact_marker_budget_guard.player_screen_legacy_midfield_status_bar_pixel_budget == 0
+  and .first_contact_marker_budget_guard.player_screen_secondary_beacon_count == 3
+  and .first_contact_marker_budget_guard.player_screen_secondary_beacon_marker_cues_per_beacon == 6
+  and .first_contact_marker_budget_guard.player_screen_secondary_beacon_marker_cue_count == 18
+  and .first_contact_marker_budget_guard.player_screen_secondary_beacon_marker_cue_width_px == 6
+  and .first_contact_marker_budget_guard.player_screen_secondary_beacon_marker_cue_height_px == 2
+  and .first_contact_marker_budget_guard.player_screen_secondary_beacon_marker_pixel_budget <= 216
   and .first_contact_marker_budget_guard.selected_role_badge_tick_pixel_budget == 16
   and .first_contact_marker_budget_guard.interactive_focus_pixel_budget == 636
   and .first_contact_marker_budget_guard.selected_focus_tiles == ["14,11","15,11","15,12","17,12"]
@@ -1458,6 +1464,7 @@ require_artifact_json_expr first_contact_basin_spec_semantics native_bevy_classi
   and (.first_contact_marker_budget_guard.gallery_presentation_signatures | index("player_screen_hover_route_path_suppressed") != null)
   and (.first_contact_marker_budget_guard.gallery_presentation_signatures | index("player_screen_relay_identity_micro_rails") != null)
   and (.first_contact_marker_budget_guard.gallery_presentation_signatures | index("player_screen_legacy_midfield_status_bars_suppressed") != null)
+  and (.first_contact_marker_budget_guard.gallery_presentation_signatures | index("player_screen_secondary_beacon_micro_markers") != null)
   and .first_contact_marker_budget_guard.marker_budget_layer_draw_order == ["atlas_readability","atlas_gallery_muted","visual_hierarchy_deemphasis","central_clarity_deemphasis","terminal_legibility_deemphasis","selection_combat_focus"]
   and .first_contact_marker_budget_guard.gallery_lane_budget_gate == true
   and .first_contact_marker_budget_guard.gallery_mute_gate == true
@@ -1468,6 +1475,7 @@ require_artifact_json_expr first_contact_basin_spec_semantics native_bevy_classi
   and .first_contact_marker_budget_guard.player_screen_hover_route_path_gate == true
   and .first_contact_marker_budget_guard.player_screen_relay_identity_rail_gate == true
   and .first_contact_marker_budget_guard.player_screen_legacy_midfield_status_bar_gate == true
+  and .first_contact_marker_budget_guard.player_screen_secondary_beacon_marker_gate == true
   and .first_contact_marker_budget_guard.marker_budget_layer_order_gate == true
   and .first_contact_marker_budget_guard.first_contact_marker_budget_gate == true
   and .first_contact_marker_budget_guard_gate == true

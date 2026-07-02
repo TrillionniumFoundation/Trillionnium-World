@@ -158,6 +158,8 @@ fn draw_structure(
     tile: (i32, i32),
     kind: &str,
     signature: &str,
+    player_screen: bool,
+    target_tile: (i32, i32),
 ) {
     let (tile_x, tile_y) = classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, tile);
     let cx = tile_x + cell_w / 2;
@@ -261,16 +263,18 @@ fn draw_structure(
                 cell_h * 4,
                 color,
             );
-            classic_draw_rect(
-                buffer,
-                width,
-                height,
-                cx - cell_w,
-                cy - cell_h - 5,
-                cell_w * 2,
-                4,
-                CLASSIC_RTS_CAPTURE_BAR_COLOR,
-            );
+            if !(player_screen && tile != target_tile) {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    cx - cell_w,
+                    cy - cell_h - 5,
+                    cell_w * 2,
+                    4,
+                    CLASSIC_RTS_CAPTURE_BAR_COLOR,
+                );
+            }
         }
         _ => {}
     }
@@ -389,6 +393,8 @@ pub(super) fn draw_readability_layer(
     map_y: i32,
     cell_w: i32,
     cell_h: i32,
+    player_screen: bool,
+    target_tile: (i32, i32),
 ) {
     for (tile, kind, signature) in terrain_samples() {
         draw_terrain_marker(
@@ -397,7 +403,18 @@ pub(super) fn draw_readability_layer(
     }
     for (tile, kind, signature) in structure_samples() {
         draw_structure(
-            buffer, width, height, map_x, map_y, cell_w, cell_h, tile, kind, signature,
+            buffer,
+            width,
+            height,
+            map_x,
+            map_y,
+            cell_w,
+            cell_h,
+            tile,
+            kind,
+            signature,
+            player_screen,
+            target_tile,
         );
     }
     for (tile, role, signature) in unit_samples() {
