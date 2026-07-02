@@ -126,6 +126,36 @@ pub fn first_contact_silhouette_readability_guard() -> Value {
         .iter()
         .filter(|role| role.as_str() == "beacon")
         .count();
+    let player_screen_target_beacon = (16, 9);
+    let player_screen_target_beacon_tile = tile_id(player_screen_target_beacon);
+    let player_screen_secondary_beacon_body_samples = structure_samples
+        .iter()
+        .filter_map(|(tile, role, signature)| {
+            if *role == "beacon"
+                && *signature == "vertical_beacon_spire"
+                && *tile != player_screen_target_beacon
+            {
+                Some(json!({
+                    "tile": tile_id(*tile),
+                    "role": role,
+                    "signature": signature,
+                }))
+            } else {
+                None
+            }
+        })
+        .collect::<Vec<_>>();
+    let player_screen_secondary_beacon_body_signatures =
+        string_vec(["player_screen_secondary_beacon_body_micro_cues"]);
+    let player_screen_secondary_beacon_body_count =
+        player_screen_secondary_beacon_body_samples.len();
+    let player_screen_secondary_beacon_body_cues_per_beacon = 5usize;
+    let player_screen_secondary_beacon_body_cue_width_px = 8usize;
+    let player_screen_secondary_beacon_body_cue_height_px = 2usize;
+    let player_screen_secondary_beacon_body_pixel_budget = player_screen_secondary_beacon_body_count
+        * player_screen_secondary_beacon_body_cues_per_beacon
+        * player_screen_secondary_beacon_body_cue_width_px
+        * player_screen_secondary_beacon_body_cue_height_px;
     let terrain_zone_pixel_budget = terrain_samples.len() * 32;
     let preview_resource_bloom_count = preview_resource_samples.len();
     let preview_resource_bloom_cues_per_cluster = 4usize;
@@ -166,11 +196,21 @@ pub fn first_contact_silhouette_readability_guard() -> Value {
         && unique_structure_signature_count >= 3
         && structure_roofline_pixel_budget >= 960;
     let beacon_spire_gate = beacon_count == 4 && beacon_spire_pixel_budget >= 288;
+    let player_screen_secondary_beacon_body_gate = player_screen_target_beacon_tile == "16,9"
+        && player_screen_secondary_beacon_body_count == 3
+        && player_screen_secondary_beacon_body_cues_per_beacon == 5
+        && player_screen_secondary_beacon_body_cue_width_px == 8
+        && player_screen_secondary_beacon_body_cue_height_px == 2
+        && player_screen_secondary_beacon_body_pixel_budget <= 240
+        && player_screen_secondary_beacon_body_signatures
+            .iter()
+            .any(|signature| signature == "player_screen_secondary_beacon_body_micro_cues");
     let map_object_silhouette_gate = terrain_zone_gate
         && preview_resource_bloom_gate
         && unit_role_silhouette_gate
         && structure_roofline_gate
-        && beacon_spire_gate;
+        && beacon_spire_gate
+        && player_screen_secondary_beacon_body_gate;
     let green = map_object_silhouette_gate;
 
     json!({
@@ -206,6 +246,15 @@ pub fn first_contact_silhouette_readability_guard() -> Value {
         "command_core_silhouette_count": command_core_count,
         "relay_silhouette_count": relay_count,
         "beacon_silhouette_count": beacon_count,
+        "player_screen_target_beacon_tile": player_screen_target_beacon_tile,
+        "player_screen_secondary_beacon_body_samples": player_screen_secondary_beacon_body_samples,
+        "player_screen_secondary_beacon_body_count": player_screen_secondary_beacon_body_count,
+        "player_screen_secondary_beacon_body_cues_per_beacon": player_screen_secondary_beacon_body_cues_per_beacon,
+        "player_screen_secondary_beacon_body_cue_width_px": player_screen_secondary_beacon_body_cue_width_px,
+        "player_screen_secondary_beacon_body_cue_height_px": player_screen_secondary_beacon_body_cue_height_px,
+        "player_screen_secondary_beacon_body_pixel_budget": player_screen_secondary_beacon_body_pixel_budget,
+        "player_screen_secondary_beacon_body_signatures": player_screen_secondary_beacon_body_signatures,
+        "player_screen_secondary_beacon_body_gate": player_screen_secondary_beacon_body_gate,
         "structure_roofline_pixel_budget": structure_roofline_pixel_budget,
         "beacon_spire_pixel_budget": beacon_spire_pixel_budget,
         "structure_roofline_gate": structure_roofline_gate,
@@ -294,6 +343,61 @@ mod tests {
         );
         assert_eq!(
             guard
+                .get("player_screen_target_beacon_tile")
+                .and_then(Value::as_str),
+            Some("16,9")
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_secondary_beacon_body_samples")
+                .cloned(),
+            Some(json!([
+                {"tile": "16,24", "role": "beacon", "signature": "vertical_beacon_spire"},
+                {"tile": "9,16", "role": "beacon", "signature": "vertical_beacon_spire"},
+                {"tile": "24,16", "role": "beacon", "signature": "vertical_beacon_spire"}
+            ]))
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_secondary_beacon_body_count")
+                .and_then(Value::as_u64),
+            Some(3)
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_secondary_beacon_body_cues_per_beacon")
+                .and_then(Value::as_u64),
+            Some(5)
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_secondary_beacon_body_cue_width_px")
+                .and_then(Value::as_u64),
+            Some(8)
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_secondary_beacon_body_cue_height_px")
+                .and_then(Value::as_u64),
+            Some(2)
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_secondary_beacon_body_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(240)
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_secondary_beacon_body_signatures")
+                .and_then(Value::as_array)
+                .map(|signatures| signatures.iter().any(|signature| {
+                    signature.as_str() == Some("player_screen_secondary_beacon_body_micro_cues")
+                })),
+            Some(true)
+        );
+        assert_eq!(
+            guard
                 .get("terrain_signatures")
                 .and_then(Value::as_array)
                 .map(|signatures| signatures.len()),
@@ -305,6 +409,7 @@ mod tests {
             "unit_role_silhouette_gate",
             "structure_roofline_gate",
             "beacon_spire_gate",
+            "player_screen_secondary_beacon_body_gate",
             "map_object_silhouette_gate",
         ] {
             assert_eq!(guard.get(gate).and_then(Value::as_bool), Some(true));

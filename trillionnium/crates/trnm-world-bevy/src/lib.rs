@@ -94186,6 +94186,7 @@ fn classic_draw_first_contact_model_identity_layers(
     cell_w: i32,
     cell_h: i32,
     player_screen: bool,
+    target_tile: (i32, i32),
 ) {
     let command_cores = classic_first_contact_base_owner_identity_tiles();
     for (tile, faction_color) in command_cores {
@@ -94342,6 +94343,38 @@ fn classic_draw_first_contact_model_identity_layers(
             classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, tile);
         let cx = tile_x + cell_w / 2;
         let cy = tile_y + cell_h / 2;
+        if first_contact_renderer_readability::player_screen_secondary_beacon_body(
+            tile,
+            "beacon",
+            "vertical_beacon_spire",
+            player_screen,
+            target_tile,
+        ) {
+            let quiet = first_contact_renderer_readability::lower_secondary_beacon_art_color(
+                CLASSIC_RTS_MODEL_IDENTITY_BEACON_COLOR,
+            );
+            let edge = classic_darken(quiet, 1, 4);
+            for (dx, dy, cue_width, cue_color) in [
+                (-4, -cell_h * 2 - 6, 8, quiet),
+                (-3, -cell_h * 2 + 4, 6, edge),
+                (-4, -cell_h + 2, 8, quiet),
+            ] {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    cx + dx,
+                    cy + dy,
+                    cue_width,
+                    2,
+                    cue_color,
+                );
+            }
+            for (dx, dy, cue_height) in [(-2, -cell_h * 2 - 2, 6), (0, -cell_h - 6, 6)] {
+                classic_draw_rect(buffer, width, height, cx + dx, cy + dy, 2, cue_height, edge);
+            }
+            continue;
+        }
         classic_draw_rect(
             buffer,
             width,
@@ -96205,6 +96238,7 @@ fn classic_draw_first_contact_basin_scene(
         cell_w,
         cell_h,
         player_screen,
+        target_tile,
     );
     classic_draw_first_contact_silhouette_readability_layer(
         buffer,
@@ -149980,6 +150014,61 @@ mod tests {
         );
         assert_eq!(
             guard
+                .get("player_screen_target_beacon_tile")
+                .and_then(Value::as_str),
+            Some("16,9")
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_secondary_beacon_body_samples")
+                .cloned(),
+            Some(json!([
+                {"tile": "16,24", "role": "beacon", "signature": "vertical_beacon_spire"},
+                {"tile": "9,16", "role": "beacon", "signature": "vertical_beacon_spire"},
+                {"tile": "24,16", "role": "beacon", "signature": "vertical_beacon_spire"}
+            ]))
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_secondary_beacon_body_count")
+                .and_then(Value::as_u64),
+            Some(3)
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_secondary_beacon_body_cues_per_beacon")
+                .and_then(Value::as_u64),
+            Some(5)
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_secondary_beacon_body_cue_width_px")
+                .and_then(Value::as_u64),
+            Some(8)
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_secondary_beacon_body_cue_height_px")
+                .and_then(Value::as_u64),
+            Some(2)
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_secondary_beacon_body_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(240)
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_secondary_beacon_body_signatures")
+                .and_then(Value::as_array)
+                .map(|signatures| signatures.iter().any(|signature| {
+                    signature.as_str() == Some("player_screen_secondary_beacon_body_micro_cues")
+                })),
+            Some(true)
+        );
+        assert_eq!(
+            guard
                 .get("terrain_signatures")
                 .and_then(Value::as_array)
                 .map(|signatures| signatures.len() >= 9),
@@ -149991,6 +150080,7 @@ mod tests {
             "unit_role_silhouette_gate",
             "structure_roofline_gate",
             "beacon_spire_gate",
+            "player_screen_secondary_beacon_body_gate",
             "map_object_silhouette_gate",
         ] {
             assert_eq!(guard.get(gate).and_then(Value::as_bool), Some(true));

@@ -1032,6 +1032,14 @@ cat >"$JQ_FILTER" <<'JQ'
   and .first_contact_silhouette_readability_guard.command_core_silhouette_count == 4
   and .first_contact_silhouette_readability_guard.relay_silhouette_count == 2
   and .first_contact_silhouette_readability_guard.beacon_silhouette_count == 4
+  and .first_contact_silhouette_readability_guard.player_screen_target_beacon_tile == "16,9"
+  and .first_contact_silhouette_readability_guard.player_screen_secondary_beacon_body_samples == [{"tile":"16,24","role":"beacon","signature":"vertical_beacon_spire"},{"tile":"9,16","role":"beacon","signature":"vertical_beacon_spire"},{"tile":"24,16","role":"beacon","signature":"vertical_beacon_spire"}]
+  and .first_contact_silhouette_readability_guard.player_screen_secondary_beacon_body_count == 3
+  and .first_contact_silhouette_readability_guard.player_screen_secondary_beacon_body_cues_per_beacon == 5
+  and .first_contact_silhouette_readability_guard.player_screen_secondary_beacon_body_cue_width_px == 8
+  and .first_contact_silhouette_readability_guard.player_screen_secondary_beacon_body_cue_height_px == 2
+  and .first_contact_silhouette_readability_guard.player_screen_secondary_beacon_body_pixel_budget <= 240
+  and (.first_contact_silhouette_readability_guard.player_screen_secondary_beacon_body_signatures | index("player_screen_secondary_beacon_body_micro_cues") != null)
   and .first_contact_silhouette_readability_guard.preview_resource_bloom_count == 11
   and (.first_contact_silhouette_readability_guard.preview_resource_signatures | index("resource_bloom_micro_shadow_cues") != null)
   and .first_contact_silhouette_readability_guard.preview_resource_bloom_cues_per_cluster == 4
@@ -1053,6 +1061,7 @@ cat >"$JQ_FILTER" <<'JQ'
   and .first_contact_silhouette_readability_guard.unit_role_silhouette_gate == true
   and .first_contact_silhouette_readability_guard.structure_roofline_gate == true
   and .first_contact_silhouette_readability_guard.beacon_spire_gate == true
+  and .first_contact_silhouette_readability_guard.player_screen_secondary_beacon_body_gate == true
   and .first_contact_silhouette_readability_guard.map_object_silhouette_gate == true
   and .first_contact_silhouette_readability_guard_gate == true
   and .first_contact_art_readability_contract == "trillionnium_world_bevy_classic_rts_first_contact_art_readability_v1"

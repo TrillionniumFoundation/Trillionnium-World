@@ -2,10 +2,11 @@
 
 use crate::{
     classic_darken, classic_draw_iso_ellipse, classic_draw_rect, classic_first_contact_tile_screen,
-    first_contact_palette, CLASSIC_ISO_OUTLINE_COLOR, CLASSIC_RTS_CAPTURE_BAR_COLOR,
-    CLASSIC_RTS_COMMANDER_AURA_COLOR, CLASSIC_RTS_HARVEST_NODE_COLOR,
-    CLASSIC_RTS_MODEL_IDENTITY_FACTION_COLOR, CLASSIC_RTS_STRUCTURE_HEALTH_COLOR,
-    CLASSIC_RTS_STRUCTURE_REPAIR_BEAM_COLOR, CLASSIC_RTS_TACTICAL_VIEWPORT_SHADOW_COLOR,
+    first_contact_palette, first_contact_renderer_readability, CLASSIC_ISO_OUTLINE_COLOR,
+    CLASSIC_RTS_CAPTURE_BAR_COLOR, CLASSIC_RTS_COMMANDER_AURA_COLOR,
+    CLASSIC_RTS_HARVEST_NODE_COLOR, CLASSIC_RTS_MODEL_IDENTITY_FACTION_COLOR,
+    CLASSIC_RTS_STRUCTURE_HEALTH_COLOR, CLASSIC_RTS_STRUCTURE_REPAIR_BEAM_COLOR,
+    CLASSIC_RTS_TACTICAL_VIEWPORT_SHADOW_COLOR,
 };
 use trnm_rts_data::first_contact_samples;
 
@@ -243,6 +244,37 @@ fn draw_structure(
             );
         }
         "vertical_beacon_spire" => {
+            if first_contact_renderer_readability::player_screen_secondary_beacon_body(
+                tile,
+                kind,
+                signature,
+                player_screen,
+                target_tile,
+            ) {
+                let quiet =
+                    first_contact_renderer_readability::lower_secondary_beacon_art_color(color);
+                let edge = classic_darken(quiet, 1, 4);
+                for (dx, dy, cue_width, cue_color) in [
+                    (-4, -cell_h * 2 - 6, 8, quiet),
+                    (-3, -cell_h * 2 + 4, 6, edge),
+                    (-4, -cell_h + 2, 8, quiet),
+                ] {
+                    classic_draw_rect(
+                        buffer,
+                        width,
+                        height,
+                        cx + dx,
+                        cy + dy,
+                        cue_width,
+                        2,
+                        cue_color,
+                    );
+                }
+                for (dx, dy, cue_height) in [(-2, -cell_h * 2 - 2, 6), (0, -cell_h - 6, 6)] {
+                    classic_draw_rect(buffer, width, height, cx + dx, cy + dy, 2, cue_height, edge);
+                }
+                return;
+            }
             classic_draw_rect(
                 buffer,
                 width,

@@ -43,6 +43,16 @@ pub(crate) fn secondary_beacon_capture_ring_detail(
     )
 }
 
+pub(crate) fn player_screen_secondary_beacon_body(
+    tile: (i32, i32),
+    role: &str,
+    signature: &str,
+    player_screen: bool,
+    target_tile: (i32, i32),
+) -> bool {
+    player_screen && tile != target_tile && role == "beacon" && signature == "vertical_beacon_spire"
+}
+
 pub(crate) fn secondary_objective_atlas_asset(
     tile: (i32, i32),
     role: &str,
@@ -148,6 +158,34 @@ mod tests {
             (16, 9),
             "beacon_ring",
             "beacon_capture_rings"
+        ));
+        assert!(player_screen_secondary_beacon_body(
+            (16, 24),
+            "beacon",
+            "vertical_beacon_spire",
+            true,
+            (16, 9)
+        ));
+        assert!(player_screen_secondary_beacon_body(
+            (9, 16),
+            "beacon",
+            "vertical_beacon_spire",
+            true,
+            (16, 9)
+        ));
+        assert!(!player_screen_secondary_beacon_body(
+            (16, 9),
+            "beacon",
+            "vertical_beacon_spire",
+            true,
+            (16, 9)
+        ));
+        assert!(!player_screen_secondary_beacon_body(
+            (16, 24),
+            "beacon",
+            "vertical_beacon_spire",
+            false,
+            (16, 9)
         ));
 
         assert!(secondary_objective_atlas_asset(
