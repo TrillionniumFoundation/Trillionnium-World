@@ -116,12 +116,15 @@ pub fn first_contact_atlas_readability_guard(
     let secondary_objective_atlas_signatures = string_vec([
         "secondary_objective_atlas_frame_suppressed",
         "secondary_objective_atlas_micro_anchor_only",
+        "secondary_objective_atlas_depth_suppressed",
     ]);
     let secondary_objective_atlas_sample_count = secondary_objective_atlas_samples.len();
     let secondary_objective_atlas_source_frame_pixel_budget =
         secondary_objective_atlas_sample_count * 16_usize * 16_usize * (2_usize).pow(2);
     let secondary_objective_atlas_rendered_frame_pixel_budget = 0_usize;
     let secondary_objective_atlas_anchor_pixel_budget = secondary_objective_atlas_sample_count * 24;
+    let secondary_objective_atlas_depth_suppressed_count = secondary_objective_atlas_sample_count;
+    let secondary_objective_atlas_depth_pixel_budget = 0_usize;
     let atlas_manifest_roles = runtime.atlas_manifest_roles.clone();
     let atlas_family_sample_tiles = family_samples
         .iter()
@@ -240,7 +243,10 @@ pub fn first_contact_atlas_readability_guard(
         .count();
     let atlas_runtime_depth_sample_count = samples
         .iter()
-        .filter(|(_, role, _, _, _)| first_contact_samples::atlas_runtime_depth_role(role))
+        .filter(|(tile, role, frame_id, signature, _)| {
+            first_contact_samples::atlas_runtime_depth_role(role)
+                && !secondary_objective_atlas_sample(*tile, role, frame_id, signature)
+        })
         .count()
         + family_samples
             .iter()
@@ -412,9 +418,9 @@ pub fn first_contact_atlas_readability_guard(
             "atlas_objective_capture_underlay",
             "atlas_lower_lane_depth_suppressed",
         ])
-        && atlas_runtime_depth_sample_count >= 21
+        && atlas_runtime_depth_sample_count >= 20
         && atlas_lower_lane_depth_suppressed_count == 3
-        && atlas_runtime_depth_pixel_budget >= 1_344;
+        && atlas_runtime_depth_pixel_budget >= 1_280;
     let secondary_objective_atlas_deemphasis_gate = secondary_objective_atlas_samples
         == vec![json!({
             "tile": "16,24",
@@ -432,7 +438,12 @@ pub fn first_contact_atlas_readability_guard(
             .any(|signature| signature == "secondary_objective_atlas_frame_suppressed")
         && secondary_objective_atlas_signatures
             .iter()
-            .any(|signature| signature == "secondary_objective_atlas_micro_anchor_only");
+            .any(|signature| signature == "secondary_objective_atlas_micro_anchor_only")
+        && secondary_objective_atlas_signatures
+            .iter()
+            .any(|signature| signature == "secondary_objective_atlas_depth_suppressed")
+        && secondary_objective_atlas_depth_suppressed_count == 1
+        && secondary_objective_atlas_depth_pixel_budget == 0;
     let no_copy_boundary_gate =
         !runtime.cex_runtime_player_client_allowed && !runtime.wgpu_required;
     let first_contact_atlas_readability_gate = atlas_manifest_gate
@@ -465,6 +476,8 @@ pub fn first_contact_atlas_readability_guard(
         "secondary_objective_atlas_source_frame_pixel_budget": secondary_objective_atlas_source_frame_pixel_budget,
         "secondary_objective_atlas_rendered_frame_pixel_budget": secondary_objective_atlas_rendered_frame_pixel_budget,
         "secondary_objective_atlas_anchor_pixel_budget": secondary_objective_atlas_anchor_pixel_budget,
+        "secondary_objective_atlas_depth_suppressed_count": secondary_objective_atlas_depth_suppressed_count,
+        "secondary_objective_atlas_depth_pixel_budget": secondary_objective_atlas_depth_pixel_budget,
         "secondary_objective_atlas_signatures": secondary_objective_atlas_signatures,
         "atlas_family_sample_tiles": atlas_family_sample_tiles,
         "atlas_family_roles": atlas_family_roles,
@@ -665,9 +678,36 @@ mod tests {
         );
         assert_eq!(
             guard
+                .get("secondary_objective_atlas_depth_suppressed_count")
+                .and_then(Value::as_u64),
+            Some(1)
+        );
+        assert_eq!(
+            guard
+                .get("secondary_objective_atlas_depth_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(0)
+        );
+        assert_eq!(
+            guard
+                .get("secondary_objective_atlas_signatures")
+                .and_then(Value::as_array)
+                .map(|signatures| {
+                    signatures.iter().any(|value| {
+                        value.as_str() == Some("secondary_objective_atlas_frame_suppressed")
+                    }) && signatures.iter().any(|value| {
+                        value.as_str() == Some("secondary_objective_atlas_micro_anchor_only")
+                    }) && signatures.iter().any(|value| {
+                        value.as_str() == Some("secondary_objective_atlas_depth_suppressed")
+                    })
+                }),
+            Some(true)
+        );
+        assert_eq!(
+            guard
                 .get("atlas_runtime_depth_sample_count")
                 .and_then(Value::as_u64),
-            Some(21)
+            Some(20)
         );
         assert_eq!(
             guard

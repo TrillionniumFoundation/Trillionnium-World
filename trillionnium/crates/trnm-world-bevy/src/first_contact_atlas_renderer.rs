@@ -236,7 +236,9 @@ fn draw_asset_sample(
     let lower_lane_gallery = muted_gallery && family_lower_lane_tile(tile);
     let (frame_w, frame_h) = asset_frame_size(assets, frame_id, scale);
     let (offset_x, offset_y) = asset_offset(role, frame_h.max(frame_w), cell_h);
-    if runtime_depth_role(role) {
+    let secondary_objective_atlas_asset =
+        first_contact_renderer_readability::secondary_objective_atlas_asset(tile, role, frame_id);
+    if runtime_depth_role(role) && !secondary_objective_atlas_asset {
         draw_runtime_depth(
             buffer,
             width,
@@ -249,7 +251,7 @@ fn draw_asset_sample(
             lower_lane_gallery,
         );
     }
-    if first_contact_renderer_readability::secondary_objective_atlas_asset(tile, role, frame_id) {
+    if secondary_objective_atlas_asset {
         first_contact_renderer_readability::draw_secondary_objective_atlas_anchor(
             buffer, width, height, cx, cy, cell_w, cell_h,
         );

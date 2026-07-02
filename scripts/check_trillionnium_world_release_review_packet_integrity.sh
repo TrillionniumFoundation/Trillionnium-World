@@ -1141,8 +1141,11 @@ require_artifact_json_expr first_contact_basin_spec_semantics native_bevy_classi
   and .first_contact_atlas_readability_guard.secondary_objective_atlas_source_frame_pixel_budget >= 1024
   and .first_contact_atlas_readability_guard.secondary_objective_atlas_rendered_frame_pixel_budget == 0
   and .first_contact_atlas_readability_guard.secondary_objective_atlas_anchor_pixel_budget <= 24
+  and .first_contact_atlas_readability_guard.secondary_objective_atlas_depth_suppressed_count == 1
+  and .first_contact_atlas_readability_guard.secondary_objective_atlas_depth_pixel_budget == 0
   and (.first_contact_atlas_readability_guard.secondary_objective_atlas_signatures | index("secondary_objective_atlas_frame_suppressed") != null)
   and (.first_contact_atlas_readability_guard.secondary_objective_atlas_signatures | index("secondary_objective_atlas_micro_anchor_only") != null)
+  and (.first_contact_atlas_readability_guard.secondary_objective_atlas_signatures | index("secondary_objective_atlas_depth_suppressed") != null)
   and .first_contact_atlas_readability_guard.terrain_frame_count == 6
   and .first_contact_atlas_readability_guard.unit_frame_count == 4
   and .first_contact_atlas_readability_guard.structure_frame_count == 4
@@ -1169,9 +1172,9 @@ require_artifact_json_expr first_contact_basin_spec_semantics native_bevy_classi
   and (.first_contact_atlas_readability_guard.atlas_runtime_depth_signatures | index("atlas_structure_footprint_rim") != null)
   and (.first_contact_atlas_readability_guard.atlas_runtime_depth_signatures | index("atlas_objective_capture_underlay") != null)
   and (.first_contact_atlas_readability_guard.atlas_runtime_depth_signatures | index("atlas_lower_lane_depth_suppressed") != null)
-  and .first_contact_atlas_readability_guard.atlas_runtime_depth_sample_count >= 21
+  and .first_contact_atlas_readability_guard.atlas_runtime_depth_sample_count >= 20
   and .first_contact_atlas_readability_guard.atlas_lower_lane_depth_suppressed_count == 3
-  and .first_contact_atlas_readability_guard.atlas_runtime_depth_pixel_budget >= 1344
+  and .first_contact_atlas_readability_guard.atlas_runtime_depth_pixel_budget >= 1280
   and .first_contact_atlas_readability_guard.manifest_frame_gate == true
   and .first_contact_atlas_readability_guard.family_frame_available_gate == true
   and .first_contact_atlas_readability_guard.atlas_manifest_gate == true

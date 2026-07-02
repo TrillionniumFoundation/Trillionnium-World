@@ -151032,6 +151032,33 @@ mod tests {
         );
         assert_eq!(
             guard
+                .get("secondary_objective_atlas_depth_suppressed_count")
+                .and_then(Value::as_u64),
+            Some(1)
+        );
+        assert_eq!(
+            guard
+                .get("secondary_objective_atlas_depth_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(0)
+        );
+        assert_eq!(
+            guard
+                .get("secondary_objective_atlas_signatures")
+                .and_then(Value::as_array)
+                .map(|signatures| {
+                    signatures.iter().any(|value| {
+                        value.as_str() == Some("secondary_objective_atlas_frame_suppressed")
+                    }) && signatures.iter().any(|value| {
+                        value.as_str() == Some("secondary_objective_atlas_micro_anchor_only")
+                    }) && signatures.iter().any(|value| {
+                        value.as_str() == Some("secondary_objective_atlas_depth_suppressed")
+                    })
+                }),
+            Some(true)
+        );
+        assert_eq!(
+            guard
                 .get("atlas_family_frame_ids")
                 .and_then(Value::as_array)
                 .map(|frames| {
@@ -151143,7 +151170,7 @@ mod tests {
             guard
                 .get("atlas_runtime_depth_sample_count")
                 .and_then(Value::as_u64),
-            Some(21)
+            Some(20)
         );
         assert_eq!(
             guard
@@ -151155,7 +151182,7 @@ mod tests {
             guard
                 .get("atlas_runtime_depth_pixel_budget")
                 .and_then(Value::as_u64),
-            Some(1344)
+            Some(1280)
         );
         for gate in [
             "manifest_frame_gate",
