@@ -443,6 +443,7 @@ pub(super) fn draw_landmark_detail(
     tile: (i32, i32),
     role: &str,
     signature: &str,
+    player_screen: bool,
 ) {
     let (tile_x, tile_y) = classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, tile);
     let cx = tile_x + cell_w / 2;
@@ -450,37 +451,64 @@ pub(super) fn draw_landmark_detail(
     let color = landmark_color(role);
     match signature {
         "base_gate_lamps" => {
-            classic_draw_rect(
-                buffer,
-                width,
-                height,
-                cx - cell_w,
-                cy - cell_h / 2,
-                cell_w * 2,
-                3,
-                color,
-            );
-            for dx in [-cell_w / 2, cell_w / 2] {
+            if player_screen && role == "base_gate" {
+                let post_color = classic_darken(color, 3, 5);
+                let lamp_color = classic_darken(color, 1, 3);
+                for dx in [-cell_w / 2, cell_w / 2] {
+                    classic_draw_rect(
+                        buffer,
+                        width,
+                        height,
+                        cx + dx - 2,
+                        cy - cell_h / 2,
+                        4,
+                        6,
+                        post_color,
+                    );
+                    classic_draw_rect(
+                        buffer,
+                        width,
+                        height,
+                        cx + dx - 3,
+                        cy - cell_h / 2 - 3,
+                        6,
+                        CLASSIC_FIRST_CONTACT_PLAYER_COMMAND_CORE_FACTION_TICK_H_PX,
+                        lamp_color,
+                    );
+                }
+            } else {
                 classic_draw_rect(
                     buffer,
                     width,
                     height,
-                    cx + dx - 3,
-                    cy - cell_h,
-                    6,
-                    12,
+                    cx - cell_w,
+                    cy - cell_h / 2,
+                    cell_w * 2,
+                    3,
                     color,
                 );
-                classic_draw_rect(
-                    buffer,
-                    width,
-                    height,
-                    cx + dx - 5,
-                    cy - cell_h - 4,
-                    10,
-                    3,
-                    classic_lighten(color, 1, 4),
-                );
+                for dx in [-cell_w / 2, cell_w / 2] {
+                    classic_draw_rect(
+                        buffer,
+                        width,
+                        height,
+                        cx + dx - 3,
+                        cy - cell_h,
+                        6,
+                        12,
+                        color,
+                    );
+                    classic_draw_rect(
+                        buffer,
+                        width,
+                        height,
+                        cx + dx - 5,
+                        cy - cell_h - 4,
+                        10,
+                        3,
+                        classic_lighten(color, 1, 4),
+                    );
+                }
             }
         }
         "crystal_shadow_sparkles" => {
@@ -729,7 +757,17 @@ pub(super) fn draw_readability_layer(
     }
     for (tile, role, signature) in landmark_samples() {
         draw_landmark_detail(
-            buffer, width, height, map_x, map_y, cell_w, cell_h, tile, role, signature,
+            buffer,
+            width,
+            height,
+            map_x,
+            map_y,
+            cell_w,
+            cell_h,
+            tile,
+            role,
+            signature,
+            player_screen,
         );
     }
 }

@@ -91736,6 +91736,32 @@ fn classic_first_contact_runtime_core_visibility(world: &TrnmOpenRaLikeWorld) ->
         .map(|actor| actor.id.clone())
         .collect::<Vec<_>>();
     unit_role_accent_visible_actor_ids.sort();
+    let mut command_core_actor_ids = visible_actors
+        .iter()
+        .filter(|actor| {
+            matches!(
+                classic_first_contact_runtime_actor_glyph_accent(actor),
+                RtsActorGlyphAccent::CommandSpire
+            )
+        })
+        .map(|actor| actor.id.clone())
+        .collect::<Vec<_>>();
+    command_core_actor_ids.sort();
+    let runtime_core_command_core_body_ticks_per_actor =
+        CLASSIC_FIRST_CONTACT_PLAYER_COMMAND_CORE_FACTION_TICK_COUNT;
+    let runtime_core_command_core_body_tick_width_px =
+        CLASSIC_FIRST_CONTACT_PLAYER_COMMAND_CORE_FACTION_TICK_W_PX;
+    let runtime_core_command_core_body_tick_height_px =
+        CLASSIC_FIRST_CONTACT_PLAYER_COMMAND_CORE_FACTION_TICK_H_PX;
+    let runtime_core_command_core_body_pixel_budget = command_core_actor_ids.len()
+        * runtime_core_command_core_body_ticks_per_actor
+        * usize::try_from(runtime_core_command_core_body_tick_width_px.max(0)).unwrap_or(0)
+        * usize::try_from(runtime_core_command_core_body_tick_height_px.max(0)).unwrap_or(0);
+    let runtime_core_command_core_hot_body_pixel_budget = 0usize;
+    let runtime_core_command_core_body_signatures = [
+        "player_screen_runtime_command_core_body_muted".to_string(),
+        "player_screen_runtime_command_core_micro_ticks".to_string(),
+    ];
     let visible_actor_id_set = visible_actor_ids
         .iter()
         .map(String::as_str)
@@ -91854,6 +91880,21 @@ fn classic_first_contact_runtime_core_visibility(world: &TrnmOpenRaLikeWorld) ->
         && unit_role_accent_candidate_actor_ids
             .iter()
             .any(|actor_id| actor_id == "multi0.warden.capture");
+    let command_core_body_gate = command_core_actor_ids == vec!["multi0.command.core".to_string()]
+        && runtime_core_command_core_body_ticks_per_actor
+            == CLASSIC_FIRST_CONTACT_PLAYER_COMMAND_CORE_FACTION_TICK_COUNT
+        && runtime_core_command_core_body_tick_width_px
+            == CLASSIC_FIRST_CONTACT_PLAYER_COMMAND_CORE_FACTION_TICK_W_PX
+        && runtime_core_command_core_body_tick_height_px
+            == CLASSIC_FIRST_CONTACT_PLAYER_COMMAND_CORE_FACTION_TICK_H_PX
+        && runtime_core_command_core_body_pixel_budget <= 48
+        && runtime_core_command_core_hot_body_pixel_budget == 0
+        && runtime_core_command_core_body_signatures
+            .iter()
+            .any(|signature| signature == "player_screen_runtime_command_core_body_muted")
+        && runtime_core_command_core_body_signatures
+            .iter()
+            .any(|signature| signature == "player_screen_runtime_command_core_micro_ticks");
     let green = required_visible_gate
         && hidden_fixture_gate
         && bottom_fixture_gate
@@ -91862,7 +91903,8 @@ fn classic_first_contact_runtime_core_visibility(world: &TrnmOpenRaLikeWorld) ->
         && visible_subset_gate
         && inline_health_bar_gate
         && selection_ring_gate
-        && unit_role_accent_gate;
+        && unit_role_accent_gate
+        && command_core_body_gate;
     json!({
         "green": green,
         "source_path": "trnm-world-bevy classic_draw_first_contact_runtime_core_layer player-visible actor subset with control and semantic fixtures hidden, inline health bars decluttered, default selection rings suppressed, and unit role accents muted",
@@ -91878,6 +91920,13 @@ fn classic_first_contact_runtime_core_visibility(world: &TrnmOpenRaLikeWorld) ->
         "runtime_core_unit_role_accent_candidate_actor_count": unit_role_accent_candidate_actor_ids.len(),
         "runtime_core_unit_role_accent_visible_actor_count": unit_role_accent_visible_actor_ids.len(),
         "runtime_core_suppressed_unit_role_accent_actor_count": unit_role_accent_candidate_actor_ids.len().saturating_sub(unit_role_accent_visible_actor_ids.len()),
+        "runtime_core_command_core_body_actor_ids": command_core_actor_ids,
+        "runtime_core_command_core_body_ticks_per_actor": runtime_core_command_core_body_ticks_per_actor,
+        "runtime_core_command_core_body_tick_width_px": runtime_core_command_core_body_tick_width_px,
+        "runtime_core_command_core_body_tick_height_px": runtime_core_command_core_body_tick_height_px,
+        "runtime_core_command_core_body_pixel_budget": runtime_core_command_core_body_pixel_budget,
+        "runtime_core_command_core_hot_body_pixel_budget": runtime_core_command_core_hot_body_pixel_budget,
+        "runtime_core_command_core_body_signatures": runtime_core_command_core_body_signatures,
         "runtime_core_hidden_fixture_actor_count": hidden_fixture_actors.len(),
         "runtime_core_visible_actor_ids": visible_actor_ids,
         "runtime_core_inline_health_bar_actor_ids": inline_health_bar_actor_ids,
@@ -91902,6 +91951,7 @@ fn classic_first_contact_runtime_core_visibility(world: &TrnmOpenRaLikeWorld) ->
         "runtime_core_inline_health_bar_gate": inline_health_bar_gate,
         "runtime_core_selection_ring_gate": selection_ring_gate,
         "runtime_core_unit_role_accent_gate": unit_role_accent_gate,
+        "runtime_core_command_core_body_gate": command_core_body_gate,
     })
 }
 
@@ -92327,13 +92377,21 @@ fn classic_draw_first_contact_actor_glyph(
     size_w: i32,
     size_h: i32,
     color: u32,
+    player_screen: bool,
 ) {
     let base_x = center_x - size_w / 4;
     let base_y = center_y - size_h / 2;
-    let highlight = classic_lighten(color, 1, 4);
-    let shadow = classic_darken(color, 2, 5);
     let glyph_body = classic_first_contact_runtime_actor_glyph_body(actor);
     let glyph_accent = classic_first_contact_runtime_actor_glyph_accent(actor);
+    let player_screen_command_core =
+        player_screen && matches!(glyph_accent, RtsActorGlyphAccent::CommandSpire);
+    let render_color = if player_screen_command_core {
+        classic_darken(color, 3, 5)
+    } else {
+        color
+    };
+    let highlight = classic_lighten(render_color, 1, 4);
+    let shadow = classic_darken(render_color, 2, 5);
     if matches!(
         glyph_body,
         RtsActorGlyphBody::Structure | RtsActorGlyphBody::ObjectiveBeacon
@@ -92366,7 +92424,7 @@ fn classic_draw_first_contact_actor_glyph(
             base_y,
             size_w.max(10),
             size_h.max(8),
-            color,
+            render_color,
         );
         classic_draw_first_contact_actor_depth_detail(
             buffer,
@@ -92378,7 +92436,7 @@ fn classic_draw_first_contact_actor_glyph(
             base_y,
             size_w,
             size_h,
-            color,
+            render_color,
         );
         match glyph_accent {
             RtsActorGlyphAccent::CommandSpire => {
@@ -92390,18 +92448,34 @@ fn classic_draw_first_contact_actor_glyph(
                     base_y - 6,
                     4,
                     14,
-                    color,
+                    render_color,
                 );
-                classic_draw_rect(
-                    buffer,
-                    width,
-                    height,
-                    center_x - 11,
-                    base_y + size_h / 3 + 4,
-                    22,
-                    4,
-                    highlight,
-                );
+                if player_screen_command_core {
+                    let tick_color = classic_darken(color, 1, 3);
+                    for tick in 0..CLASSIC_FIRST_CONTACT_PLAYER_COMMAND_CORE_FACTION_TICK_COUNT {
+                        classic_draw_rect(
+                            buffer,
+                            width,
+                            height,
+                            center_x - 18 + tick as i32 * 10,
+                            base_y + size_h / 3 + 5 + (tick as i32 % 2),
+                            CLASSIC_FIRST_CONTACT_PLAYER_COMMAND_CORE_FACTION_TICK_W_PX,
+                            CLASSIC_FIRST_CONTACT_PLAYER_COMMAND_CORE_FACTION_TICK_H_PX,
+                            tick_color,
+                        );
+                    }
+                } else {
+                    classic_draw_rect(
+                        buffer,
+                        width,
+                        height,
+                        center_x - 11,
+                        base_y + size_h / 3 + 4,
+                        22,
+                        4,
+                        highlight,
+                    );
+                }
                 classic_draw_rect(
                     buffer,
                     width,
@@ -92606,7 +92680,7 @@ fn classic_draw_first_contact_actor_glyph(
             center_y + size_h / 2 + 2,
             classic_first_contact_runtime_actor_health_bar_width(actor, size_w.max(10)),
             classic_first_contact_runtime_actor_health_percent(actor),
-            color,
+            render_color,
         );
     }
 }
@@ -92622,6 +92696,7 @@ fn classic_draw_first_contact_runtime_core_layer(
     cell_w: i32,
     cell_h: i32,
     world: &TrnmOpenRaLikeWorld,
+    player_screen: bool,
 ) {
     for actor in world
         .actors
@@ -92633,7 +92708,16 @@ fn classic_draw_first_contact_runtime_core_layer(
         let color = classic_first_contact_runtime_actor_color(actor);
         let (size_w, size_h) = classic_first_contact_runtime_actor_size(actor, cell_w, cell_h);
         classic_draw_first_contact_actor_glyph(
-            buffer, width, height, actor, tile_x, tile_y, size_w, size_h, color,
+            buffer,
+            width,
+            height,
+            actor,
+            tile_x,
+            tile_y,
+            size_w,
+            size_h,
+            color,
+            player_screen,
         );
         if classic_first_contact_runtime_actor_progress_bar_visible(actor) {
             let progress = if actor.build_progress < 100 {
@@ -94227,17 +94311,20 @@ fn classic_draw_first_contact_model_identity_layers(
             cell_h,
             classic_darken(CLASSIC_RTS_MODEL_IDENTITY_CORE_COLOR, 1, 4),
         );
-        classic_draw_rect(
-            buffer,
-            width,
-            height,
-            cx - cell_w + 2,
-            cy - cell_h - 7,
-            cell_w * 2 - 4,
-            5,
-            faction_color,
-        );
         if player_screen {
+            let roof_cue_color = classic_darken(faction_color, 2, 5);
+            for cue in 0..2 {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    cx - cell_w + 6 + cue * (cell_w * 2 - 22),
+                    cy - cell_h - 6,
+                    10,
+                    2,
+                    roof_cue_color,
+                );
+            }
             let tick_color = classic_darken(CLASSIC_RTS_MODEL_IDENTITY_FACTION_COLOR, 1, 3);
             for tick in 0..CLASSIC_FIRST_CONTACT_PLAYER_COMMAND_CORE_FACTION_TICK_COUNT {
                 classic_draw_rect(
@@ -94252,6 +94339,16 @@ fn classic_draw_first_contact_model_identity_layers(
                 );
             }
         } else {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                cx - cell_w + 2,
+                cy - cell_h - 7,
+                cell_w * 2 - 4,
+                5,
+                faction_color,
+            );
             classic_draw_rect(
                 buffer,
                 width,
@@ -94649,7 +94746,7 @@ fn classic_draw_first_contact_art_landmark_detail(
     signature: &str,
 ) {
     first_contact_art_renderer::draw_landmark_detail(
-        buffer, width, height, map_x, map_y, cell_w, cell_h, tile, role, signature,
+        buffer, width, height, map_x, map_y, cell_w, cell_h, tile, role, signature, false,
     );
 }
 
@@ -96333,6 +96430,7 @@ fn classic_draw_first_contact_basin_scene(
         cell_w,
         cell_h,
         &core_world,
+        player_screen,
     );
 
     let visual_telemetry = classic_first_contact_visual_telemetry();
@@ -150400,6 +150498,39 @@ mod tests {
             Some(true)
         );
         assert_eq!(
+            guard.get("player_screen_base_gate_lamp_samples").cloned(),
+            Some(json!([
+                {"tile": "8,9", "role": "base_gate", "signature": "base_gate_lamps"},
+                {"tile": "25,9", "role": "base_gate", "signature": "base_gate_lamps"},
+                {"tile": "25,24", "role": "base_gate", "signature": "base_gate_lamps"},
+                {"tile": "8,24", "role": "base_gate", "signature": "base_gate_lamps"}
+            ]))
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_base_gate_lamp_count")
+                .and_then(Value::as_u64),
+            Some(4)
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_base_gate_lamps_per_gate")
+                .and_then(Value::as_u64),
+            Some(2)
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_base_gate_lamp_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(96)
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_base_gate_hot_lamp_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(0)
+        );
+        assert_eq!(
             guard
                 .get("runtime_actor_depth_signatures")
                 .and_then(Value::as_array)
@@ -150455,6 +150586,7 @@ mod tests {
             "runtime_actor_depth_gate",
             "secondary_beacon_capture_ring_gate",
             "player_screen_command_core_art_gate",
+            "player_screen_base_gate_lamp_gate",
             "authored_map_art_gate",
         ] {
             assert_eq!(guard.get(gate).and_then(Value::as_bool), Some(true));
@@ -152141,6 +152273,57 @@ mod tests {
             .get("runtime_core_suppressed_unit_role_accent_actor_count")
             .and_then(Value::as_u64)
             .is_some_and(|count| count == 9));
+        assert_eq!(
+            guard
+                .get("runtime_core_command_core_body_actor_ids")
+                .cloned(),
+            Some(json!(["multi0.command.core"]))
+        );
+        assert_eq!(
+            guard
+                .get("runtime_core_command_core_body_ticks_per_actor")
+                .and_then(Value::as_u64),
+            Some(4)
+        );
+        assert_eq!(
+            guard
+                .get("runtime_core_command_core_body_tick_width_px")
+                .and_then(Value::as_i64),
+            Some(i64::from(
+                CLASSIC_FIRST_CONTACT_PLAYER_COMMAND_CORE_FACTION_TICK_W_PX
+            ))
+        );
+        assert_eq!(
+            guard
+                .get("runtime_core_command_core_body_tick_height_px")
+                .and_then(Value::as_i64),
+            Some(i64::from(
+                CLASSIC_FIRST_CONTACT_PLAYER_COMMAND_CORE_FACTION_TICK_H_PX
+            ))
+        );
+        assert_eq!(
+            guard
+                .get("runtime_core_command_core_body_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(48)
+        );
+        assert_eq!(
+            guard
+                .get("runtime_core_command_core_hot_body_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(0)
+        );
+        assert_eq!(
+            guard
+                .get("runtime_core_command_core_body_signatures")
+                .and_then(Value::as_array)
+                .map(|signatures| signatures.iter().any(|signature| {
+                    signature.as_str() == Some("player_screen_runtime_command_core_body_muted")
+                }) && signatures.iter().any(|signature| {
+                    signature.as_str() == Some("player_screen_runtime_command_core_micro_ticks")
+                })),
+            Some(true)
+        );
         let visible_actor_ids = guard
             .get("runtime_core_visible_actor_ids")
             .and_then(Value::as_array)
@@ -152295,6 +152478,7 @@ mod tests {
             "runtime_core_inline_health_bar_gate",
             "runtime_core_selection_ring_gate",
             "runtime_core_unit_role_accent_gate",
+            "runtime_core_command_core_body_gate",
         ] {
             assert_eq!(guard.get(gate).and_then(Value::as_bool), Some(true));
         }

@@ -34,6 +34,10 @@ fn command_core_art_detail(_tile: (i32, i32), role: &str, signature: &str) -> bo
     role == "command_core" && signature == "lit_window_rows"
 }
 
+fn base_gate_lamp_detail(_tile: (i32, i32), role: &str, signature: &str) -> bool {
+    role == "base_gate" && signature == "base_gate_lamps"
+}
+
 pub fn first_contact_art_readability_guard() -> Value {
     let terrain_samples = first_contact_samples::art_terrain_samples();
     let building_samples = first_contact_samples::art_building_samples();
@@ -194,6 +198,30 @@ pub fn first_contact_art_readability_guard() -> Value {
         * player_screen_command_core_art_tick_width_px
         * player_screen_command_core_art_tick_height_px;
     let player_screen_command_core_hot_facade_pixel_budget = 0usize;
+    let player_screen_base_gate_lamp_samples = landmark_samples
+        .iter()
+        .filter(|(tile, role, signature)| base_gate_lamp_detail(*tile, role, signature))
+        .map(|(tile, role, signature)| {
+            json!({
+                "tile": tile_id(*tile),
+                "role": role,
+                "signature": signature,
+            })
+        })
+        .collect::<Vec<_>>();
+    let player_screen_base_gate_lamp_signatures = string_vec([
+        "player_screen_base_gate_micro_lamps",
+        "player_screen_base_gate_hot_lamps_suppressed",
+    ]);
+    let player_screen_base_gate_lamp_count = player_screen_base_gate_lamp_samples.len();
+    let player_screen_base_gate_lamps_per_gate = 2usize;
+    let player_screen_base_gate_lamp_width_px = 6usize;
+    let player_screen_base_gate_lamp_height_px = 2usize;
+    let player_screen_base_gate_lamp_pixel_budget = player_screen_base_gate_lamp_count
+        * player_screen_base_gate_lamps_per_gate
+        * player_screen_base_gate_lamp_width_px
+        * player_screen_base_gate_lamp_height_px;
+    let player_screen_base_gate_hot_lamp_pixel_budget = 0usize;
     let unique_terrain_signature_count = terrain_material_signatures
         .iter()
         .collect::<BTreeSet<_>>()
@@ -374,6 +402,41 @@ pub fn first_contact_art_readability_guard() -> Value {
         && player_screen_command_core_art_signatures
             .iter()
             .any(|signature| signature == "player_screen_command_core_hot_facade_suppressed");
+    let player_screen_base_gate_lamp_gate = player_screen_base_gate_lamp_samples
+        == vec![
+            json!({
+                "tile": "8,9",
+                "role": "base_gate",
+                "signature": "base_gate_lamps",
+            }),
+            json!({
+                "tile": "25,9",
+                "role": "base_gate",
+                "signature": "base_gate_lamps",
+            }),
+            json!({
+                "tile": "25,24",
+                "role": "base_gate",
+                "signature": "base_gate_lamps",
+            }),
+            json!({
+                "tile": "8,24",
+                "role": "base_gate",
+                "signature": "base_gate_lamps",
+            }),
+        ]
+        && player_screen_base_gate_lamp_count == 4
+        && player_screen_base_gate_lamps_per_gate == 2
+        && player_screen_base_gate_lamp_width_px == 6
+        && player_screen_base_gate_lamp_height_px == 2
+        && player_screen_base_gate_lamp_pixel_budget <= 96
+        && player_screen_base_gate_hot_lamp_pixel_budget == 0
+        && player_screen_base_gate_lamp_signatures
+            .iter()
+            .any(|signature| signature == "player_screen_base_gate_micro_lamps")
+        && player_screen_base_gate_lamp_signatures
+            .iter()
+            .any(|signature| signature == "player_screen_base_gate_hot_lamps_suppressed");
     let authored_map_art_gate = terrain_material_gate
         && terrain_material_depth_gate
         && building_facade_gate
@@ -381,7 +444,8 @@ pub fn first_contact_art_readability_guard() -> Value {
         && runtime_actor_depth_gate
         && lower_secondary_beacon_art_deemphasis_gate
         && secondary_beacon_capture_ring_gate
-        && player_screen_command_core_art_gate;
+        && player_screen_command_core_art_gate
+        && player_screen_base_gate_lamp_gate;
     let green = authored_map_art_gate;
 
     json!({
@@ -447,6 +511,15 @@ pub fn first_contact_art_readability_guard() -> Value {
         "player_screen_command_core_hot_facade_pixel_budget": player_screen_command_core_hot_facade_pixel_budget,
         "player_screen_command_core_art_signatures": player_screen_command_core_art_signatures,
         "player_screen_command_core_art_gate": player_screen_command_core_art_gate,
+        "player_screen_base_gate_lamp_samples": player_screen_base_gate_lamp_samples,
+        "player_screen_base_gate_lamp_count": player_screen_base_gate_lamp_count,
+        "player_screen_base_gate_lamps_per_gate": player_screen_base_gate_lamps_per_gate,
+        "player_screen_base_gate_lamp_width_px": player_screen_base_gate_lamp_width_px,
+        "player_screen_base_gate_lamp_height_px": player_screen_base_gate_lamp_height_px,
+        "player_screen_base_gate_lamp_pixel_budget": player_screen_base_gate_lamp_pixel_budget,
+        "player_screen_base_gate_hot_lamp_pixel_budget": player_screen_base_gate_hot_lamp_pixel_budget,
+        "player_screen_base_gate_lamp_signatures": player_screen_base_gate_lamp_signatures,
+        "player_screen_base_gate_lamp_gate": player_screen_base_gate_lamp_gate,
         "authored_map_art_gate": authored_map_art_gate,
     })
 }
@@ -662,6 +735,51 @@ mod tests {
             Some(true)
         );
         assert_eq!(
+            guard.get("player_screen_base_gate_lamp_samples").cloned(),
+            Some(json!([
+                {"tile": "8,9", "role": "base_gate", "signature": "base_gate_lamps"},
+                {"tile": "25,9", "role": "base_gate", "signature": "base_gate_lamps"},
+                {"tile": "25,24", "role": "base_gate", "signature": "base_gate_lamps"},
+                {"tile": "8,24", "role": "base_gate", "signature": "base_gate_lamps"}
+            ]))
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_base_gate_lamp_count")
+                .and_then(Value::as_u64),
+            Some(4)
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_base_gate_lamps_per_gate")
+                .and_then(Value::as_u64),
+            Some(2)
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_base_gate_lamp_width_px")
+                .and_then(Value::as_u64),
+            Some(6)
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_base_gate_lamp_height_px")
+                .and_then(Value::as_u64),
+            Some(2)
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_base_gate_lamp_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(96)
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_base_gate_hot_lamp_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(0)
+        );
+        assert_eq!(
             guard
                 .get("command_core_facade_count")
                 .and_then(Value::as_u64),
@@ -684,6 +802,7 @@ mod tests {
             "lower_secondary_beacon_art_deemphasis_gate",
             "secondary_beacon_capture_ring_gate",
             "player_screen_command_core_art_gate",
+            "player_screen_base_gate_lamp_gate",
             "authored_map_art_gate",
         ] {
             assert_eq!(guard.get(gate).and_then(Value::as_bool), Some(true));

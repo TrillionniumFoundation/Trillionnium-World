@@ -951,6 +951,15 @@ require_artifact_json_expr first_contact_basin_spec_semantics native_bevy_classi
   and .first_contact_art_readability_guard.player_screen_command_core_hot_facade_pixel_budget == 0
   and (.first_contact_art_readability_guard.player_screen_command_core_art_signatures | index("player_screen_command_core_art_micro_ticks") != null)
   and (.first_contact_art_readability_guard.player_screen_command_core_art_signatures | index("player_screen_command_core_hot_facade_suppressed") != null)
+  and .first_contact_art_readability_guard.player_screen_base_gate_lamp_samples == [{"tile":"8,9","role":"base_gate","signature":"base_gate_lamps"},{"tile":"25,9","role":"base_gate","signature":"base_gate_lamps"},{"tile":"25,24","role":"base_gate","signature":"base_gate_lamps"},{"tile":"8,24","role":"base_gate","signature":"base_gate_lamps"}]
+  and .first_contact_art_readability_guard.player_screen_base_gate_lamp_count == 4
+  and .first_contact_art_readability_guard.player_screen_base_gate_lamps_per_gate == 2
+  and .first_contact_art_readability_guard.player_screen_base_gate_lamp_width_px == 6
+  and .first_contact_art_readability_guard.player_screen_base_gate_lamp_height_px == 2
+  and .first_contact_art_readability_guard.player_screen_base_gate_lamp_pixel_budget <= 96
+  and .first_contact_art_readability_guard.player_screen_base_gate_hot_lamp_pixel_budget == 0
+  and (.first_contact_art_readability_guard.player_screen_base_gate_lamp_signatures | index("player_screen_base_gate_micro_lamps") != null)
+  and (.first_contact_art_readability_guard.player_screen_base_gate_lamp_signatures | index("player_screen_base_gate_hot_lamps_suppressed") != null)
   and .first_contact_art_readability_guard.terrain_material_gate == true
   and .first_contact_art_readability_guard.terrain_material_depth_gate == true
   and .first_contact_art_readability_guard.building_facade_gate == true
@@ -959,6 +968,7 @@ require_artifact_json_expr first_contact_basin_spec_semantics native_bevy_classi
   and .first_contact_art_readability_guard.lower_secondary_beacon_art_deemphasis_gate == true
   and .first_contact_art_readability_guard.secondary_beacon_capture_ring_gate == true
   and .first_contact_art_readability_guard.player_screen_command_core_art_gate == true
+  and .first_contact_art_readability_guard.player_screen_base_gate_lamp_gate == true
   and .first_contact_art_readability_guard.authored_map_art_gate == true
   and .first_contact_art_readability_guard_gate == true
   and .first_contact_motion_readability_contract == "trillionnium_world_bevy_classic_rts_first_contact_motion_readability_v1"
@@ -1548,6 +1558,14 @@ require_artifact_json_expr first_contact_basin_spec_semantics native_bevy_classi
   and (.first_contact_runtime_core_visibility.runtime_core_unit_role_accent_candidate_actor_ids | index("multi0.striker.0") != null)
   and (.first_contact_runtime_core_visibility.runtime_core_unit_role_accent_candidate_actor_ids | index("multi0.warden.capture") != null)
   and (.first_contact_runtime_core_visibility.runtime_core_unit_role_accent_visible_actor_ids | length == 0)
+  and .first_contact_runtime_core_visibility.runtime_core_command_core_body_actor_ids == ["multi0.command.core"]
+  and .first_contact_runtime_core_visibility.runtime_core_command_core_body_ticks_per_actor == 4
+  and .first_contact_runtime_core_visibility.runtime_core_command_core_body_tick_width_px == 6
+  and .first_contact_runtime_core_visibility.runtime_core_command_core_body_tick_height_px == 2
+  and .first_contact_runtime_core_visibility.runtime_core_command_core_body_pixel_budget <= 48
+  and .first_contact_runtime_core_visibility.runtime_core_command_core_hot_body_pixel_budget == 0
+  and (.first_contact_runtime_core_visibility.runtime_core_command_core_body_signatures | index("player_screen_runtime_command_core_body_muted") != null)
+  and (.first_contact_runtime_core_visibility.runtime_core_command_core_body_signatures | index("player_screen_runtime_command_core_micro_ticks") != null)
   and (.first_contact_runtime_core_visibility.runtime_core_visible_actor_ids | index("multi0.command.core") != null)
   and (.first_contact_runtime_core_visibility.runtime_core_visible_actor_ids | index("multi0.worker.0") != null)
   and (.first_contact_runtime_core_visibility.runtime_core_visible_actor_ids | index("multi0.flux.relay") != null)
@@ -1592,6 +1610,7 @@ require_artifact_json_expr first_contact_basin_spec_semantics native_bevy_classi
   and .first_contact_runtime_core_visibility.runtime_core_inline_health_bar_gate == true
   and .first_contact_runtime_core_visibility.runtime_core_selection_ring_gate == true
   and .first_contact_runtime_core_visibility.runtime_core_unit_role_accent_gate == true
+  and .first_contact_runtime_core_visibility.runtime_core_command_core_body_gate == true
   and .first_contact_runtime_core_visibility_gate == true
   and .rts_online_protocol_fixture.transport.contract_version == "trnm_rts_online_loopback_transport_v1"
   and .rts_online_protocol_fixture.transport.green == true

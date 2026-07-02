@@ -1063,6 +1063,23 @@ add_first_contact_basin_source_manifest_packet_fixtures() {
         "player_screen_command_core_hot_facade_suppressed"
       ],
       player_screen_command_core_art_gate: true,
+      player_screen_base_gate_lamp_samples: [
+        {tile: "8,9", role: "base_gate", signature: "base_gate_lamps"},
+        {tile: "25,9", role: "base_gate", signature: "base_gate_lamps"},
+        {tile: "25,24", role: "base_gate", signature: "base_gate_lamps"},
+        {tile: "8,24", role: "base_gate", signature: "base_gate_lamps"}
+      ],
+      player_screen_base_gate_lamp_count: 4,
+      player_screen_base_gate_lamps_per_gate: 2,
+      player_screen_base_gate_lamp_width_px: 6,
+      player_screen_base_gate_lamp_height_px: 2,
+      player_screen_base_gate_lamp_pixel_budget: 96,
+      player_screen_base_gate_hot_lamp_pixel_budget: 0,
+      player_screen_base_gate_lamp_signatures: [
+        "player_screen_base_gate_micro_lamps",
+        "player_screen_base_gate_hot_lamps_suppressed"
+      ],
+      player_screen_base_gate_lamp_gate: true,
       authored_map_art_gate: true
     },
     first_contact_art_readability_guard_gate: true,
@@ -1684,6 +1701,16 @@ add_first_contact_basin_source_manifest_packet_fixtures() {
       runtime_core_selection_ring_visible_actor_ids: [],
       runtime_core_unit_role_accent_candidate_actor_ids: ["multi0.guard.sentinel", "multi0.line.0", "multi0.scout.intel", "multi0.scout.spotter", "multi0.striker.0", "multi0.warden.capture", "multi0.worker.0", "multi0.worker.1", "multi0.worker.repair"],
       runtime_core_unit_role_accent_visible_actor_ids: [],
+      runtime_core_command_core_body_actor_ids: ["multi0.command.core"],
+      runtime_core_command_core_body_ticks_per_actor: 4,
+      runtime_core_command_core_body_tick_width_px: 6,
+      runtime_core_command_core_body_tick_height_px: 2,
+      runtime_core_command_core_body_pixel_budget: 48,
+      runtime_core_command_core_hot_body_pixel_budget: 0,
+      runtime_core_command_core_body_signatures: [
+        "player_screen_runtime_command_core_body_muted",
+        "player_screen_runtime_command_core_micro_ticks"
+      ],
       runtime_core_hidden_fixture_actor_ids: ["multi0.append.runner", "multi0.append.seed", "multi0.append.wing", "multi0.assignment.runner", "multi0.assignment.wing", "multi0.attackmove.warden", "multi0.capture.contested.warden", "multi0.chain.runner", "multi0.clear.seed", "multi0.clear.wing", "multi0.focus.warden.a", "multi0.focus.warden.b", "multi0.formation.blocked.lead", "multi0.formation.blocked.left", "multi0.formation.blocked.right", "multi0.formation.lead", "multi0.formation.left", "multi0.formation.prune.runner", "multi0.formation.right", "multi0.formation.slot.blocker", "multi0.formation.validation.runner", "multi0.group.validation.runner", "multi0.obstruction.blocker", "multi0.obstruction.follower", "multi0.obstruction.leader", "multi0.override.runner", "multi0.patrol.warden", "multi0.priority.guard", "multi0.queue.prune.runner", "multi0.queue.reject.runner", "multi0.reassignment.runner", "multi0.reassignment.stale", "multi0.reassignment.wing", "multi0.rebuild.old.seed", "multi0.rebuild.old.wing", "multi0.rebuild.runner", "multi0.rebuild.wing", "multi0.recall.formation.old.seed", "multi0.recall.formation.old.wing", "multi0.recall.formation.runner", "multi0.recall.formation.wing", "multi0.recall.order.old.seed", "multi0.recall.order.old.wing", "multi0.recall.order.runner", "multi0.recall.order.wing", "multi0.recall.override.old.seed", "multi0.recall.override.old.wing", "multi0.recall.override.runner", "multi0.recall.override.wing", "multi0.recall.rebuild.old.seed", "multi0.recall.rebuild.old.wing", "multi0.recall.rebuild.runner", "multi0.recall.rebuild.wing", "multi0.remove.runner", "multi0.remove.seed", "multi0.remove.wing", "multi0.reservation.lead", "multi0.reservation.wing", "multi0.stance.aggressive", "multi0.stance.guard", "multi0.stance.holdfire", "multi0.stance.prune.runner", "multi0.stance.spotter", "multi0.stop.warden", "multi0.traffic.lead", "multi0.traffic.stuck.blocker", "multi0.traffic.stuck.runner", "multi0.traffic.yield", "multi0.veteran.warden"],
       runtime_core_hidden_control_fixture_actor_ids: ["multi0.append.runner", "multi0.append.seed", "multi0.append.wing", "multi0.assignment.runner", "multi0.assignment.wing", "multi0.chain.runner", "multi0.clear.seed", "multi0.clear.wing", "multi0.formation.blocked.lead", "multi0.formation.blocked.left", "multi0.formation.blocked.right", "multi0.formation.lead", "multi0.formation.left", "multi0.formation.prune.runner", "multi0.formation.right", "multi0.formation.slot.blocker", "multi0.formation.validation.runner", "multi0.group.validation.runner", "multi0.override.runner", "multi0.queue.prune.runner", "multi0.queue.reject.runner", "multi0.reassignment.runner", "multi0.reassignment.stale", "multi0.reassignment.wing", "multi0.rebuild.old.seed", "multi0.rebuild.old.wing", "multi0.rebuild.runner", "multi0.rebuild.wing", "multi0.recall.formation.old.seed", "multi0.recall.formation.old.wing", "multi0.recall.formation.runner", "multi0.recall.formation.wing", "multi0.recall.order.old.seed", "multi0.recall.order.old.wing", "multi0.recall.order.runner", "multi0.recall.order.wing", "multi0.recall.override.old.seed", "multi0.recall.override.old.wing", "multi0.recall.override.runner", "multi0.recall.override.wing", "multi0.recall.rebuild.old.seed", "multi0.recall.rebuild.old.wing", "multi0.recall.rebuild.runner", "multi0.recall.rebuild.wing", "multi0.remove.runner", "multi0.remove.seed", "multi0.remove.wing", "multi0.stance.prune.runner"],
       runtime_core_hidden_semantic_fixture_actor_ids: ["multi0.attackmove.warden", "multi0.capture.contested.warden", "multi0.focus.warden.a", "multi0.focus.warden.b", "multi0.obstruction.blocker", "multi0.obstruction.follower", "multi0.obstruction.leader", "multi0.patrol.warden", "multi0.priority.guard", "multi0.reservation.lead", "multi0.reservation.wing", "multi0.stance.aggressive", "multi0.stance.guard", "multi0.stance.spotter", "multi0.stop.warden", "multi0.traffic.lead", "multi0.traffic.stuck.blocker", "multi0.traffic.stuck.runner", "multi0.traffic.yield", "multi0.veteran.warden"],
@@ -1697,7 +1724,8 @@ add_first_contact_basin_source_manifest_packet_fixtures() {
       runtime_core_bottom_fixture_gate: true,
       runtime_core_inline_health_bar_gate: true,
       runtime_core_selection_ring_gate: true,
-      runtime_core_unit_role_accent_gate: true
+      runtime_core_unit_role_accent_gate: true,
+      runtime_core_command_core_body_gate: true
     },
     first_contact_runtime_core_visibility_gate: true,
     rts_data_player_screen_layout_gate: true,
