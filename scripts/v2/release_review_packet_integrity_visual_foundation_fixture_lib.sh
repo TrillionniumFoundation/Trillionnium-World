@@ -334,7 +334,9 @@ add_camera_minimap_sync_packet_fixtures() {
 
 add_first_contact_basin_source_manifest_packet_fixtures() {
   local first_contact_basin_spec_json="$TMP_DIR/bevy-classic-rts-first-contact-basin-spec.json"
-  jq -n '{
+  local first_contact_basin_spec_filter="$TMP_DIR/bevy-classic-rts-first-contact-basin-spec.jq"
+  cat >"$first_contact_basin_spec_filter" <<'JQ'
+  {
     contract_version: "trillionnium_world_bevy_classic_rts_first_contact_basin_spec_v1",
     status: "classic_rts_first_contact_basin_spec_green",
     green: true,
@@ -1190,6 +1192,7 @@ add_first_contact_basin_source_manifest_packet_fixtures() {
       warden_attack_arm_gate: true,
       player_screen_animation_signatures: [
         "player_screen_animation_training_lane_micro_ticks",
+        "player_screen_harvest_tool_swing_micro_sparks",
         "player_screen_spawn_door_micro_shutters",
         "player_screen_rally_flag_micro_pennants",
         "player_screen_formation_join_micro_pips",
@@ -1202,6 +1205,11 @@ add_first_contact_basin_source_manifest_packet_fixtures() {
       animation_training_tick_height_px: 2,
       animation_training_tick_pixel_budget: 24,
       animation_training_tick_gate: true,
+      harvest_tool_swing_spark_count: 6,
+      harvest_tool_swing_spark_width_px: 6,
+      harvest_tool_swing_spark_height_px: 2,
+      harvest_tool_swing_spark_pixel_budget: 72,
+      harvest_tool_swing_spark_gate: true,
       spawn_door_shutter_count: 7,
       spawn_door_shutter_width_px: 4,
       spawn_door_shutter_height_px: 2,
@@ -2417,7 +2425,8 @@ add_first_contact_basin_source_manifest_packet_fixtures() {
   | .offline_consumption_fogged_tile_count = ((.rts_online_offline_adapter_consumption.runtime_player_screen_review.fogged_tile_ids // []) | length)
   | .offline_consumption_ability_command_count = ((.rts_online_offline_adapter_consumption.runtime_player_screen_review.ability_command_ids // []) | length)
   | .offline_lobby_ready_label_count = ((.rts_online_offline_adapter_lobby_ready.ready_state_labels // []) | length)
-  ' >"$first_contact_basin_spec_json"
+JQ
+  jq -n -f "$first_contact_basin_spec_filter" >"$first_contact_basin_spec_json"
   add_artifact_from_path native_bevy_classic_rts_first_contact_basin_spec "Native/Bevy classic RTS First Contact Basin spec" "$first_contact_basin_spec_json" release_review_input
 }
 

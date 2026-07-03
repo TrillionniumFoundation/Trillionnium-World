@@ -2630,6 +2630,13 @@ jq -e '
     .target_callout_leader_tick_height_px,
     .target_callout_leader_tick_pixel_budget
   ] == [2,2,6,24,10,2,20])
+  and
+  (.first_contact_motion_readability_guard.player_screen_animation_signatures | index("player_screen_harvest_tool_swing_micro_sparks") != null)
+  and .first_contact_motion_readability_guard.harvest_tool_swing_spark_count == 6
+  and .first_contact_motion_readability_guard.harvest_tool_swing_spark_width_px == 6
+  and .first_contact_motion_readability_guard.harvest_tool_swing_spark_height_px == 2
+  and .first_contact_motion_readability_guard.harvest_tool_swing_spark_pixel_budget <= 72
+  and .first_contact_motion_readability_guard.harvest_tool_swing_spark_gate == true
 ' "$OUT" >/dev/null
 
 printf 'TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_BASIN_SPEC_GREEN %s\n' "$OUT"

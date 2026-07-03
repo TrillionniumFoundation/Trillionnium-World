@@ -53,6 +53,8 @@ required_lines=(
   'exact_blueprint_micro_component_gate'
   'relay_scaffold_exact_tan'
   'exact_scaffold_thin_component_gate'
+  'harvest_tool_swing_exact_orange'
+  'exact_harvest_swing_micro_component_gate'
   'edge_safety_samples'
   'room=first-contact-basin'
   'owned-assets-v1'

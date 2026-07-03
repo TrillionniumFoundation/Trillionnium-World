@@ -51,6 +51,9 @@ pub struct RtsFirstContactMotionReadabilityRuntime {
     pub animation_training_tick_count: usize,
     pub animation_training_tick_width_px: usize,
     pub animation_training_tick_height_px: usize,
+    pub harvest_tool_swing_spark_count: usize,
+    pub harvest_tool_swing_spark_width_px: usize,
+    pub harvest_tool_swing_spark_height_px: usize,
     pub spawn_door_shutter_count: usize,
     pub spawn_door_shutter_width_px: usize,
     pub spawn_door_shutter_height_px: usize,
@@ -282,6 +285,9 @@ pub fn first_contact_motion_readability_guard(
     let animation_training_tick_pixel_budget = runtime.animation_training_tick_count
         * runtime.animation_training_tick_width_px
         * runtime.animation_training_tick_height_px;
+    let harvest_tool_swing_spark_pixel_budget = runtime.harvest_tool_swing_spark_count
+        * runtime.harvest_tool_swing_spark_width_px
+        * runtime.harvest_tool_swing_spark_height_px;
     let spawn_door_shutter_pixel_budget = runtime.spawn_door_shutter_count
         * runtime.spawn_door_shutter_width_px
         * runtime.spawn_door_shutter_height_px;
@@ -312,6 +318,7 @@ pub fn first_contact_motion_readability_guard(
     ]);
     let player_screen_animation_signatures = string_vec([
         "player_screen_animation_training_lane_micro_ticks",
+        "player_screen_harvest_tool_swing_micro_sparks",
         "player_screen_spawn_door_micro_shutters",
         "player_screen_rally_flag_micro_pennants",
         "player_screen_formation_join_micro_pips",
@@ -326,6 +333,13 @@ pub fn first_contact_motion_readability_guard(
         && player_screen_animation_signatures.iter().any(|signature| {
             signature.as_str() == "player_screen_animation_training_lane_micro_ticks"
         });
+    let harvest_tool_swing_spark_gate = runtime.harvest_tool_swing_spark_count == 6
+        && runtime.harvest_tool_swing_spark_width_px == 6
+        && runtime.harvest_tool_swing_spark_height_px == 2
+        && harvest_tool_swing_spark_pixel_budget <= 72
+        && player_screen_animation_signatures
+            .iter()
+            .any(|signature| signature.as_str() == "player_screen_harvest_tool_swing_micro_sparks");
     let spawn_door_shutter_gate = runtime.spawn_door_shutter_count == 7
         && runtime.spawn_door_shutter_width_px == 4
         && runtime.spawn_door_shutter_height_px == 2
@@ -532,6 +546,7 @@ pub fn first_contact_motion_readability_guard(
         && command_feedback_motion_gate
         && runtime_motion_gate
         && animation_training_tick_gate
+        && harvest_tool_swing_spark_gate
         && spawn_door_shutter_gate
         && rally_flag_pennant_gate
         && formation_join_pip_gate
@@ -623,6 +638,11 @@ pub fn first_contact_motion_readability_guard(
         "animation_training_tick_height_px": runtime.animation_training_tick_height_px,
         "animation_training_tick_pixel_budget": animation_training_tick_pixel_budget,
         "animation_training_tick_gate": animation_training_tick_gate,
+        "harvest_tool_swing_spark_count": runtime.harvest_tool_swing_spark_count,
+        "harvest_tool_swing_spark_width_px": runtime.harvest_tool_swing_spark_width_px,
+        "harvest_tool_swing_spark_height_px": runtime.harvest_tool_swing_spark_height_px,
+        "harvest_tool_swing_spark_pixel_budget": harvest_tool_swing_spark_pixel_budget,
+        "harvest_tool_swing_spark_gate": harvest_tool_swing_spark_gate,
         "spawn_door_shutter_count": runtime.spawn_door_shutter_count,
         "spawn_door_shutter_width_px": runtime.spawn_door_shutter_width_px,
         "spawn_door_shutter_height_px": runtime.spawn_door_shutter_height_px,
@@ -797,6 +817,9 @@ mod tests {
             animation_training_tick_count: 3,
             animation_training_tick_width_px: 4,
             animation_training_tick_height_px: 2,
+            harvest_tool_swing_spark_count: 6,
+            harvest_tool_swing_spark_width_px: 6,
+            harvest_tool_swing_spark_height_px: 2,
             spawn_door_shutter_count: 7,
             spawn_door_shutter_width_px: 4,
             spawn_door_shutter_height_px: 2,
@@ -1010,6 +1033,8 @@ mod tests {
                     signatures.iter().any(|value| {
                         value.as_str() == Some("player_screen_animation_training_lane_micro_ticks")
                     }) && signatures.iter().any(|value| {
+                        value.as_str() == Some("player_screen_harvest_tool_swing_micro_sparks")
+                    }) && signatures.iter().any(|value| {
                         value.as_str() == Some("player_screen_spawn_door_micro_shutters")
                     }) && signatures.iter().any(|value| {
                         value.as_str() == Some("player_screen_rally_flag_micro_pennants")
@@ -1034,6 +1059,18 @@ mod tests {
         assert_eq!(
             guard
                 .get("animation_training_tick_gate")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            guard
+                .get("harvest_tool_swing_spark_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(72)
+        );
+        assert_eq!(
+            guard
+                .get("harvest_tool_swing_spark_gate")
                 .and_then(Value::as_bool),
             Some(true)
         );

@@ -1025,6 +1025,11 @@ require_artifact_json_expr first_contact_basin_spec_semantics native_bevy_classi
   and .first_contact_motion_readability_guard.animation_training_tick_width_px == 4
   and .first_contact_motion_readability_guard.animation_training_tick_height_px == 2
   and .first_contact_motion_readability_guard.animation_training_tick_pixel_budget <= 24
+  and (.first_contact_motion_readability_guard.player_screen_animation_signatures | index("player_screen_harvest_tool_swing_micro_sparks") != null)
+  and .first_contact_motion_readability_guard.harvest_tool_swing_spark_count == 6
+  and .first_contact_motion_readability_guard.harvest_tool_swing_spark_width_px == 6
+  and .first_contact_motion_readability_guard.harvest_tool_swing_spark_height_px == 2
+  and .first_contact_motion_readability_guard.harvest_tool_swing_spark_pixel_budget <= 72
   and (.first_contact_motion_readability_guard.player_screen_animation_signatures | index("player_screen_spawn_door_micro_shutters") != null)
   and .first_contact_motion_readability_guard.spawn_door_shutter_count == 7
   and .first_contact_motion_readability_guard.spawn_door_shutter_width_px == 4
@@ -1144,6 +1149,7 @@ require_artifact_json_expr first_contact_basin_spec_semantics native_bevy_classi
   and .first_contact_motion_readability_guard.production_training_spark_gate == true
   and .first_contact_motion_readability_guard.warden_attack_arm_gate == true
   and .first_contact_motion_readability_guard.animation_training_tick_gate == true
+  and .first_contact_motion_readability_guard.harvest_tool_swing_spark_gate == true
   and .first_contact_motion_readability_guard.spawn_door_shutter_gate == true
   and .first_contact_motion_readability_guard.rally_flag_pennant_gate == true
   and .first_contact_motion_readability_guard.formation_join_pip_gate == true

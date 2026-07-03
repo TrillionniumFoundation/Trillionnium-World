@@ -874,6 +874,9 @@ const CLASSIC_FIRST_CONTACT_PLAYER_PRODUCTION_TRAINING_SPARK_H_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_PLAYER_ANIMATION_TRAINING_TICK_COUNT: usize = 3;
 const CLASSIC_FIRST_CONTACT_PLAYER_ANIMATION_TRAINING_TICK_W_PX: i32 = 4;
 const CLASSIC_FIRST_CONTACT_PLAYER_ANIMATION_TRAINING_TICK_H_PX: i32 = 2;
+const CLASSIC_FIRST_CONTACT_PLAYER_HARVEST_TOOL_SWING_SPARK_COUNT: usize = 6;
+const CLASSIC_FIRST_CONTACT_PLAYER_HARVEST_TOOL_SWING_SPARK_W_PX: i32 = 6;
+const CLASSIC_FIRST_CONTACT_PLAYER_HARVEST_TOOL_SWING_SPARK_H_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_PLAYER_SPAWN_DOOR_SHUTTER_COUNT: usize = 7;
 const CLASSIC_FIRST_CONTACT_PLAYER_SPAWN_DOOR_SHUTTER_W_PX: i32 = 4;
 const CLASSIC_FIRST_CONTACT_PLAYER_SPAWN_DOOR_SHUTTER_H_PX: i32 = 2;
@@ -95162,17 +95165,33 @@ fn classic_draw_first_contact_animation_cycle_detail(
     let cy = tile_y + cell_h / 2;
     match signature {
         "harvest_tool_swing_frame" => {
-            for step in 0..6 {
-                classic_draw_rect(
-                    buffer,
-                    width,
-                    height,
-                    cx - 26 + step * 9,
-                    cy - cell_h - 20 + step * 4,
-                    10,
-                    4,
-                    CLASSIC_RTS_HARVEST_ANIMATION_TOOL_SWING_COLOR,
-                );
+            if player_screen {
+                for spark in 0..CLASSIC_FIRST_CONTACT_PLAYER_HARVEST_TOOL_SWING_SPARK_COUNT {
+                    let spark = spark as i32;
+                    classic_draw_rect(
+                        buffer,
+                        width,
+                        height,
+                        cx - 24 + spark * 9,
+                        cy - cell_h - 18 + spark * 3,
+                        CLASSIC_FIRST_CONTACT_PLAYER_HARVEST_TOOL_SWING_SPARK_W_PX,
+                        CLASSIC_FIRST_CONTACT_PLAYER_HARVEST_TOOL_SWING_SPARK_H_PX,
+                        CLASSIC_RTS_HARVEST_ANIMATION_TOOL_SWING_COLOR,
+                    );
+                }
+            } else {
+                for step in 0..6 {
+                    classic_draw_rect(
+                        buffer,
+                        width,
+                        height,
+                        cx - 26 + step * 9,
+                        cy - cell_h - 20 + step * 4,
+                        10,
+                        4,
+                        CLASSIC_RTS_HARVEST_ANIMATION_TOOL_SWING_COLOR,
+                    );
+                }
             }
             classic_draw_rect(
                 buffer,
@@ -102841,6 +102860,11 @@ fn classic_first_contact_motion_readability_guard() -> Value {
             as usize,
         animation_training_tick_height_px: CLASSIC_FIRST_CONTACT_PLAYER_ANIMATION_TRAINING_TICK_H_PX
             as usize,
+        harvest_tool_swing_spark_count: CLASSIC_FIRST_CONTACT_PLAYER_HARVEST_TOOL_SWING_SPARK_COUNT,
+        harvest_tool_swing_spark_width_px:
+            CLASSIC_FIRST_CONTACT_PLAYER_HARVEST_TOOL_SWING_SPARK_W_PX as usize,
+        harvest_tool_swing_spark_height_px:
+            CLASSIC_FIRST_CONTACT_PLAYER_HARVEST_TOOL_SWING_SPARK_H_PX as usize,
         spawn_door_shutter_count: CLASSIC_FIRST_CONTACT_PLAYER_SPAWN_DOOR_SHUTTER_COUNT,
         spawn_door_shutter_width_px: CLASSIC_FIRST_CONTACT_PLAYER_SPAWN_DOOR_SHUTTER_W_PX as usize,
         spawn_door_shutter_height_px: CLASSIC_FIRST_CONTACT_PLAYER_SPAWN_DOOR_SHUTTER_H_PX as usize,
@@ -151459,6 +151483,8 @@ mod tests {
                     signatures.iter().any(|value| {
                         value.as_str() == Some("player_screen_animation_training_lane_micro_ticks")
                     }) && signatures.iter().any(|value| {
+                        value.as_str() == Some("player_screen_harvest_tool_swing_micro_sparks")
+                    }) && signatures.iter().any(|value| {
                         value.as_str() == Some("player_screen_worker_carry_load_micro_pips")
                     }) && signatures.iter().any(|value| {
                         value.as_str() == Some("player_screen_shield_charge_micro_arcs")
@@ -151495,6 +151521,36 @@ mod tests {
         assert_eq!(
             guard
                 .get("animation_training_tick_gate")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            guard
+                .get("harvest_tool_swing_spark_count")
+                .and_then(Value::as_u64),
+            Some(6)
+        );
+        assert_eq!(
+            guard
+                .get("harvest_tool_swing_spark_width_px")
+                .and_then(Value::as_u64),
+            Some(6)
+        );
+        assert_eq!(
+            guard
+                .get("harvest_tool_swing_spark_height_px")
+                .and_then(Value::as_u64),
+            Some(2)
+        );
+        assert_eq!(
+            guard
+                .get("harvest_tool_swing_spark_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(72)
+        );
+        assert_eq!(
+            guard
+                .get("harvest_tool_swing_spark_gate")
                 .and_then(Value::as_bool),
             Some(true)
         );
@@ -151983,6 +152039,54 @@ mod tests {
             components.iter().all(|(_, w, h)| {
                 *w <= CLASSIC_FIRST_CONTACT_PLAYER_RELAY_SCAFFOLD_BRACE_W_PX as usize
                     && *h <= CLASSIC_FIRST_CONTACT_PLAYER_RELAY_SCAFFOLD_BRACE_H_PX as usize
+            }),
+            "{components:?}"
+        );
+    }
+
+    #[cfg(not(target_os = "android"))]
+    #[test]
+    fn classic_first_contact_player_harvest_tool_swing_draws_micro_sparks() {
+        let width = 800;
+        let height = 520;
+        let mut buffer = vec![0_u32; width * height];
+
+        classic_draw_first_contact_animation_cycle_detail(
+            &mut buffer,
+            width,
+            height,
+            420,
+            160,
+            48,
+            28,
+            (2, 2),
+            "harvest_tool_swing_frame",
+            true,
+        );
+
+        let components = exact_color_components(
+            &buffer,
+            width,
+            height,
+            CLASSIC_RTS_HARVEST_ANIMATION_TOOL_SWING_COLOR,
+        );
+
+        assert_eq!(
+            components.len(),
+            CLASSIC_FIRST_CONTACT_PLAYER_HARVEST_TOOL_SWING_SPARK_COUNT,
+            "{components:?}"
+        );
+        assert_eq!(
+            components
+                .iter()
+                .map(|(pixels, _, _)| pixels)
+                .sum::<usize>(),
+            72
+        );
+        assert!(
+            components.iter().all(|(_, w, h)| {
+                *w <= CLASSIC_FIRST_CONTACT_PLAYER_HARVEST_TOOL_SWING_SPARK_W_PX as usize
+                    && *h <= CLASSIC_FIRST_CONTACT_PLAYER_HARVEST_TOOL_SWING_SPARK_H_PX as usize
             }),
             "{components:?}"
         );
