@@ -401,7 +401,17 @@ exact_green_component_sample = exact_color_component_summary(
     16,
     16,
 )
-exact_color_component_samples = [exact_red_component_sample, exact_green_component_sample]
+exact_blueprint_component_sample = exact_color_component_summary(
+    "build_blueprint_exact_cyan",
+    (200, 232, 255),
+    12,
+    10,
+)
+exact_color_component_samples = [
+    exact_red_component_sample,
+    exact_green_component_sample,
+    exact_blueprint_component_sample,
+]
 forbidden_title_fragments = [
     "desktop product alignment",
     "map-first alignment",
@@ -433,6 +443,7 @@ gates = {
     "clipped_label_edge_gate": all(item["passes"] for item in edge_safety_samples),
     "exact_red_micro_component_gate": exact_red_component_sample["passes"],
     "exact_green_micro_component_gate": exact_green_component_sample["passes"],
+    "exact_blueprint_micro_component_gate": exact_blueprint_component_sample["passes"],
     "gameplay_scene_gate": (
         regions_by_id["map_playfield"]["sampled_colors"] >= regions_by_id["map_playfield"]["min_sampled_colors"] * 2
         and regions_by_id["center_map"]["sampled_colors"] >= regions_by_id["center_map"]["min_sampled_colors"] * 1.8

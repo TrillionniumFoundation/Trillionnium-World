@@ -49,6 +49,8 @@ required_lines=(
   'clipped_label_edge_gate'
   'gameplay_scene_gate'
   'debug_title_text_absent_gate'
+  'build_blueprint_exact_cyan'
+  'exact_blueprint_micro_component_gate'
   'edge_safety_samples'
   'room=first-contact-basin'
   'owned-assets-v1'

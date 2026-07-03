@@ -855,6 +855,10 @@ const CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK_PROGRESS_PIP_W_PX: i32 = 6;
 const CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK_PROGRESS_PIP_H_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK_PROGRESS_BACKPLATE_W_PX: i32 = 0;
 const CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK_PROGRESS_BACKPLATE_H_PX: i32 = 0;
+const CLASSIC_FIRST_CONTACT_PLAYER_BUILD_GHOST_TICK_W_PX: i32 = 8;
+const CLASSIC_FIRST_CONTACT_PLAYER_BUILD_GHOST_TICK_H_PX: i32 = 2;
+const CLASSIC_FIRST_CONTACT_PLAYER_BUILD_GHOST_STATUS_PIP_W_PX: i32 = 4;
+const CLASSIC_FIRST_CONTACT_PLAYER_BUILD_GHOST_STATUS_PIP_H_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_OPENING_ACTION_PATH_COUNT: usize = 3;
 const CLASSIC_FIRST_CONTACT_OPENING_ACTION_PATH_STEP_COUNT: usize = 24;
 const CLASSIC_FIRST_CONTACT_OPENING_ACTION_PATH_DOT_W_PX: i32 = 2;
@@ -82878,6 +82882,70 @@ fn classic_rts_structure_id_from_queue(queue_id: &str) -> String {
 
 #[cfg(not(target_os = "android"))]
 #[allow(clippy::too_many_arguments)]
+fn classic_draw_first_contact_player_build_placement_micro_site(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    center_x: i32,
+    center_y: i32,
+    cell_w: i32,
+    cell_h: i32,
+    ghost_color: u32,
+    marker_color: u32,
+) {
+    let tick_w = CLASSIC_FIRST_CONTACT_PLAYER_BUILD_GHOST_TICK_W_PX;
+    let tick_h = CLASSIC_FIRST_CONTACT_PLAYER_BUILD_GHOST_TICK_H_PX;
+    let ghost_w = (cell_w / 2).clamp(28, 54);
+    let ghost_h = (cell_h / 2).clamp(16, 30);
+    let left_x = center_x - ghost_w / 2 + 4;
+    let right_x = center_x + ghost_w / 2 - tick_w - 4;
+    let top_y = center_y - cell_h / 3 + 3;
+    let bottom_y = top_y + ghost_h - tick_h - 3;
+    for (x, y) in [
+        (left_x, top_y),
+        (right_x, top_y),
+        (left_x, bottom_y),
+        (right_x, bottom_y),
+    ] {
+        classic_draw_rect(buffer, width, height, x, y, tick_w, tick_h, ghost_color);
+    }
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        center_x - tick_w / 2,
+        center_y + cell_h / 8,
+        tick_w,
+        tick_h,
+        marker_color,
+    );
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_draw_first_contact_player_build_placement_status_pips(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    panel_x: i32,
+    panel_y: i32,
+    color: u32,
+) {
+    for pip in 0..3 {
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            panel_x,
+            panel_y + 3 + pip * 6,
+            CLASSIC_FIRST_CONTACT_PLAYER_BUILD_GHOST_STATUS_PIP_W_PX,
+            CLASSIC_FIRST_CONTACT_PLAYER_BUILD_GHOST_STATUS_PIP_H_PX,
+            color,
+        );
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+#[allow(clippy::too_many_arguments)]
 fn classic_draw_openra_style_build_placement_ghost(
     buffer: &mut [u32],
     width: usize,
@@ -82905,12 +82973,31 @@ fn classic_draw_openra_style_build_placement_ghost(
     let cell_h = ((viewport_h - 74).max(80)) / 8;
     let grid_x = viewport_x + 22;
     let grid_y = viewport_y + 48;
+    let player_screen = classic_player_screen_mode_enabled();
     for (index, tile_id) in runtime.rts_build_site_tile_ids.iter().enumerate() {
         let Some(tile) = classic_parse_rts_tile(tile_id) else {
             continue;
         };
         let center_x = grid_x + tile.0.clamp(0, 11) * cell_w + cell_w / 2;
         let center_y = grid_y + tile.1.clamp(0, 7) * cell_h + cell_h / 2;
+        if player_screen {
+            classic_draw_first_contact_player_build_placement_micro_site(
+                buffer,
+                width,
+                height,
+                center_x,
+                center_y,
+                cell_w,
+                cell_h,
+                ghost_color,
+                if index == 0 {
+                    CLASSIC_RTS_QUEUE_PREVIEW_WAYPOINT_COLOR
+                } else {
+                    ghost_color
+                },
+            );
+            continue;
+        }
         classic_draw_iso_diamond(
             buffer,
             width,
@@ -82949,7 +83036,18 @@ fn classic_draw_openra_style_build_placement_ghost(
     let panel_x = viewport_x + 238;
     let panel_y = viewport_y + 30;
     classic_draw_rect(buffer, width, height, panel_x, panel_y, 286, 20, 0x101913);
-    classic_draw_rect(buffer, width, height, panel_x, panel_y, 5, 20, ghost_color);
+    if player_screen {
+        classic_draw_first_contact_player_build_placement_status_pips(
+            buffer,
+            width,
+            height,
+            panel_x,
+            panel_y,
+            ghost_color,
+        );
+    } else {
+        classic_draw_rect(buffer, width, height, panel_x, panel_y, 5, 20, ghost_color);
+    }
     classic_draw_text(
         buffer,
         width,
@@ -151700,6 +151798,105 @@ mod tests {
         ] {
             assert_eq!(guard.get(gate).and_then(Value::as_bool), Some(true));
         }
+    }
+
+    #[cfg(not(target_os = "android"))]
+    #[test]
+    fn classic_first_contact_player_build_ghost_draws_micro_blueprint_ticks() {
+        let width = 240;
+        let height = 180;
+        let mut buffer = vec![0_u32; width * height];
+
+        classic_draw_first_contact_player_build_placement_micro_site(
+            &mut buffer,
+            width,
+            height,
+            80,
+            82,
+            72,
+            48,
+            CLASSIC_RTS_BUILD_BLUEPRINT_COLOR,
+            CLASSIC_RTS_QUEUE_PREVIEW_WAYPOINT_COLOR,
+        );
+        classic_draw_first_contact_player_build_placement_micro_site(
+            &mut buffer,
+            width,
+            height,
+            150,
+            108,
+            72,
+            48,
+            CLASSIC_RTS_BUILD_BLUEPRINT_COLOR,
+            CLASSIC_RTS_BUILD_BLUEPRINT_COLOR,
+        );
+        classic_draw_first_contact_player_build_placement_status_pips(
+            &mut buffer,
+            width,
+            height,
+            24,
+            24,
+            CLASSIC_RTS_BUILD_BLUEPRINT_COLOR,
+        );
+
+        let mut seen = vec![false; buffer.len()];
+        let mut components = Vec::new();
+        for y in 0..height {
+            for x in 0..width {
+                let index = y * width + x;
+                if seen[index] || buffer[index] != CLASSIC_RTS_BUILD_BLUEPRINT_COLOR {
+                    continue;
+                }
+                seen[index] = true;
+                let mut stack = vec![(x, y)];
+                let mut min_x = x;
+                let mut max_x = x;
+                let mut min_y = y;
+                let mut max_y = y;
+                let mut pixels = 0_usize;
+                while let Some((cx, cy)) = stack.pop() {
+                    pixels += 1;
+                    min_x = min_x.min(cx);
+                    max_x = max_x.max(cx);
+                    min_y = min_y.min(cy);
+                    max_y = max_y.max(cy);
+                    for (nx, ny) in [
+                        (cx.wrapping_add(1), cy),
+                        (cx.wrapping_sub(1), cy),
+                        (cx, cy.wrapping_add(1)),
+                        (cx, cy.wrapping_sub(1)),
+                    ] {
+                        if nx >= width || ny >= height {
+                            continue;
+                        }
+                        let next_index = ny * width + nx;
+                        if seen[next_index]
+                            || buffer[next_index] != CLASSIC_RTS_BUILD_BLUEPRINT_COLOR
+                        {
+                            continue;
+                        }
+                        seen[next_index] = true;
+                        stack.push((nx, ny));
+                    }
+                }
+                components.push((pixels, max_x - min_x + 1, max_y - min_y + 1));
+            }
+        }
+
+        assert_eq!(components.len(), 12, "{components:?}");
+        assert_eq!(
+            components
+                .iter()
+                .map(|(pixels, _, _)| pixels)
+                .sum::<usize>(),
+            168
+        );
+        assert!(
+            components.iter().all(|(_, w, h)| {
+                *w <= CLASSIC_FIRST_CONTACT_PLAYER_BUILD_GHOST_TICK_W_PX as usize
+                    && *h <= CLASSIC_FIRST_CONTACT_PLAYER_BUILD_GHOST_TICK_H_PX as usize
+            }),
+            "{components:?}"
+        );
     }
 
     #[cfg(not(target_os = "android"))]
