@@ -419,12 +419,26 @@ exact_harvest_swing_component_sample = exact_color_component_summary(
     12,
     4,
 )
+exact_owner_player_component_sample = exact_color_component_summary(
+    "owner_identity_exact_player_muted",
+    (69, 121, 83),
+    8,
+    2,
+)
+exact_owner_enemy_component_sample = exact_color_component_summary(
+    "owner_identity_exact_enemy_muted",
+    (106, 94, 75),
+    8,
+    2,
+)
 exact_color_component_samples = [
     exact_red_component_sample,
     exact_green_component_sample,
     exact_blueprint_component_sample,
     exact_scaffold_component_sample,
     exact_harvest_swing_component_sample,
+    exact_owner_player_component_sample,
+    exact_owner_enemy_component_sample,
 ]
 forbidden_title_fragments = [
     "desktop product alignment",
@@ -460,6 +474,10 @@ gates = {
     "exact_blueprint_micro_component_gate": exact_blueprint_component_sample["passes"],
     "exact_scaffold_thin_component_gate": exact_scaffold_component_sample["passes"],
     "exact_harvest_swing_micro_component_gate": exact_harvest_swing_component_sample["passes"],
+    "exact_owner_identity_micro_component_gate": (
+        exact_owner_player_component_sample["passes"]
+        and exact_owner_enemy_component_sample["passes"]
+    ),
     "gameplay_scene_gate": (
         regions_by_id["map_playfield"]["sampled_colors"] >= regions_by_id["map_playfield"]["min_sampled_colors"] * 2
         and regions_by_id["center_map"]["sampled_colors"] >= regions_by_id["center_map"]["min_sampled_colors"] * 1.8

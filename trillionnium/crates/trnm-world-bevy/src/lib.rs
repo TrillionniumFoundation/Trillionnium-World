@@ -901,7 +901,14 @@ const CLASSIC_FIRST_CONTACT_PLAYER_HIT_FLASH_SPARK_W_PX: i32 = 6;
 const CLASSIC_FIRST_CONTACT_PLAYER_HIT_FLASH_SPARK_H_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_OWNER_PLAYER_COLOR: u32 = 0x67c980;
 const CLASSIC_FIRST_CONTACT_OWNER_ENEMY_COLOR: u32 = 0xd47967;
-const CLASSIC_FIRST_CONTACT_NON_FOCUS_OWNER_IDENTITY_PIXEL_BUDGET: usize = 192;
+const CLASSIC_FIRST_CONTACT_PLAYER_OWNER_IDENTITY_PIP_COUNT_PER_TILE: usize = 3;
+const CLASSIC_FIRST_CONTACT_PLAYER_OWNER_IDENTITY_PIP_W_PX: i32 = 8;
+const CLASSIC_FIRST_CONTACT_PLAYER_OWNER_IDENTITY_PIP_H_PX: i32 = 2;
+const CLASSIC_FIRST_CONTACT_NON_FOCUS_OWNER_IDENTITY_PIXEL_BUDGET: usize =
+    CLASSIC_FIRST_CONTACT_PLAYER_OWNER_IDENTITY_PIP_COUNT_PER_TILE
+        * CLASSIC_FIRST_CONTACT_PLAYER_OWNER_IDENTITY_PIP_W_PX as usize
+        * CLASSIC_FIRST_CONTACT_PLAYER_OWNER_IDENTITY_PIP_H_PX as usize
+        * 4;
 const CLASSIC_FIRST_CONTACT_RUNTIME_CORE_VISIBLE_TILE_Y_MAX: i32 = 28;
 const CLASSIC_RTS_PRODUCT_MODEL_VOLUME_COLOR: u32 = 0x6e89a8;
 const CLASSIC_RTS_MODEL_IDENTITY_CORE_COLOR: u32 = 0xb7c8ff;
@@ -6080,6 +6087,11 @@ fn classic_first_contact_base_owner_identity_tiles() -> [((i32, i32), u32); 4] {
         ((25, 25), enemy_color),
         ((8, 25), enemy_color),
     ]
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_first_contact_is_non_focus_owner_identity_color(color: u32) -> bool {
+    classic_first_contact_non_focus_owner_identity_colors().contains(&color)
 }
 
 #[cfg(not(target_os = "android"))]
@@ -94028,26 +94040,64 @@ fn classic_draw_first_contact_actor(
                 cell_h * 3,
                 0x16251c,
             );
-            classic_draw_rect(
-                buffer,
-                width,
-                height,
-                tile_x - cell_w + 4,
-                tile_y - cell_h - 5,
-                cell_w * 3 - 8,
-                6,
-                CLASSIC_RTS_STRUCTURE_PRODUCTION_GLOW_COLOR,
-            );
-            classic_draw_rect(
-                buffer,
-                width,
-                height,
-                tile_x - cell_w + 2,
-                tile_y - cell_h + 2,
-                cell_w * 3 - 4,
-                3,
-                owner_color,
-            );
+            if player_screen {
+                for (pip_x, pip_y, pip_color) in [
+                    (
+                        tile_x - cell_w + 6,
+                        tile_y - cell_h - 4,
+                        CLASSIC_RTS_STRUCTURE_PRODUCTION_GLOW_COLOR,
+                    ),
+                    (
+                        tile_x + 4,
+                        tile_y - cell_h - 5,
+                        CLASSIC_RTS_STRUCTURE_PRODUCTION_GLOW_COLOR,
+                    ),
+                    (
+                        tile_x + cell_w + cell_w - 14,
+                        tile_y - cell_h - 4,
+                        CLASSIC_RTS_STRUCTURE_PRODUCTION_GLOW_COLOR,
+                    ),
+                    (tile_x - cell_w + 6, tile_y - cell_h + 2, owner_color),
+                    (tile_x + 4, tile_y - cell_h + 3, owner_color),
+                    (
+                        tile_x + cell_w + cell_w - 14,
+                        tile_y - cell_h + 2,
+                        owner_color,
+                    ),
+                ] {
+                    classic_draw_rect(
+                        buffer,
+                        width,
+                        height,
+                        pip_x,
+                        pip_y,
+                        CLASSIC_FIRST_CONTACT_PLAYER_OWNER_IDENTITY_PIP_W_PX,
+                        CLASSIC_FIRST_CONTACT_PLAYER_OWNER_IDENTITY_PIP_H_PX,
+                        pip_color,
+                    );
+                }
+            } else {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    tile_x - cell_w + 4,
+                    tile_y - cell_h - 5,
+                    cell_w * 3 - 8,
+                    6,
+                    CLASSIC_RTS_STRUCTURE_PRODUCTION_GLOW_COLOR,
+                );
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    tile_x - cell_w + 2,
+                    tile_y - cell_h + 2,
+                    cell_w * 3 - 4,
+                    3,
+                    owner_color,
+                );
+            }
             classic_draw_rect(
                 buffer,
                 width,
@@ -94058,16 +94108,29 @@ fn classic_draw_first_contact_actor(
                 cell_h,
                 CLASSIC_RTS_PRODUCT_MODEL_VOLUME_COLOR,
             );
-            classic_draw_rect(
-                buffer,
-                width,
-                height,
-                cx - cell_w / 3,
-                cy - cell_h - 2,
-                (cell_w * 2) / 3,
-                4,
-                owner_color,
-            );
+            if player_screen {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    cx - CLASSIC_FIRST_CONTACT_PLAYER_OWNER_IDENTITY_PIP_W_PX / 2,
+                    cy - cell_h - 2,
+                    CLASSIC_FIRST_CONTACT_PLAYER_OWNER_IDENTITY_PIP_W_PX,
+                    CLASSIC_FIRST_CONTACT_PLAYER_OWNER_IDENTITY_PIP_H_PX,
+                    owner_color,
+                );
+            } else {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    cx - cell_w / 3,
+                    cy - cell_h - 2,
+                    (cell_w * 2) / 3,
+                    4,
+                    owner_color,
+                );
+            }
         }
         RtsActorGlyphBody::ResourceBloom => {
             let preview_shadow_color = classic_darken(CLASSIC_RTS_PRODUCT_RESOURCE_COLOR, 1, 8);
@@ -94437,6 +94500,7 @@ fn classic_draw_first_contact_starting_army(
     map_y: i32,
     cell_w: i32,
     cell_h: i32,
+    player_screen: bool,
 ) {
     let armies = classic_first_contact_base_owner_identity_tiles();
     for (tile, owner_color) in armies {
@@ -94474,16 +94538,41 @@ fn classic_draw_first_contact_starting_army(
             cell_h * 2 - 4,
             CLASSIC_RTS_PRODUCT_MODEL_VOLUME_COLOR,
         );
-        classic_draw_rect(
-            buffer,
-            width,
-            height,
-            cx - cell_w,
-            cy + cell_h + 2,
-            cell_w * 2,
-            4,
-            owner_color,
-        );
+        if player_screen {
+            for (pip_x, pip_y) in [
+                (cx - cell_w + 4, cy + cell_h + 2),
+                (
+                    cx - CLASSIC_FIRST_CONTACT_PLAYER_OWNER_IDENTITY_PIP_W_PX / 2,
+                    cy + cell_h + 5,
+                ),
+                (
+                    cx + cell_w - CLASSIC_FIRST_CONTACT_PLAYER_OWNER_IDENTITY_PIP_W_PX - 4,
+                    cy + cell_h + 2,
+                ),
+            ] {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    pip_x,
+                    pip_y,
+                    CLASSIC_FIRST_CONTACT_PLAYER_OWNER_IDENTITY_PIP_W_PX,
+                    CLASSIC_FIRST_CONTACT_PLAYER_OWNER_IDENTITY_PIP_H_PX,
+                    owner_color,
+                );
+            }
+        } else {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                cx - cell_w,
+                cy + cell_h + 2,
+                cell_w * 2,
+                4,
+                owner_color,
+            );
+        }
         classic_draw_rect(
             buffer,
             width,
@@ -94494,33 +94583,37 @@ fn classic_draw_first_contact_starting_army(
             4,
             CLASSIC_RTS_FIDELITY_MODEL_HIGHLIGHT_COLOR,
         );
-        classic_draw_rect(
-            buffer,
-            width,
-            height,
-            cx - 3,
-            cy - cell_h - 11,
-            6,
-            6,
-            owner_color,
-        );
-        classic_draw_rect(buffer, width, height, cx - 8, cy - 5, 16, 3, 0x111812);
-        classic_draw_rect(buffer, width, height, cx - 5, cy - 1, 10, 3, 0x111812);
-        for offset in [
-            (-cell_w, cell_h + 8),
-            (0, cell_h + 10),
-            (cell_w, cell_h + 8),
-        ] {
+        if !player_screen {
             classic_draw_rect(
                 buffer,
                 width,
                 height,
-                cx + offset.0 - 3,
-                cy + offset.1 - 3,
+                cx - 3,
+                cy - cell_h - 11,
                 6,
                 6,
                 owner_color,
             );
+        }
+        classic_draw_rect(buffer, width, height, cx - 8, cy - 5, 16, 3, 0x111812);
+        classic_draw_rect(buffer, width, height, cx - 5, cy - 1, 10, 3, 0x111812);
+        if !player_screen {
+            for offset in [
+                (-cell_w, cell_h + 8),
+                (0, cell_h + 10),
+                (cell_w, cell_h + 8),
+            ] {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    cx + offset.0 - 3,
+                    cy + offset.1 - 3,
+                    6,
+                    6,
+                    owner_color,
+                );
+            }
         }
     }
 }
@@ -96268,33 +96361,43 @@ fn classic_draw_first_contact_readability_overlays(
         let cy = tile_y + cell_h / 2;
         let compact_relay_identity =
             player_screen && color == CLASSIC_RTS_MODEL_IDENTITY_RELAY_COLOR;
+        let compact_owner_identity =
+            player_screen && classic_first_contact_is_non_focus_owner_identity_color(color);
         let identity_rail_w = if compact_relay_identity {
             CLASSIC_FIRST_CONTACT_PLAYER_RELAY_IDENTITY_RAIL_W_PX
+        } else if compact_owner_identity {
+            CLASSIC_FIRST_CONTACT_PLAYER_OWNER_IDENTITY_PIP_W_PX
         } else {
             cell_w * 2 + 4
         };
-        let identity_top_rail_h = if compact_relay_identity {
+        let identity_top_rail_h = if compact_relay_identity || compact_owner_identity {
             CLASSIC_FIRST_CONTACT_PLAYER_RELAY_IDENTITY_RAIL_H_PX
         } else {
             4
         };
-        let identity_bottom_rail_h = if compact_relay_identity {
+        let identity_bottom_rail_h = if compact_relay_identity || compact_owner_identity {
             CLASSIC_FIRST_CONTACT_PLAYER_RELAY_IDENTITY_RAIL_H_PX
         } else {
             3
         };
-        let identity_rail_x = if compact_relay_identity {
+        let identity_rail_x = if compact_relay_identity || compact_owner_identity {
             cx - identity_rail_w / 2
         } else {
             cx - cell_w - 2
         };
         let identity_shadow_w = if compact_relay_identity {
             identity_rail_w + 4
+        } else if compact_owner_identity {
+            identity_rail_w + 2
         } else {
             cell_w * 2 + 8
         };
-        let identity_shadow_h = if compact_relay_identity { 2 } else { 4 };
-        let identity_shadow_x = if compact_relay_identity {
+        let identity_shadow_h = if compact_relay_identity || compact_owner_identity {
+            2
+        } else {
+            4
+        };
+        let identity_shadow_x = if compact_relay_identity || compact_owner_identity {
             cx - identity_shadow_w / 2
         } else {
             cx - cell_w - 4
@@ -96722,7 +96825,16 @@ fn classic_draw_first_contact_basin_scene(
             target_tile,
         );
     }
-    classic_draw_first_contact_starting_army(buffer, width, height, map_x, map_y, cell_w, cell_h);
+    classic_draw_first_contact_starting_army(
+        buffer,
+        width,
+        height,
+        map_x,
+        map_y,
+        cell_w,
+        cell_h,
+        player_screen,
+    );
     classic_draw_first_contact_model_identity_layers(
         buffer,
         width,
@@ -153087,6 +153199,82 @@ mod tests {
                 ((8, 25), owner_colors[1]),
             ]
         );
+    }
+
+    #[cfg(not(target_os = "android"))]
+    #[test]
+    fn classic_first_contact_player_owner_identity_draws_micro_pips() {
+        let width = 900;
+        let height = 620;
+        let mut buffer = vec![0_u32; width * height];
+        let map_x = 80;
+        let map_y = 96;
+        let cell_w = 28;
+        let cell_h = 14;
+        let target_tile = (16, 9);
+
+        for actor in classic_first_contact_map_actors_from_rts_data() {
+            if matches!(actor.kind, RtsFirstContactPreviewActorKind::Spawn) {
+                classic_draw_first_contact_actor(
+                    &mut buffer,
+                    width,
+                    height,
+                    actor,
+                    map_x,
+                    map_y,
+                    cell_w,
+                    cell_h,
+                    true,
+                    target_tile,
+                );
+            }
+        }
+        classic_draw_first_contact_starting_army(
+            &mut buffer,
+            width,
+            height,
+            map_x,
+            map_y,
+            cell_w,
+            cell_h,
+            true,
+        );
+        classic_draw_first_contact_model_identity_layers(
+            &mut buffer,
+            width,
+            height,
+            map_x,
+            map_y,
+            cell_w,
+            cell_h,
+            true,
+            target_tile,
+        );
+
+        for color in classic_first_contact_non_focus_owner_identity_colors() {
+            let components = exact_color_components(&buffer, width, height, color);
+            let pixel_count = components
+                .iter()
+                .map(|(pixels, _, _)| pixels)
+                .sum::<usize>();
+
+            assert!(
+                pixel_count
+                    >= CLASSIC_FIRST_CONTACT_PLAYER_OWNER_IDENTITY_PIP_COUNT_PER_TILE
+                        * CLASSIC_FIRST_CONTACT_PLAYER_OWNER_IDENTITY_PIP_W_PX as usize
+                        * CLASSIC_FIRST_CONTACT_PLAYER_OWNER_IDENTITY_PIP_H_PX as usize
+                        * 2,
+                "{color:06x} {components:?}"
+            );
+            assert!(pixel_count <= 384, "{color:06x} {components:?}");
+            assert!(
+                components.iter().all(|(_, w, h)| {
+                    *w <= CLASSIC_FIRST_CONTACT_PLAYER_OWNER_IDENTITY_PIP_W_PX as usize
+                        && *h <= CLASSIC_FIRST_CONTACT_PLAYER_OWNER_IDENTITY_PIP_H_PX as usize
+                }),
+                "{color:06x} {components:?}"
+            );
+        }
     }
 
     #[cfg(not(target_os = "android"))]
