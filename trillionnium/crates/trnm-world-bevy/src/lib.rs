@@ -94674,16 +94674,23 @@ fn classic_draw_first_contact_model_identity_layers(
             cell_h * 2,
             CLASSIC_RTS_MODEL_IDENTITY_UNIT_COLOR,
         );
-        classic_draw_rect(
-            buffer,
-            width,
-            height,
-            cx - cell_w / 2,
-            cy - cell_h / 2,
-            cell_w,
-            4,
-            role_color,
-        );
+        if role_color == CLASSIC_RTS_SELECTION_FEEDBACK_ATTACK_COLOR {
+            let tick_y = cy - cell_h / 2;
+            for tick_x in [cx - cell_w / 2, cx + cell_w / 2 - 10] {
+                classic_draw_rect(buffer, width, height, tick_x, tick_y, 10, 3, role_color);
+            }
+        } else {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                cx - cell_w / 2,
+                cy - cell_h / 2,
+                cell_w,
+                4,
+                role_color,
+            );
+        }
         classic_draw_rect(
             buffer,
             width,
@@ -95788,16 +95795,31 @@ fn classic_draw_first_contact_tactical_viewport(
             36,
             CLASSIC_RTS_MODEL_IDENTITY_UNIT_COLOR,
         );
-        classic_draw_rect(
-            buffer,
-            width,
-            height,
-            unit.0 - 14,
-            unit.1 + 15,
-            28,
-            6,
-            role_color,
-        );
+        if role_color == CLASSIC_RTS_SELECTION_FEEDBACK_ATTACK_COLOR {
+            for tick_x in [unit.0 - 14, unit.0 + 4] {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    tick_x,
+                    unit.1 + 15,
+                    10,
+                    3,
+                    role_color,
+                );
+            }
+        } else {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                unit.0 - 14,
+                unit.1 + 15,
+                28,
+                6,
+                role_color,
+            );
+        }
         classic_draw_rect(
             buffer,
             width,
@@ -101545,8 +101567,18 @@ fn classic_draw_rts_command_glyph(
             height,
             center_x - 14,
             center_y - 2,
-            28,
-            4,
+            10,
+            3,
+            CLASSIC_RTS_SELECTION_FEEDBACK_ATTACK_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            center_x + 4,
+            center_y - 2,
+            10,
+            3,
             CLASSIC_RTS_SELECTION_FEEDBACK_ATTACK_COLOR,
         );
         classic_draw_rect(
@@ -101555,8 +101587,18 @@ fn classic_draw_rts_command_glyph(
             height,
             center_x - 2,
             center_y - 14,
-            4,
-            28,
+            3,
+            10,
+            CLASSIC_RTS_SELECTION_FEEDBACK_ATTACK_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            center_x - 2,
+            center_y + 4,
+            3,
+            10,
             CLASSIC_RTS_SELECTION_FEEDBACK_ATTACK_COLOR,
         );
         classic_draw_rect(
@@ -103857,7 +103899,9 @@ fn classic_draw_openra_style_rts_shell(
                     18,
                     0x111b14,
                 );
-                classic_draw_rect(buffer, width, height, sidebar_x + 12, y, 4, 18, color);
+                for tick_y in [y, y + 12] {
+                    classic_draw_rect(buffer, width, height, sidebar_x + 12, tick_y, 4, 6, color);
+                }
                 classic_draw_text(
                     buffer,
                     width,

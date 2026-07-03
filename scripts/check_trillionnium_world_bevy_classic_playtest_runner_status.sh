@@ -299,6 +299,64 @@ def edge_safety_sample(name, box, max_high_contrast_pixels, max_foreground_pixel
         ),
     }
 
+def exact_color_component_summary(name, rgb, max_component_width, max_component_height):
+    pixels = image.load()
+    pending = set()
+    for sample_y in range(height):
+        for sample_x in range(width):
+            if pixels[sample_x, sample_y] == rgb:
+                pending.add((sample_x, sample_y))
+
+    components = []
+    while pending:
+        start = pending.pop()
+        stack = [start]
+        xs = []
+        ys = []
+        count = 0
+        while stack:
+            x, y = stack.pop()
+            xs.append(x)
+            ys.append(y)
+            count += 1
+            for nx, ny in ((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)):
+                if (nx, ny) in pending:
+                    pending.remove((nx, ny))
+                    stack.append((nx, ny))
+        x0 = min(xs)
+        y0 = min(ys)
+        x1 = max(xs)
+        y1 = max(ys)
+        components.append(
+            {
+                "pixels": count,
+                "width": x1 - x0 + 1,
+                "height": y1 - y0 + 1,
+                "bounds": [x0, y0, x1, y1],
+            }
+        )
+
+    components.sort(key=lambda item: (item["pixels"], item["width"], item["height"]), reverse=True)
+    broad_components = [
+        item
+        for item in components
+        if item["width"] > max_component_width or item["height"] > max_component_height
+    ]
+    return {
+        "id": name,
+        "rgb": list(rgb),
+        "pixel_count": sum(item["pixels"] for item in components),
+        "component_count": len(components),
+        "max_component_width": max([item["width"] for item in components] or [0]),
+        "max_component_height": max([item["height"] for item in components] or [0]),
+        "max_allowed_component_width": max_component_width,
+        "max_allowed_component_height": max_component_height,
+        "broad_component_count": len(broad_components),
+        "broad_components": broad_components[:12],
+        "top_components": components[:12],
+        "passes": not broad_components,
+    }
+
 regions = [
     region("map_playfield", [32, 72, min(940, width), min(610, height)], 2500, 30.0),
     region("top_hud", [0, 0, width, min(90, height)], 250, 18.0),
@@ -331,6 +389,9 @@ edge_safety_samples = [
     edge_safety_sample("bottom_command_bottom_quiet_band", [0, height - 4, width, height], 24, 40),
     edge_safety_sample("top_hud_top_edge", [0, 0, width, 6], 100, 180),
 ]
+exact_color_component_samples = [
+    exact_color_component_summary("attack_feedback_exact_red", (255, 114, 114), 16, 16),
+]
 forbidden_title_fragments = [
     "desktop product alignment",
     "map-first alignment",
@@ -360,6 +421,7 @@ gates = {
     ),
     "dead_panel_gate": all(item["passes"] for item in dead_panel_regions),
     "clipped_label_edge_gate": all(item["passes"] for item in edge_safety_samples),
+    "exact_red_micro_component_gate": all(item["passes"] for item in exact_color_component_samples),
     "gameplay_scene_gate": (
         regions_by_id["map_playfield"]["sampled_colors"] >= regions_by_id["map_playfield"]["min_sampled_colors"] * 2
         and regions_by_id["center_map"]["sampled_colors"] >= regions_by_id["center_map"]["min_sampled_colors"] * 1.8
@@ -381,6 +443,7 @@ summary = {
     "regions": regions,
     "dead_panel_regions": dead_panel_regions,
     "edge_safety_samples": edge_safety_samples,
+    "exact_color_component_samples": exact_color_component_samples,
     "forbidden_title_fragments": forbidden_title_fragments,
     "gates": gates,
     "green": all(gates.values()),
