@@ -940,6 +940,9 @@ const CLASSIC_FIRST_CONTACT_PLAYER_SECONDARY_BEACON_COUNT: usize = 3;
 const CLASSIC_FIRST_CONTACT_PLAYER_SECONDARY_BEACON_MARKER_CUES_PER_BEACON: usize = 6;
 const CLASSIC_FIRST_CONTACT_PLAYER_SECONDARY_BEACON_MARKER_CUE_W_PX: i32 = 6;
 const CLASSIC_FIRST_CONTACT_PLAYER_SECONDARY_BEACON_MARKER_CUE_H_PX: i32 = 2;
+const CLASSIC_FIRST_CONTACT_PLAYER_ACTIVE_BEACON_CAPTURE_TICK_COUNT: usize = 4;
+const CLASSIC_FIRST_CONTACT_PLAYER_ACTIVE_BEACON_CAPTURE_TICK_W_PX: i32 = 10;
+const CLASSIC_FIRST_CONTACT_PLAYER_ACTIVE_BEACON_CAPTURE_TICK_H_PX: i32 = 2;
 const CLASSIC_RTS_TACTICAL_VIEWPORT_FRAME_COLOR: u32 = 0xbfd7c8;
 const CLASSIC_RTS_TACTICAL_VIEWPORT_TILE_COLOR: u32 = 0x35513d;
 const CLASSIC_RTS_TACTICAL_VIEWPORT_SHADOW_COLOR: u32 = 0x101916;
@@ -92571,8 +92574,12 @@ fn classic_draw_first_contact_actor_glyph(
     let glyph_accent = classic_first_contact_runtime_actor_glyph_accent(actor);
     let player_screen_command_core =
         player_screen && matches!(glyph_accent, RtsActorGlyphAccent::CommandSpire);
+    let player_screen_beacon_core =
+        player_screen && matches!(glyph_accent, RtsActorGlyphAccent::BeaconCore);
     let render_color = if player_screen_command_core {
         classic_darken(color, 3, 5)
+    } else if player_screen_beacon_core {
+        classic_darken(color, 2, 5)
     } else {
         color
     };
@@ -92706,26 +92713,32 @@ fn classic_draw_first_contact_actor_glyph(
                 );
             }
             RtsActorGlyphAccent::BeaconCore => {
-                classic_draw_iso_ellipse(
-                    buffer,
-                    width,
-                    height,
-                    center_x + size_w / 4,
-                    base_y + size_h / 2,
-                    size_w / 2,
-                    (size_h / 3).max(3),
-                    CLASSIC_RTS_CAPTURE_BAR_COLOR,
-                );
-                classic_draw_rect(
-                    buffer,
-                    width,
-                    height,
-                    center_x + size_w / 4 - 2,
-                    base_y + 2,
-                    4,
-                    size_h - 2,
-                    CLASSIC_RTS_OBJECTIVE_COLOR,
-                );
+                if player_screen {
+                    classic_draw_first_contact_player_beacon_core_micro_ticks(
+                        buffer, width, height, center_x, base_y, size_w, size_h,
+                    );
+                } else {
+                    classic_draw_iso_ellipse(
+                        buffer,
+                        width,
+                        height,
+                        center_x + size_w / 4,
+                        base_y + size_h / 2,
+                        size_w / 2,
+                        (size_h / 3).max(3),
+                        CLASSIC_RTS_CAPTURE_BAR_COLOR,
+                    );
+                    classic_draw_rect(
+                        buffer,
+                        width,
+                        height,
+                        center_x + size_w / 4 - 2,
+                        base_y + 2,
+                        4,
+                        size_h - 2,
+                        CLASSIC_RTS_OBJECTIVE_COLOR,
+                    );
+                }
             }
             _ => {}
         }
@@ -94845,6 +94858,91 @@ fn classic_draw_first_contact_player_unit_identity_marks(
 
 #[cfg(not(target_os = "android"))]
 #[allow(clippy::too_many_arguments)]
+fn classic_draw_first_contact_player_active_beacon_capture_ticks(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    cx: i32,
+    cy: i32,
+    cell_w: i32,
+    cell_h: i32,
+) {
+    let tick_w = CLASSIC_FIRST_CONTACT_PLAYER_ACTIVE_BEACON_CAPTURE_TICK_W_PX;
+    let tick_h = CLASSIC_FIRST_CONTACT_PLAYER_ACTIVE_BEACON_CAPTURE_TICK_H_PX;
+    let ticks = [
+        (
+            cx - cell_w / 2 - 1,
+            cy + cell_h + 5,
+            CLASSIC_RTS_OBJECTIVE_COLOR,
+        ),
+        (
+            cx + cell_w / 2 - tick_w + 1,
+            cy + cell_h + 5,
+            CLASSIC_RTS_OBJECTIVE_COLOR,
+        ),
+        (
+            cx - cell_w / 2,
+            cy - cell_h * 2 - 7,
+            CLASSIC_RTS_CAPTURE_BAR_COLOR,
+        ),
+        (
+            cx + cell_w / 2 - tick_w,
+            cy - cell_h * 2 - 7,
+            CLASSIC_RTS_CAPTURE_BAR_COLOR,
+        ),
+    ];
+    debug_assert_eq!(
+        ticks.len(),
+        CLASSIC_FIRST_CONTACT_PLAYER_ACTIVE_BEACON_CAPTURE_TICK_COUNT
+    );
+    for (x, y, color) in ticks {
+        classic_draw_rect(buffer, width, height, x, y, tick_w, tick_h, color);
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+#[allow(clippy::too_many_arguments)]
+fn classic_draw_first_contact_player_beacon_core_micro_ticks(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    center_x: i32,
+    base_y: i32,
+    size_w: i32,
+    size_h: i32,
+) {
+    let tick_w = CLASSIC_FIRST_CONTACT_PLAYER_ACTIVE_BEACON_CAPTURE_TICK_W_PX;
+    let tick_h = CLASSIC_FIRST_CONTACT_PLAYER_ACTIVE_BEACON_CAPTURE_TICK_H_PX;
+    let core_x = center_x + size_w / 4;
+    let ticks = [
+        (core_x - tick_w / 2, base_y + 3, CLASSIC_RTS_OBJECTIVE_COLOR),
+        (
+            core_x - tick_w / 2,
+            base_y + size_h - 5,
+            CLASSIC_RTS_OBJECTIVE_COLOR,
+        ),
+        (
+            core_x - size_w / 2,
+            base_y + size_h / 2,
+            CLASSIC_RTS_CAPTURE_BAR_COLOR,
+        ),
+        (
+            core_x + size_w / 2 - tick_w,
+            base_y + size_h / 2,
+            CLASSIC_RTS_CAPTURE_BAR_COLOR,
+        ),
+    ];
+    debug_assert_eq!(
+        ticks.len(),
+        CLASSIC_FIRST_CONTACT_PLAYER_ACTIVE_BEACON_CAPTURE_TICK_COUNT
+    );
+    for (x, y, color) in ticks {
+        classic_draw_rect(buffer, width, height, x, y, tick_w, tick_h, color);
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+#[allow(clippy::too_many_arguments)]
 fn classic_draw_first_contact_model_identity_layers(
     buffer: &mut [u32],
     width: usize,
@@ -96735,6 +96833,12 @@ fn classic_draw_first_contact_readability_overlays(
                     color,
                 );
             }
+            continue;
+        }
+        if player_screen && tile == target_tile {
+            classic_draw_first_contact_player_active_beacon_capture_ticks(
+                buffer, width, height, cx, cy, cell_w, cell_h,
+            );
             continue;
         }
         classic_draw_iso_ellipse(
@@ -153829,6 +153933,132 @@ mod tests {
             }),
             "{components:?}"
         );
+    }
+
+    #[cfg(not(target_os = "android"))]
+    #[test]
+    fn classic_first_contact_player_active_beacon_capture_draws_micro_ticks() {
+        let width = 900;
+        let height = 620;
+        let mut buffer = vec![0_u32; width * height];
+        let map_x = 80;
+        let map_y = 96;
+        let cell_w = 28;
+        let cell_h = 14;
+        let mut runtime = NativeFirstPlayableRuntime::default();
+        runtime.rts_command_destination_tile = Some("16,9".to_string());
+
+        classic_draw_first_contact_readability_overlays(
+            &mut buffer,
+            width,
+            height,
+            &runtime,
+            map_x,
+            map_y,
+            cell_w,
+            cell_h,
+            true,
+        );
+
+        for color in [CLASSIC_RTS_OBJECTIVE_COLOR, CLASSIC_RTS_CAPTURE_BAR_COLOR] {
+            let components = exact_color_components(&buffer, width, height, color);
+            let pixel_count = components
+                .iter()
+                .map(|(pixels, _, _)| pixels)
+                .sum::<usize>();
+
+            assert_eq!(components.len(), 2, "{color:06x} {components:?}");
+            assert_eq!(
+                pixel_count,
+                2 * CLASSIC_FIRST_CONTACT_PLAYER_ACTIVE_BEACON_CAPTURE_TICK_W_PX as usize
+                    * CLASSIC_FIRST_CONTACT_PLAYER_ACTIVE_BEACON_CAPTURE_TICK_H_PX as usize,
+                "{color:06x} {components:?}"
+            );
+            assert!(
+                components.iter().all(|(_, w, h)| {
+                    *w <= CLASSIC_FIRST_CONTACT_PLAYER_ACTIVE_BEACON_CAPTURE_TICK_W_PX as usize
+                        && *h
+                            <= CLASSIC_FIRST_CONTACT_PLAYER_ACTIVE_BEACON_CAPTURE_TICK_H_PX as usize
+                }),
+                "{color:06x} {components:?}"
+            );
+        }
+    }
+
+    #[cfg(not(target_os = "android"))]
+    #[test]
+    fn classic_first_contact_runtime_core_beacon_draws_micro_capture_ticks() {
+        let width = 900;
+        let height = 620;
+        let map_x = 80;
+        let map_y = 96;
+        let cell_w = 28;
+        let cell_h = 14;
+        let world = classic_first_contact_openra_like_core_preview_world();
+        let mut checked_beacons = 0_usize;
+
+        for actor in world
+            .actors
+            .iter()
+            .filter(|actor| classic_first_contact_runtime_core_actor_player_visible(actor))
+            .filter(|actor| {
+                classic_first_contact_runtime_actor_glyph_accent(actor)
+                    == RtsActorGlyphAccent::BeaconCore
+            })
+        {
+            let mut buffer = vec![0_u32; width * height];
+            let (tile_x, tile_y) =
+                classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, actor.tile);
+            let (size_w, size_h) = classic_first_contact_runtime_actor_size(actor, cell_w, cell_h);
+            let color = classic_first_contact_runtime_actor_color(actor);
+            classic_draw_first_contact_actor_glyph(
+                &mut buffer,
+                width,
+                height,
+                actor,
+                tile_x,
+                tile_y,
+                size_w,
+                size_h,
+                color,
+                true,
+            );
+            checked_beacons += 1;
+
+            for color in [CLASSIC_RTS_OBJECTIVE_COLOR, CLASSIC_RTS_CAPTURE_BAR_COLOR] {
+                let components = exact_color_components(&buffer, width, height, color);
+                let pixel_count = components
+                    .iter()
+                    .map(|(pixels, _, _)| pixels)
+                    .sum::<usize>();
+
+                assert_eq!(
+                    components.len(),
+                    2,
+                    "{} {color:06x} {components:?}",
+                    actor.id
+                );
+                assert_eq!(
+                    pixel_count,
+                    2 * CLASSIC_FIRST_CONTACT_PLAYER_ACTIVE_BEACON_CAPTURE_TICK_W_PX as usize
+                        * CLASSIC_FIRST_CONTACT_PLAYER_ACTIVE_BEACON_CAPTURE_TICK_H_PX as usize,
+                    "{} {color:06x} {components:?}",
+                    actor.id
+                );
+                assert!(
+                    components.iter().all(|(_, w, h)| {
+                        *w <= CLASSIC_FIRST_CONTACT_PLAYER_ACTIVE_BEACON_CAPTURE_TICK_W_PX as usize
+                            && *h
+                                <= CLASSIC_FIRST_CONTACT_PLAYER_ACTIVE_BEACON_CAPTURE_TICK_H_PX
+                                    as usize
+                    }),
+                    "{} {color:06x} {components:?}",
+                    actor.id
+                );
+            }
+        }
+
+        assert!(checked_beacons > 0);
     }
 
     #[cfg(not(target_os = "android"))]

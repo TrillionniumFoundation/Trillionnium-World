@@ -419,6 +419,12 @@ exact_harvest_swing_component_sample = exact_color_component_summary(
     12,
     4,
 )
+exact_beacon_capture_component_sample = exact_color_component_summary(
+    "active_beacon_capture_exact_yellow",
+    (215, 255, 120),
+    14,
+    2,
+)
 exact_owner_player_component_sample = exact_color_component_summary(
     "owner_identity_exact_player_muted",
     (69, 121, 83),
@@ -443,6 +449,7 @@ exact_color_component_samples = [
     exact_blueprint_component_sample,
     exact_scaffold_component_sample,
     exact_harvest_swing_component_sample,
+    exact_beacon_capture_component_sample,
     exact_owner_player_component_sample,
     exact_owner_enemy_component_sample,
     exact_unit_identity_component_sample,
@@ -481,6 +488,7 @@ gates = {
     "exact_blueprint_micro_component_gate": exact_blueprint_component_sample["passes"],
     "exact_scaffold_thin_component_gate": exact_scaffold_component_sample["passes"],
     "exact_harvest_swing_micro_component_gate": exact_harvest_swing_component_sample["passes"],
+    "exact_beacon_capture_micro_component_gate": exact_beacon_capture_component_sample["passes"],
     "exact_owner_identity_micro_component_gate": (
         exact_owner_player_component_sample["passes"]
         and exact_owner_enemy_component_sample["passes"]
