@@ -919,6 +919,16 @@ const CLASSIC_RTS_MODEL_IDENTITY_FACTION_COLOR: u32 = 0xff9f7a;
 const CLASSIC_FIRST_CONTACT_PLAYER_UNIT_IDENTITY_MARKS_PER_UNIT: usize = 4;
 const CLASSIC_FIRST_CONTACT_PLAYER_UNIT_IDENTITY_MARK_W_PX: i32 = 8;
 const CLASSIC_FIRST_CONTACT_PLAYER_UNIT_IDENTITY_MARK_H_PX: i32 = 2;
+const CLASSIC_FIRST_CONTACT_PLAYER_UNIT_BODY_HEAD_W_PX: i32 = 6;
+const CLASSIC_FIRST_CONTACT_PLAYER_UNIT_BODY_HEAD_H_PX: i32 = 2;
+const CLASSIC_FIRST_CONTACT_PLAYER_UNIT_BODY_CORE_W_PX: i32 = 10;
+const CLASSIC_FIRST_CONTACT_PLAYER_UNIT_BODY_CORE_H_PX: i32 = 4;
+const CLASSIC_FIRST_CONTACT_PLAYER_UNIT_BODY_FOOT_W_PX: i32 = 8;
+const CLASSIC_FIRST_CONTACT_PLAYER_UNIT_BODY_FOOT_H_PX: i32 = 2;
+const CLASSIC_FIRST_CONTACT_PLAYER_INLINE_HEALTH_PIP_COUNT: usize = 4;
+const CLASSIC_FIRST_CONTACT_PLAYER_INLINE_HEALTH_PIP_W_PX: i32 = 2;
+const CLASSIC_FIRST_CONTACT_PLAYER_INLINE_HEALTH_PIP_H_PX: i32 = 2;
+const CLASSIC_FIRST_CONTACT_PLAYER_INLINE_HEALTH_PIP_GAP_PX: i32 = 1;
 const CLASSIC_FIRST_CONTACT_PLAYER_RELAY_IDENTITY_RAIL_COUNT: usize = 6;
 const CLASSIC_FIRST_CONTACT_PLAYER_RELAY_IDENTITY_RAIL_W_PX: i32 = 16;
 const CLASSIC_FIRST_CONTACT_PLAYER_RELAY_IDENTITY_RAIL_H_PX: i32 = 2;
@@ -92345,7 +92355,48 @@ fn classic_draw_first_contact_actor_health_bar(
     bar_w: i32,
     percent: u8,
     color: u32,
+    player_screen: bool,
 ) {
+    if player_screen {
+        let pip_count = CLASSIC_FIRST_CONTACT_PLAYER_INLINE_HEALTH_PIP_COUNT as i32;
+        let total_w = pip_count * CLASSIC_FIRST_CONTACT_PLAYER_INLINE_HEALTH_PIP_W_PX
+            + (pip_count - 1) * CLASSIC_FIRST_CONTACT_PLAYER_INLINE_HEALTH_PIP_GAP_PX;
+        let pip_x = x + ((bar_w - total_w) / 2).max(0);
+        let filled_pips =
+            ((pip_count * i32::from(percent.min(100)) + 99) / 100).clamp(1, pip_count) as usize;
+        let pip_color = classic_darken(color, 1, 3);
+
+        for pip in 0..CLASSIC_FIRST_CONTACT_PLAYER_INLINE_HEALTH_PIP_COUNT {
+            let x = pip_x
+                + pip as i32
+                    * (CLASSIC_FIRST_CONTACT_PLAYER_INLINE_HEALTH_PIP_W_PX
+                        + CLASSIC_FIRST_CONTACT_PLAYER_INLINE_HEALTH_PIP_GAP_PX);
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                x,
+                y,
+                CLASSIC_FIRST_CONTACT_PLAYER_INLINE_HEALTH_PIP_W_PX,
+                CLASSIC_FIRST_CONTACT_PLAYER_INLINE_HEALTH_PIP_H_PX,
+                CLASSIC_RTS_PRODUCTION_SLOT_COLOR,
+            );
+            if pip < filled_pips {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    x,
+                    y,
+                    CLASSIC_FIRST_CONTACT_PLAYER_INLINE_HEALTH_PIP_W_PX,
+                    CLASSIC_FIRST_CONTACT_PLAYER_INLINE_HEALTH_PIP_H_PX,
+                    pip_color,
+                );
+            }
+        }
+        return;
+    }
+
     classic_draw_rect(
         buffer,
         width,
@@ -92702,36 +92753,59 @@ fn classic_draw_first_contact_actor_glyph(
                 CLASSIC_ISO_UNIT_RING_COLOR,
             );
         }
-        classic_draw_rect(
-            buffer,
-            width,
-            height,
-            center_x - size_w / 5,
-            center_y - size_h / 3,
-            (size_w * 2 / 5).max(5),
-            (size_h * 2 / 3).max(7),
-            CLASSIC_ISO_OUTLINE_COLOR,
-        );
-        classic_draw_rect(
-            buffer,
-            width,
-            height,
-            center_x - size_w / 5 + 2,
-            center_y - size_h / 3 + 2,
-            (size_w * 2 / 5).max(5) - 4,
-            (size_h * 2 / 3).max(7) - 4,
-            color,
-        );
-        classic_draw_rect(
-            buffer,
-            width,
-            height,
-            center_x - size_w / 6,
-            center_y - size_h / 2,
-            (size_w / 3).max(4),
-            (size_h / 4).max(3),
-            highlight,
-        );
+        if player_screen {
+            classic_draw_first_contact_player_unit_actor_body(
+                buffer,
+                width,
+                height,
+                center_x,
+                center_y,
+                size_h,
+                color,
+                Some(CLASSIC_ISO_OUTLINE_COLOR),
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x - CLASSIC_FIRST_CONTACT_PLAYER_UNIT_BODY_HEAD_W_PX / 2 + 1,
+                center_y - size_h / 2 - 3,
+                (CLASSIC_FIRST_CONTACT_PLAYER_UNIT_BODY_HEAD_W_PX - 2).max(2),
+                1,
+                highlight,
+            );
+        } else {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x - size_w / 5,
+                center_y - size_h / 3,
+                (size_w * 2 / 5).max(5),
+                (size_h * 2 / 3).max(7),
+                CLASSIC_ISO_OUTLINE_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x - size_w / 5 + 2,
+                center_y - size_h / 3 + 2,
+                (size_w * 2 / 5).max(5) - 4,
+                (size_h * 2 / 3).max(7) - 4,
+                color,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x - size_w / 6,
+                center_y - size_h / 2,
+                (size_w / 3).max(4),
+                (size_h / 4).max(3),
+                highlight,
+            );
+        }
         if classic_first_contact_runtime_actor_unit_role_accent_visible(actor) {
             match glyph_accent {
                 RtsActorGlyphAccent::WorkerCargo => {
@@ -92812,10 +92886,11 @@ fn classic_draw_first_contact_actor_glyph(
             width,
             height,
             base_x,
-            center_y + size_h / 2 + 2,
+            center_y + size_h / 2 + if player_screen { 3 } else { 2 },
             classic_first_contact_runtime_actor_health_bar_width(actor, size_w.max(10)),
             classic_first_contact_runtime_actor_health_percent(actor),
             render_color,
+            player_screen,
         );
     }
 }
@@ -93984,6 +94059,80 @@ fn classic_draw_first_contact_command_feedback_layers(
 
 #[cfg(not(target_os = "android"))]
 #[allow(clippy::too_many_arguments)]
+fn classic_draw_first_contact_actor_footprint_body(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    cx: i32,
+    cy: i32,
+    cell_w: i32,
+    cell_h: i32,
+    footprint_w: i32,
+    footprint_h: i32,
+    color: u32,
+) {
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        cx - (cell_w * footprint_w) / 2,
+        cy - (cell_h * footprint_h) / 2,
+        (cell_w * footprint_w).max(8),
+        (cell_h * footprint_h).max(6),
+        color,
+    );
+}
+
+#[cfg(not(target_os = "android"))]
+#[allow(clippy::too_many_arguments)]
+fn classic_draw_first_contact_player_unit_actor_body(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    cx: i32,
+    cy: i32,
+    cell_h: i32,
+    color: u32,
+    outline_color: Option<u32>,
+) {
+    for (x, y, body_w, body_h) in [
+        (
+            cx - CLASSIC_FIRST_CONTACT_PLAYER_UNIT_BODY_HEAD_W_PX / 2,
+            cy - cell_h / 2 - 1,
+            CLASSIC_FIRST_CONTACT_PLAYER_UNIT_BODY_HEAD_W_PX,
+            CLASSIC_FIRST_CONTACT_PLAYER_UNIT_BODY_HEAD_H_PX,
+        ),
+        (
+            cx - CLASSIC_FIRST_CONTACT_PLAYER_UNIT_BODY_CORE_W_PX / 2,
+            cy - 1,
+            CLASSIC_FIRST_CONTACT_PLAYER_UNIT_BODY_CORE_W_PX,
+            CLASSIC_FIRST_CONTACT_PLAYER_UNIT_BODY_CORE_H_PX,
+        ),
+        (
+            cx - CLASSIC_FIRST_CONTACT_PLAYER_UNIT_BODY_FOOT_W_PX / 2,
+            cy + cell_h / 2 - 2,
+            CLASSIC_FIRST_CONTACT_PLAYER_UNIT_BODY_FOOT_W_PX,
+            CLASSIC_FIRST_CONTACT_PLAYER_UNIT_BODY_FOOT_H_PX,
+        ),
+    ] {
+        if let Some(outline_color) = outline_color {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                x - 1,
+                y - 1,
+                body_w + 2,
+                body_h + 2,
+                outline_color,
+            );
+        }
+        classic_draw_rect(buffer, width, height, x, y, body_w, body_h, color);
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+#[allow(clippy::too_many_arguments)]
 fn classic_draw_first_contact_actor(
     buffer: &mut [u32],
     width: usize,
@@ -94443,7 +94592,7 @@ fn classic_draw_first_contact_actor(
                 CLASSIC_RTS_PRODUCT_MAP_DENSITY_COLOR,
             );
         }
-        RtsActorGlyphBody::Unit | RtsActorGlyphBody::Structure => {
+        RtsActorGlyphBody::Unit => {
             let color = classic_first_contact_actor_color_role_color(
                 presentation
                     .as_ref()
@@ -94458,14 +94607,50 @@ fn classic_draw_first_contact_actor(
                 .as_ref()
                 .map(|profile| i32::from(profile.glyph.footprint_height_cells).max(1))
                 .unwrap_or(1);
-            classic_draw_rect(
+            if player_screen {
+                classic_draw_first_contact_player_unit_actor_body(
+                    buffer, width, height, cx, cy, cell_h, color, None,
+                );
+            } else {
+                classic_draw_first_contact_actor_footprint_body(
+                    buffer,
+                    width,
+                    height,
+                    cx,
+                    cy,
+                    cell_w,
+                    cell_h,
+                    footprint_w,
+                    footprint_h,
+                    color,
+                );
+            }
+        }
+        RtsActorGlyphBody::Structure => {
+            let color = classic_first_contact_actor_color_role_color(
+                presentation
+                    .as_ref()
+                    .map(|profile| profile.color_role)
+                    .unwrap_or(RtsActorColorRole::MapDetail),
+            );
+            let footprint_w = presentation
+                .as_ref()
+                .map(|profile| i32::from(profile.glyph.footprint_width_cells).max(1))
+                .unwrap_or(1);
+            let footprint_h = presentation
+                .as_ref()
+                .map(|profile| i32::from(profile.glyph.footprint_height_cells).max(1))
+                .unwrap_or(1);
+            classic_draw_first_contact_actor_footprint_body(
                 buffer,
                 width,
                 height,
-                cx - (cell_w * footprint_w) / 2,
-                cy - (cell_h * footprint_h) / 2,
-                (cell_w * footprint_w).max(8),
-                (cell_h * footprint_h).max(6),
+                cx,
+                cy,
+                cell_w,
+                cell_h,
+                footprint_w,
+                footprint_h,
                 color,
             );
         }
@@ -153248,6 +153433,245 @@ mod tests {
             "target_callout_gate",
         ] {
             assert_eq!(guard.get(gate).and_then(Value::as_bool), Some(true));
+        }
+    }
+
+    #[cfg(not(target_os = "android"))]
+    #[test]
+    fn classic_first_contact_player_units_draw_compact_actor_bodies() {
+        let width = 900;
+        let height = 620;
+        let map_x = 80;
+        let map_y = 96;
+        let cell_w = 28;
+        let cell_h = 14;
+        let target_tile = (16, 9);
+        let expected_pixels = (CLASSIC_FIRST_CONTACT_PLAYER_UNIT_BODY_HEAD_W_PX
+            * CLASSIC_FIRST_CONTACT_PLAYER_UNIT_BODY_HEAD_H_PX
+            + CLASSIC_FIRST_CONTACT_PLAYER_UNIT_BODY_CORE_W_PX
+                * CLASSIC_FIRST_CONTACT_PLAYER_UNIT_BODY_CORE_H_PX
+            + CLASSIC_FIRST_CONTACT_PLAYER_UNIT_BODY_FOOT_W_PX
+                * CLASSIC_FIRST_CONTACT_PLAYER_UNIT_BODY_FOOT_H_PX)
+            as usize;
+
+        for actor in classic_first_contact_map_actors_from_rts_data() {
+            let Some(presentation) =
+                classic_first_contact_actor_presentation(actor.source_rule_id.as_str())
+            else {
+                continue;
+            };
+            if presentation.glyph.body != RtsActorGlyphBody::Unit {
+                continue;
+            }
+
+            let color = classic_first_contact_actor_color_role_color(presentation.color_role);
+            let mut buffer = vec![0_u32; width * height];
+            classic_draw_first_contact_actor(
+                &mut buffer,
+                width,
+                height,
+                actor.clone(),
+                map_x,
+                map_y,
+                cell_w,
+                cell_h,
+                true,
+                target_tile,
+            );
+            let components = exact_color_components(&buffer, width, height, color);
+            let pixel_count = components
+                .iter()
+                .map(|(pixels, _, _)| pixels)
+                .sum::<usize>();
+
+            assert_eq!(
+                pixel_count, expected_pixels,
+                "{} {color:06x} {components:?}",
+                actor.source_rule_id
+            );
+            assert_eq!(
+                components.len(),
+                3,
+                "{} {color:06x} {components:?}",
+                actor.source_rule_id
+            );
+            assert!(
+                components.iter().all(|(_, w, h)| {
+                    *w <= CLASSIC_FIRST_CONTACT_PLAYER_UNIT_BODY_CORE_W_PX as usize
+                        && *h <= CLASSIC_FIRST_CONTACT_PLAYER_UNIT_BODY_CORE_H_PX as usize
+                }),
+                "{} {color:06x} {components:?}",
+                actor.source_rule_id
+            );
+        }
+    }
+
+    #[cfg(not(target_os = "android"))]
+    #[test]
+    fn classic_first_contact_runtime_core_player_visible_units_draw_compact_glyph_bodies() {
+        let width = 900;
+        let height = 620;
+        let map_x = 80;
+        let map_y = 96;
+        let cell_w = 28;
+        let cell_h = 14;
+        let world = classic_first_contact_openra_like_core_preview_world();
+        let expected_pixels = (CLASSIC_FIRST_CONTACT_PLAYER_UNIT_BODY_HEAD_W_PX
+            * CLASSIC_FIRST_CONTACT_PLAYER_UNIT_BODY_HEAD_H_PX
+            + CLASSIC_FIRST_CONTACT_PLAYER_UNIT_BODY_CORE_W_PX
+                * CLASSIC_FIRST_CONTACT_PLAYER_UNIT_BODY_CORE_H_PX
+            + CLASSIC_FIRST_CONTACT_PLAYER_UNIT_BODY_FOOT_W_PX
+                * CLASSIC_FIRST_CONTACT_PLAYER_UNIT_BODY_FOOT_H_PX)
+            as usize;
+
+        for actor in world
+            .actors
+            .iter()
+            .filter(|actor| classic_first_contact_runtime_core_actor_player_visible(actor))
+            .filter(|actor| {
+                classic_first_contact_runtime_actor_glyph_body(actor) == RtsActorGlyphBody::Unit
+            })
+        {
+            let mut buffer = vec![0_u32; width * height];
+            let (tile_x, tile_y) =
+                classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, actor.tile);
+            let (size_w, size_h) = classic_first_contact_runtime_actor_size(actor, cell_w, cell_h);
+            let color = classic_first_contact_runtime_actor_color(actor);
+            classic_draw_first_contact_actor_glyph(
+                &mut buffer,
+                width,
+                height,
+                actor,
+                tile_x,
+                tile_y,
+                size_w,
+                size_h,
+                color,
+                true,
+            );
+            let components = exact_color_components(&buffer, width, height, color);
+            let body_components = components
+                .iter()
+                .copied()
+                .filter(|(_, w, h)| {
+                    *w <= CLASSIC_FIRST_CONTACT_PLAYER_UNIT_BODY_CORE_W_PX as usize
+                        && *h <= CLASSIC_FIRST_CONTACT_PLAYER_UNIT_BODY_CORE_H_PX as usize
+                })
+                .collect::<Vec<_>>();
+            let pixel_count = body_components
+                .iter()
+                .map(|(pixels, _, _)| pixels)
+                .sum::<usize>();
+
+            assert_eq!(
+                pixel_count, expected_pixels,
+                "{} {} {color:06x} {components:?}",
+                actor.id, actor.rule_id
+            );
+            assert_eq!(
+                body_components.len(),
+                3,
+                "{} {} {color:06x} {components:?}",
+                actor.id,
+                actor.rule_id
+            );
+            assert!(
+                body_components.iter().all(|(_, w, h)| {
+                    *w <= CLASSIC_FIRST_CONTACT_PLAYER_UNIT_BODY_CORE_W_PX as usize
+                        && *h <= CLASSIC_FIRST_CONTACT_PLAYER_UNIT_BODY_CORE_H_PX as usize
+                }),
+                "{} {} {color:06x} {components:?}",
+                actor.id,
+                actor.rule_id
+            );
+        }
+    }
+
+    #[cfg(not(target_os = "android"))]
+    #[test]
+    fn classic_first_contact_runtime_core_inline_health_bars_draw_micro_pips() {
+        let width = 900;
+        let height = 620;
+        let map_x = 80;
+        let map_y = 96;
+        let cell_w = 28;
+        let cell_h = 14;
+        let world = classic_first_contact_openra_like_core_preview_world();
+
+        for actor in world
+            .actors
+            .iter()
+            .filter(|actor| classic_first_contact_runtime_core_actor_player_visible(actor))
+            .filter(|actor| classic_first_contact_runtime_actor_inline_health_bar_visible(actor))
+        {
+            let mut buffer = vec![0_u32; width * height];
+            let (tile_x, tile_y) =
+                classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, actor.tile);
+            let (size_w, size_h) = classic_first_contact_runtime_actor_size(actor, cell_w, cell_h);
+            let color = classic_first_contact_runtime_actor_color(actor);
+            let pip_color = classic_darken(color, 1, 3);
+            let expected_pips = ((CLASSIC_FIRST_CONTACT_PLAYER_INLINE_HEALTH_PIP_COUNT as i32
+                * i32::from(classic_first_contact_runtime_actor_health_percent(actor).min(100))
+                + 99)
+                / 100)
+                .clamp(
+                    1,
+                    CLASSIC_FIRST_CONTACT_PLAYER_INLINE_HEALTH_PIP_COUNT as i32,
+                ) as usize;
+            classic_draw_first_contact_actor_glyph(
+                &mut buffer,
+                width,
+                height,
+                actor,
+                tile_x,
+                tile_y,
+                size_w,
+                size_h,
+                color,
+                true,
+            );
+            let components = exact_color_components(&buffer, width, height, pip_color);
+            let pip_components = components
+                .iter()
+                .copied()
+                .filter(|(_, w, h)| {
+                    *w == CLASSIC_FIRST_CONTACT_PLAYER_INLINE_HEALTH_PIP_W_PX as usize
+                        && *h == CLASSIC_FIRST_CONTACT_PLAYER_INLINE_HEALTH_PIP_H_PX as usize
+                })
+                .collect::<Vec<_>>();
+            let pixel_count = pip_components
+                .iter()
+                .map(|(pixels, _, _)| pixels)
+                .sum::<usize>();
+
+            assert_eq!(
+                pip_components.len(),
+                expected_pips,
+                "{} {} {:02}% {components:?}",
+                actor.id,
+                actor.rule_id,
+                classic_first_contact_runtime_actor_health_percent(actor)
+            );
+            assert_eq!(
+                pixel_count,
+                expected_pips
+                    * CLASSIC_FIRST_CONTACT_PLAYER_INLINE_HEALTH_PIP_W_PX as usize
+                    * CLASSIC_FIRST_CONTACT_PLAYER_INLINE_HEALTH_PIP_H_PX as usize,
+                "{} {} {:02}% {components:?}",
+                actor.id,
+                actor.rule_id,
+                classic_first_contact_runtime_actor_health_percent(actor)
+            );
+            assert!(
+                pip_components.iter().all(|(_, w, h)| {
+                    *w == CLASSIC_FIRST_CONTACT_PLAYER_INLINE_HEALTH_PIP_W_PX as usize
+                        && *h == CLASSIC_FIRST_CONTACT_PLAYER_INLINE_HEALTH_PIP_H_PX as usize
+                }),
+                "{} {} {:02}% {components:?}",
+                actor.id,
+                actor.rule_id,
+                classic_first_contact_runtime_actor_health_percent(actor)
+            );
         }
     }
 
