@@ -859,6 +859,8 @@ const CLASSIC_FIRST_CONTACT_PLAYER_BUILD_GHOST_TICK_W_PX: i32 = 8;
 const CLASSIC_FIRST_CONTACT_PLAYER_BUILD_GHOST_TICK_H_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_PLAYER_BUILD_GHOST_STATUS_PIP_W_PX: i32 = 4;
 const CLASSIC_FIRST_CONTACT_PLAYER_BUILD_GHOST_STATUS_PIP_H_PX: i32 = 2;
+const CLASSIC_FIRST_CONTACT_PLAYER_RELAY_SCAFFOLD_BRACE_W_PX: i32 = 8;
+const CLASSIC_FIRST_CONTACT_PLAYER_RELAY_SCAFFOLD_BRACE_H_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_OPENING_ACTION_PATH_COUNT: usize = 3;
 const CLASSIC_FIRST_CONTACT_OPENING_ACTION_PATH_STEP_COUNT: usize = 24;
 const CLASSIC_FIRST_CONTACT_OPENING_ACTION_PATH_DOT_W_PX: i32 = 2;
@@ -93094,6 +93096,40 @@ fn classic_draw_first_contact_terrain_layer(
 
 #[cfg(not(target_os = "android"))]
 #[allow(clippy::too_many_arguments)]
+fn classic_draw_first_contact_player_relay_scaffold_micro_braces(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    relay_x: i32,
+    relay_y: i32,
+    cell_w: i32,
+    cell_h: i32,
+) {
+    let brace_w = CLASSIC_FIRST_CONTACT_PLAYER_RELAY_SCAFFOLD_BRACE_W_PX;
+    let brace_h = CLASSIC_FIRST_CONTACT_PLAYER_RELAY_SCAFFOLD_BRACE_H_PX;
+    for level in 0..3 {
+        let y = relay_y - cell_h - 2 - level * 5;
+        for x in [
+            relay_x - cell_w / 2 + level * 6,
+            relay_x + cell_w / 2 - brace_w / 2,
+            relay_x + cell_w + cell_w / 2 - level * 6 - brace_w,
+        ] {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                x,
+                y,
+                brace_w,
+                brace_h,
+                CLASSIC_RTS_STRUCTURE_SCAFFOLD_COLOR,
+            );
+        }
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+#[allow(clippy::too_many_arguments)]
 fn classic_draw_first_contact_opening_actions(
     buffer: &mut [u32],
     width: usize,
@@ -93148,37 +93184,43 @@ fn classic_draw_first_contact_opening_actions(
 
     let (relay_x, relay_y) =
         classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, active_relay_tile);
-    for level in 0..3 {
-        classic_draw_rect(
-            buffer,
-            width,
-            height,
-            relay_x - cell_w / 2 + level * 4,
-            relay_y - cell_h - level * 4,
-            cell_w * 2 - level * 8,
-            3,
-            CLASSIC_RTS_STRUCTURE_SCAFFOLD_COLOR,
+    if player_screen {
+        classic_draw_first_contact_player_relay_scaffold_micro_braces(
+            buffer, width, height, relay_x, relay_y, cell_w, cell_h,
         );
-        classic_draw_rect(
-            buffer,
-            width,
-            height,
-            relay_x - cell_w / 2 + level * 5,
-            relay_y - cell_h - level * 4,
-            3,
-            cell_h + level * 5,
-            CLASSIC_RTS_STRUCTURE_SCAFFOLD_COLOR,
-        );
-        classic_draw_rect(
-            buffer,
-            width,
-            height,
-            relay_x + cell_w + cell_w / 2 - level * 5,
-            relay_y - cell_h - level * 4,
-            3,
-            cell_h + level * 5,
-            CLASSIC_RTS_STRUCTURE_SCAFFOLD_COLOR,
-        );
+    } else {
+        for level in 0..3 {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                relay_x - cell_w / 2 + level * 4,
+                relay_y - cell_h - level * 4,
+                cell_w * 2 - level * 8,
+                3,
+                CLASSIC_RTS_STRUCTURE_SCAFFOLD_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                relay_x - cell_w / 2 + level * 5,
+                relay_y - cell_h - level * 4,
+                3,
+                cell_h + level * 5,
+                CLASSIC_RTS_STRUCTURE_SCAFFOLD_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                relay_x + cell_w + cell_w / 2 - level * 5,
+                relay_y - cell_h - level * 4,
+                3,
+                cell_h + level * 5,
+                CLASSIC_RTS_STRUCTURE_SCAFFOLD_COLOR,
+            );
+        }
     }
     for spark in 0..4 {
         classic_draw_rect(
@@ -146557,6 +146599,57 @@ mod tests {
     use super::*;
     static SESSION_SLOT_TEST_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
+    #[cfg(not(target_os = "android"))]
+    fn exact_color_components(
+        buffer: &[u32],
+        width: usize,
+        height: usize,
+        color: u32,
+    ) -> Vec<(usize, usize, usize)> {
+        let mut seen = vec![false; buffer.len()];
+        let mut components = Vec::new();
+        for y in 0..height {
+            for x in 0..width {
+                let index = y * width + x;
+                if seen[index] || buffer[index] != color {
+                    continue;
+                }
+                seen[index] = true;
+                let mut stack = vec![(x, y)];
+                let mut min_x = x;
+                let mut max_x = x;
+                let mut min_y = y;
+                let mut max_y = y;
+                let mut pixels = 0_usize;
+                while let Some((cx, cy)) = stack.pop() {
+                    pixels += 1;
+                    min_x = min_x.min(cx);
+                    max_x = max_x.max(cx);
+                    min_y = min_y.min(cy);
+                    max_y = max_y.max(cy);
+                    for (nx, ny) in [
+                        (cx.wrapping_add(1), cy),
+                        (cx.wrapping_sub(1), cy),
+                        (cx, cy.wrapping_add(1)),
+                        (cx, cy.wrapping_sub(1)),
+                    ] {
+                        if nx >= width || ny >= height {
+                            continue;
+                        }
+                        let next_index = ny * width + nx;
+                        if seen[next_index] || buffer[next_index] != color {
+                            continue;
+                        }
+                        seen[next_index] = true;
+                        stack.push((nx, ny));
+                    }
+                }
+                components.push((pixels, max_x - min_x + 1, max_y - min_y + 1));
+            }
+        }
+        components
+    }
+
     #[test]
     fn bevy_client_spawns_world_snapshot_without_becoming_authority() {
         let world = WorldState::trillionnium_default_map_fixture();
@@ -151838,49 +151931,8 @@ mod tests {
             CLASSIC_RTS_BUILD_BLUEPRINT_COLOR,
         );
 
-        let mut seen = vec![false; buffer.len()];
-        let mut components = Vec::new();
-        for y in 0..height {
-            for x in 0..width {
-                let index = y * width + x;
-                if seen[index] || buffer[index] != CLASSIC_RTS_BUILD_BLUEPRINT_COLOR {
-                    continue;
-                }
-                seen[index] = true;
-                let mut stack = vec![(x, y)];
-                let mut min_x = x;
-                let mut max_x = x;
-                let mut min_y = y;
-                let mut max_y = y;
-                let mut pixels = 0_usize;
-                while let Some((cx, cy)) = stack.pop() {
-                    pixels += 1;
-                    min_x = min_x.min(cx);
-                    max_x = max_x.max(cx);
-                    min_y = min_y.min(cy);
-                    max_y = max_y.max(cy);
-                    for (nx, ny) in [
-                        (cx.wrapping_add(1), cy),
-                        (cx.wrapping_sub(1), cy),
-                        (cx, cy.wrapping_add(1)),
-                        (cx, cy.wrapping_sub(1)),
-                    ] {
-                        if nx >= width || ny >= height {
-                            continue;
-                        }
-                        let next_index = ny * width + nx;
-                        if seen[next_index]
-                            || buffer[next_index] != CLASSIC_RTS_BUILD_BLUEPRINT_COLOR
-                        {
-                            continue;
-                        }
-                        seen[next_index] = true;
-                        stack.push((nx, ny));
-                    }
-                }
-                components.push((pixels, max_x - min_x + 1, max_y - min_y + 1));
-            }
-        }
+        let components =
+            exact_color_components(&buffer, width, height, CLASSIC_RTS_BUILD_BLUEPRINT_COLOR);
 
         assert_eq!(components.len(), 12, "{components:?}");
         assert_eq!(
@@ -151894,6 +151946,43 @@ mod tests {
             components.iter().all(|(_, w, h)| {
                 *w <= CLASSIC_FIRST_CONTACT_PLAYER_BUILD_GHOST_TICK_W_PX as usize
                     && *h <= CLASSIC_FIRST_CONTACT_PLAYER_BUILD_GHOST_TICK_H_PX as usize
+            }),
+            "{components:?}"
+        );
+    }
+
+    #[cfg(not(target_os = "android"))]
+    #[test]
+    fn classic_first_contact_player_relay_scaffold_draws_micro_braces() {
+        let width = 240;
+        let height = 180;
+        let mut buffer = vec![0_u32; width * height];
+
+        classic_draw_first_contact_player_relay_scaffold_micro_braces(
+            &mut buffer,
+            width,
+            height,
+            94,
+            118,
+            48,
+            28,
+        );
+
+        let components =
+            exact_color_components(&buffer, width, height, CLASSIC_RTS_STRUCTURE_SCAFFOLD_COLOR);
+
+        assert_eq!(components.len(), 9, "{components:?}");
+        assert_eq!(
+            components
+                .iter()
+                .map(|(pixels, _, _)| pixels)
+                .sum::<usize>(),
+            144
+        );
+        assert!(
+            components.iter().all(|(_, w, h)| {
+                *w <= CLASSIC_FIRST_CONTACT_PLAYER_RELAY_SCAFFOLD_BRACE_W_PX as usize
+                    && *h <= CLASSIC_FIRST_CONTACT_PLAYER_RELAY_SCAFFOLD_BRACE_H_PX as usize
             }),
             "{components:?}"
         );

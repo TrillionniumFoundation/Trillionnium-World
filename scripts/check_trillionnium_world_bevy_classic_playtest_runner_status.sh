@@ -407,10 +407,17 @@ exact_blueprint_component_sample = exact_color_component_summary(
     12,
     10,
 )
+exact_scaffold_component_sample = exact_color_component_summary(
+    "relay_scaffold_exact_tan",
+    (200, 157, 98),
+    28,
+    14,
+)
 exact_color_component_samples = [
     exact_red_component_sample,
     exact_green_component_sample,
     exact_blueprint_component_sample,
+    exact_scaffold_component_sample,
 ]
 forbidden_title_fragments = [
     "desktop product alignment",
@@ -444,6 +451,7 @@ gates = {
     "exact_red_micro_component_gate": exact_red_component_sample["passes"],
     "exact_green_micro_component_gate": exact_green_component_sample["passes"],
     "exact_blueprint_micro_component_gate": exact_blueprint_component_sample["passes"],
+    "exact_scaffold_thin_component_gate": exact_scaffold_component_sample["passes"],
     "gameplay_scene_gate": (
         regions_by_id["map_playfield"]["sampled_colors"] >= regions_by_id["map_playfield"]["min_sampled_colors"] * 2
         and regions_by_id["center_map"]["sampled_colors"] >= regions_by_id["center_map"]["min_sampled_colors"] * 1.8
