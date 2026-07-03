@@ -93004,6 +93004,7 @@ fn classic_draw_first_contact_opening_actions(
     map_y: i32,
     cell_w: i32,
     cell_h: i32,
+    player_screen: bool,
 ) {
     let opening = classic_first_contact_opening_loop();
     let active_beacon_tile = classic_first_contact_tile_tuple(opening.active_beacon_tile);
@@ -93097,26 +93098,37 @@ fn classic_draw_first_contact_opening_actions(
     let (beacon_x, beacon_y) =
         classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, active_beacon_tile);
     for ring in 0..3 {
-        classic_draw_rect(
-            buffer,
-            width,
-            height,
-            beacon_x - cell_w - ring * 4,
-            beacon_y - cell_h + ring * 3,
-            cell_w * 3 + ring * 8,
-            3,
-            CLASSIC_RTS_ABILITY_TELEGRAPH_RANGE_COLOR,
-        );
-        classic_draw_rect(
-            buffer,
-            width,
-            height,
-            beacon_x - cell_w - ring * 4,
-            beacon_y + cell_h + ring * 3,
-            cell_w * 3 + ring * 8,
-            3,
-            CLASSIC_RTS_ABILITY_TELEGRAPH_RANGE_COLOR,
-        );
+        let ring_x = beacon_x - cell_w - ring * 4;
+        let ring_w = cell_w * 3 + ring * 8;
+        for ring_y in [beacon_y - cell_h + ring * 3, beacon_y + cell_h + ring * 3] {
+            if player_screen {
+                let tick_w = 8;
+                let tick_h = 2;
+                for tick_x in [ring_x, ring_x + ring_w - tick_w] {
+                    classic_draw_rect(
+                        buffer,
+                        width,
+                        height,
+                        tick_x,
+                        ring_y,
+                        tick_w,
+                        tick_h,
+                        CLASSIC_RTS_ABILITY_TELEGRAPH_RANGE_COLOR,
+                    );
+                }
+            } else {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    ring_x,
+                    ring_y,
+                    ring_w,
+                    3,
+                    CLASSIC_RTS_ABILITY_TELEGRAPH_RANGE_COLOR,
+                );
+            }
+        }
     }
 }
 
@@ -95350,16 +95362,49 @@ fn classic_draw_first_contact_animation_cycle_detail(
         }
         "capture_pulse_frame" => {
             for pulse in 0..4 {
-                classic_draw_iso_ellipse(
-                    buffer,
-                    width,
-                    height,
-                    cx,
-                    cy,
-                    cell_w + pulse * 8,
-                    (cell_h / 2 + pulse * 3).max(4),
-                    CLASSIC_RTS_ABILITY_TELEGRAPH_RANGE_COLOR,
-                );
+                if player_screen {
+                    let pulse_x = cell_w / 2 + pulse * 4;
+                    let pulse_y = (cell_h / 2 + pulse * 2).max(6);
+                    let horizontal_tick_w = 8;
+                    let horizontal_tick_h = 2;
+                    for tick_x in [cx - pulse_x, cx + pulse_x - horizontal_tick_w] {
+                        classic_draw_rect(
+                            buffer,
+                            width,
+                            height,
+                            tick_x,
+                            cy - 2,
+                            horizontal_tick_w,
+                            horizontal_tick_h,
+                            CLASSIC_RTS_ABILITY_TELEGRAPH_RANGE_COLOR,
+                        );
+                    }
+                    let vertical_tick_w = 2;
+                    let vertical_tick_h = 6;
+                    for tick_y in [cy - pulse_y, cy + pulse_y - vertical_tick_h] {
+                        classic_draw_rect(
+                            buffer,
+                            width,
+                            height,
+                            cx - 2,
+                            tick_y,
+                            vertical_tick_w,
+                            vertical_tick_h,
+                            CLASSIC_RTS_ABILITY_TELEGRAPH_RANGE_COLOR,
+                        );
+                    }
+                } else {
+                    classic_draw_iso_ellipse(
+                        buffer,
+                        width,
+                        height,
+                        cx,
+                        cy,
+                        cell_w + pulse * 8,
+                        (cell_h / 2 + pulse * 3).max(4),
+                        CLASSIC_RTS_ABILITY_TELEGRAPH_RANGE_COLOR,
+                    );
+                }
             }
             classic_draw_rect(
                 buffer,
@@ -96637,7 +96682,16 @@ fn classic_draw_first_contact_basin_scene(
             );
         }
     }
-    classic_draw_first_contact_opening_actions(buffer, width, height, map_x, map_y, cell_w, cell_h);
+    classic_draw_first_contact_opening_actions(
+        buffer,
+        width,
+        height,
+        map_x,
+        map_y,
+        cell_w,
+        cell_h,
+        player_screen,
+    );
     classic_draw_first_contact_readability_overlays(
         buffer,
         width,

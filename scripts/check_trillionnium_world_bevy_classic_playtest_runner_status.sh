@@ -389,9 +389,19 @@ edge_safety_samples = [
     edge_safety_sample("bottom_command_bottom_quiet_band", [0, height - 4, width, height], 24, 40),
     edge_safety_sample("top_hud_top_edge", [0, 0, width, 6], 100, 180),
 ]
-exact_color_component_samples = [
-    exact_color_component_summary("attack_feedback_exact_red", (255, 114, 114), 16, 16),
-]
+exact_red_component_sample = exact_color_component_summary(
+    "attack_feedback_exact_red",
+    (255, 114, 114),
+    16,
+    16,
+)
+exact_green_component_sample = exact_color_component_summary(
+    "ability_range_exact_green",
+    (140, 255, 143),
+    16,
+    16,
+)
+exact_color_component_samples = [exact_red_component_sample, exact_green_component_sample]
 forbidden_title_fragments = [
     "desktop product alignment",
     "map-first alignment",
@@ -421,7 +431,8 @@ gates = {
     ),
     "dead_panel_gate": all(item["passes"] for item in dead_panel_regions),
     "clipped_label_edge_gate": all(item["passes"] for item in edge_safety_samples),
-    "exact_red_micro_component_gate": all(item["passes"] for item in exact_color_component_samples),
+    "exact_red_micro_component_gate": exact_red_component_sample["passes"],
+    "exact_green_micro_component_gate": exact_green_component_sample["passes"],
     "gameplay_scene_gate": (
         regions_by_id["map_playfield"]["sampled_colors"] >= regions_by_id["map_playfield"]["min_sampled_colors"] * 2
         and regions_by_id["center_map"]["sampled_colors"] >= regions_by_id["center_map"]["min_sampled_colors"] * 1.8
