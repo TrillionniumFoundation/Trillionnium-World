@@ -34,6 +34,10 @@ fn secondary_beacon_capture_ring_detail(tile: (i32, i32), role: &str, signature:
     )
 }
 
+fn active_beacon_capture_ring_detail(tile: (i32, i32), role: &str, signature: &str) -> bool {
+    tile == (16, 9) && role == "beacon_ring" && signature == "beacon_capture_rings"
+}
+
 fn resource_cluster_sparkle_detail(_tile: (i32, i32), role: &str, signature: &str) -> bool {
     role == "resource_cluster" && signature == "crystal_shadow_sparkles"
 }
@@ -182,6 +186,29 @@ pub fn first_contact_art_readability_guard() -> Value {
     let secondary_beacon_capture_ring_pixel_budget = secondary_beacon_capture_ring_cue_count
         * secondary_beacon_capture_ring_cue_width_px
         * secondary_beacon_capture_ring_cue_height_px;
+    let player_screen_active_beacon_capture_ring_samples = landmark_samples
+        .iter()
+        .filter(|(tile, role, signature)| active_beacon_capture_ring_detail(*tile, role, signature))
+        .map(|(tile, role, signature)| {
+            json!({
+                "tile": tile_id(*tile),
+                "role": role,
+                "signature": signature,
+            })
+        })
+        .collect::<Vec<_>>();
+    let player_screen_active_beacon_capture_ring_signatures =
+        string_vec(["player_screen_active_beacon_capture_micro_ticks"]);
+    let player_screen_active_beacon_capture_ring_count =
+        player_screen_active_beacon_capture_ring_samples.len();
+    let player_screen_active_beacon_capture_ring_ticks_per_ring = 4usize;
+    let player_screen_active_beacon_capture_ring_tick_width_px = 10usize;
+    let player_screen_active_beacon_capture_ring_tick_height_px = 2usize;
+    let player_screen_active_beacon_capture_ring_pixel_budget =
+        player_screen_active_beacon_capture_ring_count
+            * player_screen_active_beacon_capture_ring_ticks_per_ring
+            * player_screen_active_beacon_capture_ring_tick_width_px
+            * player_screen_active_beacon_capture_ring_tick_height_px;
     let player_screen_resource_crystal_shard_samples = terrain_samples
         .iter()
         .filter(|(tile, role, signature)| resource_crystal_shard_detail(*tile, role, signature))
@@ -427,6 +454,21 @@ pub fn first_contact_art_readability_guard() -> Value {
         && secondary_beacon_capture_ring_signatures
             .iter()
             .any(|signature| signature == "secondary_beacon_capture_micro_cues");
+    let player_screen_active_beacon_capture_ring_gate =
+        player_screen_active_beacon_capture_ring_samples
+            == vec![json!({
+                "tile": "16,9",
+                "role": "beacon_ring",
+                "signature": "beacon_capture_rings",
+            })]
+            && player_screen_active_beacon_capture_ring_count == 1
+            && player_screen_active_beacon_capture_ring_ticks_per_ring == 4
+            && player_screen_active_beacon_capture_ring_tick_width_px == 10
+            && player_screen_active_beacon_capture_ring_tick_height_px == 2
+            && player_screen_active_beacon_capture_ring_pixel_budget <= 80
+            && player_screen_active_beacon_capture_ring_signatures
+                .iter()
+                .any(|signature| signature == "player_screen_active_beacon_capture_micro_ticks");
     let player_screen_resource_crystal_shard_gate = player_screen_resource_crystal_shard_samples
         == vec![
             json!({
@@ -554,6 +596,7 @@ pub fn first_contact_art_readability_guard() -> Value {
         && runtime_actor_depth_gate
         && lower_secondary_beacon_art_deemphasis_gate
         && secondary_beacon_capture_ring_gate
+        && player_screen_active_beacon_capture_ring_gate
         && player_screen_resource_crystal_shard_gate
         && player_screen_resource_cluster_sparkle_gate
         && player_screen_command_core_art_gate
@@ -614,6 +657,14 @@ pub fn first_contact_art_readability_guard() -> Value {
         "secondary_beacon_capture_ring_pixel_budget": secondary_beacon_capture_ring_pixel_budget,
         "secondary_beacon_capture_ring_signatures": secondary_beacon_capture_ring_signatures,
         "secondary_beacon_capture_ring_gate": secondary_beacon_capture_ring_gate,
+        "player_screen_active_beacon_capture_ring_samples": player_screen_active_beacon_capture_ring_samples,
+        "player_screen_active_beacon_capture_ring_count": player_screen_active_beacon_capture_ring_count,
+        "player_screen_active_beacon_capture_ring_ticks_per_ring": player_screen_active_beacon_capture_ring_ticks_per_ring,
+        "player_screen_active_beacon_capture_ring_tick_width_px": player_screen_active_beacon_capture_ring_tick_width_px,
+        "player_screen_active_beacon_capture_ring_tick_height_px": player_screen_active_beacon_capture_ring_tick_height_px,
+        "player_screen_active_beacon_capture_ring_pixel_budget": player_screen_active_beacon_capture_ring_pixel_budget,
+        "player_screen_active_beacon_capture_ring_signatures": player_screen_active_beacon_capture_ring_signatures,
+        "player_screen_active_beacon_capture_ring_gate": player_screen_active_beacon_capture_ring_gate,
         "player_screen_resource_crystal_shard_samples": player_screen_resource_crystal_shard_samples,
         "player_screen_resource_crystal_shard_count": player_screen_resource_crystal_shard_count,
         "player_screen_resource_crystal_shards_per_cluster": player_screen_resource_crystal_shards_per_cluster,
@@ -807,6 +858,42 @@ mod tests {
                 .get("secondary_beacon_capture_ring_pixel_budget")
                 .and_then(Value::as_u64),
             Some(192)
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_active_beacon_capture_ring_samples")
+                .cloned(),
+            Some(json!([
+                {
+                    "tile": "16,9",
+                    "role": "beacon_ring",
+                    "signature": "beacon_capture_rings",
+                }
+            ]))
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_active_beacon_capture_ring_ticks_per_ring")
+                .and_then(Value::as_u64),
+            Some(4)
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_active_beacon_capture_ring_tick_width_px")
+                .and_then(Value::as_u64),
+            Some(10)
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_active_beacon_capture_ring_tick_height_px")
+                .and_then(Value::as_u64),
+            Some(2)
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_active_beacon_capture_ring_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(80)
         );
         assert_eq!(
             guard

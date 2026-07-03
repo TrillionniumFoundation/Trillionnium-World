@@ -723,6 +723,22 @@ pub(super) fn draw_landmark_detail(
                 );
                 return;
             }
+            if first_contact_renderer_readability::player_screen_active_beacon_capture_ring_detail(
+                tile,
+                role,
+                signature,
+                player_screen,
+            ) {
+                for (x, y) in [
+                    (cx - 5, cy - cell_h / 2),
+                    (cx - 5, cy + cell_h / 2 - 2),
+                    (cx - cell_w / 2, cy - 1),
+                    (cx + cell_w / 2 - 10, cy - 1),
+                ] {
+                    classic_draw_rect(buffer, width, height, x, y, 10, 2, color);
+                }
+                return;
+            }
             for radius in [cell_w / 2, cell_w] {
                 classic_draw_iso_ellipse(
                     buffer,

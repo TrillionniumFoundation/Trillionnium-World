@@ -667,6 +667,15 @@ add_first_contact_basin_source_manifest_packet_fixtures() {
       route_marker_gate: true,
       command_destination_tile: "16,9",
       command_target_gate: true,
+      player_screen_command_target_overlay_samples: [{tile: "16,9", signature: "player_screen_command_target_micro_ticks"}],
+      player_screen_command_target_overlay_count: 1,
+      player_screen_command_target_overlay_ticks_per_target: 4,
+      player_screen_command_target_overlay_tick_width_px: 10,
+      player_screen_command_target_overlay_tick_height_px: 2,
+      player_screen_command_target_overlay_pixel_budget: 80,
+      player_screen_command_target_hot_bracket_pixel_budget: 0,
+      player_screen_command_target_overlay_signature: "player_screen_command_target_micro_ticks",
+      player_screen_command_target_overlay_gate: true,
       structure_anchor_tiles: ["8,8", "25,8", "25,25", "8,25", "11,8", "22,25"],
       structure_outline_pixel_budget: 552,
       structure_outline_gate: true,
@@ -1062,6 +1071,18 @@ add_first_contact_basin_source_manifest_packet_fixtures() {
         "secondary_beacon_capture_micro_cues"
       ],
       secondary_beacon_capture_ring_gate: true,
+      player_screen_active_beacon_capture_ring_samples: [
+        {tile: "16,9", role: "beacon_ring", signature: "beacon_capture_rings"}
+      ],
+      player_screen_active_beacon_capture_ring_count: 1,
+      player_screen_active_beacon_capture_ring_ticks_per_ring: 4,
+      player_screen_active_beacon_capture_ring_tick_width_px: 10,
+      player_screen_active_beacon_capture_ring_tick_height_px: 2,
+      player_screen_active_beacon_capture_ring_pixel_budget: 80,
+      player_screen_active_beacon_capture_ring_signatures: [
+        "player_screen_active_beacon_capture_micro_ticks"
+      ],
+      player_screen_active_beacon_capture_ring_gate: true,
       player_screen_resource_crystal_shard_samples: [
         {tile: "12,16", role: "resource_crystal", signature: "flux_crystal_shards"},
         {tile: "21,16", role: "resource_crystal", signature: "flux_crystal_shards"}
@@ -1603,13 +1624,13 @@ add_first_contact_basin_source_manifest_packet_fixtures() {
       route_clearance_corner_cue_pixel_budget: 432,
       route_clearance_gutter_fill_pixel_budget: 0,
       route_clearance_pixel_budget: 432,
-      combat_target_cross_long_px: 28,
-      combat_target_cross_thickness_px: 3,
+      combat_target_cross_long_px: 16,
+      combat_target_cross_thickness_px: 2,
       combat_target_ack_tick_width_px: 4,
       combat_target_ack_tick_height_px: 2,
-      combat_target_cross_pixel_budget: 168,
+      combat_target_cross_pixel_budget: 64,
       combat_target_ack_tick_pixel_budget: 8,
-      combat_target_pixel_budget: 176,
+      combat_target_pixel_budget: 72,
       blocked_warning_pixel_budget: 84,
       selected_focus_gate: true,
       route_focus_gate: true,

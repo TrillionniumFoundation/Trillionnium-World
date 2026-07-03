@@ -9,6 +9,12 @@ use trnm_rts_data::{first_contact_basin_map, first_contact_map_renderer_model};
 
 use crate::TRNM_RTS_EVIDENCE_FIRST_CONTACT_VISUAL_READABILITY_CONTRACT;
 
+const PLAYER_SCREEN_COMMAND_TARGET_OVERLAY_TICKS_PER_TARGET: usize = 4;
+const PLAYER_SCREEN_COMMAND_TARGET_OVERLAY_TICK_WIDTH_PX: usize = 10;
+const PLAYER_SCREEN_COMMAND_TARGET_OVERLAY_TICK_HEIGHT_PX: usize = 2;
+const PLAYER_SCREEN_COMMAND_TARGET_OVERLAY_SIGNATURE: &str =
+    "player_screen_command_target_micro_ticks";
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RtsFirstContactVisualReadabilityRuntime {
     pub selected_tile_ids: Vec<String>,
@@ -47,9 +53,25 @@ pub fn first_contact_visual_readability_guard(
     let structure_outline_pixel_budget = structure_anchor_tiles.len() * 92;
     let objective_focus_pixel_budget = objective_focus_tiles.len() * 72;
     let lane_edge_pixel_budget = lane_edge_sample_tiles.len() * 16;
+    let player_screen_command_target_overlay_samples = vec![json!({
+        "tile": command_destination_tile.clone(),
+        "signature": PLAYER_SCREEN_COMMAND_TARGET_OVERLAY_SIGNATURE,
+    })];
+    let player_screen_command_target_overlay_count =
+        player_screen_command_target_overlay_samples.len();
+    let player_screen_command_target_overlay_pixel_budget =
+        player_screen_command_target_overlay_count
+            * PLAYER_SCREEN_COMMAND_TARGET_OVERLAY_TICKS_PER_TARGET
+            * PLAYER_SCREEN_COMMAND_TARGET_OVERLAY_TICK_WIDTH_PX
+            * PLAYER_SCREEN_COMMAND_TARGET_OVERLAY_TICK_HEIGHT_PX;
+    let player_screen_command_target_hot_bracket_pixel_budget = 0usize;
     let selected_marker_gate = selected_tile_ids.len() >= 4 && selected_marker_pixel_budget >= 224;
     let route_marker_gate = route_tile_ids.len() >= 4 && route_marker_pixel_budget >= 72;
     let command_target_gate = command_destination_tile == "16,9";
+    let player_screen_command_target_overlay_gate = command_target_gate
+        && player_screen_command_target_overlay_count == 1
+        && player_screen_command_target_overlay_pixel_budget == 80
+        && player_screen_command_target_hot_bracket_pixel_budget == 0;
     let structure_outline_gate =
         structure_anchor_tiles.len() >= 6 && structure_outline_pixel_budget >= 552;
     let objective_focus_gate =
@@ -59,6 +81,7 @@ pub fn first_contact_visual_readability_guard(
     let green = selected_marker_gate
         && route_marker_gate
         && command_target_gate
+        && player_screen_command_target_overlay_gate
         && structure_outline_gate
         && objective_focus_gate
         && terrain_lane_edge_gate;
@@ -76,6 +99,15 @@ pub fn first_contact_visual_readability_guard(
         "route_marker_gate": route_marker_gate,
         "command_destination_tile": command_destination_tile,
         "command_target_gate": command_target_gate,
+        "player_screen_command_target_overlay_samples": player_screen_command_target_overlay_samples,
+        "player_screen_command_target_overlay_count": player_screen_command_target_overlay_count,
+        "player_screen_command_target_overlay_ticks_per_target": PLAYER_SCREEN_COMMAND_TARGET_OVERLAY_TICKS_PER_TARGET,
+        "player_screen_command_target_overlay_tick_width_px": PLAYER_SCREEN_COMMAND_TARGET_OVERLAY_TICK_WIDTH_PX,
+        "player_screen_command_target_overlay_tick_height_px": PLAYER_SCREEN_COMMAND_TARGET_OVERLAY_TICK_HEIGHT_PX,
+        "player_screen_command_target_overlay_pixel_budget": player_screen_command_target_overlay_pixel_budget,
+        "player_screen_command_target_hot_bracket_pixel_budget": player_screen_command_target_hot_bracket_pixel_budget,
+        "player_screen_command_target_overlay_signature": PLAYER_SCREEN_COMMAND_TARGET_OVERLAY_SIGNATURE,
+        "player_screen_command_target_overlay_gate": player_screen_command_target_overlay_gate,
         "structure_anchor_tiles": structure_anchor_tiles,
         "structure_outline_pixel_budget": structure_outline_pixel_budget,
         "structure_outline_gate": structure_outline_gate,
@@ -129,6 +161,27 @@ mod tests {
         );
         assert_eq!(
             guard
+                .get("player_screen_command_target_overlay_samples")
+                .cloned(),
+            Some(json!([{
+                "tile": "16,9",
+                "signature": "player_screen_command_target_micro_ticks"
+            }]))
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_command_target_overlay_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(80)
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_command_target_hot_bracket_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(0)
+        );
+        assert_eq!(
+            guard
                 .get("structure_anchor_tiles")
                 .and_then(Value::as_array)
                 .map(Vec::len),
@@ -152,6 +205,7 @@ mod tests {
             "selected_marker_gate",
             "route_marker_gate",
             "command_target_gate",
+            "player_screen_command_target_overlay_gate",
             "structure_outline_gate",
             "objective_focus_gate",
             "terrain_lane_edge_gate",

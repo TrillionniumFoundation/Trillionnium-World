@@ -698,7 +698,7 @@ require_artifact_json_expr first_contact_basin_spec_semantics native_bevy_classi
   and .first_contact_visual_readability_guard.route_marker_pixel_budget >= 72
   and .first_contact_visual_readability_guard.route_marker_gate == true
   and .first_contact_visual_readability_guard.command_destination_tile == "16,9"
-  and .first_contact_visual_readability_guard.command_target_gate == true
+  and .first_contact_visual_readability_guard.player_screen_command_target_overlay_gate == true
   and (.first_contact_visual_readability_guard.structure_anchor_tiles | index("8,8") != null)
   and (.first_contact_visual_readability_guard.structure_anchor_tiles | index("25,25") != null)
   and (.first_contact_visual_readability_guard.structure_anchor_tiles | index("11,8") != null)
@@ -995,6 +995,7 @@ require_artifact_json_expr first_contact_basin_spec_semantics native_bevy_classi
   and .first_contact_art_readability_guard.runtime_actor_depth_gate == true
   and .first_contact_art_readability_guard.lower_secondary_beacon_art_deemphasis_gate == true
   and .first_contact_art_readability_guard.secondary_beacon_capture_ring_gate == true
+  and .first_contact_art_readability_guard.player_screen_active_beacon_capture_ring_gate == true
   and .first_contact_art_readability_guard.player_screen_resource_crystal_shard_gate == true
   and .first_contact_art_readability_guard.player_screen_resource_cluster_sparkle_gate == true
   and .first_contact_art_readability_guard.player_screen_command_core_art_gate == true
@@ -1409,13 +1410,13 @@ require_artifact_json_expr first_contact_basin_spec_semantics native_bevy_classi
   and .first_contact_selection_combat_focus_guard.route_clearance_corner_cue_pixel_budget == 432
   and .first_contact_selection_combat_focus_guard.route_clearance_gutter_fill_pixel_budget == 0
   and .first_contact_selection_combat_focus_guard.route_clearance_pixel_budget <= 432
-  and .first_contact_selection_combat_focus_guard.combat_target_cross_long_px == 28
-  and .first_contact_selection_combat_focus_guard.combat_target_cross_thickness_px == 3
+  and .first_contact_selection_combat_focus_guard.combat_target_cross_long_px == 16
+  and .first_contact_selection_combat_focus_guard.combat_target_cross_thickness_px == 2
   and .first_contact_selection_combat_focus_guard.combat_target_ack_tick_width_px == 4
   and .first_contact_selection_combat_focus_guard.combat_target_ack_tick_height_px == 2
-  and .first_contact_selection_combat_focus_guard.combat_target_cross_pixel_budget <= 168
+  and .first_contact_selection_combat_focus_guard.combat_target_cross_pixel_budget == 64
   and .first_contact_selection_combat_focus_guard.combat_target_ack_tick_pixel_budget == 8
-  and .first_contact_selection_combat_focus_guard.combat_target_pixel_budget <= 176
+  and .first_contact_selection_combat_focus_guard.combat_target_pixel_budget <= 72
   and .first_contact_selection_combat_focus_guard.blocked_warning_pixel_budget >= 72
   and .first_contact_selection_combat_focus_guard.selected_focus_gate == true
   and .first_contact_selection_combat_focus_guard.route_focus_gate == true

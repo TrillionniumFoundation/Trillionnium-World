@@ -803,8 +803,8 @@ const CLASSIC_FIRST_CONTACT_TARGET_PREFLIGHT_RING_COUNT: i32 = 2;
 const CLASSIC_FIRST_CONTACT_TARGET_PREFLIGHT_RING_THICKNESS_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_TARGET_PREFLIGHT_CROSS_LONG_PX: i32 = 16;
 const CLASSIC_FIRST_CONTACT_TARGET_PREFLIGHT_CROSS_THICKNESS_PX: i32 = 2;
-const CLASSIC_FIRST_CONTACT_TARGET_LOCK_CROSS_LONG_PX: i32 = 28;
-const CLASSIC_FIRST_CONTACT_TARGET_LOCK_CROSS_THICKNESS_PX: i32 = 3;
+const CLASSIC_FIRST_CONTACT_TARGET_LOCK_CROSS_LONG_PX: i32 = 16;
+const CLASSIC_FIRST_CONTACT_TARGET_LOCK_CROSS_THICKNESS_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_TARGET_LOCK_ACK_TICK_W_PX: i32 = 4;
 const CLASSIC_FIRST_CONTACT_TARGET_LOCK_ACK_TICK_H_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_SELECTED_ROLE_BADGE_TICK_W_PX: i32 = 2;
@@ -840,6 +840,9 @@ const CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK_PANEL_CUE_W_PX: i32 = 6;
 const CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK_PANEL_CUE_H_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK_PANEL_BACKPLATE_W_PX: i32 = 0;
 const CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK_PANEL_BACKPLATE_H_PX: i32 = 0;
+const CLASSIC_FIRST_CONTACT_PLAYER_COMMAND_TARGET_TICK_COUNT: usize = 4;
+const CLASSIC_FIRST_CONTACT_PLAYER_COMMAND_TARGET_TICK_W_PX: i32 = 10;
+const CLASSIC_FIRST_CONTACT_PLAYER_COMMAND_TARGET_TICK_H_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK_PROGRESS_SLOT_COUNT: usize = 7;
 const CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK_PROGRESS_PIP_W_PX: i32 = 6;
 const CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK_PROGRESS_PIP_H_PX: i32 = 2;
@@ -95928,66 +95931,93 @@ fn classic_draw_first_contact_readability_overlays(
         classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, target_tile);
     let cx = tile_x + cell_w / 2;
     let cy = tile_y + cell_h / 2;
-    for inset in [0, 5] {
-        classic_draw_rect(
-            buffer,
-            width,
-            height,
-            cx - cell_w - inset,
-            cy - cell_h - inset,
-            cell_w * 2 + inset * 2,
-            3,
-            CLASSIC_RTS_COMMAND_SURFACE_TARGET_COLOR,
-        );
-        classic_draw_rect(
-            buffer,
-            width,
-            height,
-            cx - cell_w - inset,
-            cy + cell_h + inset,
-            cell_w * 2 + inset * 2,
-            3,
-            CLASSIC_RTS_COMMAND_SURFACE_TARGET_COLOR,
-        );
-        classic_draw_rect(
-            buffer,
-            width,
-            height,
-            cx - cell_w - inset,
-            cy - cell_h - inset,
-            3,
-            cell_h * 2 + inset * 2,
-            CLASSIC_RTS_COMMAND_SURFACE_TARGET_COLOR,
-        );
-        classic_draw_rect(
-            buffer,
-            width,
-            height,
-            cx + cell_w + inset,
-            cy - cell_h - inset,
-            3,
-            cell_h * 2 + inset * 2,
-            CLASSIC_RTS_COMMAND_SURFACE_TARGET_COLOR,
-        );
+    if player_screen {
+        let tick_w = CLASSIC_FIRST_CONTACT_PLAYER_COMMAND_TARGET_TICK_W_PX;
+        let tick_h = CLASSIC_FIRST_CONTACT_PLAYER_COMMAND_TARGET_TICK_H_PX;
+        for (x, y) in [
+            (cx - tick_w / 2, cy - cell_h - 5),
+            (cx - tick_w / 2, cy + cell_h + 3),
+            (cx - cell_w - tick_w / 2, cy - tick_h / 2),
+            (cx + cell_w - tick_w / 2, cy - tick_h / 2),
+        ]
+        .into_iter()
+        .take(CLASSIC_FIRST_CONTACT_PLAYER_COMMAND_TARGET_TICK_COUNT)
+        {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                x,
+                y,
+                tick_w,
+                tick_h,
+                CLASSIC_RTS_COMMAND_SURFACE_TARGET_COLOR,
+            );
+        }
+    } else {
+        for inset in [0, 5] {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                cx - cell_w - inset,
+                cy - cell_h - inset,
+                cell_w * 2 + inset * 2,
+                3,
+                CLASSIC_RTS_COMMAND_SURFACE_TARGET_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                cx - cell_w - inset,
+                cy + cell_h + inset,
+                cell_w * 2 + inset * 2,
+                3,
+                CLASSIC_RTS_COMMAND_SURFACE_TARGET_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                cx - cell_w - inset,
+                cy - cell_h - inset,
+                3,
+                cell_h * 2 + inset * 2,
+                CLASSIC_RTS_COMMAND_SURFACE_TARGET_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                cx + cell_w + inset,
+                cy - cell_h - inset,
+                3,
+                cell_h * 2 + inset * 2,
+                CLASSIC_RTS_COMMAND_SURFACE_TARGET_COLOR,
+            );
+        }
     }
+    let ack_cross_long = CLASSIC_FIRST_CONTACT_TARGET_PREFLIGHT_CROSS_LONG_PX;
+    let ack_cross_thickness = CLASSIC_FIRST_CONTACT_TARGET_PREFLIGHT_CROSS_THICKNESS_PX;
     classic_draw_rect(
         buffer,
         width,
         height,
-        cx - 14,
-        cy - 2,
-        28,
-        4,
+        cx - ack_cross_long / 2,
+        cy - ack_cross_thickness / 2,
+        ack_cross_long,
+        ack_cross_thickness,
         CLASSIC_RTS_SELECTION_FEEDBACK_ACK_COLOR,
     );
     classic_draw_rect(
         buffer,
         width,
         height,
-        cx - 2,
-        cy - 14,
-        4,
-        28,
+        cx - ack_cross_thickness / 2,
+        cy - ack_cross_long / 2,
+        ack_cross_thickness,
+        ack_cross_long,
         CLASSIC_RTS_SELECTION_FEEDBACK_ACK_COLOR,
     );
 
@@ -150170,6 +150200,18 @@ mod tests {
         );
         assert_eq!(
             guard
+                .get("player_screen_command_target_overlay_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(80)
+        );
+        assert_eq!(
+            guard
+                .get("player_screen_command_target_hot_bracket_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(0)
+        );
+        assert_eq!(
+            guard
                 .get("structure_anchor_tiles")
                 .and_then(Value::as_array)
                 .map(Vec::len),
@@ -150193,6 +150235,7 @@ mod tests {
             "selected_marker_gate",
             "route_marker_gate",
             "command_target_gate",
+            "player_screen_command_target_overlay_gate",
             "structure_outline_gate",
             "objective_focus_gate",
             "terrain_lane_edge_gate",
@@ -152322,13 +152365,13 @@ mod tests {
             guard
                 .get("combat_target_cross_long_px")
                 .and_then(Value::as_u64),
-            Some(28)
+            Some(16)
         );
         assert_eq!(
             guard
                 .get("combat_target_cross_thickness_px")
                 .and_then(Value::as_u64),
-            Some(3)
+            Some(2)
         );
         assert_eq!(
             guard
@@ -152346,7 +152389,7 @@ mod tests {
             guard
                 .get("combat_target_cross_pixel_budget")
                 .and_then(Value::as_u64),
-            Some(168)
+            Some(64)
         );
         assert_eq!(
             guard
@@ -152358,7 +152401,7 @@ mod tests {
             guard
                 .get("combat_target_pixel_budget")
                 .and_then(Value::as_u64),
-            Some(176)
+            Some(72)
         );
         assert_eq!(
             guard

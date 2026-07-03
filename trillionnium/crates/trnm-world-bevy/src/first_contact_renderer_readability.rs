@@ -43,6 +43,15 @@ pub(crate) fn secondary_beacon_capture_ring_detail(
     )
 }
 
+pub(crate) fn player_screen_active_beacon_capture_ring_detail(
+    tile: (i32, i32),
+    role: &str,
+    signature: &str,
+    player_screen: bool,
+) -> bool {
+    player_screen && tile == (16, 9) && role == "beacon_ring" && signature == "beacon_capture_rings"
+}
+
 pub(crate) fn player_screen_resource_cluster_sparkles(
     role: &str,
     signature: &str,
@@ -212,6 +221,24 @@ mod tests {
             (16, 9),
             "beacon_ring",
             "beacon_capture_rings"
+        ));
+        assert!(player_screen_active_beacon_capture_ring_detail(
+            (16, 9),
+            "beacon_ring",
+            "beacon_capture_rings",
+            true
+        ));
+        assert!(!player_screen_active_beacon_capture_ring_detail(
+            (16, 9),
+            "beacon_ring",
+            "beacon_capture_rings",
+            false
+        ));
+        assert!(!player_screen_active_beacon_capture_ring_detail(
+            (16, 24),
+            "beacon_ring",
+            "beacon_capture_rings",
+            true
         ));
         assert!(player_screen_secondary_beacon_body(
             (16, 24),

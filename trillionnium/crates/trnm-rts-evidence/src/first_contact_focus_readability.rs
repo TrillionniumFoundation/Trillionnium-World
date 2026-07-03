@@ -173,13 +173,13 @@ pub fn first_contact_selection_combat_focus_guard(
         && route_clearance_corner_cue_pixel_budget == 432
         && route_clearance_pixel_budget <= 432;
     let combat_target_focus_gate = target_focus_tile == "16,9"
-        && geometry.target_lock_cross_long_px == 28
-        && geometry.target_lock_cross_thickness_px == 3
+        && geometry.target_lock_cross_long_px == 16
+        && geometry.target_lock_cross_thickness_px == 2
         && geometry.target_lock_ack_tick_width_px == 4
         && geometry.target_lock_ack_tick_height_px == 2
-        && (160..=168).contains(&combat_target_cross_pixel_budget)
+        && combat_target_cross_pixel_budget == 64
         && combat_target_ack_tick_pixel_budget == 8
-        && combat_target_pixel_budget <= 176;
+        && combat_target_pixel_budget <= 72;
     let blocked_warning_focus_gate =
         blocked_focus_tile == "15,16" && blocked_warning_pixel_budget >= 72;
     let focus_signature_gate = focus_signatures.len() == 10
@@ -458,8 +458,8 @@ mod tests {
                 route_clearance_corner_cue_width_px: 6,
                 route_clearance_corner_cue_height_px: 2,
                 route_clearance_corner_cues_per_tile: 4,
-                target_lock_cross_long_px: 28,
-                target_lock_cross_thickness_px: 3,
+                target_lock_cross_long_px: 16,
+                target_lock_cross_thickness_px: 2,
                 target_lock_ack_tick_width_px: 4,
                 target_lock_ack_tick_height_px: 2,
                 target_callout_width_px: 78,
@@ -507,7 +507,7 @@ mod tests {
             guard
                 .get("combat_target_pixel_budget")
                 .and_then(Value::as_u64),
-            Some(176)
+            Some(72)
         );
         assert_eq!(
             guard
