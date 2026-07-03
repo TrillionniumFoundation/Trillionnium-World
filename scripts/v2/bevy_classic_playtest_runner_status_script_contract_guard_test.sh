@@ -58,6 +58,8 @@ required_lines=(
   'owner_identity_exact_player_muted'
   'owner_identity_exact_enemy_muted'
   'exact_owner_identity_micro_component_gate'
+  'unit_model_identity_exact_light'
+  'exact_unit_identity_micro_component_gate'
   'edge_safety_samples'
   'room=first-contact-basin'
   'owned-assets-v1'

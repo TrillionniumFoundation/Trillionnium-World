@@ -916,6 +916,9 @@ const CLASSIC_RTS_MODEL_IDENTITY_RELAY_COLOR: u32 = 0x8fffd2;
 const CLASSIC_RTS_MODEL_IDENTITY_BEACON_COLOR: u32 = 0xffee86;
 const CLASSIC_RTS_MODEL_IDENTITY_UNIT_COLOR: u32 = 0xd8f1ff;
 const CLASSIC_RTS_MODEL_IDENTITY_FACTION_COLOR: u32 = 0xff9f7a;
+const CLASSIC_FIRST_CONTACT_PLAYER_UNIT_IDENTITY_MARKS_PER_UNIT: usize = 4;
+const CLASSIC_FIRST_CONTACT_PLAYER_UNIT_IDENTITY_MARK_W_PX: i32 = 8;
+const CLASSIC_FIRST_CONTACT_PLAYER_UNIT_IDENTITY_MARK_H_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_PLAYER_RELAY_IDENTITY_RAIL_COUNT: usize = 6;
 const CLASSIC_FIRST_CONTACT_PLAYER_RELAY_IDENTITY_RAIL_W_PX: i32 = 16;
 const CLASSIC_FIRST_CONTACT_PLAYER_RELAY_IDENTITY_RAIL_H_PX: i32 = 2;
@@ -94620,6 +94623,43 @@ fn classic_draw_first_contact_starting_army(
 
 #[cfg(not(target_os = "android"))]
 #[allow(clippy::too_many_arguments)]
+fn classic_draw_first_contact_player_unit_identity_marks(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    cx: i32,
+    cy: i32,
+    cell_w: i32,
+    cell_h: i32,
+) {
+    let mark_w = CLASSIC_FIRST_CONTACT_PLAYER_UNIT_IDENTITY_MARK_W_PX;
+    let mark_h = CLASSIC_FIRST_CONTACT_PLAYER_UNIT_IDENTITY_MARK_H_PX;
+    let marks = [
+        (cx - mark_w / 2, cy - cell_h),
+        (cx - cell_w / 2 + 2, cy - cell_h / 2 - 1),
+        (cx + cell_w / 2 - mark_w - 2, cy - cell_h / 2 - 1),
+        (cx - mark_w / 2, cy + 2),
+    ];
+    debug_assert_eq!(
+        marks.len(),
+        CLASSIC_FIRST_CONTACT_PLAYER_UNIT_IDENTITY_MARKS_PER_UNIT
+    );
+    for (x, y) in marks {
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            x,
+            y,
+            mark_w,
+            mark_h,
+            CLASSIC_RTS_MODEL_IDENTITY_UNIT_COLOR,
+        );
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+#[allow(clippy::too_many_arguments)]
 fn classic_draw_first_contact_model_identity_layers(
     buffer: &mut [u32],
     width: usize,
@@ -94912,20 +94952,42 @@ fn classic_draw_first_contact_model_identity_layers(
             3,
             CLASSIC_RTS_STRUCTURE_FOUNDATION_SHADOW_COLOR,
         );
-        classic_draw_rect(
-            buffer,
-            width,
-            height,
-            cx - cell_w / 3,
-            cy - cell_h,
-            (cell_w * 2) / 3,
-            cell_h * 2,
-            CLASSIC_RTS_MODEL_IDENTITY_UNIT_COLOR,
-        );
+        if player_screen {
+            classic_draw_first_contact_player_unit_identity_marks(
+                buffer, width, height, cx, cy, cell_w, cell_h,
+            );
+        } else {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                cx - cell_w / 3,
+                cy - cell_h,
+                (cell_w * 2) / 3,
+                cell_h * 2,
+                CLASSIC_RTS_MODEL_IDENTITY_UNIT_COLOR,
+            );
+        }
         if role_color == CLASSIC_RTS_SELECTION_FEEDBACK_ATTACK_COLOR {
             let tick_y = cy - cell_h / 2;
             for tick_x in [cx - cell_w / 2, cx + cell_w / 2 - 10] {
                 classic_draw_rect(buffer, width, height, tick_x, tick_y, 10, 3, role_color);
+            }
+        } else if player_screen && role_color == CLASSIC_RTS_MODEL_IDENTITY_UNIT_COLOR {
+            for tick_x in [
+                cx - cell_w / 2,
+                cx + cell_w / 2 - CLASSIC_FIRST_CONTACT_PLAYER_UNIT_IDENTITY_MARK_W_PX,
+            ] {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    tick_x,
+                    cy - cell_h / 2 + 3,
+                    CLASSIC_FIRST_CONTACT_PLAYER_UNIT_IDENTITY_MARK_W_PX,
+                    CLASSIC_FIRST_CONTACT_PLAYER_UNIT_IDENTITY_MARK_H_PX,
+                    role_color,
+                );
             }
         } else {
             classic_draw_rect(
@@ -94949,26 +95011,41 @@ fn classic_draw_first_contact_model_identity_layers(
             5,
             CLASSIC_RTS_MODEL_IDENTITY_FACTION_COLOR,
         );
-        classic_draw_rect(
-            buffer,
-            width,
-            height,
-            cx - 5,
-            cy + cell_h + 3,
-            10,
-            3,
-            role_color,
-        );
-        classic_draw_rect(
-            buffer,
-            width,
-            height,
-            cx - 2,
-            cy + cell_h + 7,
-            4,
-            3,
-            role_color,
-        );
+        if player_screen && role_color == CLASSIC_RTS_MODEL_IDENTITY_UNIT_COLOR {
+            for foot_y in [cy + cell_h + 3, cy + cell_h + 7] {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    cx - CLASSIC_FIRST_CONTACT_PLAYER_UNIT_IDENTITY_MARK_W_PX / 2,
+                    foot_y,
+                    CLASSIC_FIRST_CONTACT_PLAYER_UNIT_IDENTITY_MARK_W_PX,
+                    CLASSIC_FIRST_CONTACT_PLAYER_UNIT_IDENTITY_MARK_H_PX,
+                    role_color,
+                );
+            }
+        } else {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                cx - 5,
+                cy + cell_h + 3,
+                10,
+                3,
+                role_color,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                cx - 2,
+                cy + cell_h + 7,
+                4,
+                3,
+                role_color,
+            );
+        }
     }
 }
 
@@ -153275,6 +153352,59 @@ mod tests {
                 "{color:06x} {components:?}"
             );
         }
+    }
+
+    #[cfg(not(target_os = "android"))]
+    #[test]
+    fn classic_first_contact_player_unit_identity_draws_micro_marks() {
+        let width = 900;
+        let height = 620;
+        let mut buffer = vec![0_u32; width * height];
+        let map_x = 80;
+        let map_y = 96;
+        let cell_w = 28;
+        let cell_h = 14;
+        let target_tile = (16, 9);
+
+        classic_draw_first_contact_model_identity_layers(
+            &mut buffer,
+            width,
+            height,
+            map_x,
+            map_y,
+            cell_w,
+            cell_h,
+            true,
+            target_tile,
+        );
+
+        let components = exact_color_components(
+            &buffer,
+            width,
+            height,
+            CLASSIC_RTS_MODEL_IDENTITY_UNIT_COLOR,
+        );
+        let pixel_count = components
+            .iter()
+            .map(|(pixels, _, _)| pixels)
+            .sum::<usize>();
+        let minimum_body_budget = 6
+            * CLASSIC_FIRST_CONTACT_PLAYER_UNIT_IDENTITY_MARKS_PER_UNIT
+            * CLASSIC_FIRST_CONTACT_PLAYER_UNIT_IDENTITY_MARK_W_PX as usize
+            * CLASSIC_FIRST_CONTACT_PLAYER_UNIT_IDENTITY_MARK_H_PX as usize;
+
+        assert!(
+            pixel_count >= minimum_body_budget,
+            "{pixel_count} {components:?}"
+        );
+        assert!(pixel_count <= 560, "{pixel_count} {components:?}");
+        assert!(
+            components.iter().all(|(_, w, h)| {
+                *w <= CLASSIC_FIRST_CONTACT_PLAYER_UNIT_IDENTITY_MARK_W_PX as usize
+                    && *h <= CLASSIC_FIRST_CONTACT_PLAYER_UNIT_IDENTITY_MARK_H_PX as usize
+            }),
+            "{components:?}"
+        );
     }
 
     #[cfg(not(target_os = "android"))]
