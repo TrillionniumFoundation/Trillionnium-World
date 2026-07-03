@@ -1576,7 +1576,7 @@ cat >"$JQ_FILTER" <<'JQ'
   and (.first_contact_selection_combat_focus_guard.focus_signatures | index("compact_route_dashes") != null)
   and (.first_contact_selection_combat_focus_guard.focus_signatures | index("route_ack_micro_dots") != null)
   and (.first_contact_selection_combat_focus_guard.focus_signatures | index("route_clearance_corner_cues") != null)
-  and (.first_contact_selection_combat_focus_guard.focus_signatures | index("attack_target_lock_brackets") != null)
+  and (.first_contact_selection_combat_focus_guard.focus_signatures | index("attack_target_lock_micro_corner_ticks") != null)
   and (.first_contact_selection_combat_focus_guard.focus_signatures | index("compact_target_lock_cross") != null)
   and (.first_contact_selection_combat_focus_guard.focus_signatures | index("target_ack_micro_tick") != null)
   and (.first_contact_selection_combat_focus_guard.focus_signatures | index("blocked_warning_cross") != null)
@@ -1601,13 +1601,13 @@ cat >"$JQ_FILTER" <<'JQ'
   and .first_contact_selection_combat_focus_guard.route_clearance_corner_cue_pixel_budget == 432
   and .first_contact_selection_combat_focus_guard.route_clearance_gutter_fill_pixel_budget == 0
   and .first_contact_selection_combat_focus_guard.route_clearance_pixel_budget <= 432
-  and .first_contact_selection_combat_focus_guard.combat_target_cross_long_px == 16
+  and .first_contact_selection_combat_focus_guard.combat_target_cross_long_px == 10
   and .first_contact_selection_combat_focus_guard.combat_target_cross_thickness_px == 2
   and .first_contact_selection_combat_focus_guard.combat_target_ack_tick_width_px == 4
   and .first_contact_selection_combat_focus_guard.combat_target_ack_tick_height_px == 2
-  and .first_contact_selection_combat_focus_guard.combat_target_cross_pixel_budget == 64
+  and .first_contact_selection_combat_focus_guard.combat_target_cross_pixel_budget == 40
   and .first_contact_selection_combat_focus_guard.combat_target_ack_tick_pixel_budget == 8
-  and .first_contact_selection_combat_focus_guard.combat_target_pixel_budget <= 72
+  and .first_contact_selection_combat_focus_guard.combat_target_pixel_budget <= 48
   and .first_contact_selection_combat_focus_guard.blocked_warning_pixel_budget >= 72
   and .first_contact_selection_combat_focus_guard.selected_focus_gate == true
   and .first_contact_selection_combat_focus_guard.route_focus_gate == true
@@ -1641,7 +1641,7 @@ cat >"$JQ_FILTER" <<'JQ'
   and .first_contact_target_callout_guard.target_callout_health_bar_width_px == 54
   and .first_contact_target_callout_guard.target_callout_health_bar_height_px == 3
   and .first_contact_target_callout_guard.target_callout_pixel_budget >= 1560
-  and .first_contact_target_callout_guard.target_callout_leader_pixel_budget >= 64
+  and .first_contact_target_callout_guard.target_callout_leader_pixel_budget <= 44
   and .first_contact_target_callout_guard.target_callout_clearance_pad_px == 0
   and .first_contact_target_callout_guard.target_callout_leader_clearance_width_px == 0
   and .first_contact_target_callout_guard.target_callout_leader_clearance_height_px == 0
@@ -2611,5 +2611,25 @@ cat >"$JQ_FILTER" <<'JQ'
 JQ
 
 jq -e -f "$JQ_FILTER" "$OUT" >/dev/null
+jq -e '
+  (.first_contact_selection_combat_focus_guard | [
+    .combat_target_bracket_tick_long_px,
+    .combat_target_bracket_tick_thickness_px,
+    .combat_target_bracket_corner_count,
+    .combat_target_bracket_pixel_budget,
+    .combat_target_bracket_component_max_width_px,
+    .combat_target_bracket_component_max_height_px
+  ] == [10,2,4,144,10,10])
+  and
+  (.first_contact_target_callout_guard | [
+    .target_callout_edge_tick_count,
+    .target_callout_edge_tick_width_px,
+    .target_callout_edge_tick_height_px,
+    .target_callout_edge_tick_pixel_budget,
+    .target_callout_leader_tick_width_px,
+    .target_callout_leader_tick_height_px,
+    .target_callout_leader_tick_pixel_budget
+  ] == [2,2,6,24,10,2,20])
+' "$OUT" >/dev/null
 
 printf 'TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_BASIN_SPEC_GREEN %s\n' "$OUT"

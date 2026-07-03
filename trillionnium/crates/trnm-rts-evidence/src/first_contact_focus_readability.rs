@@ -27,6 +27,8 @@ pub struct RtsFirstContactFocusReadabilityGeometrySnapshot {
     pub route_clearance_corner_cues_per_tile: usize,
     pub target_lock_cross_long_px: i32,
     pub target_lock_cross_thickness_px: i32,
+    pub target_lock_bracket_tick_long_px: i32,
+    pub target_lock_bracket_tick_thickness_px: i32,
     pub target_lock_ack_tick_width_px: i32,
     pub target_lock_ack_tick_height_px: i32,
     pub target_callout_width_px: i32,
@@ -38,6 +40,11 @@ pub struct RtsFirstContactFocusReadabilityGeometrySnapshot {
     pub target_callout_clearance_pad_px: i32,
     pub target_callout_leader_clearance_width_px: i32,
     pub target_callout_leader_clearance_height_px: i32,
+    pub target_callout_edge_tick_count: usize,
+    pub target_callout_edge_tick_width_px: i32,
+    pub target_callout_edge_tick_height_px: i32,
+    pub target_callout_leader_tick_width_px: i32,
+    pub target_callout_leader_tick_height_px: i32,
     pub target_preflight_ring_count: usize,
     pub target_preflight_ring_thickness_px: i32,
     pub target_preflight_cross_long_px: i32,
@@ -108,7 +115,7 @@ pub fn first_contact_selection_combat_focus_guard(
         "route_ack_step_micro_dots",
         "route_ack_micro_dots",
         "route_clearance_corner_cues",
-        "attack_target_lock_brackets",
+        "attack_target_lock_micro_corner_ticks",
         "compact_target_lock_cross",
         "target_ack_micro_tick",
         "blocked_warning_cross",
@@ -139,6 +146,15 @@ pub fn first_contact_selection_combat_focus_guard(
     let route_clearance_pixel_budget = route_clearance_corner_cue_pixel_budget;
     let combat_target_cross_pixel_budget =
         (geometry.target_lock_cross_long_px * geometry.target_lock_cross_thickness_px * 2) as usize;
+    let combat_target_bracket_corner_count = 4_usize;
+    let combat_target_bracket_pixel_budget = combat_target_bracket_corner_count
+        * ((geometry.target_lock_bracket_tick_long_px
+            * geometry.target_lock_bracket_tick_thickness_px
+            * 2)
+            - geometry.target_lock_bracket_tick_thickness_px
+                * geometry.target_lock_bracket_tick_thickness_px) as usize;
+    let combat_target_bracket_component_max_width_px = geometry.target_lock_bracket_tick_long_px;
+    let combat_target_bracket_component_max_height_px = geometry.target_lock_bracket_tick_long_px;
     let combat_target_ack_tick_pixel_budget =
         (geometry.target_lock_ack_tick_width_px * geometry.target_lock_ack_tick_height_px) as usize;
     let combat_target_pixel_budget =
@@ -173,19 +189,25 @@ pub fn first_contact_selection_combat_focus_guard(
         && route_clearance_corner_cue_pixel_budget == 432
         && route_clearance_pixel_budget <= 432;
     let combat_target_focus_gate = target_focus_tile == "16,9"
-        && geometry.target_lock_cross_long_px == 16
+        && geometry.target_lock_cross_long_px == 10
         && geometry.target_lock_cross_thickness_px == 2
+        && geometry.target_lock_bracket_tick_long_px == 10
+        && geometry.target_lock_bracket_tick_thickness_px == 2
         && geometry.target_lock_ack_tick_width_px == 4
         && geometry.target_lock_ack_tick_height_px == 2
-        && combat_target_cross_pixel_budget == 64
+        && combat_target_cross_pixel_budget == 40
+        && combat_target_bracket_corner_count == 4
+        && combat_target_bracket_pixel_budget == 144
+        && combat_target_bracket_component_max_width_px <= 10
+        && combat_target_bracket_component_max_height_px <= 10
         && combat_target_ack_tick_pixel_budget == 8
-        && combat_target_pixel_budget <= 72;
+        && combat_target_pixel_budget <= 48;
     let blocked_warning_focus_gate =
         blocked_focus_tile == "15,16" && blocked_warning_pixel_budget >= 72;
     let focus_signature_gate = focus_signatures.len() == 10
         && focus_signatures
             .iter()
-            .any(|signature| signature.as_str() == "attack_target_lock_brackets")
+            .any(|signature| signature.as_str() == "attack_target_lock_micro_corner_ticks")
         && focus_signatures
             .iter()
             .any(|signature| signature.as_str() == "selected_role_badge_micro_pips")
@@ -279,6 +301,12 @@ pub fn first_contact_selection_combat_focus_guard(
         "route_clearance_pixel_budget": route_clearance_pixel_budget,
         "combat_target_cross_long_px": geometry.target_lock_cross_long_px,
         "combat_target_cross_thickness_px": geometry.target_lock_cross_thickness_px,
+        "combat_target_bracket_tick_long_px": geometry.target_lock_bracket_tick_long_px,
+        "combat_target_bracket_tick_thickness_px": geometry.target_lock_bracket_tick_thickness_px,
+        "combat_target_bracket_corner_count": combat_target_bracket_corner_count,
+        "combat_target_bracket_pixel_budget": combat_target_bracket_pixel_budget,
+        "combat_target_bracket_component_max_width_px": combat_target_bracket_component_max_width_px,
+        "combat_target_bracket_component_max_height_px": combat_target_bracket_component_max_height_px,
         "combat_target_ack_tick_width_px": geometry.target_lock_ack_tick_width_px,
         "combat_target_ack_tick_height_px": geometry.target_lock_ack_tick_height_px,
         "combat_target_cross_pixel_budget": combat_target_cross_pixel_budget,
@@ -310,7 +338,14 @@ pub fn first_contact_target_callout_guard(
         (i32::from(target_health_percent) * geometry.target_callout_health_bar_width_px) / 100;
     let target_callout_pixel_budget =
         (geometry.target_callout_width_px * geometry.target_callout_height_px) as usize;
-    let target_callout_leader_pixel_budget = 64_usize;
+    let target_callout_edge_tick_pixel_budget = geometry.target_callout_edge_tick_count
+        * (geometry.target_callout_edge_tick_width_px * geometry.target_callout_edge_tick_height_px)
+            as usize;
+    let target_callout_leader_tick_pixel_budget = (geometry.target_callout_leader_tick_width_px
+        * geometry.target_callout_leader_tick_height_px)
+        as usize;
+    let target_callout_leader_pixel_budget =
+        target_callout_edge_tick_pixel_budget + target_callout_leader_tick_pixel_budget;
     let target_callout_clearance_pixel_budget =
         (((geometry.target_callout_width_px + geometry.target_callout_clearance_pad_px * 2)
             * (geometry.target_callout_height_px + geometry.target_callout_clearance_pad_px * 2)
@@ -345,7 +380,14 @@ pub fn first_contact_target_callout_guard(
         && geometry.target_callout_x_offset_px == 42
         && geometry.target_callout_y_offset_px == -42
         && target_callout_pixel_budget >= 1_560;
-    let target_leader_gate = target_callout_leader_pixel_budget >= 64;
+    let target_leader_gate = geometry.target_callout_edge_tick_count == 2
+        && geometry.target_callout_edge_tick_width_px == 2
+        && geometry.target_callout_edge_tick_height_px == 6
+        && geometry.target_callout_leader_tick_width_px == 10
+        && geometry.target_callout_leader_tick_height_px == 2
+        && target_callout_edge_tick_pixel_budget == 24
+        && target_callout_leader_tick_pixel_budget == 20
+        && target_callout_leader_pixel_budget <= 44;
     let target_callout_clearance_gate = geometry.target_callout_clearance_pad_px == 0
         && geometry.target_callout_leader_clearance_width_px == 0
         && geometry.target_callout_leader_clearance_height_px == 0
@@ -405,6 +447,13 @@ pub fn first_contact_target_callout_guard(
         "target_callout_health_bar_width_px": geometry.target_callout_health_bar_width_px,
         "target_callout_health_bar_height_px": geometry.target_callout_health_bar_height_px,
         "target_callout_pixel_budget": target_callout_pixel_budget,
+        "target_callout_edge_tick_count": geometry.target_callout_edge_tick_count,
+        "target_callout_edge_tick_width_px": geometry.target_callout_edge_tick_width_px,
+        "target_callout_edge_tick_height_px": geometry.target_callout_edge_tick_height_px,
+        "target_callout_edge_tick_pixel_budget": target_callout_edge_tick_pixel_budget,
+        "target_callout_leader_tick_width_px": geometry.target_callout_leader_tick_width_px,
+        "target_callout_leader_tick_height_px": geometry.target_callout_leader_tick_height_px,
+        "target_callout_leader_tick_pixel_budget": target_callout_leader_tick_pixel_budget,
         "target_callout_leader_pixel_budget": target_callout_leader_pixel_budget,
         "target_callout_clearance_pad_px": geometry.target_callout_clearance_pad_px,
         "target_callout_leader_clearance_width_px": geometry.target_callout_leader_clearance_width_px,
@@ -458,8 +507,10 @@ mod tests {
                 route_clearance_corner_cue_width_px: 6,
                 route_clearance_corner_cue_height_px: 2,
                 route_clearance_corner_cues_per_tile: 4,
-                target_lock_cross_long_px: 16,
+                target_lock_cross_long_px: 10,
                 target_lock_cross_thickness_px: 2,
+                target_lock_bracket_tick_long_px: 10,
+                target_lock_bracket_tick_thickness_px: 2,
                 target_lock_ack_tick_width_px: 4,
                 target_lock_ack_tick_height_px: 2,
                 target_callout_width_px: 78,
@@ -471,6 +522,11 @@ mod tests {
                 target_callout_clearance_pad_px: 0,
                 target_callout_leader_clearance_width_px: 0,
                 target_callout_leader_clearance_height_px: 0,
+                target_callout_edge_tick_count: 2,
+                target_callout_edge_tick_width_px: 2,
+                target_callout_edge_tick_height_px: 6,
+                target_callout_leader_tick_width_px: 10,
+                target_callout_leader_tick_height_px: 2,
                 target_preflight_ring_count: 2,
                 target_preflight_ring_thickness_px: 2,
                 target_preflight_cross_long_px: 16,
@@ -507,7 +563,25 @@ mod tests {
             guard
                 .get("combat_target_pixel_budget")
                 .and_then(Value::as_u64),
-            Some(72)
+            Some(48)
+        );
+        assert_eq!(
+            guard
+                .get("combat_target_bracket_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(144)
+        );
+        assert_eq!(
+            guard
+                .get("combat_target_bracket_component_max_width_px")
+                .and_then(Value::as_i64),
+            Some(10)
+        );
+        assert_eq!(
+            guard
+                .get("combat_target_bracket_component_max_height_px")
+                .and_then(Value::as_i64),
+            Some(10)
         );
         assert_eq!(
             guard
@@ -551,6 +625,18 @@ mod tests {
                 .get("target_prefocus_marker_pixel_budget")
                 .and_then(Value::as_u64),
             Some(256)
+        );
+        assert_eq!(
+            guard
+                .get("target_callout_leader_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(44)
+        );
+        assert_eq!(
+            guard
+                .get("target_callout_edge_tick_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(24)
         );
         assert_eq!(
             guard.get("target_callout_gate").and_then(Value::as_bool),

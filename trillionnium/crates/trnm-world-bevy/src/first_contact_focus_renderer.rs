@@ -12,13 +12,20 @@ use crate::{
     CLASSIC_FIRST_CONTACT_ROUTE_DASH_HEIGHT_PX, CLASSIC_FIRST_CONTACT_ROUTE_DASH_WIDTH_PX,
     CLASSIC_FIRST_CONTACT_SELECTED_ROLE_BADGE_TICK_H_PX,
     CLASSIC_FIRST_CONTACT_SELECTED_ROLE_BADGE_TICK_W_PX,
+    CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_EDGE_TICK_COUNT,
+    CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_EDGE_TICK_H_PX,
+    CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_EDGE_TICK_W_PX,
     CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_HEALTH_BAR_H_PX,
     CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_HEALTH_BAR_W_PX,
-    CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_H_PX, CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_W_PX,
-    CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_X_OFFSET_PX,
+    CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_H_PX,
+    CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_LEADER_TICK_H_PX,
+    CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_LEADER_TICK_W_PX,
+    CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_W_PX, CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_X_OFFSET_PX,
     CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_Y_OFFSET_PX,
     CLASSIC_FIRST_CONTACT_TARGET_LOCK_ACK_TICK_H_PX,
     CLASSIC_FIRST_CONTACT_TARGET_LOCK_ACK_TICK_W_PX,
+    CLASSIC_FIRST_CONTACT_TARGET_LOCK_BRACKET_TICK_LONG_PX,
+    CLASSIC_FIRST_CONTACT_TARGET_LOCK_BRACKET_TICK_THICKNESS_PX,
     CLASSIC_FIRST_CONTACT_TARGET_LOCK_CROSS_LONG_PX,
     CLASSIC_FIRST_CONTACT_TARGET_LOCK_CROSS_THICKNESS_PX, CLASSIC_HUD_TEXT_COLOR,
     CLASSIC_RTS_SELECTION_FEEDBACK_ACK_COLOR, CLASSIC_RTS_SELECTION_FEEDBACK_ATTACK_COLOR,
@@ -94,6 +101,49 @@ fn draw_focus_corner_brackets(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
+fn draw_target_focus_corner_ticks(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    cx: i32,
+    cy: i32,
+    half_w: i32,
+    half_h: i32,
+    color: u32,
+) {
+    let tick_long = CLASSIC_FIRST_CONTACT_TARGET_LOCK_BRACKET_TICK_LONG_PX;
+    let tick_thickness = CLASSIC_FIRST_CONTACT_TARGET_LOCK_BRACKET_TICK_THICKNESS_PX;
+    for (sx, sy) in [(-1, -1), (1, -1), (-1, 1), (1, 1)] {
+        let x = cx + sx * half_w;
+        let y = cy + sy * half_h;
+        let horizontal_x = if sx < 0 { x } else { x - tick_long };
+        let horizontal_y = if sy < 0 { y } else { y - tick_thickness };
+        let vertical_x = if sx < 0 { x } else { x - tick_thickness };
+        let vertical_y = if sy < 0 { y } else { y - tick_long };
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            horizontal_x,
+            horizontal_y,
+            tick_long,
+            tick_thickness,
+            color,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            vertical_x,
+            vertical_y,
+            tick_thickness,
+            tick_long,
+            color,
+        );
+    }
+}
+
 fn target_callout_label(runtime: &NativeFirstPlayableRuntime) -> String {
     first_contact_readouts::target_callout_label(runtime)
 }
@@ -120,16 +170,25 @@ fn draw_target_callout(
         CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_H_PX,
         classic_mix_color(CLASSIC_RTS_TACTICAL_VIEWPORT_TILE_COLOR, 0x020403, 1, 3),
     );
-    classic_draw_rect(
-        buffer,
-        width,
-        height,
-        callout_x,
+    for y in [
         callout_y,
-        3,
-        CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_H_PX,
-        CLASSIC_RTS_SELECTION_FEEDBACK_ATTACK_COLOR,
-    );
+        callout_y + CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_H_PX
+            - CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_EDGE_TICK_H_PX,
+    ]
+    .into_iter()
+    .take(CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_EDGE_TICK_COUNT)
+    {
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            callout_x,
+            y,
+            CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_EDGE_TICK_W_PX,
+            CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_EDGE_TICK_H_PX,
+            CLASSIC_RTS_SELECTION_FEEDBACK_ATTACK_COLOR,
+        );
+    }
     classic_draw_text(
         buffer,
         width,
@@ -168,8 +227,8 @@ fn draw_target_callout(
         height,
         target_cx + 15,
         target_cy - 8,
-        24,
-        2,
+        CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_LEADER_TICK_W_PX,
+        CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_LEADER_TICK_H_PX,
         CLASSIC_RTS_SELECTION_FEEDBACK_ATTACK_COLOR,
     );
     classic_draw_rect(
@@ -312,7 +371,7 @@ pub(super) fn draw_selection_combat_focus_layer(
         classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, target_tile);
     let target_cx = target_x + cell_w / 2;
     let target_cy = target_y + cell_h / 2;
-    draw_focus_corner_brackets(
+    draw_target_focus_corner_ticks(
         buffer,
         width,
         height,

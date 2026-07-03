@@ -799,11 +799,18 @@ const CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_HEALTH_BAR_H_PX: i32 = 3;
 const CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_CLEARANCE_PAD_PX: i32 = 0;
 const CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_LEADER_CLEARANCE_W_PX: i32 = 0;
 const CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_LEADER_CLEARANCE_H_PX: i32 = 0;
+const CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_EDGE_TICK_COUNT: usize = 2;
+const CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_EDGE_TICK_W_PX: i32 = 2;
+const CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_EDGE_TICK_H_PX: i32 = 6;
+const CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_LEADER_TICK_W_PX: i32 = 10;
+const CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_LEADER_TICK_H_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_TARGET_PREFLIGHT_RING_COUNT: i32 = 2;
 const CLASSIC_FIRST_CONTACT_TARGET_PREFLIGHT_RING_THICKNESS_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_TARGET_PREFLIGHT_CROSS_LONG_PX: i32 = 16;
 const CLASSIC_FIRST_CONTACT_TARGET_PREFLIGHT_CROSS_THICKNESS_PX: i32 = 2;
-const CLASSIC_FIRST_CONTACT_TARGET_LOCK_CROSS_LONG_PX: i32 = 16;
+const CLASSIC_FIRST_CONTACT_TARGET_LOCK_BRACKET_TICK_LONG_PX: i32 = 10;
+const CLASSIC_FIRST_CONTACT_TARGET_LOCK_BRACKET_TICK_THICKNESS_PX: i32 = 2;
+const CLASSIC_FIRST_CONTACT_TARGET_LOCK_CROSS_LONG_PX: i32 = 10;
 const CLASSIC_FIRST_CONTACT_TARGET_LOCK_CROSS_THICKNESS_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_TARGET_LOCK_ACK_TICK_W_PX: i32 = 4;
 const CLASSIC_FIRST_CONTACT_TARGET_LOCK_ACK_TICK_H_PX: i32 = 2;
@@ -152246,9 +152253,9 @@ mod tests {
                         && signatures
                             .iter()
                             .any(|value| value.as_str() == Some("selected_role_badge_micro_pips"))
-                        && signatures
-                            .iter()
-                            .any(|value| value.as_str() == Some("attack_target_lock_brackets"))
+                        && signatures.iter().any(|value| {
+                            value.as_str() == Some("attack_target_lock_micro_corner_ticks")
+                        })
                         && signatures
                             .iter()
                             .any(|value| value.as_str() == Some("compact_target_lock_cross"))
@@ -152365,7 +152372,7 @@ mod tests {
             guard
                 .get("combat_target_cross_long_px")
                 .and_then(Value::as_u64),
-            Some(16)
+            Some(10)
         );
         assert_eq!(
             guard
@@ -152389,7 +152396,25 @@ mod tests {
             guard
                 .get("combat_target_cross_pixel_budget")
                 .and_then(Value::as_u64),
-            Some(64)
+            Some(40)
+        );
+        assert_eq!(
+            guard
+                .get("combat_target_bracket_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(144)
+        );
+        assert_eq!(
+            guard
+                .get("combat_target_bracket_component_max_width_px")
+                .and_then(Value::as_i64),
+            Some(10)
+        );
+        assert_eq!(
+            guard
+                .get("combat_target_bracket_component_max_height_px")
+                .and_then(Value::as_i64),
+            Some(10)
         );
         assert_eq!(
             guard
@@ -152401,7 +152426,7 @@ mod tests {
             guard
                 .get("combat_target_pixel_budget")
                 .and_then(Value::as_u64),
-            Some(72)
+            Some(48)
         );
         assert_eq!(
             guard
@@ -152499,6 +152524,18 @@ mod tests {
                 .get("target_prefocus_marker_pixel_budget")
                 .and_then(Value::as_u64),
             Some(256)
+        );
+        assert_eq!(
+            guard
+                .get("target_callout_leader_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(44)
+        );
+        assert_eq!(
+            guard
+                .get("target_callout_edge_tick_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(24)
         );
         assert_eq!(
             guard
