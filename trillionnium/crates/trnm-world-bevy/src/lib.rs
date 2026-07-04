@@ -936,6 +936,10 @@ const CLASSIC_FIRST_CONTACT_PLAYER_UNIT_STATUS_PIP_GAP_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_PLAYER_UNIT_STATUS_ROLE_TICK_COUNT: usize = 2;
 const CLASSIC_FIRST_CONTACT_PLAYER_UNIT_STATUS_ROLE_TICK_W_PX: i32 = 4;
 const CLASSIC_FIRST_CONTACT_PLAYER_UNIT_STATUS_ROLE_TICK_H_PX: i32 = 2;
+const CLASSIC_FIRST_CONTACT_PLAYER_DENSITY_CUE_W_PX: i32 = 8;
+const CLASSIC_FIRST_CONTACT_PLAYER_DENSITY_CUE_H_PX: i32 = 2;
+const CLASSIC_FIRST_CONTACT_PLAYER_DENSITY_VERTICAL_CUE_W_PX: i32 = 2;
+const CLASSIC_FIRST_CONTACT_PLAYER_DENSITY_VERTICAL_CUE_H_PX: i32 = 6;
 const CLASSIC_FIRST_CONTACT_PLAYER_RELAY_IDENTITY_RAIL_COUNT: usize = 6;
 const CLASSIC_FIRST_CONTACT_PLAYER_RELAY_IDENTITY_RAIL_W_PX: i32 = 16;
 const CLASSIC_FIRST_CONTACT_PLAYER_RELAY_IDENTITY_RAIL_H_PX: i32 = 2;
@@ -94509,26 +94513,61 @@ fn classic_draw_first_contact_actor(
             );
         }
         RtsActorGlyphBody::TerrainRidge => {
-            classic_draw_rect(
-                buffer,
-                width,
-                height,
-                tile_x,
-                tile_y + cell_h / 2,
-                cell_w * 2,
-                4,
-                CLASSIC_RTS_PRODUCT_MAP_DENSITY_COLOR,
-            );
-            classic_draw_rect(
-                buffer,
-                width,
-                height,
-                tile_x + cell_w / 2,
-                tile_y + cell_h / 2 - 6,
-                cell_w,
-                4,
-                0x72805d,
-            );
+            if player_screen {
+                for (cue_x, cue_y, cue_w, cue_h, cue_color) in [
+                    (
+                        tile_x,
+                        tile_y + cell_h / 2,
+                        CLASSIC_FIRST_CONTACT_PLAYER_DENSITY_CUE_W_PX,
+                        CLASSIC_FIRST_CONTACT_PLAYER_DENSITY_CUE_H_PX,
+                        CLASSIC_RTS_PRODUCT_MAP_DENSITY_COLOR,
+                    ),
+                    (
+                        tile_x + cell_w * 2 - CLASSIC_FIRST_CONTACT_PLAYER_DENSITY_CUE_W_PX,
+                        tile_y + cell_h / 2,
+                        CLASSIC_FIRST_CONTACT_PLAYER_DENSITY_CUE_W_PX,
+                        CLASSIC_FIRST_CONTACT_PLAYER_DENSITY_CUE_H_PX,
+                        CLASSIC_RTS_PRODUCT_MAP_DENSITY_COLOR,
+                    ),
+                    (
+                        tile_x + cell_w / 2,
+                        tile_y + cell_h / 2 - 6,
+                        6,
+                        CLASSIC_FIRST_CONTACT_PLAYER_DENSITY_CUE_H_PX,
+                        0x72805d,
+                    ),
+                    (
+                        tile_x + cell_w + cell_w / 2 - 6,
+                        tile_y + cell_h / 2 - 6,
+                        6,
+                        CLASSIC_FIRST_CONTACT_PLAYER_DENSITY_CUE_H_PX,
+                        0x72805d,
+                    ),
+                ] {
+                    classic_draw_rect(buffer, width, height, cue_x, cue_y, cue_w, cue_h, cue_color);
+                }
+            } else {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    tile_x,
+                    tile_y + cell_h / 2,
+                    cell_w * 2,
+                    4,
+                    CLASSIC_RTS_PRODUCT_MAP_DENSITY_COLOR,
+                );
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    tile_x + cell_w / 2,
+                    tile_y + cell_h / 2 - 6,
+                    cell_w,
+                    4,
+                    0x72805d,
+                );
+            }
         }
         RtsActorGlyphBody::FluxVent => {
             classic_draw_rect(
@@ -94668,26 +94707,66 @@ fn classic_draw_first_contact_actor(
             }
         }
         RtsActorGlyphBody::ExpansionMarker => {
-            classic_draw_rect(
-                buffer,
-                width,
-                height,
-                cx - cell_w / 2,
-                cy - 2,
-                cell_w,
-                4,
-                CLASSIC_RTS_PRODUCT_MAP_DENSITY_COLOR,
-            );
-            classic_draw_rect(
-                buffer,
-                width,
-                height,
-                cx - 2,
-                cy - cell_h / 2,
-                4,
-                cell_h,
-                CLASSIC_RTS_PRODUCT_MAP_DENSITY_COLOR,
-            );
+            if player_screen {
+                for (cue_x, cue_y, cue_w, cue_h) in [
+                    (
+                        cx - cell_w / 2,
+                        cy - 2,
+                        CLASSIC_FIRST_CONTACT_PLAYER_DENSITY_CUE_W_PX,
+                        CLASSIC_FIRST_CONTACT_PLAYER_DENSITY_CUE_H_PX,
+                    ),
+                    (
+                        cx + cell_w / 2 - CLASSIC_FIRST_CONTACT_PLAYER_DENSITY_CUE_W_PX,
+                        cy - 2,
+                        CLASSIC_FIRST_CONTACT_PLAYER_DENSITY_CUE_W_PX,
+                        CLASSIC_FIRST_CONTACT_PLAYER_DENSITY_CUE_H_PX,
+                    ),
+                    (
+                        cx - 1,
+                        cy - cell_h / 2,
+                        CLASSIC_FIRST_CONTACT_PLAYER_DENSITY_VERTICAL_CUE_W_PX,
+                        CLASSIC_FIRST_CONTACT_PLAYER_DENSITY_VERTICAL_CUE_H_PX,
+                    ),
+                    (
+                        cx - 1,
+                        cy + cell_h / 2 - CLASSIC_FIRST_CONTACT_PLAYER_DENSITY_VERTICAL_CUE_H_PX,
+                        CLASSIC_FIRST_CONTACT_PLAYER_DENSITY_VERTICAL_CUE_W_PX,
+                        CLASSIC_FIRST_CONTACT_PLAYER_DENSITY_VERTICAL_CUE_H_PX,
+                    ),
+                ] {
+                    classic_draw_rect(
+                        buffer,
+                        width,
+                        height,
+                        cue_x,
+                        cue_y,
+                        cue_w,
+                        cue_h,
+                        CLASSIC_RTS_PRODUCT_MAP_DENSITY_COLOR,
+                    );
+                }
+            } else {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    cx - cell_w / 2,
+                    cy - 2,
+                    cell_w,
+                    4,
+                    CLASSIC_RTS_PRODUCT_MAP_DENSITY_COLOR,
+                );
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    cx - 2,
+                    cy - cell_h / 2,
+                    4,
+                    cell_h,
+                    CLASSIC_RTS_PRODUCT_MAP_DENSITY_COLOR,
+                );
+            }
         }
         RtsActorGlyphBody::Unit => {
             let color = classic_first_contact_actor_color_role_color(
@@ -153851,6 +153930,118 @@ mod tests {
                 actor.rule_id
             );
         }
+    }
+
+    #[cfg(not(target_os = "android"))]
+    #[test]
+    fn classic_first_contact_player_density_cues_draw_micro_ticks() {
+        let width = 900;
+        let height = 620;
+        let map_x = 80;
+        let map_y = 96;
+        let cell_w = 28;
+        let cell_h = 14;
+        let target_tile = (16, 9);
+        let mut checked_actors = 0_usize;
+
+        for actor in classic_first_contact_map_actors_from_rts_data() {
+            let glyph_body =
+                classic_first_contact_actor_presentation(actor.source_rule_id.as_str())
+                    .map(|profile| profile.glyph.body)
+                    .unwrap_or_else(|| match &actor.kind {
+                        RtsFirstContactPreviewActorKind::Spawn => RtsActorGlyphBody::SpawnPad,
+                        RtsFirstContactPreviewActorKind::FluxBloom => {
+                            RtsActorGlyphBody::ResourceBloom
+                        }
+                        RtsFirstContactPreviewActorKind::Beacon => {
+                            RtsActorGlyphBody::ObjectiveBeacon
+                        }
+                        RtsFirstContactPreviewActorKind::Ridge => RtsActorGlyphBody::TerrainRidge,
+                        RtsFirstContactPreviewActorKind::Vent => RtsActorGlyphBody::FluxVent,
+                        RtsFirstContactPreviewActorKind::LaneMarker => {
+                            RtsActorGlyphBody::LaneMarker
+                        }
+                        RtsFirstContactPreviewActorKind::BeaconRing => {
+                            RtsActorGlyphBody::BeaconRing
+                        }
+                        RtsFirstContactPreviewActorKind::ExpansionMarker => {
+                            RtsActorGlyphBody::ExpansionMarker
+                        }
+                    });
+            if !matches!(
+                glyph_body,
+                RtsActorGlyphBody::TerrainRidge | RtsActorGlyphBody::ExpansionMarker
+            ) {
+                continue;
+            }
+            checked_actors += 1;
+            let mut buffer = vec![0_u32; width * height];
+            classic_draw_first_contact_actor(
+                &mut buffer,
+                width,
+                height,
+                actor.clone(),
+                map_x,
+                map_y,
+                cell_w,
+                cell_h,
+                true,
+                target_tile,
+            );
+
+            let components = exact_color_components(
+                &buffer,
+                width,
+                height,
+                CLASSIC_RTS_PRODUCT_MAP_DENSITY_COLOR,
+            );
+            let pixel_count = components
+                .iter()
+                .map(|(pixels, _, _)| pixels)
+                .sum::<usize>();
+            let (body_label, min_expected_pixels, max_expected_pixels) = match glyph_body {
+                RtsActorGlyphBody::TerrainRidge => (
+                    "terrain_ridge",
+                    2 * CLASSIC_FIRST_CONTACT_PLAYER_DENSITY_CUE_W_PX as usize
+                        * CLASSIC_FIRST_CONTACT_PLAYER_DENSITY_CUE_H_PX as usize,
+                    2 * CLASSIC_FIRST_CONTACT_PLAYER_DENSITY_CUE_W_PX as usize
+                        * CLASSIC_FIRST_CONTACT_PLAYER_DENSITY_CUE_H_PX as usize,
+                ),
+                RtsActorGlyphBody::ExpansionMarker => (
+                    "expansion_marker",
+                    2 * CLASSIC_FIRST_CONTACT_PLAYER_DENSITY_CUE_W_PX as usize
+                        * CLASSIC_FIRST_CONTACT_PLAYER_DENSITY_CUE_H_PX as usize
+                        + 2 * CLASSIC_FIRST_CONTACT_PLAYER_DENSITY_VERTICAL_CUE_W_PX as usize
+                            * (CLASSIC_FIRST_CONTACT_PLAYER_DENSITY_VERTICAL_CUE_H_PX - 1) as usize,
+                    2 * CLASSIC_FIRST_CONTACT_PLAYER_DENSITY_CUE_W_PX as usize
+                        * CLASSIC_FIRST_CONTACT_PLAYER_DENSITY_CUE_H_PX as usize
+                        + 2 * CLASSIC_FIRST_CONTACT_PLAYER_DENSITY_VERTICAL_CUE_W_PX as usize
+                            * CLASSIC_FIRST_CONTACT_PLAYER_DENSITY_VERTICAL_CUE_H_PX as usize,
+                ),
+                _ => unreachable!(),
+            };
+
+            assert!(
+                (min_expected_pixels..=max_expected_pixels).contains(&pixel_count),
+                "{} {} {pixel_count} {components:?}",
+                body_label,
+                actor.source_rule_id
+            );
+            assert!(
+                components.iter().all(|(_, w, h)| {
+                    (*w <= CLASSIC_FIRST_CONTACT_PLAYER_DENSITY_CUE_W_PX as usize
+                        && *h <= CLASSIC_FIRST_CONTACT_PLAYER_DENSITY_CUE_H_PX as usize)
+                        || (*w <= CLASSIC_FIRST_CONTACT_PLAYER_DENSITY_VERTICAL_CUE_W_PX as usize
+                            && *h
+                                <= CLASSIC_FIRST_CONTACT_PLAYER_DENSITY_VERTICAL_CUE_H_PX as usize)
+                }),
+                "{} {} {components:?}",
+                body_label,
+                actor.source_rule_id
+            );
+        }
+
+        assert!(checked_actors >= 3, "{checked_actors}");
     }
 
     #[cfg(not(target_os = "android"))]
