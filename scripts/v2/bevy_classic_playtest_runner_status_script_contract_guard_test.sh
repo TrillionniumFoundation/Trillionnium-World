@@ -63,6 +63,8 @@ required_lines=(
   'exact_beacon_animation_range_micro_component_gate'
   'product_map_density_exact_green'
   'exact_product_map_density_micro_component_gate'
+  'selection_feedback_confirm_exact_cyan'
+  'exact_selection_confirm_micro_component_gate'
   'unit_status_health_exact_green'
   'exact_unit_status_health_micro_component_gate'
   'unit_status_role_badge_exact_purple'

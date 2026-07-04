@@ -36,6 +36,10 @@ use crate::{
 };
 use trnm_rts_bevy_runtime as rts_bevy_runtime;
 
+const CLASSIC_FIRST_CONTACT_SELECTION_CONFIRM_BRACKET_ARM_W_PX: i32 = 4;
+const CLASSIC_FIRST_CONTACT_SELECTION_CONFIRM_BRACKET_ARM_H_PX: i32 = 3;
+const CLASSIC_FIRST_CONTACT_SELECTION_CONFIRM_BRACKET_THICKNESS_PX: i32 = 2;
+
 fn selection_combat_focus_route_tiles(runtime: &NativeFirstPlayableRuntime) -> Vec<(i32, i32)> {
     first_contact_tiles::selection_combat_focus_route_tiles(runtime)
 }
@@ -89,15 +93,27 @@ fn draw_focus_corner_brackets(
     half_h: i32,
     color: u32,
 ) {
-    let arm_w = (half_w / 2).max(7);
-    let arm_h = (half_h / 2).max(5);
+    let arm_w = CLASSIC_FIRST_CONTACT_SELECTION_CONFIRM_BRACKET_ARM_W_PX.min(half_w.max(1));
+    let arm_h = CLASSIC_FIRST_CONTACT_SELECTION_CONFIRM_BRACKET_ARM_H_PX.min(half_h.max(1));
+    let thickness = CLASSIC_FIRST_CONTACT_SELECTION_CONFIRM_BRACKET_THICKNESS_PX;
     for (sx, sy) in [(-1, -1), (1, -1), (-1, 1), (1, 1)] {
         let x = cx + sx * half_w;
         let y = cy + sy * half_h;
         let horizontal_x = if sx < 0 { x } else { x - arm_w };
         let vertical_y = if sy < 0 { y } else { y - arm_h };
-        classic_draw_rect(buffer, width, height, horizontal_x, y, arm_w, 3, color);
-        classic_draw_rect(buffer, width, height, x, vertical_y, 3, arm_h, color);
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            horizontal_x,
+            y,
+            arm_w,
+            thickness,
+            color,
+        );
+        classic_draw_rect(
+            buffer, width, height, x, vertical_y, thickness, arm_h, color,
+        );
     }
 }
 

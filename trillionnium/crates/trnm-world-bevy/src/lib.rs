@@ -855,6 +855,8 @@ const CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK_PROGRESS_PIP_W_PX: i32 = 6;
 const CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK_PROGRESS_PIP_H_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK_PROGRESS_BACKPLATE_W_PX: i32 = 0;
 const CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK_PROGRESS_BACKPLATE_H_PX: i32 = 0;
+const CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK_TARGET_QUEUE_PIP_W_PX: i32 = 4;
+const CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK_TARGET_QUEUE_PIP_H_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_PLAYER_BUILD_GHOST_TICK_W_PX: i32 = 8;
 const CLASSIC_FIRST_CONTACT_PLAYER_BUILD_GHOST_TICK_H_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_PLAYER_BUILD_GHOST_STATUS_PIP_W_PX: i32 = 4;
@@ -960,6 +962,9 @@ const CLASSIC_FIRST_CONTACT_PLAYER_BEACON_ANIMATION_RANGE_TICK_H_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_PLAYER_BEACON_ANIMATION_GLINT_TICK_COUNT: usize = 2;
 const CLASSIC_FIRST_CONTACT_PLAYER_BEACON_ANIMATION_GLINT_TICK_W_PX: i32 = 6;
 const CLASSIC_FIRST_CONTACT_PLAYER_BEACON_ANIMATION_GLINT_TICK_H_PX: i32 = 2;
+const CLASSIC_FIRST_CONTACT_PLAYER_VISION_SWEEP_COUNT: usize = 4;
+const CLASSIC_FIRST_CONTACT_PLAYER_VISION_SWEEP_TICK_W_PX: i32 = 8;
+const CLASSIC_FIRST_CONTACT_PLAYER_VISION_SWEEP_TICK_H_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_PLAYER_PRIMARY_TACTICAL_TRACK_TICK_W_PX: i32 = 6;
 const CLASSIC_FIRST_CONTACT_PLAYER_PRIMARY_TACTICAL_TRACK_TICK_H_PX: i32 = 2;
 const CLASSIC_RTS_TACTICAL_VIEWPORT_FRAME_COLOR: u32 = 0xbfd7c8;
@@ -93608,17 +93613,39 @@ fn classic_draw_first_contact_unit_state_layers(
     }
 
     let vision_origin = classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, (25, 8));
-    for arc in 0..4 {
-        classic_draw_rect(
-            buffer,
-            width,
-            height,
-            vision_origin.0 - cell_w / 2 + arc * 9,
-            vision_origin.1 + cell_h + arc * 5,
-            cell_w + arc * 4,
-            2,
-            CLASSIC_RTS_SELECTION_FEEDBACK_CONFIRM_COLOR,
-        );
+    for arc in 0..CLASSIC_FIRST_CONTACT_PLAYER_VISION_SWEEP_COUNT {
+        let arc = arc as i32;
+        let arc_x = vision_origin.0 - cell_w / 2 + arc * 9;
+        let arc_y = vision_origin.1 + cell_h + arc * 5;
+        let arc_w = cell_w + arc * 4;
+        if player_screen {
+            for tick_x in [
+                arc_x,
+                arc_x + arc_w - CLASSIC_FIRST_CONTACT_PLAYER_VISION_SWEEP_TICK_W_PX,
+            ] {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    tick_x,
+                    arc_y,
+                    CLASSIC_FIRST_CONTACT_PLAYER_VISION_SWEEP_TICK_W_PX,
+                    CLASSIC_FIRST_CONTACT_PLAYER_VISION_SWEEP_TICK_H_PX,
+                    CLASSIC_RTS_SELECTION_FEEDBACK_CONFIRM_COLOR,
+                );
+            }
+        } else {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                arc_x,
+                arc_y,
+                arc_w,
+                2,
+                CLASSIC_RTS_SELECTION_FEEDBACK_CONFIRM_COLOR,
+            );
+        }
     }
 
     let warden = classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, (8, 25));
@@ -94145,14 +94172,23 @@ fn classic_draw_first_contact_command_feedback_layers(
         } else {
             CLASSIC_RTS_SELECTION_FEEDBACK_CONFIRM_COLOR
         };
+        let (queue_w, queue_h, queue_y) = if player_screen {
+            (
+                CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK_TARGET_QUEUE_PIP_W_PX,
+                CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK_TARGET_QUEUE_PIP_H_PX,
+                target.1 + cell_h + 16 + (index as i32 % 2) * 3,
+            )
+        } else {
+            (6, 8, target.1 + cell_h + 16)
+        };
         classic_draw_rect(
             buffer,
             width,
             height,
             target.0 - cell_w + index as i32 * 9,
-            target.1 + cell_h + 16,
-            6,
-            8,
+            queue_y,
+            queue_w,
+            queue_h,
             color,
         );
     }
@@ -153783,6 +153819,47 @@ mod tests {
 
     #[cfg(not(target_os = "android"))]
     #[test]
+    fn classic_first_contact_player_focus_confirm_brackets_draw_micro_ticks() {
+        let width = 1280;
+        let height = 699;
+        let mut buffer = vec![0_u32; width * height];
+        let map_x = 80;
+        let map_y = 96;
+        let cell_w = 28;
+        let cell_h = 14;
+        let runtime = classic_first_contact_player_screen_runtime();
+
+        classic_draw_first_contact_selection_combat_focus_layer(
+            &mut buffer,
+            width,
+            height,
+            &runtime,
+            map_x,
+            map_y,
+            cell_w,
+            cell_h,
+        );
+
+        let components = exact_color_components(
+            &buffer,
+            width,
+            height,
+            CLASSIC_RTS_SELECTION_FEEDBACK_CONFIRM_COLOR,
+        );
+        let pixel_count = components
+            .iter()
+            .map(|(pixels, _, _)| pixels)
+            .sum::<usize>();
+
+        assert!(pixel_count >= 64, "{pixel_count} {components:?}");
+        assert!(
+            components.iter().all(|(_, w, h)| *w <= 8 && *h <= 8),
+            "{components:?}"
+        );
+    }
+
+    #[cfg(not(target_os = "android"))]
+    #[test]
     fn classic_first_contact_player_units_draw_compact_actor_bodies() {
         let width = 900;
         let height = 620;
@@ -154581,6 +154658,134 @@ mod tests {
                     && *h <= CLASSIC_FIRST_CONTACT_PLAYER_BEACON_ANIMATION_GLINT_TICK_H_PX as usize
             }),
             "{glint_components:?}"
+        );
+    }
+
+    #[cfg(not(target_os = "android"))]
+    #[test]
+    fn classic_first_contact_player_unit_state_vision_draws_micro_confirm_ticks() {
+        let width = 1280;
+        let height = 699;
+        let mut buffer = vec![0_u32; width * height];
+        let map_x = 80;
+        let map_y = 96;
+        let cell_w = 28;
+        let cell_h = 14;
+
+        classic_draw_first_contact_unit_state_layers(
+            &mut buffer,
+            width,
+            height,
+            map_x,
+            map_y,
+            cell_w,
+            cell_h,
+            true,
+        );
+
+        let components = exact_color_components(
+            &buffer,
+            width,
+            height,
+            CLASSIC_RTS_SELECTION_FEEDBACK_CONFIRM_COLOR,
+        );
+        let vision_components = components
+            .iter()
+            .copied()
+            .filter(|(_, w, h)| {
+                *w == CLASSIC_FIRST_CONTACT_PLAYER_VISION_SWEEP_TICK_W_PX as usize
+                    && *h == CLASSIC_FIRST_CONTACT_PLAYER_VISION_SWEEP_TICK_H_PX as usize
+            })
+            .collect::<Vec<_>>();
+        let vision_pixel_count = vision_components
+            .iter()
+            .map(|(pixels, _, _)| pixels)
+            .sum::<usize>();
+
+        assert_eq!(
+            vision_components.len(),
+            CLASSIC_FIRST_CONTACT_PLAYER_VISION_SWEEP_COUNT * 2,
+            "{components:?}"
+        );
+        assert_eq!(
+            vision_pixel_count,
+            CLASSIC_FIRST_CONTACT_PLAYER_VISION_SWEEP_COUNT
+                * 2
+                * CLASSIC_FIRST_CONTACT_PLAYER_VISION_SWEEP_TICK_W_PX as usize
+                * CLASSIC_FIRST_CONTACT_PLAYER_VISION_SWEEP_TICK_H_PX as usize,
+            "{vision_pixel_count} {components:?}"
+        );
+        assert!(
+            components.iter().all(|(_, w, h)| {
+                *w <= CLASSIC_FIRST_CONTACT_PLAYER_VISION_SWEEP_TICK_W_PX as usize
+                    && *h <= CLASSIC_FIRST_CONTACT_PLAYER_VISION_SWEEP_TICK_H_PX as usize
+            }),
+            "{components:?}"
+        );
+    }
+
+    #[cfg(not(target_os = "android"))]
+    #[test]
+    fn classic_first_contact_player_command_feedback_queue_draws_micro_confirm_pips() {
+        let width = 1280;
+        let height = 699;
+        let mut buffer = vec![0_u32; width * height];
+        let map_x = 80;
+        let map_y = 96;
+        let cell_w = 28;
+        let cell_h = 14;
+        let feedback = classic_first_contact_command_feedback();
+        let expected_confirm_pips =
+            usize::from(feedback.queued_after.saturating_sub(feedback.queued_before));
+
+        classic_draw_first_contact_command_feedback_layers(
+            &mut buffer,
+            width,
+            height,
+            map_x,
+            map_y,
+            cell_w,
+            cell_h,
+            true,
+        );
+
+        let components = exact_color_components(
+            &buffer,
+            width,
+            height,
+            CLASSIC_RTS_SELECTION_FEEDBACK_CONFIRM_COLOR,
+        );
+        let confirm_components = components
+            .iter()
+            .copied()
+            .filter(|(_, w, h)| {
+                *w <= CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK_TARGET_QUEUE_PIP_W_PX as usize
+                    && *h <= CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK_TARGET_QUEUE_PIP_H_PX as usize
+            })
+            .collect::<Vec<_>>();
+        let confirm_pixel_count = confirm_components
+            .iter()
+            .map(|(pixels, _, _)| pixels)
+            .sum::<usize>();
+
+        assert_eq!(
+            confirm_components.len(),
+            expected_confirm_pips,
+            "{components:?}"
+        );
+        assert_eq!(
+            confirm_pixel_count,
+            expected_confirm_pips
+                * CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK_TARGET_QUEUE_PIP_W_PX as usize
+                * CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK_TARGET_QUEUE_PIP_H_PX as usize,
+            "{confirm_pixel_count} {components:?}"
+        );
+        assert!(
+            components.iter().all(|(_, w, h)| {
+                *w <= CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK_TARGET_QUEUE_PIP_W_PX as usize
+                    && *h <= CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK_TARGET_QUEUE_PIP_H_PX as usize
+            }),
+            "{components:?}"
         );
     }
 

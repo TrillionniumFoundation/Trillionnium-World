@@ -455,6 +455,13 @@ exact_product_map_density_component_sample = exact_color_component_summary(
     6,
     [32, 72, min(940, width), min(535, height)],
 )
+exact_selection_confirm_component_sample = exact_color_component_summary(
+    "selection_feedback_confirm_exact_cyan",
+    (138, 255, 200),
+    8,
+    8,
+    [32, 72, min(940, width), min(535, height)],
+)
 exact_unit_status_health_component_sample = exact_color_component_summary(
     "unit_status_health_exact_green",
     (125, 255, 138),
@@ -497,6 +504,7 @@ exact_color_component_samples = [
     exact_main_map_objective_component_sample,
     exact_beacon_animation_range_component_sample,
     exact_product_map_density_component_sample,
+    exact_selection_confirm_component_sample,
     exact_unit_status_health_component_sample,
     exact_unit_status_role_badge_component_sample,
     exact_owner_player_component_sample,
@@ -541,6 +549,7 @@ gates = {
     "exact_main_map_objective_micro_component_gate": exact_main_map_objective_component_sample["passes"],
     "exact_beacon_animation_range_micro_component_gate": exact_beacon_animation_range_component_sample["passes"],
     "exact_product_map_density_micro_component_gate": exact_product_map_density_component_sample["passes"],
+    "exact_selection_confirm_micro_component_gate": exact_selection_confirm_component_sample["passes"],
     "exact_unit_status_health_micro_component_gate": exact_unit_status_health_component_sample["passes"],
     "exact_unit_status_role_badge_micro_component_gate": exact_unit_status_role_badge_component_sample["passes"],
     "exact_owner_identity_micro_component_gate": (
