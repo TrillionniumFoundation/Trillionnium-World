@@ -943,6 +943,12 @@ const CLASSIC_FIRST_CONTACT_PLAYER_SECONDARY_BEACON_MARKER_CUE_H_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_PLAYER_ACTIVE_BEACON_CAPTURE_TICK_COUNT: usize = 4;
 const CLASSIC_FIRST_CONTACT_PLAYER_ACTIVE_BEACON_CAPTURE_TICK_W_PX: i32 = 10;
 const CLASSIC_FIRST_CONTACT_PLAYER_ACTIVE_BEACON_CAPTURE_TICK_H_PX: i32 = 2;
+const CLASSIC_FIRST_CONTACT_PLAYER_BEACON_ANIMATION_RANGE_TICK_COUNT: usize = 4;
+const CLASSIC_FIRST_CONTACT_PLAYER_BEACON_ANIMATION_RANGE_TICK_W_PX: i32 = 8;
+const CLASSIC_FIRST_CONTACT_PLAYER_BEACON_ANIMATION_RANGE_TICK_H_PX: i32 = 2;
+const CLASSIC_FIRST_CONTACT_PLAYER_BEACON_ANIMATION_GLINT_TICK_COUNT: usize = 2;
+const CLASSIC_FIRST_CONTACT_PLAYER_BEACON_ANIMATION_GLINT_TICK_W_PX: i32 = 6;
+const CLASSIC_FIRST_CONTACT_PLAYER_BEACON_ANIMATION_GLINT_TICK_H_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_PLAYER_PRIMARY_TACTICAL_TRACK_TICK_W_PX: i32 = 6;
 const CLASSIC_FIRST_CONTACT_PLAYER_PRIMARY_TACTICAL_TRACK_TICK_H_PX: i32 = 2;
 const CLASSIC_RTS_TACTICAL_VIEWPORT_FRAME_COLOR: u32 = 0xbfd7c8;
@@ -95544,6 +95550,7 @@ fn classic_draw_first_contact_animation_frame_richness_detail(
     cell_h: i32,
     tile: (i32, i32),
     role: &str,
+    player_screen: bool,
 ) {
     let (tile_x, tile_y) = classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, tile);
     let cx = tile_x + cell_w / 2;
@@ -95595,6 +95602,40 @@ fn classic_draw_first_contact_animation_frame_richness_detail(
             classic_darken(CLASSIC_RTS_STRUCTURE_SCAFFOLD_COLOR, 1, 4),
         );
     } else if role == "beacon" {
+        if player_screen {
+            let range_color = classic_darken(CLASSIC_RTS_ABILITY_TELEGRAPH_RANGE_COLOR, 1, 5);
+            let tick_w = CLASSIC_FIRST_CONTACT_PLAYER_BEACON_ANIMATION_RANGE_TICK_W_PX;
+            let tick_h = CLASSIC_FIRST_CONTACT_PLAYER_BEACON_ANIMATION_RANGE_TICK_H_PX;
+            let range_ticks = [
+                (cx - cell_w / 2, cy - tick_h / 2, tick_w, tick_h),
+                (cx + cell_w / 2 - tick_w, cy - tick_h / 2, tick_w, tick_h),
+                (cx - tick_h / 2, cy - cell_h / 2, tick_h, 6),
+                (cx - tick_h / 2, cy + cell_h / 2 - 6, tick_h, 6),
+            ];
+            debug_assert_eq!(
+                range_ticks.len(),
+                CLASSIC_FIRST_CONTACT_PLAYER_BEACON_ANIMATION_RANGE_TICK_COUNT
+            );
+            for (x, y, w, h) in range_ticks {
+                classic_draw_rect(buffer, width, height, x, y, w, h, range_color);
+            }
+
+            let glint_color = classic_lighten(CLASSIC_RTS_ENVIRONMENT_RESOURCE_GLINT_COLOR, 1, 5);
+            let glint_w = CLASSIC_FIRST_CONTACT_PLAYER_BEACON_ANIMATION_GLINT_TICK_W_PX;
+            let glint_h = CLASSIC_FIRST_CONTACT_PLAYER_BEACON_ANIMATION_GLINT_TICK_H_PX;
+            let glint_ticks = [
+                (cx - cell_w / 2, cy - cell_h * 2 - 5),
+                (cx + cell_w / 2 - glint_w, cy - cell_h * 2 - 5),
+            ];
+            debug_assert_eq!(
+                glint_ticks.len(),
+                CLASSIC_FIRST_CONTACT_PLAYER_BEACON_ANIMATION_GLINT_TICK_COUNT
+            );
+            for (x, y) in glint_ticks {
+                classic_draw_rect(buffer, width, height, x, y, glint_w, glint_h, glint_color);
+            }
+            return;
+        }
         classic_draw_iso_ellipse(
             buffer,
             width,
@@ -96120,7 +96161,16 @@ fn classic_draw_first_contact_animation_readability_layer(
     }
     for (tile, role, _) in classic_first_contact_animation_cycle_samples() {
         classic_draw_first_contact_animation_frame_richness_detail(
-            buffer, width, height, map_x, map_y, cell_w, cell_h, tile, role,
+            buffer,
+            width,
+            height,
+            map_x,
+            map_y,
+            cell_w,
+            cell_h,
+            tile,
+            role,
+            player_screen,
         );
     }
 }
@@ -154007,6 +154057,86 @@ mod tests {
                 "{color:06x} {components:?}"
             );
         }
+    }
+
+    #[cfg(not(target_os = "android"))]
+    #[test]
+    fn classic_first_contact_player_beacon_animation_draws_micro_range_cues() {
+        let width = 900;
+        let height = 620;
+        let mut buffer = vec![0_u32; width * height];
+        let map_x = 80;
+        let map_y = 96;
+        let cell_w = 28;
+        let cell_h = 14;
+        let range_color = classic_darken(CLASSIC_RTS_ABILITY_TELEGRAPH_RANGE_COLOR, 1, 5);
+        let glint_color = classic_lighten(CLASSIC_RTS_ENVIRONMENT_RESOURCE_GLINT_COLOR, 1, 5);
+
+        classic_draw_first_contact_animation_frame_richness_detail(
+            &mut buffer,
+            width,
+            height,
+            map_x,
+            map_y,
+            cell_w,
+            cell_h,
+            (16, 9),
+            "beacon",
+            true,
+        );
+
+        let range_components = exact_color_components(&buffer, width, height, range_color);
+        let range_pixel_count = range_components
+            .iter()
+            .map(|(pixels, _, _)| pixels)
+            .sum::<usize>();
+        let glint_components = exact_color_components(&buffer, width, height, glint_color);
+        let glint_pixel_count = glint_components
+            .iter()
+            .map(|(pixels, _, _)| pixels)
+            .sum::<usize>();
+
+        assert_eq!(
+            range_components.len(),
+            CLASSIC_FIRST_CONTACT_PLAYER_BEACON_ANIMATION_RANGE_TICK_COUNT,
+            "{range_components:?}"
+        );
+        assert_eq!(
+            range_pixel_count,
+            2 * CLASSIC_FIRST_CONTACT_PLAYER_BEACON_ANIMATION_RANGE_TICK_W_PX as usize
+                * CLASSIC_FIRST_CONTACT_PLAYER_BEACON_ANIMATION_RANGE_TICK_H_PX as usize
+                + 2 * 2 * 6,
+            "{range_pixel_count} {range_components:?}"
+        );
+        assert!(
+            range_components.iter().all(|(_, w, h)| {
+                (*w <= CLASSIC_FIRST_CONTACT_PLAYER_BEACON_ANIMATION_RANGE_TICK_W_PX as usize
+                    && *h <= CLASSIC_FIRST_CONTACT_PLAYER_BEACON_ANIMATION_RANGE_TICK_H_PX as usize)
+                    || (*w
+                        <= CLASSIC_FIRST_CONTACT_PLAYER_BEACON_ANIMATION_RANGE_TICK_H_PX as usize
+                        && *h <= 6)
+            }),
+            "{range_components:?}"
+        );
+        assert_eq!(
+            glint_components.len(),
+            CLASSIC_FIRST_CONTACT_PLAYER_BEACON_ANIMATION_GLINT_TICK_COUNT,
+            "{glint_components:?}"
+        );
+        assert_eq!(
+            glint_pixel_count,
+            CLASSIC_FIRST_CONTACT_PLAYER_BEACON_ANIMATION_GLINT_TICK_COUNT
+                * CLASSIC_FIRST_CONTACT_PLAYER_BEACON_ANIMATION_GLINT_TICK_W_PX as usize
+                * CLASSIC_FIRST_CONTACT_PLAYER_BEACON_ANIMATION_GLINT_TICK_H_PX as usize,
+            "{glint_pixel_count} {glint_components:?}"
+        );
+        assert!(
+            glint_components.iter().all(|(_, w, h)| {
+                *w <= CLASSIC_FIRST_CONTACT_PLAYER_BEACON_ANIMATION_GLINT_TICK_W_PX as usize
+                    && *h <= CLASSIC_FIRST_CONTACT_PLAYER_BEACON_ANIMATION_GLINT_TICK_H_PX as usize
+            }),
+            "{glint_components:?}"
+        );
     }
 
     #[cfg(not(target_os = "android"))]

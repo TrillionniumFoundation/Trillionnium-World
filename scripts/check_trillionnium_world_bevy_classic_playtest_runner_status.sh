@@ -441,6 +441,13 @@ exact_main_map_objective_component_sample = exact_color_component_summary(
     8,
     [32, 72, min(940, width), min(535, height)],
 )
+exact_beacon_animation_range_component_sample = exact_color_component_summary(
+    "beacon_animation_range_exact_green",
+    (112, 204, 114),
+    8,
+    6,
+    [32, 72, min(940, width), min(535, height)],
+)
 exact_owner_player_component_sample = exact_color_component_summary(
     "owner_identity_exact_player_muted",
     (69, 121, 83),
@@ -467,6 +474,7 @@ exact_color_component_samples = [
     exact_harvest_swing_component_sample,
     exact_beacon_capture_component_sample,
     exact_main_map_objective_component_sample,
+    exact_beacon_animation_range_component_sample,
     exact_owner_player_component_sample,
     exact_owner_enemy_component_sample,
     exact_unit_identity_component_sample,
@@ -507,6 +515,7 @@ gates = {
     "exact_harvest_swing_micro_component_gate": exact_harvest_swing_component_sample["passes"],
     "exact_beacon_capture_micro_component_gate": exact_beacon_capture_component_sample["passes"],
     "exact_main_map_objective_micro_component_gate": exact_main_map_objective_component_sample["passes"],
+    "exact_beacon_animation_range_micro_component_gate": exact_beacon_animation_range_component_sample["passes"],
     "exact_owner_identity_micro_component_gate": (
         exact_owner_player_component_sample["passes"]
         and exact_owner_enemy_component_sample["passes"]
