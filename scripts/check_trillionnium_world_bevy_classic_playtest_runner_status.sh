@@ -448,6 +448,20 @@ exact_beacon_animation_range_component_sample = exact_color_component_summary(
     6,
     [32, 72, min(940, width), min(535, height)],
 )
+exact_unit_status_health_component_sample = exact_color_component_summary(
+    "unit_status_health_exact_green",
+    (125, 255, 138),
+    4,
+    2,
+    [180, 330, min(780, width), min(455, height)],
+)
+exact_unit_status_role_badge_component_sample = exact_color_component_summary(
+    "unit_status_role_badge_exact_purple",
+    (196, 162, 255),
+    4,
+    2,
+    [180, 330, min(780, width), min(455, height)],
+)
 exact_owner_player_component_sample = exact_color_component_summary(
     "owner_identity_exact_player_muted",
     (69, 121, 83),
@@ -475,6 +489,8 @@ exact_color_component_samples = [
     exact_beacon_capture_component_sample,
     exact_main_map_objective_component_sample,
     exact_beacon_animation_range_component_sample,
+    exact_unit_status_health_component_sample,
+    exact_unit_status_role_badge_component_sample,
     exact_owner_player_component_sample,
     exact_owner_enemy_component_sample,
     exact_unit_identity_component_sample,
@@ -516,6 +532,8 @@ gates = {
     "exact_beacon_capture_micro_component_gate": exact_beacon_capture_component_sample["passes"],
     "exact_main_map_objective_micro_component_gate": exact_main_map_objective_component_sample["passes"],
     "exact_beacon_animation_range_micro_component_gate": exact_beacon_animation_range_component_sample["passes"],
+    "exact_unit_status_health_micro_component_gate": exact_unit_status_health_component_sample["passes"],
+    "exact_unit_status_role_badge_micro_component_gate": exact_unit_status_role_badge_component_sample["passes"],
     "exact_owner_identity_micro_component_gate": (
         exact_owner_player_component_sample["passes"]
         and exact_owner_enemy_component_sample["passes"]

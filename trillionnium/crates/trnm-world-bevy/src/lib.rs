@@ -929,6 +929,13 @@ const CLASSIC_FIRST_CONTACT_PLAYER_INLINE_HEALTH_PIP_COUNT: usize = 4;
 const CLASSIC_FIRST_CONTACT_PLAYER_INLINE_HEALTH_PIP_W_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_PLAYER_INLINE_HEALTH_PIP_H_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_PLAYER_INLINE_HEALTH_PIP_GAP_PX: i32 = 1;
+const CLASSIC_FIRST_CONTACT_PLAYER_UNIT_STATUS_PIP_COUNT: usize = 4;
+const CLASSIC_FIRST_CONTACT_PLAYER_UNIT_STATUS_PIP_W_PX: i32 = 2;
+const CLASSIC_FIRST_CONTACT_PLAYER_UNIT_STATUS_PIP_H_PX: i32 = 2;
+const CLASSIC_FIRST_CONTACT_PLAYER_UNIT_STATUS_PIP_GAP_PX: i32 = 2;
+const CLASSIC_FIRST_CONTACT_PLAYER_UNIT_STATUS_ROLE_TICK_COUNT: usize = 2;
+const CLASSIC_FIRST_CONTACT_PLAYER_UNIT_STATUS_ROLE_TICK_W_PX: i32 = 4;
+const CLASSIC_FIRST_CONTACT_PLAYER_UNIT_STATUS_ROLE_TICK_H_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_PLAYER_RELAY_IDENTITY_RAIL_COUNT: usize = 6;
 const CLASSIC_FIRST_CONTACT_PLAYER_RELAY_IDENTITY_RAIL_W_PX: i32 = 16;
 const CLASSIC_FIRST_CONTACT_PLAYER_RELAY_IDENTITY_RAIL_H_PX: i32 = 2;
@@ -93426,6 +93433,58 @@ fn classic_draw_first_contact_unit_state_layers(
         );
         let bar_y = tile_y - cell_h - 13;
         let role_color = classic_first_contact_visual_telemetry_color(status.role_color);
+        if player_screen {
+            let health_pips = ((usize::from(status.health_percent.min(100))
+                * CLASSIC_FIRST_CONTACT_PLAYER_UNIT_STATUS_PIP_COUNT
+                + 99)
+                / 100)
+                .clamp(1, CLASSIC_FIRST_CONTACT_PLAYER_UNIT_STATUS_PIP_COUNT);
+            let shield_pips = ((usize::from(status.shield_percent.min(100))
+                * CLASSIC_FIRST_CONTACT_PLAYER_UNIT_STATUS_PIP_COUNT
+                + 99)
+                / 100)
+                .clamp(1, CLASSIC_FIRST_CONTACT_PLAYER_UNIT_STATUS_PIP_COUNT);
+            let pip_step = CLASSIC_FIRST_CONTACT_PLAYER_UNIT_STATUS_PIP_W_PX
+                + CLASSIC_FIRST_CONTACT_PLAYER_UNIT_STATUS_PIP_GAP_PX;
+            let pip_x = tile_x - cell_w / 2;
+            for pip in 0..health_pips {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    pip_x + pip as i32 * pip_step,
+                    bar_y,
+                    CLASSIC_FIRST_CONTACT_PLAYER_UNIT_STATUS_PIP_W_PX,
+                    CLASSIC_FIRST_CONTACT_PLAYER_UNIT_STATUS_PIP_H_PX,
+                    CLASSIC_RTS_STATUS_HEALTH_BAR_COLOR,
+                );
+            }
+            for pip in 0..shield_pips {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    pip_x + pip as i32 * pip_step,
+                    bar_y + 4,
+                    CLASSIC_FIRST_CONTACT_PLAYER_UNIT_STATUS_PIP_W_PX,
+                    CLASSIC_FIRST_CONTACT_PLAYER_UNIT_STATUS_PIP_H_PX,
+                    CLASSIC_RTS_STATUS_MANA_BAR_COLOR,
+                );
+            }
+            for tick in 0..CLASSIC_FIRST_CONTACT_PLAYER_UNIT_STATUS_ROLE_TICK_COUNT {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    tile_x + cell_w + 3,
+                    bar_y + tick as i32 * 4,
+                    CLASSIC_FIRST_CONTACT_PLAYER_UNIT_STATUS_ROLE_TICK_W_PX,
+                    CLASSIC_FIRST_CONTACT_PLAYER_UNIT_STATUS_ROLE_TICK_H_PX,
+                    role_color,
+                );
+            }
+            continue;
+        }
         classic_draw_rect(
             buffer,
             width,
@@ -95297,6 +95356,22 @@ fn classic_draw_first_contact_model_identity_layers(
                     role_color,
                 );
             }
+        } else if player_screen {
+            for tick_x in [
+                cx - cell_w / 2,
+                cx + cell_w / 2 - CLASSIC_FIRST_CONTACT_PLAYER_UNIT_STATUS_ROLE_TICK_W_PX,
+            ] {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    tick_x,
+                    cy - cell_h / 2 + 3,
+                    CLASSIC_FIRST_CONTACT_PLAYER_UNIT_STATUS_ROLE_TICK_W_PX,
+                    CLASSIC_FIRST_CONTACT_PLAYER_UNIT_STATUS_ROLE_TICK_H_PX,
+                    role_color,
+                );
+            }
         } else {
             classic_draw_rect(
                 buffer,
@@ -95329,6 +95404,19 @@ fn classic_draw_first_contact_model_identity_layers(
                     foot_y,
                     CLASSIC_FIRST_CONTACT_PLAYER_UNIT_IDENTITY_MARK_W_PX,
                     CLASSIC_FIRST_CONTACT_PLAYER_UNIT_IDENTITY_MARK_H_PX,
+                    role_color,
+                );
+            }
+        } else if player_screen {
+            for foot_y in [cy + cell_h + 3, cy + cell_h + 7] {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    cx - CLASSIC_FIRST_CONTACT_PLAYER_UNIT_STATUS_ROLE_TICK_W_PX / 2,
+                    foot_y,
+                    CLASSIC_FIRST_CONTACT_PLAYER_UNIT_STATUS_ROLE_TICK_W_PX,
+                    CLASSIC_FIRST_CONTACT_PLAYER_UNIT_STATUS_ROLE_TICK_H_PX,
                     role_color,
                 );
             }
@@ -153855,6 +153943,130 @@ mod tests {
 
     #[cfg(not(target_os = "android"))]
     #[test]
+    fn classic_first_contact_player_unit_status_overlays_draw_micro_pips() {
+        let width = 900;
+        let height = 620;
+        let mut buffer = vec![0_u32; width * height];
+        let map_x = 80;
+        let map_y = 96;
+        let cell_w = 28;
+        let cell_h = 14;
+        let telemetry = classic_first_contact_visual_telemetry();
+        let expected_health_pips = telemetry
+            .unit_statuses
+            .iter()
+            .map(|status| {
+                ((usize::from(status.health_percent.min(100))
+                    * CLASSIC_FIRST_CONTACT_PLAYER_UNIT_STATUS_PIP_COUNT
+                    + 99)
+                    / 100)
+                    .clamp(1, CLASSIC_FIRST_CONTACT_PLAYER_UNIT_STATUS_PIP_COUNT)
+            })
+            .sum::<usize>();
+        let expected_shield_pips = telemetry
+            .unit_statuses
+            .iter()
+            .map(|status| {
+                ((usize::from(status.shield_percent.min(100))
+                    * CLASSIC_FIRST_CONTACT_PLAYER_UNIT_STATUS_PIP_COUNT
+                    + 99)
+                    / 100)
+                    .clamp(1, CLASSIC_FIRST_CONTACT_PLAYER_UNIT_STATUS_PIP_COUNT)
+            })
+            .sum::<usize>();
+        let health_role_tick_count = telemetry
+            .unit_statuses
+            .iter()
+            .filter(|status| {
+                classic_first_contact_visual_telemetry_color(status.role_color)
+                    == CLASSIC_RTS_STATUS_HEALTH_BAR_COLOR
+            })
+            .count()
+            * CLASSIC_FIRST_CONTACT_PLAYER_UNIT_STATUS_ROLE_TICK_COUNT;
+        let mana_role_tick_count = telemetry
+            .unit_statuses
+            .iter()
+            .filter(|status| {
+                classic_first_contact_visual_telemetry_color(status.role_color)
+                    == CLASSIC_RTS_STATUS_MANA_BAR_COLOR
+            })
+            .count()
+            * CLASSIC_FIRST_CONTACT_PLAYER_UNIT_STATUS_ROLE_TICK_COUNT;
+
+        classic_draw_first_contact_unit_state_layers(
+            &mut buffer,
+            width,
+            height,
+            map_x,
+            map_y,
+            cell_w,
+            cell_h,
+            true,
+        );
+
+        let health_components =
+            exact_color_components(&buffer, width, height, CLASSIC_RTS_STATUS_HEALTH_BAR_COLOR);
+        let health_pixel_count = health_components
+            .iter()
+            .map(|(pixels, _, _)| pixels)
+            .sum::<usize>();
+        let mana_components =
+            exact_color_components(&buffer, width, height, CLASSIC_RTS_STATUS_MANA_BAR_COLOR);
+        let mana_pixel_count = mana_components
+            .iter()
+            .map(|(pixels, _, _)| pixels)
+            .sum::<usize>();
+        let role_badge_components =
+            exact_color_components(&buffer, width, height, CLASSIC_RTS_STATUS_ROLE_BADGE_COLOR);
+
+        let expected_health_pip_pixels = expected_health_pips
+            * CLASSIC_FIRST_CONTACT_PLAYER_UNIT_STATUS_PIP_W_PX as usize
+            * CLASSIC_FIRST_CONTACT_PLAYER_UNIT_STATUS_PIP_H_PX as usize;
+        let max_health_role_pixels = health_role_tick_count
+            * CLASSIC_FIRST_CONTACT_PLAYER_UNIT_STATUS_ROLE_TICK_W_PX as usize
+            * CLASSIC_FIRST_CONTACT_PLAYER_UNIT_STATUS_ROLE_TICK_H_PX as usize;
+        assert!(
+            (expected_health_pip_pixels..=expected_health_pip_pixels + max_health_role_pixels)
+                .contains(&health_pixel_count),
+            "{health_pixel_count} {health_components:?}"
+        );
+        assert!(
+            health_components.iter().all(|(_, w, h)| {
+                (*w <= CLASSIC_FIRST_CONTACT_PLAYER_UNIT_STATUS_PIP_W_PX as usize
+                    && *h <= CLASSIC_FIRST_CONTACT_PLAYER_UNIT_STATUS_PIP_H_PX as usize)
+                    || (*w <= CLASSIC_FIRST_CONTACT_PLAYER_UNIT_STATUS_ROLE_TICK_W_PX as usize
+                        && *h <= CLASSIC_FIRST_CONTACT_PLAYER_UNIT_STATUS_ROLE_TICK_H_PX as usize)
+            }),
+            "{health_components:?}"
+        );
+        let expected_shield_pip_pixels = expected_shield_pips
+            * CLASSIC_FIRST_CONTACT_PLAYER_UNIT_STATUS_PIP_W_PX as usize
+            * CLASSIC_FIRST_CONTACT_PLAYER_UNIT_STATUS_PIP_H_PX as usize;
+        let max_mana_role_pixels = mana_role_tick_count
+            * CLASSIC_FIRST_CONTACT_PLAYER_UNIT_STATUS_ROLE_TICK_W_PX as usize
+            * CLASSIC_FIRST_CONTACT_PLAYER_UNIT_STATUS_ROLE_TICK_H_PX as usize;
+        assert!(
+            (expected_shield_pip_pixels..=expected_shield_pip_pixels + max_mana_role_pixels)
+                .contains(&mana_pixel_count),
+            "{mana_pixel_count} {mana_components:?}"
+        );
+        assert!(
+            mana_components.iter().all(|(_, w, h)| {
+                (*w <= CLASSIC_FIRST_CONTACT_PLAYER_UNIT_STATUS_PIP_W_PX as usize
+                    && *h <= CLASSIC_FIRST_CONTACT_PLAYER_UNIT_STATUS_PIP_H_PX as usize)
+                    || (*w <= CLASSIC_FIRST_CONTACT_PLAYER_UNIT_STATUS_ROLE_TICK_W_PX as usize
+                        && *h <= CLASSIC_FIRST_CONTACT_PLAYER_UNIT_STATUS_ROLE_TICK_H_PX as usize)
+            }),
+            "{mana_components:?}"
+        );
+        assert!(
+            role_badge_components.is_empty(),
+            "{role_badge_components:?}"
+        );
+    }
+
+    #[cfg(not(target_os = "android"))]
+    #[test]
     fn classic_first_contact_non_focus_owner_identity_colors_stay_muted() {
         let owner_colors = classic_first_contact_non_focus_owner_identity_colors();
 
@@ -154004,6 +154216,48 @@ mod tests {
             components.iter().all(|(_, w, h)| {
                 *w <= CLASSIC_FIRST_CONTACT_PLAYER_UNIT_IDENTITY_MARK_W_PX as usize
                     && *h <= CLASSIC_FIRST_CONTACT_PLAYER_UNIT_IDENTITY_MARK_H_PX as usize
+            }),
+            "{components:?}"
+        );
+    }
+
+    #[cfg(not(target_os = "android"))]
+    #[test]
+    fn classic_first_contact_player_unit_role_status_draws_micro_ticks() {
+        let width = 900;
+        let height = 620;
+        let mut buffer = vec![0_u32; width * height];
+        let map_x = 80;
+        let map_y = 96;
+        let cell_w = 28;
+        let cell_h = 14;
+        let target_tile = (16, 9);
+
+        classic_draw_first_contact_model_identity_layers(
+            &mut buffer,
+            width,
+            height,
+            map_x,
+            map_y,
+            cell_w,
+            cell_h,
+            true,
+            target_tile,
+        );
+
+        let components =
+            exact_color_components(&buffer, width, height, CLASSIC_RTS_STATUS_ROLE_BADGE_COLOR);
+        let pixel_count = components
+            .iter()
+            .map(|(pixels, _, _)| pixels)
+            .sum::<usize>();
+
+        assert!(pixel_count >= 48, "{pixel_count} {components:?}");
+        assert!(pixel_count <= 96, "{pixel_count} {components:?}");
+        assert!(
+            components.iter().all(|(_, w, h)| {
+                *w <= CLASSIC_FIRST_CONTACT_PLAYER_UNIT_STATUS_ROLE_TICK_W_PX as usize
+                    && *h <= CLASSIC_FIRST_CONTACT_PLAYER_UNIT_STATUS_ROLE_TICK_H_PX as usize
             }),
             "{components:?}"
         );
