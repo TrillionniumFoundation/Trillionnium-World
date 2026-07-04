@@ -57,6 +57,8 @@ required_lines=(
   'exact_harvest_swing_micro_component_gate'
   'active_beacon_capture_exact_yellow'
   'exact_beacon_capture_micro_component_gate'
+  'main_map_objective_exact_green'
+  'exact_main_map_objective_micro_component_gate'
   'owner_identity_exact_player_muted'
   'owner_identity_exact_enemy_muted'
   'exact_owner_identity_micro_component_gate'

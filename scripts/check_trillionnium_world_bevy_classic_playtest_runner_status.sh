@@ -299,11 +299,19 @@ def edge_safety_sample(name, box, max_high_contrast_pixels, max_foreground_pixel
         ),
     }
 
-def exact_color_component_summary(name, rgb, max_component_width, max_component_height):
+def exact_color_component_summary(name, rgb, max_component_width, max_component_height, box=None):
     pixels = image.load()
     pending = set()
-    for sample_y in range(height):
-        for sample_x in range(width):
+    if box is None:
+        scan_x0, scan_y0, scan_x1, scan_y1 = 0, 0, width, height
+    else:
+        scan_x0, scan_y0, scan_x1, scan_y1 = box
+        scan_x0 = max(0, min(width - 1, scan_x0))
+        scan_y0 = max(0, min(height - 1, scan_y0))
+        scan_x1 = max(scan_x0 + 1, min(width, scan_x1))
+        scan_y1 = max(scan_y0 + 1, min(height, scan_y1))
+    for sample_y in range(scan_y0, scan_y1):
+        for sample_x in range(scan_x0, scan_x1):
             if pixels[sample_x, sample_y] == rgb:
                 pending.add((sample_x, sample_y))
 
@@ -323,16 +331,16 @@ def exact_color_component_summary(name, rgb, max_component_width, max_component_
                 if (nx, ny) in pending:
                     pending.remove((nx, ny))
                     stack.append((nx, ny))
-        x0 = min(xs)
-        y0 = min(ys)
-        x1 = max(xs)
-        y1 = max(ys)
+        component_x0 = min(xs)
+        component_y0 = min(ys)
+        component_x1 = max(xs)
+        component_y1 = max(ys)
         components.append(
             {
                 "pixels": count,
-                "width": x1 - x0 + 1,
-                "height": y1 - y0 + 1,
-                "bounds": [x0, y0, x1, y1],
+                "width": component_x1 - component_x0 + 1,
+                "height": component_y1 - component_y0 + 1,
+                "bounds": [component_x0, component_y0, component_x1, component_y1],
             }
         )
 
@@ -345,6 +353,7 @@ def exact_color_component_summary(name, rgb, max_component_width, max_component_
     return {
         "id": name,
         "rgb": list(rgb),
+        "region": [scan_x0, scan_y0, scan_x1, scan_y1],
         "pixel_count": sum(item["pixels"] for item in components),
         "component_count": len(components),
         "max_component_width": max([item["width"] for item in components] or [0]),
@@ -425,6 +434,13 @@ exact_beacon_capture_component_sample = exact_color_component_summary(
     14,
     2,
 )
+exact_main_map_objective_component_sample = exact_color_component_summary(
+    "main_map_objective_exact_green",
+    (136, 240, 112),
+    16,
+    8,
+    [32, 72, min(940, width), min(535, height)],
+)
 exact_owner_player_component_sample = exact_color_component_summary(
     "owner_identity_exact_player_muted",
     (69, 121, 83),
@@ -450,6 +466,7 @@ exact_color_component_samples = [
     exact_scaffold_component_sample,
     exact_harvest_swing_component_sample,
     exact_beacon_capture_component_sample,
+    exact_main_map_objective_component_sample,
     exact_owner_player_component_sample,
     exact_owner_enemy_component_sample,
     exact_unit_identity_component_sample,
@@ -489,6 +506,7 @@ gates = {
     "exact_scaffold_thin_component_gate": exact_scaffold_component_sample["passes"],
     "exact_harvest_swing_micro_component_gate": exact_harvest_swing_component_sample["passes"],
     "exact_beacon_capture_micro_component_gate": exact_beacon_capture_component_sample["passes"],
+    "exact_main_map_objective_micro_component_gate": exact_main_map_objective_component_sample["passes"],
     "exact_owner_identity_micro_component_gate": (
         exact_owner_player_component_sample["passes"]
         and exact_owner_enemy_component_sample["passes"]

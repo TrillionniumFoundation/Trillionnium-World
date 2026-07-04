@@ -347,6 +347,8 @@ fn draw_terrain_marker(
     tile: (i32, i32),
     kind: &str,
     signature: &str,
+    player_screen: bool,
+    target_tile: (i32, i32),
 ) {
     let (tile_x, tile_y) = classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, tile);
     let cx = tile_x + cell_w / 2;
@@ -392,6 +394,20 @@ fn draw_terrain_marker(
             }
         }
         "beacon_lane_rim" => {
+            if player_screen && tile != target_tile {
+                let quiet =
+                    first_contact_renderer_readability::lower_secondary_beacon_art_color(color);
+                let edge = classic_darken(quiet, 1, 4);
+                for (x, y, w, h, cue_color) in [
+                    (cx - cell_w / 2, cy - cell_h / 2, 8, 2, quiet),
+                    (cx + cell_w / 2 - 8, cy + cell_h / 2 - 2, 8, 2, quiet),
+                    (cx - 1, cy - cell_h / 2 + 2, 2, 6, edge),
+                    (cx - 1, cy + cell_h / 2 - 8, 2, 6, edge),
+                ] {
+                    classic_draw_rect(buffer, width, height, x, y, w, h, cue_color);
+                }
+                return;
+            }
             classic_draw_rect(
                 buffer,
                 width,
@@ -453,7 +469,18 @@ pub(super) fn draw_readability_layer(
 ) {
     for (tile, kind, signature) in terrain_samples() {
         draw_terrain_marker(
-            buffer, width, height, map_x, map_y, cell_w, cell_h, tile, kind, signature,
+            buffer,
+            width,
+            height,
+            map_x,
+            map_y,
+            cell_w,
+            cell_h,
+            tile,
+            kind,
+            signature,
+            player_screen,
+            target_tile,
         );
     }
     for (tile, kind, signature) in structure_samples() {

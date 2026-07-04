@@ -943,6 +943,8 @@ const CLASSIC_FIRST_CONTACT_PLAYER_SECONDARY_BEACON_MARKER_CUE_H_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_PLAYER_ACTIVE_BEACON_CAPTURE_TICK_COUNT: usize = 4;
 const CLASSIC_FIRST_CONTACT_PLAYER_ACTIVE_BEACON_CAPTURE_TICK_W_PX: i32 = 10;
 const CLASSIC_FIRST_CONTACT_PLAYER_ACTIVE_BEACON_CAPTURE_TICK_H_PX: i32 = 2;
+const CLASSIC_FIRST_CONTACT_PLAYER_PRIMARY_TACTICAL_TRACK_TICK_W_PX: i32 = 6;
+const CLASSIC_FIRST_CONTACT_PLAYER_PRIMARY_TACTICAL_TRACK_TICK_H_PX: i32 = 2;
 const CLASSIC_RTS_TACTICAL_VIEWPORT_FRAME_COLOR: u32 = 0xbfd7c8;
 const CLASSIC_RTS_TACTICAL_VIEWPORT_TILE_COLOR: u32 = 0x35513d;
 const CLASSIC_RTS_TACTICAL_VIEWPORT_SHADOW_COLOR: u32 = 0x101916;
@@ -84805,7 +84807,13 @@ fn classic_first_contact_tactical_track_render_color(track: &RtsTacticalTrackPro
 }
 
 #[cfg(not(target_os = "android"))]
-fn classic_first_contact_tactical_track_render_height(track: &RtsTacticalTrackProfile) -> i32 {
+fn classic_first_contact_tactical_track_render_height(
+    track: &RtsTacticalTrackProfile,
+    player_screen: bool,
+) -> i32 {
+    if player_screen && classic_first_contact_primary_tactical_track(track) {
+        return CLASSIC_FIRST_CONTACT_PLAYER_PRIMARY_TACTICAL_TRACK_TICK_H_PX;
+    }
     if classic_first_contact_primary_tactical_track(track) {
         3
     } else {
@@ -84817,7 +84825,11 @@ fn classic_first_contact_tactical_track_render_height(track: &RtsTacticalTrackPr
 fn classic_first_contact_tactical_track_render_width(
     cell_w: i32,
     track: &RtsTacticalTrackProfile,
+    player_screen: bool,
 ) -> i32 {
+    if player_screen && classic_first_contact_primary_tactical_track(track) {
+        return CLASSIC_FIRST_CONTACT_PLAYER_PRIMARY_TACTICAL_TRACK_TICK_W_PX;
+    }
     if classic_first_contact_primary_tactical_track(track) {
         (cell_w / 2).max(5)
     } else {
@@ -84830,7 +84842,14 @@ fn classic_first_contact_tactical_track_render_offset(
     cell_w: i32,
     cell_h: i32,
     track: &RtsTacticalTrackProfile,
+    player_screen: bool,
 ) -> (i32, i32) {
+    if player_screen && classic_first_contact_primary_tactical_track(track) {
+        return (
+            cell_w / 2 - CLASSIC_FIRST_CONTACT_PLAYER_PRIMARY_TACTICAL_TRACK_TICK_W_PX / 2,
+            cell_h / 2,
+        );
+    }
     if classic_first_contact_primary_tactical_track(track) {
         (cell_w / 4, cell_h / 2)
     } else {
@@ -97295,10 +97314,15 @@ fn classic_draw_first_contact_basin_scene(
         let from = classic_first_contact_tile_tuple(track.from_tile);
         let to = classic_first_contact_tile_tuple(track.to_tile);
         let color = classic_first_contact_tactical_track_render_color(track);
-        let (track_x, track_y) =
-            classic_first_contact_tactical_track_render_offset(cell_w, cell_h, &track);
-        let track_w = classic_first_contact_tactical_track_render_width(cell_w, &track);
-        let track_h = classic_first_contact_tactical_track_render_height(&track);
+        let (track_x, track_y) = classic_first_contact_tactical_track_render_offset(
+            cell_w,
+            cell_h,
+            &track,
+            player_screen,
+        );
+        let track_w =
+            classic_first_contact_tactical_track_render_width(cell_w, &track, player_screen);
+        let track_h = classic_first_contact_tactical_track_render_height(&track, player_screen);
         for step in rts_bevy_runtime::rts_runtime_tile_line(from, to) {
             let (tile_x, tile_y) = classic_first_contact_tile_screen(
                 map_x,
@@ -154059,6 +154083,117 @@ mod tests {
         }
 
         assert!(checked_beacons > 0);
+    }
+
+    #[cfg(not(target_os = "android"))]
+    #[test]
+    fn classic_first_contact_player_primary_tactical_track_draws_micro_ticks() {
+        let width = 900;
+        let height = 620;
+        let mut buffer = vec![0_u32; width * height];
+        let map_x = 80;
+        let map_y = 96;
+        let cell_w = 28;
+        let cell_h = 14;
+        let visual_telemetry = classic_first_contact_visual_telemetry();
+        let tracks = classic_first_contact_player_visible_tactical_tracks(&visual_telemetry, true);
+        let mut checked_tracks = 0_usize;
+
+        for track in tracks {
+            checked_tracks += 1;
+            let from = classic_first_contact_tile_tuple(track.from_tile);
+            let to = classic_first_contact_tile_tuple(track.to_tile);
+            let color = classic_first_contact_tactical_track_render_color(track);
+            let (track_x, track_y) =
+                classic_first_contact_tactical_track_render_offset(cell_w, cell_h, track, true);
+            let track_w = classic_first_contact_tactical_track_render_width(cell_w, track, true);
+            let track_h = classic_first_contact_tactical_track_render_height(track, true);
+
+            for step in rts_bevy_runtime::rts_runtime_tile_line(from, to) {
+                let (tile_x, tile_y) = classic_first_contact_tile_screen(
+                    map_x,
+                    map_y,
+                    cell_w,
+                    cell_h,
+                    (step.tile_x, step.tile_y),
+                );
+                classic_draw_rect(
+                    &mut buffer,
+                    width,
+                    height,
+                    tile_x + track_x,
+                    tile_y + track_y,
+                    track_w,
+                    track_h,
+                    color,
+                );
+            }
+        }
+
+        let components =
+            exact_color_components(&buffer, width, height, CLASSIC_RTS_OBJECTIVE_COLOR);
+        let pixel_count = components
+            .iter()
+            .map(|(pixels, _, _)| pixels)
+            .sum::<usize>();
+
+        assert_eq!(checked_tracks, 1);
+        assert!(pixel_count <= 96, "{pixel_count} {components:?}");
+        assert!(
+            components.iter().all(|(_, w, h)| {
+                *w <= CLASSIC_FIRST_CONTACT_PLAYER_PRIMARY_TACTICAL_TRACK_TICK_W_PX as usize
+                    && *h <= CLASSIC_FIRST_CONTACT_PLAYER_PRIMARY_TACTICAL_TRACK_TICK_H_PX as usize
+            }),
+            "{components:?}"
+        );
+    }
+
+    #[cfg(not(target_os = "android"))]
+    #[test]
+    fn classic_first_contact_player_secondary_beacon_lane_rim_stays_muted() {
+        let width = 900;
+        let height = 620;
+        let mut buffer = vec![0_u32; width * height];
+        let map_x = 80;
+        let map_y = 96;
+        let cell_w = 28;
+        let cell_h = 14;
+        let target_tile = (16, 9);
+        let secondary_tile = (16, 24);
+        let (tile_x, tile_y) =
+            classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, secondary_tile);
+        let quiet_objective = first_contact_renderer_readability::lower_secondary_beacon_art_color(
+            CLASSIC_RTS_OBJECTIVE_COLOR,
+        );
+        let mut exact_objective_pixels = 0_usize;
+        let mut muted_objective_pixels = 0_usize;
+
+        classic_draw_first_contact_silhouette_readability_layer(
+            &mut buffer,
+            width,
+            height,
+            map_x,
+            map_y,
+            cell_w,
+            cell_h,
+            true,
+            target_tile,
+        );
+
+        for y in (tile_y - cell_h * 2).max(0)..(tile_y + cell_h * 3).min(height as i32) {
+            for x in (tile_x - cell_w).max(0)..(tile_x + cell_w * 2).min(width as i32) {
+                let pixel = buffer[y as usize * width + x as usize];
+                if pixel == CLASSIC_RTS_OBJECTIVE_COLOR {
+                    exact_objective_pixels += 1;
+                }
+                if pixel == quiet_objective {
+                    muted_objective_pixels += 1;
+                }
+            }
+        }
+
+        assert_eq!(exact_objective_pixels, 0);
+        assert!(muted_objective_pixels >= 24, "{muted_objective_pixels}");
     }
 
     #[cfg(not(target_os = "android"))]
