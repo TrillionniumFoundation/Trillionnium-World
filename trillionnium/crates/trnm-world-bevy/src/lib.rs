@@ -944,10 +944,10 @@ const CLASSIC_FIRST_CONTACT_PLAYER_DENSITY_CUE_W_PX: i32 = 8;
 const CLASSIC_FIRST_CONTACT_PLAYER_DENSITY_CUE_H_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_PLAYER_DENSITY_VERTICAL_CUE_W_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_PLAYER_DENSITY_VERTICAL_CUE_H_PX: i32 = 6;
-const CLASSIC_FIRST_CONTACT_PLAYER_DEPTH_EDGE_CUE_W_PX: i32 = 6;
-const CLASSIC_FIRST_CONTACT_PLAYER_DEPTH_EDGE_CUE_H_PX: i32 = 2;
-const CLASSIC_FIRST_CONTACT_PLAYER_DEPTH_EDGE_VERTICAL_CUE_W_PX: i32 = 2;
-const CLASSIC_FIRST_CONTACT_PLAYER_DEPTH_EDGE_VERTICAL_CUE_H_PX: i32 = 4;
+const CLASSIC_FIRST_CONTACT_PLAYER_DEPTH_EDGE_CUE_W_PX: i32 = 4;
+const CLASSIC_FIRST_CONTACT_PLAYER_DEPTH_EDGE_CUE_H_PX: i32 = 1;
+const CLASSIC_FIRST_CONTACT_PLAYER_DEPTH_EDGE_VERTICAL_CUE_W_PX: i32 = 1;
+const CLASSIC_FIRST_CONTACT_PLAYER_DEPTH_EDGE_VERTICAL_CUE_H_PX: i32 = 3;
 const CLASSIC_FIRST_CONTACT_PLAYER_RELAY_IDENTITY_RAIL_COUNT: usize = 6;
 const CLASSIC_FIRST_CONTACT_PLAYER_RELAY_IDENTITY_RAIL_W_PX: i32 = 16;
 const CLASSIC_FIRST_CONTACT_PLAYER_RELAY_IDENTITY_RAIL_H_PX: i32 = 2;
@@ -93231,20 +93231,19 @@ fn classic_draw_first_contact_player_depth_edge_micro_cues(
     vertical_edge: bool,
     color: u32,
 ) {
+    let stagger = ((tile_x / cell_w) + (tile_y / cell_h)).rem_euclid(3);
     if vertical_edge {
         let cue_w = CLASSIC_FIRST_CONTACT_PLAYER_DEPTH_EDGE_VERTICAL_CUE_W_PX;
         let cue_h = CLASSIC_FIRST_CONTACT_PLAYER_DEPTH_EDGE_VERTICAL_CUE_H_PX;
-        let cue_x = tile_x + cell_w - cue_w - 1;
-        for cue_y in [tile_y + 2, tile_y + cell_h - cue_h - 2] {
-            classic_draw_rect(buffer, width, height, cue_x, cue_y, cue_w, cue_h, color);
-        }
+        let cue_x = tile_x + cell_w - cue_w - 1 - stagger;
+        let cue_y = tile_y + cell_h / 2 - cue_h / 2 + stagger - 1;
+        classic_draw_rect(buffer, width, height, cue_x, cue_y, cue_w, cue_h, color);
     } else {
         let cue_w = CLASSIC_FIRST_CONTACT_PLAYER_DEPTH_EDGE_CUE_W_PX;
         let cue_h = CLASSIC_FIRST_CONTACT_PLAYER_DEPTH_EDGE_CUE_H_PX;
-        let cue_y = tile_y + cell_h - cue_h - 1;
-        for cue_x in [tile_x + 2, tile_x + cell_w - cue_w - 2] {
-            classic_draw_rect(buffer, width, height, cue_x, cue_y, cue_w, cue_h, color);
-        }
+        let cue_y = tile_y + cell_h - cue_h - 1 - stagger;
+        let cue_x = tile_x + cell_w / 2 - cue_w / 2 + stagger;
+        classic_draw_rect(buffer, width, height, cue_x, cue_y, cue_w, cue_h, color);
     }
 }
 
@@ -147640,6 +147639,29 @@ mod tests {
         components
     }
 
+    #[cfg(not(target_os = "android"))]
+    fn exact_color_axis_max_counts(
+        buffer: &[u32],
+        width: usize,
+        height: usize,
+        color: u32,
+    ) -> (usize, usize) {
+        let mut row_counts = vec![0_usize; height];
+        let mut column_counts = vec![0_usize; width];
+        for y in 0..height {
+            for x in 0..width {
+                if buffer[y * width + x] == color {
+                    row_counts[y] += 1;
+                    column_counts[x] += 1;
+                }
+            }
+        }
+        (
+            row_counts.into_iter().max().unwrap_or_default(),
+            column_counts.into_iter().max().unwrap_or_default(),
+        )
+    }
+
     #[test]
     fn bevy_client_spawns_world_snapshot_without_becoming_authority() {
         let world = WorldState::trillionnium_default_map_fixture();
@@ -154628,6 +154650,18 @@ mod tests {
                 }),
                 "{color:06x} {components:?}"
             );
+            if color == CLASSIC_RTS_DEPTH_FOREGROUND_COLOR {
+                let (max_row_pixels, max_column_pixels) =
+                    exact_color_axis_max_counts(&player_buffer, width, height, color);
+                assert!(
+                    max_row_pixels <= 32,
+                    "{color:06x} row {max_row_pixels} {components:?}"
+                );
+                assert!(
+                    max_column_pixels <= 28,
+                    "{color:06x} column {max_column_pixels} {components:?}"
+                );
+            }
         }
 
         let mut evidence_buffer = vec![0_u32; width * height];

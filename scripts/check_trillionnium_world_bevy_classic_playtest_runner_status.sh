@@ -378,6 +378,57 @@ def exact_color_component_summary(
         "passes": passes,
     }
 
+def exact_color_axis_summary(
+    name,
+    rgb,
+    max_row_pixels,
+    max_column_pixels,
+    box=None,
+):
+    pixels = image.load()
+    if box is None:
+        scan_x0, scan_y0, scan_x1, scan_y1 = 0, 0, width, height
+    else:
+        scan_x0, scan_y0, scan_x1, scan_y1 = box
+        scan_x0 = max(0, min(width - 1, scan_x0))
+        scan_y0 = max(0, min(height - 1, scan_y0))
+        scan_x1 = max(scan_x0 + 1, min(width, scan_x1))
+        scan_y1 = max(scan_y0 + 1, min(height, scan_y1))
+    row_counts = {}
+    column_counts = {}
+    pixel_count = 0
+    for sample_y in range(scan_y0, scan_y1):
+        for sample_x in range(scan_x0, scan_x1):
+            if pixels[sample_x, sample_y] == rgb:
+                pixel_count += 1
+                row_counts[sample_y] = row_counts.get(sample_y, 0) + 1
+                column_counts[sample_x] = column_counts.get(sample_x, 0) + 1
+    top_rows = sorted(
+        ({"y": key, "pixels": value} for key, value in row_counts.items()),
+        key=lambda item: item["pixels"],
+        reverse=True,
+    )[:12]
+    top_columns = sorted(
+        ({"x": key, "pixels": value} for key, value in column_counts.items()),
+        key=lambda item: item["pixels"],
+        reverse=True,
+    )[:12]
+    max_row = top_rows[0]["pixels"] if top_rows else 0
+    max_column = top_columns[0]["pixels"] if top_columns else 0
+    return {
+        "id": name,
+        "rgb": list(rgb),
+        "region": [scan_x0, scan_y0, scan_x1, scan_y1],
+        "pixel_count": pixel_count,
+        "max_row_pixels": max_row,
+        "max_column_pixels": max_column,
+        "max_allowed_row_pixels": max_row_pixels,
+        "max_allowed_column_pixels": max_column_pixels,
+        "top_rows": top_rows,
+        "top_columns": top_columns,
+        "passes": max_row <= max_row_pixels and max_column <= max_column_pixels,
+    }
+
 regions = [
     region("map_playfield", [32, 72, min(940, width), min(610, height)], 2500, 30.0),
     region("top_hud", [0, 0, width, min(90, height)], 250, 18.0),
@@ -479,6 +530,20 @@ exact_terrain_depth_cutaway_component_sample = exact_color_component_summary(
     (112, 224, 255),
     8,
     6,
+    [32, 72, min(940, width), min(535, height)],
+)
+exact_terrain_depth_foreground_axis_sample = exact_color_axis_summary(
+    "terrain_depth_foreground_exact_green_axis_alignment",
+    (121, 247, 177),
+    32,
+    28,
+    [32, 72, min(940, width), min(535, height)],
+)
+exact_terrain_depth_cutaway_axis_sample = exact_color_axis_summary(
+    "terrain_depth_cutaway_exact_cyan_axis_alignment",
+    (112, 224, 255),
+    32,
+    28,
     [32, 72, min(940, width), min(535, height)],
 )
 exact_selection_confirm_component_sample = exact_color_component_summary(
@@ -592,6 +657,10 @@ exact_color_component_samples = [
     exact_runtime_relay_mast_rally_line_component_sample,
     exact_runtime_commander_aura_component_sample,
 ]
+exact_color_axis_samples = [
+    exact_terrain_depth_foreground_axis_sample,
+    exact_terrain_depth_cutaway_axis_sample,
+]
 forbidden_title_fragments = [
     "desktop product alignment",
     "map-first alignment",
@@ -632,6 +701,10 @@ gates = {
     "exact_product_map_density_micro_component_gate": exact_product_map_density_component_sample["passes"],
     "exact_terrain_depth_foreground_micro_component_gate": exact_terrain_depth_foreground_component_sample["passes"],
     "exact_terrain_depth_cutaway_micro_component_gate": exact_terrain_depth_cutaway_component_sample["passes"],
+    "exact_terrain_depth_axis_alignment_gate": (
+        exact_terrain_depth_foreground_axis_sample["passes"]
+        and exact_terrain_depth_cutaway_axis_sample["passes"]
+    ),
     "exact_selection_confirm_micro_component_gate": exact_selection_confirm_component_sample["passes"],
     "exact_unit_status_health_micro_component_gate": exact_unit_status_health_component_sample["passes"],
     "exact_unit_status_role_badge_micro_component_gate": exact_unit_status_role_badge_component_sample["passes"],
@@ -668,6 +741,7 @@ summary = {
     "dead_panel_regions": dead_panel_regions,
     "edge_safety_samples": edge_safety_samples,
     "exact_color_component_samples": exact_color_component_samples,
+    "exact_color_axis_samples": exact_color_axis_samples,
     "forbidden_title_fragments": forbidden_title_fragments,
     "gates": gates,
     "green": all(gates.values()),
