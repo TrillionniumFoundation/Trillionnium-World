@@ -535,6 +535,14 @@ exact_structure_relay_identity_component_sample = exact_color_component_summary(
     6,
     [32, 72, min(940, width), min(535, height)],
 )
+exact_structure_relay_body_bright_teal_component_sample = exact_color_component_summary(
+    "structure_model_identity_relay_body_bright_teal",
+    (95, 170, 140),
+    4,
+    4,
+    [32, 72, min(940, width), min(535, height)],
+    0,
+)
 exact_silhouette_relay_beam_light_blue_component_sample = exact_color_component_summary(
     "silhouette_relay_beam_exact_light_blue",
     (171, 228, 255),
@@ -563,6 +571,7 @@ exact_color_component_samples = [
     exact_unit_identity_component_sample,
     exact_structure_core_identity_component_sample,
     exact_structure_relay_identity_component_sample,
+    exact_structure_relay_body_bright_teal_component_sample,
     exact_silhouette_relay_beam_light_blue_component_sample,
 ]
 forbidden_title_fragments = [
@@ -615,6 +624,7 @@ gates = {
     "exact_unit_identity_micro_component_gate": exact_unit_identity_component_sample["passes"],
     "exact_structure_core_identity_micro_component_gate": exact_structure_core_identity_component_sample["passes"],
     "exact_structure_relay_identity_micro_component_gate": exact_structure_relay_identity_component_sample["passes"],
+    "exact_structure_relay_body_bright_teal_absent_gate": exact_structure_relay_body_bright_teal_component_sample["passes"],
     "exact_silhouette_relay_beam_light_blue_micro_component_gate": exact_silhouette_relay_beam_light_blue_component_sample["passes"],
     "gameplay_scene_gate": (
         regions_by_id["map_playfield"]["sampled_colors"] >= regions_by_id["map_playfield"]["min_sampled_colors"] * 2

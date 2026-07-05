@@ -95358,7 +95358,7 @@ fn classic_draw_first_contact_model_identity_layers(
         let cx = tile_x + cell_w / 2;
         let cy = tile_y + cell_h / 2;
         let relay_body_color = if player_screen {
-            classic_darken(CLASSIC_RTS_MODEL_IDENTITY_RELAY_COLOR, 1, 3)
+            classic_darken(CLASSIC_RTS_MODEL_IDENTITY_RELAY_COLOR, 1, 2)
         } else {
             CLASSIC_RTS_MODEL_IDENTITY_RELAY_COLOR
         };
@@ -154831,6 +154831,48 @@ mod tests {
             }),
             "{relay_components:?}"
         );
+    }
+
+    #[cfg(not(target_os = "android"))]
+    #[test]
+    fn classic_first_contact_player_relay_body_stays_below_bright_status_teal() {
+        let width = 900;
+        let height = 620;
+        let mut buffer = vec![0_u32; width * height];
+        let map_x = 80;
+        let map_y = 96;
+        let cell_w = 28;
+        let cell_h = 14;
+        let target_tile = (16, 9);
+
+        classic_draw_first_contact_model_identity_layers(
+            &mut buffer,
+            width,
+            height,
+            map_x,
+            map_y,
+            cell_w,
+            cell_h,
+            true,
+            target_tile,
+        );
+
+        let old_bright_body_color = classic_darken(CLASSIC_RTS_MODEL_IDENTITY_RELAY_COLOR, 1, 3);
+        let quiet_body_color = classic_darken(CLASSIC_RTS_MODEL_IDENTITY_RELAY_COLOR, 1, 2);
+        let old_bright_components =
+            exact_color_components(&buffer, width, height, old_bright_body_color);
+        let quiet_components = exact_color_components(&buffer, width, height, quiet_body_color);
+        let old_bright_pixel_count = old_bright_components
+            .iter()
+            .map(|(pixels, _, _)| pixels)
+            .sum::<usize>();
+        let quiet_pixel_count = quiet_components
+            .iter()
+            .map(|(pixels, _, _)| pixels)
+            .sum::<usize>();
+
+        assert_eq!(old_bright_pixel_count, 0, "{old_bright_components:?}");
+        assert!(quiet_pixel_count > 0, "{quiet_components:?}");
     }
 
     #[cfg(not(target_os = "android"))]
