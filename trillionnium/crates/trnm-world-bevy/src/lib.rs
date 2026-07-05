@@ -95437,7 +95437,7 @@ fn classic_draw_first_contact_model_identity_layers(
         let cx = tile_x + cell_w / 2;
         let cy = tile_y + cell_h / 2;
         let relay_body_color = if player_screen {
-            classic_darken(CLASSIC_RTS_MODEL_IDENTITY_RELAY_COLOR, 1, 2)
+            classic_darken(CLASSIC_RTS_MODEL_IDENTITY_RELAY_COLOR, 2, 3)
         } else {
             CLASSIC_RTS_MODEL_IDENTITY_RELAY_COLOR
         };
@@ -155185,7 +155185,7 @@ mod tests {
 
     #[cfg(not(target_os = "android"))]
     #[test]
-    fn classic_first_contact_player_relay_body_stays_below_bright_status_teal() {
+    fn classic_first_contact_player_relay_body_stays_below_status_teal() {
         let width = 900;
         let height = 620;
         let mut buffer = vec![0_u32; width * height];
@@ -155208,11 +155208,18 @@ mod tests {
         );
 
         let old_bright_body_color = classic_darken(CLASSIC_RTS_MODEL_IDENTITY_RELAY_COLOR, 1, 3);
-        let quiet_body_color = classic_darken(CLASSIC_RTS_MODEL_IDENTITY_RELAY_COLOR, 1, 2);
+        let former_quiet_body_color = classic_darken(CLASSIC_RTS_MODEL_IDENTITY_RELAY_COLOR, 1, 2);
+        let quiet_body_color = classic_darken(CLASSIC_RTS_MODEL_IDENTITY_RELAY_COLOR, 2, 3);
         let old_bright_components =
             exact_color_components(&buffer, width, height, old_bright_body_color);
+        let former_quiet_components =
+            exact_color_components(&buffer, width, height, former_quiet_body_color);
         let quiet_components = exact_color_components(&buffer, width, height, quiet_body_color);
         let old_bright_pixel_count = old_bright_components
+            .iter()
+            .map(|(pixels, _, _)| pixels)
+            .sum::<usize>();
+        let former_quiet_pixel_count = former_quiet_components
             .iter()
             .map(|(pixels, _, _)| pixels)
             .sum::<usize>();
@@ -155222,6 +155229,7 @@ mod tests {
             .sum::<usize>();
 
         assert_eq!(old_bright_pixel_count, 0, "{old_bright_components:?}");
+        assert_eq!(former_quiet_pixel_count, 0, "{former_quiet_components:?}");
         assert!(quiet_pixel_count > 0, "{quiet_components:?}");
     }
 

@@ -87,6 +87,8 @@ required_lines=(
   'exact_structure_relay_identity_micro_component_gate'
   'structure_model_identity_relay_body_bright_teal'
   'exact_structure_relay_body_bright_teal_absent_gate'
+  'structure_model_identity_relay_body_muted_teal'
+  'exact_structure_relay_body_muted_teal_absent_gate'
   'silhouette_relay_beam_exact_light_blue'
   'exact_silhouette_relay_beam_light_blue_micro_component_gate'
   'runtime_relay_mast_rally_line_exact_cyan'
