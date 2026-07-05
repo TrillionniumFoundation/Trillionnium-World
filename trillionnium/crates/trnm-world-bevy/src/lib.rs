@@ -921,6 +921,8 @@ const CLASSIC_RTS_MODEL_IDENTITY_FACTION_COLOR: u32 = 0xff9f7a;
 const CLASSIC_FIRST_CONTACT_PLAYER_UNIT_IDENTITY_MARKS_PER_UNIT: usize = 4;
 const CLASSIC_FIRST_CONTACT_PLAYER_UNIT_IDENTITY_MARK_W_PX: i32 = 8;
 const CLASSIC_FIRST_CONTACT_PLAYER_UNIT_IDENTITY_MARK_H_PX: i32 = 2;
+const CLASSIC_FIRST_CONTACT_PLAYER_STRUCTURE_IDENTITY_MARK_W_PX: i32 = 8;
+const CLASSIC_FIRST_CONTACT_PLAYER_STRUCTURE_IDENTITY_MARK_H_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_PLAYER_UNIT_BODY_HEAD_W_PX: i32 = 6;
 const CLASSIC_FIRST_CONTACT_PLAYER_UNIT_BODY_HEAD_H_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_PLAYER_UNIT_BODY_CORE_W_PX: i32 = 10;
@@ -95208,6 +95210,16 @@ fn classic_draw_first_contact_model_identity_layers(
             classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, tile);
         let cx = tile_x + cell_w / 2;
         let cy = tile_y + cell_h / 2;
+        let core_body_color = if player_screen {
+            classic_darken(CLASSIC_RTS_MODEL_IDENTITY_CORE_COLOR, 1, 3)
+        } else {
+            CLASSIC_RTS_MODEL_IDENTITY_CORE_COLOR
+        };
+        let core_band_color = if player_screen {
+            classic_darken(CLASSIC_RTS_MODEL_IDENTITY_CORE_COLOR, 1, 2)
+        } else {
+            classic_darken(CLASSIC_RTS_MODEL_IDENTITY_CORE_COLOR, 1, 4)
+        };
         classic_draw_rect(
             buffer,
             width,
@@ -95226,7 +95238,7 @@ fn classic_draw_first_contact_model_identity_layers(
             cy - cell_h * 2,
             cell_w,
             cell_h * 3,
-            CLASSIC_RTS_MODEL_IDENTITY_CORE_COLOR,
+            core_body_color,
         );
         classic_draw_rect(
             buffer,
@@ -95236,7 +95248,7 @@ fn classic_draw_first_contact_model_identity_layers(
             cy - cell_h,
             cell_w * 2,
             cell_h,
-            classic_darken(CLASSIC_RTS_MODEL_IDENTITY_CORE_COLOR, 1, 4),
+            core_band_color,
         );
         if player_screen {
             let roof_cue_color = classic_darken(faction_color, 2, 5);
@@ -95287,26 +95299,52 @@ fn classic_draw_first_contact_model_identity_layers(
                 CLASSIC_RTS_MODEL_IDENTITY_FACTION_COLOR,
             );
         }
-        classic_draw_rect(
-            buffer,
-            width,
-            height,
-            cx - 10,
-            cy + cell_h + 10,
-            20,
-            4,
-            CLASSIC_RTS_MODEL_IDENTITY_CORE_COLOR,
-        );
-        classic_draw_rect(
-            buffer,
-            width,
-            height,
-            cx - 5,
-            cy + cell_h + 15,
-            10,
-            3,
-            CLASSIC_RTS_MODEL_IDENTITY_CORE_COLOR,
-        );
+        if player_screen {
+            for (x, y) in [
+                (cx - cell_w / 2, cy - cell_h * 2 + 2),
+                (
+                    cx + cell_w / 2 - CLASSIC_FIRST_CONTACT_PLAYER_STRUCTURE_IDENTITY_MARK_W_PX,
+                    cy - cell_h * 2 + 2,
+                ),
+                (cx - cell_w / 2, cy + cell_h + 10),
+                (
+                    cx + cell_w / 2 - CLASSIC_FIRST_CONTACT_PLAYER_STRUCTURE_IDENTITY_MARK_W_PX,
+                    cy + cell_h + 10,
+                ),
+            ] {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    x,
+                    y,
+                    CLASSIC_FIRST_CONTACT_PLAYER_STRUCTURE_IDENTITY_MARK_W_PX,
+                    CLASSIC_FIRST_CONTACT_PLAYER_STRUCTURE_IDENTITY_MARK_H_PX,
+                    CLASSIC_RTS_MODEL_IDENTITY_CORE_COLOR,
+                );
+            }
+        } else {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                cx - 10,
+                cy + cell_h + 10,
+                20,
+                4,
+                CLASSIC_RTS_MODEL_IDENTITY_CORE_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                cx - 5,
+                cy + cell_h + 15,
+                10,
+                3,
+                CLASSIC_RTS_MODEL_IDENTITY_CORE_COLOR,
+            );
+        }
     }
 
     let opening = classic_first_contact_opening_loop();
@@ -95319,6 +95357,11 @@ fn classic_draw_first_contact_model_identity_layers(
             classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, tile);
         let cx = tile_x + cell_w / 2;
         let cy = tile_y + cell_h / 2;
+        let relay_body_color = if player_screen {
+            classic_darken(CLASSIC_RTS_MODEL_IDENTITY_RELAY_COLOR, 1, 3)
+        } else {
+            CLASSIC_RTS_MODEL_IDENTITY_RELAY_COLOR
+        };
         classic_draw_rect(
             buffer,
             width,
@@ -95327,7 +95370,7 @@ fn classic_draw_first_contact_model_identity_layers(
             cy - cell_h * 2,
             cell_w,
             cell_h * 2 + 4,
-            CLASSIC_RTS_MODEL_IDENTITY_RELAY_COLOR,
+            relay_body_color,
         );
         let relay_crossbar_w = if player_screen {
             CLASSIC_FIRST_CONTACT_PLAYER_RELAY_IDENTITY_RAIL_W_PX
@@ -95349,36 +95392,72 @@ fn classic_draw_first_contact_model_identity_layers(
             relay_crossbar_h,
             CLASSIC_RTS_MODEL_IDENTITY_RELAY_COLOR,
         );
-        classic_draw_rect(
-            buffer,
-            width,
-            height,
-            cx + cell_w / 2,
-            cy - cell_h * 2 + 4,
-            4,
-            cell_h * 2,
-            CLASSIC_RTS_STRUCTURE_REPAIR_BEAM_COLOR,
-        );
-        classic_draw_rect(
-            buffer,
-            width,
-            height,
-            cx - 12,
-            cy + cell_h + 5,
-            24,
-            3,
-            CLASSIC_RTS_MODEL_IDENTITY_RELAY_COLOR,
-        );
-        classic_draw_rect(
-            buffer,
-            width,
-            height,
-            cx - 6,
-            cy + cell_h + 10,
-            12,
-            3,
-            CLASSIC_RTS_MODEL_IDENTITY_RELAY_COLOR,
-        );
+        if player_screen {
+            let repair_cue_color = classic_darken(CLASSIC_RTS_STRUCTURE_REPAIR_BEAM_COLOR, 1, 4);
+            for cue_y in [
+                cy - cell_h * 2 + 4,
+                cy - cell_h + 2,
+                cy + CLASSIC_FIRST_CONTACT_PLAYER_STRUCTURE_IDENTITY_MARK_H_PX,
+            ] {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    cx + cell_w / 2,
+                    cue_y,
+                    2,
+                    6,
+                    repair_cue_color,
+                );
+            }
+            for (x, y) in [
+                (cx - 12, cy + cell_h + 5),
+                (cx + 4, cy + cell_h + 5),
+                (cx - 4, cy + cell_h + 10),
+            ] {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    x,
+                    y,
+                    CLASSIC_FIRST_CONTACT_PLAYER_STRUCTURE_IDENTITY_MARK_W_PX,
+                    CLASSIC_FIRST_CONTACT_PLAYER_STRUCTURE_IDENTITY_MARK_H_PX,
+                    CLASSIC_RTS_MODEL_IDENTITY_RELAY_COLOR,
+                );
+            }
+        } else {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                cx + cell_w / 2,
+                cy - cell_h * 2 + 4,
+                4,
+                cell_h * 2,
+                CLASSIC_RTS_STRUCTURE_REPAIR_BEAM_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                cx - 12,
+                cy + cell_h + 5,
+                24,
+                3,
+                CLASSIC_RTS_MODEL_IDENTITY_RELAY_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                cx - 6,
+                cy + cell_h + 10,
+                12,
+                3,
+                CLASSIC_RTS_MODEL_IDENTITY_RELAY_COLOR,
+            );
+        }
     }
 
     for tile in [(16, 9), (16, 24), (9, 16), (24, 16)] {
@@ -154555,6 +154634,71 @@ mod tests {
                 "{color:06x} {components:?}"
             );
         }
+    }
+
+    #[cfg(not(target_os = "android"))]
+    #[test]
+    fn classic_first_contact_player_structure_identity_draws_micro_marks() {
+        let width = 900;
+        let height = 620;
+        let mut buffer = vec![0_u32; width * height];
+        let map_x = 80;
+        let map_y = 96;
+        let cell_w = 28;
+        let cell_h = 14;
+        let target_tile = (16, 9);
+
+        classic_draw_first_contact_model_identity_layers(
+            &mut buffer,
+            width,
+            height,
+            map_x,
+            map_y,
+            cell_w,
+            cell_h,
+            true,
+            target_tile,
+        );
+
+        let core_components = exact_color_components(
+            &buffer,
+            width,
+            height,
+            CLASSIC_RTS_MODEL_IDENTITY_CORE_COLOR,
+        );
+        let relay_components = exact_color_components(
+            &buffer,
+            width,
+            height,
+            CLASSIC_RTS_MODEL_IDENTITY_RELAY_COLOR,
+        );
+        let core_pixel_count = core_components
+            .iter()
+            .map(|(pixels, _, _)| pixels)
+            .sum::<usize>();
+        let relay_pixel_count = relay_components
+            .iter()
+            .map(|(pixels, _, _)| pixels)
+            .sum::<usize>();
+
+        assert!(core_pixel_count > 0, "{core_components:?}");
+        assert!(relay_pixel_count > 0, "{relay_components:?}");
+        assert!(
+            core_components.iter().all(|(_, w, h)| {
+                *w <= CLASSIC_FIRST_CONTACT_PLAYER_STRUCTURE_IDENTITY_MARK_W_PX as usize
+                    && *h <= CLASSIC_FIRST_CONTACT_PLAYER_STRUCTURE_IDENTITY_MARK_H_PX as usize
+            }),
+            "{core_components:?}"
+        );
+        assert!(
+            relay_components.iter().all(|(_, w, h)| {
+                (*w <= CLASSIC_FIRST_CONTACT_PLAYER_STRUCTURE_IDENTITY_MARK_W_PX as usize
+                    && *h <= CLASSIC_FIRST_CONTACT_PLAYER_STRUCTURE_IDENTITY_MARK_H_PX as usize)
+                    || (*w <= CLASSIC_FIRST_CONTACT_PLAYER_RELAY_IDENTITY_RAIL_W_PX as usize
+                        && *h <= CLASSIC_FIRST_CONTACT_PLAYER_RELAY_IDENTITY_RAIL_H_PX as usize)
+            }),
+            "{relay_components:?}"
+        );
     }
 
     #[cfg(not(target_os = "android"))]
