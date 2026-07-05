@@ -1593,13 +1593,13 @@ cat >"$JQ_FILTER" <<'JQ'
   and .first_contact_selection_combat_focus_guard.route_clearance_corner_cue_pixel_budget == 432
   and .first_contact_selection_combat_focus_guard.route_clearance_gutter_fill_pixel_budget == 0
   and .first_contact_selection_combat_focus_guard.route_clearance_pixel_budget <= 432
-  and .first_contact_selection_combat_focus_guard.combat_target_cross_long_px == 10
+  and .first_contact_selection_combat_focus_guard.combat_target_cross_long_px == 6
   and .first_contact_selection_combat_focus_guard.combat_target_cross_thickness_px == 2
   and .first_contact_selection_combat_focus_guard.combat_target_ack_tick_width_px == 4
   and .first_contact_selection_combat_focus_guard.combat_target_ack_tick_height_px == 2
-  and .first_contact_selection_combat_focus_guard.combat_target_cross_pixel_budget == 40
+  and .first_contact_selection_combat_focus_guard.combat_target_cross_pixel_budget == 24
   and .first_contact_selection_combat_focus_guard.combat_target_ack_tick_pixel_budget == 8
-  and .first_contact_selection_combat_focus_guard.combat_target_pixel_budget <= 48
+  and .first_contact_selection_combat_focus_guard.combat_target_pixel_budget <= 32
   and .first_contact_selection_combat_focus_guard.blocked_warning_pixel_budget >= 72
   and .first_contact_selection_combat_focus_guard.selected_focus_gate == true
   and .first_contact_selection_combat_focus_guard.route_focus_gate == true
@@ -2613,7 +2613,7 @@ jq -e '
     .combat_target_bracket_pixel_budget,
     .combat_target_bracket_component_max_width_px,
     .combat_target_bracket_component_max_height_px
-  ] == [10,2,4,144,10,10])
+  ] == [6,2,4,80,6,6])
   and
   (.first_contact_target_callout_guard | [
     .target_callout_edge_tick_count,

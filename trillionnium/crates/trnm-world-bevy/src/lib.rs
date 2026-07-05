@@ -809,9 +809,9 @@ const CLASSIC_FIRST_CONTACT_TARGET_PREFLIGHT_RING_THICKNESS_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_TARGET_PREFLIGHT_CORNER_TICK_LONG_PX: i32 = 6;
 const CLASSIC_FIRST_CONTACT_TARGET_PREFLIGHT_CROSS_LONG_PX: i32 = 16;
 const CLASSIC_FIRST_CONTACT_TARGET_PREFLIGHT_CROSS_THICKNESS_PX: i32 = 2;
-const CLASSIC_FIRST_CONTACT_TARGET_LOCK_BRACKET_TICK_LONG_PX: i32 = 10;
+const CLASSIC_FIRST_CONTACT_TARGET_LOCK_BRACKET_TICK_LONG_PX: i32 = 6;
 const CLASSIC_FIRST_CONTACT_TARGET_LOCK_BRACKET_TICK_THICKNESS_PX: i32 = 2;
-const CLASSIC_FIRST_CONTACT_TARGET_LOCK_CROSS_LONG_PX: i32 = 10;
+const CLASSIC_FIRST_CONTACT_TARGET_LOCK_CROSS_LONG_PX: i32 = 6;
 const CLASSIC_FIRST_CONTACT_TARGET_LOCK_CROSS_THICKNESS_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_TARGET_LOCK_ACK_TICK_W_PX: i32 = 4;
 const CLASSIC_FIRST_CONTACT_TARGET_LOCK_ACK_TICK_H_PX: i32 = 2;
@@ -849,7 +849,7 @@ const CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK_PANEL_CUE_H_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK_PANEL_BACKPLATE_W_PX: i32 = 0;
 const CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK_PANEL_BACKPLATE_H_PX: i32 = 0;
 const CLASSIC_FIRST_CONTACT_PLAYER_COMMAND_TARGET_TICK_COUNT: usize = 4;
-const CLASSIC_FIRST_CONTACT_PLAYER_COMMAND_TARGET_TICK_W_PX: i32 = 10;
+const CLASSIC_FIRST_CONTACT_PLAYER_COMMAND_TARGET_TICK_W_PX: i32 = 6;
 const CLASSIC_FIRST_CONTACT_PLAYER_COMMAND_TARGET_TICK_H_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK_PROGRESS_SLOT_COUNT: usize = 7;
 const CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK_PROGRESS_PIP_W_PX: i32 = 6;
@@ -153978,7 +153978,7 @@ mod tests {
             guard
                 .get("combat_target_cross_long_px")
                 .and_then(Value::as_u64),
-            Some(10)
+            Some(6)
         );
         assert_eq!(
             guard
@@ -154002,25 +154002,25 @@ mod tests {
             guard
                 .get("combat_target_cross_pixel_budget")
                 .and_then(Value::as_u64),
-            Some(40)
+            Some(24)
         );
         assert_eq!(
             guard
                 .get("combat_target_bracket_pixel_budget")
                 .and_then(Value::as_u64),
-            Some(144)
+            Some(80)
         );
         assert_eq!(
             guard
                 .get("combat_target_bracket_component_max_width_px")
                 .and_then(Value::as_i64),
-            Some(10)
+            Some(6)
         );
         assert_eq!(
             guard
                 .get("combat_target_bracket_component_max_height_px")
                 .and_then(Value::as_i64),
-            Some(10)
+            Some(6)
         );
         assert_eq!(
             guard
@@ -154032,7 +154032,7 @@ mod tests {
             guard
                 .get("combat_target_pixel_budget")
                 .and_then(Value::as_u64),
-            Some(48)
+            Some(32)
         );
         assert_eq!(
             guard
@@ -154282,6 +154282,49 @@ mod tests {
         assert!(pixel_count >= 64, "{pixel_count} {components:?}");
         assert!(
             components.iter().all(|(_, w, h)| *w <= 8 && *h <= 8),
+            "{components:?}"
+        );
+    }
+
+    #[cfg(not(target_os = "android"))]
+    #[test]
+    fn classic_first_contact_player_target_lock_draws_micro_red_ticks() {
+        let width = 1280;
+        let height = 699;
+        let mut buffer = vec![0_u32; width * height];
+        let map_x = 80;
+        let map_y = 96;
+        let cell_w = 28;
+        let cell_h = 14;
+        let runtime = classic_first_contact_player_screen_runtime();
+
+        classic_draw_first_contact_selection_combat_focus_layer(
+            &mut buffer,
+            width,
+            height,
+            &runtime,
+            map_x,
+            map_y,
+            cell_w,
+            cell_h,
+        );
+
+        let components = exact_color_components(
+            &buffer,
+            width,
+            height,
+            CLASSIC_RTS_SELECTION_FEEDBACK_ATTACK_COLOR,
+        );
+        let pixel_count = components
+            .iter()
+            .map(|(pixels, _, _)| pixels)
+            .sum::<usize>();
+
+        assert!(pixel_count >= 96, "{pixel_count} {components:?}");
+        assert!(
+            components.iter().all(|(_, _, h)| {
+                *h <= CLASSIC_FIRST_CONTACT_TARGET_LOCK_BRACKET_TICK_LONG_PX as usize
+            }),
             "{components:?}"
         );
     }

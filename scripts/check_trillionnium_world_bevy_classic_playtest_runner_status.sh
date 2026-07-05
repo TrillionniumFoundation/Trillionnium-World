@@ -465,7 +465,7 @@ exact_red_component_sample = exact_color_component_summary(
     "attack_feedback_exact_red",
     (255, 114, 114),
     16,
-    16,
+    6,
 )
 exact_green_component_sample = exact_color_component_summary(
     "ability_range_exact_green",

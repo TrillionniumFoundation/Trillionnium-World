@@ -1416,19 +1416,19 @@ require_artifact_json_expr first_contact_basin_spec_semantics native_bevy_classi
   and .first_contact_selection_combat_focus_guard.route_clearance_corner_cue_pixel_budget == 432
   and .first_contact_selection_combat_focus_guard.route_clearance_gutter_fill_pixel_budget == 0
   and .first_contact_selection_combat_focus_guard.route_clearance_pixel_budget <= 432
-  and .first_contact_selection_combat_focus_guard.combat_target_cross_long_px == 10
+  and .first_contact_selection_combat_focus_guard.combat_target_cross_long_px == 6
   and .first_contact_selection_combat_focus_guard.combat_target_cross_thickness_px == 2
-  and .first_contact_selection_combat_focus_guard.combat_target_bracket_tick_long_px == 10
+  and .first_contact_selection_combat_focus_guard.combat_target_bracket_tick_long_px == 6
   and .first_contact_selection_combat_focus_guard.combat_target_bracket_tick_thickness_px == 2
   and .first_contact_selection_combat_focus_guard.combat_target_bracket_corner_count == 4
-  and .first_contact_selection_combat_focus_guard.combat_target_bracket_pixel_budget == 144
-  and .first_contact_selection_combat_focus_guard.combat_target_bracket_component_max_width_px <= 10
-  and .first_contact_selection_combat_focus_guard.combat_target_bracket_component_max_height_px <= 10
+  and .first_contact_selection_combat_focus_guard.combat_target_bracket_pixel_budget == 80
+  and .first_contact_selection_combat_focus_guard.combat_target_bracket_component_max_width_px <= 6
+  and .first_contact_selection_combat_focus_guard.combat_target_bracket_component_max_height_px <= 6
   and .first_contact_selection_combat_focus_guard.combat_target_ack_tick_width_px == 4
   and .first_contact_selection_combat_focus_guard.combat_target_ack_tick_height_px == 2
-  and .first_contact_selection_combat_focus_guard.combat_target_cross_pixel_budget == 40
+  and .first_contact_selection_combat_focus_guard.combat_target_cross_pixel_budget == 24
   and .first_contact_selection_combat_focus_guard.combat_target_ack_tick_pixel_budget == 8
-  and .first_contact_selection_combat_focus_guard.combat_target_pixel_budget <= 48
+  and .first_contact_selection_combat_focus_guard.combat_target_pixel_budget <= 32
   and .first_contact_selection_combat_focus_guard.blocked_warning_pixel_budget >= 72
   and .first_contact_selection_combat_focus_guard.selected_focus_gate == true
   and .first_contact_selection_combat_focus_guard.route_focus_gate == true

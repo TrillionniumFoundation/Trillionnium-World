@@ -190,19 +190,19 @@ pub fn first_contact_selection_combat_focus_guard(
         && route_clearance_corner_cue_pixel_budget == 432
         && route_clearance_pixel_budget <= 432;
     let combat_target_focus_gate = target_focus_tile == "16,9"
-        && geometry.target_lock_cross_long_px == 10
+        && geometry.target_lock_cross_long_px == 6
         && geometry.target_lock_cross_thickness_px == 2
-        && geometry.target_lock_bracket_tick_long_px == 10
+        && geometry.target_lock_bracket_tick_long_px == 6
         && geometry.target_lock_bracket_tick_thickness_px == 2
         && geometry.target_lock_ack_tick_width_px == 4
         && geometry.target_lock_ack_tick_height_px == 2
-        && combat_target_cross_pixel_budget == 40
+        && combat_target_cross_pixel_budget == 24
         && combat_target_bracket_corner_count == 4
-        && combat_target_bracket_pixel_budget == 144
-        && combat_target_bracket_component_max_width_px <= 10
-        && combat_target_bracket_component_max_height_px <= 10
+        && combat_target_bracket_pixel_budget == 80
+        && combat_target_bracket_component_max_width_px <= 6
+        && combat_target_bracket_component_max_height_px <= 6
         && combat_target_ack_tick_pixel_budget == 8
-        && combat_target_pixel_budget <= 48;
+        && combat_target_pixel_budget <= 32;
     let blocked_warning_focus_gate =
         blocked_focus_tile == "15,16" && blocked_warning_pixel_budget >= 72;
     let focus_signature_gate = focus_signatures.len() == 10
@@ -519,9 +519,9 @@ mod tests {
                 route_clearance_corner_cue_width_px: 6,
                 route_clearance_corner_cue_height_px: 2,
                 route_clearance_corner_cues_per_tile: 4,
-                target_lock_cross_long_px: 10,
+                target_lock_cross_long_px: 6,
                 target_lock_cross_thickness_px: 2,
-                target_lock_bracket_tick_long_px: 10,
+                target_lock_bracket_tick_long_px: 6,
                 target_lock_bracket_tick_thickness_px: 2,
                 target_lock_ack_tick_width_px: 4,
                 target_lock_ack_tick_height_px: 2,
@@ -576,25 +576,25 @@ mod tests {
             guard
                 .get("combat_target_pixel_budget")
                 .and_then(Value::as_u64),
-            Some(48)
+            Some(32)
         );
         assert_eq!(
             guard
                 .get("combat_target_bracket_pixel_budget")
                 .and_then(Value::as_u64),
-            Some(144)
+            Some(80)
         );
         assert_eq!(
             guard
                 .get("combat_target_bracket_component_max_width_px")
                 .and_then(Value::as_i64),
-            Some(10)
+            Some(6)
         );
         assert_eq!(
             guard
                 .get("combat_target_bracket_component_max_height_px")
                 .and_then(Value::as_i64),
-            Some(10)
+            Some(6)
         );
         assert_eq!(
             guard
