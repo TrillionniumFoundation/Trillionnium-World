@@ -37,8 +37,8 @@ use crate::{
 use trnm_rts_bevy_runtime as rts_bevy_runtime;
 
 const CLASSIC_FIRST_CONTACT_SELECTION_CONFIRM_BRACKET_ARM_W_PX: i32 = 4;
-const CLASSIC_FIRST_CONTACT_SELECTION_CONFIRM_BRACKET_ARM_H_PX: i32 = 3;
-const CLASSIC_FIRST_CONTACT_SELECTION_CONFIRM_BRACKET_THICKNESS_PX: i32 = 2;
+const CLASSIC_FIRST_CONTACT_SELECTION_CONFIRM_BRACKET_ARM_H_PX: i32 = 2;
+const CLASSIC_FIRST_CONTACT_SELECTION_CONFIRM_BRACKET_THICKNESS_PX: i32 = 1;
 
 fn selection_combat_focus_route_tiles(runtime: &NativeFirstPlayableRuntime) -> Vec<(i32, i32)> {
     first_contact_tiles::selection_combat_focus_route_tiles(runtime)

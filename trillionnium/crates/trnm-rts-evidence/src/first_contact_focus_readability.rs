@@ -165,7 +165,7 @@ pub fn first_contact_selection_combat_focus_guard(
         && geometry.selected_role_badge_tick_width_px == 2
         && geometry.selected_role_badge_tick_height_px == 2
         && selected_role_badge_tick_pixel_budget == 16
-        && (272..=288).contains(&selected_focus_pixel_budget);
+        && selected_focus_pixel_budget == 96;
     let route_focus_gate = route_focus_tiles == string_vec(["14,11", "15,11", "16,10", "16,9"])
         && route_dash_count >= 4
         && route_ack_tick_count >= 6
@@ -499,7 +499,7 @@ mod tests {
             geometry: RtsFirstContactFocusReadabilityGeometrySnapshot {
                 selected_role_badge_tick_width_px: 2,
                 selected_role_badge_tick_height_px: 2,
-                selected_focus_bracket_pixels_per_tile: 64,
+                selected_focus_bracket_pixels_per_tile: 20,
                 route_dash_width_px: 8,
                 route_dash_height_px: 2,
                 route_ack_tick_width_px: 2,

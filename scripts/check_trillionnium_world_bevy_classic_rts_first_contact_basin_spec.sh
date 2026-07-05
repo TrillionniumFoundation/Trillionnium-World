@@ -1590,7 +1590,7 @@ cat >"$JQ_FILTER" <<'JQ'
   and .first_contact_selection_combat_focus_guard.selected_role_badge_tick_width_px == 2
   and .first_contact_selection_combat_focus_guard.selected_role_badge_tick_height_px == 2
   and .first_contact_selection_combat_focus_guard.selected_role_badge_tick_pixel_budget == 16
-  and .first_contact_selection_combat_focus_guard.selected_focus_pixel_budget <= 288
+  and .first_contact_selection_combat_focus_guard.selected_focus_pixel_budget == 96
   and .first_contact_selection_combat_focus_guard.route_ack_tick_pixel_budget == 24
   and .first_contact_selection_combat_focus_guard.route_dash_pixel_budget == 64
   and .first_contact_selection_combat_focus_guard.route_focus_pixel_budget <= 88
@@ -1717,7 +1717,7 @@ cat >"$JQ_FILTER" <<'JQ'
   and .first_contact_marker_budget_guard.player_screen_secondary_beacon_marker_cue_height_px == 2
   and .first_contact_marker_budget_guard.player_screen_secondary_beacon_marker_pixel_budget <= 216
   and .first_contact_marker_budget_guard.selected_role_badge_tick_pixel_budget == 16
-  and .first_contact_marker_budget_guard.interactive_focus_pixel_budget == 636
+  and .first_contact_marker_budget_guard.interactive_focus_pixel_budget == 460
   and .first_contact_marker_budget_guard.selected_focus_tiles == ["14,11","15,11","15,12","17,12"]
   and .first_contact_marker_budget_guard.route_focus_tiles == ["14,11","15,11","16,10","16,9"]
   and (.first_contact_marker_budget_guard.gallery_presentation_signatures | index("darkened_gallery_frames") != null)

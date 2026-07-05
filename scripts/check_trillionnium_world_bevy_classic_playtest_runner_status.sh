@@ -299,7 +299,14 @@ def edge_safety_sample(name, box, max_high_contrast_pixels, max_foreground_pixel
         ),
     }
 
-def exact_color_component_summary(name, rgb, max_component_width, max_component_height, box=None):
+def exact_color_component_summary(
+    name,
+    rgb,
+    max_component_width,
+    max_component_height,
+    box=None,
+    max_pixel_count=None,
+):
     pixels = image.load()
     pending = set()
     if box is None:
@@ -350,20 +357,25 @@ def exact_color_component_summary(name, rgb, max_component_width, max_component_
         for item in components
         if item["width"] > max_component_width or item["height"] > max_component_height
     ]
+    pixel_count = sum(item["pixels"] for item in components)
+    passes = not broad_components and (
+        max_pixel_count is None or pixel_count <= max_pixel_count
+    )
     return {
         "id": name,
         "rgb": list(rgb),
         "region": [scan_x0, scan_y0, scan_x1, scan_y1],
-        "pixel_count": sum(item["pixels"] for item in components),
+        "pixel_count": pixel_count,
         "component_count": len(components),
         "max_component_width": max([item["width"] for item in components] or [0]),
         "max_component_height": max([item["height"] for item in components] or [0]),
         "max_allowed_component_width": max_component_width,
         "max_allowed_component_height": max_component_height,
+        "max_allowed_pixel_count": max_pixel_count,
         "broad_component_count": len(broad_components),
         "broad_components": broad_components[:12],
         "top_components": components[:12],
-        "passes": not broad_components,
+        "passes": passes,
     }
 
 regions = [
@@ -475,6 +487,7 @@ exact_selection_confirm_component_sample = exact_color_component_summary(
     8,
     8,
     [32, 72, min(940, width), min(535, height)],
+    460,
 )
 exact_unit_status_health_component_sample = exact_color_component_summary(
     "unit_status_health_exact_green",

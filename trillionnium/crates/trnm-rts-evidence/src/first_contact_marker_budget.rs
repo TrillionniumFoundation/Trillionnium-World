@@ -403,7 +403,7 @@ pub fn first_contact_marker_budget_guard(runtime: &RtsFirstContactMarkerBudgetRu
         && route_focus_tiles == string_vec(["14,11", "15,11", "16,10", "16,9"])
         && interactive_hot_marker_role_count >= 5
         && selected_role_badge_tick_pixel_budget == 16
-        && interactive_focus_pixel_budget == 636
+        && interactive_focus_pixel_budget == 460
         && gallery_presentation_signatures
             .iter()
             .any(|signature| signature == "compact_route_dashes");
@@ -567,7 +567,7 @@ mod tests {
         RtsFirstContactFocusGeometrySnapshot {
             selected_role_badge_tick_width_px: 2,
             selected_role_badge_tick_height_px: 2,
-            selected_focus_bracket_pixels_per_tile: 64,
+            selected_focus_bracket_pixels_per_tile: 20,
             route_dash_width_px: 8,
             route_dash_height_px: 2,
             route_ack_tick_width_px: 2,
