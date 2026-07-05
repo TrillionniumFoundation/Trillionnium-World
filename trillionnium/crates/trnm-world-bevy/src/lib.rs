@@ -942,6 +942,10 @@ const CLASSIC_FIRST_CONTACT_PLAYER_DENSITY_CUE_W_PX: i32 = 8;
 const CLASSIC_FIRST_CONTACT_PLAYER_DENSITY_CUE_H_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_PLAYER_DENSITY_VERTICAL_CUE_W_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_PLAYER_DENSITY_VERTICAL_CUE_H_PX: i32 = 6;
+const CLASSIC_FIRST_CONTACT_PLAYER_DEPTH_EDGE_CUE_W_PX: i32 = 6;
+const CLASSIC_FIRST_CONTACT_PLAYER_DEPTH_EDGE_CUE_H_PX: i32 = 2;
+const CLASSIC_FIRST_CONTACT_PLAYER_DEPTH_EDGE_VERTICAL_CUE_W_PX: i32 = 2;
+const CLASSIC_FIRST_CONTACT_PLAYER_DEPTH_EDGE_VERTICAL_CUE_H_PX: i32 = 4;
 const CLASSIC_FIRST_CONTACT_PLAYER_RELAY_IDENTITY_RAIL_COUNT: usize = 6;
 const CLASSIC_FIRST_CONTACT_PLAYER_RELAY_IDENTITY_RAIL_W_PX: i32 = 16;
 const CLASSIC_FIRST_CONTACT_PLAYER_RELAY_IDENTITY_RAIL_H_PX: i32 = 2;
@@ -93132,6 +93136,36 @@ fn classic_first_contact_tile_height(tile: (i32, i32)) -> i32 {
 
 #[cfg(not(target_os = "android"))]
 #[allow(clippy::too_many_arguments)]
+fn classic_draw_first_contact_player_depth_edge_micro_cues(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    tile_x: i32,
+    tile_y: i32,
+    cell_w: i32,
+    cell_h: i32,
+    vertical_edge: bool,
+    color: u32,
+) {
+    if vertical_edge {
+        let cue_w = CLASSIC_FIRST_CONTACT_PLAYER_DEPTH_EDGE_VERTICAL_CUE_W_PX;
+        let cue_h = CLASSIC_FIRST_CONTACT_PLAYER_DEPTH_EDGE_VERTICAL_CUE_H_PX;
+        let cue_x = tile_x + cell_w - cue_w - 1;
+        for cue_y in [tile_y + 2, tile_y + cell_h - cue_h - 2] {
+            classic_draw_rect(buffer, width, height, cue_x, cue_y, cue_w, cue_h, color);
+        }
+    } else {
+        let cue_w = CLASSIC_FIRST_CONTACT_PLAYER_DEPTH_EDGE_CUE_W_PX;
+        let cue_h = CLASSIC_FIRST_CONTACT_PLAYER_DEPTH_EDGE_CUE_H_PX;
+        let cue_y = tile_y + cell_h - cue_h - 1;
+        for cue_x in [tile_x + 2, tile_x + cell_w - cue_w - 2] {
+            classic_draw_rect(buffer, width, height, cue_x, cue_y, cue_w, cue_h, color);
+        }
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+#[allow(clippy::too_many_arguments)]
 fn classic_draw_first_contact_terrain_layer(
     buffer: &mut [u32],
     width: usize,
@@ -93140,6 +93174,7 @@ fn classic_draw_first_contact_terrain_layer(
     map_y: i32,
     cell_w: i32,
     cell_h: i32,
+    player_screen: bool,
     renderer_model: &RtsMapRendererModel,
 ) {
     for terrain in &renderer_model.renderable_tiles {
@@ -93207,36 +93242,50 @@ fn classic_draw_first_contact_terrain_layer(
             );
         }
         if classic_first_contact_tile_height((x + 1, y)) < tile_height {
-            classic_draw_rect(
-                buffer,
-                width,
-                height,
-                tile_x + cell_w - 3,
-                tile_y + 2,
-                2,
-                cell_h - 4,
-                if tile_height >= 2 {
-                    CLASSIC_RTS_DEPTH_FOREGROUND_COLOR
-                } else {
-                    CLASSIC_RTS_DEPTH_CUTAWAY_COLOR
-                },
-            );
+            let edge_color = if tile_height >= 2 {
+                CLASSIC_RTS_DEPTH_FOREGROUND_COLOR
+            } else {
+                CLASSIC_RTS_DEPTH_CUTAWAY_COLOR
+            };
+            if player_screen {
+                classic_draw_first_contact_player_depth_edge_micro_cues(
+                    buffer, width, height, tile_x, tile_y, cell_w, cell_h, true, edge_color,
+                );
+            } else {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    tile_x + cell_w - 3,
+                    tile_y + 2,
+                    2,
+                    cell_h - 4,
+                    edge_color,
+                );
+            }
         }
         if classic_first_contact_tile_height((x, y + 1)) < tile_height {
-            classic_draw_rect(
-                buffer,
-                width,
-                height,
-                tile_x + 2,
-                tile_y + cell_h - 3,
-                cell_w - 4,
-                2,
-                if tile_height >= 2 {
-                    CLASSIC_RTS_DEPTH_FOREGROUND_COLOR
-                } else {
-                    CLASSIC_RTS_DEPTH_CUTAWAY_COLOR
-                },
-            );
+            let edge_color = if tile_height >= 2 {
+                CLASSIC_RTS_DEPTH_FOREGROUND_COLOR
+            } else {
+                CLASSIC_RTS_DEPTH_CUTAWAY_COLOR
+            };
+            if player_screen {
+                classic_draw_first_contact_player_depth_edge_micro_cues(
+                    buffer, width, height, tile_x, tile_y, cell_w, cell_h, false, edge_color,
+                );
+            } else {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    tile_x + 2,
+                    tile_y + cell_h - 3,
+                    cell_w - 4,
+                    2,
+                    edge_color,
+                );
+            }
         }
     }
 }
@@ -97426,6 +97475,7 @@ fn classic_draw_first_contact_basin_scene(
         map_y,
         cell_w,
         cell_h,
+        player_screen,
         &renderer_model,
     );
 
@@ -154119,6 +154169,77 @@ mod tests {
         }
 
         assert!(checked_actors >= 3, "{checked_actors}");
+    }
+
+    #[cfg(not(target_os = "android"))]
+    #[test]
+    fn classic_first_contact_player_depth_edges_draw_micro_cues() {
+        let width = 1280;
+        let height = 699;
+        let map_x = 32;
+        let map_y = 68;
+        let cell_w = 28;
+        let cell_h = 14;
+        let renderer_model = first_contact_map_renderer_model(&first_contact_basin_map());
+        let mut player_buffer = vec![0_u32; width * height];
+
+        classic_draw_first_contact_terrain_layer(
+            &mut player_buffer,
+            width,
+            height,
+            map_x,
+            map_y,
+            cell_w,
+            cell_h,
+            true,
+            &renderer_model,
+        );
+
+        for color in [
+            CLASSIC_RTS_DEPTH_FOREGROUND_COLOR,
+            CLASSIC_RTS_DEPTH_CUTAWAY_COLOR,
+        ] {
+            let components = exact_color_components(&player_buffer, width, height, color);
+            let pixel_count = components
+                .iter()
+                .map(|(pixels, _, _)| pixels)
+                .sum::<usize>();
+            assert!(pixel_count > 0, "{color:06x} {components:?}");
+            assert!(
+                components.iter().all(|(_, w, h)| {
+                    *w <= CLASSIC_FIRST_CONTACT_PLAYER_DEPTH_EDGE_CUE_W_PX as usize + 2
+                        && *h
+                            <= CLASSIC_FIRST_CONTACT_PLAYER_DEPTH_EDGE_VERTICAL_CUE_H_PX as usize
+                                + 2
+                }),
+                "{color:06x} {components:?}"
+            );
+        }
+
+        let mut evidence_buffer = vec![0_u32; width * height];
+        classic_draw_first_contact_terrain_layer(
+            &mut evidence_buffer,
+            width,
+            height,
+            map_x,
+            map_y,
+            cell_w,
+            cell_h,
+            false,
+            &renderer_model,
+        );
+        let broad_evidence_edge = [
+            CLASSIC_RTS_DEPTH_FOREGROUND_COLOR,
+            CLASSIC_RTS_DEPTH_CUTAWAY_COLOR,
+        ]
+        .into_iter()
+        .flat_map(|color| exact_color_components(&evidence_buffer, width, height, color))
+        .any(|(_, w, h)| {
+            w > CLASSIC_FIRST_CONTACT_PLAYER_DEPTH_EDGE_CUE_W_PX as usize + 2
+                || h > CLASSIC_FIRST_CONTACT_PLAYER_DEPTH_EDGE_VERTICAL_CUE_H_PX as usize + 2
+        });
+
+        assert!(broad_evidence_edge);
     }
 
     #[cfg(not(target_os = "android"))]
