@@ -554,6 +554,14 @@ exact_selection_confirm_component_sample = exact_color_component_summary(
     [32, 72, min(940, width), min(535, height)],
     460,
 )
+exact_target_prefocus_component_sample = exact_color_component_summary(
+    "target_prefocus_exact_muted_pink",
+    (175, 82, 111),
+    8,
+    8,
+    [32, 72, min(940, width), min(535, height)],
+    224,
+)
 exact_unit_status_health_component_sample = exact_color_component_summary(
     "unit_status_health_exact_green",
     (125, 255, 138),
@@ -645,6 +653,7 @@ exact_color_component_samples = [
     exact_terrain_depth_foreground_component_sample,
     exact_terrain_depth_cutaway_component_sample,
     exact_selection_confirm_component_sample,
+    exact_target_prefocus_component_sample,
     exact_unit_status_health_component_sample,
     exact_unit_status_role_badge_component_sample,
     exact_owner_player_component_sample,
@@ -706,6 +715,7 @@ gates = {
         and exact_terrain_depth_cutaway_axis_sample["passes"]
     ),
     "exact_selection_confirm_micro_component_gate": exact_selection_confirm_component_sample["passes"],
+    "exact_target_prefocus_micro_component_gate": exact_target_prefocus_component_sample["passes"],
     "exact_unit_status_health_micro_component_gate": exact_unit_status_health_component_sample["passes"],
     "exact_unit_status_role_badge_micro_component_gate": exact_unit_status_role_badge_component_sample["passes"],
     "exact_owner_identity_micro_component_gate": (

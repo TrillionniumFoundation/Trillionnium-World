@@ -47,6 +47,7 @@ pub struct RtsFirstContactFocusReadabilityGeometrySnapshot {
     pub target_callout_leader_tick_height_px: i32,
     pub target_preflight_ring_count: usize,
     pub target_preflight_ring_thickness_px: i32,
+    pub target_preflight_corner_tick_long_px: i32,
     pub target_preflight_cross_long_px: i32,
     pub target_preflight_cross_thickness_px: i32,
 }
@@ -353,7 +354,14 @@ pub fn first_contact_target_callout_guard(
                 * geometry.target_callout_leader_clearance_height_px) as usize)
             .saturating_sub(target_callout_pixel_budget);
     let target_prefocus_ring_count = geometry.target_preflight_ring_count;
-    let target_prefocus_marker_pixel_budget = target_prefocus_ring_count * 96
+    let target_prefocus_corner_tick_pixel_budget = target_prefocus_ring_count
+        * 4
+        * ((geometry.target_preflight_corner_tick_long_px
+            * geometry.target_preflight_ring_thickness_px
+            * 2)
+            - geometry.target_preflight_ring_thickness_px
+                * geometry.target_preflight_ring_thickness_px) as usize;
+    let target_prefocus_marker_pixel_budget = target_prefocus_corner_tick_pixel_budget
         + (geometry.target_preflight_cross_long_px
             * geometry.target_preflight_cross_thickness_px
             * 2) as usize;
@@ -362,7 +370,7 @@ pub fn first_contact_target_callout_guard(
         "target_subject_label",
         "target_health_strip",
         "short_leader_ticks",
-        "prefocus_target_rings_capped",
+        "prefocus_target_corner_ticks",
         "prefocus_target_cross_thinned",
         "target_lock_preserved",
     ]);
@@ -394,9 +402,11 @@ pub fn first_contact_target_callout_guard(
         && target_callout_clearance_pixel_budget == 0;
     let target_prefocus_marker_gate = target_prefocus_ring_count == 2
         && geometry.target_preflight_ring_thickness_px == 2
+        && geometry.target_preflight_corner_tick_long_px == 6
         && geometry.target_preflight_cross_long_px == 16
         && geometry.target_preflight_cross_thickness_px == 2
-        && target_prefocus_marker_pixel_budget <= 256;
+        && target_prefocus_corner_tick_pixel_budget == 160
+        && target_prefocus_marker_pixel_budget <= 224;
     let target_signature_gate = target_callout_signatures.len() == 7
         && target_callout_signatures
             .iter()
@@ -406,7 +416,7 @@ pub fn first_contact_target_callout_guard(
             .any(|signature| signature == "target_subject_label")
         && target_callout_signatures
             .iter()
-            .any(|signature| signature == "prefocus_target_rings_capped")
+            .any(|signature| signature == "prefocus_target_corner_ticks")
         && target_callout_signatures
             .iter()
             .any(|signature| signature == "target_lock_preserved");
@@ -461,6 +471,8 @@ pub fn first_contact_target_callout_guard(
         "target_callout_clearance_pixel_budget": target_callout_clearance_pixel_budget,
         "target_prefocus_ring_count": target_prefocus_ring_count,
         "target_prefocus_ring_thickness_px": geometry.target_preflight_ring_thickness_px,
+        "target_prefocus_corner_tick_long_px": geometry.target_preflight_corner_tick_long_px,
+        "target_prefocus_corner_tick_pixel_budget": target_prefocus_corner_tick_pixel_budget,
         "target_prefocus_cross_long_px": geometry.target_preflight_cross_long_px,
         "target_prefocus_cross_thickness_px": geometry.target_preflight_cross_thickness_px,
         "target_prefocus_marker_pixel_budget": target_prefocus_marker_pixel_budget,
@@ -529,6 +541,7 @@ mod tests {
                 target_callout_leader_tick_height_px: 2,
                 target_preflight_ring_count: 2,
                 target_preflight_ring_thickness_px: 2,
+                target_preflight_corner_tick_long_px: 6,
                 target_preflight_cross_long_px: 16,
                 target_preflight_cross_thickness_px: 2,
             },
@@ -624,7 +637,13 @@ mod tests {
             guard
                 .get("target_prefocus_marker_pixel_budget")
                 .and_then(Value::as_u64),
-            Some(256)
+            Some(224)
+        );
+        assert_eq!(
+            guard
+                .get("target_prefocus_corner_tick_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(160)
         );
         assert_eq!(
             guard

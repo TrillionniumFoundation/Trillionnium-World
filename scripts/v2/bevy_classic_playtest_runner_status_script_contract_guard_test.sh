@@ -70,6 +70,8 @@ required_lines=(
   'exact_terrain_depth_axis_alignment_gate'
   'selection_feedback_confirm_exact_cyan'
   'exact_selection_confirm_micro_component_gate'
+  'target_prefocus_exact_muted_pink'
+  'exact_target_prefocus_micro_component_gate'
   'unit_status_health_exact_green'
   'exact_unit_status_health_micro_component_gate'
   'unit_status_role_badge_exact_purple'

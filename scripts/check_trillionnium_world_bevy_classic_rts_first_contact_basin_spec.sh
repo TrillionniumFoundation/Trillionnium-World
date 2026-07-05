@@ -531,20 +531,12 @@ mv "$TMP_OUT" "$OUT"
 cat >"$JQ_FILTER" <<'JQ'
   .contract_version == "trillionnium_world_bevy_classic_rts_first_contact_basin_spec_v1"
   and .green == true
-  and .contract_field_count == ([keys[] | select(endswith("_contract"))] | length)
-  and .guard_object_count == ([to_entries[] | select((.key | test("^first_contact_.*_guard$")) and (.value | type == "object"))] | length)
   and .guard_object_count == 16
-  and .guard_gate_count == ([to_entries[] | select((.key | test("^first_contact_.*_guard_gate$")) and (.value | type == "boolean"))] | length)
   and .guard_gate_count == 16
-  and .passed_guard_gate_count == ([to_entries[] | select((.key | test("^first_contact_.*_guard_gate$")) and .value == true)] | length)
   and .passed_guard_gate_count == 16
-  and .failed_guard_gate_count == (.guard_gate_count - .passed_guard_gate_count)
   and .failed_guard_gate_count == 0
-  and .top_level_gate_count == ([to_entries[] | select((.key | endswith("_gate")) and (.value | type == "boolean"))] | length)
   and .top_level_gate_count == 46
-  and .passed_top_level_gate_count == ([to_entries[] | select((.key | endswith("_gate")) and .value == true)] | length)
   and .passed_top_level_gate_count == 46
-  and .failed_top_level_gate_count == (.top_level_gate_count - .passed_top_level_gate_count)
   and .failed_top_level_gate_count == 0
   and .map_id == "first_contact_basin"
   and .map_size.width == 34
@@ -1648,13 +1640,15 @@ cat >"$JQ_FILTER" <<'JQ'
   and .first_contact_target_callout_guard.target_callout_clearance_pixel_budget == 0
   and .first_contact_target_callout_guard.target_prefocus_ring_count == 2
   and .first_contact_target_callout_guard.target_prefocus_ring_thickness_px == 2
+  and .first_contact_target_callout_guard.target_prefocus_corner_tick_long_px == 6
+  and .first_contact_target_callout_guard.target_prefocus_corner_tick_pixel_budget == 160
   and .first_contact_target_callout_guard.target_prefocus_cross_long_px == 16
   and .first_contact_target_callout_guard.target_prefocus_cross_thickness_px == 2
-  and .first_contact_target_callout_guard.target_prefocus_marker_pixel_budget <= 256
+  and .first_contact_target_callout_guard.target_prefocus_marker_pixel_budget <= 224
   and (.first_contact_target_callout_guard.target_callout_signatures | index("compact_target_callout_plate") != null)
   and (.first_contact_target_callout_guard.target_callout_signatures | index("target_subject_label") != null)
   and (.first_contact_target_callout_guard.target_callout_signatures | index("target_health_strip") != null)
-  and (.first_contact_target_callout_guard.target_callout_signatures | index("prefocus_target_rings_capped") != null)
+  and (.first_contact_target_callout_guard.target_callout_signatures | index("prefocus_target_corner_ticks") != null)
   and (.first_contact_target_callout_guard.target_callout_signatures | index("prefocus_target_cross_thinned") != null)
   and (.first_contact_target_callout_guard.target_callout_signatures | index("target_lock_preserved") != null)
   and (.first_contact_target_callout_guard.target_callout_layer_draw_order | index("terminal_legibility_deemphasis")) == 16

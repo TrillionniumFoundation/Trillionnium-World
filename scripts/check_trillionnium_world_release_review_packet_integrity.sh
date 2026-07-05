@@ -1476,13 +1476,15 @@ require_artifact_json_expr first_contact_basin_spec_semantics native_bevy_classi
   and .first_contact_target_callout_guard.target_callout_clearance_pixel_budget == 0
   and .first_contact_target_callout_guard.target_prefocus_ring_count == 2
   and .first_contact_target_callout_guard.target_prefocus_ring_thickness_px == 2
+  and .first_contact_target_callout_guard.target_prefocus_corner_tick_long_px == 6
+  and .first_contact_target_callout_guard.target_prefocus_corner_tick_pixel_budget == 160
   and .first_contact_target_callout_guard.target_prefocus_cross_long_px == 16
   and .first_contact_target_callout_guard.target_prefocus_cross_thickness_px == 2
-  and .first_contact_target_callout_guard.target_prefocus_marker_pixel_budget <= 256
+  and .first_contact_target_callout_guard.target_prefocus_marker_pixel_budget <= 224
   and (.first_contact_target_callout_guard.target_callout_signatures | index("compact_target_callout_plate") != null)
   and (.first_contact_target_callout_guard.target_callout_signatures | index("target_subject_label") != null)
   and (.first_contact_target_callout_guard.target_callout_signatures | index("target_health_strip") != null)
-  and (.first_contact_target_callout_guard.target_callout_signatures | index("prefocus_target_rings_capped") != null)
+  and (.first_contact_target_callout_guard.target_callout_signatures | index("prefocus_target_corner_ticks") != null)
   and (.first_contact_target_callout_guard.target_callout_signatures | index("prefocus_target_cross_thinned") != null)
   and (.first_contact_target_callout_guard.target_callout_signatures | index("target_lock_preserved") != null)
   and (.first_contact_target_callout_guard.target_callout_layer_draw_order | index("terminal_legibility_deemphasis")) == 16

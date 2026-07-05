@@ -363,7 +363,21 @@ fn draw_structure(
                 cell_h * 4,
                 color,
             );
-            if !(player_screen && tile != target_tile) {
+            if player_screen && tile == target_tile {
+                let muted_capture = classic_darken(CLASSIC_RTS_CAPTURE_BAR_COLOR, 1, 5);
+                for dx in [-cell_w + 4, cell_w - 12] {
+                    classic_draw_rect(
+                        buffer,
+                        width,
+                        height,
+                        cx + dx,
+                        cy - cell_h - 5,
+                        8,
+                        2,
+                        muted_capture,
+                    );
+                }
+            } else if !(player_screen && tile != target_tile) {
                 classic_draw_rect(
                     buffer,
                     width,

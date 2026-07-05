@@ -752,13 +752,14 @@ pub(super) fn draw_landmark_detail(
                 signature,
                 player_screen,
             ) {
+                let cue_color = classic_darken(color, 1, 5);
                 for (x, y) in [
                     (cx - 5, cy - cell_h / 2),
                     (cx - 5, cy + cell_h / 2 - 2),
                     (cx - cell_w / 2, cy - 1),
                     (cx + cell_w / 2 - 10, cy - 1),
                 ] {
-                    classic_draw_rect(buffer, width, height, x, y, 10, 2, color);
+                    classic_draw_rect(buffer, width, height, x, y, 10, 2, cue_color);
                 }
                 return;
             }

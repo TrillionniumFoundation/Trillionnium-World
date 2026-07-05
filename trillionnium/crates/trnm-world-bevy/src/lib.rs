@@ -806,6 +806,7 @@ const CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_LEADER_TICK_W_PX: i32 = 10;
 const CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_LEADER_TICK_H_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_TARGET_PREFLIGHT_RING_COUNT: i32 = 2;
 const CLASSIC_FIRST_CONTACT_TARGET_PREFLIGHT_RING_THICKNESS_PX: i32 = 2;
+const CLASSIC_FIRST_CONTACT_TARGET_PREFLIGHT_CORNER_TICK_LONG_PX: i32 = 6;
 const CLASSIC_FIRST_CONTACT_TARGET_PREFLIGHT_CROSS_LONG_PX: i32 = 16;
 const CLASSIC_FIRST_CONTACT_TARGET_PREFLIGHT_CROSS_THICKNESS_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_TARGET_LOCK_BRACKET_TICK_LONG_PX: i32 = 10;
@@ -94067,46 +94068,49 @@ fn classic_draw_first_contact_command_feedback_layers(
     );
     for ring in 0..CLASSIC_FIRST_CONTACT_TARGET_PREFLIGHT_RING_COUNT {
         let inset = ring * 4;
-        classic_draw_rect(
-            buffer,
-            width,
-            height,
-            target.0 - cell_w / 2 - inset,
-            target.1 - cell_h / 2 - inset,
-            cell_w * 2 + inset * 2,
-            CLASSIC_FIRST_CONTACT_TARGET_PREFLIGHT_RING_THICKNESS_PX,
-            prefocus_target_color,
-        );
-        classic_draw_rect(
-            buffer,
-            width,
-            height,
-            target.0 - cell_w / 2 - inset,
-            target.1 + cell_h + inset,
-            cell_w * 2 + inset * 2,
-            CLASSIC_FIRST_CONTACT_TARGET_PREFLIGHT_RING_THICKNESS_PX,
-            prefocus_target_color,
-        );
-        classic_draw_rect(
-            buffer,
-            width,
-            height,
-            target.0 - cell_w / 2 - inset,
-            target.1 - cell_h / 2 - inset,
-            CLASSIC_FIRST_CONTACT_TARGET_PREFLIGHT_RING_THICKNESS_PX,
-            cell_h * 2 + inset * 2,
-            prefocus_target_color,
-        );
-        classic_draw_rect(
-            buffer,
-            width,
-            height,
-            target.0 + cell_w + inset,
-            target.1 - cell_h / 2 - inset,
-            CLASSIC_FIRST_CONTACT_TARGET_PREFLIGHT_RING_THICKNESS_PX,
-            cell_h * 2 + inset * 2,
-            prefocus_target_color,
-        );
+        let tick = CLASSIC_FIRST_CONTACT_TARGET_PREFLIGHT_CORNER_TICK_LONG_PX;
+        let thick = CLASSIC_FIRST_CONTACT_TARGET_PREFLIGHT_RING_THICKNESS_PX;
+        let left = target.0 - cell_w / 2 - inset;
+        let right = target.0 + cell_w + inset;
+        let top = target.1 - cell_h / 2 - inset;
+        let bottom = target.1 + cell_h + inset;
+        for (corner_x, corner_y, sx, sy) in [
+            (left, top, 1, 1),
+            (right - tick, top, -1, 1),
+            (left, bottom - thick, 1, -1),
+            (right - tick, bottom - thick, -1, -1),
+        ] {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                corner_x,
+                corner_y,
+                tick,
+                thick,
+                prefocus_target_color,
+            );
+            let vertical_x = if sx > 0 {
+                corner_x
+            } else {
+                corner_x + tick - thick
+            };
+            let vertical_y = if sy > 0 {
+                corner_y
+            } else {
+                corner_y - tick + thick
+            };
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                vertical_x,
+                vertical_y,
+                thick,
+                tick,
+                prefocus_target_color,
+            );
+        }
     }
     classic_draw_rect(
         buffer,
@@ -95200,6 +95204,7 @@ fn classic_draw_first_contact_player_active_beacon_capture_ticks(
 ) {
     let tick_w = CLASSIC_FIRST_CONTACT_PLAYER_ACTIVE_BEACON_CAPTURE_TICK_W_PX;
     let tick_h = CLASSIC_FIRST_CONTACT_PLAYER_ACTIVE_BEACON_CAPTURE_TICK_H_PX;
+    let top_tick_y = cy - cell_h * 2 - 11;
     let ticks = [
         (
             cx - cell_w / 2 - 1,
@@ -95211,14 +95216,10 @@ fn classic_draw_first_contact_player_active_beacon_capture_ticks(
             cy + cell_h + 5,
             CLASSIC_RTS_OBJECTIVE_COLOR,
         ),
-        (
-            cx - cell_w / 2,
-            cy - cell_h * 2 - 7,
-            CLASSIC_RTS_CAPTURE_BAR_COLOR,
-        ),
+        (cx - cell_w / 2, top_tick_y, CLASSIC_RTS_CAPTURE_BAR_COLOR),
         (
             cx + cell_w / 2 - tick_w,
-            cy - cell_h * 2 - 7,
+            top_tick_y,
             CLASSIC_RTS_CAPTURE_BAR_COLOR,
         ),
     ];
@@ -95244,6 +95245,7 @@ fn classic_draw_first_contact_player_beacon_core_micro_ticks(
 ) {
     let tick_w = CLASSIC_FIRST_CONTACT_PLAYER_ACTIVE_BEACON_CAPTURE_TICK_W_PX;
     let tick_h = CLASSIC_FIRST_CONTACT_PLAYER_ACTIVE_BEACON_CAPTURE_TICK_H_PX;
+    let capture_tick_color = classic_darken(CLASSIC_RTS_CAPTURE_BAR_COLOR, 1, 5);
     let core_x = center_x + size_w / 4;
     let ticks = [
         (core_x - tick_w / 2, base_y + 3, CLASSIC_RTS_OBJECTIVE_COLOR),
@@ -95252,15 +95254,11 @@ fn classic_draw_first_contact_player_beacon_core_micro_ticks(
             base_y + size_h - 5,
             CLASSIC_RTS_OBJECTIVE_COLOR,
         ),
-        (
-            core_x - size_w / 2,
-            base_y + size_h / 2,
-            CLASSIC_RTS_CAPTURE_BAR_COLOR,
-        ),
+        (core_x - size_w / 2, base_y + size_h / 2, capture_tick_color),
         (
             core_x + size_w / 2 - tick_w,
             base_y + size_h / 2,
-            CLASSIC_RTS_CAPTURE_BAR_COLOR,
+            capture_tick_color,
         ),
     ];
     debug_assert_eq!(
@@ -154131,7 +154129,13 @@ mod tests {
             guard
                 .get("target_prefocus_marker_pixel_budget")
                 .and_then(Value::as_u64),
-            Some(256)
+            Some(224)
+        );
+        assert_eq!(
+            guard
+                .get("target_prefocus_corner_tick_pixel_budget")
+                .and_then(Value::as_u64),
+            Some(160)
         );
         assert_eq!(
             guard
@@ -154155,7 +154159,7 @@ mod tests {
                         .any(|value| value.as_str() == Some("compact_target_callout_plate"))
                         && signatures
                             .iter()
-                            .any(|value| value.as_str() == Some("prefocus_target_rings_capped"))
+                            .any(|value| value.as_str() == Some("prefocus_target_corner_ticks"))
                 }),
             Some(true)
         );
@@ -154180,6 +154184,65 @@ mod tests {
         ] {
             assert_eq!(guard.get(gate).and_then(Value::as_bool), Some(true));
         }
+    }
+
+    #[cfg(not(target_os = "android"))]
+    #[test]
+    fn classic_first_contact_player_target_prefocus_draws_micro_corner_ticks() {
+        let width = 1280;
+        let height = 699;
+        let mut buffer = vec![0_u32; width * height];
+        let map_x = 80;
+        let map_y = 96;
+        let cell_w = 28;
+        let cell_h = 14;
+        let prefocus_target_color = classic_mix_color(
+            CLASSIC_RTS_COMMAND_SURFACE_TARGET_COLOR,
+            CLASSIC_RTS_TACTICAL_VIEWPORT_SHADOW_COLOR,
+            1,
+            3,
+        );
+
+        classic_draw_first_contact_command_feedback_layers(
+            &mut buffer,
+            width,
+            height,
+            map_x,
+            map_y,
+            cell_w,
+            cell_h,
+            true,
+        );
+
+        let components = exact_color_components(&buffer, width, height, prefocus_target_color);
+        let pixel_count = components
+            .iter()
+            .map(|(pixels, _, _)| pixels)
+            .sum::<usize>();
+        let pixels_per_corner = (CLASSIC_FIRST_CONTACT_TARGET_PREFLIGHT_CORNER_TICK_LONG_PX
+            * CLASSIC_FIRST_CONTACT_TARGET_PREFLIGHT_RING_THICKNESS_PX
+            * 2
+            - CLASSIC_FIRST_CONTACT_TARGET_PREFLIGHT_RING_THICKNESS_PX
+                * CLASSIC_FIRST_CONTACT_TARGET_PREFLIGHT_RING_THICKNESS_PX)
+            as usize;
+
+        assert_eq!(
+            components.len(),
+            CLASSIC_FIRST_CONTACT_TARGET_PREFLIGHT_RING_COUNT as usize * 4,
+            "{components:?}"
+        );
+        assert_eq!(
+            pixel_count,
+            CLASSIC_FIRST_CONTACT_TARGET_PREFLIGHT_RING_COUNT as usize * 4 * pixels_per_corner,
+            "{pixel_count} {components:?}"
+        );
+        assert!(
+            components.iter().all(|(_, w, h)| {
+                *w <= CLASSIC_FIRST_CONTACT_TARGET_PREFLIGHT_CORNER_TICK_LONG_PX as usize
+                    && *h <= CLASSIC_FIRST_CONTACT_TARGET_PREFLIGHT_CORNER_TICK_LONG_PX as usize
+            }),
+            "{components:?}"
+        );
     }
 
     #[cfg(not(target_os = "android"))]
@@ -155266,6 +155329,90 @@ mod tests {
 
     #[cfg(not(target_os = "android"))]
     #[test]
+    fn classic_first_contact_player_active_beacon_capture_layers_do_not_merge_exact_yellow() {
+        let width = 900;
+        let height = 620;
+        let mut buffer = vec![0_u32; width * height];
+        let map_x = 80;
+        let map_y = 96;
+        let cell_w = 28;
+        let cell_h = 14;
+        let mut runtime = NativeFirstPlayableRuntime::default();
+        runtime.rts_command_destination_tile = Some("16,9".to_string());
+        let world = classic_first_contact_openra_like_core_preview_world();
+
+        let actor = world
+            .actors
+            .iter()
+            .find(|actor| {
+                actor.tile == (16, 9)
+                    && classic_first_contact_runtime_actor_glyph_accent(actor)
+                        == RtsActorGlyphAccent::BeaconCore
+            })
+            .expect("active beacon core actor");
+        let (tile_x, tile_y) =
+            classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, actor.tile);
+        let (size_w, size_h) = classic_first_contact_runtime_actor_size(actor, cell_w, cell_h);
+        let color = classic_first_contact_runtime_actor_color(actor);
+        classic_draw_first_contact_actor_glyph(
+            &mut buffer,
+            width,
+            height,
+            actor,
+            tile_x,
+            tile_y,
+            size_w,
+            size_h,
+            color,
+            true,
+        );
+
+        classic_draw_first_contact_silhouette_readability_layer(
+            &mut buffer,
+            width,
+            height,
+            map_x,
+            map_y,
+            cell_w,
+            cell_h,
+            true,
+            (16, 9),
+        );
+        classic_draw_first_contact_art_readability_layer(
+            &mut buffer,
+            width,
+            height,
+            map_x,
+            map_y,
+            cell_w,
+            cell_h,
+            true,
+        );
+        classic_draw_first_contact_readability_overlays(
+            &mut buffer,
+            width,
+            height,
+            &runtime,
+            map_x,
+            map_y,
+            cell_w,
+            cell_h,
+            true,
+        );
+
+        let components =
+            exact_color_components(&buffer, width, height, CLASSIC_RTS_CAPTURE_BAR_COLOR);
+        assert!(
+            components.iter().all(|(_, w, h)| {
+                *w <= CLASSIC_FIRST_CONTACT_PLAYER_ACTIVE_BEACON_CAPTURE_TICK_W_PX as usize
+                    && *h <= CLASSIC_FIRST_CONTACT_PLAYER_ACTIVE_BEACON_CAPTURE_TICK_H_PX as usize
+            }),
+            "{components:?}"
+        );
+    }
+
+    #[cfg(not(target_os = "android"))]
+    #[test]
     fn classic_first_contact_player_beacon_animation_draws_micro_range_cues() {
         let width = 900;
         let height = 620;
@@ -155512,8 +155659,18 @@ mod tests {
             );
             checked_beacons += 1;
 
-            for color in [CLASSIC_RTS_OBJECTIVE_COLOR, CLASSIC_RTS_CAPTURE_BAR_COLOR] {
-                let components = exact_color_components(&buffer, width, height, color);
+            let objective_components =
+                exact_color_components(&buffer, width, height, CLASSIC_RTS_OBJECTIVE_COLOR);
+            let exact_capture_components =
+                exact_color_components(&buffer, width, height, CLASSIC_RTS_CAPTURE_BAR_COLOR);
+            let muted_capture_color = classic_darken(CLASSIC_RTS_CAPTURE_BAR_COLOR, 1, 5);
+            let muted_capture_components =
+                exact_color_components(&buffer, width, height, muted_capture_color);
+
+            for (color, components) in [
+                (CLASSIC_RTS_OBJECTIVE_COLOR, &objective_components),
+                (muted_capture_color, &muted_capture_components),
+            ] {
                 let pixel_count = components
                     .iter()
                     .map(|(pixels, _, _)| pixels)
@@ -155543,6 +155700,11 @@ mod tests {
                     actor.id
                 );
             }
+            assert!(
+                exact_capture_components.is_empty(),
+                "{} {exact_capture_components:?}",
+                actor.id
+            );
         }
 
         assert!(checked_beacons > 0);
