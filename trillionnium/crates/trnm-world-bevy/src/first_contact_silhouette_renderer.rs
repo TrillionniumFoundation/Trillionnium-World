@@ -49,6 +49,7 @@ fn draw_unit(
     tile: (i32, i32),
     role: &str,
     signature: &str,
+    player_screen: bool,
 ) {
     let (tile_x, tile_y) = classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, tile);
     let cx = tile_x + cell_w / 2;
@@ -134,16 +135,40 @@ fn draw_unit(
             );
         }
         "relay_courier" => {
-            classic_draw_rect(
-                buffer,
-                width,
-                height,
-                cx - 9,
-                cy - cell_h / 2 - 5,
-                18,
-                4,
-                CLASSIC_RTS_STRUCTURE_REPAIR_BEAM_COLOR,
-            );
+            if player_screen {
+                let quiet_relay = classic_darken(CLASSIC_RTS_STRUCTURE_REPAIR_BEAM_COLOR, 1, 4);
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    cx - 5,
+                    cy - cell_h / 2 - 4,
+                    4,
+                    2,
+                    quiet_relay,
+                );
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    cx + 2,
+                    cy - cell_h / 2 - 2,
+                    4,
+                    2,
+                    quiet_relay,
+                );
+            } else {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    cx - 9,
+                    cy - cell_h / 2 - 5,
+                    18,
+                    4,
+                    CLASSIC_RTS_STRUCTURE_REPAIR_BEAM_COLOR,
+                );
+            }
             classic_draw_rect(buffer, width, height, cx + 7, cy - 6, 4, cell_h + 9, color);
         }
         _ => {}
@@ -235,36 +260,56 @@ fn draw_structure(
             }
         }
         "tall_signal_mast" => {
-            classic_draw_rect(
-                buffer,
-                width,
-                height,
-                cx - 4,
-                cy - cell_h * 3,
-                8,
-                cell_h * 3,
-                color,
-            );
-            classic_draw_rect(
-                buffer,
-                width,
-                height,
-                cx - cell_w,
-                cy - cell_h * 2,
-                cell_w * 2,
-                4,
-                CLASSIC_RTS_STRUCTURE_REPAIR_BEAM_COLOR,
-            );
-            classic_draw_iso_ellipse(
-                buffer,
-                width,
-                height,
-                cx,
-                cy - cell_h * 2 - 2,
-                (cell_w / 2 + 2).max(7),
-                (cell_h / 4 + 1).max(3),
-                CLASSIC_RTS_COMMANDER_AURA_COLOR,
-            );
+            if player_screen {
+                let quiet_relay = classic_darken(color, 1, 4);
+                for (dx, dy, cue_w, cue_h) in [
+                    (-2, -cell_h * 3 + 2, 4, 2),
+                    (-1, -cell_h * 2 + 2, 2, 4),
+                    (-2, -cell_h - 2, 4, 2),
+                ] {
+                    classic_draw_rect(
+                        buffer,
+                        width,
+                        height,
+                        cx + dx,
+                        cy + dy,
+                        cue_w,
+                        cue_h,
+                        quiet_relay,
+                    );
+                }
+            } else {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    cx - 4,
+                    cy - cell_h * 3,
+                    8,
+                    cell_h * 3,
+                    color,
+                );
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    cx - cell_w,
+                    cy - cell_h * 2,
+                    cell_w * 2,
+                    4,
+                    CLASSIC_RTS_STRUCTURE_REPAIR_BEAM_COLOR,
+                );
+                classic_draw_iso_ellipse(
+                    buffer,
+                    width,
+                    height,
+                    cx,
+                    cy - cell_h * 2 - 2,
+                    (cell_w / 2 + 2).max(7),
+                    (cell_h / 4 + 1).max(3),
+                    CLASSIC_RTS_COMMANDER_AURA_COLOR,
+                );
+            }
         }
         "vertical_beacon_spire" => {
             if first_contact_renderer_readability::player_screen_secondary_beacon_body(
@@ -501,7 +546,17 @@ pub(super) fn draw_readability_layer(
     }
     for (tile, role, signature) in unit_samples() {
         draw_unit(
-            buffer, width, height, map_x, map_y, cell_w, cell_h, tile, role, signature,
+            buffer,
+            width,
+            height,
+            map_x,
+            map_y,
+            cell_w,
+            cell_h,
+            tile,
+            role,
+            signature,
+            player_screen,
         );
     }
 }

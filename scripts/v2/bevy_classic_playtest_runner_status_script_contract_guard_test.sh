@@ -78,6 +78,8 @@ required_lines=(
   'exact_structure_core_identity_micro_component_gate'
   'structure_model_identity_relay_exact_cyan'
   'exact_structure_relay_identity_micro_component_gate'
+  'silhouette_relay_beam_exact_light_blue'
+  'exact_silhouette_relay_beam_light_blue_micro_component_gate'
   'edge_safety_samples'
   'room=first-contact-basin'
   'owned-assets-v1'

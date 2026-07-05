@@ -404,6 +404,18 @@ pub(super) fn draw_building_detail(
             }
         }
         "antenna_band_panels" => {
+            if player_screen {
+                let quiet = classic_darken(color, 1, 4);
+                for (dx, dy, cue_w, cue_h) in [
+                    (-3, -cell_h * 2 + 2, 6, 2),
+                    (-2, -cell_h - 3, 4, 2),
+                    (-3, 2, 6, 2),
+                    (-1, -cell_h * 3, 2, 4),
+                ] {
+                    classic_draw_rect(buffer, width, height, cx + dx, cy + dy, cue_w, cue_h, quiet);
+                }
+                return;
+            }
             for row in 0..4 {
                 classic_draw_rect(
                     buffer,
@@ -656,6 +668,17 @@ pub(super) fn draw_landmark_detail(
             }
         }
         "relay_ground_cables" => {
+            if player_screen {
+                let quiet = classic_darken(color, 1, 4);
+                for (dx, dy, cue_w, cue_h) in [
+                    (-cell_w / 3 - 1, -cell_h / 2, 2, 4),
+                    (-2, cell_h / 2, 4, 2),
+                    (cell_w / 3 - 1, -cell_h / 2 + 2, 2, 4),
+                ] {
+                    classic_draw_rect(buffer, width, height, cx + dx, cy + dy, cue_w, cue_h, quiet);
+                }
+                return;
+            }
             classic_draw_rect(
                 buffer,
                 width,

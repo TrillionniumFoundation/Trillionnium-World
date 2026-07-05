@@ -152140,6 +152140,69 @@ mod tests {
 
     #[cfg(not(target_os = "android"))]
     #[test]
+    fn classic_first_contact_player_art_relay_cables_do_not_draw_broad_light_blue_frames() {
+        let width = 900;
+        let height = 620;
+        let map_x = 80;
+        let map_y = 96;
+        let cell_w = 28;
+        let cell_h = 14;
+        let mut player_buffer = vec![0_u32; width * height];
+        let mut evidence_buffer = vec![0_u32; width * height];
+        let relay_cable_light_blue = classic_lighten(CLASSIC_RTS_STRUCTURE_REPAIR_BEAM_COLOR, 1, 4);
+
+        classic_draw_first_contact_art_readability_layer(
+            &mut player_buffer,
+            width,
+            height,
+            map_x,
+            map_y,
+            cell_w,
+            cell_h,
+            true,
+        );
+        classic_draw_first_contact_art_readability_layer(
+            &mut evidence_buffer,
+            width,
+            height,
+            map_x,
+            map_y,
+            cell_w,
+            cell_h,
+            false,
+        );
+
+        for color in [
+            CLASSIC_RTS_STRUCTURE_REPAIR_BEAM_COLOR,
+            relay_cable_light_blue,
+        ] {
+            let player_components = exact_color_components(&player_buffer, width, height, color);
+            let evidence_components =
+                exact_color_components(&evidence_buffer, width, height, color);
+            let player_pixel_count = player_components
+                .iter()
+                .map(|(pixels, _, _)| pixels)
+                .sum::<usize>();
+
+            assert!(
+                player_components.iter().all(|(_, w, h)| *w <= 6 && *h <= 8),
+                "{color:06x} {player_components:?}"
+            );
+            assert!(
+                player_pixel_count <= 64,
+                "{color:06x} {player_pixel_count} {player_components:?}"
+            );
+            assert!(
+                evidence_components
+                    .iter()
+                    .any(|(_, w, h)| (*w >= 18 && *h >= 3) || (*w >= 4 && *h >= 24)),
+                "{color:06x} {evidence_components:?}"
+            );
+        }
+    }
+
+    #[cfg(not(target_os = "android"))]
+    #[test]
     fn classic_first_contact_motion_readability_guard_tracks_unit_and_building_activity() {
         let guard = classic_first_contact_motion_readability_guard();
 
@@ -153245,6 +153308,75 @@ mod tests {
         ] {
             assert_eq!(guard.get(gate).and_then(Value::as_bool), Some(true));
         }
+    }
+
+    #[cfg(not(target_os = "android"))]
+    #[test]
+    fn classic_first_contact_player_silhouette_relay_beams_do_not_draw_broad_light_blue_frames() {
+        let width = 900;
+        let height = 620;
+        let map_x = 80;
+        let map_y = 96;
+        let cell_w = 28;
+        let cell_h = 14;
+        let target_tile = (16, 9);
+        let mut player_buffer = vec![0_u32; width * height];
+        let mut evidence_buffer = vec![0_u32; width * height];
+
+        classic_draw_first_contact_silhouette_readability_layer(
+            &mut player_buffer,
+            width,
+            height,
+            map_x,
+            map_y,
+            cell_w,
+            cell_h,
+            true,
+            target_tile,
+        );
+        classic_draw_first_contact_silhouette_readability_layer(
+            &mut evidence_buffer,
+            width,
+            height,
+            map_x,
+            map_y,
+            cell_w,
+            cell_h,
+            false,
+            target_tile,
+        );
+
+        let player_components = exact_color_components(
+            &player_buffer,
+            width,
+            height,
+            CLASSIC_RTS_STRUCTURE_REPAIR_BEAM_COLOR,
+        );
+        let evidence_components = exact_color_components(
+            &evidence_buffer,
+            width,
+            height,
+            CLASSIC_RTS_STRUCTURE_REPAIR_BEAM_COLOR,
+        );
+        let player_repair_beam_pixels = player_components
+            .iter()
+            .map(|(pixels, _, _)| pixels)
+            .sum::<usize>();
+
+        assert!(
+            player_components.iter().all(|(_, w, h)| *w <= 4 && *h <= 8),
+            "{player_components:?}"
+        );
+        assert!(
+            player_repair_beam_pixels <= 64,
+            "{player_repair_beam_pixels} {player_components:?}"
+        );
+        assert!(
+            evidence_components
+                .iter()
+                .any(|(_, w, h)| (*w >= 18 && *h >= 4) || (*w >= 8 && *h >= 28)),
+            "{evidence_components:?}"
+        );
     }
 
     #[cfg(not(target_os = "android"))]
