@@ -839,6 +839,9 @@ const CLASSIC_FIRST_CONTACT_ROUTE_CLEARANCE_CORNER_CUES_PER_TILE: usize = 4;
 const CLASSIC_FIRST_CONTACT_PLAYER_SECONDARY_BEACON_ACTOR_BODY_CUE_COUNT: usize = 4;
 const CLASSIC_FIRST_CONTACT_PLAYER_SECONDARY_BEACON_ACTOR_BODY_CUE_W_PX: i32 = 8;
 const CLASSIC_FIRST_CONTACT_PLAYER_SECONDARY_BEACON_ACTOR_BODY_CUE_H_PX: i32 = 2;
+const CLASSIC_FIRST_CONTACT_PLAYER_BEACON_PRODUCTION_GLOW_CUE_COUNT: usize = 2;
+const CLASSIC_FIRST_CONTACT_PLAYER_BEACON_PRODUCTION_GLOW_CUE_W_PX: i32 = 8;
+const CLASSIC_FIRST_CONTACT_PLAYER_BEACON_PRODUCTION_GLOW_CUE_H_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK_MOVE_TRAIL_ORIGIN_COUNT: usize = 2;
 const CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK_MOVE_TRAIL_STEP_COUNT: usize = 10;
 const CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK_MOVE_TRAIL_TICK_W_PX: i32 = 2;
@@ -94673,16 +94676,38 @@ fn classic_draw_first_contact_actor(
                 cell_h * 2,
                 CLASSIC_RTS_PRODUCT_RESOURCE_COLOR,
             );
-            classic_draw_rect(
-                buffer,
-                width,
-                height,
-                cx - cell_w / 2,
-                cy - cell_h - 5,
-                cell_w,
-                4,
-                CLASSIC_RTS_STRUCTURE_PRODUCTION_GLOW_COLOR,
-            );
+            if player_screen {
+                debug_assert_eq!(
+                    CLASSIC_FIRST_CONTACT_PLAYER_BEACON_PRODUCTION_GLOW_CUE_COUNT,
+                    2
+                );
+                for cue_x in [
+                    cx - cell_w / 2,
+                    cx + cell_w / 2 - CLASSIC_FIRST_CONTACT_PLAYER_BEACON_PRODUCTION_GLOW_CUE_W_PX,
+                ] {
+                    classic_draw_rect(
+                        buffer,
+                        width,
+                        height,
+                        cue_x,
+                        cy - cell_h - 5,
+                        CLASSIC_FIRST_CONTACT_PLAYER_BEACON_PRODUCTION_GLOW_CUE_W_PX,
+                        CLASSIC_FIRST_CONTACT_PLAYER_BEACON_PRODUCTION_GLOW_CUE_H_PX,
+                        CLASSIC_RTS_STRUCTURE_PRODUCTION_GLOW_COLOR,
+                    );
+                }
+            } else {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    cx - cell_w / 2,
+                    cy - cell_h - 5,
+                    cell_w,
+                    4,
+                    CLASSIC_RTS_STRUCTURE_PRODUCTION_GLOW_COLOR,
+                );
+            }
         }
         RtsActorGlyphBody::TerrainRidge => {
             if player_screen {
@@ -155755,6 +155780,95 @@ mod tests {
                 exact_capture_components.is_empty(),
                 "{} {exact_capture_components:?}",
                 actor.id
+            );
+        }
+
+        assert!(checked_beacons > 0);
+    }
+
+    #[cfg(not(target_os = "android"))]
+    #[test]
+    fn classic_first_contact_player_objective_beacon_production_glow_draws_micro_ticks() {
+        let width = 900;
+        let height = 620;
+        let map_x = 80;
+        let map_y = 96;
+        let cell_w = 28;
+        let cell_h = 14;
+        let target_tile = (16, 9);
+        let mut checked_beacons = 0_usize;
+
+        for actor in classic_first_contact_map_actors_from_rts_data() {
+            let glyph_body =
+                classic_first_contact_actor_presentation(actor.source_rule_id.as_str())
+                    .map(|profile| profile.glyph.body)
+                    .unwrap_or_else(|| match &actor.kind {
+                        RtsFirstContactPreviewActorKind::Spawn => RtsActorGlyphBody::SpawnPad,
+                        RtsFirstContactPreviewActorKind::FluxBloom => {
+                            RtsActorGlyphBody::ResourceBloom
+                        }
+                        RtsFirstContactPreviewActorKind::Beacon => {
+                            RtsActorGlyphBody::ObjectiveBeacon
+                        }
+                        RtsFirstContactPreviewActorKind::Ridge => RtsActorGlyphBody::TerrainRidge,
+                        RtsFirstContactPreviewActorKind::Vent => RtsActorGlyphBody::FluxVent,
+                        RtsFirstContactPreviewActorKind::LaneMarker => {
+                            RtsActorGlyphBody::LaneMarker
+                        }
+                        RtsFirstContactPreviewActorKind::BeaconRing => {
+                            RtsActorGlyphBody::BeaconRing
+                        }
+                        RtsFirstContactPreviewActorKind::ExpansionMarker => {
+                            RtsActorGlyphBody::ExpansionMarker
+                        }
+                    });
+            if !matches!(glyph_body, RtsActorGlyphBody::ObjectiveBeacon) {
+                continue;
+            }
+            checked_beacons += 1;
+            let mut buffer = vec![0_u32; width * height];
+
+            classic_draw_first_contact_actor(
+                &mut buffer,
+                width,
+                height,
+                actor.clone(),
+                map_x,
+                map_y,
+                cell_w,
+                cell_h,
+                true,
+                target_tile,
+            );
+
+            let components = exact_color_components(
+                &buffer,
+                width,
+                height,
+                CLASSIC_RTS_STRUCTURE_PRODUCTION_GLOW_COLOR,
+            );
+            let pixel_count = components
+                .iter()
+                .map(|(pixels, _, _)| pixels)
+                .sum::<usize>();
+
+            assert_eq!(
+                pixel_count,
+                CLASSIC_FIRST_CONTACT_PLAYER_BEACON_PRODUCTION_GLOW_CUE_COUNT
+                    * CLASSIC_FIRST_CONTACT_PLAYER_BEACON_PRODUCTION_GLOW_CUE_W_PX as usize
+                    * CLASSIC_FIRST_CONTACT_PLAYER_BEACON_PRODUCTION_GLOW_CUE_H_PX as usize,
+                "{} {} {components:?}",
+                actor.source_rule_id,
+                pixel_count
+            );
+            assert!(
+                components.iter().all(|(_, w, h)| {
+                    *w <= CLASSIC_FIRST_CONTACT_PLAYER_BEACON_PRODUCTION_GLOW_CUE_W_PX as usize
+                        && *h
+                            <= CLASSIC_FIRST_CONTACT_PLAYER_BEACON_PRODUCTION_GLOW_CUE_H_PX as usize
+                }),
+                "{} {components:?}",
+                actor.source_rule_id
             );
         }
 

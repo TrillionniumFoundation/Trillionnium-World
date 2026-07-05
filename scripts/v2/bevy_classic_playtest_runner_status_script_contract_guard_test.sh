@@ -53,6 +53,8 @@ required_lines=(
   'exact_blueprint_micro_component_gate'
   'relay_scaffold_exact_tan'
   'exact_scaffold_thin_component_gate'
+  'structure_production_glow_exact_green'
+  'exact_structure_production_glow_micro_component_gate'
   'harvest_tool_swing_exact_orange'
   'exact_harvest_swing_micro_component_gate'
   'active_beacon_capture_exact_yellow'
