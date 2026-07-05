@@ -954,6 +954,10 @@ const CLASSIC_FIRST_CONTACT_PLAYER_RELAY_IDENTITY_RAIL_H_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_PLAYER_COMMAND_CORE_FACTION_TICK_COUNT: usize = 4;
 const CLASSIC_FIRST_CONTACT_PLAYER_COMMAND_CORE_FACTION_TICK_W_PX: i32 = 6;
 const CLASSIC_FIRST_CONTACT_PLAYER_COMMAND_CORE_FACTION_TICK_H_PX: i32 = 2;
+const CLASSIC_FIRST_CONTACT_PLAYER_RELAY_MAST_CUE_W_PX: i32 = 6;
+const CLASSIC_FIRST_CONTACT_PLAYER_RELAY_MAST_CUE_H_PX: i32 = 2;
+const CLASSIC_FIRST_CONTACT_PLAYER_RELAY_MAST_VERTICAL_CUE_W_PX: i32 = 2;
+const CLASSIC_FIRST_CONTACT_PLAYER_RELAY_MAST_VERTICAL_CUE_H_PX: i32 = 4;
 const CLASSIC_FIRST_CONTACT_LEGACY_MIDFIELD_STATUS_BAR_PIXEL_BUDGET: usize = 0;
 const CLASSIC_FIRST_CONTACT_PLAYER_SECONDARY_BEACON_COUNT: usize = 3;
 const CLASSIC_FIRST_CONTACT_PLAYER_SECONDARY_BEACON_MARKER_CUES_PER_BEACON: usize = 6;
@@ -92482,6 +92486,7 @@ fn classic_draw_first_contact_actor_depth_detail(
     size_w: i32,
     size_h: i32,
     color: u32,
+    player_screen: bool,
 ) {
     let rim = classic_lighten(color, 1, 5);
     let side_shadow = classic_darken(color, 1, 3);
@@ -92550,6 +92555,33 @@ fn classic_draw_first_contact_actor_depth_detail(
             }
         }
         RtsActorGlyphAccent::RelayMast => {
+            if player_screen {
+                let brace = classic_darken(CLASSIC_RTS_RALLY_LINE_COLOR, 1, 4);
+                let brace_edge = classic_darken(brace, 1, 4);
+                for dx in [-7, 7] {
+                    classic_draw_rect(
+                        buffer,
+                        width,
+                        height,
+                        center_x + dx,
+                        base_y + size_h / 4,
+                        CLASSIC_FIRST_CONTACT_PLAYER_RELAY_MAST_VERTICAL_CUE_W_PX,
+                        CLASSIC_FIRST_CONTACT_PLAYER_RELAY_MAST_VERTICAL_CUE_H_PX,
+                        brace,
+                    );
+                }
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    center_x - CLASSIC_FIRST_CONTACT_PLAYER_RELAY_MAST_CUE_W_PX / 2,
+                    base_y + size_h / 2,
+                    CLASSIC_FIRST_CONTACT_PLAYER_RELAY_MAST_CUE_W_PX,
+                    CLASSIC_FIRST_CONTACT_PLAYER_RELAY_MAST_CUE_H_PX,
+                    brace_edge,
+                );
+                return;
+            }
             let brace = classic_lighten(CLASSIC_RTS_RALLY_LINE_COLOR, 1, 5);
             classic_draw_rect(
                 buffer,
@@ -92623,10 +92655,14 @@ fn classic_draw_first_contact_actor_glyph(
         player_screen && matches!(glyph_accent, RtsActorGlyphAccent::CommandSpire);
     let player_screen_beacon_core =
         player_screen && matches!(glyph_accent, RtsActorGlyphAccent::BeaconCore);
+    let player_screen_relay_mast =
+        player_screen && matches!(glyph_accent, RtsActorGlyphAccent::RelayMast);
     let render_color = if player_screen_command_core {
         classic_darken(color, 3, 5)
     } else if player_screen_beacon_core {
         classic_darken(color, 2, 5)
+    } else if player_screen_relay_mast {
+        classic_darken(color, 1, 2)
     } else {
         color
     };
@@ -92677,6 +92713,7 @@ fn classic_draw_first_contact_actor_glyph(
             size_w,
             size_h,
             render_color,
+            player_screen,
         );
         match glyph_accent {
             RtsActorGlyphAccent::CommandSpire => {
@@ -92716,16 +92753,32 @@ fn classic_draw_first_contact_actor_glyph(
                         highlight,
                     );
                 }
-                classic_draw_rect(
-                    buffer,
-                    width,
-                    height,
-                    center_x + size_w / 4 - 4,
-                    base_y + size_h / 2,
-                    8,
-                    8,
-                    CLASSIC_RTS_COMMANDER_AURA_COLOR,
-                );
+                if player_screen_command_core {
+                    let aura_tick = classic_darken(CLASSIC_RTS_COMMANDER_AURA_COLOR, 1, 4);
+                    for dx in [-5, 3] {
+                        classic_draw_rect(
+                            buffer,
+                            width,
+                            height,
+                            center_x + size_w / 4 + dx,
+                            base_y + size_h / 2,
+                            CLASSIC_FIRST_CONTACT_PLAYER_RELAY_MAST_CUE_W_PX,
+                            CLASSIC_FIRST_CONTACT_PLAYER_RELAY_MAST_CUE_H_PX,
+                            aura_tick,
+                        );
+                    }
+                } else {
+                    classic_draw_rect(
+                        buffer,
+                        width,
+                        height,
+                        center_x + size_w / 4 - 4,
+                        base_y + size_h / 2,
+                        8,
+                        8,
+                        CLASSIC_RTS_COMMANDER_AURA_COLOR,
+                    );
+                }
             }
             RtsActorGlyphAccent::RelayMast => {
                 classic_draw_rect(
@@ -92736,28 +92789,57 @@ fn classic_draw_first_contact_actor_glyph(
                     base_y - 2,
                     6,
                     size_h,
-                    color,
+                    render_color,
                 );
-                classic_draw_rect(
-                    buffer,
-                    width,
-                    height,
-                    center_x - 10,
-                    base_y + size_h / 3,
-                    20,
-                    4,
-                    CLASSIC_RTS_RALLY_LINE_COLOR,
-                );
-                classic_draw_iso_ellipse(
-                    buffer,
-                    width,
-                    height,
-                    center_x,
-                    base_y + 2,
-                    9,
-                    4,
-                    CLASSIC_RTS_COMMANDER_AURA_COLOR,
-                );
+                if player_screen {
+                    let rally_tick = classic_darken(CLASSIC_RTS_RALLY_LINE_COLOR, 1, 4);
+                    let aura_tick = classic_darken(CLASSIC_RTS_COMMANDER_AURA_COLOR, 1, 4);
+                    for dx in [-7, 1] {
+                        classic_draw_rect(
+                            buffer,
+                            width,
+                            height,
+                            center_x + dx,
+                            base_y + size_h / 3,
+                            CLASSIC_FIRST_CONTACT_PLAYER_RELAY_MAST_CUE_W_PX,
+                            CLASSIC_FIRST_CONTACT_PLAYER_RELAY_MAST_CUE_H_PX,
+                            rally_tick,
+                        );
+                    }
+                    for dx in [-5, 3] {
+                        classic_draw_rect(
+                            buffer,
+                            width,
+                            height,
+                            center_x + dx,
+                            base_y + 2,
+                            CLASSIC_FIRST_CONTACT_PLAYER_RELAY_MAST_CUE_W_PX,
+                            CLASSIC_FIRST_CONTACT_PLAYER_RELAY_MAST_CUE_H_PX,
+                            aura_tick,
+                        );
+                    }
+                } else {
+                    classic_draw_rect(
+                        buffer,
+                        width,
+                        height,
+                        center_x - 10,
+                        base_y + size_h / 3,
+                        20,
+                        4,
+                        CLASSIC_RTS_RALLY_LINE_COLOR,
+                    );
+                    classic_draw_iso_ellipse(
+                        buffer,
+                        width,
+                        height,
+                        center_x,
+                        base_y + 2,
+                        9,
+                        4,
+                        CLASSIC_RTS_COMMANDER_AURA_COLOR,
+                    );
+                }
             }
             RtsActorGlyphAccent::BeaconCore => {
                 if player_screen {
@@ -154272,6 +154354,127 @@ mod tests {
 
     #[cfg(not(target_os = "android"))]
     #[test]
+    fn classic_first_contact_player_runtime_structure_hot_aura_cues_are_muted() {
+        let width = 900;
+        let height = 620;
+        let map_x = 80;
+        let map_y = 96;
+        let cell_w = 28;
+        let cell_h = 14;
+        let world = classic_first_contact_openra_like_core_preview_world();
+        let hot_relay_brace_color = classic_lighten(CLASSIC_RTS_RALLY_LINE_COLOR, 1, 5);
+        let muted_relay_color = classic_darken(CLASSIC_RTS_RALLY_LINE_COLOR, 1, 4);
+        let muted_aura_color = classic_darken(CLASSIC_RTS_COMMANDER_AURA_COLOR, 1, 4);
+        let mut checked_command_spires = 0_usize;
+        let mut checked_relay_masts = 0_usize;
+
+        for actor in world
+            .actors
+            .iter()
+            .filter(|actor| classic_first_contact_runtime_core_actor_player_visible(actor))
+            .filter(|actor| {
+                matches!(
+                    classic_first_contact_runtime_actor_glyph_accent(actor),
+                    RtsActorGlyphAccent::CommandSpire | RtsActorGlyphAccent::RelayMast
+                )
+            })
+        {
+            let mut buffer = vec![0_u32; width * height];
+            let (tile_x, tile_y) =
+                classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, actor.tile);
+            let (size_w, size_h) = classic_first_contact_runtime_actor_size(actor, cell_w, cell_h);
+            let color = classic_first_contact_runtime_actor_color(actor);
+            let accent = classic_first_contact_runtime_actor_glyph_accent(actor);
+
+            classic_draw_first_contact_actor_glyph(
+                &mut buffer,
+                width,
+                height,
+                actor,
+                tile_x,
+                tile_y,
+                size_w,
+                size_h,
+                color,
+                true,
+            );
+
+            for forbidden_color in [
+                CLASSIC_RTS_STRUCTURE_SCAFFOLD_COLOR,
+                CLASSIC_RTS_RALLY_LINE_COLOR,
+                hot_relay_brace_color,
+                CLASSIC_RTS_COMMANDER_AURA_COLOR,
+            ] {
+                let components = exact_color_components(&buffer, width, height, forbidden_color);
+                let pixel_count = components
+                    .iter()
+                    .map(|(pixels, _, _)| pixels)
+                    .sum::<usize>();
+                assert_eq!(
+                    pixel_count, 0,
+                    "{} {} {forbidden_color:06x} {components:?}",
+                    actor.id, actor.rule_id
+                );
+            }
+
+            let muted_aura_components =
+                exact_color_components(&buffer, width, height, muted_aura_color);
+            let muted_aura_pixel_count = muted_aura_components
+                .iter()
+                .map(|(pixels, _, _)| pixels)
+                .sum::<usize>();
+            assert!(
+                muted_aura_pixel_count > 0,
+                "{} {} {muted_aura_components:?}",
+                actor.id,
+                actor.rule_id
+            );
+            assert!(
+                muted_aura_components.iter().all(|(_, w, h)| {
+                    *w <= CLASSIC_FIRST_CONTACT_PLAYER_RELAY_MAST_CUE_W_PX as usize
+                        && *h <= CLASSIC_FIRST_CONTACT_PLAYER_RELAY_MAST_CUE_H_PX as usize
+                }),
+                "{} {} {muted_aura_components:?}",
+                actor.id,
+                actor.rule_id
+            );
+
+            if matches!(accent, RtsActorGlyphAccent::RelayMast) {
+                checked_relay_masts += 1;
+                let muted_relay_components =
+                    exact_color_components(&buffer, width, height, muted_relay_color);
+                let muted_relay_pixel_count = muted_relay_components
+                    .iter()
+                    .map(|(pixels, _, _)| pixels)
+                    .sum::<usize>();
+                assert!(
+                    muted_relay_pixel_count > 0,
+                    "{} {} {muted_relay_components:?}",
+                    actor.id,
+                    actor.rule_id
+                );
+                assert!(
+                    muted_relay_components.iter().all(|(_, w, h)| {
+                        *w <= 8
+                            && *h
+                                <= CLASSIC_FIRST_CONTACT_PLAYER_RELAY_MAST_VERTICAL_CUE_H_PX
+                                    as usize
+                    }),
+                    "{} {} {muted_relay_components:?}",
+                    actor.id,
+                    actor.rule_id
+                );
+            } else {
+                checked_command_spires += 1;
+            }
+        }
+
+        assert!(checked_command_spires > 0);
+        assert!(checked_relay_masts > 0);
+    }
+
+    #[cfg(not(target_os = "android"))]
+    #[test]
     fn classic_first_contact_player_density_cues_draw_micro_ticks() {
         let width = 900;
         let height = 620;
@@ -154475,7 +154678,14 @@ mod tests {
                 classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, actor.tile);
             let (size_w, size_h) = classic_first_contact_runtime_actor_size(actor, cell_w, cell_h);
             let color = classic_first_contact_runtime_actor_color(actor);
-            let pip_color = classic_darken(color, 1, 3);
+            let glyph_accent = classic_first_contact_runtime_actor_glyph_accent(actor);
+            let render_color = match glyph_accent {
+                RtsActorGlyphAccent::CommandSpire => classic_darken(color, 3, 5),
+                RtsActorGlyphAccent::BeaconCore => classic_darken(color, 2, 5),
+                RtsActorGlyphAccent::RelayMast => classic_darken(color, 1, 2),
+                _ => color,
+            };
+            let pip_color = classic_darken(render_color, 1, 3);
             let expected_pips = ((CLASSIC_FIRST_CONTACT_PLAYER_INLINE_HEALTH_PIP_COUNT as i32
                 * i32::from(classic_first_contact_runtime_actor_health_percent(actor).min(100))
                 + 99)

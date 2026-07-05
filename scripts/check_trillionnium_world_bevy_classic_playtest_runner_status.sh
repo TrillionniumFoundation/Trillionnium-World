@@ -551,6 +551,22 @@ exact_silhouette_relay_beam_light_blue_component_sample = exact_color_component_
     [32, 72, min(940, width), min(535, height)],
     64,
 )
+exact_runtime_relay_mast_rally_line_component_sample = exact_color_component_summary(
+    "runtime_relay_mast_rally_line_exact_cyan",
+    (105, 240, 255),
+    4,
+    4,
+    [32, 72, min(940, width), min(535, height)],
+    0,
+)
+exact_runtime_commander_aura_component_sample = exact_color_component_summary(
+    "runtime_commander_aura_exact_green",
+    (141, 255, 188),
+    4,
+    4,
+    [32, 72, min(940, width), min(535, height)],
+    0,
+)
 exact_color_component_samples = [
     exact_red_component_sample,
     exact_green_component_sample,
@@ -573,6 +589,8 @@ exact_color_component_samples = [
     exact_structure_relay_identity_component_sample,
     exact_structure_relay_body_bright_teal_component_sample,
     exact_silhouette_relay_beam_light_blue_component_sample,
+    exact_runtime_relay_mast_rally_line_component_sample,
+    exact_runtime_commander_aura_component_sample,
 ]
 forbidden_title_fragments = [
     "desktop product alignment",
@@ -626,6 +644,8 @@ gates = {
     "exact_structure_relay_identity_micro_component_gate": exact_structure_relay_identity_component_sample["passes"],
     "exact_structure_relay_body_bright_teal_absent_gate": exact_structure_relay_body_bright_teal_component_sample["passes"],
     "exact_silhouette_relay_beam_light_blue_micro_component_gate": exact_silhouette_relay_beam_light_blue_component_sample["passes"],
+    "exact_runtime_relay_mast_rally_line_absent_gate": exact_runtime_relay_mast_rally_line_component_sample["passes"],
+    "exact_runtime_commander_aura_absent_gate": exact_runtime_commander_aura_component_sample["passes"],
     "gameplay_scene_gate": (
         regions_by_id["map_playfield"]["sampled_colors"] >= regions_by_id["map_playfield"]["min_sampled_colors"] * 2
         and regions_by_id["center_map"]["sampled_colors"] >= regions_by_id["center_map"]["min_sampled_colors"] * 1.8
