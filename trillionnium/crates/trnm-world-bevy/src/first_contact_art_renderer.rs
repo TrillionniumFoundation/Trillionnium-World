@@ -292,6 +292,39 @@ pub(super) fn draw_terrain_detail(
                 );
                 return;
             }
+            if player_screen && role == "beacon_lane" {
+                let quiet = classic_darken(color, 2, 3);
+                let edge = classic_darken(color, 1, 4);
+                classic_draw_rect(buffer, width, height, cx - 8, cy - 1, 16, 1, quiet);
+                for offset in [-cell_w / 3, cell_w / 3] {
+                    classic_draw_rect(
+                        buffer,
+                        width,
+                        height,
+                        cx + offset - 1,
+                        cy - cell_h / 2,
+                        CLASSIC_FIRST_CONTACT_PLAYER_LANE_MARKER_V_CUE_W_PX,
+                        cell_h,
+                        edge,
+                    );
+                }
+                for cue_x in [
+                    cx - cell_w / 2 + 2,
+                    cx + cell_w / 2 - CLASSIC_FIRST_CONTACT_PLAYER_LANE_TILE_ANCHOR_W_PX - 2,
+                ] {
+                    classic_draw_rect(
+                        buffer,
+                        width,
+                        height,
+                        cue_x,
+                        cy - 2,
+                        CLASSIC_FIRST_CONTACT_PLAYER_LANE_TILE_ANCHOR_W_PX,
+                        CLASSIC_FIRST_CONTACT_PLAYER_LANE_TILE_ANCHOR_H_PX,
+                        edge,
+                    );
+                }
+                return;
+            }
             for offset in [-cell_w, 0, cell_w] {
                 classic_draw_rect(buffer, width, height, cx + offset - 8, cy - 2, 16, 3, color);
                 classic_draw_rect(
@@ -672,6 +705,34 @@ pub(super) fn draw_landmark_detail(
                         classic_darken(quiet, 1, 5),
                     );
                 }
+                return;
+            }
+            if player_screen && role == "beacon_lane" {
+                let quiet = classic_darken(color, 2, 3);
+                let edge = classic_darken(color, 1, 4);
+                for dx in [-cell_w / 2, cell_w / 2] {
+                    classic_draw_rect(
+                        buffer,
+                        width,
+                        height,
+                        cx + dx - 1,
+                        cy - cell_h + 2,
+                        CLASSIC_FIRST_CONTACT_PLAYER_LANE_MARKER_V_CUE_W_PX,
+                        12,
+                        quiet,
+                    );
+                    classic_draw_rect(
+                        buffer,
+                        width,
+                        height,
+                        cx + dx - CLASSIC_FIRST_CONTACT_PLAYER_LANE_TILE_ANCHOR_W_PX / 2,
+                        cy - cell_h + 4,
+                        CLASSIC_FIRST_CONTACT_PLAYER_LANE_TILE_ANCHOR_W_PX,
+                        CLASSIC_FIRST_CONTACT_PLAYER_LANE_TILE_ANCHOR_H_PX,
+                        edge,
+                    );
+                }
+                classic_draw_rect(buffer, width, height, cx - 6, cy + 8, 12, 1, edge);
                 return;
             }
             for dx in [-cell_w / 2, cell_w / 2] {

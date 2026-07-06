@@ -490,9 +490,12 @@ fn draw_terrain_marker(
             }
         }
         "beacon_lane_rim" => {
-            if player_screen && tile != target_tile {
-                let quiet =
-                    first_contact_renderer_readability::lower_secondary_beacon_art_color(color);
+            if player_screen {
+                let quiet = if tile != target_tile {
+                    first_contact_renderer_readability::lower_secondary_beacon_art_color(color)
+                } else {
+                    classic_darken(color, 2, 3)
+                };
                 let edge = classic_darken(quiet, 1, 4);
                 for (x, y, w, h, cue_color) in [
                     (cx - cell_w / 2, cy - cell_h / 2, 8, 2, quiet),

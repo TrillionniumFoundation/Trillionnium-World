@@ -514,8 +514,8 @@ exact_beacon_capture_component_sample = exact_color_component_summary(
 exact_main_map_objective_component_sample = exact_color_component_summary(
     "main_map_objective_exact_green",
     (136, 240, 112),
-    16,
-    8,
+    14,
+    3,
     [32, 72, min(940, width), min(535, height)],
 )
 exact_beacon_animation_range_component_sample = exact_color_component_summary(
