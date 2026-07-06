@@ -505,6 +505,14 @@ exact_harvest_swing_component_sample = exact_color_component_summary(
     12,
     4,
 )
+exact_combat_attack_arc_component_sample = exact_color_component_summary(
+    "combat_attack_arc_exact_yellow",
+    (255, 224, 113),
+    6,
+    2,
+    [32, 72, min(940, width), min(535, height)],
+    128,
+)
 exact_beacon_capture_component_sample = exact_color_component_summary(
     "active_beacon_capture_exact_yellow",
     (215, 255, 120),
@@ -538,7 +546,7 @@ exact_product_resource_component_sample = exact_color_component_summary(
     4,
     2,
     [32, 72, min(940, width), min(535, height)],
-    320,
+    336,
 )
 exact_product_lane_tan_component_sample = exact_color_component_summary(
     "product_lane_exact_tan",
@@ -727,6 +735,7 @@ exact_color_component_samples = [
     exact_structure_production_glow_component_sample,
     exact_environment_resource_glint_component_sample,
     exact_harvest_swing_component_sample,
+    exact_combat_attack_arc_component_sample,
     exact_beacon_capture_component_sample,
     exact_main_map_objective_component_sample,
     exact_beacon_animation_range_component_sample,
@@ -796,10 +805,12 @@ gates = {
     "exact_structure_production_glow_micro_component_gate": exact_structure_production_glow_component_sample["passes"],
     "exact_environment_resource_glint_micro_component_gate": exact_environment_resource_glint_component_sample["passes"],
     "exact_harvest_swing_micro_component_gate": exact_harvest_swing_component_sample["passes"],
+    "exact_combat_attack_arc_micro_component_gate": exact_combat_attack_arc_component_sample["passes"],
     "exact_beacon_capture_micro_component_gate": exact_beacon_capture_component_sample["passes"],
     "exact_main_map_objective_micro_component_gate": exact_main_map_objective_component_sample["passes"],
     "exact_beacon_animation_range_micro_component_gate": exact_beacon_animation_range_component_sample["passes"],
     "exact_product_map_density_micro_component_gate": exact_product_map_density_component_sample["passes"],
+    "exact_product_resource_micro_component_gate": exact_product_resource_component_sample["passes"],
     "exact_product_lane_tan_micro_component_gate": exact_product_lane_tan_component_sample["passes"],
     "exact_product_lane_tan_axis_alignment_gate": exact_product_lane_tan_axis_sample["passes"],
     "exact_terrain_depth_foreground_micro_component_gate": exact_terrain_depth_foreground_component_sample["passes"],

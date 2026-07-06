@@ -890,6 +890,8 @@ const CLASSIC_FIRST_CONTACT_OPENING_ACTION_PATH_DOT_H_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_WARDEN_ATTACK_ARM_COUNT: usize = 3;
 const CLASSIC_FIRST_CONTACT_PLAYER_WARDEN_ATTACK_ARM_W_PX: i32 = 14;
 const CLASSIC_FIRST_CONTACT_PLAYER_WARDEN_ATTACK_ARM_H_PX: i32 = 2;
+const CLASSIC_FIRST_CONTACT_PLAYER_ATTACK_ARC_TICK_W_PX: i32 = 6;
+const CLASSIC_FIRST_CONTACT_PLAYER_ATTACK_ARC_TICK_H_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_PLAYER_PRODUCTION_TRAINING_SPARK_COUNT: usize = 3;
 const CLASSIC_FIRST_CONTACT_PLAYER_PRODUCTION_TRAINING_SPARK_W_PX: i32 = 4;
 const CLASSIC_FIRST_CONTACT_PLAYER_PRODUCTION_TRAINING_SPARK_H_PX: i32 = 2;
@@ -93904,14 +93906,32 @@ fn classic_draw_first_contact_combat_phase_layers(
                 cell_h,
                 (step.tile_x, step.tile_y),
             );
+            let player_attack_arc = player_screen && color == CLASSIC_ISO_ATTACK_ARC_COLOR;
+            let attack_arc_w = if player_attack_arc {
+                CLASSIC_FIRST_CONTACT_PLAYER_ATTACK_ARC_TICK_W_PX
+            } else {
+                (cell_w / 2).max(5)
+            };
+            let attack_arc_h = if player_attack_arc {
+                CLASSIC_FIRST_CONTACT_PLAYER_ATTACK_ARC_TICK_H_PX
+            } else {
+                2
+            };
+            let attack_arc_x = tile_x
+                + cell_w / 2
+                + if player_attack_arc {
+                    (step.step_index as i32 % 2) * 2
+                } else {
+                    0
+                };
             classic_draw_rect(
                 buffer,
                 width,
                 height,
-                tile_x + cell_w / 2,
+                attack_arc_x,
                 tile_y + cell_h / 2 - 2,
-                (cell_w / 2).max(5),
-                2,
+                attack_arc_w,
+                attack_arc_h,
                 color,
             );
         }
@@ -153563,6 +153583,80 @@ mod tests {
                     && *h <= CLASSIC_FIRST_CONTACT_PLAYER_HARVEST_TOOL_SWING_SPARK_H_PX as usize
             }),
             "{components:?}"
+        );
+    }
+
+    #[cfg(not(target_os = "android"))]
+    #[test]
+    fn classic_first_contact_player_attack_arcs_draw_micro_ticks() {
+        let width = 900;
+        let height = 620;
+        let map_x = 80;
+        let map_y = 96;
+        let cell_w = 28;
+        let cell_h = 14;
+        let mut player_buffer = vec![0_u32; width * height];
+        let mut evidence_buffer = vec![0_u32; width * height];
+
+        classic_draw_first_contact_combat_phase_layers(
+            &mut player_buffer,
+            width,
+            height,
+            map_x,
+            map_y,
+            cell_w,
+            cell_h,
+            true,
+        );
+        classic_draw_first_contact_combat_phase_layers(
+            &mut evidence_buffer,
+            width,
+            height,
+            map_x,
+            map_y,
+            cell_w,
+            cell_h,
+            false,
+        );
+
+        let player_components =
+            exact_color_components(&player_buffer, width, height, CLASSIC_ISO_ATTACK_ARC_COLOR);
+        let evidence_components = exact_color_components(
+            &evidence_buffer,
+            width,
+            height,
+            CLASSIC_ISO_ATTACK_ARC_COLOR,
+        );
+        let player_attack_arc_pixels = player_components
+            .iter()
+            .map(|(pixels, _, _)| pixels)
+            .sum::<usize>();
+        let evidence_attack_arc_pixels = evidence_components
+            .iter()
+            .map(|(pixels, _, _)| pixels)
+            .sum::<usize>();
+
+        assert!(!player_components.is_empty(), "{player_components:?}");
+        assert!(
+            player_components.iter().all(|(_, w, h)| {
+                *w <= CLASSIC_FIRST_CONTACT_PLAYER_ATTACK_ARC_TICK_W_PX as usize
+                    && *h <= CLASSIC_FIRST_CONTACT_PLAYER_ATTACK_ARC_TICK_H_PX as usize
+            }),
+            "{player_components:?}"
+        );
+        assert!(
+            player_attack_arc_pixels <= 128,
+            "{player_attack_arc_pixels} {player_components:?}"
+        );
+        assert!(
+            evidence_components
+                .iter()
+                .any(|(_, w, h)| *w >= (cell_w / 2) as usize && *h == 2),
+            "{evidence_components:?}"
+        );
+        assert!(
+            evidence_attack_arc_pixels > player_attack_arc_pixels,
+            "{evidence_attack_arc_pixels} {player_attack_arc_pixels}"
         );
     }
 
