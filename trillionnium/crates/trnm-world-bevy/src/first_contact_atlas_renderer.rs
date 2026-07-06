@@ -4,9 +4,10 @@ use crate::{
     classic_blit_frame_override_bottom_center, classic_blit_frame_scaled, classic_darken,
     classic_draw_iso_ellipse, classic_draw_rect, classic_first_contact_tile_screen,
     classic_mix_color, first_contact_palette, first_contact_renderer_readability,
-    ClassicRuntimeAssets, CLASSIC_RTS_COMMAND_SURFACE_TARGET_COLOR,
-    CLASSIC_RTS_STRUCTURE_FOUNDATION_SHADOW_COLOR, CLASSIC_RTS_TACTICAL_VIEWPORT_SHADOW_COLOR,
-    CLASSIC_RTS_TACTICAL_VIEWPORT_TILE_COLOR,
+    ClassicRuntimeAssets, CLASSIC_FIRST_CONTACT_PLAYER_SELECTION_RING_CUE_H_PX,
+    CLASSIC_FIRST_CONTACT_PLAYER_SELECTION_RING_CUE_W_PX, CLASSIC_ISO_UNIT_RING_COLOR,
+    CLASSIC_RTS_COMMAND_SURFACE_TARGET_COLOR, CLASSIC_RTS_STRUCTURE_FOUNDATION_SHADOW_COLOR,
+    CLASSIC_RTS_TACTICAL_VIEWPORT_SHADOW_COLOR, CLASSIC_RTS_TACTICAL_VIEWPORT_TILE_COLOR,
 };
 use trnm_rts_data::first_contact_samples;
 
@@ -103,6 +104,47 @@ pub(super) fn asset_frame_size(
 
 fn runtime_depth_role(role: &str) -> bool {
     first_contact_samples::atlas_runtime_depth_role(role)
+}
+
+fn player_objective_marker_asset(role: &str, frame_id: &str) -> bool {
+    matches!(role, "objective_sprite" | "beacon_objective_family") && frame_id == "marker_objective"
+}
+
+#[allow(clippy::too_many_arguments)]
+fn draw_player_objective_marker_micro_cues(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    cx: i32,
+    cy: i32,
+    cell_w: i32,
+    cell_h: i32,
+) {
+    let cue_w = CLASSIC_FIRST_CONTACT_PLAYER_SELECTION_RING_CUE_W_PX;
+    let cue_h = CLASSIC_FIRST_CONTACT_PLAYER_SELECTION_RING_CUE_H_PX;
+    let cue_y = cy - cell_h / 2 + 2;
+    for cue_x in [cx - cell_w / 2 + 2, cx + cell_w / 2 - cue_w - 2] {
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            cue_x,
+            cue_y,
+            cue_w,
+            cue_h,
+            CLASSIC_ISO_UNIT_RING_COLOR,
+        );
+    }
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        cx - 1,
+        cy - cell_h - 2,
+        2,
+        6,
+        classic_mix_color(CLASSIC_RTS_COMMAND_SURFACE_TARGET_COLOR, 0x0d181a, 3, 4),
+    );
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -229,6 +271,7 @@ fn draw_asset_sample(
     frame_id: &str,
     scale: u32,
     muted_gallery: bool,
+    player_screen: bool,
 ) -> bool {
     let (tile_x, tile_y) = classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, tile);
     let cx = tile_x + cell_w / 2;
@@ -255,6 +298,10 @@ fn draw_asset_sample(
         first_contact_renderer_readability::draw_secondary_objective_atlas_anchor(
             buffer, width, height, cx, cy, cell_w, cell_h,
         );
+        return true;
+    }
+    if player_screen && player_objective_marker_asset(role, frame_id) {
+        draw_player_objective_marker_micro_cues(buffer, width, height, cx, cy, cell_w, cell_h);
         return true;
     }
     let has_override_frame = assets.frame_override_pixels.contains_key(frame_id);
@@ -370,11 +417,24 @@ pub(super) fn draw_readability_layer(
     map_y: i32,
     cell_w: i32,
     cell_h: i32,
+    player_screen: bool,
 ) {
     for (tile, role, frame_id, _, scale) in asset_samples() {
         draw_asset_sample(
-            buffer, width, height, assets, map_x, map_y, cell_w, cell_h, tile, role, frame_id,
-            scale, false,
+            buffer,
+            width,
+            height,
+            assets,
+            map_x,
+            map_y,
+            cell_w,
+            cell_h,
+            tile,
+            role,
+            frame_id,
+            scale,
+            false,
+            player_screen,
         );
     }
     for (tile, role, frame_id, _, scale) in frame_family_samples() {
@@ -385,8 +445,20 @@ pub(super) fn draw_readability_layer(
             continue;
         }
         draw_asset_sample(
-            buffer, width, height, assets, map_x, map_y, cell_w, cell_h, tile, role, frame_id,
-            scale, true,
+            buffer,
+            width,
+            height,
+            assets,
+            map_x,
+            map_y,
+            cell_w,
+            cell_h,
+            tile,
+            role,
+            frame_id,
+            scale,
+            true,
+            player_screen,
         );
     }
 }

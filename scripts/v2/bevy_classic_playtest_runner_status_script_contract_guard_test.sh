@@ -74,6 +74,8 @@ required_lines=(
   'exact_terrain_depth_axis_alignment_gate'
   'selection_feedback_confirm_exact_cyan'
   'exact_selection_confirm_micro_component_gate'
+  'selection_ring_exact_gold'
+  'exact_selection_ring_micro_component_gate'
   'target_prefocus_exact_muted_pink'
   'exact_target_prefocus_micro_component_gate'
   'unit_status_health_exact_green'

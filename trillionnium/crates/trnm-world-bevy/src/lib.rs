@@ -817,6 +817,9 @@ const CLASSIC_FIRST_CONTACT_TARGET_LOCK_ACK_TICK_W_PX: i32 = 4;
 const CLASSIC_FIRST_CONTACT_TARGET_LOCK_ACK_TICK_H_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_SELECTED_ROLE_BADGE_TICK_W_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_SELECTED_ROLE_BADGE_TICK_H_PX: i32 = 2;
+const CLASSIC_FIRST_CONTACT_PLAYER_SELECTION_RING_CUES_PER_TILE: usize = 2;
+const CLASSIC_FIRST_CONTACT_PLAYER_SELECTION_RING_CUE_W_PX: i32 = 6;
+const CLASSIC_FIRST_CONTACT_PLAYER_SELECTION_RING_CUE_H_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_SELECTED_FOCUS_BRACKET_PIXELS_PER_TILE: usize = 20;
 const CLASSIC_FIRST_CONTACT_CORRIDOR_DEEMPHASIS_CUE_W_PX: i32 = 8;
 const CLASSIC_FIRST_CONTACT_CORRIDOR_DEEMPHASIS_CUE_H_PX: i32 = 2;
@@ -96724,9 +96727,18 @@ fn classic_draw_first_contact_atlas_readability_layer(
     map_y: i32,
     cell_w: i32,
     cell_h: i32,
+    player_screen: bool,
 ) {
     first_contact_atlas_renderer::draw_readability_layer(
-        buffer, width, height, assets, map_x, map_y, cell_w, cell_h,
+        buffer,
+        width,
+        height,
+        assets,
+        map_x,
+        map_y,
+        cell_w,
+        cell_h,
+        player_screen,
     );
 }
 
@@ -97150,36 +97162,61 @@ fn classic_draw_first_contact_readability_overlays(
             classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, tile);
         let cx = tile_x + cell_w / 2;
         let cy = tile_y + cell_h / 2;
-        classic_draw_iso_ellipse(
-            buffer,
-            width,
-            height,
-            cx,
-            cy + cell_h / 2,
-            (cell_w / 2 + 5).max(8),
-            (cell_h / 3 + 3).max(5),
-            CLASSIC_RTS_TACTICAL_VIEWPORT_SHADOW_COLOR,
-        );
-        classic_draw_iso_ellipse(
-            buffer,
-            width,
-            height,
-            cx,
-            cy + cell_h / 2 - 1,
-            (cell_w / 2 + 3).max(7),
-            (cell_h / 3 + 2).max(4),
-            CLASSIC_ISO_CONTROL_GROUP_COLOR,
-        );
-        classic_draw_rect(
-            buffer,
-            width,
-            height,
-            cx - 3,
-            cy - cell_h / 2 - 5,
-            6,
-            6,
-            CLASSIC_ISO_UNIT_RING_COLOR,
-        );
+        if player_screen {
+            let cue_w = CLASSIC_FIRST_CONTACT_PLAYER_SELECTION_RING_CUE_W_PX;
+            let cue_h = CLASSIC_FIRST_CONTACT_PLAYER_SELECTION_RING_CUE_H_PX;
+            let cues = [
+                (cx - cell_w / 2 + 4, cy + cell_h / 2 - 1),
+                (cx + cell_w / 2 - cue_w - 4, cy + cell_h / 2 - 1),
+            ];
+            debug_assert_eq!(
+                cues.len(),
+                CLASSIC_FIRST_CONTACT_PLAYER_SELECTION_RING_CUES_PER_TILE
+            );
+            for (cue_x, cue_y) in cues {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    cue_x,
+                    cue_y,
+                    cue_w,
+                    cue_h,
+                    CLASSIC_ISO_UNIT_RING_COLOR,
+                );
+            }
+        } else {
+            classic_draw_iso_ellipse(
+                buffer,
+                width,
+                height,
+                cx,
+                cy + cell_h / 2,
+                (cell_w / 2 + 5).max(8),
+                (cell_h / 3 + 3).max(5),
+                CLASSIC_RTS_TACTICAL_VIEWPORT_SHADOW_COLOR,
+            );
+            classic_draw_iso_ellipse(
+                buffer,
+                width,
+                height,
+                cx,
+                cy + cell_h / 2 - 1,
+                (cell_w / 2 + 3).max(7),
+                (cell_h / 3 + 2).max(4),
+                CLASSIC_ISO_CONTROL_GROUP_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                cx - 3,
+                cy - cell_h / 2 - 5,
+                6,
+                6,
+                CLASSIC_ISO_UNIT_RING_COLOR,
+            );
+        }
     }
 
     let target_tile = runtime
@@ -97819,7 +97856,15 @@ fn classic_draw_first_contact_basin_scene(
         player_screen,
     );
     classic_draw_first_contact_atlas_readability_layer(
-        buffer, width, height, assets, map_x, map_y, cell_w, cell_h,
+        buffer,
+        width,
+        height,
+        assets,
+        map_x,
+        map_y,
+        cell_w,
+        cell_h,
+        player_screen,
     );
     classic_draw_first_contact_unit_state_layers(
         buffer,
@@ -155554,6 +155599,124 @@ mod tests {
                     && *h <= CLASSIC_FIRST_CONTACT_PLAYER_ACTIVE_BEACON_CAPTURE_TICK_H_PX as usize
             }),
             "{components:?}"
+        );
+    }
+
+    #[cfg(not(target_os = "android"))]
+    #[test]
+    fn classic_first_contact_player_selection_rings_draw_micro_pips() {
+        let width = 900;
+        let height = 620;
+        let mut buffer = vec![0_u32; width * height];
+        let map_x = 80;
+        let map_y = 96;
+        let cell_w = 28;
+        let cell_h = 14;
+        let runtime = classic_first_contact_player_screen_runtime();
+
+        classic_draw_first_contact_readability_overlays(
+            &mut buffer,
+            width,
+            height,
+            &runtime,
+            map_x,
+            map_y,
+            cell_w,
+            cell_h,
+            true,
+        );
+
+        let components =
+            exact_color_components(&buffer, width, height, CLASSIC_ISO_UNIT_RING_COLOR);
+        let expected_components = runtime.rts_selection_box_tile_ids.len()
+            * CLASSIC_FIRST_CONTACT_PLAYER_SELECTION_RING_CUES_PER_TILE;
+        let pixel_count = components
+            .iter()
+            .map(|(pixels, _, _)| pixels)
+            .sum::<usize>();
+
+        assert_eq!(components.len(), expected_components, "{components:?}");
+        assert_eq!(
+            pixel_count,
+            expected_components
+                * CLASSIC_FIRST_CONTACT_PLAYER_SELECTION_RING_CUE_W_PX as usize
+                * CLASSIC_FIRST_CONTACT_PLAYER_SELECTION_RING_CUE_H_PX as usize,
+            "{pixel_count} {components:?}"
+        );
+        assert!(
+            components.iter().all(|(_, w, h)| {
+                *w <= CLASSIC_FIRST_CONTACT_PLAYER_SELECTION_RING_CUE_W_PX as usize
+                    && *h <= CLASSIC_FIRST_CONTACT_PLAYER_SELECTION_RING_CUE_H_PX as usize
+            }),
+            "{components:?}"
+        );
+    }
+
+    #[cfg(not(target_os = "android"))]
+    #[test]
+    fn classic_first_contact_player_atlas_objective_marker_draws_micro_gold_pips() {
+        let width = 900;
+        let height = 620;
+        let map_x = 80;
+        let map_y = 96;
+        let cell_w = 28;
+        let cell_h = 14;
+        let assets = classic_first_contact_atlas_readability_assets();
+        let mut player_buffer = vec![0_u32; width * height];
+        let mut evidence_buffer = vec![0_u32; width * height];
+
+        classic_draw_first_contact_atlas_readability_layer(
+            &mut player_buffer,
+            width,
+            height,
+            &assets,
+            map_x,
+            map_y,
+            cell_w,
+            cell_h,
+            true,
+        );
+        classic_draw_first_contact_atlas_readability_layer(
+            &mut evidence_buffer,
+            width,
+            height,
+            &assets,
+            map_x,
+            map_y,
+            cell_w,
+            cell_h,
+            false,
+        );
+
+        let player_components =
+            exact_color_components(&player_buffer, width, height, CLASSIC_ISO_UNIT_RING_COLOR);
+        let player_pixel_count = player_components
+            .iter()
+            .map(|(pixels, _, _)| pixels)
+            .sum::<usize>();
+        let evidence_components =
+            exact_color_components(&evidence_buffer, width, height, CLASSIC_ISO_UNIT_RING_COLOR);
+
+        assert_eq!(player_components.len(), 2, "{player_components:?}");
+        assert_eq!(
+            player_pixel_count,
+            2 * CLASSIC_FIRST_CONTACT_PLAYER_SELECTION_RING_CUE_W_PX as usize
+                * CLASSIC_FIRST_CONTACT_PLAYER_SELECTION_RING_CUE_H_PX as usize,
+            "{player_pixel_count} {player_components:?}"
+        );
+        assert!(
+            player_components.iter().all(|(_, w, h)| {
+                *w <= CLASSIC_FIRST_CONTACT_PLAYER_SELECTION_RING_CUE_W_PX as usize
+                    && *h <= CLASSIC_FIRST_CONTACT_PLAYER_SELECTION_RING_CUE_H_PX as usize
+            }),
+            "{player_components:?}"
+        );
+        assert!(
+            evidence_components.iter().any(|(_, w, h)| {
+                *w > CLASSIC_FIRST_CONTACT_PLAYER_SELECTION_RING_CUE_W_PX as usize
+                    || *h > CLASSIC_FIRST_CONTACT_PLAYER_SELECTION_RING_CUE_H_PX as usize
+            }),
+            "{evidence_components:?}"
         );
     }
 
