@@ -3,6 +3,9 @@
 use crate::{
     classic_darken, classic_draw_iso_ellipse, classic_draw_rect, classic_first_contact_tile_screen,
     first_contact_palette, first_contact_renderer_readability,
+    CLASSIC_FIRST_CONTACT_PLAYER_ACTIVE_BEACON_IDENTITY_CUE_COUNT,
+    CLASSIC_FIRST_CONTACT_PLAYER_ACTIVE_BEACON_IDENTITY_CUE_H_PX,
+    CLASSIC_FIRST_CONTACT_PLAYER_ACTIVE_BEACON_IDENTITY_CUE_W_PX,
     CLASSIC_FIRST_CONTACT_PLAYER_COMMAND_CORE_FACTION_TICK_COUNT,
     CLASSIC_FIRST_CONTACT_PLAYER_COMMAND_CORE_FACTION_TICK_H_PX,
     CLASSIC_FIRST_CONTACT_PLAYER_COMMAND_CORE_FACTION_TICK_W_PX, CLASSIC_ISO_OUTLINE_COLOR,
@@ -343,6 +346,50 @@ fn draw_structure(
                 }
                 return;
             }
+            if player_screen && tile == target_tile {
+                let cue_w = CLASSIC_FIRST_CONTACT_PLAYER_ACTIVE_BEACON_IDENTITY_CUE_W_PX;
+                let cue_h = CLASSIC_FIRST_CONTACT_PLAYER_ACTIVE_BEACON_IDENTITY_CUE_H_PX;
+                let edge = classic_darken(color, 1, 5);
+                let identity_cues = [
+                    (cx - cell_w / 2, cy - cell_h * 2 - 4, color),
+                    (cx + cell_w / 2 - cue_w, cy - cell_h * 2 - 4, color),
+                    (cx - cell_w / 2, cy + cell_h - 4, color),
+                    (cx + cell_w / 2 - cue_w, cy + cell_h - 4, color),
+                ];
+                debug_assert_eq!(
+                    identity_cues.len(),
+                    CLASSIC_FIRST_CONTACT_PLAYER_ACTIVE_BEACON_IDENTITY_CUE_COUNT
+                );
+                for (cue_x, cue_y, cue_color) in identity_cues {
+                    classic_draw_rect(buffer, width, height, cue_x, cue_y, cue_w, cue_h, cue_color);
+                }
+                for cue_y in [cy - cell_h - 2, cy + cell_h / 2] {
+                    classic_draw_rect(
+                        buffer,
+                        width,
+                        height,
+                        cx - cue_w / 2,
+                        cue_y,
+                        cue_w,
+                        cue_h,
+                        edge,
+                    );
+                }
+                let muted_capture = classic_darken(CLASSIC_RTS_CAPTURE_BAR_COLOR, 1, 5);
+                for dx in [-cell_w + 4, cell_w - 12] {
+                    classic_draw_rect(
+                        buffer,
+                        width,
+                        height,
+                        cx + dx,
+                        cy - cell_h - 5,
+                        8,
+                        2,
+                        muted_capture,
+                    );
+                }
+                return;
+            }
             classic_draw_rect(
                 buffer,
                 width,
@@ -363,21 +410,7 @@ fn draw_structure(
                 cell_h * 4,
                 color,
             );
-            if player_screen && tile == target_tile {
-                let muted_capture = classic_darken(CLASSIC_RTS_CAPTURE_BAR_COLOR, 1, 5);
-                for dx in [-cell_w + 4, cell_w - 12] {
-                    classic_draw_rect(
-                        buffer,
-                        width,
-                        height,
-                        cx + dx,
-                        cy - cell_h - 5,
-                        8,
-                        2,
-                        muted_capture,
-                    );
-                }
-            } else if !(player_screen && tile != target_tile) {
+            if !(player_screen && tile != target_tile) {
                 classic_draw_rect(
                     buffer,
                     width,

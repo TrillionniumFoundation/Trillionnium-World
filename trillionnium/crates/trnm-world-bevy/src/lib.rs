@@ -987,6 +987,9 @@ const CLASSIC_FIRST_CONTACT_PLAYER_BEACON_ANIMATION_RANGE_TICK_H_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_PLAYER_BEACON_ANIMATION_GLINT_TICK_COUNT: usize = 2;
 const CLASSIC_FIRST_CONTACT_PLAYER_BEACON_ANIMATION_GLINT_TICK_W_PX: i32 = 6;
 const CLASSIC_FIRST_CONTACT_PLAYER_BEACON_ANIMATION_GLINT_TICK_H_PX: i32 = 2;
+const CLASSIC_FIRST_CONTACT_PLAYER_ACTIVE_BEACON_IDENTITY_CUE_COUNT: usize = 4;
+const CLASSIC_FIRST_CONTACT_PLAYER_ACTIVE_BEACON_IDENTITY_CUE_W_PX: i32 = 8;
+const CLASSIC_FIRST_CONTACT_PLAYER_ACTIVE_BEACON_IDENTITY_CUE_H_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_PLAYER_VISION_SWEEP_COUNT: usize = 4;
 const CLASSIC_FIRST_CONTACT_PLAYER_VISION_SWEEP_TICK_W_PX: i32 = 8;
 const CLASSIC_FIRST_CONTACT_PLAYER_VISION_SWEEP_TICK_H_PX: i32 = 2;
@@ -95640,27 +95643,51 @@ fn classic_draw_first_contact_model_identity_layers(
             }
             continue;
         }
-        classic_draw_rect(
-            buffer,
-            width,
-            height,
-            cx - cell_w,
-            cy - cell_h,
-            cell_w * 2,
-            cell_h * 2,
-            classic_darken(CLASSIC_RTS_MODEL_IDENTITY_BEACON_COLOR, 1, 5),
-        );
-        classic_draw_rect(
-            buffer,
-            width,
-            height,
-            cx - cell_w / 2,
-            cy - cell_h * 2,
-            cell_w,
-            cell_h * 3,
-            CLASSIC_RTS_MODEL_IDENTITY_BEACON_COLOR,
-        );
         if player_screen {
+            let cue_w = CLASSIC_FIRST_CONTACT_PLAYER_ACTIVE_BEACON_IDENTITY_CUE_W_PX;
+            let cue_h = CLASSIC_FIRST_CONTACT_PLAYER_ACTIVE_BEACON_IDENTITY_CUE_H_PX;
+            let shadow = classic_darken(CLASSIC_RTS_MODEL_IDENTITY_BEACON_COLOR, 1, 5);
+            let identity_cues = [
+                (
+                    cx - cell_w / 2,
+                    cy - cell_h * 2,
+                    CLASSIC_RTS_MODEL_IDENTITY_BEACON_COLOR,
+                ),
+                (
+                    cx + cell_w / 2 - cue_w,
+                    cy - cell_h * 2,
+                    CLASSIC_RTS_MODEL_IDENTITY_BEACON_COLOR,
+                ),
+                (
+                    cx - cell_w / 2,
+                    cy + cell_h,
+                    CLASSIC_RTS_MODEL_IDENTITY_BEACON_COLOR,
+                ),
+                (
+                    cx + cell_w / 2 - cue_w,
+                    cy + cell_h,
+                    CLASSIC_RTS_MODEL_IDENTITY_BEACON_COLOR,
+                ),
+            ];
+            debug_assert_eq!(
+                identity_cues.len(),
+                CLASSIC_FIRST_CONTACT_PLAYER_ACTIVE_BEACON_IDENTITY_CUE_COUNT
+            );
+            for (cue_x, cue_y, cue_color) in identity_cues {
+                classic_draw_rect(buffer, width, height, cue_x, cue_y, cue_w, cue_h, cue_color);
+            }
+            for cue_y in [cy - cell_h, cy + cell_h / 2] {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    cx - cue_w / 2,
+                    cue_y,
+                    cue_w,
+                    cue_h,
+                    shadow,
+                );
+            }
             let glint_w = CLASSIC_FIRST_CONTACT_PLAYER_BEACON_ANIMATION_GLINT_TICK_W_PX;
             let glint_h = CLASSIC_FIRST_CONTACT_PLAYER_BEACON_ANIMATION_GLINT_TICK_H_PX;
             for cue_x in [cx - cell_w / 2, cx + cell_w / 2 - glint_w] {
@@ -95681,22 +95708,42 @@ fn classic_draw_first_contact_model_identity_layers(
                 width,
                 height,
                 cx - cell_w,
+                cy - cell_h,
+                cell_w * 2,
+                cell_h * 2,
+                classic_darken(CLASSIC_RTS_MODEL_IDENTITY_BEACON_COLOR, 1, 5),
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                cx - cell_w / 2,
+                cy - cell_h * 2,
+                cell_w,
+                cell_h * 3,
+                CLASSIC_RTS_MODEL_IDENTITY_BEACON_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                cx - cell_w,
                 cy - cell_h * 2 - 5,
                 cell_w * 2,
                 4,
                 CLASSIC_RTS_ENVIRONMENT_RESOURCE_GLINT_COLOR,
             );
+            classic_draw_iso_ellipse(
+                buffer,
+                width,
+                height,
+                cx,
+                cy + cell_h + 9,
+                11,
+                4,
+                CLASSIC_RTS_MODEL_IDENTITY_BEACON_COLOR,
+            );
         }
-        classic_draw_iso_ellipse(
-            buffer,
-            width,
-            height,
-            cx,
-            cy + cell_h + 9,
-            11,
-            4,
-            CLASSIC_RTS_MODEL_IDENTITY_BEACON_COLOR,
-        );
     }
 
     let unit_models = [
@@ -155866,6 +155913,134 @@ mod tests {
                         && *h <= CLASSIC_FIRST_CONTACT_PLAYER_BEACON_SPIRE_GLINT_CUE_H_PX as usize
                 }),
                 "{label} {components:?}"
+            );
+        }
+    }
+
+    #[cfg(not(target_os = "android"))]
+    #[test]
+    fn classic_first_contact_player_active_beacon_identity_draws_micro_cues() {
+        let width = 900;
+        let height = 620;
+        let map_x = 80;
+        let map_y = 96;
+        let cell_w = 28;
+        let cell_h = 14;
+        let target_tile = (16, 9);
+        let mut player_buffer = vec![0_u32; width * height];
+        let mut evidence_buffer = vec![0_u32; width * height];
+        let mut silhouette_buffer = vec![0_u32; width * height];
+        let mut silhouette_evidence_buffer = vec![0_u32; width * height];
+
+        classic_draw_first_contact_model_identity_layers(
+            &mut player_buffer,
+            width,
+            height,
+            map_x,
+            map_y,
+            cell_w,
+            cell_h,
+            true,
+            target_tile,
+        );
+        classic_draw_first_contact_model_identity_layers(
+            &mut evidence_buffer,
+            width,
+            height,
+            map_x,
+            map_y,
+            cell_w,
+            cell_h,
+            false,
+            target_tile,
+        );
+        classic_draw_first_contact_silhouette_readability_layer(
+            &mut silhouette_buffer,
+            width,
+            height,
+            map_x,
+            map_y,
+            cell_w,
+            cell_h,
+            true,
+            target_tile,
+        );
+        classic_draw_first_contact_silhouette_readability_layer(
+            &mut silhouette_evidence_buffer,
+            width,
+            height,
+            map_x,
+            map_y,
+            cell_w,
+            cell_h,
+            false,
+            target_tile,
+        );
+
+        let shadow_color = classic_darken(CLASSIC_RTS_MODEL_IDENTITY_BEACON_COLOR, 1, 5);
+        for (label, buffer) in [
+            ("model_identity", player_buffer),
+            ("silhouette", silhouette_buffer),
+        ] {
+            let player_components = exact_color_components(
+                &buffer,
+                width,
+                height,
+                CLASSIC_RTS_MODEL_IDENTITY_BEACON_COLOR,
+            );
+            let player_pixel_count = player_components
+                .iter()
+                .map(|(pixels, _, _)| pixels)
+                .sum::<usize>();
+            let shadow_components = exact_color_components(&buffer, width, height, shadow_color);
+
+            assert_eq!(
+                player_components.len(),
+                CLASSIC_FIRST_CONTACT_PLAYER_ACTIVE_BEACON_IDENTITY_CUE_COUNT,
+                "{label} {player_components:?}"
+            );
+            assert_eq!(
+                player_pixel_count,
+                CLASSIC_FIRST_CONTACT_PLAYER_ACTIVE_BEACON_IDENTITY_CUE_COUNT
+                    * CLASSIC_FIRST_CONTACT_PLAYER_ACTIVE_BEACON_IDENTITY_CUE_W_PX as usize
+                    * CLASSIC_FIRST_CONTACT_PLAYER_ACTIVE_BEACON_IDENTITY_CUE_H_PX as usize,
+                "{label} {player_pixel_count} {player_components:?}"
+            );
+            assert!(
+                player_components.iter().all(|(_, w, h)| {
+                    *w <= CLASSIC_FIRST_CONTACT_PLAYER_ACTIVE_BEACON_IDENTITY_CUE_W_PX as usize
+                        && *h
+                            <= CLASSIC_FIRST_CONTACT_PLAYER_ACTIVE_BEACON_IDENTITY_CUE_H_PX as usize
+                }),
+                "{label} {player_components:?}"
+            );
+            assert!(
+                shadow_components.iter().all(|(_, w, h)| {
+                    *w <= CLASSIC_FIRST_CONTACT_PLAYER_ACTIVE_BEACON_IDENTITY_CUE_W_PX as usize
+                        && *h
+                            <= CLASSIC_FIRST_CONTACT_PLAYER_ACTIVE_BEACON_IDENTITY_CUE_H_PX as usize
+                }),
+                "{label} {shadow_components:?}"
+            );
+        }
+
+        for (label, buffer) in [
+            ("model_identity", evidence_buffer),
+            ("silhouette", silhouette_evidence_buffer),
+        ] {
+            let evidence_components = exact_color_components(
+                &buffer,
+                width,
+                height,
+                CLASSIC_RTS_MODEL_IDENTITY_BEACON_COLOR,
+            );
+            assert!(
+                evidence_components.iter().any(|(_, w, h)| {
+                    *w > CLASSIC_FIRST_CONTACT_PLAYER_ACTIVE_BEACON_IDENTITY_CUE_W_PX as usize
+                        || *h
+                            > CLASSIC_FIRST_CONTACT_PLAYER_ACTIVE_BEACON_IDENTITY_CUE_H_PX as usize
+                }),
+                "{label} {evidence_components:?}"
             );
         }
     }
