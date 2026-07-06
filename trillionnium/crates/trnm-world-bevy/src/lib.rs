@@ -974,6 +974,8 @@ const CLASSIC_FIRST_CONTACT_PLAYER_DEPTH_EDGE_CUE_W_PX: i32 = 4;
 const CLASSIC_FIRST_CONTACT_PLAYER_DEPTH_EDGE_CUE_H_PX: i32 = 1;
 const CLASSIC_FIRST_CONTACT_PLAYER_DEPTH_EDGE_VERTICAL_CUE_W_PX: i32 = 1;
 const CLASSIC_FIRST_CONTACT_PLAYER_DEPTH_EDGE_VERTICAL_CUE_H_PX: i32 = 3;
+const CLASSIC_FIRST_CONTACT_PLAYER_DEPTH_BEHIND_CUE_W_PX: i32 = 4;
+const CLASSIC_FIRST_CONTACT_PLAYER_DEPTH_BEHIND_CUE_H_PX: i32 = 1;
 const CLASSIC_FIRST_CONTACT_PLAYER_RELAY_IDENTITY_RAIL_COUNT: usize = 6;
 const CLASSIC_FIRST_CONTACT_PLAYER_RELAY_IDENTITY_RAIL_W_PX: i32 = 16;
 const CLASSIC_FIRST_CONTACT_PLAYER_RELAY_IDENTITY_RAIL_H_PX: i32 = 2;
@@ -93350,16 +93352,32 @@ fn classic_draw_first_contact_terrain_layer(
             continue;
         }
         if tile_height >= 2 && (x + y) % 6 == 0 {
-            classic_draw_rect(
-                buffer,
-                width,
-                height,
-                tile_x + cell_w / 4,
-                tile_y + 2,
-                (cell_w / 2).max(4),
-                1,
-                CLASSIC_RTS_DEPTH_BEHIND_COLOR,
-            );
+            if player_screen {
+                let stagger = (surface_seed % 3) as i32;
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    tile_x + cell_w / 2 - CLASSIC_FIRST_CONTACT_PLAYER_DEPTH_BEHIND_CUE_W_PX / 2
+                        + stagger
+                        - 1,
+                    tile_y + 2 + stagger,
+                    CLASSIC_FIRST_CONTACT_PLAYER_DEPTH_BEHIND_CUE_W_PX,
+                    CLASSIC_FIRST_CONTACT_PLAYER_DEPTH_BEHIND_CUE_H_PX,
+                    CLASSIC_RTS_DEPTH_BEHIND_COLOR,
+                );
+            } else {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    tile_x + cell_w / 4,
+                    tile_y + 2,
+                    (cell_w / 2).max(4),
+                    1,
+                    CLASSIC_RTS_DEPTH_BEHIND_COLOR,
+                );
+            }
         }
         if classic_first_contact_tile_height((x + 1, y)) < tile_height {
             let edge_color = if tile_height >= 2 {
@@ -155409,6 +155427,7 @@ mod tests {
         for color in [
             CLASSIC_RTS_DEPTH_FOREGROUND_COLOR,
             CLASSIC_RTS_DEPTH_CUTAWAY_COLOR,
+            CLASSIC_RTS_DEPTH_BEHIND_COLOR,
         ] {
             let components = exact_color_components(&player_buffer, width, height, color);
             let pixel_count = components
@@ -155416,24 +155435,41 @@ mod tests {
                 .map(|(pixels, _, _)| pixels)
                 .sum::<usize>();
             assert!(pixel_count > 0, "{color:06x} {components:?}");
+            let (max_component_width, max_component_height) =
+                if color == CLASSIC_RTS_DEPTH_BEHIND_COLOR {
+                    (
+                        CLASSIC_FIRST_CONTACT_PLAYER_DEPTH_BEHIND_CUE_W_PX as usize,
+                        CLASSIC_FIRST_CONTACT_PLAYER_DEPTH_BEHIND_CUE_H_PX as usize,
+                    )
+                } else {
+                    (
+                        CLASSIC_FIRST_CONTACT_PLAYER_DEPTH_EDGE_CUE_W_PX as usize + 2,
+                        CLASSIC_FIRST_CONTACT_PLAYER_DEPTH_EDGE_VERTICAL_CUE_H_PX as usize + 2,
+                    )
+                };
             assert!(
-                components.iter().all(|(_, w, h)| {
-                    *w <= CLASSIC_FIRST_CONTACT_PLAYER_DEPTH_EDGE_CUE_W_PX as usize + 2
-                        && *h
-                            <= CLASSIC_FIRST_CONTACT_PLAYER_DEPTH_EDGE_VERTICAL_CUE_H_PX as usize
-                                + 2
-                }),
+                components
+                    .iter()
+                    .all(|(_, w, h)| { *w <= max_component_width && *h <= max_component_height }),
                 "{color:06x} {components:?}"
             );
-            if color == CLASSIC_RTS_DEPTH_FOREGROUND_COLOR {
+            if color == CLASSIC_RTS_DEPTH_FOREGROUND_COLOR
+                || color == CLASSIC_RTS_DEPTH_BEHIND_COLOR
+            {
                 let (max_row_pixels, max_column_pixels) =
                     exact_color_axis_max_counts(&player_buffer, width, height, color);
+                let (max_allowed_row_pixels, max_allowed_column_pixels) =
+                    if color == CLASSIC_RTS_DEPTH_BEHIND_COLOR {
+                        (16, 4)
+                    } else {
+                        (32, 28)
+                    };
                 assert!(
-                    max_row_pixels <= 32,
+                    max_row_pixels <= max_allowed_row_pixels,
                     "{color:06x} row {max_row_pixels} {components:?}"
                 );
                 assert!(
-                    max_column_pixels <= 28,
+                    max_column_pixels <= max_allowed_column_pixels,
                     "{color:06x} column {max_column_pixels} {components:?}"
                 );
             }
@@ -155454,6 +155490,7 @@ mod tests {
         let broad_evidence_edge = [
             CLASSIC_RTS_DEPTH_FOREGROUND_COLOR,
             CLASSIC_RTS_DEPTH_CUTAWAY_COLOR,
+            CLASSIC_RTS_DEPTH_BEHIND_COLOR,
         ]
         .into_iter()
         .flat_map(|color| exact_color_components(&evidence_buffer, width, height, color))
@@ -155461,8 +155498,20 @@ mod tests {
             w > CLASSIC_FIRST_CONTACT_PLAYER_DEPTH_EDGE_CUE_W_PX as usize + 2
                 || h > CLASSIC_FIRST_CONTACT_PLAYER_DEPTH_EDGE_VERTICAL_CUE_H_PX as usize + 2
         });
+        let broad_evidence_behind = exact_color_components(
+            &evidence_buffer,
+            width,
+            height,
+            CLASSIC_RTS_DEPTH_BEHIND_COLOR,
+        )
+        .iter()
+        .any(|(_, w, h)| {
+            *w > CLASSIC_FIRST_CONTACT_PLAYER_DEPTH_BEHIND_CUE_W_PX as usize
+                || *h > CLASSIC_FIRST_CONTACT_PLAYER_DEPTH_BEHIND_CUE_H_PX as usize
+        });
 
         assert!(broad_evidence_edge);
+        assert!(broad_evidence_behind);
     }
 
     #[cfg(not(target_os = "android"))]

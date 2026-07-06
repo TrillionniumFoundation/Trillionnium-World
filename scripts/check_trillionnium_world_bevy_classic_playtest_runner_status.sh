@@ -568,6 +568,13 @@ exact_terrain_depth_cutaway_component_sample = exact_color_component_summary(
     6,
     [32, 72, min(940, width), min(535, height)],
 )
+exact_terrain_depth_behind_component_sample = exact_color_component_summary(
+    "terrain_depth_behind_exact_light_blue",
+    (152, 200, 255),
+    4,
+    1,
+    [32, 72, min(940, width), min(535, height)],
+)
 exact_terrain_depth_foreground_axis_sample = exact_color_axis_summary(
     "terrain_depth_foreground_exact_green_axis_alignment",
     (121, 247, 177),
@@ -580,6 +587,13 @@ exact_terrain_depth_cutaway_axis_sample = exact_color_axis_summary(
     (112, 224, 255),
     32,
     28,
+    [32, 72, min(940, width), min(535, height)],
+)
+exact_terrain_depth_behind_axis_sample = exact_color_axis_summary(
+    "terrain_depth_behind_exact_light_blue_axis_alignment",
+    (152, 200, 255),
+    16,
+    4,
     [32, 72, min(940, width), min(535, height)],
 )
 exact_selection_confirm_component_sample = exact_color_component_summary(
@@ -721,6 +735,7 @@ exact_color_component_samples = [
     exact_product_lane_tan_component_sample,
     exact_terrain_depth_foreground_component_sample,
     exact_terrain_depth_cutaway_component_sample,
+    exact_terrain_depth_behind_component_sample,
     exact_selection_confirm_component_sample,
     exact_selection_ring_component_sample,
     exact_target_prefocus_component_sample,
@@ -743,6 +758,7 @@ exact_color_axis_samples = [
     exact_product_lane_tan_axis_sample,
     exact_terrain_depth_foreground_axis_sample,
     exact_terrain_depth_cutaway_axis_sample,
+    exact_terrain_depth_behind_axis_sample,
 ]
 forbidden_title_fragments = [
     "desktop product alignment",
@@ -788,9 +804,11 @@ gates = {
     "exact_product_lane_tan_axis_alignment_gate": exact_product_lane_tan_axis_sample["passes"],
     "exact_terrain_depth_foreground_micro_component_gate": exact_terrain_depth_foreground_component_sample["passes"],
     "exact_terrain_depth_cutaway_micro_component_gate": exact_terrain_depth_cutaway_component_sample["passes"],
+    "exact_terrain_depth_behind_micro_component_gate": exact_terrain_depth_behind_component_sample["passes"],
     "exact_terrain_depth_axis_alignment_gate": (
         exact_terrain_depth_foreground_axis_sample["passes"]
         and exact_terrain_depth_cutaway_axis_sample["passes"]
+        and exact_terrain_depth_behind_axis_sample["passes"]
     ),
     "exact_selection_confirm_micro_component_gate": exact_selection_confirm_component_sample["passes"],
     "exact_selection_ring_micro_component_gate": exact_selection_ring_component_sample["passes"],
