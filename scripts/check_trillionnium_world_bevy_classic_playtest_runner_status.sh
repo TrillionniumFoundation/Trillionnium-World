@@ -532,6 +532,20 @@ exact_product_map_density_component_sample = exact_color_component_summary(
     6,
     [32, 72, min(940, width), min(535, height)],
 )
+exact_product_lane_tan_component_sample = exact_color_component_summary(
+    "product_lane_exact_tan",
+    (211, 182, 106),
+    8,
+    6,
+    [32, 72, min(940, width), min(535, height)],
+)
+exact_product_lane_tan_axis_sample = exact_color_axis_summary(
+    "product_lane_exact_tan_axis_alignment",
+    (211, 182, 106),
+    48,
+    32,
+    [32, 72, min(940, width), min(535, height)],
+)
 exact_terrain_depth_foreground_component_sample = exact_color_component_summary(
     "terrain_depth_foreground_exact_green",
     (121, 247, 177),
@@ -695,6 +709,7 @@ exact_color_component_samples = [
     exact_main_map_objective_component_sample,
     exact_beacon_animation_range_component_sample,
     exact_product_map_density_component_sample,
+    exact_product_lane_tan_component_sample,
     exact_terrain_depth_foreground_component_sample,
     exact_terrain_depth_cutaway_component_sample,
     exact_selection_confirm_component_sample,
@@ -716,6 +731,7 @@ exact_color_component_samples = [
     exact_runtime_commander_aura_component_sample,
 ]
 exact_color_axis_samples = [
+    exact_product_lane_tan_axis_sample,
     exact_terrain_depth_foreground_axis_sample,
     exact_terrain_depth_cutaway_axis_sample,
 ]
@@ -759,6 +775,8 @@ gates = {
     "exact_main_map_objective_micro_component_gate": exact_main_map_objective_component_sample["passes"],
     "exact_beacon_animation_range_micro_component_gate": exact_beacon_animation_range_component_sample["passes"],
     "exact_product_map_density_micro_component_gate": exact_product_map_density_component_sample["passes"],
+    "exact_product_lane_tan_micro_component_gate": exact_product_lane_tan_component_sample["passes"],
+    "exact_product_lane_tan_axis_alignment_gate": exact_product_lane_tan_axis_sample["passes"],
     "exact_terrain_depth_foreground_micro_component_gate": exact_terrain_depth_foreground_component_sample["passes"],
     "exact_terrain_depth_cutaway_micro_component_gate": exact_terrain_depth_cutaway_component_sample["passes"],
     "exact_terrain_depth_axis_alignment_gate": (

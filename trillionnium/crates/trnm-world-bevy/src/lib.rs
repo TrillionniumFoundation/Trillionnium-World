@@ -959,6 +959,12 @@ const CLASSIC_FIRST_CONTACT_PLAYER_DENSITY_CUE_W_PX: i32 = 8;
 const CLASSIC_FIRST_CONTACT_PLAYER_DENSITY_CUE_H_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_PLAYER_DENSITY_VERTICAL_CUE_W_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_PLAYER_DENSITY_VERTICAL_CUE_H_PX: i32 = 6;
+const CLASSIC_FIRST_CONTACT_PLAYER_LANE_TILE_ANCHOR_W_PX: i32 = 4;
+const CLASSIC_FIRST_CONTACT_PLAYER_LANE_TILE_ANCHOR_H_PX: i32 = 2;
+const CLASSIC_FIRST_CONTACT_PLAYER_LANE_MARKER_H_CUE_W_PX: i32 = 8;
+const CLASSIC_FIRST_CONTACT_PLAYER_LANE_MARKER_H_CUE_H_PX: i32 = 2;
+const CLASSIC_FIRST_CONTACT_PLAYER_LANE_MARKER_V_CUE_W_PX: i32 = 2;
+const CLASSIC_FIRST_CONTACT_PLAYER_LANE_MARKER_V_CUE_H_PX: i32 = 6;
 const CLASSIC_FIRST_CONTACT_PLAYER_DEPTH_EDGE_CUE_W_PX: i32 = 4;
 const CLASSIC_FIRST_CONTACT_PLAYER_DEPTH_EDGE_CUE_H_PX: i32 = 1;
 const CLASSIC_FIRST_CONTACT_PLAYER_DEPTH_EDGE_VERTICAL_CUE_W_PX: i32 = 1;
@@ -94831,26 +94837,80 @@ fn classic_draw_first_contact_actor(
             );
         }
         RtsActorGlyphBody::LaneMarker => {
-            classic_draw_rect(
-                buffer,
-                width,
-                height,
-                tile_x - cell_w,
-                cy - 2,
-                cell_w * 3,
-                4,
-                CLASSIC_RTS_PRODUCT_LANE_COLOR,
-            );
-            classic_draw_rect(
-                buffer,
-                width,
-                height,
-                cx - 2,
-                tile_y - cell_h,
-                4,
-                cell_h * 3,
-                CLASSIC_RTS_PRODUCT_LANE_COLOR,
-            );
+            if player_screen {
+                let muted_lane_color = classic_darken(CLASSIC_RTS_PRODUCT_LANE_COLOR, 2, 3);
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    tile_x - cell_w + 4,
+                    cy - 1,
+                    cell_w * 3 - 8,
+                    1,
+                    muted_lane_color,
+                );
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    cx - 1,
+                    tile_y - cell_h + 4,
+                    1,
+                    cell_h * 3 - 8,
+                    muted_lane_color,
+                );
+                for cue_x in [
+                    tile_x - cell_w + 4,
+                    tile_x + cell_w * 2 - CLASSIC_FIRST_CONTACT_PLAYER_LANE_MARKER_H_CUE_W_PX - 4,
+                ] {
+                    classic_draw_rect(
+                        buffer,
+                        width,
+                        height,
+                        cue_x,
+                        cy - 1,
+                        CLASSIC_FIRST_CONTACT_PLAYER_LANE_MARKER_H_CUE_W_PX,
+                        CLASSIC_FIRST_CONTACT_PLAYER_LANE_MARKER_H_CUE_H_PX,
+                        CLASSIC_RTS_PRODUCT_LANE_COLOR,
+                    );
+                }
+                for cue_y in [
+                    tile_y - cell_h + 4,
+                    tile_y + cell_h * 2 - CLASSIC_FIRST_CONTACT_PLAYER_LANE_MARKER_V_CUE_H_PX - 4,
+                ] {
+                    classic_draw_rect(
+                        buffer,
+                        width,
+                        height,
+                        cx - 1,
+                        cue_y,
+                        CLASSIC_FIRST_CONTACT_PLAYER_LANE_MARKER_V_CUE_W_PX,
+                        CLASSIC_FIRST_CONTACT_PLAYER_LANE_MARKER_V_CUE_H_PX,
+                        CLASSIC_RTS_PRODUCT_LANE_COLOR,
+                    );
+                }
+            } else {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    tile_x - cell_w,
+                    cy - 2,
+                    cell_w * 3,
+                    4,
+                    CLASSIC_RTS_PRODUCT_LANE_COLOR,
+                );
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    cx - 2,
+                    tile_y - cell_h,
+                    4,
+                    cell_h * 3,
+                    CLASSIC_RTS_PRODUCT_LANE_COLOR,
+                );
+            }
         }
         RtsActorGlyphBody::BeaconRing => {
             if first_contact_renderer_readability::player_screen_secondary_beacon_actor_body(
@@ -97720,6 +97780,58 @@ fn classic_draw_first_contact_rule_panel(
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_draw_first_contact_lane_tile_cue(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    tile_x: i32,
+    tile_y: i32,
+    cell_w: i32,
+    cell_h: i32,
+    player_screen: bool,
+    lane_tile: (i32, i32),
+) {
+    if player_screen {
+        let lane_y =
+            tile_y + (cell_h / 2) - 1 + (((lane_tile.0 + lane_tile.1 * 2).rem_euclid(3)) - 1) * 2;
+        let muted_lane_color = classic_darken(CLASSIC_RTS_PRODUCT_LANE_COLOR, 2, 3);
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            tile_x + cell_w / 4,
+            lane_y,
+            (cell_w / 2).max(6),
+            1,
+            muted_lane_color,
+        );
+        if (lane_tile.0 + lane_tile.1 * 3).rem_euclid(5) == 0 {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                tile_x + cell_w / 2 - CLASSIC_FIRST_CONTACT_PLAYER_LANE_TILE_ANCHOR_W_PX / 2,
+                lane_y,
+                CLASSIC_FIRST_CONTACT_PLAYER_LANE_TILE_ANCHOR_W_PX,
+                CLASSIC_FIRST_CONTACT_PLAYER_LANE_TILE_ANCHOR_H_PX,
+                CLASSIC_RTS_PRODUCT_LANE_COLOR,
+            );
+        }
+    } else {
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            tile_x + cell_w / 8,
+            tile_y + (cell_h / 2) - 1,
+            (cell_w * 3 / 4).max(4),
+            2,
+            CLASSIC_RTS_PRODUCT_LANE_COLOR,
+        );
+    }
+}
+
+#[cfg(not(target_os = "android"))]
 fn classic_draw_first_contact_basin_scene(
     buffer: &mut [u32],
     width: usize,
@@ -97817,22 +97929,19 @@ fn classic_draw_first_contact_basin_scene(
     );
 
     for tile in &renderer_model.lane_tiles {
-        let (tile_x, tile_y) = classic_first_contact_tile_screen(
-            map_x,
-            map_y,
-            cell_w,
-            cell_h,
-            classic_first_contact_tile_tuple(*tile),
-        );
-        classic_draw_rect(
+        let lane_tile = classic_first_contact_tile_tuple(*tile);
+        let (tile_x, tile_y) =
+            classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, lane_tile);
+        classic_draw_first_contact_lane_tile_cue(
             buffer,
             width,
             height,
-            tile_x + cell_w / 8,
-            tile_y + (cell_h / 2) - 1,
-            (cell_w * 3 / 4).max(4),
-            2,
-            CLASSIC_RTS_PRODUCT_LANE_COLOR,
+            tile_x,
+            tile_y,
+            cell_w,
+            cell_h,
+            player_screen,
+            lane_tile,
         );
     }
 
@@ -154898,6 +155007,268 @@ mod tests {
         }
 
         assert!(checked_actors >= 3, "{checked_actors}");
+    }
+
+    #[cfg(not(target_os = "android"))]
+    #[test]
+    fn classic_first_contact_player_lane_cues_draw_sparse_micro_tan_anchors() {
+        let width = 1280;
+        let height = 699;
+        let map_x = 32;
+        let map_y = 68;
+        let cell_w = 28;
+        let cell_h = 14;
+        let map_model = first_contact_basin_map();
+        let renderer_model = first_contact_map_renderer_model(&map_model);
+        let mut player_lane_buffer = vec![0_u32; width * height];
+        let mut evidence_lane_buffer = vec![0_u32; width * height];
+
+        for tile in &renderer_model.lane_tiles {
+            let lane_tile = classic_first_contact_tile_tuple(*tile);
+            let (tile_x, tile_y) =
+                classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, lane_tile);
+            classic_draw_first_contact_lane_tile_cue(
+                &mut player_lane_buffer,
+                width,
+                height,
+                tile_x,
+                tile_y,
+                cell_w,
+                cell_h,
+                true,
+                lane_tile,
+            );
+            classic_draw_first_contact_lane_tile_cue(
+                &mut evidence_lane_buffer,
+                width,
+                height,
+                tile_x,
+                tile_y,
+                cell_w,
+                cell_h,
+                false,
+                lane_tile,
+            );
+        }
+
+        let player_lane_components = exact_color_components(
+            &player_lane_buffer,
+            width,
+            height,
+            CLASSIC_RTS_PRODUCT_LANE_COLOR,
+        );
+        let player_lane_pixel_count = player_lane_components
+            .iter()
+            .map(|(pixels, _, _)| pixels)
+            .sum::<usize>();
+        let (player_lane_max_row, player_lane_max_column) = exact_color_axis_max_counts(
+            &player_lane_buffer,
+            width,
+            height,
+            CLASSIC_RTS_PRODUCT_LANE_COLOR,
+        );
+        assert!(
+            player_lane_pixel_count > 0,
+            "{player_lane_pixel_count} {player_lane_components:?}"
+        );
+        assert!(
+            player_lane_components.iter().all(|(_, w, h)| {
+                *w <= CLASSIC_FIRST_CONTACT_PLAYER_LANE_TILE_ANCHOR_W_PX as usize
+                    && *h <= CLASSIC_FIRST_CONTACT_PLAYER_LANE_TILE_ANCHOR_H_PX as usize
+            }),
+            "{player_lane_components:?}"
+        );
+        assert!(
+            player_lane_max_row <= 32 && player_lane_max_column <= 16,
+            "{player_lane_max_row} {player_lane_max_column} {player_lane_components:?}"
+        );
+
+        let evidence_lane_components = exact_color_components(
+            &evidence_lane_buffer,
+            width,
+            height,
+            CLASSIC_RTS_PRODUCT_LANE_COLOR,
+        );
+        assert!(
+            evidence_lane_components.iter().any(|(_, w, h)| *w
+                > CLASSIC_FIRST_CONTACT_PLAYER_LANE_TILE_ANCHOR_W_PX as usize
+                || *h > CLASSIC_FIRST_CONTACT_PLAYER_LANE_TILE_ANCHOR_H_PX as usize),
+            "{evidence_lane_components:?}"
+        );
+
+        let target_tile = (16, 9);
+        let mut player_art_buffer = vec![0_u32; width * height];
+        classic_draw_first_contact_silhouette_readability_layer(
+            &mut player_art_buffer,
+            width,
+            height,
+            map_x,
+            map_y,
+            cell_w,
+            cell_h,
+            true,
+            target_tile,
+        );
+        classic_draw_first_contact_art_readability_layer(
+            &mut player_art_buffer,
+            width,
+            height,
+            map_x,
+            map_y,
+            cell_w,
+            cell_h,
+            true,
+        );
+        let player_art_components = exact_color_components(
+            &player_art_buffer,
+            width,
+            height,
+            CLASSIC_RTS_PRODUCT_LANE_COLOR,
+        );
+        let player_art_pixel_count = player_art_components
+            .iter()
+            .map(|(pixels, _, _)| pixels)
+            .sum::<usize>();
+        let (player_art_max_row, player_art_max_column) = exact_color_axis_max_counts(
+            &player_art_buffer,
+            width,
+            height,
+            CLASSIC_RTS_PRODUCT_LANE_COLOR,
+        );
+        assert!(
+            player_art_pixel_count > 0,
+            "{player_art_pixel_count} {player_art_components:?}"
+        );
+        assert!(
+            player_art_components.iter().all(|(_, w, h)| {
+                (*w <= CLASSIC_FIRST_CONTACT_PLAYER_LANE_MARKER_H_CUE_W_PX as usize
+                    && *h <= CLASSIC_FIRST_CONTACT_PLAYER_LANE_MARKER_H_CUE_H_PX as usize)
+                    || (*w <= CLASSIC_FIRST_CONTACT_PLAYER_LANE_MARKER_V_CUE_W_PX as usize
+                        && *h <= CLASSIC_FIRST_CONTACT_PLAYER_LANE_MARKER_V_CUE_H_PX as usize)
+            }),
+            "{player_art_components:?}"
+        );
+        assert!(
+            player_art_max_row <= 48 && player_art_max_column <= 32,
+            "{player_art_max_row} {player_art_max_column} {player_art_components:?}"
+        );
+
+        let mut evidence_art_buffer = vec![0_u32; width * height];
+        classic_draw_first_contact_silhouette_readability_layer(
+            &mut evidence_art_buffer,
+            width,
+            height,
+            map_x,
+            map_y,
+            cell_w,
+            cell_h,
+            false,
+            target_tile,
+        );
+        classic_draw_first_contact_art_readability_layer(
+            &mut evidence_art_buffer,
+            width,
+            height,
+            map_x,
+            map_y,
+            cell_w,
+            cell_h,
+            false,
+        );
+        let evidence_art_components = exact_color_components(
+            &evidence_art_buffer,
+            width,
+            height,
+            CLASSIC_RTS_PRODUCT_LANE_COLOR,
+        );
+        assert!(
+            evidence_art_components.iter().any(|(_, w, h)| *w
+                > CLASSIC_FIRST_CONTACT_PLAYER_LANE_MARKER_H_CUE_W_PX as usize
+                || *h > CLASSIC_FIRST_CONTACT_PLAYER_LANE_MARKER_V_CUE_H_PX as usize),
+            "{evidence_art_components:?}"
+        );
+
+        let mut checked_lane_markers = 0_usize;
+        for actor in classic_first_contact_map_actors_from_rts_data() {
+            if !matches!(actor.kind, RtsFirstContactPreviewActorKind::LaneMarker) {
+                continue;
+            }
+            checked_lane_markers += 1;
+
+            let mut player_actor_buffer = vec![0_u32; width * height];
+            classic_draw_first_contact_actor(
+                &mut player_actor_buffer,
+                width,
+                height,
+                actor.clone(),
+                map_x,
+                map_y,
+                cell_w,
+                cell_h,
+                true,
+                target_tile,
+            );
+            let player_actor_components = exact_color_components(
+                &player_actor_buffer,
+                width,
+                height,
+                CLASSIC_RTS_PRODUCT_LANE_COLOR,
+            );
+            let player_actor_pixel_count = player_actor_components
+                .iter()
+                .map(|(pixels, _, _)| pixels)
+                .sum::<usize>();
+            let expected_actor_pixels = 2
+                * CLASSIC_FIRST_CONTACT_PLAYER_LANE_MARKER_H_CUE_W_PX as usize
+                * CLASSIC_FIRST_CONTACT_PLAYER_LANE_MARKER_H_CUE_H_PX as usize
+                + 2 * CLASSIC_FIRST_CONTACT_PLAYER_LANE_MARKER_V_CUE_W_PX as usize
+                    * CLASSIC_FIRST_CONTACT_PLAYER_LANE_MARKER_V_CUE_H_PX as usize;
+            assert_eq!(
+                player_actor_pixel_count, expected_actor_pixels,
+                "{} {player_actor_components:?}",
+                actor.source_rule_id
+            );
+            assert!(
+                player_actor_components.iter().all(|(_, w, h)| {
+                    (*w <= CLASSIC_FIRST_CONTACT_PLAYER_LANE_MARKER_H_CUE_W_PX as usize
+                        && *h <= CLASSIC_FIRST_CONTACT_PLAYER_LANE_MARKER_H_CUE_H_PX as usize)
+                        || (*w <= CLASSIC_FIRST_CONTACT_PLAYER_LANE_MARKER_V_CUE_W_PX as usize
+                            && *h <= CLASSIC_FIRST_CONTACT_PLAYER_LANE_MARKER_V_CUE_H_PX as usize)
+                }),
+                "{} {player_actor_components:?}",
+                actor.source_rule_id
+            );
+
+            let mut evidence_actor_buffer = vec![0_u32; width * height];
+            classic_draw_first_contact_actor(
+                &mut evidence_actor_buffer,
+                width,
+                height,
+                actor.clone(),
+                map_x,
+                map_y,
+                cell_w,
+                cell_h,
+                false,
+                target_tile,
+            );
+            let evidence_actor_components = exact_color_components(
+                &evidence_actor_buffer,
+                width,
+                height,
+                CLASSIC_RTS_PRODUCT_LANE_COLOR,
+            );
+            assert!(
+                evidence_actor_components.iter().any(|(_, w, h)| {
+                    *w > CLASSIC_FIRST_CONTACT_PLAYER_LANE_MARKER_H_CUE_W_PX as usize
+                        || *h > CLASSIC_FIRST_CONTACT_PLAYER_LANE_MARKER_V_CUE_H_PX as usize
+                }),
+                "{} {evidence_actor_components:?}",
+                actor.source_rule_id
+            );
+        }
+
+        assert!(checked_lane_markers > 0);
     }
 
     #[cfg(not(target_os = "android"))]

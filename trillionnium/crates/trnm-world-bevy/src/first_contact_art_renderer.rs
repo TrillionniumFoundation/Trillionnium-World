@@ -8,7 +8,11 @@ use crate::{
     CLASSIC_FIRST_CONTACT_PLAYER_BEACON_SPIRE_GLINT_CUE_W_PX,
     CLASSIC_FIRST_CONTACT_PLAYER_COMMAND_CORE_FACTION_TICK_COUNT,
     CLASSIC_FIRST_CONTACT_PLAYER_COMMAND_CORE_FACTION_TICK_H_PX,
-    CLASSIC_FIRST_CONTACT_PLAYER_COMMAND_CORE_FACTION_TICK_W_PX, CLASSIC_RTS_OBJECTIVE_COLOR,
+    CLASSIC_FIRST_CONTACT_PLAYER_COMMAND_CORE_FACTION_TICK_W_PX,
+    CLASSIC_FIRST_CONTACT_PLAYER_LANE_MARKER_V_CUE_H_PX,
+    CLASSIC_FIRST_CONTACT_PLAYER_LANE_MARKER_V_CUE_W_PX,
+    CLASSIC_FIRST_CONTACT_PLAYER_LANE_TILE_ANCHOR_H_PX,
+    CLASSIC_FIRST_CONTACT_PLAYER_LANE_TILE_ANCHOR_W_PX, CLASSIC_RTS_OBJECTIVE_COLOR,
     CLASSIC_RTS_PRODUCT_LANE_COLOR, CLASSIC_RTS_STRUCTURE_FOUNDATION_SHADOW_COLOR,
     CLASSIC_RTS_TACTICAL_VIEWPORT_SHADOW_COLOR,
 };
@@ -303,6 +307,36 @@ pub(super) fn draw_terrain_detail(
             }
         }
         "cracked_plaza_cross" => {
+            if player_screen && role == "basin_floor" {
+                let quiet = classic_darken(color, 2, 3);
+                let edge = classic_darken(color, 1, 4);
+                for (dx, dy, cue_w) in [(-14, -8, 8), (-4, 1, 6), (9, 8, 8)] {
+                    classic_draw_rect(buffer, width, height, cx + dx, cy + dy, cue_w, 1, quiet);
+                    classic_draw_rect(
+                        buffer,
+                        width,
+                        height,
+                        cx + dx + cue_w / 2,
+                        cy + dy - 2,
+                        1,
+                        5,
+                        edge,
+                    );
+                }
+                for (cue_x, cue_y) in [(cx - 12, cy - 6), (cx + 8, cy + 7)] {
+                    classic_draw_rect(
+                        buffer,
+                        width,
+                        height,
+                        cue_x,
+                        cue_y,
+                        CLASSIC_FIRST_CONTACT_PLAYER_LANE_TILE_ANCHOR_W_PX,
+                        CLASSIC_FIRST_CONTACT_PLAYER_LANE_TILE_ANCHOR_H_PX,
+                        color,
+                    );
+                }
+                return;
+            }
             for step in -2..=2 {
                 classic_draw_rect(
                     buffer,
@@ -674,6 +708,36 @@ pub(super) fn draw_landmark_detail(
             );
         }
         "crater_scuff_marks" => {
+            if player_screen && role == "basin_scar" {
+                let quiet = classic_darken(color, 2, 3);
+                let edge = classic_darken(color, 1, 4);
+                for (dx, dy, cue_w) in [(-14, -7, 8), (-4, 1, 6), (10, 8, 7)] {
+                    classic_draw_rect(buffer, width, height, cx + dx, cy + dy, cue_w, 1, quiet);
+                    classic_draw_rect(
+                        buffer,
+                        width,
+                        height,
+                        cx + dx + cue_w / 2,
+                        cy + dy - 2,
+                        CLASSIC_FIRST_CONTACT_PLAYER_LANE_MARKER_V_CUE_W_PX,
+                        CLASSIC_FIRST_CONTACT_PLAYER_LANE_MARKER_V_CUE_H_PX,
+                        edge,
+                    );
+                }
+                for (cue_x, cue_y) in [(cx - 12, cy - 7), (cx + 8, cy + 8)] {
+                    classic_draw_rect(
+                        buffer,
+                        width,
+                        height,
+                        cue_x,
+                        cue_y,
+                        CLASSIC_FIRST_CONTACT_PLAYER_LANE_TILE_ANCHOR_W_PX,
+                        CLASSIC_FIRST_CONTACT_PLAYER_LANE_TILE_ANCHOR_H_PX,
+                        color,
+                    );
+                }
+                return;
+            }
             for (dx, dy, w) in [(-16, -8, 18), (-6, 1, 22), (10, 9, 15)] {
                 classic_draw_rect(buffer, width, height, cx + dx, cy + dy, w, 2, color);
                 classic_draw_rect(

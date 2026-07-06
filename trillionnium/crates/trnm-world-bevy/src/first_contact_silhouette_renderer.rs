@@ -8,7 +8,11 @@ use crate::{
     CLASSIC_FIRST_CONTACT_PLAYER_ACTIVE_BEACON_IDENTITY_CUE_W_PX,
     CLASSIC_FIRST_CONTACT_PLAYER_COMMAND_CORE_FACTION_TICK_COUNT,
     CLASSIC_FIRST_CONTACT_PLAYER_COMMAND_CORE_FACTION_TICK_H_PX,
-    CLASSIC_FIRST_CONTACT_PLAYER_COMMAND_CORE_FACTION_TICK_W_PX, CLASSIC_ISO_OUTLINE_COLOR,
+    CLASSIC_FIRST_CONTACT_PLAYER_COMMAND_CORE_FACTION_TICK_W_PX,
+    CLASSIC_FIRST_CONTACT_PLAYER_LANE_MARKER_V_CUE_H_PX,
+    CLASSIC_FIRST_CONTACT_PLAYER_LANE_MARKER_V_CUE_W_PX,
+    CLASSIC_FIRST_CONTACT_PLAYER_LANE_TILE_ANCHOR_H_PX,
+    CLASSIC_FIRST_CONTACT_PLAYER_LANE_TILE_ANCHOR_W_PX, CLASSIC_ISO_OUTLINE_COLOR,
     CLASSIC_RTS_CAPTURE_BAR_COLOR, CLASSIC_RTS_COMMANDER_AURA_COLOR,
     CLASSIC_RTS_HARVEST_NODE_COLOR, CLASSIC_RTS_MODEL_IDENTITY_FACTION_COLOR,
     CLASSIC_RTS_STRUCTURE_HEALTH_COLOR, CLASSIC_RTS_STRUCTURE_REPAIR_BEAM_COLOR,
@@ -522,6 +526,57 @@ fn draw_terrain_marker(
             );
         }
         "basin_cross_rim" => {
+            if player_screen && kind == "central_basin" {
+                let quiet = classic_darken(color, 2, 3);
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    cx - cell_w * 2,
+                    cy - 1,
+                    cell_w * 4,
+                    1,
+                    quiet,
+                );
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    cx - 1,
+                    cy - cell_h * 2,
+                    1,
+                    cell_h * 4,
+                    quiet,
+                );
+                for (cue_x, cue_y) in [(cx - cell_w, cy - 1), (cx + cell_w - 4, cy - 1)] {
+                    classic_draw_rect(
+                        buffer,
+                        width,
+                        height,
+                        cue_x,
+                        cue_y,
+                        CLASSIC_FIRST_CONTACT_PLAYER_LANE_TILE_ANCHOR_W_PX,
+                        CLASSIC_FIRST_CONTACT_PLAYER_LANE_TILE_ANCHOR_H_PX,
+                        color,
+                    );
+                }
+                for cue_y in [
+                    cy - cell_h,
+                    cy + cell_h - CLASSIC_FIRST_CONTACT_PLAYER_LANE_MARKER_V_CUE_H_PX,
+                ] {
+                    classic_draw_rect(
+                        buffer,
+                        width,
+                        height,
+                        cx - 1,
+                        cue_y,
+                        CLASSIC_FIRST_CONTACT_PLAYER_LANE_MARKER_V_CUE_W_PX,
+                        CLASSIC_FIRST_CONTACT_PLAYER_LANE_MARKER_V_CUE_H_PX,
+                        color,
+                    );
+                }
+                return;
+            }
             classic_draw_rect(
                 buffer,
                 width,
