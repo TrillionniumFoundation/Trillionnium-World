@@ -61,6 +61,8 @@ required_lines=(
   'exact_harvest_swing_micro_component_gate'
   'combat_attack_arc_exact_yellow'
   'exact_combat_attack_arc_micro_component_gate'
+  'action_cadence_carry_bob_exact_gold'
+  'exact_action_cadence_carry_bob_micro_component_gate'
   'active_beacon_capture_exact_yellow'
   'exact_beacon_capture_micro_component_gate'
   'main_map_objective_exact_green'

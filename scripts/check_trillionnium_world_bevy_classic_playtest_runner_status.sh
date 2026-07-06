@@ -513,6 +513,14 @@ exact_combat_attack_arc_component_sample = exact_color_component_summary(
     [32, 72, min(940, width), min(535, height)],
     128,
 )
+exact_action_cadence_carry_bob_component_sample = exact_color_component_summary(
+    "action_cadence_carry_bob_exact_gold",
+    (224, 209, 104),
+    4,
+    2,
+    [32, 72, min(940, width), min(535, height)],
+    64,
+)
 exact_beacon_capture_component_sample = exact_color_component_summary(
     "active_beacon_capture_exact_yellow",
     (215, 255, 120),
@@ -736,6 +744,7 @@ exact_color_component_samples = [
     exact_environment_resource_glint_component_sample,
     exact_harvest_swing_component_sample,
     exact_combat_attack_arc_component_sample,
+    exact_action_cadence_carry_bob_component_sample,
     exact_beacon_capture_component_sample,
     exact_main_map_objective_component_sample,
     exact_beacon_animation_range_component_sample,
@@ -806,6 +815,7 @@ gates = {
     "exact_environment_resource_glint_micro_component_gate": exact_environment_resource_glint_component_sample["passes"],
     "exact_harvest_swing_micro_component_gate": exact_harvest_swing_component_sample["passes"],
     "exact_combat_attack_arc_micro_component_gate": exact_combat_attack_arc_component_sample["passes"],
+    "exact_action_cadence_carry_bob_micro_component_gate": exact_action_cadence_carry_bob_component_sample["passes"],
     "exact_beacon_capture_micro_component_gate": exact_beacon_capture_component_sample["passes"],
     "exact_main_map_objective_micro_component_gate": exact_main_map_objective_component_sample["passes"],
     "exact_beacon_animation_range_micro_component_gate": exact_beacon_animation_range_component_sample["passes"],

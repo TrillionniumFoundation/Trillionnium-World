@@ -916,6 +916,9 @@ const CLASSIC_FIRST_CONTACT_PLAYER_SHIELD_CHARGE_ARC_H_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_PLAYER_SENSOR_SWEEP_TICK_COUNT: usize = 3;
 const CLASSIC_FIRST_CONTACT_PLAYER_SENSOR_SWEEP_TICK_W_PX: i32 = 8;
 const CLASSIC_FIRST_CONTACT_PLAYER_SENSOR_SWEEP_TICK_H_PX: i32 = 2;
+const CLASSIC_FIRST_CONTACT_PLAYER_CARRY_BOB_PIP_COUNT: usize = 5;
+const CLASSIC_FIRST_CONTACT_PLAYER_CARRY_BOB_PIP_W_PX: i32 = 4;
+const CLASSIC_FIRST_CONTACT_PLAYER_CARRY_BOB_PIP_H_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_PLAYER_CARRY_LOAD_PIP_COUNT: usize = 4;
 const CLASSIC_FIRST_CONTACT_PLAYER_CARRY_LOAD_PIP_W_PX: i32 = 4;
 const CLASSIC_FIRST_CONTACT_PLAYER_CARRY_LOAD_PIP_H_PX: i32 = 2;
@@ -96465,15 +96468,29 @@ fn classic_draw_first_contact_animation_cycle_detail(
             );
         }
         "carry_bob_frame" => {
-            for bob in 0..5 {
+            let bob_count = if player_screen {
+                CLASSIC_FIRST_CONTACT_PLAYER_CARRY_BOB_PIP_COUNT
+            } else {
+                5
+            };
+            for bob in 0..bob_count {
+                let bob = bob as i32;
+                let (bob_w, bob_h) = if player_screen {
+                    (
+                        CLASSIC_FIRST_CONTACT_PLAYER_CARRY_BOB_PIP_W_PX,
+                        CLASSIC_FIRST_CONTACT_PLAYER_CARRY_BOB_PIP_H_PX,
+                    )
+                } else {
+                    (7, 7)
+                };
                 classic_draw_rect(
                     buffer,
                     width,
                     height,
                     cx - 20 + bob * 10,
                     cy - cell_h - 10 - (bob % 2) * 4,
-                    7,
-                    7,
+                    bob_w,
+                    bob_h,
                     CLASSIC_RTS_ACTION_CADENCE_CARRY_BOB_COLOR,
                 );
             }
@@ -153583,6 +153600,77 @@ mod tests {
                     && *h <= CLASSIC_FIRST_CONTACT_PLAYER_HARVEST_TOOL_SWING_SPARK_H_PX as usize
             }),
             "{components:?}"
+        );
+    }
+
+    #[cfg(not(target_os = "android"))]
+    #[test]
+    fn classic_first_contact_player_carry_bob_draws_micro_pips() {
+        let width = 800;
+        let height = 520;
+        let mut player_buffer = vec![0_u32; width * height];
+        let mut evidence_buffer = vec![0_u32; width * height];
+
+        classic_draw_first_contact_animation_cycle_detail(
+            &mut player_buffer,
+            width,
+            height,
+            420,
+            160,
+            48,
+            28,
+            (2, 2),
+            "carry_bob_frame",
+            true,
+        );
+        classic_draw_first_contact_animation_cycle_detail(
+            &mut evidence_buffer,
+            width,
+            height,
+            420,
+            160,
+            48,
+            28,
+            (2, 2),
+            "carry_bob_frame",
+            false,
+        );
+
+        let player_components = exact_color_components(
+            &player_buffer,
+            width,
+            height,
+            CLASSIC_RTS_ACTION_CADENCE_CARRY_BOB_COLOR,
+        );
+        let evidence_components = exact_color_components(
+            &evidence_buffer,
+            width,
+            height,
+            CLASSIC_RTS_ACTION_CADENCE_CARRY_BOB_COLOR,
+        );
+        let player_carry_bob_pixels = player_components
+            .iter()
+            .map(|(pixels, _, _)| pixels)
+            .sum::<usize>();
+
+        assert_eq!(
+            player_components.len(),
+            CLASSIC_FIRST_CONTACT_PLAYER_CARRY_BOB_PIP_COUNT,
+            "{player_components:?}"
+        );
+        assert_eq!(player_carry_bob_pixels, 40);
+        assert!(
+            player_components.iter().all(|(_, w, h)| {
+                *w <= CLASSIC_FIRST_CONTACT_PLAYER_CARRY_BOB_PIP_W_PX as usize
+                    && *h <= CLASSIC_FIRST_CONTACT_PLAYER_CARRY_BOB_PIP_H_PX as usize
+            }),
+            "{player_components:?}"
+        );
+        assert!(
+            evidence_components
+                .iter()
+                .any(|(_, w, h)| *w == 7 && *h == 7),
+            "{evidence_components:?}"
         );
     }
 
