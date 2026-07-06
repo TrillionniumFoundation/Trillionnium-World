@@ -842,6 +842,14 @@ const CLASSIC_FIRST_CONTACT_PLAYER_SECONDARY_BEACON_ACTOR_BODY_CUE_H_PX: i32 = 2
 const CLASSIC_FIRST_CONTACT_PLAYER_BEACON_PRODUCTION_GLOW_CUE_COUNT: usize = 2;
 const CLASSIC_FIRST_CONTACT_PLAYER_BEACON_PRODUCTION_GLOW_CUE_W_PX: i32 = 8;
 const CLASSIC_FIRST_CONTACT_PLAYER_BEACON_PRODUCTION_GLOW_CUE_H_PX: i32 = 2;
+const CLASSIC_FIRST_CONTACT_PLAYER_BEACON_SPIRE_GLINT_CUE_COUNT: usize = 4;
+const CLASSIC_FIRST_CONTACT_PLAYER_BEACON_SPIRE_GLINT_CUE_W_PX: i32 = 8;
+const CLASSIC_FIRST_CONTACT_PLAYER_BEACON_SPIRE_GLINT_CUE_H_PX: i32 = 2;
+const CLASSIC_FIRST_CONTACT_PLAYER_TERRAIN_RESOURCE_GLINT_W_PX: i32 = 4;
+const CLASSIC_FIRST_CONTACT_PLAYER_TERRAIN_RESOURCE_GLINT_H_PX: i32 = 2;
+const CLASSIC_FIRST_CONTACT_PLAYER_RESOURCE_BLOOM_GLINT_CUE_COUNT: usize = 2;
+const CLASSIC_FIRST_CONTACT_PLAYER_RESOURCE_BLOOM_GLINT_CUE_W_PX: i32 = 4;
+const CLASSIC_FIRST_CONTACT_PLAYER_RESOURCE_BLOOM_GLINT_CUE_H_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK_MOVE_TRAIL_ORIGIN_COUNT: usize = 2;
 const CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK_MOVE_TRAIL_STEP_COUNT: usize = 10;
 const CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK_MOVE_TRAIL_TICK_W_PX: i32 = 2;
@@ -93284,14 +93292,20 @@ fn classic_draw_first_contact_terrain_layer(
             );
         }
         if terrain.resource_zone && surface_seed % 5 == 0 {
+            let glint_w = CLASSIC_FIRST_CONTACT_PLAYER_TERRAIN_RESOURCE_GLINT_W_PX;
+            let glint_h = if player_screen {
+                CLASSIC_FIRST_CONTACT_PLAYER_TERRAIN_RESOURCE_GLINT_H_PX
+            } else {
+                3
+            };
             classic_draw_rect(
                 buffer,
                 width,
                 height,
-                tile_x + cell_w / 2 - 2,
+                tile_x + cell_w / 2 - glint_w / 2,
                 tile_y + cell_h / 2 - 1,
-                4,
-                3,
+                glint_w,
+                glint_h,
                 CLASSIC_RTS_ENVIRONMENT_RESOURCE_GLINT_COLOR,
             );
         }
@@ -94599,16 +94613,38 @@ fn classic_draw_first_contact_actor(
                 cell_h,
                 CLASSIC_RTS_PRODUCT_RESOURCE_COLOR,
             );
-            classic_draw_rect(
-                buffer,
-                width,
-                height,
-                cx - 3,
-                cy - 3,
-                6,
-                6,
-                CLASSIC_RTS_ENVIRONMENT_RESOURCE_GLINT_COLOR,
-            );
+            if player_screen {
+                let glint_w = CLASSIC_FIRST_CONTACT_PLAYER_RESOURCE_BLOOM_GLINT_CUE_W_PX;
+                let glint_h = CLASSIC_FIRST_CONTACT_PLAYER_RESOURCE_BLOOM_GLINT_CUE_H_PX;
+                let cues = [(cx - 5, cy - 4), (cx + 1, cy + 2)];
+                debug_assert_eq!(
+                    cues.len(),
+                    CLASSIC_FIRST_CONTACT_PLAYER_RESOURCE_BLOOM_GLINT_CUE_COUNT
+                );
+                for (cue_x, cue_y) in cues {
+                    classic_draw_rect(
+                        buffer,
+                        width,
+                        height,
+                        cue_x,
+                        cue_y,
+                        glint_w,
+                        glint_h,
+                        CLASSIC_RTS_ENVIRONMENT_RESOURCE_GLINT_COLOR,
+                    );
+                }
+            } else {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    cx - 3,
+                    cy - 3,
+                    6,
+                    6,
+                    CLASSIC_RTS_ENVIRONMENT_RESOURCE_GLINT_COLOR,
+                );
+            }
         }
         RtsActorGlyphBody::ObjectiveBeacon => {
             if first_contact_renderer_readability::player_screen_secondary_beacon_actor_body(
@@ -95621,16 +95657,33 @@ fn classic_draw_first_contact_model_identity_layers(
             cell_h * 3,
             CLASSIC_RTS_MODEL_IDENTITY_BEACON_COLOR,
         );
-        classic_draw_rect(
-            buffer,
-            width,
-            height,
-            cx - cell_w,
-            cy - cell_h * 2 - 5,
-            cell_w * 2,
-            4,
-            CLASSIC_RTS_ENVIRONMENT_RESOURCE_GLINT_COLOR,
-        );
+        if player_screen {
+            let glint_w = CLASSIC_FIRST_CONTACT_PLAYER_BEACON_ANIMATION_GLINT_TICK_W_PX;
+            let glint_h = CLASSIC_FIRST_CONTACT_PLAYER_BEACON_ANIMATION_GLINT_TICK_H_PX;
+            for cue_x in [cx - cell_w / 2, cx + cell_w / 2 - glint_w] {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    cue_x,
+                    cy - cell_h * 2 - 5,
+                    glint_w,
+                    glint_h,
+                    CLASSIC_RTS_ENVIRONMENT_RESOURCE_GLINT_COLOR,
+                );
+            }
+        } else {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                cx - cell_w,
+                cy - cell_h * 2 - 5,
+                cell_w * 2,
+                4,
+                CLASSIC_RTS_ENVIRONMENT_RESOURCE_GLINT_COLOR,
+            );
+        }
         classic_draw_iso_ellipse(
             buffer,
             width,
@@ -96513,16 +96566,33 @@ fn classic_draw_first_contact_animation_cycle_detail(
                     );
                 }
             }
-            classic_draw_rect(
-                buffer,
-                width,
-                height,
-                cx - 3,
-                cy - cell_h * 2,
-                6,
-                cell_h * 3,
-                CLASSIC_RTS_ENVIRONMENT_RESOURCE_GLINT_COLOR,
-            );
+            if player_screen {
+                let glint_w = CLASSIC_FIRST_CONTACT_PLAYER_BEACON_ANIMATION_GLINT_TICK_W_PX;
+                let glint_h = CLASSIC_FIRST_CONTACT_PLAYER_BEACON_ANIMATION_GLINT_TICK_H_PX;
+                for cue_y in [cy - cell_h * 2, cy - cell_h] {
+                    classic_draw_rect(
+                        buffer,
+                        width,
+                        height,
+                        cx - glint_w / 2,
+                        cue_y,
+                        glint_w,
+                        glint_h,
+                        CLASSIC_RTS_ENVIRONMENT_RESOURCE_GLINT_COLOR,
+                    );
+                }
+            } else {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    cx - 3,
+                    cy - cell_h * 2,
+                    6,
+                    cell_h * 3,
+                    CLASSIC_RTS_ENVIRONMENT_RESOURCE_GLINT_COLOR,
+                );
+            }
         }
         "rally_flag_flutter" => {
             if player_screen {
@@ -155564,6 +155634,151 @@ mod tests {
                     && *h <= CLASSIC_FIRST_CONTACT_PLAYER_BEACON_ANIMATION_GLINT_TICK_H_PX as usize
             }),
             "{glint_components:?}"
+        );
+    }
+
+    #[cfg(not(target_os = "android"))]
+    #[test]
+    fn classic_first_contact_player_beacon_spire_glints_draw_micro_ticks() {
+        let width = 900;
+        let height = 620;
+        let map_x = 80;
+        let map_y = 96;
+        let cell_w = 28;
+        let cell_h = 14;
+        let target_tile = (16, 9);
+
+        let mut art_buffer = vec![0_u32; width * height];
+        classic_draw_first_contact_art_readability_layer(
+            &mut art_buffer,
+            width,
+            height,
+            map_x,
+            map_y,
+            cell_w,
+            cell_h,
+            true,
+        );
+        let mut model_identity_buffer = vec![0_u32; width * height];
+        classic_draw_first_contact_model_identity_layers(
+            &mut model_identity_buffer,
+            width,
+            height,
+            map_x,
+            map_y,
+            cell_w,
+            cell_h,
+            true,
+            target_tile,
+        );
+        let mut animation_buffer = vec![0_u32; width * height];
+        classic_draw_first_contact_animation_cycle_detail(
+            &mut animation_buffer,
+            width,
+            height,
+            map_x,
+            map_y,
+            cell_w,
+            cell_h,
+            target_tile,
+            "capture_pulse_frame",
+            true,
+        );
+
+        for (label, buffer) in [
+            ("art_beacon_spires", art_buffer),
+            ("model_identity_beacon_spire", model_identity_buffer),
+            ("animation_capture_pulse", animation_buffer),
+        ] {
+            let components = exact_color_components(
+                &buffer,
+                width,
+                height,
+                CLASSIC_RTS_ENVIRONMENT_RESOURCE_GLINT_COLOR,
+            );
+            assert!(!components.is_empty(), "{label}");
+            assert!(
+                components.iter().all(|(_, w, h)| {
+                    *w <= CLASSIC_FIRST_CONTACT_PLAYER_BEACON_SPIRE_GLINT_CUE_W_PX as usize
+                        && *h <= CLASSIC_FIRST_CONTACT_PLAYER_BEACON_SPIRE_GLINT_CUE_H_PX as usize
+                }),
+                "{label} {components:?}"
+            );
+        }
+    }
+
+    #[cfg(not(target_os = "android"))]
+    #[test]
+    fn classic_first_contact_player_resource_glints_draw_micro_ticks() {
+        let width = 1280;
+        let height = 699;
+        let map_x = 32;
+        let map_y = 68;
+        let cell_w = 28;
+        let cell_h = 14;
+        let renderer_model = first_contact_map_renderer_model(&first_contact_basin_map());
+        let mut terrain_buffer = vec![0_u32; width * height];
+
+        classic_draw_first_contact_terrain_layer(
+            &mut terrain_buffer,
+            width,
+            height,
+            map_x,
+            map_y,
+            cell_w,
+            cell_h,
+            true,
+            &renderer_model,
+        );
+        let terrain_components = exact_color_components(
+            &terrain_buffer,
+            width,
+            height,
+            CLASSIC_RTS_ENVIRONMENT_RESOURCE_GLINT_COLOR,
+        );
+        assert!(!terrain_components.is_empty(), "{terrain_components:?}");
+        assert!(
+            terrain_components.iter().all(|(_, w, h)| {
+                *w <= CLASSIC_FIRST_CONTACT_PLAYER_TERRAIN_RESOURCE_GLINT_W_PX as usize
+                    && *h <= CLASSIC_FIRST_CONTACT_PLAYER_TERRAIN_RESOURCE_GLINT_H_PX as usize
+            }),
+            "{terrain_components:?}"
+        );
+
+        let mut actor_buffer = vec![0_u32; width * height];
+        let mut checked_resource_blooms = 0_usize;
+        for actor in classic_first_contact_map_actors_from_rts_data()
+            .into_iter()
+            .filter(|actor| matches!(actor.kind, RtsFirstContactPreviewActorKind::FluxBloom))
+        {
+            classic_draw_first_contact_actor(
+                &mut actor_buffer,
+                width,
+                height,
+                actor,
+                map_x,
+                map_y,
+                cell_w,
+                cell_h,
+                true,
+                (16, 9),
+            );
+            checked_resource_blooms += 1;
+        }
+        assert!(checked_resource_blooms >= 1, "{checked_resource_blooms}");
+        let actor_components = exact_color_components(
+            &actor_buffer,
+            width,
+            height,
+            CLASSIC_RTS_ENVIRONMENT_RESOURCE_GLINT_COLOR,
+        );
+        assert!(!actor_components.is_empty(), "{actor_components:?}");
+        assert!(
+            actor_components.iter().all(|(_, w, h)| {
+                *w <= CLASSIC_FIRST_CONTACT_PLAYER_RESOURCE_BLOOM_GLINT_CUE_W_PX as usize
+                    && *h <= CLASSIC_FIRST_CONTACT_PLAYER_RESOURCE_BLOOM_GLINT_CUE_H_PX as usize
+            }),
+            "{actor_components:?}"
         );
     }
 

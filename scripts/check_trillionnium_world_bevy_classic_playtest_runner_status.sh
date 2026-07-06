@@ -492,6 +492,13 @@ exact_structure_production_glow_component_sample = exact_color_component_summary
     2,
     [32, 72, min(940, width), min(535, height)],
 )
+exact_environment_resource_glint_component_sample = exact_color_component_summary(
+    "environment_resource_glint_exact_yellow",
+    (255, 230, 109),
+    8,
+    3,
+    [32, 72, min(940, width), min(535, height)],
+)
 exact_harvest_swing_component_sample = exact_color_component_summary(
     "harvest_tool_swing_exact_orange",
     (255, 196, 92),
@@ -661,6 +668,7 @@ exact_color_component_samples = [
     exact_blueprint_component_sample,
     exact_scaffold_component_sample,
     exact_structure_production_glow_component_sample,
+    exact_environment_resource_glint_component_sample,
     exact_harvest_swing_component_sample,
     exact_beacon_capture_component_sample,
     exact_main_map_objective_component_sample,
@@ -721,6 +729,7 @@ gates = {
     "exact_blueprint_micro_component_gate": exact_blueprint_component_sample["passes"],
     "exact_scaffold_thin_component_gate": exact_scaffold_component_sample["passes"],
     "exact_structure_production_glow_micro_component_gate": exact_structure_production_glow_component_sample["passes"],
+    "exact_environment_resource_glint_micro_component_gate": exact_environment_resource_glint_component_sample["passes"],
     "exact_harvest_swing_micro_component_gate": exact_harvest_swing_component_sample["passes"],
     "exact_beacon_capture_micro_component_gate": exact_beacon_capture_component_sample["passes"],
     "exact_main_map_objective_micro_component_gate": exact_main_map_objective_component_sample["passes"],

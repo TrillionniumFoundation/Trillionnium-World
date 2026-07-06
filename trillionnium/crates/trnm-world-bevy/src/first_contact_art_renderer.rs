@@ -3,6 +3,9 @@
 use crate::{
     classic_darken, classic_draw_iso_ellipse, classic_draw_rect, classic_first_contact_tile_screen,
     classic_lighten, first_contact_palette, first_contact_renderer_readability,
+    CLASSIC_FIRST_CONTACT_PLAYER_BEACON_SPIRE_GLINT_CUE_COUNT,
+    CLASSIC_FIRST_CONTACT_PLAYER_BEACON_SPIRE_GLINT_CUE_H_PX,
+    CLASSIC_FIRST_CONTACT_PLAYER_BEACON_SPIRE_GLINT_CUE_W_PX,
     CLASSIC_FIRST_CONTACT_PLAYER_COMMAND_CORE_FACTION_TICK_COUNT,
     CLASSIC_FIRST_CONTACT_PLAYER_COMMAND_CORE_FACTION_TICK_H_PX,
     CLASSIC_FIRST_CONTACT_PLAYER_COMMAND_CORE_FACTION_TICK_W_PX, CLASSIC_RTS_OBJECTIVE_COLOR,
@@ -440,6 +443,24 @@ pub(super) fn draw_building_detail(
             );
         }
         "glowing_spire_panels" => {
+            if player_screen {
+                let cue_w = CLASSIC_FIRST_CONTACT_PLAYER_BEACON_SPIRE_GLINT_CUE_W_PX;
+                let cue_h = CLASSIC_FIRST_CONTACT_PLAYER_BEACON_SPIRE_GLINT_CUE_H_PX;
+                let cues = [
+                    (cx - cell_w / 2, cy - cell_h * 3),
+                    (cx + cell_w / 2 - cue_w, cy - cell_h * 3 + 6),
+                    (cx - cell_w / 2, cy - cell_h * 2 + 8),
+                    (cx + cell_w / 2 - cue_w, cy - cell_h + 2),
+                ];
+                debug_assert_eq!(
+                    cues.len(),
+                    CLASSIC_FIRST_CONTACT_PLAYER_BEACON_SPIRE_GLINT_CUE_COUNT
+                );
+                for (x, y) in cues {
+                    classic_draw_rect(buffer, width, height, x, y, cue_w, cue_h, color);
+                }
+                return;
+            }
             for row in 0..5 {
                 classic_draw_rect(
                     buffer,
