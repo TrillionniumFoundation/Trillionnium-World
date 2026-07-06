@@ -853,6 +853,11 @@ const CLASSIC_FIRST_CONTACT_PLAYER_TERRAIN_RESOURCE_GLINT_H_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_PLAYER_RESOURCE_BLOOM_GLINT_CUE_COUNT: usize = 2;
 const CLASSIC_FIRST_CONTACT_PLAYER_RESOURCE_BLOOM_GLINT_CUE_W_PX: i32 = 4;
 const CLASSIC_FIRST_CONTACT_PLAYER_RESOURCE_BLOOM_GLINT_CUE_H_PX: i32 = 2;
+const CLASSIC_FIRST_CONTACT_PLAYER_PRODUCT_RESOURCE_CUE_W_PX: i32 = 4;
+const CLASSIC_FIRST_CONTACT_PLAYER_PRODUCT_RESOURCE_CUE_H_PX: i32 = 2;
+const CLASSIC_FIRST_CONTACT_PLAYER_RESOURCE_BLOOM_PRODUCT_CUE_COUNT: usize = 4;
+const CLASSIC_FIRST_CONTACT_PLAYER_OBJECTIVE_BEACON_PRODUCT_CUE_COUNT: usize = 2;
+const CLASSIC_FIRST_CONTACT_PLAYER_FLUX_VENT_PRODUCT_CUE_COUNT: usize = 2;
 const CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK_MOVE_TRAIL_ORIGIN_COUNT: usize = 2;
 const CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK_MOVE_TRAIL_STEP_COUNT: usize = 10;
 const CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK_MOVE_TRAIL_TICK_W_PX: i32 = 2;
@@ -94607,27 +94612,31 @@ fn classic_draw_first_contact_actor(
                     preview_shadow_color,
                 );
             }
-            classic_draw_rect(
-                buffer,
-                width,
-                height,
-                cx - cell_w / 2,
-                cy - 2,
-                cell_w,
-                4,
-                CLASSIC_RTS_PRODUCT_RESOURCE_COLOR,
-            );
-            classic_draw_rect(
-                buffer,
-                width,
-                height,
-                cx - 2,
-                cy - cell_h / 2,
-                4,
-                cell_h,
-                CLASSIC_RTS_PRODUCT_RESOURCE_COLOR,
-            );
             if player_screen {
+                let cue_w = CLASSIC_FIRST_CONTACT_PLAYER_PRODUCT_RESOURCE_CUE_W_PX;
+                let cue_h = CLASSIC_FIRST_CONTACT_PLAYER_PRODUCT_RESOURCE_CUE_H_PX;
+                let cues = [
+                    (cx - cue_w / 2, cy - cell_h / 2),
+                    (cx - cell_w / 2, cy - cue_h / 2),
+                    (cx + cell_w / 2 - cue_w, cy - cue_h / 2),
+                    (cx - cue_w / 2, cy + cell_h / 2 - cue_h),
+                ];
+                debug_assert_eq!(
+                    cues.len(),
+                    CLASSIC_FIRST_CONTACT_PLAYER_RESOURCE_BLOOM_PRODUCT_CUE_COUNT
+                );
+                for (cue_x, cue_y) in cues {
+                    classic_draw_rect(
+                        buffer,
+                        width,
+                        height,
+                        cue_x,
+                        cue_y,
+                        cue_w,
+                        cue_h,
+                        CLASSIC_RTS_PRODUCT_RESOURCE_COLOR,
+                    );
+                }
                 let glint_w = CLASSIC_FIRST_CONTACT_PLAYER_RESOURCE_BLOOM_GLINT_CUE_W_PX;
                 let glint_h = CLASSIC_FIRST_CONTACT_PLAYER_RESOURCE_BLOOM_GLINT_CUE_H_PX;
                 let cues = [(cx - 5, cy - 4), (cx + 1, cy + 2)];
@@ -94648,6 +94657,26 @@ fn classic_draw_first_contact_actor(
                     );
                 }
             } else {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    cx - cell_w / 2,
+                    cy - 2,
+                    cell_w,
+                    4,
+                    CLASSIC_RTS_PRODUCT_RESOURCE_COLOR,
+                );
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    cx - 2,
+                    cy - cell_h / 2,
+                    4,
+                    cell_h,
+                    CLASSIC_RTS_PRODUCT_RESOURCE_COLOR,
+                );
                 classic_draw_rect(
                     buffer,
                     width,
@@ -94716,17 +94745,29 @@ fn classic_draw_first_contact_actor(
                     CLASSIC_RTS_PRODUCT_UI_ACCENT_COLOR,
                 );
             }
-            classic_draw_rect(
-                buffer,
-                width,
-                height,
-                cx - 3,
-                cy - cell_h,
-                6,
-                cell_h * 2,
-                CLASSIC_RTS_PRODUCT_RESOURCE_COLOR,
-            );
             if player_screen {
+                let cue_w = CLASSIC_FIRST_CONTACT_PLAYER_PRODUCT_RESOURCE_CUE_W_PX;
+                let cue_h = CLASSIC_FIRST_CONTACT_PLAYER_PRODUCT_RESOURCE_CUE_H_PX;
+                let cues = [
+                    (cx - cue_w / 2, cy - cell_h / 2 - 1),
+                    (cx - cue_w / 2, cy + cell_h / 2 - cue_h),
+                ];
+                debug_assert_eq!(
+                    cues.len(),
+                    CLASSIC_FIRST_CONTACT_PLAYER_OBJECTIVE_BEACON_PRODUCT_CUE_COUNT
+                );
+                for (cue_x, cue_y) in cues {
+                    classic_draw_rect(
+                        buffer,
+                        width,
+                        height,
+                        cue_x,
+                        cue_y,
+                        cue_w,
+                        cue_h,
+                        CLASSIC_RTS_PRODUCT_RESOURCE_COLOR,
+                    );
+                }
                 debug_assert_eq!(
                     CLASSIC_FIRST_CONTACT_PLAYER_BEACON_PRODUCTION_GLOW_CUE_COUNT,
                     2
@@ -94747,6 +94788,16 @@ fn classic_draw_first_contact_actor(
                     );
                 }
             } else {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    cx - 3,
+                    cy - cell_h,
+                    6,
+                    cell_h * 2,
+                    CLASSIC_RTS_PRODUCT_RESOURCE_COLOR,
+                );
                 classic_draw_rect(
                     buffer,
                     width,
@@ -94827,16 +94878,41 @@ fn classic_draw_first_contact_actor(
                 cell_h,
                 0x16454a,
             );
-            classic_draw_rect(
-                buffer,
-                width,
-                height,
-                cx - cell_w / 3,
-                cy - 2,
-                (cell_w * 2) / 3,
-                4,
-                CLASSIC_RTS_PRODUCT_RESOURCE_COLOR,
-            );
+            if player_screen {
+                let cue_w = CLASSIC_FIRST_CONTACT_PLAYER_PRODUCT_RESOURCE_CUE_W_PX;
+                let cue_h = CLASSIC_FIRST_CONTACT_PLAYER_PRODUCT_RESOURCE_CUE_H_PX;
+                let cues = [
+                    (cx - cell_w / 4 - cue_w / 2, cy - cue_h / 2),
+                    (cx + cell_w / 4 - cue_w / 2, cy - cue_h / 2),
+                ];
+                debug_assert_eq!(
+                    cues.len(),
+                    CLASSIC_FIRST_CONTACT_PLAYER_FLUX_VENT_PRODUCT_CUE_COUNT
+                );
+                for (cue_x, cue_y) in cues {
+                    classic_draw_rect(
+                        buffer,
+                        width,
+                        height,
+                        cue_x,
+                        cue_y,
+                        cue_w,
+                        cue_h,
+                        CLASSIC_RTS_PRODUCT_RESOURCE_COLOR,
+                    );
+                }
+            } else {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    cx - cell_w / 3,
+                    cy - 2,
+                    (cell_w * 2) / 3,
+                    4,
+                    CLASSIC_RTS_PRODUCT_RESOURCE_COLOR,
+                );
+            }
         }
         RtsActorGlyphBody::LaneMarker => {
             if player_screen {
@@ -156959,6 +157035,135 @@ mod tests {
         }
 
         assert!(checked_beacons > 0);
+    }
+
+    #[cfg(not(target_os = "android"))]
+    #[test]
+    fn classic_first_contact_player_product_resource_cues_draw_micro_ticks() {
+        let width = 900;
+        let height = 620;
+        let map_x = 80;
+        let map_y = 96;
+        let cell_w = 28;
+        let cell_h = 14;
+        let target_tile = (16, 9);
+        let cue_w = CLASSIC_FIRST_CONTACT_PLAYER_PRODUCT_RESOURCE_CUE_W_PX as usize;
+        let cue_h = CLASSIC_FIRST_CONTACT_PLAYER_PRODUCT_RESOURCE_CUE_H_PX as usize;
+        let mut checked_actors = 0_usize;
+
+        for actor in classic_first_contact_map_actors_from_rts_data() {
+            let glyph_body =
+                classic_first_contact_actor_presentation(actor.source_rule_id.as_str())
+                    .map(|profile| profile.glyph.body)
+                    .unwrap_or_else(|| match &actor.kind {
+                        RtsFirstContactPreviewActorKind::Spawn => RtsActorGlyphBody::SpawnPad,
+                        RtsFirstContactPreviewActorKind::FluxBloom => {
+                            RtsActorGlyphBody::ResourceBloom
+                        }
+                        RtsFirstContactPreviewActorKind::Beacon => {
+                            RtsActorGlyphBody::ObjectiveBeacon
+                        }
+                        RtsFirstContactPreviewActorKind::Ridge => RtsActorGlyphBody::TerrainRidge,
+                        RtsFirstContactPreviewActorKind::Vent => RtsActorGlyphBody::FluxVent,
+                        RtsFirstContactPreviewActorKind::LaneMarker => {
+                            RtsActorGlyphBody::LaneMarker
+                        }
+                        RtsFirstContactPreviewActorKind::BeaconRing => {
+                            RtsActorGlyphBody::BeaconRing
+                        }
+                        RtsFirstContactPreviewActorKind::ExpansionMarker => {
+                            RtsActorGlyphBody::ExpansionMarker
+                        }
+                    });
+            if !matches!(
+                glyph_body,
+                RtsActorGlyphBody::ResourceBloom
+                    | RtsActorGlyphBody::ObjectiveBeacon
+                    | RtsActorGlyphBody::FluxVent
+            ) {
+                continue;
+            }
+            checked_actors += 1;
+
+            let mut player_buffer = vec![0_u32; width * height];
+            classic_draw_first_contact_actor(
+                &mut player_buffer,
+                width,
+                height,
+                actor.clone(),
+                map_x,
+                map_y,
+                cell_w,
+                cell_h,
+                true,
+                target_tile,
+            );
+            let player_components = exact_color_components(
+                &player_buffer,
+                width,
+                height,
+                CLASSIC_RTS_PRODUCT_RESOURCE_COLOR,
+            );
+            let player_pixel_count = player_components
+                .iter()
+                .map(|(pixels, _, _)| pixels)
+                .sum::<usize>();
+
+            let mut evidence_buffer = vec![0_u32; width * height];
+            classic_draw_first_contact_actor(
+                &mut evidence_buffer,
+                width,
+                height,
+                actor.clone(),
+                map_x,
+                map_y,
+                cell_w,
+                cell_h,
+                false,
+                target_tile,
+            );
+            let evidence_components = exact_color_components(
+                &evidence_buffer,
+                width,
+                height,
+                CLASSIC_RTS_PRODUCT_RESOURCE_COLOR,
+            );
+
+            let expected_pixels = match glyph_body {
+                RtsActorGlyphBody::ResourceBloom => {
+                    CLASSIC_FIRST_CONTACT_PLAYER_RESOURCE_BLOOM_PRODUCT_CUE_COUNT * cue_w * cue_h
+                }
+                RtsActorGlyphBody::ObjectiveBeacon => {
+                    CLASSIC_FIRST_CONTACT_PLAYER_OBJECTIVE_BEACON_PRODUCT_CUE_COUNT * cue_w * cue_h
+                }
+                RtsActorGlyphBody::FluxVent => {
+                    CLASSIC_FIRST_CONTACT_PLAYER_FLUX_VENT_PRODUCT_CUE_COUNT * cue_w * cue_h
+                }
+                _ => unreachable!(),
+            };
+
+            assert_eq!(
+                player_pixel_count, expected_pixels,
+                "{} {} {player_components:?}",
+                actor.source_rule_id, player_pixel_count
+            );
+            assert!(
+                player_components
+                    .iter()
+                    .all(|(_, w, h)| *w <= cue_w && *h <= cue_h),
+                "{} {player_components:?}",
+                actor.source_rule_id
+            );
+            assert!(
+                evidence_components
+                    .iter()
+                    .any(|(_, w, h)| *w > cue_w || *h > cue_h),
+                "{} {evidence_components:?}",
+                actor.source_rule_id
+            );
+        }
+
+        assert!(checked_actors > 0);
     }
 
     #[cfg(not(target_os = "android"))]
