@@ -3106,6 +3106,33 @@ add_classic_playtest_handoff_packet_fixtures() {
         first_contact_runtime_review_ready_state_labels: ["authority:offline_loopback:no_socket", "player:local-player:ready", "bot:mirror_guard:ready", "player:mirror_guard:ready"],
         first_contact_runtime_review_command_stamp_tile: "8,4"
       },
+      human_playtest_task_path: [
+        {
+          id: "start_campaign",
+          action: "Start or continue the classic campaign into the local Bevy runner.",
+          expected_signal: "CAMPAIGN:START, CAMPAIGN:CONTINUE, and CAMPAIGN:REPLAY are available and a campaign slot is present."
+        },
+        {
+          id: "select_units",
+          action: "Select the opening worker group and confirm the selected unit set.",
+          expected_signal: "The player can identify Group 1, four selected units, and worker/scout/guard/relay roles."
+        },
+        {
+          id: "secure_beacon",
+          action: "Follow the active secure-beacon route and identify the current target.",
+          expected_signal: "Only the current opening path is emphasized on the player screen and the target reads as BEACON."
+        },
+        {
+          id: "read_command_queue",
+          action: "Read the command queue after issuing the review movement command.",
+          expected_signal: "The runtime review after-command queue is exactly move:8,4 and the queue panel remains readable."
+        },
+        {
+          id: "recover_blocked_route",
+          action: "Notice the blocked-route warning and recover by choosing the visible route/action feedback.",
+          expected_signal: "Blocked route, route clearance, and command feedback cues are visible without public-launch or S5 credit."
+        }
+      ],
       gates: {
         handoff_readiness_green: true,
         playtest_readiness_green: true,
@@ -3120,6 +3147,7 @@ add_classic_playtest_handoff_packet_fixtures() {
         first_contact_offline_adapter_consumption_gate: true,
         first_contact_offline_adapter_session_transition_gate: true,
         first_contact_offline_adapter_lobby_ready_gate: true,
+        human_playtest_task_path_gate: true,
         artifact_count_gate: true,
         artifact_sha_gate: true
       },
@@ -3140,10 +3168,13 @@ add_classic_playtest_handoff_packet_fixtures() {
       android_s5_real_device_claimed: false,
       openra_natural_replay_or_headless_parity_claimed: false,
       markdown_path: "acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-handoff-packet.md",
-      source_of_truth: "Classic playtest handoff packet binds the local Bevy human-playtest handoff to checksummed evidence artifacts and replayable commands. It is a local host-side playtest packet only, not public launch, S5 real-device, or OpenRA natural replay/headless parity credit."
+      human_playtest_task_path_public_launch_credit_claimed: false,
+      source_of_truth: "Classic playtest handoff packet binds the local Bevy human-playtest handoff and five-step human playtest task path to checksummed evidence artifacts and replayable commands. It is a local host-side playtest packet only, not public launch, S5 real-device, beta cohort, or OpenRA natural replay/headless parity credit."
     }
     | .source_contract_count = (.source_contracts | keys | length)
     | .handoff_summary_field_count = (.handoff_summary | keys | length)
+    | .human_playtest_task_path_count = (.human_playtest_task_path | length)
+    | .human_playtest_task_path_id_count = ([.human_playtest_task_path[].id] | length)
     | .title_action_count = (.handoff_summary.title_actions | length)
     | .first_contact_runtime_review_contract_count = (.handoff_summary.first_contact_runtime_review_contracts | length)
     | .first_contact_runtime_review_before_command_count = (.handoff_summary.first_contact_runtime_review_before_command_queue | length)
@@ -3177,6 +3208,12 @@ add_classic_playtest_handoff_packet_fixtures() {
     printf -- '- `refresh_packet`: `./scripts/check_trillionnium_world_bevy_classic_playtest_handoff_packet.sh`\n'
     printf -- '- `inspect_runner`: `systemctl --user status trillionnium-bevy-playtest.service`\n'
     printf -- '- `launch_client`: `./scripts/run_trillionnium_world_bevy_client.sh`\n\n'
+    printf '## Human Playtest Path\n\n'
+    printf -- '- `start_campaign`: Start or continue the classic campaign into the local Bevy runner. Signal: CAMPAIGN:START, CAMPAIGN:CONTINUE, and CAMPAIGN:REPLAY are available and a campaign slot is present.\n'
+    printf -- '- `select_units`: Select the opening worker group and confirm the selected unit set. Signal: The player can identify Group 1, four selected units, and worker/scout/guard/relay roles.\n'
+    printf -- '- `secure_beacon`: Follow the active secure-beacon route and identify the current target. Signal: Only the current opening path is emphasized on the player screen and the target reads as BEACON.\n'
+    printf -- '- `read_command_queue`: Read the command queue after issuing the review movement command. Signal: The runtime review after-command queue is exactly move:8,4 and the queue panel remains readable.\n'
+    printf -- '- `recover_blocked_route`: Notice the blocked-route warning and recover by choosing the visible route/action feedback. Signal: Blocked route, route clearance, and command feedback cues are visible without public-launch or S5 credit.\n\n'
     printf '## Evidence\n\n'
     printf -- '- `playtest_handoff_readiness`: `acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-handoff-readiness.json` sha256 `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa` bytes `4096`\n'
     printf -- '- `playtest_readiness`: `acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-readiness.json` sha256 `bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb` bytes `8192`\n'

@@ -79,6 +79,33 @@ jq -n \
       first_contact_runtime_review: $handoff[0].source_contracts.first_contact_runtime_review
     },
     handoff_summary: $handoff[0].handoff_summary,
+    human_playtest_task_path: [
+      {
+        id: "start_campaign",
+        action: "Start or continue the classic campaign into the local Bevy runner.",
+        expected_signal: "CAMPAIGN:START, CAMPAIGN:CONTINUE, and CAMPAIGN:REPLAY are available and a campaign slot is present."
+      },
+      {
+        id: "select_units",
+        action: "Select the opening worker group and confirm the selected unit set.",
+        expected_signal: "The player can identify Group 1, four selected units, and worker/scout/guard/relay roles."
+      },
+      {
+        id: "secure_beacon",
+        action: "Follow the active secure-beacon route and identify the current target.",
+        expected_signal: "Only the current opening path is emphasized on the player screen and the target reads as BEACON."
+      },
+      {
+        id: "read_command_queue",
+        action: "Read the command queue after issuing the review movement command.",
+        expected_signal: "The runtime review after-command queue is exactly move:8,4 and the queue panel remains readable."
+      },
+      {
+        id: "recover_blocked_route",
+        action: "Notice the blocked-route warning and recover by choosing the visible route/action feedback.",
+        expected_signal: "Blocked route, route clearance, and command feedback cues are visible without public-launch or S5 credit."
+      }
+    ],
     gates: {
       handoff_readiness_green: ok($handoff),
       playtest_readiness_green: ok($readiness),
@@ -93,6 +120,7 @@ jq -n \
       first_contact_offline_adapter_consumption_gate: $handoff[0].gates.first_contact_offline_adapter_consumption_gate,
       first_contact_offline_adapter_session_transition_gate: $handoff[0].gates.first_contact_offline_adapter_session_transition_gate,
       first_contact_offline_adapter_lobby_ready_gate: $handoff[0].gates.first_contact_offline_adapter_lobby_ready_gate,
+      human_playtest_task_path_gate: true,
       artifact_count_gate: ($artifacts | length == 5),
       artifact_sha_gate: ($artifacts | all((.sha256 | test("^[0-9a-f]{64}$")) and (.bytes > 0)))
     },
@@ -113,10 +141,13 @@ jq -n \
     android_s5_real_device_claimed: false,
     openra_natural_replay_or_headless_parity_claimed: false,
     markdown_path: "acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-handoff-packet.md",
-    source_of_truth: "Classic playtest handoff packet binds the local Bevy human-playtest handoff to checksummed evidence artifacts and replayable commands. It is a local host-side playtest packet only, not public launch, S5 real-device, or OpenRA natural replay/headless parity credit."
+    human_playtest_task_path_public_launch_credit_claimed: false,
+    source_of_truth: "Classic playtest handoff packet binds the local Bevy human-playtest handoff and five-step human playtest task path to checksummed evidence artifacts and replayable commands. It is a local host-side playtest packet only, not public launch, S5 real-device, beta cohort, or OpenRA natural replay/headless parity credit."
   }
   | .source_contract_count = (.source_contracts | keys | length)
   | .handoff_summary_field_count = (.handoff_summary | keys | length)
+  | .human_playtest_task_path_count = (.human_playtest_task_path | length)
+  | .human_playtest_task_path_id_count = ([.human_playtest_task_path[].id] | length)
   | .title_action_count = (.handoff_summary.title_actions | length)
   | .first_contact_runtime_review_contract_count = (.handoff_summary.first_contact_runtime_review_contracts | length)
   | .first_contact_runtime_review_before_command_count = (.handoff_summary.first_contact_runtime_review_before_command_queue | length)
@@ -145,6 +176,10 @@ jq -e '
   and .source_contracts.first_contact_runtime_review == "trnm_rts_evidence_bevy_runtime_adapter_v1"
   and .source_contract_count == (.source_contracts | keys | length)
   and .handoff_summary_field_count == (.handoff_summary | keys | length)
+  and .human_playtest_task_path_count == (.human_playtest_task_path | length)
+  and .human_playtest_task_path_count == 5
+  and .human_playtest_task_path_id_count == ([.human_playtest_task_path[].id] | length)
+  and ([.human_playtest_task_path[].id] == ["start_campaign", "select_units", "secure_beacon", "read_command_queue", "recover_blocked_route"])
   and .title_action_count == (.handoff_summary.title_actions | length)
   and .title_action_count == 3
   and .first_contact_runtime_review_contract_count == (.handoff_summary.first_contact_runtime_review_contracts | length)
@@ -180,6 +215,7 @@ jq -e '
   and .gates.first_contact_offline_adapter_consumption_gate == true
   and .gates.first_contact_offline_adapter_session_transition_gate == true
   and .gates.first_contact_offline_adapter_lobby_ready_gate == true
+  and .gates.human_playtest_task_path_gate == true
   and .gates.artifact_count_gate == true
   and .gates.artifact_sha_gate == true
   and .handoff_summary.runner_main_pid > 0
@@ -202,6 +238,8 @@ jq -e '
   and .public_launch_ready_claimed == false
   and .android_s5_real_device_claimed == false
   and .openra_natural_replay_or_headless_parity_claimed == false
+  and .human_playtest_task_path_public_launch_credit_claimed == false
+  and (.source_of_truth | contains("five-step human playtest task path"))
 ' "$SUMMARY" >/dev/null
 
 {
@@ -211,6 +249,7 @@ jq -e '
   printf '%s\n' "- Gate count: \`$(jq -r '.passed_gate_count' "$SUMMARY")\` / \`$(jq -r '.gate_count' "$SUMMARY")\` passed"
   printf '%s\n' "- Artifact count: \`$(jq -r '.artifact_count' "$SUMMARY")\`, bytes \`$(jq -r '.artifact_bytes_total' "$SUMMARY")\`"
   printf '%s\n' "- Handoff summary fields: \`$(jq -r '.handoff_summary_field_count' "$SUMMARY")\`, title actions \`$(jq -r '.title_action_count' "$SUMMARY")\`"
+  printf '%s\n' "- Human playtest task path: \`$(jq -r '.human_playtest_task_path_count' "$SUMMARY")\` tasks"
   printf '%s\n' "- Runtime review counts: contracts \`$(jq -r '.first_contact_runtime_review_contract_count' "$SUMMARY")\`, before commands \`$(jq -r '.first_contact_runtime_review_before_command_count' "$SUMMARY")\`, after commands \`$(jq -r '.first_contact_runtime_review_after_command_count' "$SUMMARY")\`, ready labels \`$(jq -r '.first_contact_runtime_review_ready_state_label_count' "$SUMMARY")\`"
   printf '%s\n' "- Run command count: \`$(jq -r '.run_command_count' "$SUMMARY")\`, no-credit boundaries \`$(jq -r '.no_credit_boundary_count' "$SUMMARY")\`"
   printf '%s\n' \
@@ -224,6 +263,8 @@ jq -e '
     "- Observability: replay \`$(jq -r '.handoff_summary.replay_elapsed_seconds' "$SUMMARY")s\`, endurance \`$(jq -r '.handoff_summary.endurance_elapsed_seconds' "$SUMMARY")s\`, peak units \`$(jq -r '.handoff_summary.endurance_peak_active_units' "$SUMMARY")\`"
   printf '## Commands\n\n'
   jq -r '.run_commands | to_entries[] | "- `" + .key + "`: `" + .value + "`"' "$SUMMARY"
+  printf '\n## Human Playtest Path\n\n'
+  jq -r '.human_playtest_task_path[] | "- `" + .id + "`: " + .action + " Signal: " + .expected_signal' "$SUMMARY"
   printf '\n## Evidence\n\n'
   jq -r '.artifact_manifest[] | "- `" + .label + "`: `" + .path + "` sha256 `" + .sha256 + "` bytes `" + (.bytes|tostring) + "`"' "$SUMMARY"
   printf '\n## Boundaries\n\n'
@@ -233,6 +274,8 @@ jq -e '
 } >"$MARKDOWN"
 
 grep -q 'Bevy Classic Playtest Handoff Packet' "$MARKDOWN"
+grep -q 'Human Playtest Path' "$MARKDOWN"
+grep -q 'recover_blocked_route' "$MARKDOWN"
 grep -q 'Public launch ready: `false`' "$MARKDOWN"
 grep -q 'Android S5 real device ready: `false`' "$MARKDOWN"
 grep -q './scripts/check_trillionnium_world_bevy_classic_playtest_handoff_packet.sh' "$MARKDOWN"

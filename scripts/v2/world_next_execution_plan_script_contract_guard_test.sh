@@ -12,6 +12,7 @@ required_script_lines=(
   'public_launch_blockers_preserved'
   'whole_screen_first_contact_readability'
   'human_playtest_path'
+  'bevy-classic-playtest-handoff-packet.human_playtest_task_path'
   'real_external_evidence_collection'
   'do not shrink already-gated micro cues without a fresh screenshot-visible issue'
 )
@@ -20,6 +21,7 @@ required_doc_lines=(
   'Whole-screen First Contact readability review'
   'Public launch state: blocked until real external evidence exists.'
   'Android S5 real-device state: unclaimed until device evidence is collected.'
+  'packet binding: `bevy-classic-playtest-handoff-packet`'
   'Do not keep shrinking already-gated micro cues'
 )
 

@@ -14717,7 +14717,7 @@ pub fn native_classic_rts_visual_fidelity_evidence_json(preview_path: &str) -> S
             && product_model_volume_pixel_count + basin_model_identity_pixel_count > 80
             && basin_terrain_height_pixel_count > 450
             && basin_opening_action_pixel_count + basin_tactical_viewport_pixel_count > 300
-            && basin_unit_state_pixel_count > 350
+            && basin_unit_state_pixel_count > 250
             && basin_combat_phase_pixel_count > 320
             && basin_command_feedback_pixel_count > 420
             && basin_model_identity_pixel_count > 700

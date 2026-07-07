@@ -41,6 +41,7 @@ require_file "$RUNNER_JSON"
 require_text "$DOC" "Whole-screen First Contact readability review"
 require_text "$DOC" "Local review state: green with public-launch blockers."
 require_text "$DOC" "Public launch state: blocked until real external evidence exists."
+require_text "$DOC" 'packet binding: `bevy-classic-playtest-handoff-packet`'
 require_text "$DOC" "Do not keep shrinking already-gated micro cues"
 
 packet_status="$(jq -r '.status // "missing"' "$PACKET_JSON")"
@@ -132,6 +133,7 @@ work_queue_json="$(jq -nc '[
     id: "human_playtest_path",
     priority: 2,
     scope: "local_playtest",
+    packet_binding: "bevy-classic-playtest-handoff-packet.human_playtest_task_path",
     done_when: "a tester can start campaign, select units, secure beacon, read command queue, and recover from blocked route"
   },
   {

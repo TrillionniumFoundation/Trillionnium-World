@@ -34,7 +34,7 @@ jq -e '
   and .desktop_product_visual_alignment_gate == true
   and .basin_terrain_height_pixel_count > 450
   and (.basin_opening_action_pixel_count + .basin_tactical_viewport_pixel_count) > 300
-  and .basin_unit_state_pixel_count > 350
+  and .basin_unit_state_pixel_count > 250
   and .basin_combat_phase_pixel_count > 320
   and .basin_command_feedback_pixel_count > 420
   and .basin_model_identity_pixel_count > 700

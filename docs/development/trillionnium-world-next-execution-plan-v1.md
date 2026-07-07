@@ -35,6 +35,8 @@ blockers.
    - secure beacon
    - read command queue
    - recover from blocked route
+   - packet binding: `bevy-classic-playtest-handoff-packet` must carry the
+     five-step local task path without beta, S5, or public-launch credit
 3. Truth-source hygiene:
    - keep packet artifact counts synchronized
    - keep local-review and public-launch wording separate
