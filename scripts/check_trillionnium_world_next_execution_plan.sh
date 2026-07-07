@@ -12,6 +12,9 @@ PLAYTEST_OBSERVATION_LOG_JSON="$ACCEPTANCE_DIR/first-contact-human-playtest-obse
 PLAYTEST_RUNBOOK_DOC="$ROOT/docs/development/trillionnium-world-first-contact-human-playtest-runbook-2026-07-07.md"
 PLAYTEST_RUNBOOK_DOC_REL="docs/development/trillionnium-world-first-contact-human-playtest-runbook-2026-07-07.md"
 PLAYTEST_RUNBOOK_JSON="$ACCEPTANCE_DIR/first-contact-human-playtest-runbook.json"
+EVIDENCE_VOLUME_CURATION_DOC="$ROOT/docs/development/trillionnium-world-evidence-volume-curation-2026-07-07.md"
+EVIDENCE_VOLUME_CURATION_DOC_REL="docs/development/trillionnium-world-evidence-volume-curation-2026-07-07.md"
+EVIDENCE_VOLUME_CURATION_JSON="$ACCEPTANCE_DIR/trillionnium-world-evidence-volume-curation.json"
 REVIEW_SLICE_STRATEGY_DOC="$ROOT/docs/development/trillionnium-world-review-slice-strategy-2026-07-07.md"
 REVIEW_SLICE_STRATEGY_DOC_REL="docs/development/trillionnium-world-review-slice-strategy-2026-07-07.md"
 REVIEW_SLICE_STRATEGY_JSON="$ACCEPTANCE_DIR/trillionnium-world-review-slice-strategy.json"
@@ -48,6 +51,7 @@ require_file "$DOC"
 require_file "$READABILITY_REVIEW_DOC"
 require_file "$PLAYTEST_OBSERVATION_LOG_DOC"
 require_file "$PLAYTEST_RUNBOOK_DOC"
+require_file "$EVIDENCE_VOLUME_CURATION_DOC"
 require_file "$REVIEW_SLICE_STRATEGY_DOC"
 require_file "$PACKET_JSON"
 require_file "$PUBLIC_LAUNCH_JSON"
@@ -61,6 +65,7 @@ require_text "$DOC" "Do not keep shrinking already-gated micro cues"
 require_text "$DOC" "trillionnium-world-first-contact-readability-review-2026-07-07.md"
 require_text "$DOC" "trillionnium-world-first-contact-human-playtest-observation-log-2026-07-07.md"
 require_text "$DOC" "trillionnium-world-first-contact-human-playtest-runbook-2026-07-07.md"
+require_text "$DOC" "trillionnium-world-evidence-volume-curation-2026-07-07.md"
 require_text "$DOC" "trillionnium-world-review-slice-strategy-2026-07-07.md"
 require_text "$READABILITY_REVIEW_DOC" "The central beacon fight is still the dominant whole-screen readability risk."
 require_text "$READABILITY_REVIEW_DOC" "Do a product-level silhouette and composition pass around the active center"
@@ -78,6 +83,9 @@ require_text "$PLAYTEST_RUNBOOK_DOC" "One observer, one local tester, one five-s
 require_text "$PLAYTEST_RUNBOOK_DOC" "Read only the fixed prompt for each task"
 require_text "$PLAYTEST_RUNBOOK_DOC" "Stop after the first three confusion points are recorded."
 require_text "$PLAYTEST_RUNBOOK_DOC" '| 5 | `recover_blocked_route` |'
+require_text "$EVIDENCE_VOLUME_CURATION_DOC" "Status: local evidence-volume curation plan."
+require_text "$EVIDENCE_VOLUME_CURATION_DOC" "Do not delete, compress, move, archive, rewrite, or prune acceptance evidence"
+require_text "$EVIDENCE_VOLUME_CURATION_DOC" '| `raw_visual_archive_candidate` |'
 require_text "$REVIEW_SLICE_STRATEGY_DOC" "Status: local review-slice strategy."
 require_text "$REVIEW_SLICE_STRATEGY_DOC" "Do not push, rebase, force-push, reset, squash, or delete commits"
 require_text "$REVIEW_SLICE_STRATEGY_DOC" '| `release_truth_and_public_boundary` |'
@@ -117,6 +125,21 @@ jq -e '
   and .android_s5_real_device_claimed == false
 ' "$PLAYTEST_RUNBOOK_JSON" >/dev/null
 
+"$ROOT/scripts/check_trillionnium_world_evidence_volume_curation.sh" >/dev/null
+require_file "$EVIDENCE_VOLUME_CURATION_JSON"
+jq -e '
+  .contract_version == "trillionnium_world_evidence_volume_curation_v1"
+  and .status == "evidence_volume_curation_ready"
+  and .s5_latest_kib > 10000000
+  and .large_file_count > 100
+  and .evidence_volume_risk_active == true
+  and .deletion_performed == false
+  and .compression_performed == false
+  and .archive_movement_performed == false
+  and .public_launch_ready_claimed == false
+  and .android_s5_real_device_claimed == false
+' "$EVIDENCE_VOLUME_CURATION_JSON" >/dev/null
+
 "$ROOT/scripts/check_trillionnium_world_review_slice_strategy.sh" >/dev/null
 require_file "$REVIEW_SLICE_STRATEGY_JSON"
 jq -e '
@@ -152,6 +175,10 @@ runbook_status="$(jq -r '.status // "missing"' "$PLAYTEST_RUNBOOK_JSON")"
 runbook_prompts_bound="$(jq -r '.runbook_prompts_bound // false' "$PLAYTEST_RUNBOOK_JSON")"
 runbook_confusion_triggers_bound="$(jq -r '.confusion_triggers_bound // false' "$PLAYTEST_RUNBOOK_JSON")"
 runbook_recording_schema_bound="$(jq -r '.recording_schema_bound // false' "$PLAYTEST_RUNBOOK_JSON")"
+evidence_volume_status="$(jq -r '.status // "missing"' "$EVIDENCE_VOLUME_CURATION_JSON")"
+evidence_volume_large_file_count="$(jq -r '.large_file_count // 0' "$EVIDENCE_VOLUME_CURATION_JSON")"
+evidence_volume_deletion_performed="$(jq -r 'if has("deletion_performed") then .deletion_performed else true end' "$EVIDENCE_VOLUME_CURATION_JSON")"
+evidence_volume_archive_movement_performed="$(jq -r 'if has("archive_movement_performed") then .archive_movement_performed else true end' "$EVIDENCE_VOLUME_CURATION_JSON")"
 review_slice_strategy_status="$(jq -r '.status // "missing"' "$REVIEW_SLICE_STRATEGY_JSON")"
 review_slice_count="$(jq -r '.review_slice_count // 0' "$REVIEW_SLICE_STRATEGY_JSON")"
 review_slice_external_action_performed="$(jq -r 'if has("external_action_performed") then .external_action_performed else true end' "$REVIEW_SLICE_STRATEGY_JSON")"
@@ -268,9 +295,11 @@ jq -n \
   --arg readability_review_doc "$READABILITY_REVIEW_DOC_REL" \
   --arg playtest_observation_log_doc "$PLAYTEST_OBSERVATION_LOG_DOC_REL" \
   --arg playtest_runbook_doc "$PLAYTEST_RUNBOOK_DOC_REL" \
+  --arg evidence_volume_curation_doc "$EVIDENCE_VOLUME_CURATION_DOC_REL" \
   --arg review_slice_strategy_doc "$REVIEW_SLICE_STRATEGY_DOC_REL" \
   --arg observation_status "$observation_status" \
   --arg runbook_status "$runbook_status" \
+  --arg evidence_volume_status "$evidence_volume_status" \
   --arg review_slice_strategy_status "$review_slice_strategy_status" \
   --argjson green "$green" \
   --argjson packet_gate "$packet_gate" \
@@ -287,6 +316,9 @@ jq -n \
   --argjson runbook_prompts_bound "$runbook_prompts_bound" \
   --argjson runbook_confusion_triggers_bound "$runbook_confusion_triggers_bound" \
   --argjson runbook_recording_schema_bound "$runbook_recording_schema_bound" \
+  --argjson evidence_volume_large_file_count "$evidence_volume_large_file_count" \
+  --argjson evidence_volume_deletion_performed "$evidence_volume_deletion_performed" \
+  --argjson evidence_volume_archive_movement_performed "$evidence_volume_archive_movement_performed" \
   --argjson review_slice_count "$review_slice_count" \
   --argjson review_slice_external_action_performed "$review_slice_external_action_performed" \
   --argjson public_launch_blocker_gate "$public_launch_blocker_gate" \
@@ -354,6 +386,16 @@ jq -n \
       ready_for_renderer_change_from_human_observation: false,
       no_credit_boundary: "runbook only; not beta, public launch, Android S5 real-device, production-ready UI, commercial launch, or human tester completion evidence"
     },
+    evidence_volume_curation: {
+      doc_path: $evidence_volume_curation_doc,
+      artifact_path: "acceptance/S6_public_launch/latest/trillionnium-world-evidence-volume-curation.json",
+      status: $evidence_volume_status,
+      s5_native_bevy_latest_kib: $s5_acceptance_kib,
+      large_file_count: $evidence_volume_large_file_count,
+      deletion_performed: $evidence_volume_deletion_performed,
+      archive_movement_performed: $evidence_volume_archive_movement_performed,
+      no_credit_boundary: "local evidence-volume inventory only; no delete, compress, archive, public launch, Android S5 real-device, beta, production-ready UI, commercial, multi-node, or public-network credit"
+    },
     review_slice_strategy: {
       doc_path: $review_slice_strategy_doc,
       artifact_path: "acceptance/S6_public_launch/latest/trillionnium-world-review-slice-strategy.json",
@@ -385,6 +427,9 @@ jq -e '
   and .human_playtest_runbook.prompts_bound == true
   and .human_playtest_runbook.confusion_triggers_bound == true
   and .human_playtest_runbook.recording_schema_bound == true
+  and .evidence_volume_curation.large_file_count > 100
+  and .evidence_volume_curation.deletion_performed == false
+  and .evidence_volume_curation.archive_movement_performed == false
   and .review_slice_strategy.review_slice_count == 6
   and .review_slice_strategy.external_action_performed == false
   and .public_launch.public_launch_ready == false
@@ -402,6 +447,7 @@ jq -e '
   printf -- '- readability review: `%s`\n\n' "$READABILITY_REVIEW_DOC_REL"
   printf -- '- playtest observation log: `%s`\n\n' "$PLAYTEST_OBSERVATION_LOG_DOC_REL"
   printf -- '- playtest runbook: `%s`\n\n' "$PLAYTEST_RUNBOOK_DOC_REL"
+  printf -- '- evidence-volume curation: `%s`\n\n' "$EVIDENCE_VOLUME_CURATION_DOC_REL"
   printf -- '- review-slice strategy: `%s`\n\n' "$REVIEW_SLICE_STRATEGY_DOC_REL"
   printf '## Risks\n\n'
   jq -r '.risks[] | "- `\(.id)`: \(.next_action)"' "$SUMMARY_JSON"

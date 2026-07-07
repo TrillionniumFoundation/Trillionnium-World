@@ -47,6 +47,8 @@ blockers.
    - keep packet artifact counts synchronized
    - keep local-review and public-launch wording separate
    - keep S5 real-device claims false without device evidence
+   - evidence-volume curation:
+     `docs/development/trillionnium-world-evidence-volume-curation-2026-07-07.md`
 4. Commit and review strategy:
    - group the local backlog into reviewable slices
    - review-slice strategy:
