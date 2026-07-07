@@ -796,6 +796,10 @@ const CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_X_OFFSET_PX: i32 = 42;
 const CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_Y_OFFSET_PX: i32 = -42;
 const CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_HEALTH_BAR_W_PX: i32 = 54;
 const CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_HEALTH_BAR_H_PX: i32 = 3;
+const CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_HEALTH_PIP_COUNT: usize = 4;
+const CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_HEALTH_PIP_W_PX: i32 = 4;
+const CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_HEALTH_PIP_H_PX: i32 = 2;
+const CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_HEALTH_PIP_GAP_PX: i32 = 4;
 const CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_CLEARANCE_PAD_PX: i32 = 0;
 const CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_LEADER_CLEARANCE_W_PX: i32 = 0;
 const CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_LEADER_CLEARANCE_H_PX: i32 = 0;
@@ -154714,7 +154718,13 @@ mod tests {
         );
         assert_eq!(
             guard.get("target_health_fill_px").and_then(Value::as_i64),
-            Some(20)
+            Some(16)
+        );
+        assert_eq!(
+            guard
+                .get("target_health_fill_pip_count")
+                .and_then(Value::as_u64),
+            Some(2)
         );
         assert_eq!(
             guard.get("target_callout_width_px").and_then(Value::as_i64),
@@ -154791,6 +154801,60 @@ mod tests {
         ] {
             assert_eq!(guard.get(gate).and_then(Value::as_bool), Some(true));
         }
+    }
+
+    #[cfg(not(target_os = "android"))]
+    #[test]
+    fn classic_first_contact_target_callout_health_draws_micro_pips() {
+        let width = 1280;
+        let height = 699;
+        let mut buffer = vec![0_u32; width * height];
+        let map_x = 80;
+        let map_y = 96;
+        let cell_w = 28;
+        let cell_h = 14;
+        let runtime = classic_first_contact_player_screen_runtime();
+
+        classic_draw_first_contact_selection_combat_focus_layer(
+            &mut buffer,
+            width,
+            height,
+            &runtime,
+            map_x,
+            map_y,
+            cell_w,
+            cell_h,
+        );
+
+        let components =
+            exact_color_components(&buffer, width, height, CLASSIC_RTS_STATUS_HEALTH_BAR_COLOR);
+        let target_health_pip_components = components
+            .iter()
+            .filter(|(pixels, w, h)| {
+                *pixels
+                    == (CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_HEALTH_PIP_W_PX
+                        * CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_HEALTH_PIP_H_PX)
+                        as usize
+                    && *w == CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_HEALTH_PIP_W_PX as usize
+                    && *h == CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_HEALTH_PIP_H_PX as usize
+            })
+            .count();
+        let target_health_pixel_count = target_health_pip_components
+            * CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_HEALTH_PIP_W_PX as usize
+            * CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_HEALTH_PIP_H_PX as usize;
+
+        assert_eq!(
+            target_health_pip_components, 2,
+            "{target_health_pip_components} {components:?}"
+        );
+        assert_eq!(target_health_pixel_count, 16, "{components:?}");
+        assert!(
+            components.iter().all(|(_, w, h)| {
+                *w <= CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_HEALTH_PIP_W_PX as usize
+                    && *h <= CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_HEALTH_PIP_H_PX as usize
+            }),
+            "{components:?}"
+        );
     }
 
     #[cfg(not(target_os = "android"))]

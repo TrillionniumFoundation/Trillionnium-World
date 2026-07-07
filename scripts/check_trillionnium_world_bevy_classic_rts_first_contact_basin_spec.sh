@@ -1625,13 +1625,18 @@ cat >"$JQ_FILTER" <<'JQ'
   and .first_contact_target_callout_guard.target_label == "BEACON 38%"
   and .first_contact_target_callout_guard.target_label_width_px <= 68
   and .first_contact_target_callout_guard.target_health_percent == 38
-  and .first_contact_target_callout_guard.target_health_fill_px == 20
+  and .first_contact_target_callout_guard.target_health_fill_px == 16
+  and .first_contact_target_callout_guard.target_health_fill_pip_count == 2
   and .first_contact_target_callout_guard.target_callout_width_px == 78
   and .first_contact_target_callout_guard.target_callout_height_px == 20
   and .first_contact_target_callout_guard.target_callout_x_offset_px == 42
   and .first_contact_target_callout_guard.target_callout_y_offset_px == -42
   and .first_contact_target_callout_guard.target_callout_health_bar_width_px == 54
   and .first_contact_target_callout_guard.target_callout_health_bar_height_px == 3
+  and .first_contact_target_callout_guard.target_callout_health_pip_count == 4
+  and .first_contact_target_callout_guard.target_callout_health_pip_width_px == 4
+  and .first_contact_target_callout_guard.target_callout_health_pip_height_px == 2
+  and .first_contact_target_callout_guard.target_callout_health_pip_gap_px == 4
   and .first_contact_target_callout_guard.target_callout_pixel_budget >= 1560
   and .first_contact_target_callout_guard.target_callout_leader_pixel_budget <= 44
   and .first_contact_target_callout_guard.target_callout_clearance_pad_px == 0
@@ -1647,7 +1652,7 @@ cat >"$JQ_FILTER" <<'JQ'
   and .first_contact_target_callout_guard.target_prefocus_marker_pixel_budget <= 224
   and (.first_contact_target_callout_guard.target_callout_signatures | index("compact_target_callout_plate") != null)
   and (.first_contact_target_callout_guard.target_callout_signatures | index("target_subject_label") != null)
-  and (.first_contact_target_callout_guard.target_callout_signatures | index("target_health_strip") != null)
+  and (.first_contact_target_callout_guard.target_callout_signatures | index("target_health_micro_pips") != null)
   and (.first_contact_target_callout_guard.target_callout_signatures | index("prefocus_target_corner_ticks") != null)
   and (.first_contact_target_callout_guard.target_callout_signatures | index("prefocus_target_cross_thinned") != null)
   and (.first_contact_target_callout_guard.target_callout_signatures | index("target_lock_preserved") != null)

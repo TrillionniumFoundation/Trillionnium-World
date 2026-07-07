@@ -37,6 +37,10 @@ pub struct RtsFirstContactFocusReadabilityGeometrySnapshot {
     pub target_callout_y_offset_px: i32,
     pub target_callout_health_bar_width_px: i32,
     pub target_callout_health_bar_height_px: i32,
+    pub target_callout_health_pip_count: usize,
+    pub target_callout_health_pip_width_px: i32,
+    pub target_callout_health_pip_height_px: i32,
+    pub target_callout_health_pip_gap_px: i32,
     pub target_callout_clearance_pad_px: i32,
     pub target_callout_leader_clearance_width_px: i32,
     pub target_callout_leader_clearance_height_px: i32,
@@ -335,8 +339,14 @@ pub fn first_contact_target_callout_guard(
     let target_label = runtime.target_label.clone();
     let target_label_width_px = runtime.target_label_width_px;
     let target_health_percent = runtime.target_health_percent.min(100);
-    let target_health_fill_px =
-        (i32::from(target_health_percent) * geometry.target_callout_health_bar_width_px) / 100;
+    let target_health_fill_pip_count =
+        ((usize::from(target_health_percent) * geometry.target_callout_health_pip_count) + 99)
+            / 100;
+    let target_health_fill_pip_count =
+        target_health_fill_pip_count.clamp(1, geometry.target_callout_health_pip_count);
+    let target_health_fill_px = target_health_fill_pip_count
+        * geometry.target_callout_health_pip_width_px as usize
+        * geometry.target_callout_health_pip_height_px as usize;
     let target_callout_pixel_budget =
         (geometry.target_callout_width_px * geometry.target_callout_height_px) as usize;
     let target_callout_edge_tick_pixel_budget = geometry.target_callout_edge_tick_count
@@ -368,7 +378,7 @@ pub fn first_contact_target_callout_guard(
     let target_callout_signatures = string_vec([
         "compact_target_callout_plate",
         "target_subject_label",
-        "target_health_strip",
+        "target_health_micro_pips",
         "short_leader_ticks",
         "prefocus_target_corner_ticks",
         "prefocus_target_cross_thinned",
@@ -380,9 +390,14 @@ pub fn first_contact_target_callout_guard(
         && target_label == "BEACON 38%"
         && target_label_width_px <= geometry.target_callout_width_px - 10;
     let target_health_gate = target_health_percent == 38
-        && target_health_fill_px == 20
+        && target_health_fill_pip_count == 2
+        && target_health_fill_px == 16
         && geometry.target_callout_health_bar_width_px == 54
-        && geometry.target_callout_health_bar_height_px == 3;
+        && geometry.target_callout_health_bar_height_px == 3
+        && geometry.target_callout_health_pip_count == 4
+        && geometry.target_callout_health_pip_width_px == 4
+        && geometry.target_callout_health_pip_height_px == 2
+        && geometry.target_callout_health_pip_gap_px == 4;
     let target_geometry_gate = geometry.target_callout_width_px == 78
         && geometry.target_callout_height_px == 20
         && geometry.target_callout_x_offset_px == 42
@@ -450,12 +465,17 @@ pub fn first_contact_target_callout_guard(
         "target_label_width_px": target_label_width_px,
         "target_health_percent": target_health_percent,
         "target_health_fill_px": target_health_fill_px,
+        "target_health_fill_pip_count": target_health_fill_pip_count,
         "target_callout_width_px": geometry.target_callout_width_px,
         "target_callout_height_px": geometry.target_callout_height_px,
         "target_callout_x_offset_px": geometry.target_callout_x_offset_px,
         "target_callout_y_offset_px": geometry.target_callout_y_offset_px,
         "target_callout_health_bar_width_px": geometry.target_callout_health_bar_width_px,
         "target_callout_health_bar_height_px": geometry.target_callout_health_bar_height_px,
+        "target_callout_health_pip_count": geometry.target_callout_health_pip_count,
+        "target_callout_health_pip_width_px": geometry.target_callout_health_pip_width_px,
+        "target_callout_health_pip_height_px": geometry.target_callout_health_pip_height_px,
+        "target_callout_health_pip_gap_px": geometry.target_callout_health_pip_gap_px,
         "target_callout_pixel_budget": target_callout_pixel_budget,
         "target_callout_edge_tick_count": geometry.target_callout_edge_tick_count,
         "target_callout_edge_tick_width_px": geometry.target_callout_edge_tick_width_px,
@@ -531,6 +551,10 @@ mod tests {
                 target_callout_y_offset_px: -42,
                 target_callout_health_bar_width_px: 54,
                 target_callout_health_bar_height_px: 3,
+                target_callout_health_pip_count: 4,
+                target_callout_health_pip_width_px: 4,
+                target_callout_health_pip_height_px: 2,
+                target_callout_health_pip_gap_px: 4,
                 target_callout_clearance_pad_px: 0,
                 target_callout_leader_clearance_width_px: 0,
                 target_callout_leader_clearance_height_px: 0,

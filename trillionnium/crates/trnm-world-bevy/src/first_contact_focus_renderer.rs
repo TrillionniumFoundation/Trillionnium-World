@@ -17,6 +17,10 @@ use crate::{
     CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_EDGE_TICK_W_PX,
     CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_HEALTH_BAR_H_PX,
     CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_HEALTH_BAR_W_PX,
+    CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_HEALTH_PIP_COUNT,
+    CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_HEALTH_PIP_GAP_PX,
+    CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_HEALTH_PIP_H_PX,
+    CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_HEALTH_PIP_W_PX,
     CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_H_PX,
     CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_LEADER_TICK_H_PX,
     CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_LEADER_TICK_W_PX,
@@ -225,18 +229,32 @@ fn draw_target_callout(
         CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_HEALTH_BAR_H_PX,
         CLASSIC_RTS_STRUCTURE_FOUNDATION_SHADOW_COLOR,
     );
-    classic_draw_rect(
-        buffer,
-        width,
-        height,
-        callout_x + 7,
-        callout_y + CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_H_PX - 5,
-        (i32::from(runtime.rts_target_health_percent.min(100))
-            * CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_HEALTH_BAR_W_PX)
-            / 100,
-        CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_HEALTH_BAR_H_PX,
-        CLASSIC_RTS_STATUS_HEALTH_BAR_COLOR,
-    );
+    let health_fill_pips = ((usize::from(runtime.rts_target_health_percent.min(100))
+        * CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_HEALTH_PIP_COUNT)
+        + 99)
+        / 100;
+    let health_fill_pips =
+        health_fill_pips.clamp(1, CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_HEALTH_PIP_COUNT);
+    let health_pip_y = callout_y + CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_H_PX - 5
+        + (CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_HEALTH_BAR_H_PX
+            - CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_HEALTH_PIP_H_PX)
+            / 2;
+    for pip_index in 0..health_fill_pips {
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            callout_x
+                + 7
+                + pip_index as i32
+                    * (CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_HEALTH_PIP_W_PX
+                        + CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_HEALTH_PIP_GAP_PX),
+            health_pip_y,
+            CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_HEALTH_PIP_W_PX,
+            CLASSIC_FIRST_CONTACT_TARGET_CALLOUT_HEALTH_PIP_H_PX,
+            CLASSIC_RTS_STATUS_HEALTH_BAR_COLOR,
+        );
+    }
     classic_draw_rect(
         buffer,
         width,

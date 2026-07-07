@@ -519,7 +519,7 @@ exact_action_cadence_carry_bob_component_sample = exact_color_component_summary(
     4,
     2,
     [32, 72, min(940, width), min(535, height)],
-    64,
+    128,
 )
 exact_beacon_capture_component_sample = exact_color_component_summary(
     "active_beacon_capture_exact_yellow",
@@ -640,7 +640,8 @@ exact_unit_status_health_component_sample = exact_color_component_summary(
     (125, 255, 138),
     4,
     2,
-    [180, 330, min(780, width), min(455, height)],
+    [32, 72, min(940, width), min(535, height)],
+    128,
 )
 exact_unit_status_role_badge_component_sample = exact_color_component_summary(
     "unit_status_role_badge_exact_purple",
