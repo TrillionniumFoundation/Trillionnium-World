@@ -5,10 +5,12 @@ ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 SCRIPT="$ROOT/scripts/check_trillionnium_world_next_execution_plan.sh"
 OBSERVATION_LOG_SCRIPT="$ROOT/scripts/check_trillionnium_world_first_contact_human_playtest_observation_log.sh"
 RUNBOOK_SCRIPT="$ROOT/scripts/check_trillionnium_world_first_contact_human_playtest_runbook.sh"
+REVIEW_SLICE_SCRIPT="$ROOT/scripts/check_trillionnium_world_review_slice_strategy.sh"
 DOC="$ROOT/docs/development/trillionnium-world-next-execution-plan-v1.md"
 READABILITY_REVIEW_DOC="$ROOT/docs/development/trillionnium-world-first-contact-readability-review-2026-07-07.md"
 PLAYTEST_OBSERVATION_LOG_DOC="$ROOT/docs/development/trillionnium-world-first-contact-human-playtest-observation-log-2026-07-07.md"
 PLAYTEST_RUNBOOK_DOC="$ROOT/docs/development/trillionnium-world-first-contact-human-playtest-runbook-2026-07-07.md"
+REVIEW_SLICE_DOC="$ROOT/docs/development/trillionnium-world-review-slice-strategy-2026-07-07.md"
 
 required_script_lines=(
   'trillionnium_world_next_execution_plan_v1'
@@ -28,6 +30,13 @@ required_script_lines=(
   'runbook_prompts_bound'
   'confusion_triggers_bound'
   'recording_schema_bound'
+  'trillionnium-world-review-slice-strategy-2026-07-07.md'
+  'review_slice_strategy'
+  'trillionnium-world-review-slice-strategy.json'
+  'review_slice_strategy_ready'
+  'external_action_performed'
+  '.review_slice_strategy.external_action_performed == false'
+  '.human_playtest_runbook.prompts_bound == true'
   'ready_for_renderer_change_from_human_observation'
   'pre_human_playtest_observation_seed'
   'recorded_confusion_point_count == 0'
@@ -48,6 +57,7 @@ required_doc_lines=(
   'trillionnium-world-first-contact-readability-review-2026-07-07.md'
   'trillionnium-world-first-contact-human-playtest-observation-log-2026-07-07.md'
   'trillionnium-world-first-contact-human-playtest-runbook-2026-07-07.md'
+  'trillionnium-world-review-slice-strategy-2026-07-07.md'
   'Do not keep shrinking already-gated micro cues'
 )
 
@@ -78,6 +88,16 @@ required_playtest_runbook_lines=(
   'ready_for_renderer_change_from_human_observation'
 )
 
+required_review_slice_lines=(
+  'Status: local review-slice strategy.'
+  'This is a grouping plan over existing local commits, not a history rewrite.'
+  'Do not push, rebase, force-push, reset, squash, or delete commits'
+  '| `release_truth_and_public_boundary` |'
+  '| `native_bevy_playable_client` |'
+  '| `first_contact_product_readability` |'
+  '| `external_evidence_collection_blockers` |'
+)
+
 required_observation_log_script_lines=(
   'trillionnium_world_first_contact_human_playtest_observation_log_v1'
   'first-contact-human-playtest-observation-log.json'
@@ -102,6 +122,20 @@ required_runbook_script_lines=(
   'public_launch_ready_claimed == false'
   'android_s5_real_device_claimed == false'
   'TRILLIONNIUM_WORLD_FIRST_CONTACT_HUMAN_PLAYTEST_RUNBOOK_GREEN'
+)
+
+required_review_slice_script_lines=(
+  'trillionnium_world_review_slice_strategy_v1'
+  'trillionnium-world-review-slice-strategy.json'
+  'review_slice_strategy_ready'
+  'review_slice_count == 6'
+  'external_action_performed == false'
+  'push_performed == false'
+  'rebase_performed == false'
+  'reset_performed == false'
+  'public_launch_ready_claimed == false'
+  'android_s5_real_device_claimed == false'
+  'TRILLIONNIUM_WORLD_REVIEW_SLICE_STRATEGY_GREEN'
 )
 
 for line in "${required_script_lines[@]}"; do
@@ -139,6 +173,13 @@ for line in "${required_playtest_runbook_lines[@]}"; do
   fi
 done
 
+for line in "${required_review_slice_lines[@]}"; do
+  if ! grep -Fq -- "$line" "$REVIEW_SLICE_DOC"; then
+    echo "[FAIL] review slice strategy missing contract line: $line" >&2
+    exit 1
+  fi
+done
+
 for line in "${required_observation_log_script_lines[@]}"; do
   if ! grep -Fq -- "$line" "$OBSERVATION_LOG_SCRIPT"; then
     echo "[FAIL] playtest observation log script missing contract line: $line" >&2
@@ -149,6 +190,13 @@ done
 for line in "${required_runbook_script_lines[@]}"; do
   if ! grep -Fq -- "$line" "$RUNBOOK_SCRIPT"; then
     echo "[FAIL] playtest runbook script missing contract line: $line" >&2
+    exit 1
+  fi
+done
+
+for line in "${required_review_slice_script_lines[@]}"; do
+  if ! grep -Fq -- "$line" "$REVIEW_SLICE_SCRIPT"; then
+    echo "[FAIL] review slice strategy script missing contract line: $line" >&2
     exit 1
   fi
 done

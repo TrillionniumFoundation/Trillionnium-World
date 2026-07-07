@@ -12,6 +12,9 @@ PLAYTEST_OBSERVATION_LOG_JSON="$ACCEPTANCE_DIR/first-contact-human-playtest-obse
 PLAYTEST_RUNBOOK_DOC="$ROOT/docs/development/trillionnium-world-first-contact-human-playtest-runbook-2026-07-07.md"
 PLAYTEST_RUNBOOK_DOC_REL="docs/development/trillionnium-world-first-contact-human-playtest-runbook-2026-07-07.md"
 PLAYTEST_RUNBOOK_JSON="$ACCEPTANCE_DIR/first-contact-human-playtest-runbook.json"
+REVIEW_SLICE_STRATEGY_DOC="$ROOT/docs/development/trillionnium-world-review-slice-strategy-2026-07-07.md"
+REVIEW_SLICE_STRATEGY_DOC_REL="docs/development/trillionnium-world-review-slice-strategy-2026-07-07.md"
+REVIEW_SLICE_STRATEGY_JSON="$ACCEPTANCE_DIR/trillionnium-world-review-slice-strategy.json"
 PACKET_JSON="$ACCEPTANCE_DIR/release-review-packet-integrity.json"
 PUBLIC_LAUNCH_JSON="$ACCEPTANCE_DIR/public-launch-readiness.json"
 RUNNER_JSON="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-runner-status.json"
@@ -45,6 +48,7 @@ require_file "$DOC"
 require_file "$READABILITY_REVIEW_DOC"
 require_file "$PLAYTEST_OBSERVATION_LOG_DOC"
 require_file "$PLAYTEST_RUNBOOK_DOC"
+require_file "$REVIEW_SLICE_STRATEGY_DOC"
 require_file "$PACKET_JSON"
 require_file "$PUBLIC_LAUNCH_JSON"
 require_file "$RUNNER_JSON"
@@ -57,6 +61,7 @@ require_text "$DOC" "Do not keep shrinking already-gated micro cues"
 require_text "$DOC" "trillionnium-world-first-contact-readability-review-2026-07-07.md"
 require_text "$DOC" "trillionnium-world-first-contact-human-playtest-observation-log-2026-07-07.md"
 require_text "$DOC" "trillionnium-world-first-contact-human-playtest-runbook-2026-07-07.md"
+require_text "$DOC" "trillionnium-world-review-slice-strategy-2026-07-07.md"
 require_text "$READABILITY_REVIEW_DOC" "The central beacon fight is still the dominant whole-screen readability risk."
 require_text "$READABILITY_REVIEW_DOC" "Do a product-level silhouette and composition pass around the active center"
 require_text "$READABILITY_REVIEW_DOC" "Use the five-step human playtest path to log the first three confusion points"
@@ -73,6 +78,11 @@ require_text "$PLAYTEST_RUNBOOK_DOC" "One observer, one local tester, one five-s
 require_text "$PLAYTEST_RUNBOOK_DOC" "Read only the fixed prompt for each task"
 require_text "$PLAYTEST_RUNBOOK_DOC" "Stop after the first three confusion points are recorded."
 require_text "$PLAYTEST_RUNBOOK_DOC" '| 5 | `recover_blocked_route` |'
+require_text "$REVIEW_SLICE_STRATEGY_DOC" "Status: local review-slice strategy."
+require_text "$REVIEW_SLICE_STRATEGY_DOC" "Do not push, rebase, force-push, reset, squash, or delete commits"
+require_text "$REVIEW_SLICE_STRATEGY_DOC" '| `release_truth_and_public_boundary` |'
+require_text "$REVIEW_SLICE_STRATEGY_DOC" '| `first_contact_product_readability` |'
+require_text "$REVIEW_SLICE_STRATEGY_DOC" '| `external_evidence_collection_blockers` |'
 
 "$ROOT/scripts/check_trillionnium_world_first_contact_human_playtest_observation_log.sh" >/dev/null
 require_file "$PLAYTEST_OBSERVATION_LOG_JSON"
@@ -107,6 +117,21 @@ jq -e '
   and .android_s5_real_device_claimed == false
 ' "$PLAYTEST_RUNBOOK_JSON" >/dev/null
 
+"$ROOT/scripts/check_trillionnium_world_review_slice_strategy.sh" >/dev/null
+require_file "$REVIEW_SLICE_STRATEGY_JSON"
+jq -e '
+  .contract_version == "trillionnium_world_review_slice_strategy_v1"
+  and .status == "review_slice_strategy_ready"
+  and .review_slice_count == 6
+  and .local_backlog_risk_active == true
+  and .external_action_performed == false
+  and .push_performed == false
+  and .rebase_performed == false
+  and .reset_performed == false
+  and .public_launch_ready_claimed == false
+  and .android_s5_real_device_claimed == false
+' "$REVIEW_SLICE_STRATEGY_JSON" >/dev/null
+
 packet_status="$(jq -r '.status // "missing"' "$PACKET_JSON")"
 packet_green="$(jq -r '.green // false' "$PACKET_JSON")"
 packet_artifact_count="$(jq -r '.artifact_count // 0' "$PACKET_JSON")"
@@ -127,6 +152,9 @@ runbook_status="$(jq -r '.status // "missing"' "$PLAYTEST_RUNBOOK_JSON")"
 runbook_prompts_bound="$(jq -r '.runbook_prompts_bound // false' "$PLAYTEST_RUNBOOK_JSON")"
 runbook_confusion_triggers_bound="$(jq -r '.confusion_triggers_bound // false' "$PLAYTEST_RUNBOOK_JSON")"
 runbook_recording_schema_bound="$(jq -r '.recording_schema_bound // false' "$PLAYTEST_RUNBOOK_JSON")"
+review_slice_strategy_status="$(jq -r '.status // "missing"' "$REVIEW_SLICE_STRATEGY_JSON")"
+review_slice_count="$(jq -r '.review_slice_count // 0' "$REVIEW_SLICE_STRATEGY_JSON")"
+review_slice_external_action_performed="$(jq -r 'if has("external_action_performed") then .external_action_performed else true end' "$REVIEW_SLICE_STRATEGY_JSON")"
 
 public_launch_ready="$(jq -r '.public_launch_ready // false' "$PUBLIC_LAUNCH_JSON")"
 android_s5_real_device_claimed="$(jq -r '.android_s5_real_device_claimed // false' "$PUBLIC_LAUNCH_JSON")"
@@ -240,8 +268,10 @@ jq -n \
   --arg readability_review_doc "$READABILITY_REVIEW_DOC_REL" \
   --arg playtest_observation_log_doc "$PLAYTEST_OBSERVATION_LOG_DOC_REL" \
   --arg playtest_runbook_doc "$PLAYTEST_RUNBOOK_DOC_REL" \
+  --arg review_slice_strategy_doc "$REVIEW_SLICE_STRATEGY_DOC_REL" \
   --arg observation_status "$observation_status" \
   --arg runbook_status "$runbook_status" \
+  --arg review_slice_strategy_status "$review_slice_strategy_status" \
   --argjson green "$green" \
   --argjson packet_gate "$packet_gate" \
   --argjson packet_artifact_count "$packet_artifact_count" \
@@ -257,6 +287,8 @@ jq -n \
   --argjson runbook_prompts_bound "$runbook_prompts_bound" \
   --argjson runbook_confusion_triggers_bound "$runbook_confusion_triggers_bound" \
   --argjson runbook_recording_schema_bound "$runbook_recording_schema_bound" \
+  --argjson review_slice_count "$review_slice_count" \
+  --argjson review_slice_external_action_performed "$review_slice_external_action_performed" \
   --argjson public_launch_blocker_gate "$public_launch_blocker_gate" \
   --argjson public_launch_ready "$public_launch_ready" \
   --argjson android_s5_real_device_claimed "$android_s5_real_device_claimed" \
@@ -322,6 +354,14 @@ jq -n \
       ready_for_renderer_change_from_human_observation: false,
       no_credit_boundary: "runbook only; not beta, public launch, Android S5 real-device, production-ready UI, commercial launch, or human tester completion evidence"
     },
+    review_slice_strategy: {
+      doc_path: $review_slice_strategy_doc,
+      artifact_path: "acceptance/S6_public_launch/latest/trillionnium-world-review-slice-strategy.json",
+      status: $review_slice_strategy_status,
+      review_slice_count: $review_slice_count,
+      external_action_performed: $review_slice_external_action_performed,
+      no_credit_boundary: "local review slicing only; no push, rebase, reset, public launch, Android S5 real-device, beta, production-ready UI, commercial, multi-node, or public-network credit"
+    },
     public_launch: {
       public_launch_ready: $public_launch_ready,
       android_s5_real_device_claimed: $android_s5_real_device_claimed,
@@ -336,6 +376,21 @@ jq -n \
     operating_rule: "prefer whole-screen product quality and truth-source guards; do not shrink already-gated micro cues without a fresh screenshot-visible issue"
   }' >"$SUMMARY_JSON"
 
+jq -e '
+  .contract_version == "trillionnium_world_next_execution_plan_v1"
+  and .green == true
+  and .human_playtest_observation.first_three_confusion_points_recorded == false
+  and .human_playtest_observation.ready_for_renderer_change_from_human_observation == false
+  and .human_playtest_runbook.ready_for_renderer_change_from_human_observation == false
+  and .human_playtest_runbook.prompts_bound == true
+  and .human_playtest_runbook.confusion_triggers_bound == true
+  and .human_playtest_runbook.recording_schema_bound == true
+  and .review_slice_strategy.review_slice_count == 6
+  and .review_slice_strategy.external_action_performed == false
+  and .public_launch.public_launch_ready == false
+  and .public_launch.android_s5_real_device_claimed == false
+' "$SUMMARY_JSON" >/dev/null
+
 {
   printf '# Trillionnium World Next Execution Plan\n\n'
   printf -- '- status: `%s`\n' "$status"
@@ -347,6 +402,7 @@ jq -n \
   printf -- '- readability review: `%s`\n\n' "$READABILITY_REVIEW_DOC_REL"
   printf -- '- playtest observation log: `%s`\n\n' "$PLAYTEST_OBSERVATION_LOG_DOC_REL"
   printf -- '- playtest runbook: `%s`\n\n' "$PLAYTEST_RUNBOOK_DOC_REL"
+  printf -- '- review-slice strategy: `%s`\n\n' "$REVIEW_SLICE_STRATEGY_DOC_REL"
   printf '## Risks\n\n'
   jq -r '.risks[] | "- `\(.id)`: \(.next_action)"' "$SUMMARY_JSON"
   printf '\n## Work Queue\n\n'

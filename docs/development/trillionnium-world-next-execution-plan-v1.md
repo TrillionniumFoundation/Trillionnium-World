@@ -49,6 +49,8 @@ blockers.
    - keep S5 real-device claims false without device evidence
 4. Commit and review strategy:
    - group the local backlog into reviewable slices
+   - review-slice strategy:
+     `docs/development/trillionnium-world-review-slice-strategy-2026-07-07.md`
    - avoid external push/public actions until explicitly routed
 5. Public launch evidence:
    - S5 real-device matrix
