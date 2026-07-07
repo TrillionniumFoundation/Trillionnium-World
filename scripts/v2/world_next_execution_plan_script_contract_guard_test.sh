@@ -4,6 +4,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 SCRIPT="$ROOT/scripts/check_trillionnium_world_next_execution_plan.sh"
 DOC="$ROOT/docs/development/trillionnium-world-next-execution-plan-v1.md"
+READABILITY_REVIEW_DOC="$ROOT/docs/development/trillionnium-world-first-contact-readability-review-2026-07-07.md"
 
 required_script_lines=(
   'trillionnium_world_next_execution_plan_v1'
@@ -11,6 +12,8 @@ required_script_lines=(
   'next_execution_plan_green_with_public_launch_blockers'
   'public_launch_blockers_preserved'
   'whole_screen_first_contact_readability'
+  'trillionnium-world-first-contact-readability-review-2026-07-07.md'
+  'readability_review'
   'human_playtest_path'
   'bevy-classic-playtest-handoff-packet.human_playtest_task_path'
   'real_external_evidence_collection'
@@ -22,7 +25,15 @@ required_doc_lines=(
   'Public launch state: blocked until real external evidence exists.'
   'Android S5 real-device state: unclaimed until device evidence is collected.'
   'packet binding: `bevy-classic-playtest-handoff-packet`'
+  'trillionnium-world-first-contact-readability-review-2026-07-07.md'
   'Do not keep shrinking already-gated micro cues'
+)
+
+required_readability_review_lines=(
+  'The central beacon fight is still the dominant whole-screen readability risk.'
+  'Do a product-level silhouette and composition pass around the active center'
+  'Use the five-step human playtest path to log the first three confusion points'
+  'Do not keep shaving already-gated micro cues without a fresh screenshot-visible'
 )
 
 for line in "${required_script_lines[@]}"; do
@@ -35,6 +46,13 @@ done
 for line in "${required_doc_lines[@]}"; do
   if ! grep -Fq -- "$line" "$DOC"; then
     echo "[FAIL] next execution plan doc missing contract line: $line" >&2
+    exit 1
+  fi
+done
+
+for line in "${required_readability_review_lines[@]}"; do
+  if ! grep -Fq -- "$line" "$READABILITY_REVIEW_DOC"; then
+    echo "[FAIL] readability review doc missing contract line: $line" >&2
     exit 1
   fi
 done

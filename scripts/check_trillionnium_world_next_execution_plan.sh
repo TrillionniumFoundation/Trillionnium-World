@@ -4,6 +4,8 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 ACCEPTANCE_DIR="$ROOT/acceptance/S6_public_launch/latest"
 DOC="$ROOT/docs/development/trillionnium-world-next-execution-plan-v1.md"
+READABILITY_REVIEW_DOC="$ROOT/docs/development/trillionnium-world-first-contact-readability-review-2026-07-07.md"
+READABILITY_REVIEW_DOC_REL="docs/development/trillionnium-world-first-contact-readability-review-2026-07-07.md"
 PACKET_JSON="$ACCEPTANCE_DIR/release-review-packet-integrity.json"
 PUBLIC_LAUNCH_JSON="$ACCEPTANCE_DIR/public-launch-readiness.json"
 RUNNER_JSON="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-runner-status.json"
@@ -34,6 +36,7 @@ require_text() {
 }
 
 require_file "$DOC"
+require_file "$READABILITY_REVIEW_DOC"
 require_file "$PACKET_JSON"
 require_file "$PUBLIC_LAUNCH_JSON"
 require_file "$RUNNER_JSON"
@@ -43,6 +46,10 @@ require_text "$DOC" "Local review state: green with public-launch blockers."
 require_text "$DOC" "Public launch state: blocked until real external evidence exists."
 require_text "$DOC" 'packet binding: `bevy-classic-playtest-handoff-packet`'
 require_text "$DOC" "Do not keep shrinking already-gated micro cues"
+require_text "$DOC" "trillionnium-world-first-contact-readability-review-2026-07-07.md"
+require_text "$READABILITY_REVIEW_DOC" "The central beacon fight is still the dominant whole-screen readability risk."
+require_text "$READABILITY_REVIEW_DOC" "Do a product-level silhouette and composition pass around the active center"
+require_text "$READABILITY_REVIEW_DOC" "Use the five-step human playtest path to log the first three confusion points"
 
 packet_status="$(jq -r '.status // "missing"' "$PACKET_JSON")"
 packet_green="$(jq -r '.green // false' "$PACKET_JSON")"
@@ -165,6 +172,7 @@ jq -n \
   --arg packet_status "$packet_status" \
   --arg runner_pid "$runner_pid" \
   --arg runner_screenshot_path "$runner_screenshot_path" \
+  --arg readability_review_doc "$READABILITY_REVIEW_DOC_REL" \
   --argjson green "$green" \
   --argjson packet_gate "$packet_gate" \
   --argjson packet_artifact_count "$packet_artifact_count" \
@@ -212,6 +220,11 @@ jq -n \
       failed_gate_count: $runner_failed_gate_count,
       screenshot_path: $runner_screenshot_path
     },
+    readability_review: {
+      doc_path: $readability_review_doc,
+      current_product_risk: "central beacon fight has too many similarly bright micro accents competing inside the same objective area",
+      next_slice: "product-level silhouette and composition pass around the active center objective before further micro-cue shaving"
+    },
     public_launch: {
       public_launch_ready: $public_launch_ready,
       android_s5_real_device_claimed: $android_s5_real_device_claimed,
@@ -234,6 +247,7 @@ jq -n \
   printf -- '- packet artifacts: `%s`, failed checks: `%s`\n' "$packet_artifact_count" "$packet_failed_check_count"
   printf -- '- public launch ready: `%s`\n' "$public_launch_ready"
   printf -- '- Android S5 real-device claimed: `%s`\n\n' "$android_s5_real_device_claimed"
+  printf -- '- readability review: `%s`\n\n' "$READABILITY_REVIEW_DOC_REL"
   printf '## Risks\n\n'
   jq -r '.risks[] | "- `\(.id)`: \(.next_action)"' "$SUMMARY_JSON"
   printf '\n## Work Queue\n\n'

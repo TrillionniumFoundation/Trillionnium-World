@@ -29,6 +29,8 @@ blockers.
    - terrain/material grouping
    - objective focus
    - combat flow
+   - current snapshot review:
+     `docs/development/trillionnium-world-first-contact-readability-review-2026-07-07.md`
 2. Human playtest path:
    - start campaign
    - select units
