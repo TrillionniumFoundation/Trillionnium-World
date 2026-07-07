@@ -23,6 +23,8 @@ acceptance directory first.
   `acceptance/S6_public_launch/latest/trillionnium-world-review-slice-strategy.json`
 - Review-slice manifest:
   `acceptance/S6_public_launch/latest/trillionnium-world-review-slice-manifest.json`
+- Review triage queue:
+  `acceptance/S6_public_launch/latest/trillionnium-world-review-triage-queue.json`
 - Public-launch blocker execution ledger:
   `acceptance/S6_public_launch/latest/trillionnium-world-public-launch-blocker-execution-ledger.json`
 - First Contact observation/runbook artifacts:
@@ -35,7 +37,7 @@ acceptance directory first.
 
 | Section ID | Contents | Reviewer Use |
 | --- | --- | --- |
-| `reviewer_summary` | Small JSON/Markdown status, packet, runbook, curation, review-slice strategy/manifest, blocker-ledger, and blocker artifacts. | Read first for state, next action, and no-credit boundaries. |
+| `reviewer_summary` | Small JSON/Markdown status, packet, runbook, curation, review-slice strategy/manifest, review triage queue, blocker-ledger, and blocker artifacts. | Read first for state, next action, and no-credit boundaries. |
 | `live_player_screen` | Current runner status JSON/probe plus live player-screen PNG. | Inspect the current playable First Contact surface. |
 | `representative_visuals` | A short PNG set covering full-game, full-screen, shell/meta, match setup, and HUD surfaces. | Inspect product breadth without loading raw PPM archives. |
 | `raw_visual_archive_candidates` | Large PPM evidence files kept in place and checksummed for deep audit. | Prove the large raw evidence remains addressable without making it the first reviewer path. |

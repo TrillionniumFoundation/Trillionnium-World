@@ -24,6 +24,9 @@ REVIEW_SLICE_STRATEGY_JSON="$ACCEPTANCE_DIR/trillionnium-world-review-slice-stra
 REVIEW_SLICE_MANIFEST_DOC="$ROOT/docs/development/trillionnium-world-review-slice-manifest-2026-07-07.md"
 REVIEW_SLICE_MANIFEST_DOC_REL="docs/development/trillionnium-world-review-slice-manifest-2026-07-07.md"
 REVIEW_SLICE_MANIFEST_JSON="$ACCEPTANCE_DIR/trillionnium-world-review-slice-manifest.json"
+REVIEW_TRIAGE_QUEUE_DOC="$ROOT/docs/development/trillionnium-world-review-triage-queue-2026-07-07.md"
+REVIEW_TRIAGE_QUEUE_DOC_REL="docs/development/trillionnium-world-review-triage-queue-2026-07-07.md"
+REVIEW_TRIAGE_QUEUE_JSON="$ACCEPTANCE_DIR/trillionnium-world-review-triage-queue.json"
 PUBLIC_LAUNCH_BLOCKER_LEDGER_DOC="$ROOT/docs/development/trillionnium-world-public-launch-blocker-execution-ledger-2026-07-07.md"
 PUBLIC_LAUNCH_BLOCKER_LEDGER_DOC_REL="docs/development/trillionnium-world-public-launch-blocker-execution-ledger-2026-07-07.md"
 PUBLIC_LAUNCH_BLOCKER_LEDGER_JSON="$ACCEPTANCE_DIR/trillionnium-world-public-launch-blocker-execution-ledger.json"
@@ -64,6 +67,7 @@ require_file "$EVIDENCE_VOLUME_CURATION_DOC"
 require_file "$REVIEWER_HANDOFF_INDEX_DOC"
 require_file "$REVIEW_SLICE_STRATEGY_DOC"
 require_file "$REVIEW_SLICE_MANIFEST_DOC"
+require_file "$REVIEW_TRIAGE_QUEUE_DOC"
 require_file "$PUBLIC_LAUNCH_BLOCKER_LEDGER_DOC"
 require_file "$PACKET_JSON"
 require_file "$PUBLIC_LAUNCH_JSON"
@@ -81,6 +85,7 @@ require_text "$DOC" "trillionnium-world-evidence-volume-curation-2026-07-07.md"
 require_text "$DOC" "trillionnium-world-reviewer-handoff-index-2026-07-07.md"
 require_text "$DOC" "trillionnium-world-review-slice-strategy-2026-07-07.md"
 require_text "$DOC" "trillionnium-world-review-slice-manifest-2026-07-07.md"
+require_text "$DOC" "trillionnium-world-review-triage-queue-2026-07-07.md"
 require_text "$DOC" "trillionnium-world-public-launch-blocker-execution-ledger-2026-07-07.md"
 require_text "$READABILITY_REVIEW_DOC" "The central beacon fight is still the dominant whole-screen readability risk."
 require_text "$READABILITY_REVIEW_DOC" "Do a product-level silhouette and composition pass around the active center"
@@ -114,6 +119,11 @@ require_text "$REVIEW_SLICE_MANIFEST_DOC" "Status: local review-slice commit-ran
 require_text "$REVIEW_SLICE_MANIFEST_DOC" "Unclassified commits remain manual-review risk"
 require_text "$REVIEW_SLICE_MANIFEST_DOC" '| `first_contact_renderer_micro_cues` |'
 require_text "$REVIEW_SLICE_MANIFEST_DOC" '| `rts_runtime_data_boundaries` |'
+require_text "$REVIEW_TRIAGE_QUEUE_DOC" "Status: local review triage queue."
+require_text "$REVIEW_TRIAGE_QUEUE_DOC" "Unclassified commits are bucketed for review"
+require_text "$REVIEW_TRIAGE_QUEUE_DOC" "Multi-slice commits remain overlap risk"
+require_text "$REVIEW_TRIAGE_QUEUE_DOC" '| `unclassified_generated_count_surface` |'
+require_text "$REVIEW_TRIAGE_QUEUE_DOC" '| `multi_native_bevy_rts_boundary_overlap` |'
 require_text "$PUBLIC_LAUNCH_BLOCKER_LEDGER_DOC" "Status: local blocker execution ledger."
 require_text "$PUBLIC_LAUNCH_BLOCKER_LEDGER_DOC" "Do not use templates, status-only files, host-side screenshots"
 require_text "$PUBLIC_LAUNCH_BLOCKER_LEDGER_DOC" '| `s5_real_device_matrix` |'
@@ -172,8 +182,8 @@ require_file "$REVIEWER_HANDOFF_INDEX_JSON"
 jq -e '
   .contract_version == "trillionnium_world_reviewer_handoff_index_v1"
   and .status == "reviewer_handoff_index_green_with_public_launch_blockers"
-  and .artifact_count == 26
-  and .reviewer_summary_count == 12
+  and .artifact_count == 27
+  and .reviewer_summary_count == 13
   and .live_player_screen_count == 3
   and .representative_visual_count == 5
   and .raw_visual_archive_candidate_count == 6
@@ -219,6 +229,26 @@ jq -e '
   and .public_launch_ready_claimed == false
   and .android_s5_real_device_claimed == false
 ' "$REVIEW_SLICE_MANIFEST_JSON" >/dev/null
+
+"$ROOT/scripts/check_trillionnium_world_review_triage_queue.sh" >/dev/null
+require_file "$REVIEW_TRIAGE_QUEUE_JSON"
+jq -e '
+  .contract_version == "trillionnium_world_review_triage_queue_v1"
+  and .status == "review_triage_queue_ready"
+  and .triage_bucket_count == 11
+  and .unclassified_bucketed_count == .unclassified_commit_count
+  and .multi_slice_bucketed_count == .multi_slice_commit_count
+  and .manual_review_required == true
+  and .primary_owner_assignment_required == true
+  and .push_performed == false
+  and .rebase_performed == false
+  and .reset_performed == false
+  and .squash_performed == false
+  and .history_rewrite_performed == false
+  and .external_action_performed == false
+  and .public_launch_ready_claimed == false
+  and .android_s5_real_device_claimed == false
+' "$REVIEW_TRIAGE_QUEUE_JSON" >/dev/null
 
 "$ROOT/scripts/check_trillionnium_world_public_launch_blocker_execution_ledger.sh" >/dev/null
 require_file "$PUBLIC_LAUNCH_BLOCKER_LEDGER_JSON"
@@ -277,6 +307,15 @@ review_slice_manifest_unclassified_commit_count="$(jq -r '.unclassified_commit_c
 review_slice_manifest_multi_slice_commit_count="$(jq -r '.multi_slice_commit_count // 0' "$REVIEW_SLICE_MANIFEST_JSON")"
 review_slice_manifest_external_action_performed="$(jq -r 'if has("external_action_performed") then .external_action_performed else true end' "$REVIEW_SLICE_MANIFEST_JSON")"
 review_slice_manifest_history_rewrite_performed="$(jq -r 'if has("history_rewrite_performed") then .history_rewrite_performed else true end' "$REVIEW_SLICE_MANIFEST_JSON")"
+review_triage_queue_status="$(jq -r '.status // "missing"' "$REVIEW_TRIAGE_QUEUE_JSON")"
+review_triage_queue_item_count="$(jq -r '.triage_queue_item_count // 0' "$REVIEW_TRIAGE_QUEUE_JSON")"
+review_triage_bucket_count="$(jq -r '.triage_bucket_count // 0' "$REVIEW_TRIAGE_QUEUE_JSON")"
+review_triage_unclassified_bucketed_count="$(jq -r '.unclassified_bucketed_count // 0' "$REVIEW_TRIAGE_QUEUE_JSON")"
+review_triage_multi_slice_bucketed_count="$(jq -r '.multi_slice_bucketed_count // 0' "$REVIEW_TRIAGE_QUEUE_JSON")"
+review_triage_manual_review_required="$(jq -r 'if has("manual_review_required") then .manual_review_required else false end' "$REVIEW_TRIAGE_QUEUE_JSON")"
+review_triage_primary_owner_assignment_required="$(jq -r 'if has("primary_owner_assignment_required") then .primary_owner_assignment_required else false end' "$REVIEW_TRIAGE_QUEUE_JSON")"
+review_triage_external_action_performed="$(jq -r 'if has("external_action_performed") then .external_action_performed else true end' "$REVIEW_TRIAGE_QUEUE_JSON")"
+review_triage_history_rewrite_performed="$(jq -r 'if has("history_rewrite_performed") then .history_rewrite_performed else true end' "$REVIEW_TRIAGE_QUEUE_JSON")"
 blocker_execution_ledger_status="$(jq -r '.status // "missing"' "$PUBLIC_LAUNCH_BLOCKER_LEDGER_JSON")"
 blocker_execution_ledger_needs_collection_count="$(jq -r '.needs_collection_count // 0' "$PUBLIC_LAUNCH_BLOCKER_LEDGER_JSON")"
 blocker_execution_ledger_green_evidence_item_count="$(jq -r '.green_evidence_item_count // 0' "$PUBLIC_LAUNCH_BLOCKER_LEDGER_JSON")"
@@ -400,6 +439,7 @@ jq -n \
   --arg reviewer_handoff_index_doc "$REVIEWER_HANDOFF_INDEX_DOC_REL" \
   --arg review_slice_strategy_doc "$REVIEW_SLICE_STRATEGY_DOC_REL" \
   --arg review_slice_manifest_doc "$REVIEW_SLICE_MANIFEST_DOC_REL" \
+  --arg review_triage_queue_doc "$REVIEW_TRIAGE_QUEUE_DOC_REL" \
   --arg public_launch_blocker_ledger_doc "$PUBLIC_LAUNCH_BLOCKER_LEDGER_DOC_REL" \
   --arg observation_status "$observation_status" \
   --arg runbook_status "$runbook_status" \
@@ -407,6 +447,7 @@ jq -n \
   --arg reviewer_handoff_index_status "$reviewer_handoff_index_status" \
   --arg review_slice_strategy_status "$review_slice_strategy_status" \
   --arg review_slice_manifest_status "$review_slice_manifest_status" \
+  --arg review_triage_queue_status "$review_triage_queue_status" \
   --arg blocker_execution_ledger_status "$blocker_execution_ledger_status" \
   --argjson green "$green" \
   --argjson packet_gate "$packet_gate" \
@@ -438,6 +479,14 @@ jq -n \
   --argjson review_slice_manifest_multi_slice_commit_count "$review_slice_manifest_multi_slice_commit_count" \
   --argjson review_slice_manifest_external_action_performed "$review_slice_manifest_external_action_performed" \
   --argjson review_slice_manifest_history_rewrite_performed "$review_slice_manifest_history_rewrite_performed" \
+  --argjson review_triage_queue_item_count "$review_triage_queue_item_count" \
+  --argjson review_triage_bucket_count "$review_triage_bucket_count" \
+  --argjson review_triage_unclassified_bucketed_count "$review_triage_unclassified_bucketed_count" \
+  --argjson review_triage_multi_slice_bucketed_count "$review_triage_multi_slice_bucketed_count" \
+  --argjson review_triage_manual_review_required "$review_triage_manual_review_required" \
+  --argjson review_triage_primary_owner_assignment_required "$review_triage_primary_owner_assignment_required" \
+  --argjson review_triage_external_action_performed "$review_triage_external_action_performed" \
+  --argjson review_triage_history_rewrite_performed "$review_triage_history_rewrite_performed" \
   --argjson blocker_execution_ledger_needs_collection_count "$blocker_execution_ledger_needs_collection_count" \
   --argjson blocker_execution_ledger_green_evidence_item_count "$blocker_execution_ledger_green_evidence_item_count" \
   --argjson blocker_execution_ledger_consistency_failed_check_count "$blocker_execution_ledger_consistency_failed_check_count" \
@@ -548,6 +597,20 @@ jq -n \
       history_rewrite_performed: $review_slice_manifest_history_rewrite_performed,
       no_credit_boundary: "local review-slice commit-range manifest only; no push, rebase, reset, squash, history rewrite, public launch, Android S5 real-device, beta, production-ready UI, commercial, multi-node, live-traffic, or public-network credit"
     },
+    review_triage_queue: {
+      doc_path: $review_triage_queue_doc,
+      artifact_path: "acceptance/S6_public_launch/latest/trillionnium-world-review-triage-queue.json",
+      status: $review_triage_queue_status,
+      triage_queue_item_count: $review_triage_queue_item_count,
+      triage_bucket_count: $review_triage_bucket_count,
+      unclassified_bucketed_count: $review_triage_unclassified_bucketed_count,
+      multi_slice_bucketed_count: $review_triage_multi_slice_bucketed_count,
+      manual_review_required: $review_triage_manual_review_required,
+      primary_owner_assignment_required: $review_triage_primary_owner_assignment_required,
+      external_action_performed: $review_triage_external_action_performed,
+      history_rewrite_performed: $review_triage_history_rewrite_performed,
+      no_credit_boundary: "local review triage queue only; no push, rebase, reset, squash, history rewrite, public launch, Android S5 real-device, beta, production-ready UI, commercial, multi-node, live-traffic, or public-network credit"
+    },
     public_launch_blocker_execution_ledger: {
       doc_path: $public_launch_blocker_ledger_doc,
       artifact_path: "acceptance/S6_public_launch/latest/trillionnium-world-public-launch-blocker-execution-ledger.json",
@@ -585,7 +648,7 @@ jq -e '
   and .evidence_volume_curation.large_file_count > 100
   and .evidence_volume_curation.deletion_performed == false
   and .evidence_volume_curation.archive_movement_performed == false
-  and .reviewer_handoff_index.artifact_count == 26
+  and .reviewer_handoff_index.artifact_count == 27
   and .reviewer_handoff_index.representative_visual_count == 5
   and .reviewer_handoff_index.upload_performed == false
   and .reviewer_handoff_index.publish_performed == false
@@ -595,6 +658,13 @@ jq -e '
   and ((.review_slice_manifest.manifested_commit_count + .review_slice_manifest.unclassified_commit_count) == .review_slice_manifest.total_ahead_count)
   and .review_slice_manifest.external_action_performed == false
   and .review_slice_manifest.history_rewrite_performed == false
+  and .review_triage_queue.triage_bucket_count == 11
+  and .review_triage_queue.unclassified_bucketed_count == .review_slice_manifest.unclassified_commit_count
+  and .review_triage_queue.multi_slice_bucketed_count == .review_slice_manifest.multi_slice_commit_count
+  and .review_triage_queue.manual_review_required == true
+  and .review_triage_queue.primary_owner_assignment_required == true
+  and .review_triage_queue.external_action_performed == false
+  and .review_triage_queue.history_rewrite_performed == false
   and .public_launch_blocker_execution_ledger.needs_collection_count == 6
   and .public_launch_blocker_execution_ledger.green_evidence_item_count == 0
   and .public_launch_blocker_execution_ledger.blocker_consistency_failed_check_count == 0
@@ -619,6 +689,7 @@ jq -e '
   printf -- '- reviewer handoff index: `%s`\n\n' "$REVIEWER_HANDOFF_INDEX_DOC_REL"
   printf -- '- review-slice strategy: `%s`\n\n' "$REVIEW_SLICE_STRATEGY_DOC_REL"
   printf -- '- review-slice manifest: `%s`\n\n' "$REVIEW_SLICE_MANIFEST_DOC_REL"
+  printf -- '- review triage queue: `%s`\n\n' "$REVIEW_TRIAGE_QUEUE_DOC_REL"
   printf -- '- public-launch blocker execution ledger: `%s`\n\n' "$PUBLIC_LAUNCH_BLOCKER_LEDGER_DOC_REL"
   printf '## Risks\n\n'
   jq -r '.risks[] | "- `\(.id)`: \(.next_action)"' "$SUMMARY_JSON"

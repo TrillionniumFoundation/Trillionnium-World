@@ -710,6 +710,8 @@ required_lines=(
   'public_launch_evidence_intake_script_contract_guard_test.sh'
   'check_trillionnium_world_public_launch_evidence_intake.sh'
   'check_trillionnium_world_review_slice_manifest.sh'
+  'check_trillionnium_world_review_triage_queue.sh'
+  'world_review_triage_queue'
   'release_readiness_release_review_entry_guard_test.sh'
   'production_map_pack_public_evidence_collection_script_contract_guard_test.sh'
   'check_trillionnium_world_production_map_pack_public_evidence_collection.sh'
