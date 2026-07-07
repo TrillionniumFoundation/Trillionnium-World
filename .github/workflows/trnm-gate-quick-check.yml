@@ -299,6 +299,10 @@ jobs:
         run: |
           ./scripts/v2/release_review_ci_gate_script_contract_guard_test.sh
 
+      - name: World next execution plan script contract guard regression
+        run: |
+          ./scripts/v2/world_next_execution_plan_script_contract_guard_test.sh
+
       - name: Public launch status-only fixture guard regression
         run: |
           ./scripts/v2/public_launch_status_only_fixture_guard_script_contract_guard_test.sh

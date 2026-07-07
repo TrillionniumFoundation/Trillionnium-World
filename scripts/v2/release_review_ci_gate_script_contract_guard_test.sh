@@ -27,6 +27,10 @@ required_lines=(
   'slow_check_threshold_millis'
   'slow_checks'
   'check_trillionnium_world_release_review_packet_integrity.sh'
+  'check_trillionnium_world_next_execution_plan.sh'
+  'world_next_execution_plan_script_contract_guard_test.sh'
+  'world_next_execution_plan_contract_guard'
+  'world_next_execution_plan'
   'release_review_quickcheck_gate'
   'release_review_status_gate'
   'release_review_convergence_gate'
@@ -762,4 +766,4 @@ if [[ -z "$summary_line" || -z "$packet_line" || -z "$suite_line" ]] ||
   exit 1
 fi
 
-echo "[PASS] release review CI gate script keeps packet integrity, static guards, README links, workflow refs, checkpoint manifest, and Android S5 boundary"
+echo "[PASS] release review CI gate script keeps packet integrity, static guards, README links, workflow refs, checkpoint manifest, next execution plan, and Android S5 boundary"

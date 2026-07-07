@@ -27,6 +27,7 @@ Configured in-tree:
 - Release review packet script: `scripts/check_trillionnium_world_release_review_packet.sh`.
 - Release review packet integrity script: `scripts/check_trillionnium_world_release_review_packet_integrity.sh`.
 - Release review CI aggregate script: `scripts/check_trillionnium_world_release_review_ci_gate.sh`.
+- Next execution plan script: `scripts/check_trillionnium_world_next_execution_plan.sh`.
 - Standalone browser parity script: `scripts/check_trillionnium_world_browser_parity.sh`.
 - Repository adapter boundary script: `scripts/check_trillionnium_world_repository_adapter_boundary.sh`.
 - Public deploy readiness script: `scripts/check_trillionnium_world_public_deploy_readiness.sh`.
@@ -97,6 +98,7 @@ bash scripts/check_trillionnium_world_release_review_convergence.sh
 bash scripts/check_trillionnium_world_release_review_packet.sh
 bash scripts/check_trillionnium_world_release_review_packet_integrity.sh
 bash scripts/check_trillionnium_world_release_review_ci_gate.sh
+bash scripts/check_trillionnium_world_next_execution_plan.sh
 ```
 
 From `trillionnium/`:

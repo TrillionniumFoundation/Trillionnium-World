@@ -13,6 +13,7 @@ required_lines=(
   './scripts/check_trillionnium_world_release_review_packet_integrity.sh'
   './scripts/check_trillionnium_world_release_review_ci_gate.sh'
   './scripts/check_trillionnium_world_release_review_checkpoint_manifest.sh'
+  './scripts/check_trillionnium_world_next_execution_plan.sh'
   './scripts/check_trillionnium_world_public_launch_operator_handoff.sh'
   './scripts/check_trillionnium_world_production_map_pack_public_evidence_collection.sh'
   './scripts/check_trillionnium_world_production_map_pack_public_evidence.sh'
@@ -38,11 +39,16 @@ required_lines=(
   'acceptance/S6_public_launch/latest/release-review-packet-integrity.json'
   'acceptance/S6_public_launch/latest/release-review-ci-gate.json'
   'acceptance/S6_public_launch/latest/release-review-checkpoint-manifest.json'
+  'acceptance/S6_public_launch/latest/trillionnium-world-next-execution-plan.json'
   'acceptance/S6_public_launch/latest/public-launch-operator-handoff.json'
   'checksum-binding the six collection actions, templates, validator commands, bundle template, and negative fixtures'
   'grouping the current dirty working tree into review/commit slices without staging, committing, or claiming public-launch evidence'
   'Native/Bevy keyboard replay, classic animation preview/selector, classic player motion, action coach, player HUD/debug layer, player UI rescue, live-window screenshot and mouse hit-test evidence, sprite texture sampling, sampled texture live-window correlation, render asset eligibility, CEX adapter readiness'
   'It does not claim GPU upload, render-world extraction completion, Android S5 real-device readiness, or external public-launch readiness.'
+  'packet artifact count now at `128`'
+  'current packet at artifact count `128`'
+  'whole-screen First Contact readability'
+  'public-launch blockers preserved'
 )
 
 for line in "${required_lines[@]}"; do
@@ -52,4 +58,4 @@ for line in "${required_lines[@]}"; do
   fi
 done
 
-echo "[PASS] README keeps Trillionnium World release review quickcheck/status/convergence/packet/integrity/ci-gate/checkpoint commands, S5 collection+validation, strict mode, output files, and Android S5 boundary"
+echo "[PASS] README keeps Trillionnium World release review quickcheck/status/convergence/packet/integrity/ci-gate/checkpoint/next-plan commands, S5 collection+validation, strict mode, output files, and Android S5 boundary"

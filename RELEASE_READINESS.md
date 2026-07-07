@@ -1,6 +1,6 @@
 # TRNM Release Readiness
 
-Updated date: 2026-05-17
+Updated date: 2026-07-07
 Scope: When citing this file, you must always record the current output of `git rev-parse origin/main`. Do not keep using a fixed commit hash from an older doc header as a permanent truth source.
 
 > This file is the active **release readiness truth source**.
@@ -58,7 +58,7 @@ Current major drift risks include:
 - **Contract**: `trillionnium_world_release_review_ci_gate_v1`.
 - **Expected local status while blockers remain**: `release_review_ci_gate_green_with_public_launch_blockers`.
 - **Current interpretation**: `ready_for_release_review=true`, `public_launch_ready=false`, `android_s5_real_device_claimed=false`, and proof scope is host-side Native/Bevy local playability, texture sampling/correlation, render-asset eligibility, and CEX adapter readiness only. Classic low-spec RTS readiness is included inside host-side Native/Bevy local playability.
-- **What it proves**: packet integrity, static release-review guards, README links, workflow script refs, release convergence/status/quickcheck/signoff summary semantics, direct CEX adapter readiness semantics, and Native/Bevy host-side local playability evidence are connected for review handoff. That local evidence currently includes keyboard replay, action coach, player HUD/debug layer, classic low-spec playtest readiness with RTS control-loop evidence, live-window screenshot sequence, sprite texture sampling, sampled texture live-window correlation, render asset eligibility, public-launch local-playability consumption, and CEX production adapter readiness artifacts with direct protocol/role/count/source checks.
+- **What it proves**: packet integrity, static release-review guards, README links, workflow script refs, release convergence/status/quickcheck/signoff summary semantics, direct CEX adapter readiness semantics, and Native/Bevy host-side local playability evidence are connected for review handoff. The current packet integrity artifact reports `artifact_count=128` and `failed_check_count=0`. That local evidence currently includes keyboard replay, action coach, player HUD/debug layer, classic low-spec playtest readiness with RTS control-loop evidence, live-window screenshot sequence, sprite texture sampling, sampled texture live-window correlation, render asset eligibility, public-launch local-playability consumption, and CEX production adapter readiness artifacts with direct protocol/role/count/source checks.
 - **What it does not prove**: Android S5 real-device launch/FPS/lifecycle/crash-free readiness, production/public map-pack readiness, first beta cohort evidence, commercial launch drill evidence, multi-node or live-traffic latency, or public-network live exposure.
 - **Still required before public launch readiness**: S5 Android real-device matrix, production map-pack public evidence, first beta cohort evidence, commercial launch drill evidence, multi-node/live-traffic latency evidence, and public-network live exposure evidence.
 

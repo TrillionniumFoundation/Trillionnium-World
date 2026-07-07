@@ -81,6 +81,7 @@ run_check bash_syntax bash -n \
   "$ROOT/scripts/check_trillionnium_world_release_review_convergence.sh" \
   "$ROOT/scripts/check_trillionnium_world_release_review_packet.sh" \
   "$ROOT/scripts/check_trillionnium_world_release_review_packet_integrity.sh" \
+  "$ROOT/scripts/check_trillionnium_world_next_execution_plan.sh" \
   "$ROOT/scripts/check_trillionnium_world_release_review_packet_integrity_semantic_fixture.sh" \
   "$ROOT/scripts/check_trillionnium_world_release_review_packet_integrity_bot_executor_semantic_fixture.sh" \
   "$ROOT/scripts/check_trillionnium_world_release_review_packet_integrity_bot_executor_matrix_semantic_fixture.sh" \
@@ -290,6 +291,7 @@ run_check bash_syntax bash -n \
   "$ROOT/scripts/check_trillionnium_world_map_modeling_gate.sh" \
   "$ROOT/scripts/check_trillionnium_world_ui_map_modeling_full_alignment.sh" \
   "$ROOT/scripts/v2/root_readme_world_release_review_quickcheck_guard_test.sh" \
+  "$ROOT/scripts/v2/world_next_execution_plan_script_contract_guard_test.sh" \
   "$ROOT/scripts/v2/release_review_status_script_contract_guard_test.sh" \
   "$ROOT/scripts/v2/release_review_convergence_script_contract_guard_test.sh" \
   "$ROOT/scripts/v2/release_review_packet_script_contract_guard_test.sh" \
@@ -986,6 +988,7 @@ run_check ui_map_modeling_full_alignment_contract_guard "$ROOT/scripts/v2/ui_map
 run_check ui_map_modeling_full_alignment_gate env TRNM_WORLD_FULL_ALIGNMENT_REFRESH=0 "$ROOT/scripts/check_trillionnium_world_ui_map_modeling_full_alignment.sh"
 run_check production_map_pack_public_evidence_artifact_guard "$ROOT/scripts/v2/production_map_pack_public_evidence_artifact_guard_test.sh"
 run_check readme_release_review_guard "$ROOT/scripts/v2/root_readme_world_release_review_quickcheck_guard_test.sh"
+run_check world_next_execution_plan_contract_guard "$ROOT/scripts/v2/world_next_execution_plan_script_contract_guard_test.sh"
 run_check release_review_quickcheck_gate "$ROOT/scripts/check_trillionnium_world_release_review_quickcheck.sh"
 run_check release_review_status_gate "$ROOT/scripts/check_trillionnium_world_release_review_status.sh"
 run_check release_review_convergence_gate "$ROOT/scripts/check_trillionnium_world_release_review_convergence.sh"
@@ -1001,6 +1004,7 @@ run_check packet_integrity_semantic_fixture_suite_gate env \
   TRNM_RELEASE_REVIEW_PACKET_INTEGRITY_SEMANTIC_FIXTURE_PACKET_MD="$ACCEPTANCE_DIR/release-review-packet.md" \
   "$ROOT/scripts/check_trillionnium_world_release_review_packet_integrity_semantic_fixture_suite.sh"
 run_check packet_integrity_gate "$ROOT/scripts/check_trillionnium_world_release_review_packet_integrity.sh" --no-refresh
+run_check world_next_execution_plan "$ROOT/scripts/check_trillionnium_world_next_execution_plan.sh"
 run_check readme_local_links "$ROOT/scripts/check_root_readme_local_links.sh"
 run_check workflow_script_refs env \
   WORKFLOW_SCRIPT_REF_STRICT=1 \
