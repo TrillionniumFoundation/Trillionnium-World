@@ -63,6 +63,8 @@ blockers.
    - commercial launch drill evidence
    - multi-node or live-traffic latency evidence
    - public-network live exposure evidence
+   - blocker execution ledger:
+     `docs/development/trillionnium-world-public-launch-blocker-execution-ledger-2026-07-07.md`
 
 ## Operating Rule
 

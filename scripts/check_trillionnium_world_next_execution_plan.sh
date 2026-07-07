@@ -21,6 +21,9 @@ REVIEWER_HANDOFF_INDEX_JSON="$ACCEPTANCE_DIR/trillionnium-world-reviewer-handoff
 REVIEW_SLICE_STRATEGY_DOC="$ROOT/docs/development/trillionnium-world-review-slice-strategy-2026-07-07.md"
 REVIEW_SLICE_STRATEGY_DOC_REL="docs/development/trillionnium-world-review-slice-strategy-2026-07-07.md"
 REVIEW_SLICE_STRATEGY_JSON="$ACCEPTANCE_DIR/trillionnium-world-review-slice-strategy.json"
+PUBLIC_LAUNCH_BLOCKER_LEDGER_DOC="$ROOT/docs/development/trillionnium-world-public-launch-blocker-execution-ledger-2026-07-07.md"
+PUBLIC_LAUNCH_BLOCKER_LEDGER_DOC_REL="docs/development/trillionnium-world-public-launch-blocker-execution-ledger-2026-07-07.md"
+PUBLIC_LAUNCH_BLOCKER_LEDGER_JSON="$ACCEPTANCE_DIR/trillionnium-world-public-launch-blocker-execution-ledger.json"
 PACKET_JSON="$ACCEPTANCE_DIR/release-review-packet-integrity.json"
 PUBLIC_LAUNCH_JSON="$ACCEPTANCE_DIR/public-launch-readiness.json"
 RUNNER_JSON="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-runner-status.json"
@@ -57,6 +60,7 @@ require_file "$PLAYTEST_RUNBOOK_DOC"
 require_file "$EVIDENCE_VOLUME_CURATION_DOC"
 require_file "$REVIEWER_HANDOFF_INDEX_DOC"
 require_file "$REVIEW_SLICE_STRATEGY_DOC"
+require_file "$PUBLIC_LAUNCH_BLOCKER_LEDGER_DOC"
 require_file "$PACKET_JSON"
 require_file "$PUBLIC_LAUNCH_JSON"
 require_file "$RUNNER_JSON"
@@ -72,6 +76,7 @@ require_text "$DOC" "trillionnium-world-first-contact-human-playtest-runbook-202
 require_text "$DOC" "trillionnium-world-evidence-volume-curation-2026-07-07.md"
 require_text "$DOC" "trillionnium-world-reviewer-handoff-index-2026-07-07.md"
 require_text "$DOC" "trillionnium-world-review-slice-strategy-2026-07-07.md"
+require_text "$DOC" "trillionnium-world-public-launch-blocker-execution-ledger-2026-07-07.md"
 require_text "$READABILITY_REVIEW_DOC" "The central beacon fight is still the dominant whole-screen readability risk."
 require_text "$READABILITY_REVIEW_DOC" "Do a product-level silhouette and composition pass around the active center"
 require_text "$READABILITY_REVIEW_DOC" "Use the five-step human playtest path to log the first three confusion points"
@@ -100,6 +105,10 @@ require_text "$REVIEW_SLICE_STRATEGY_DOC" "Do not push, rebase, force-push, rese
 require_text "$REVIEW_SLICE_STRATEGY_DOC" '| `release_truth_and_public_boundary` |'
 require_text "$REVIEW_SLICE_STRATEGY_DOC" '| `first_contact_product_readability` |'
 require_text "$REVIEW_SLICE_STRATEGY_DOC" '| `external_evidence_collection_blockers` |'
+require_text "$PUBLIC_LAUNCH_BLOCKER_LEDGER_DOC" "Status: local blocker execution ledger."
+require_text "$PUBLIC_LAUNCH_BLOCKER_LEDGER_DOC" "Do not use templates, status-only files, host-side screenshots"
+require_text "$PUBLIC_LAUNCH_BLOCKER_LEDGER_DOC" '| `s5_real_device_matrix` |'
+require_text "$PUBLIC_LAUNCH_BLOCKER_LEDGER_DOC" '| `public_network_live_exposure_evidence` |'
 
 "$ROOT/scripts/check_trillionnium_world_first_contact_human_playtest_observation_log.sh" >/dev/null
 require_file "$PLAYTEST_OBSERVATION_LOG_JSON"
@@ -154,8 +163,8 @@ require_file "$REVIEWER_HANDOFF_INDEX_JSON"
 jq -e '
   .contract_version == "trillionnium_world_reviewer_handoff_index_v1"
   and .status == "reviewer_handoff_index_green_with_public_launch_blockers"
-  and .artifact_count == 24
-  and .reviewer_summary_count == 10
+  and .artifact_count == 25
+  and .reviewer_summary_count == 11
   and .live_player_screen_count == 3
   and .representative_visual_count == 5
   and .raw_visual_archive_candidate_count == 6
@@ -182,6 +191,24 @@ jq -e '
   and .public_launch_ready_claimed == false
   and .android_s5_real_device_claimed == false
 ' "$REVIEW_SLICE_STRATEGY_JSON" >/dev/null
+
+"$ROOT/scripts/check_trillionnium_world_public_launch_blocker_execution_ledger.sh" >/dev/null
+require_file "$PUBLIC_LAUNCH_BLOCKER_LEDGER_JSON"
+jq -e '
+  .contract_version == "trillionnium_world_public_launch_blocker_execution_ledger_v1"
+  and .status == "public_launch_blocker_execution_ledger_ready_for_real_evidence_collection"
+  and .blocker_count == 6
+  and .evidence_item_count == 6
+  and .needs_collection_count == 6
+  and .green_evidence_item_count == 0
+  and .blocker_consistency_failed_check_count == 0
+  and .public_launch_ready == false
+  and .android_s5_real_device_claimed == false
+  and .live_map_ingestion_performed == false
+  and .live_public_exposure_performed == false
+  and .android_device_capture_performed == false
+  and .local_substitutes_rejected == true
+' "$PUBLIC_LAUNCH_BLOCKER_LEDGER_JSON" >/dev/null
 
 packet_status="$(jq -r '.status // "missing"' "$PACKET_JSON")"
 packet_green="$(jq -r '.green // false' "$PACKET_JSON")"
@@ -215,6 +242,12 @@ reviewer_handoff_index_publish_performed="$(jq -r 'if has("publish_performed") t
 review_slice_strategy_status="$(jq -r '.status // "missing"' "$REVIEW_SLICE_STRATEGY_JSON")"
 review_slice_count="$(jq -r '.review_slice_count // 0' "$REVIEW_SLICE_STRATEGY_JSON")"
 review_slice_external_action_performed="$(jq -r 'if has("external_action_performed") then .external_action_performed else true end' "$REVIEW_SLICE_STRATEGY_JSON")"
+blocker_execution_ledger_status="$(jq -r '.status // "missing"' "$PUBLIC_LAUNCH_BLOCKER_LEDGER_JSON")"
+blocker_execution_ledger_needs_collection_count="$(jq -r '.needs_collection_count // 0' "$PUBLIC_LAUNCH_BLOCKER_LEDGER_JSON")"
+blocker_execution_ledger_green_evidence_item_count="$(jq -r '.green_evidence_item_count // 0' "$PUBLIC_LAUNCH_BLOCKER_LEDGER_JSON")"
+blocker_execution_ledger_consistency_failed_check_count="$(jq -r '.blocker_consistency_failed_check_count // 999' "$PUBLIC_LAUNCH_BLOCKER_LEDGER_JSON")"
+blocker_execution_ledger_live_public_exposure_performed="$(jq -r 'if has("live_public_exposure_performed") then .live_public_exposure_performed else true end' "$PUBLIC_LAUNCH_BLOCKER_LEDGER_JSON")"
+blocker_execution_ledger_device_capture_performed="$(jq -r 'if has("android_device_capture_performed") then .android_device_capture_performed else true end' "$PUBLIC_LAUNCH_BLOCKER_LEDGER_JSON")"
 
 public_launch_ready="$(jq -r '.public_launch_ready // false' "$PUBLIC_LAUNCH_JSON")"
 android_s5_real_device_claimed="$(jq -r '.android_s5_real_device_claimed // false' "$PUBLIC_LAUNCH_JSON")"
@@ -260,7 +293,7 @@ risks_json="$(jq -nc '[
     id: "external_public_launch_evidence_gap",
     severity: "blocking",
     status: "blocked_on_real_evidence",
-    next_action: "collect the six real external evidence bundles without granting template or host-side credit"
+    next_action: "execute the six-row blocker ledger with real external evidence, without granting template or host-side credit"
   },
   {
     id: "documentation_truth_source_drift",
@@ -312,7 +345,7 @@ work_queue_json="$(jq -nc '[
     id: "real_external_evidence_collection",
     priority: 5,
     scope: "external_evidence",
-    done_when: "all six public-launch evidence validators pass on real non-template artifacts"
+    done_when: "the blocker execution ledger reaches zero needs_collection rows and all six validators pass on real non-template artifacts"
   }
 ]')"
 
@@ -331,11 +364,13 @@ jq -n \
   --arg evidence_volume_curation_doc "$EVIDENCE_VOLUME_CURATION_DOC_REL" \
   --arg reviewer_handoff_index_doc "$REVIEWER_HANDOFF_INDEX_DOC_REL" \
   --arg review_slice_strategy_doc "$REVIEW_SLICE_STRATEGY_DOC_REL" \
+  --arg public_launch_blocker_ledger_doc "$PUBLIC_LAUNCH_BLOCKER_LEDGER_DOC_REL" \
   --arg observation_status "$observation_status" \
   --arg runbook_status "$runbook_status" \
   --arg evidence_volume_status "$evidence_volume_status" \
   --arg reviewer_handoff_index_status "$reviewer_handoff_index_status" \
   --arg review_slice_strategy_status "$review_slice_strategy_status" \
+  --arg blocker_execution_ledger_status "$blocker_execution_ledger_status" \
   --argjson green "$green" \
   --argjson packet_gate "$packet_gate" \
   --argjson packet_artifact_count "$packet_artifact_count" \
@@ -360,6 +395,11 @@ jq -n \
   --argjson reviewer_handoff_index_publish_performed "$reviewer_handoff_index_publish_performed" \
   --argjson review_slice_count "$review_slice_count" \
   --argjson review_slice_external_action_performed "$review_slice_external_action_performed" \
+  --argjson blocker_execution_ledger_needs_collection_count "$blocker_execution_ledger_needs_collection_count" \
+  --argjson blocker_execution_ledger_green_evidence_item_count "$blocker_execution_ledger_green_evidence_item_count" \
+  --argjson blocker_execution_ledger_consistency_failed_check_count "$blocker_execution_ledger_consistency_failed_check_count" \
+  --argjson blocker_execution_ledger_live_public_exposure_performed "$blocker_execution_ledger_live_public_exposure_performed" \
+  --argjson blocker_execution_ledger_device_capture_performed "$blocker_execution_ledger_device_capture_performed" \
   --argjson public_launch_blocker_gate "$public_launch_blocker_gate" \
   --argjson public_launch_ready "$public_launch_ready" \
   --argjson android_s5_real_device_claimed "$android_s5_real_device_claimed" \
@@ -453,6 +493,17 @@ jq -n \
       external_action_performed: $review_slice_external_action_performed,
       no_credit_boundary: "local review slicing only; no push, rebase, reset, public launch, Android S5 real-device, beta, production-ready UI, commercial, multi-node, or public-network credit"
     },
+    public_launch_blocker_execution_ledger: {
+      doc_path: $public_launch_blocker_ledger_doc,
+      artifact_path: "acceptance/S6_public_launch/latest/trillionnium-world-public-launch-blocker-execution-ledger.json",
+      status: $blocker_execution_ledger_status,
+      needs_collection_count: $blocker_execution_ledger_needs_collection_count,
+      green_evidence_item_count: $blocker_execution_ledger_green_evidence_item_count,
+      blocker_consistency_failed_check_count: $blocker_execution_ledger_consistency_failed_check_count,
+      live_public_exposure_performed: $blocker_execution_ledger_live_public_exposure_performed,
+      android_device_capture_performed: $blocker_execution_ledger_device_capture_performed,
+      no_credit_boundary: "local blocker execution ledger only; no public launch, Android S5 real-device, beta, production-ready UI, commercial, multi-node, live-traffic, public-network, live-ingestion, or device-capture credit"
+    },
     public_launch: {
       public_launch_ready: $public_launch_ready,
       android_s5_real_device_claimed: $android_s5_real_device_claimed,
@@ -479,12 +530,17 @@ jq -e '
   and .evidence_volume_curation.large_file_count > 100
   and .evidence_volume_curation.deletion_performed == false
   and .evidence_volume_curation.archive_movement_performed == false
-  and .reviewer_handoff_index.artifact_count == 24
+  and .reviewer_handoff_index.artifact_count == 25
   and .reviewer_handoff_index.representative_visual_count == 5
   and .reviewer_handoff_index.upload_performed == false
   and .reviewer_handoff_index.publish_performed == false
   and .review_slice_strategy.review_slice_count == 6
   and .review_slice_strategy.external_action_performed == false
+  and .public_launch_blocker_execution_ledger.needs_collection_count == 6
+  and .public_launch_blocker_execution_ledger.green_evidence_item_count == 0
+  and .public_launch_blocker_execution_ledger.blocker_consistency_failed_check_count == 0
+  and .public_launch_blocker_execution_ledger.live_public_exposure_performed == false
+  and .public_launch_blocker_execution_ledger.android_device_capture_performed == false
   and .public_launch.public_launch_ready == false
   and .public_launch.android_s5_real_device_claimed == false
 ' "$SUMMARY_JSON" >/dev/null
@@ -503,6 +559,7 @@ jq -e '
   printf -- '- evidence-volume curation: `%s`\n\n' "$EVIDENCE_VOLUME_CURATION_DOC_REL"
   printf -- '- reviewer handoff index: `%s`\n\n' "$REVIEWER_HANDOFF_INDEX_DOC_REL"
   printf -- '- review-slice strategy: `%s`\n\n' "$REVIEW_SLICE_STRATEGY_DOC_REL"
+  printf -- '- public-launch blocker execution ledger: `%s`\n\n' "$PUBLIC_LAUNCH_BLOCKER_LEDGER_DOC_REL"
   printf '## Risks\n\n'
   jq -r '.risks[] | "- `\(.id)`: \(.next_action)"' "$SUMMARY_JSON"
   printf '\n## Work Queue\n\n'
