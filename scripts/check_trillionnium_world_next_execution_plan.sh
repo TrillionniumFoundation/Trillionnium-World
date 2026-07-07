@@ -9,6 +9,9 @@ READABILITY_REVIEW_DOC_REL="docs/development/trillionnium-world-first-contact-re
 PLAYTEST_OBSERVATION_LOG_DOC="$ROOT/docs/development/trillionnium-world-first-contact-human-playtest-observation-log-2026-07-07.md"
 PLAYTEST_OBSERVATION_LOG_DOC_REL="docs/development/trillionnium-world-first-contact-human-playtest-observation-log-2026-07-07.md"
 PLAYTEST_OBSERVATION_LOG_JSON="$ACCEPTANCE_DIR/first-contact-human-playtest-observation-log.json"
+PLAYTEST_RUNBOOK_DOC="$ROOT/docs/development/trillionnium-world-first-contact-human-playtest-runbook-2026-07-07.md"
+PLAYTEST_RUNBOOK_DOC_REL="docs/development/trillionnium-world-first-contact-human-playtest-runbook-2026-07-07.md"
+PLAYTEST_RUNBOOK_JSON="$ACCEPTANCE_DIR/first-contact-human-playtest-runbook.json"
 PACKET_JSON="$ACCEPTANCE_DIR/release-review-packet-integrity.json"
 PUBLIC_LAUNCH_JSON="$ACCEPTANCE_DIR/public-launch-readiness.json"
 RUNNER_JSON="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-runner-status.json"
@@ -41,6 +44,7 @@ require_text() {
 require_file "$DOC"
 require_file "$READABILITY_REVIEW_DOC"
 require_file "$PLAYTEST_OBSERVATION_LOG_DOC"
+require_file "$PLAYTEST_RUNBOOK_DOC"
 require_file "$PACKET_JSON"
 require_file "$PUBLIC_LAUNCH_JSON"
 require_file "$RUNNER_JSON"
@@ -52,15 +56,23 @@ require_text "$DOC" 'packet binding: `bevy-classic-playtest-handoff-packet`'
 require_text "$DOC" "Do not keep shrinking already-gated micro cues"
 require_text "$DOC" "trillionnium-world-first-contact-readability-review-2026-07-07.md"
 require_text "$DOC" "trillionnium-world-first-contact-human-playtest-observation-log-2026-07-07.md"
+require_text "$DOC" "trillionnium-world-first-contact-human-playtest-runbook-2026-07-07.md"
 require_text "$READABILITY_REVIEW_DOC" "The central beacon fight is still the dominant whole-screen readability risk."
 require_text "$READABILITY_REVIEW_DOC" "Do a product-level silhouette and composition pass around the active center"
 require_text "$READABILITY_REVIEW_DOC" "Use the five-step human playtest path to log the first three confusion points"
 require_text "$READABILITY_REVIEW_DOC" "trillionnium-world-first-contact-human-playtest-observation-log-2026-07-07.md"
+require_text "$READABILITY_REVIEW_DOC" "trillionnium-world-first-contact-human-playtest-runbook-2026-07-07.md"
 require_text "$PLAYTEST_OBSERVATION_LOG_DOC" "Status: pre-human-playtest observation seed."
 require_text "$PLAYTEST_OBSERVATION_LOG_DOC" "Record the first three moments where the tester hesitates"
 require_text "$PLAYTEST_OBSERVATION_LOG_DOC" '| 3 | `secure_beacon` |'
 require_text "$PLAYTEST_OBSERVATION_LOG_DOC" '| 5 | `recover_blocked_route` |'
 require_text "$PLAYTEST_OBSERVATION_LOG_DOC" "This log has three recorded human-observed confusion points"
+require_text "$PLAYTEST_OBSERVATION_LOG_DOC" "trillionnium-world-first-contact-human-playtest-runbook-2026-07-07.md"
+require_text "$PLAYTEST_RUNBOOK_DOC" "Status: pre-human-playtest runbook."
+require_text "$PLAYTEST_RUNBOOK_DOC" "One observer, one local tester, one five-step path."
+require_text "$PLAYTEST_RUNBOOK_DOC" "Read only the fixed prompt for each task"
+require_text "$PLAYTEST_RUNBOOK_DOC" "Stop after the first three confusion points are recorded."
+require_text "$PLAYTEST_RUNBOOK_DOC" '| 5 | `recover_blocked_route` |'
 
 "$ROOT/scripts/check_trillionnium_world_first_contact_human_playtest_observation_log.sh" >/dev/null
 require_file "$PLAYTEST_OBSERVATION_LOG_JSON"
@@ -76,6 +88,24 @@ jq -e '
   and .public_launch_ready_claimed == false
   and .android_s5_real_device_claimed == false
 ' "$PLAYTEST_OBSERVATION_LOG_JSON" >/dev/null
+
+"$ROOT/scripts/check_trillionnium_world_first_contact_human_playtest_runbook.sh" >/dev/null
+require_file "$PLAYTEST_RUNBOOK_JSON"
+jq -e '
+  .contract_version == "trillionnium_world_first_contact_human_playtest_runbook_v1"
+  and .status == "pre_human_playtest_runbook_ready"
+  and .task_count == 5
+  and .required_confusion_point_count == 3
+  and .runbook_prompts_bound == true
+  and .pass_signals_bound == true
+  and .confusion_triggers_bound == true
+  and .recording_schema_bound == true
+  and .ready_for_renderer_change_from_human_observation == false
+  and .human_playtest_completion_claimed == false
+  and .beta_cohort_evidence_claimed == false
+  and .public_launch_ready_claimed == false
+  and .android_s5_real_device_claimed == false
+' "$PLAYTEST_RUNBOOK_JSON" >/dev/null
 
 packet_status="$(jq -r '.status // "missing"' "$PACKET_JSON")"
 packet_green="$(jq -r '.green // false' "$PACKET_JSON")"
@@ -93,6 +123,10 @@ recorded_confusion_point_count="$(jq -r '.recorded_confusion_point_count // 0' "
 unrecorded_slot_count="$(jq -r '.unrecorded_slot_count // 0' "$PLAYTEST_OBSERVATION_LOG_JSON")"
 first_three_confusion_points_recorded="$(jq -r '.first_three_confusion_points_recorded // false' "$PLAYTEST_OBSERVATION_LOG_JSON")"
 ready_for_renderer_change_from_human_observation="$(jq -r '.ready_for_renderer_change_from_human_observation // false' "$PLAYTEST_OBSERVATION_LOG_JSON")"
+runbook_status="$(jq -r '.status // "missing"' "$PLAYTEST_RUNBOOK_JSON")"
+runbook_prompts_bound="$(jq -r '.runbook_prompts_bound // false' "$PLAYTEST_RUNBOOK_JSON")"
+runbook_confusion_triggers_bound="$(jq -r '.confusion_triggers_bound // false' "$PLAYTEST_RUNBOOK_JSON")"
+runbook_recording_schema_bound="$(jq -r '.recording_schema_bound // false' "$PLAYTEST_RUNBOOK_JSON")"
 
 public_launch_ready="$(jq -r '.public_launch_ready // false' "$PUBLIC_LAUNCH_JSON")"
 android_s5_real_device_claimed="$(jq -r '.android_s5_real_device_claimed // false' "$PUBLIC_LAUNCH_JSON")"
@@ -205,7 +239,9 @@ jq -n \
   --arg runner_screenshot_path "$runner_screenshot_path" \
   --arg readability_review_doc "$READABILITY_REVIEW_DOC_REL" \
   --arg playtest_observation_log_doc "$PLAYTEST_OBSERVATION_LOG_DOC_REL" \
+  --arg playtest_runbook_doc "$PLAYTEST_RUNBOOK_DOC_REL" \
   --arg observation_status "$observation_status" \
+  --arg runbook_status "$runbook_status" \
   --argjson green "$green" \
   --argjson packet_gate "$packet_gate" \
   --argjson packet_artifact_count "$packet_artifact_count" \
@@ -218,6 +254,9 @@ jq -n \
   --argjson unrecorded_slot_count "$unrecorded_slot_count" \
   --argjson first_three_confusion_points_recorded "$first_three_confusion_points_recorded" \
   --argjson ready_for_renderer_change_from_human_observation "$ready_for_renderer_change_from_human_observation" \
+  --argjson runbook_prompts_bound "$runbook_prompts_bound" \
+  --argjson runbook_confusion_triggers_bound "$runbook_confusion_triggers_bound" \
+  --argjson runbook_recording_schema_bound "$runbook_recording_schema_bound" \
   --argjson public_launch_blocker_gate "$public_launch_blocker_gate" \
   --argjson public_launch_ready "$public_launch_ready" \
   --argjson android_s5_real_device_claimed "$android_s5_real_device_claimed" \
@@ -273,6 +312,16 @@ jq -n \
       task_ids: ["start_campaign", "select_units", "secure_beacon", "read_command_queue", "recover_blocked_route"],
       no_credit_boundary: "not beta, public launch, Android S5 real-device, production-ready UI, or commercial launch evidence"
     },
+    human_playtest_runbook: {
+      doc_path: $playtest_runbook_doc,
+      artifact_path: "acceptance/S6_public_launch/latest/first-contact-human-playtest-runbook.json",
+      status: $runbook_status,
+      prompts_bound: $runbook_prompts_bound,
+      confusion_triggers_bound: $runbook_confusion_triggers_bound,
+      recording_schema_bound: $runbook_recording_schema_bound,
+      ready_for_renderer_change_from_human_observation: false,
+      no_credit_boundary: "runbook only; not beta, public launch, Android S5 real-device, production-ready UI, commercial launch, or human tester completion evidence"
+    },
     public_launch: {
       public_launch_ready: $public_launch_ready,
       android_s5_real_device_claimed: $android_s5_real_device_claimed,
@@ -297,6 +346,7 @@ jq -n \
   printf -- '- Android S5 real-device claimed: `%s`\n\n' "$android_s5_real_device_claimed"
   printf -- '- readability review: `%s`\n\n' "$READABILITY_REVIEW_DOC_REL"
   printf -- '- playtest observation log: `%s`\n\n' "$PLAYTEST_OBSERVATION_LOG_DOC_REL"
+  printf -- '- playtest runbook: `%s`\n\n' "$PLAYTEST_RUNBOOK_DOC_REL"
   printf '## Risks\n\n'
   jq -r '.risks[] | "- `\(.id)`: \(.next_action)"' "$SUMMARY_JSON"
   printf '\n## Work Queue\n\n'

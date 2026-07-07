@@ -21,6 +21,8 @@ isolated micro-cue adjustment.
   `acceptance/S5_native_bevy_device/latest/manual_bevy/bevy-classic-player-screen-runner-status.png`
 - Current readability review:
   `docs/development/trillionnium-world-first-contact-readability-review-2026-07-07.md`
+- Observer runbook:
+  `docs/development/trillionnium-world-first-contact-human-playtest-runbook-2026-07-07.md`
 
 ## Observation Rules
 
@@ -32,6 +34,8 @@ isolated micro-cue adjustment.
   already-gated exact-color micro cues.
 - Preserve public-launch, Android S5, beta, and production-readiness no-claim
   boundaries.
+- Use the observer runbook fixed prompts and confusion triggers so observations
+  are comparable across local runs.
 
 ## Five-Step Path
 

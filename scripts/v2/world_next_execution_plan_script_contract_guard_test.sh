@@ -4,9 +4,11 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 SCRIPT="$ROOT/scripts/check_trillionnium_world_next_execution_plan.sh"
 OBSERVATION_LOG_SCRIPT="$ROOT/scripts/check_trillionnium_world_first_contact_human_playtest_observation_log.sh"
+RUNBOOK_SCRIPT="$ROOT/scripts/check_trillionnium_world_first_contact_human_playtest_runbook.sh"
 DOC="$ROOT/docs/development/trillionnium-world-next-execution-plan-v1.md"
 READABILITY_REVIEW_DOC="$ROOT/docs/development/trillionnium-world-first-contact-readability-review-2026-07-07.md"
 PLAYTEST_OBSERVATION_LOG_DOC="$ROOT/docs/development/trillionnium-world-first-contact-human-playtest-observation-log-2026-07-07.md"
+PLAYTEST_RUNBOOK_DOC="$ROOT/docs/development/trillionnium-world-first-contact-human-playtest-runbook-2026-07-07.md"
 
 required_script_lines=(
   'trillionnium_world_next_execution_plan_v1'
@@ -19,6 +21,13 @@ required_script_lines=(
   'trillionnium-world-first-contact-human-playtest-observation-log-2026-07-07.md'
   'human_playtest_observation'
   'first-contact-human-playtest-observation-log.json'
+  'trillionnium-world-first-contact-human-playtest-runbook-2026-07-07.md'
+  'human_playtest_runbook'
+  'first-contact-human-playtest-runbook.json'
+  'pre_human_playtest_runbook_ready'
+  'runbook_prompts_bound'
+  'confusion_triggers_bound'
+  'recording_schema_bound'
   'ready_for_renderer_change_from_human_observation'
   'pre_human_playtest_observation_seed'
   'recorded_confusion_point_count == 0'
@@ -38,6 +47,7 @@ required_doc_lines=(
   'packet binding: `bevy-classic-playtest-handoff-packet`'
   'trillionnium-world-first-contact-readability-review-2026-07-07.md'
   'trillionnium-world-first-contact-human-playtest-observation-log-2026-07-07.md'
+  'trillionnium-world-first-contact-human-playtest-runbook-2026-07-07.md'
   'Do not keep shrinking already-gated micro cues'
 )
 
@@ -45,6 +55,7 @@ required_readability_review_lines=(
   'The central beacon fight is still the dominant whole-screen readability risk.'
   'Do a product-level silhouette and composition pass around the active center'
   'Use the five-step human playtest path to log the first three confusion points'
+  'trillionnium-world-first-contact-human-playtest-runbook-2026-07-07.md'
   'Do not keep shaving already-gated micro cues without a fresh screenshot-visible'
 )
 
@@ -54,6 +65,17 @@ required_playtest_observation_log_lines=(
   '| 3 | `secure_beacon` |'
   '| 5 | `recover_blocked_route` |'
   'This log has three recorded human-observed confusion points'
+  'trillionnium-world-first-contact-human-playtest-runbook-2026-07-07.md'
+)
+
+required_playtest_runbook_lines=(
+  'Status: pre-human-playtest runbook.'
+  'One observer, one local tester, one five-step path.'
+  'Read only the fixed prompt for each task'
+  '| 1 | `start_campaign` |'
+  '| 5 | `recover_blocked_route` |'
+  'Each recorded confusion point should include:'
+  'ready_for_renderer_change_from_human_observation'
 )
 
 required_observation_log_script_lines=(
@@ -67,6 +89,19 @@ required_observation_log_script_lines=(
   'public_launch_ready_claimed == false'
   'android_s5_real_device_claimed == false'
   'TRILLIONNIUM_WORLD_FIRST_CONTACT_HUMAN_PLAYTEST_OBSERVATION_LOG_GREEN'
+)
+
+required_runbook_script_lines=(
+  'trillionnium_world_first_contact_human_playtest_runbook_v1'
+  'first-contact-human-playtest-runbook.json'
+  'pre_human_playtest_runbook_ready'
+  'runbook_prompts_bound'
+  'confusion_triggers_bound'
+  'recording_schema_bound'
+  'human_playtest_completion_claimed'
+  'public_launch_ready_claimed == false'
+  'android_s5_real_device_claimed == false'
+  'TRILLIONNIUM_WORLD_FIRST_CONTACT_HUMAN_PLAYTEST_RUNBOOK_GREEN'
 )
 
 for line in "${required_script_lines[@]}"; do
@@ -97,9 +132,23 @@ for line in "${required_playtest_observation_log_lines[@]}"; do
   fi
 done
 
+for line in "${required_playtest_runbook_lines[@]}"; do
+  if ! grep -Fq -- "$line" "$PLAYTEST_RUNBOOK_DOC"; then
+    echo "[FAIL] playtest runbook missing contract line: $line" >&2
+    exit 1
+  fi
+done
+
 for line in "${required_observation_log_script_lines[@]}"; do
   if ! grep -Fq -- "$line" "$OBSERVATION_LOG_SCRIPT"; then
     echo "[FAIL] playtest observation log script missing contract line: $line" >&2
+    exit 1
+  fi
+done
+
+for line in "${required_runbook_script_lines[@]}"; do
+  if ! grep -Fq -- "$line" "$RUNBOOK_SCRIPT"; then
+    echo "[FAIL] playtest runbook script missing contract line: $line" >&2
     exit 1
   fi
 done

@@ -39,6 +39,8 @@ blockers.
    - recover from blocked route
    - observation log:
      `docs/development/trillionnium-world-first-contact-human-playtest-observation-log-2026-07-07.md`
+   - observer runbook:
+     `docs/development/trillionnium-world-first-contact-human-playtest-runbook-2026-07-07.md`
    - packet binding: `bevy-classic-playtest-handoff-packet` must carry the
      five-step local task path without beta, S5, or public-launch credit
 3. Truth-source hygiene:
