@@ -8,6 +8,7 @@ READABILITY_REVIEW_DOC="$ROOT/docs/development/trillionnium-world-first-contact-
 READABILITY_REVIEW_DOC_REL="docs/development/trillionnium-world-first-contact-readability-review-2026-07-07.md"
 PLAYTEST_OBSERVATION_LOG_DOC="$ROOT/docs/development/trillionnium-world-first-contact-human-playtest-observation-log-2026-07-07.md"
 PLAYTEST_OBSERVATION_LOG_DOC_REL="docs/development/trillionnium-world-first-contact-human-playtest-observation-log-2026-07-07.md"
+PLAYTEST_OBSERVATION_LOG_JSON="$ACCEPTANCE_DIR/first-contact-human-playtest-observation-log.json"
 PACKET_JSON="$ACCEPTANCE_DIR/release-review-packet-integrity.json"
 PUBLIC_LAUNCH_JSON="$ACCEPTANCE_DIR/public-launch-readiness.json"
 RUNNER_JSON="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-runner-status.json"
@@ -61,6 +62,21 @@ require_text "$PLAYTEST_OBSERVATION_LOG_DOC" '| 3 | `secure_beacon` |'
 require_text "$PLAYTEST_OBSERVATION_LOG_DOC" '| 5 | `recover_blocked_route` |'
 require_text "$PLAYTEST_OBSERVATION_LOG_DOC" "This log has three recorded human-observed confusion points"
 
+"$ROOT/scripts/check_trillionnium_world_first_contact_human_playtest_observation_log.sh" >/dev/null
+require_file "$PLAYTEST_OBSERVATION_LOG_JSON"
+jq -e '
+  .contract_version == "trillionnium_world_first_contact_human_playtest_observation_log_v1"
+  and .status == "pre_human_playtest_observation_seed"
+  and .recorded_confusion_point_count == 0
+  and .unrecorded_slot_count == 3
+  and .first_three_confusion_points_recorded == false
+  and .ready_for_renderer_change_from_human_observation == false
+  and .human_playtest_evidence_claimed == false
+  and .beta_cohort_evidence_claimed == false
+  and .public_launch_ready_claimed == false
+  and .android_s5_real_device_claimed == false
+' "$PLAYTEST_OBSERVATION_LOG_JSON" >/dev/null
+
 packet_status="$(jq -r '.status // "missing"' "$PACKET_JSON")"
 packet_green="$(jq -r '.green // false' "$PACKET_JSON")"
 packet_artifact_count="$(jq -r '.artifact_count // 0' "$PACKET_JSON")"
@@ -72,6 +88,11 @@ runner_gate_count="$(jq -r '.gate_count // 0' "$RUNNER_JSON")"
 runner_failed_gate_count="$(jq -r '.failed_gate_count // 999' "$RUNNER_JSON")"
 runner_pid="$(jq -r '.service.main_pid // "unknown"' "$RUNNER_JSON")"
 runner_screenshot_path="$(jq -r '.live_player_screen.screenshot_path // ""' "$RUNNER_JSON")"
+observation_status="$(jq -r '.status // "missing"' "$PLAYTEST_OBSERVATION_LOG_JSON")"
+recorded_confusion_point_count="$(jq -r '.recorded_confusion_point_count // 0' "$PLAYTEST_OBSERVATION_LOG_JSON")"
+unrecorded_slot_count="$(jq -r '.unrecorded_slot_count // 0' "$PLAYTEST_OBSERVATION_LOG_JSON")"
+first_three_confusion_points_recorded="$(jq -r '.first_three_confusion_points_recorded // false' "$PLAYTEST_OBSERVATION_LOG_JSON")"
+ready_for_renderer_change_from_human_observation="$(jq -r '.ready_for_renderer_change_from_human_observation // false' "$PLAYTEST_OBSERVATION_LOG_JSON")"
 
 public_launch_ready="$(jq -r '.public_launch_ready // false' "$PUBLIC_LAUNCH_JSON")"
 android_s5_real_device_claimed="$(jq -r '.android_s5_real_device_claimed // false' "$PUBLIC_LAUNCH_JSON")"
@@ -184,6 +205,7 @@ jq -n \
   --arg runner_screenshot_path "$runner_screenshot_path" \
   --arg readability_review_doc "$READABILITY_REVIEW_DOC_REL" \
   --arg playtest_observation_log_doc "$PLAYTEST_OBSERVATION_LOG_DOC_REL" \
+  --arg observation_status "$observation_status" \
   --argjson green "$green" \
   --argjson packet_gate "$packet_gate" \
   --argjson packet_artifact_count "$packet_artifact_count" \
@@ -192,6 +214,10 @@ jq -n \
   --argjson runner_gate "$runner_gate" \
   --argjson runner_gate_count "$runner_gate_count" \
   --argjson runner_failed_gate_count "$runner_failed_gate_count" \
+  --argjson recorded_confusion_point_count "$recorded_confusion_point_count" \
+  --argjson unrecorded_slot_count "$unrecorded_slot_count" \
+  --argjson first_three_confusion_points_recorded "$first_three_confusion_points_recorded" \
+  --argjson ready_for_renderer_change_from_human_observation "$ready_for_renderer_change_from_human_observation" \
   --argjson public_launch_blocker_gate "$public_launch_blocker_gate" \
   --argjson public_launch_ready "$public_launch_ready" \
   --argjson android_s5_real_device_claimed "$android_s5_real_device_claimed" \
@@ -238,8 +264,12 @@ jq -n \
     },
     human_playtest_observation: {
       doc_path: $playtest_observation_log_doc,
-      status: "pre_human_playtest_observation_seed",
-      first_three_confusion_points_recorded: false,
+      artifact_path: "acceptance/S6_public_launch/latest/first-contact-human-playtest-observation-log.json",
+      status: $observation_status,
+      recorded_confusion_point_count: $recorded_confusion_point_count,
+      unrecorded_slot_count: $unrecorded_slot_count,
+      first_three_confusion_points_recorded: $first_three_confusion_points_recorded,
+      ready_for_renderer_change_from_human_observation: $ready_for_renderer_change_from_human_observation,
       task_ids: ["start_campaign", "select_units", "secure_beacon", "read_command_queue", "recover_blocked_route"],
       no_credit_boundary: "not beta, public launch, Android S5 real-device, production-ready UI, or commercial launch evidence"
     },
