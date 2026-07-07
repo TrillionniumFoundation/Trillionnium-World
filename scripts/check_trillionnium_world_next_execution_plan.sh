@@ -6,6 +6,8 @@ ACCEPTANCE_DIR="$ROOT/acceptance/S6_public_launch/latest"
 DOC="$ROOT/docs/development/trillionnium-world-next-execution-plan-v1.md"
 READABILITY_REVIEW_DOC="$ROOT/docs/development/trillionnium-world-first-contact-readability-review-2026-07-07.md"
 READABILITY_REVIEW_DOC_REL="docs/development/trillionnium-world-first-contact-readability-review-2026-07-07.md"
+PLAYTEST_OBSERVATION_LOG_DOC="$ROOT/docs/development/trillionnium-world-first-contact-human-playtest-observation-log-2026-07-07.md"
+PLAYTEST_OBSERVATION_LOG_DOC_REL="docs/development/trillionnium-world-first-contact-human-playtest-observation-log-2026-07-07.md"
 PACKET_JSON="$ACCEPTANCE_DIR/release-review-packet-integrity.json"
 PUBLIC_LAUNCH_JSON="$ACCEPTANCE_DIR/public-launch-readiness.json"
 RUNNER_JSON="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-runner-status.json"
@@ -37,6 +39,7 @@ require_text() {
 
 require_file "$DOC"
 require_file "$READABILITY_REVIEW_DOC"
+require_file "$PLAYTEST_OBSERVATION_LOG_DOC"
 require_file "$PACKET_JSON"
 require_file "$PUBLIC_LAUNCH_JSON"
 require_file "$RUNNER_JSON"
@@ -47,9 +50,16 @@ require_text "$DOC" "Public launch state: blocked until real external evidence e
 require_text "$DOC" 'packet binding: `bevy-classic-playtest-handoff-packet`'
 require_text "$DOC" "Do not keep shrinking already-gated micro cues"
 require_text "$DOC" "trillionnium-world-first-contact-readability-review-2026-07-07.md"
+require_text "$DOC" "trillionnium-world-first-contact-human-playtest-observation-log-2026-07-07.md"
 require_text "$READABILITY_REVIEW_DOC" "The central beacon fight is still the dominant whole-screen readability risk."
 require_text "$READABILITY_REVIEW_DOC" "Do a product-level silhouette and composition pass around the active center"
 require_text "$READABILITY_REVIEW_DOC" "Use the five-step human playtest path to log the first three confusion points"
+require_text "$READABILITY_REVIEW_DOC" "trillionnium-world-first-contact-human-playtest-observation-log-2026-07-07.md"
+require_text "$PLAYTEST_OBSERVATION_LOG_DOC" "Status: pre-human-playtest observation seed."
+require_text "$PLAYTEST_OBSERVATION_LOG_DOC" "Record the first three moments where the tester hesitates"
+require_text "$PLAYTEST_OBSERVATION_LOG_DOC" '| 3 | `secure_beacon` |'
+require_text "$PLAYTEST_OBSERVATION_LOG_DOC" '| 5 | `recover_blocked_route` |'
+require_text "$PLAYTEST_OBSERVATION_LOG_DOC" "This log has three recorded human-observed confusion points"
 
 packet_status="$(jq -r '.status // "missing"' "$PACKET_JSON")"
 packet_green="$(jq -r '.green // false' "$PACKET_JSON")"
@@ -173,6 +183,7 @@ jq -n \
   --arg runner_pid "$runner_pid" \
   --arg runner_screenshot_path "$runner_screenshot_path" \
   --arg readability_review_doc "$READABILITY_REVIEW_DOC_REL" \
+  --arg playtest_observation_log_doc "$PLAYTEST_OBSERVATION_LOG_DOC_REL" \
   --argjson green "$green" \
   --argjson packet_gate "$packet_gate" \
   --argjson packet_artifact_count "$packet_artifact_count" \
@@ -225,6 +236,13 @@ jq -n \
       current_product_risk: "central beacon fight has too many similarly bright micro accents competing inside the same objective area",
       next_slice: "product-level silhouette and composition pass around the active center objective before further micro-cue shaving"
     },
+    human_playtest_observation: {
+      doc_path: $playtest_observation_log_doc,
+      status: "pre_human_playtest_observation_seed",
+      first_three_confusion_points_recorded: false,
+      task_ids: ["start_campaign", "select_units", "secure_beacon", "read_command_queue", "recover_blocked_route"],
+      no_credit_boundary: "not beta, public launch, Android S5 real-device, production-ready UI, or commercial launch evidence"
+    },
     public_launch: {
       public_launch_ready: $public_launch_ready,
       android_s5_real_device_claimed: $android_s5_real_device_claimed,
@@ -248,6 +266,7 @@ jq -n \
   printf -- '- public launch ready: `%s`\n' "$public_launch_ready"
   printf -- '- Android S5 real-device claimed: `%s`\n\n' "$android_s5_real_device_claimed"
   printf -- '- readability review: `%s`\n\n' "$READABILITY_REVIEW_DOC_REL"
+  printf -- '- playtest observation log: `%s`\n\n' "$PLAYTEST_OBSERVATION_LOG_DOC_REL"
   printf '## Risks\n\n'
   jq -r '.risks[] | "- `\(.id)`: \(.next_action)"' "$SUMMARY_JSON"
   printf '\n## Work Queue\n\n'

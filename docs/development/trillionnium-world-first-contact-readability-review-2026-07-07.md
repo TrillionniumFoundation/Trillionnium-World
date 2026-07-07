@@ -59,6 +59,8 @@ objective:
   read as additional command feedback.
 - Use the five-step human playtest path to log the first three confusion points
   before choosing a renderer change.
+- Seed the observation pass with
+  `docs/development/trillionnium-world-first-contact-human-playtest-observation-log-2026-07-07.md`.
 
 ## Non-Goals
 

@@ -5,6 +5,7 @@ ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 SCRIPT="$ROOT/scripts/check_trillionnium_world_next_execution_plan.sh"
 DOC="$ROOT/docs/development/trillionnium-world-next-execution-plan-v1.md"
 READABILITY_REVIEW_DOC="$ROOT/docs/development/trillionnium-world-first-contact-readability-review-2026-07-07.md"
+PLAYTEST_OBSERVATION_LOG_DOC="$ROOT/docs/development/trillionnium-world-first-contact-human-playtest-observation-log-2026-07-07.md"
 
 required_script_lines=(
   'trillionnium_world_next_execution_plan_v1'
@@ -14,6 +15,9 @@ required_script_lines=(
   'whole_screen_first_contact_readability'
   'trillionnium-world-first-contact-readability-review-2026-07-07.md'
   'readability_review'
+  'trillionnium-world-first-contact-human-playtest-observation-log-2026-07-07.md'
+  'human_playtest_observation'
+  'pre_human_playtest_observation_seed'
   'human_playtest_path'
   'bevy-classic-playtest-handoff-packet.human_playtest_task_path'
   'real_external_evidence_collection'
@@ -26,6 +30,7 @@ required_doc_lines=(
   'Android S5 real-device state: unclaimed until device evidence is collected.'
   'packet binding: `bevy-classic-playtest-handoff-packet`'
   'trillionnium-world-first-contact-readability-review-2026-07-07.md'
+  'trillionnium-world-first-contact-human-playtest-observation-log-2026-07-07.md'
   'Do not keep shrinking already-gated micro cues'
 )
 
@@ -34,6 +39,14 @@ required_readability_review_lines=(
   'Do a product-level silhouette and composition pass around the active center'
   'Use the five-step human playtest path to log the first three confusion points'
   'Do not keep shaving already-gated micro cues without a fresh screenshot-visible'
+)
+
+required_playtest_observation_log_lines=(
+  'Status: pre-human-playtest observation seed.'
+  'Record the first three moments where the tester hesitates'
+  '| 3 | `secure_beacon` |'
+  '| 5 | `recover_blocked_route` |'
+  'This log has three recorded human-observed confusion points'
 )
 
 for line in "${required_script_lines[@]}"; do
@@ -53,6 +66,13 @@ done
 for line in "${required_readability_review_lines[@]}"; do
   if ! grep -Fq -- "$line" "$READABILITY_REVIEW_DOC"; then
     echo "[FAIL] readability review doc missing contract line: $line" >&2
+    exit 1
+  fi
+done
+
+for line in "${required_playtest_observation_log_lines[@]}"; do
+  if ! grep -Fq -- "$line" "$PLAYTEST_OBSERVATION_LOG_DOC"; then
+    echo "[FAIL] playtest observation log missing contract line: $line" >&2
     exit 1
   fi
 done
