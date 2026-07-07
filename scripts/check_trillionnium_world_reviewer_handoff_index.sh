@@ -187,6 +187,11 @@ jq -e '
   and .android_s5_real_device_claimed == false
 ' "$BLOCKER_LEDGER_JSON" >/dev/null
 
+TRNM_RELEASE_REVIEW_PACKET_REFRESH_INPUTS=0 \
+TRNM_RELEASE_REVIEW_PACKET_USE_RELEASE_ARTIFACT_BIN=0 \
+  "$ROOT/scripts/check_trillionnium_world_release_review_packet.sh" >/dev/null
+"$ROOT/scripts/check_trillionnium_world_release_review_packet_integrity.sh" --no-refresh >/dev/null
+
 jq -e '
   .status == "release_review_packet_integrity_green_with_public_launch_blockers"
   and .green == true
