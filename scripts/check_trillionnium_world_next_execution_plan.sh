@@ -15,6 +15,9 @@ PLAYTEST_RUNBOOK_JSON="$ACCEPTANCE_DIR/first-contact-human-playtest-runbook.json
 EVIDENCE_VOLUME_CURATION_DOC="$ROOT/docs/development/trillionnium-world-evidence-volume-curation-2026-07-07.md"
 EVIDENCE_VOLUME_CURATION_DOC_REL="docs/development/trillionnium-world-evidence-volume-curation-2026-07-07.md"
 EVIDENCE_VOLUME_CURATION_JSON="$ACCEPTANCE_DIR/trillionnium-world-evidence-volume-curation.json"
+REVIEWER_HANDOFF_INDEX_DOC="$ROOT/docs/development/trillionnium-world-reviewer-handoff-index-2026-07-07.md"
+REVIEWER_HANDOFF_INDEX_DOC_REL="docs/development/trillionnium-world-reviewer-handoff-index-2026-07-07.md"
+REVIEWER_HANDOFF_INDEX_JSON="$ACCEPTANCE_DIR/trillionnium-world-reviewer-handoff-index.json"
 REVIEW_SLICE_STRATEGY_DOC="$ROOT/docs/development/trillionnium-world-review-slice-strategy-2026-07-07.md"
 REVIEW_SLICE_STRATEGY_DOC_REL="docs/development/trillionnium-world-review-slice-strategy-2026-07-07.md"
 REVIEW_SLICE_STRATEGY_JSON="$ACCEPTANCE_DIR/trillionnium-world-review-slice-strategy.json"
@@ -52,6 +55,7 @@ require_file "$READABILITY_REVIEW_DOC"
 require_file "$PLAYTEST_OBSERVATION_LOG_DOC"
 require_file "$PLAYTEST_RUNBOOK_DOC"
 require_file "$EVIDENCE_VOLUME_CURATION_DOC"
+require_file "$REVIEWER_HANDOFF_INDEX_DOC"
 require_file "$REVIEW_SLICE_STRATEGY_DOC"
 require_file "$PACKET_JSON"
 require_file "$PUBLIC_LAUNCH_JSON"
@@ -66,6 +70,7 @@ require_text "$DOC" "trillionnium-world-first-contact-readability-review-2026-07
 require_text "$DOC" "trillionnium-world-first-contact-human-playtest-observation-log-2026-07-07.md"
 require_text "$DOC" "trillionnium-world-first-contact-human-playtest-runbook-2026-07-07.md"
 require_text "$DOC" "trillionnium-world-evidence-volume-curation-2026-07-07.md"
+require_text "$DOC" "trillionnium-world-reviewer-handoff-index-2026-07-07.md"
 require_text "$DOC" "trillionnium-world-review-slice-strategy-2026-07-07.md"
 require_text "$READABILITY_REVIEW_DOC" "The central beacon fight is still the dominant whole-screen readability risk."
 require_text "$READABILITY_REVIEW_DOC" "Do a product-level silhouette and composition pass around the active center"
@@ -86,6 +91,10 @@ require_text "$PLAYTEST_RUNBOOK_DOC" '| 5 | `recover_blocked_route` |'
 require_text "$EVIDENCE_VOLUME_CURATION_DOC" "Status: local evidence-volume curation plan."
 require_text "$EVIDENCE_VOLUME_CURATION_DOC" "Do not delete, compress, move, archive, rewrite, or prune acceptance evidence"
 require_text "$EVIDENCE_VOLUME_CURATION_DOC" '| `raw_visual_archive_candidate` |'
+require_text "$REVIEWER_HANDOFF_INDEX_DOC" "Status: local reviewer handoff index."
+require_text "$REVIEWER_HANDOFF_INDEX_DOC" "This is an index over existing local evidence, not a new evidence claim."
+require_text "$REVIEWER_HANDOFF_INDEX_DOC" '| `representative_visuals` |'
+require_text "$REVIEWER_HANDOFF_INDEX_DOC" '| `raw_visual_archive_candidates` |'
 require_text "$REVIEW_SLICE_STRATEGY_DOC" "Status: local review-slice strategy."
 require_text "$REVIEW_SLICE_STRATEGY_DOC" "Do not push, rebase, force-push, reset, squash, or delete commits"
 require_text "$REVIEW_SLICE_STRATEGY_DOC" '| `release_truth_and_public_boundary` |'
@@ -140,6 +149,25 @@ jq -e '
   and .android_s5_real_device_claimed == false
 ' "$EVIDENCE_VOLUME_CURATION_JSON" >/dev/null
 
+"$ROOT/scripts/check_trillionnium_world_reviewer_handoff_index.sh" >/dev/null
+require_file "$REVIEWER_HANDOFF_INDEX_JSON"
+jq -e '
+  .contract_version == "trillionnium_world_reviewer_handoff_index_v1"
+  and .status == "reviewer_handoff_index_green_with_public_launch_blockers"
+  and .artifact_count == 24
+  and .reviewer_summary_count == 10
+  and .live_player_screen_count == 3
+  and .representative_visual_count == 5
+  and .raw_visual_archive_candidate_count == 6
+  and .all_sha256_valid == true
+  and .deletion_performed == false
+  and .archive_movement_performed == false
+  and .upload_performed == false
+  and .publish_performed == false
+  and .public_launch_ready == false
+  and .android_s5_real_device_claimed == false
+' "$REVIEWER_HANDOFF_INDEX_JSON" >/dev/null
+
 "$ROOT/scripts/check_trillionnium_world_review_slice_strategy.sh" >/dev/null
 require_file "$REVIEW_SLICE_STRATEGY_JSON"
 jq -e '
@@ -179,6 +207,11 @@ evidence_volume_status="$(jq -r '.status // "missing"' "$EVIDENCE_VOLUME_CURATIO
 evidence_volume_large_file_count="$(jq -r '.large_file_count // 0' "$EVIDENCE_VOLUME_CURATION_JSON")"
 evidence_volume_deletion_performed="$(jq -r 'if has("deletion_performed") then .deletion_performed else true end' "$EVIDENCE_VOLUME_CURATION_JSON")"
 evidence_volume_archive_movement_performed="$(jq -r 'if has("archive_movement_performed") then .archive_movement_performed else true end' "$EVIDENCE_VOLUME_CURATION_JSON")"
+reviewer_handoff_index_status="$(jq -r '.status // "missing"' "$REVIEWER_HANDOFF_INDEX_JSON")"
+reviewer_handoff_index_artifact_count="$(jq -r '.artifact_count // 0' "$REVIEWER_HANDOFF_INDEX_JSON")"
+reviewer_handoff_index_representative_visual_count="$(jq -r '.representative_visual_count // 0' "$REVIEWER_HANDOFF_INDEX_JSON")"
+reviewer_handoff_index_upload_performed="$(jq -r 'if has("upload_performed") then .upload_performed else true end' "$REVIEWER_HANDOFF_INDEX_JSON")"
+reviewer_handoff_index_publish_performed="$(jq -r 'if has("publish_performed") then .publish_performed else true end' "$REVIEWER_HANDOFF_INDEX_JSON")"
 review_slice_strategy_status="$(jq -r '.status // "missing"' "$REVIEW_SLICE_STRATEGY_JSON")"
 review_slice_count="$(jq -r '.review_slice_count // 0' "$REVIEW_SLICE_STRATEGY_JSON")"
 review_slice_external_action_performed="$(jq -r 'if has("external_action_performed") then .external_action_performed else true end' "$REVIEW_SLICE_STRATEGY_JSON")"
@@ -296,10 +329,12 @@ jq -n \
   --arg playtest_observation_log_doc "$PLAYTEST_OBSERVATION_LOG_DOC_REL" \
   --arg playtest_runbook_doc "$PLAYTEST_RUNBOOK_DOC_REL" \
   --arg evidence_volume_curation_doc "$EVIDENCE_VOLUME_CURATION_DOC_REL" \
+  --arg reviewer_handoff_index_doc "$REVIEWER_HANDOFF_INDEX_DOC_REL" \
   --arg review_slice_strategy_doc "$REVIEW_SLICE_STRATEGY_DOC_REL" \
   --arg observation_status "$observation_status" \
   --arg runbook_status "$runbook_status" \
   --arg evidence_volume_status "$evidence_volume_status" \
+  --arg reviewer_handoff_index_status "$reviewer_handoff_index_status" \
   --arg review_slice_strategy_status "$review_slice_strategy_status" \
   --argjson green "$green" \
   --argjson packet_gate "$packet_gate" \
@@ -319,6 +354,10 @@ jq -n \
   --argjson evidence_volume_large_file_count "$evidence_volume_large_file_count" \
   --argjson evidence_volume_deletion_performed "$evidence_volume_deletion_performed" \
   --argjson evidence_volume_archive_movement_performed "$evidence_volume_archive_movement_performed" \
+  --argjson reviewer_handoff_index_artifact_count "$reviewer_handoff_index_artifact_count" \
+  --argjson reviewer_handoff_index_representative_visual_count "$reviewer_handoff_index_representative_visual_count" \
+  --argjson reviewer_handoff_index_upload_performed "$reviewer_handoff_index_upload_performed" \
+  --argjson reviewer_handoff_index_publish_performed "$reviewer_handoff_index_publish_performed" \
   --argjson review_slice_count "$review_slice_count" \
   --argjson review_slice_external_action_performed "$review_slice_external_action_performed" \
   --argjson public_launch_blocker_gate "$public_launch_blocker_gate" \
@@ -396,6 +435,16 @@ jq -n \
       archive_movement_performed: $evidence_volume_archive_movement_performed,
       no_credit_boundary: "local evidence-volume inventory only; no delete, compress, archive, public launch, Android S5 real-device, beta, production-ready UI, commercial, multi-node, or public-network credit"
     },
+    reviewer_handoff_index: {
+      doc_path: $reviewer_handoff_index_doc,
+      artifact_path: "acceptance/S6_public_launch/latest/trillionnium-world-reviewer-handoff-index.json",
+      status: $reviewer_handoff_index_status,
+      artifact_count: $reviewer_handoff_index_artifact_count,
+      representative_visual_count: $reviewer_handoff_index_representative_visual_count,
+      upload_performed: $reviewer_handoff_index_upload_performed,
+      publish_performed: $reviewer_handoff_index_publish_performed,
+      no_credit_boundary: "local reviewer handoff index only; no delete, compress, archive, upload, publish, public launch, Android S5 real-device, beta, production-ready UI, commercial, multi-node, or public-network credit"
+    },
     review_slice_strategy: {
       doc_path: $review_slice_strategy_doc,
       artifact_path: "acceptance/S6_public_launch/latest/trillionnium-world-review-slice-strategy.json",
@@ -430,6 +479,10 @@ jq -e '
   and .evidence_volume_curation.large_file_count > 100
   and .evidence_volume_curation.deletion_performed == false
   and .evidence_volume_curation.archive_movement_performed == false
+  and .reviewer_handoff_index.artifact_count == 24
+  and .reviewer_handoff_index.representative_visual_count == 5
+  and .reviewer_handoff_index.upload_performed == false
+  and .reviewer_handoff_index.publish_performed == false
   and .review_slice_strategy.review_slice_count == 6
   and .review_slice_strategy.external_action_performed == false
   and .public_launch.public_launch_ready == false
@@ -448,6 +501,7 @@ jq -e '
   printf -- '- playtest observation log: `%s`\n\n' "$PLAYTEST_OBSERVATION_LOG_DOC_REL"
   printf -- '- playtest runbook: `%s`\n\n' "$PLAYTEST_RUNBOOK_DOC_REL"
   printf -- '- evidence-volume curation: `%s`\n\n' "$EVIDENCE_VOLUME_CURATION_DOC_REL"
+  printf -- '- reviewer handoff index: `%s`\n\n' "$REVIEWER_HANDOFF_INDEX_DOC_REL"
   printf -- '- review-slice strategy: `%s`\n\n' "$REVIEW_SLICE_STRATEGY_DOC_REL"
   printf '## Risks\n\n'
   jq -r '.risks[] | "- `\(.id)`: \(.next_action)"' "$SUMMARY_JSON"

@@ -49,6 +49,8 @@ blockers.
    - keep S5 real-device claims false without device evidence
    - evidence-volume curation:
      `docs/development/trillionnium-world-evidence-volume-curation-2026-07-07.md`
+   - reviewer handoff index:
+     `docs/development/trillionnium-world-reviewer-handoff-index-2026-07-07.md`
 4. Commit and review strategy:
    - group the local backlog into reviewable slices
    - review-slice strategy:

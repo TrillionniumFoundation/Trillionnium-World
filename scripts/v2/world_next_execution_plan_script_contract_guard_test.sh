@@ -6,12 +6,14 @@ SCRIPT="$ROOT/scripts/check_trillionnium_world_next_execution_plan.sh"
 OBSERVATION_LOG_SCRIPT="$ROOT/scripts/check_trillionnium_world_first_contact_human_playtest_observation_log.sh"
 RUNBOOK_SCRIPT="$ROOT/scripts/check_trillionnium_world_first_contact_human_playtest_runbook.sh"
 EVIDENCE_VOLUME_SCRIPT="$ROOT/scripts/check_trillionnium_world_evidence_volume_curation.sh"
+REVIEWER_HANDOFF_SCRIPT="$ROOT/scripts/check_trillionnium_world_reviewer_handoff_index.sh"
 REVIEW_SLICE_SCRIPT="$ROOT/scripts/check_trillionnium_world_review_slice_strategy.sh"
 DOC="$ROOT/docs/development/trillionnium-world-next-execution-plan-v1.md"
 READABILITY_REVIEW_DOC="$ROOT/docs/development/trillionnium-world-first-contact-readability-review-2026-07-07.md"
 PLAYTEST_OBSERVATION_LOG_DOC="$ROOT/docs/development/trillionnium-world-first-contact-human-playtest-observation-log-2026-07-07.md"
 PLAYTEST_RUNBOOK_DOC="$ROOT/docs/development/trillionnium-world-first-contact-human-playtest-runbook-2026-07-07.md"
 EVIDENCE_VOLUME_DOC="$ROOT/docs/development/trillionnium-world-evidence-volume-curation-2026-07-07.md"
+REVIEWER_HANDOFF_DOC="$ROOT/docs/development/trillionnium-world-reviewer-handoff-index-2026-07-07.md"
 REVIEW_SLICE_DOC="$ROOT/docs/development/trillionnium-world-review-slice-strategy-2026-07-07.md"
 
 required_script_lines=(
@@ -38,6 +40,13 @@ required_script_lines=(
   'evidence_volume_curation_ready'
   'deletion_performed'
   'archive_movement_performed'
+  'trillionnium-world-reviewer-handoff-index-2026-07-07.md'
+  'reviewer_handoff_index'
+  'trillionnium-world-reviewer-handoff-index.json'
+  'reviewer_handoff_index_green_with_public_launch_blockers'
+  'representative_visual_count'
+  'upload_performed'
+  'publish_performed'
   'trillionnium-world-review-slice-strategy-2026-07-07.md'
   'review_slice_strategy'
   'trillionnium-world-review-slice-strategy.json'
@@ -46,6 +55,7 @@ required_script_lines=(
   '.review_slice_strategy.external_action_performed == false'
   '.human_playtest_runbook.prompts_bound == true'
   '.evidence_volume_curation.deletion_performed == false'
+  '.reviewer_handoff_index.upload_performed == false'
   'ready_for_renderer_change_from_human_observation'
   'pre_human_playtest_observation_seed'
   'recorded_confusion_point_count == 0'
@@ -67,6 +77,7 @@ required_doc_lines=(
   'trillionnium-world-first-contact-human-playtest-observation-log-2026-07-07.md'
   'trillionnium-world-first-contact-human-playtest-runbook-2026-07-07.md'
   'trillionnium-world-evidence-volume-curation-2026-07-07.md'
+  'trillionnium-world-reviewer-handoff-index-2026-07-07.md'
   'trillionnium-world-review-slice-strategy-2026-07-07.md'
   'Do not keep shrinking already-gated micro cues'
 )
@@ -117,6 +128,15 @@ required_evidence_volume_lines=(
   '| `external_evidence_blockers` |'
 )
 
+required_reviewer_handoff_lines=(
+  'Status: local reviewer handoff index.'
+  'This is an index over existing local evidence, not a new evidence claim.'
+  'Do not delete, compress, move, archive, rewrite, upload, or publish evidence'
+  '| `reviewer_summary` |'
+  '| `representative_visuals` |'
+  '| `raw_visual_archive_candidates` |'
+)
+
 required_observation_log_script_lines=(
   'trillionnium_world_first_contact_human_playtest_observation_log_v1'
   'first-contact-human-playtest-observation-log.json'
@@ -154,6 +174,20 @@ required_evidence_volume_script_lines=(
   'public_launch_ready_claimed == false'
   'android_s5_real_device_claimed == false'
   'TRILLIONNIUM_WORLD_EVIDENCE_VOLUME_CURATION_GREEN'
+)
+
+required_reviewer_handoff_script_lines=(
+  'trillionnium_world_reviewer_handoff_index_v1'
+  'trillionnium-world-reviewer-handoff-index.json'
+  'reviewer_handoff_index_green_with_public_launch_blockers'
+  'artifact_count == 24'
+  'representative_visual_count == 5'
+  'raw_visual_archive_candidate_count == 6'
+  'upload_performed == false'
+  'publish_performed == false'
+  'public_launch_ready == false'
+  'android_s5_real_device_claimed == false'
+  'TRILLIONNIUM_WORLD_REVIEWER_HANDOFF_INDEX_GREEN_WITH_PUBLIC_LAUNCH_BLOCKERS'
 )
 
 required_review_slice_script_lines=(
@@ -219,6 +253,13 @@ for line in "${required_evidence_volume_lines[@]}"; do
   fi
 done
 
+for line in "${required_reviewer_handoff_lines[@]}"; do
+  if ! grep -Fq -- "$line" "$REVIEWER_HANDOFF_DOC"; then
+    echo "[FAIL] reviewer handoff index missing contract line: $line" >&2
+    exit 1
+  fi
+done
+
 for line in "${required_observation_log_script_lines[@]}"; do
   if ! grep -Fq -- "$line" "$OBSERVATION_LOG_SCRIPT"; then
     echo "[FAIL] playtest observation log script missing contract line: $line" >&2
@@ -243,6 +284,13 @@ done
 for line in "${required_evidence_volume_script_lines[@]}"; do
   if ! grep -Fq -- "$line" "$EVIDENCE_VOLUME_SCRIPT"; then
     echo "[FAIL] evidence volume curation script missing contract line: $line" >&2
+    exit 1
+  fi
+done
+
+for line in "${required_reviewer_handoff_script_lines[@]}"; do
+  if ! grep -Fq -- "$line" "$REVIEWER_HANDOFF_SCRIPT"; then
+    echo "[FAIL] reviewer handoff index script missing contract line: $line" >&2
     exit 1
   fi
 done
