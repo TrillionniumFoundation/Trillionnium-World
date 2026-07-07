@@ -55,6 +55,8 @@ blockers.
    - group the local backlog into reviewable slices
    - review-slice strategy:
      `docs/development/trillionnium-world-review-slice-strategy-2026-07-07.md`
+   - review-slice manifest:
+     `docs/development/trillionnium-world-review-slice-manifest-2026-07-07.md`
    - avoid external push/public actions until explicitly routed
 5. Public launch evidence:
    - S5 real-device matrix

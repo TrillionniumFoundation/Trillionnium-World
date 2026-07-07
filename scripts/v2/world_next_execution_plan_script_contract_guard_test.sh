@@ -8,6 +8,7 @@ RUNBOOK_SCRIPT="$ROOT/scripts/check_trillionnium_world_first_contact_human_playt
 EVIDENCE_VOLUME_SCRIPT="$ROOT/scripts/check_trillionnium_world_evidence_volume_curation.sh"
 REVIEWER_HANDOFF_SCRIPT="$ROOT/scripts/check_trillionnium_world_reviewer_handoff_index.sh"
 REVIEW_SLICE_SCRIPT="$ROOT/scripts/check_trillionnium_world_review_slice_strategy.sh"
+REVIEW_SLICE_MANIFEST_SCRIPT="$ROOT/scripts/check_trillionnium_world_review_slice_manifest.sh"
 BLOCKER_LEDGER_SCRIPT="$ROOT/scripts/check_trillionnium_world_public_launch_blocker_execution_ledger.sh"
 DOC="$ROOT/docs/development/trillionnium-world-next-execution-plan-v1.md"
 READABILITY_REVIEW_DOC="$ROOT/docs/development/trillionnium-world-first-contact-readability-review-2026-07-07.md"
@@ -16,6 +17,7 @@ PLAYTEST_RUNBOOK_DOC="$ROOT/docs/development/trillionnium-world-first-contact-hu
 EVIDENCE_VOLUME_DOC="$ROOT/docs/development/trillionnium-world-evidence-volume-curation-2026-07-07.md"
 REVIEWER_HANDOFF_DOC="$ROOT/docs/development/trillionnium-world-reviewer-handoff-index-2026-07-07.md"
 REVIEW_SLICE_DOC="$ROOT/docs/development/trillionnium-world-review-slice-strategy-2026-07-07.md"
+REVIEW_SLICE_MANIFEST_DOC="$ROOT/docs/development/trillionnium-world-review-slice-manifest-2026-07-07.md"
 BLOCKER_LEDGER_DOC="$ROOT/docs/development/trillionnium-world-public-launch-blocker-execution-ledger-2026-07-07.md"
 
 required_script_lines=(
@@ -53,6 +55,14 @@ required_script_lines=(
   'review_slice_strategy'
   'trillionnium-world-review-slice-strategy.json'
   'review_slice_strategy_ready'
+  'trillionnium-world-review-slice-manifest-2026-07-07.md'
+  'review_slice_manifest'
+  'trillionnium-world-review-slice-manifest.json'
+  'review_slice_manifest_ready'
+  'manifested_commit_count'
+  'unclassified_commit_count'
+  'multi_slice_commit_count'
+  'history_rewrite_performed'
   'trillionnium-world-public-launch-blocker-execution-ledger-2026-07-07.md'
   'public_launch_blocker_execution_ledger'
   'trillionnium-world-public-launch-blocker-execution-ledger.json'
@@ -62,6 +72,7 @@ required_script_lines=(
   'android_device_capture_performed'
   'external_action_performed'
   '.review_slice_strategy.external_action_performed == false'
+  '.review_slice_manifest.history_rewrite_performed == false'
   '.human_playtest_runbook.prompts_bound == true'
   '.evidence_volume_curation.deletion_performed == false'
   '.reviewer_handoff_index.upload_performed == false'
@@ -89,6 +100,7 @@ required_doc_lines=(
   'trillionnium-world-evidence-volume-curation-2026-07-07.md'
   'trillionnium-world-reviewer-handoff-index-2026-07-07.md'
   'trillionnium-world-review-slice-strategy-2026-07-07.md'
+  'trillionnium-world-review-slice-manifest-2026-07-07.md'
   'trillionnium-world-public-launch-blocker-execution-ledger-2026-07-07.md'
   'Do not keep shrinking already-gated micro cues'
 )
@@ -143,6 +155,7 @@ required_reviewer_handoff_lines=(
   'Status: local reviewer handoff index.'
   'This is an index over existing local evidence, not a new evidence claim.'
   'Do not delete, compress, move, archive, rewrite, upload, or publish evidence'
+  'Review-slice manifest'
   'Public-launch blocker execution ledger'
   '| `reviewer_summary` |'
   '| `representative_visuals` |'
@@ -192,8 +205,8 @@ required_reviewer_handoff_script_lines=(
   'trillionnium_world_reviewer_handoff_index_v1'
   'trillionnium-world-reviewer-handoff-index.json'
   'reviewer_handoff_index_green_with_public_launch_blockers'
-  'artifact_count == 25'
-  'reviewer_summary_count == 11'
+  'artifact_count == 26'
+  'reviewer_summary_count == 12'
   'representative_visual_count == 5'
   'raw_visual_archive_candidate_count == 6'
   'upload_performed == false'
@@ -242,6 +255,29 @@ required_review_slice_script_lines=(
   'TRILLIONNIUM_WORLD_REVIEW_SLICE_STRATEGY_GREEN'
 )
 
+required_review_slice_manifest_lines=(
+  'Status: local review-slice commit-range manifest.'
+  'read-only manifest over the current git range'
+  'Unclassified commits remain manual-review risk'
+  '| `release_truth_and_public_boundary` |'
+  '| `first_contact_renderer_micro_cues` |'
+  '| `rts_runtime_data_boundaries` |'
+)
+
+required_review_slice_manifest_script_lines=(
+  'trillionnium_world_review_slice_manifest_v1'
+  'trillionnium-world-review-slice-manifest.json'
+  'review_slice_manifest_ready'
+  'manifested_commit_count'
+  'unclassified_commit_count'
+  'multi_slice_commit_count'
+  'history_rewrite_performed == false'
+  'external_action_performed == false'
+  'public_launch_ready_claimed == false'
+  'android_s5_real_device_claimed == false'
+  'TRILLIONNIUM_WORLD_REVIEW_SLICE_MANIFEST_GREEN'
+)
+
 for line in "${required_script_lines[@]}"; do
   if ! grep -Fq -- "$line" "$SCRIPT"; then
     echo "[FAIL] next execution plan script missing contract line: $line" >&2
@@ -284,6 +320,13 @@ for line in "${required_review_slice_lines[@]}"; do
   fi
 done
 
+for line in "${required_review_slice_manifest_lines[@]}"; do
+  if ! grep -Fq -- "$line" "$REVIEW_SLICE_MANIFEST_DOC"; then
+    echo "[FAIL] review slice manifest missing contract line: $line" >&2
+    exit 1
+  fi
+done
+
 for line in "${required_evidence_volume_lines[@]}"; do
   if ! grep -Fq -- "$line" "$EVIDENCE_VOLUME_DOC"; then
     echo "[FAIL] evidence volume curation missing contract line: $line" >&2
@@ -315,6 +358,13 @@ done
 for line in "${required_review_slice_script_lines[@]}"; do
   if ! grep -Fq -- "$line" "$REVIEW_SLICE_SCRIPT"; then
     echo "[FAIL] review slice strategy script missing contract line: $line" >&2
+    exit 1
+  fi
+done
+
+for line in "${required_review_slice_manifest_script_lines[@]}"; do
+  if ! grep -Fq -- "$line" "$REVIEW_SLICE_MANIFEST_SCRIPT"; then
+    echo "[FAIL] review slice manifest script missing contract line: $line" >&2
     exit 1
   fi
 done

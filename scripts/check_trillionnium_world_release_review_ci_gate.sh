@@ -103,6 +103,7 @@ run_check bash_syntax bash -n \
   "$ROOT/scripts/check_trillionnium_world_public_launch_operator_handoff.sh" \
   "$ROOT/scripts/check_trillionnium_world_public_launch_blocker_consistency.sh" \
   "$ROOT/scripts/check_trillionnium_world_public_launch_blocker_execution_ledger.sh" \
+  "$ROOT/scripts/check_trillionnium_world_review_slice_manifest.sh" \
   "$ROOT/scripts/check_trillionnium_world_public_launch_status_only_fixtures.sh" \
   "$ROOT/scripts/check_trillionnium_world_cohort_commercial_evidence_collection.sh" \
   "$ROOT/scripts/check_trillionnium_world_cohort_commercial_evidence.sh" \
