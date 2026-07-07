@@ -864,6 +864,7 @@ const CLASSIC_FIRST_CONTACT_PLAYER_OBJECTIVE_BEACON_PRODUCT_CUE_COUNT: usize = 2
 const CLASSIC_FIRST_CONTACT_PLAYER_FLUX_VENT_PRODUCT_CUE_COUNT: usize = 2;
 const CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK_MOVE_TRAIL_ORIGIN_COUNT: usize = 2;
 const CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK_MOVE_TRAIL_STEP_COUNT: usize = 10;
+const CLASSIC_FIRST_CONTACT_PLAYER_MOVE_TRAIL_BRIGHT_STEP_COUNT: usize = 6;
 const CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK_MOVE_TRAIL_TICK_W_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK_MOVE_TRAIL_TICK_H_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK_PANEL_CUE_COUNT: usize = 8;
@@ -94227,10 +94228,22 @@ fn classic_draw_first_contact_command_feedback_layers(
         .take(CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK_MOVE_TRAIL_ORIGIN_COUNT)
     {
         let (origin_x, origin_y) = *origin;
-        for step in 0..CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK_MOVE_TRAIL_STEP_COUNT {
-            let step = step as i32;
+        for step_index in 0..CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK_MOVE_TRAIL_STEP_COUNT {
+            let step = step_index as i32;
             let x = origin_x + (target_cx - origin_x) * step / feedback_move_trail_divisor;
             let y = origin_y + (target_cy - origin_y) * step / feedback_move_trail_divisor;
+            let trail_color = if player_screen
+                && step_index >= CLASSIC_FIRST_CONTACT_PLAYER_MOVE_TRAIL_BRIGHT_STEP_COUNT
+            {
+                classic_mix_color(
+                    CLASSIC_RTS_SELECTION_FEEDBACK_MOVE_COLOR,
+                    CLASSIC_RTS_TACTICAL_VIEWPORT_SHADOW_COLOR,
+                    1,
+                    3,
+                )
+            } else {
+                CLASSIC_RTS_SELECTION_FEEDBACK_MOVE_COLOR
+            };
             classic_draw_rect(
                 buffer,
                 width,
@@ -94239,7 +94252,7 @@ fn classic_draw_first_contact_command_feedback_layers(
                 y + cell_h / 2,
                 CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK_MOVE_TRAIL_TICK_W_PX,
                 CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK_MOVE_TRAIL_TICK_H_PX,
-                CLASSIC_RTS_SELECTION_FEEDBACK_MOVE_COLOR,
+                trail_color,
             );
         }
     }
@@ -154970,6 +154983,77 @@ mod tests {
                     && *h <= CLASSIC_FIRST_CONTACT_TARGET_PREFLIGHT_CORNER_TICK_LONG_PX as usize
             }),
             "{components:?}"
+        );
+    }
+
+    #[cfg(not(target_os = "android"))]
+    #[test]
+    fn classic_first_contact_player_move_trail_tapers_before_target_focus() {
+        let width = 1280;
+        let height = 699;
+        let mut buffer = vec![0_u32; width * height];
+        let map_x = 80;
+        let map_y = 96;
+        let cell_w = 28;
+        let cell_h = 14;
+        let dim_trail_color = classic_mix_color(
+            CLASSIC_RTS_SELECTION_FEEDBACK_MOVE_COLOR,
+            CLASSIC_RTS_TACTICAL_VIEWPORT_SHADOW_COLOR,
+            1,
+            3,
+        );
+
+        classic_draw_first_contact_command_feedback_layers(
+            &mut buffer,
+            width,
+            height,
+            map_x,
+            map_y,
+            cell_w,
+            cell_h,
+            true,
+        );
+
+        let bright_components = exact_color_components(
+            &buffer,
+            width,
+            height,
+            CLASSIC_RTS_SELECTION_FEEDBACK_MOVE_COLOR,
+        );
+        let dim_components = exact_color_components(&buffer, width, height, dim_trail_color);
+        let bright_pixel_count = bright_components
+            .iter()
+            .map(|(pixels, _, _)| pixels)
+            .sum::<usize>();
+        let dim_pixel_count = dim_components
+            .iter()
+            .map(|(pixels, _, _)| pixels)
+            .sum::<usize>();
+        let tick_pixels = (CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK_MOVE_TRAIL_TICK_W_PX
+            * CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK_MOVE_TRAIL_TICK_H_PX)
+            as usize;
+
+        assert_eq!(
+            bright_pixel_count,
+            CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK_MOVE_TRAIL_ORIGIN_COUNT
+                * CLASSIC_FIRST_CONTACT_PLAYER_MOVE_TRAIL_BRIGHT_STEP_COUNT
+                * tick_pixels,
+            "{bright_pixel_count} {bright_components:?}"
+        );
+        assert!(
+            dim_pixel_count >= 6 * tick_pixels && dim_pixel_count <= 8 * tick_pixels,
+            "{dim_pixel_count} {dim_components:?}"
+        );
+        assert!(
+            bright_components
+                .iter()
+                .chain(dim_components.iter())
+                .all(|(_, w, h)| {
+                    *w <= CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK_MOVE_TRAIL_TICK_W_PX as usize
+                        && *h
+                            <= CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK_MOVE_TRAIL_TICK_H_PX as usize
+                }),
+            "{bright_components:?} {dim_components:?}"
         );
     }
 
