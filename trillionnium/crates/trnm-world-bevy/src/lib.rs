@@ -887,8 +887,8 @@ const CLASSIC_FIRST_CONTACT_PLAYER_BUILD_GHOST_STATUS_PIP_W_PX: i32 = 4;
 const CLASSIC_FIRST_CONTACT_PLAYER_BUILD_GHOST_STATUS_PIP_H_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_PLAYER_RELAY_SCAFFOLD_BRACE_W_PX: i32 = 8;
 const CLASSIC_FIRST_CONTACT_PLAYER_RELAY_SCAFFOLD_BRACE_H_PX: i32 = 2;
-const CLASSIC_FIRST_CONTACT_OPENING_ACTION_PATH_COUNT: usize = 3;
-const CLASSIC_FIRST_CONTACT_OPENING_ACTION_PATH_STEP_COUNT: usize = 24;
+const CLASSIC_FIRST_CONTACT_PLAYER_OPENING_ACTION_PATH_COUNT: usize = 1;
+const CLASSIC_FIRST_CONTACT_PLAYER_OPENING_ACTION_PATH_STEP_COUNT: usize = 6;
 const CLASSIC_FIRST_CONTACT_OPENING_ACTION_PATH_DOT_W_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_OPENING_ACTION_PATH_DOT_H_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_WARDEN_ATTACK_ARM_COUNT: usize = 3;
@@ -93503,7 +93503,12 @@ fn classic_draw_first_contact_opening_actions(
             CLASSIC_RTS_STRUCTURE_REPAIR_BEAM_COLOR,
         ),
     ];
-    for (from, to, color) in action_paths {
+    let visible_action_paths: &[_] = if player_screen {
+        &action_paths[action_paths.len() - CLASSIC_FIRST_CONTACT_PLAYER_OPENING_ACTION_PATH_COUNT..]
+    } else {
+        &action_paths[..]
+    };
+    for (from, to, color) in visible_action_paths.iter().copied() {
         for step in rts_bevy_runtime::rts_runtime_tile_line(from, to) {
             let (tile_x, tile_y) = classic_first_contact_tile_screen(
                 map_x,
@@ -104269,8 +104274,8 @@ fn classic_first_contact_motion_readability_guard() -> Value {
             CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK_PROGRESS_BACKPLATE_W_PX as usize,
         feedback_progress_backplate_height_px:
             CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK_PROGRESS_BACKPLATE_H_PX as usize,
-        opening_action_path_count: CLASSIC_FIRST_CONTACT_OPENING_ACTION_PATH_COUNT,
-        opening_action_path_step_count: CLASSIC_FIRST_CONTACT_OPENING_ACTION_PATH_STEP_COUNT,
+        opening_action_path_count: CLASSIC_FIRST_CONTACT_PLAYER_OPENING_ACTION_PATH_COUNT,
+        opening_action_path_step_count: CLASSIC_FIRST_CONTACT_PLAYER_OPENING_ACTION_PATH_STEP_COUNT,
         opening_action_path_dot_width_px: CLASSIC_FIRST_CONTACT_OPENING_ACTION_PATH_DOT_W_PX
             as usize,
         opening_action_path_dot_height_px: CLASSIC_FIRST_CONTACT_OPENING_ACTION_PATH_DOT_H_PX
@@ -152809,9 +152814,11 @@ mod tests {
                 .get("opening_action_motion_signatures")
                 .and_then(Value::as_array)
                 .map(|signatures| {
-                    signatures
-                        .iter()
-                        .any(|value| value.as_str() == Some("opening_action_path_micro_dots"))
+                    signatures.iter().any(|value| {
+                        value.as_str() == Some("player_screen_active_opening_path_micro_dots")
+                    }) && signatures.iter().any(|value| {
+                        value.as_str() == Some("non_player_opening_action_paths_preserved")
+                    })
                 }),
             Some(true)
         );
@@ -152819,13 +152826,13 @@ mod tests {
             guard
                 .get("opening_action_path_count")
                 .and_then(Value::as_u64),
-            Some(3)
+            Some(1)
         );
         assert_eq!(
             guard
                 .get("opening_action_path_step_count")
                 .and_then(Value::as_u64),
-            Some(24)
+            Some(6)
         );
         assert_eq!(
             guard
@@ -152843,7 +152850,7 @@ mod tests {
             guard
                 .get("opening_action_path_pixel_budget")
                 .and_then(Value::as_u64),
-            Some(96)
+            Some(24)
         );
         assert_eq!(
             guard
@@ -157509,6 +157516,70 @@ mod tests {
         }
 
         assert!(checked_actors > 0);
+    }
+
+    #[cfg(not(target_os = "android"))]
+    #[test]
+    fn classic_first_contact_player_opening_actions_draw_active_path_only() {
+        let width = 900;
+        let height = 620;
+        let map_x = 80;
+        let map_y = 96;
+        let cell_w = 28;
+        let cell_h = 14;
+        let mut player_buffer = vec![0_u32; width * height];
+        let mut evidence_buffer = vec![0_u32; width * height];
+
+        classic_draw_first_contact_opening_actions(
+            &mut player_buffer,
+            width,
+            height,
+            map_x,
+            map_y,
+            cell_w,
+            cell_h,
+            true,
+        );
+        classic_draw_first_contact_opening_actions(
+            &mut evidence_buffer,
+            width,
+            height,
+            map_x,
+            map_y,
+            cell_w,
+            cell_h,
+            false,
+        );
+
+        let count_color =
+            |buffer: &[u32], color: u32| buffer.iter().filter(|pixel| **pixel == color).count();
+        let player_active_path_pixels =
+            count_color(&player_buffer, CLASSIC_RTS_STRUCTURE_REPAIR_BEAM_COLOR);
+        let player_worker_approach_pixels =
+            count_color(&player_buffer, CLASSIC_RTS_HARVEST_ANIMATION_APPROACH_COLOR);
+        let player_worker_carry_pixels = count_color(
+            &player_buffer,
+            CLASSIC_RTS_HARVEST_ANIMATION_CARRY_LOAD_COLOR,
+        );
+        let evidence_worker_approach_pixels = count_color(
+            &evidence_buffer,
+            CLASSIC_RTS_HARVEST_ANIMATION_APPROACH_COLOR,
+        );
+        let evidence_worker_carry_pixels = count_color(
+            &evidence_buffer,
+            CLASSIC_RTS_HARVEST_ANIMATION_CARRY_LOAD_COLOR,
+        );
+
+        assert_eq!(
+            player_active_path_pixels,
+            CLASSIC_FIRST_CONTACT_PLAYER_OPENING_ACTION_PATH_STEP_COUNT
+                * CLASSIC_FIRST_CONTACT_OPENING_ACTION_PATH_DOT_W_PX as usize
+                * CLASSIC_FIRST_CONTACT_OPENING_ACTION_PATH_DOT_H_PX as usize
+        );
+        assert_eq!(player_worker_approach_pixels, 0);
+        assert_eq!(player_worker_carry_pixels, 0);
+        assert!(evidence_worker_approach_pixels > 0);
+        assert!(evidence_worker_carry_pixels > 0);
     }
 
     #[cfg(not(target_os = "android"))]

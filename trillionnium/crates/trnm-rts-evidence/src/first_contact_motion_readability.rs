@@ -452,15 +452,21 @@ pub fn first_contact_motion_readability_guard(
         && command_feedback_motion_signatures
             .iter()
             .any(|signature| signature.as_str() == "battlefield_command_feedback_micro_trail");
-    let opening_action_motion_signatures = string_vec(["opening_action_path_micro_dots"]);
-    let opening_action_path_gate = runtime.opening_action_path_count == 3
-        && runtime.opening_action_path_step_count == 24
+    let opening_action_motion_signatures = string_vec([
+        "player_screen_active_opening_path_micro_dots",
+        "non_player_opening_action_paths_preserved",
+    ]);
+    let opening_action_path_gate = runtime.opening_action_path_count == 1
+        && runtime.opening_action_path_step_count == 6
         && runtime.opening_action_path_dot_width_px == 2
         && runtime.opening_action_path_dot_height_px == 2
-        && opening_action_path_pixel_budget <= 96
+        && opening_action_path_pixel_budget <= 24
         && opening_action_motion_signatures
             .iter()
-            .any(|signature| signature.as_str() == "opening_action_path_micro_dots");
+            .any(|signature| signature.as_str() == "player_screen_active_opening_path_micro_dots")
+        && opening_action_motion_signatures
+            .iter()
+            .any(|signature| signature.as_str() == "non_player_opening_action_paths_preserved");
     let animation_frame_pixel_budget = animation_samples.len() * 88;
     let animation_frame_richness_sample_count = animation_samples.len();
     let animation_frame_richness_pixel_budget = animation_frame_richness_sample_count * 40;
@@ -804,8 +810,8 @@ mod tests {
             feedback_progress_pip_height_px: 2,
             feedback_progress_backplate_width_px: 0,
             feedback_progress_backplate_height_px: 0,
-            opening_action_path_count: 3,
-            opening_action_path_step_count: 24,
+            opening_action_path_count: 1,
+            opening_action_path_step_count: 6,
             opening_action_path_dot_width_px: 2,
             opening_action_path_dot_height_px: 2,
             warden_attack_arm_count: 3,
@@ -881,9 +887,11 @@ mod tests {
                 .get("opening_action_motion_signatures")
                 .and_then(Value::as_array)
                 .map(|signatures| {
-                    signatures
-                        .iter()
-                        .any(|value| value.as_str() == Some("opening_action_path_micro_dots"))
+                    signatures.iter().any(|value| {
+                        value.as_str() == Some("player_screen_active_opening_path_micro_dots")
+                    }) && signatures.iter().any(|value| {
+                        value.as_str() == Some("non_player_opening_action_paths_preserved")
+                    })
                 }),
             Some(true)
         );
@@ -891,13 +899,13 @@ mod tests {
             guard
                 .get("opening_action_path_count")
                 .and_then(Value::as_u64),
-            Some(3)
+            Some(1)
         );
         assert_eq!(
             guard
                 .get("opening_action_path_step_count")
                 .and_then(Value::as_u64),
-            Some(24)
+            Some(6)
         );
         assert_eq!(
             guard
@@ -915,7 +923,7 @@ mod tests {
             guard
                 .get("opening_action_path_pixel_budget")
                 .and_then(Value::as_u64),
-            Some(96)
+            Some(24)
         );
         assert_eq!(
             guard
