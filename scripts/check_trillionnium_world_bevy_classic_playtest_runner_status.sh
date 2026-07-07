@@ -650,6 +650,14 @@ exact_unit_status_role_badge_component_sample = exact_color_component_summary(
     2,
     [180, 330, min(780, width), min(455, height)],
 )
+exact_status_buff_badge_component_sample = exact_color_component_summary(
+    "status_buff_badge_exact_pink",
+    (255, 140, 207),
+    6,
+    2,
+    [32, 72, min(940, width), min(535, height)],
+    64,
+)
 exact_owner_player_component_sample = exact_color_component_summary(
     "owner_identity_exact_player_muted",
     (69, 121, 83),
@@ -760,6 +768,7 @@ exact_color_component_samples = [
     exact_target_prefocus_component_sample,
     exact_unit_status_health_component_sample,
     exact_unit_status_role_badge_component_sample,
+    exact_status_buff_badge_component_sample,
     exact_owner_player_component_sample,
     exact_owner_enemy_component_sample,
     exact_unit_identity_component_sample,
@@ -837,6 +846,7 @@ gates = {
     "exact_target_prefocus_micro_component_gate": exact_target_prefocus_component_sample["passes"],
     "exact_unit_status_health_micro_component_gate": exact_unit_status_health_component_sample["passes"],
     "exact_unit_status_role_badge_micro_component_gate": exact_unit_status_role_badge_component_sample["passes"],
+    "exact_status_buff_badge_micro_component_gate": exact_status_buff_badge_component_sample["passes"],
     "exact_owner_identity_micro_component_gate": (
         exact_owner_player_component_sample["passes"]
         and exact_owner_enemy_component_sample["passes"]

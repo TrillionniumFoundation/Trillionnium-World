@@ -383,9 +383,9 @@ pub fn first_contact_motion_readability_guard(
             .iter()
             .any(|signature| signature.as_str() == "player_screen_warden_attack_micro_sparks");
     let shield_charge_arc_gate = runtime.shield_charge_arc_count == 3
-        && runtime.shield_charge_arc_width_px == 10
+        && runtime.shield_charge_arc_width_px == 6
         && runtime.shield_charge_arc_height_px == 2
-        && shield_charge_arc_pixel_budget <= 60
+        && shield_charge_arc_pixel_budget <= 36
         && player_screen_animation_signatures
             .iter()
             .any(|signature| signature.as_str() == "player_screen_shield_charge_micro_arcs");
@@ -830,7 +830,7 @@ mod tests {
             formation_join_pip_width_px: 4,
             formation_join_pip_height_px: 2,
             shield_charge_arc_count: 3,
-            shield_charge_arc_width_px: 10,
+            shield_charge_arc_width_px: 6,
             shield_charge_arc_height_px: 2,
             sensor_sweep_tick_count: 3,
             sensor_sweep_tick_width_px: 8,
@@ -1138,7 +1138,7 @@ mod tests {
             guard
                 .get("shield_charge_arc_pixel_budget")
                 .and_then(Value::as_u64),
-            Some(60)
+            Some(36)
         );
         assert_eq!(
             guard.get("shield_charge_arc_gate").and_then(Value::as_bool),

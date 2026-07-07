@@ -95,6 +95,8 @@ required_lines=(
   'exact_unit_status_health_micro_component_gate'
   'unit_status_role_badge_exact_purple'
   'exact_unit_status_role_badge_micro_component_gate'
+  'status_buff_badge_exact_pink'
+  'exact_status_buff_badge_micro_component_gate'
   'owner_identity_exact_player_muted'
   'owner_identity_exact_enemy_muted'
   'exact_owner_identity_micro_component_gate'

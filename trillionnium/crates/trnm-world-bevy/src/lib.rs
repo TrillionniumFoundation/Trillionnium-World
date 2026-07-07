@@ -915,7 +915,7 @@ const CLASSIC_FIRST_CONTACT_PLAYER_FORMATION_JOIN_PIP_COUNT: usize = 3;
 const CLASSIC_FIRST_CONTACT_PLAYER_FORMATION_JOIN_PIP_W_PX: i32 = 4;
 const CLASSIC_FIRST_CONTACT_PLAYER_FORMATION_JOIN_PIP_H_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_PLAYER_SHIELD_CHARGE_ARC_COUNT: usize = 3;
-const CLASSIC_FIRST_CONTACT_PLAYER_SHIELD_CHARGE_ARC_W_PX: i32 = 10;
+const CLASSIC_FIRST_CONTACT_PLAYER_SHIELD_CHARGE_ARC_W_PX: i32 = 6;
 const CLASSIC_FIRST_CONTACT_PLAYER_SHIELD_CHARGE_ARC_H_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_PLAYER_SENSOR_SWEEP_TICK_COUNT: usize = 3;
 const CLASSIC_FIRST_CONTACT_PLAYER_SENSOR_SWEEP_TICK_W_PX: i32 = 8;
@@ -153101,7 +153101,7 @@ mod tests {
             guard
                 .get("shield_charge_arc_width_px")
                 .and_then(Value::as_u64),
-            Some(10)
+            Some(6)
         );
         assert_eq!(
             guard
@@ -153113,7 +153113,7 @@ mod tests {
             guard
                 .get("shield_charge_arc_pixel_budget")
                 .and_then(Value::as_u64),
-            Some(60)
+            Some(36)
         );
         assert_eq!(
             guard.get("shield_charge_arc_gate").and_then(Value::as_bool),
@@ -153462,6 +153462,56 @@ mod tests {
         ] {
             assert_eq!(guard.get(gate).and_then(Value::as_bool), Some(true));
         }
+    }
+
+    #[cfg(not(target_os = "android"))]
+    #[test]
+    fn classic_first_contact_player_shield_charge_draws_micro_pink_arcs() {
+        let width = 1280;
+        let height = 699;
+        let mut buffer = vec![0_u32; width * height];
+        let map_x = 80;
+        let map_y = 96;
+        let cell_w = 28;
+        let cell_h = 14;
+
+        classic_draw_first_contact_animation_readability_layer(
+            &mut buffer,
+            width,
+            height,
+            map_x,
+            map_y,
+            cell_w,
+            cell_h,
+            true,
+        );
+
+        let components =
+            exact_color_components(&buffer, width, height, CLASSIC_RTS_STATUS_BUFF_BADGE_COLOR);
+        let pixel_count = components
+            .iter()
+            .map(|(pixels, _, _)| pixels)
+            .sum::<usize>();
+
+        assert_eq!(
+            components.len(),
+            CLASSIC_FIRST_CONTACT_PLAYER_SHIELD_CHARGE_ARC_COUNT,
+            "{components:?}"
+        );
+        assert_eq!(
+            pixel_count,
+            CLASSIC_FIRST_CONTACT_PLAYER_SHIELD_CHARGE_ARC_COUNT
+                * CLASSIC_FIRST_CONTACT_PLAYER_SHIELD_CHARGE_ARC_W_PX as usize
+                * CLASSIC_FIRST_CONTACT_PLAYER_SHIELD_CHARGE_ARC_H_PX as usize,
+            "{pixel_count} {components:?}"
+        );
+        assert!(
+            components.iter().all(|(_, w, h)| {
+                *w <= CLASSIC_FIRST_CONTACT_PLAYER_SHIELD_CHARGE_ARC_W_PX as usize
+                    && *h <= CLASSIC_FIRST_CONTACT_PLAYER_SHIELD_CHARGE_ARC_H_PX as usize
+            }),
+            "{components:?}"
+        );
     }
 
     #[cfg(not(target_os = "android"))]

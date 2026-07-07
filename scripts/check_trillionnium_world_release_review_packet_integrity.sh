@@ -1047,9 +1047,9 @@ require_artifact_json_expr first_contact_basin_spec_semantics native_bevy_classi
   and .first_contact_motion_readability_guard.formation_join_pip_pixel_budget <= 24
   and (.first_contact_motion_readability_guard.player_screen_animation_signatures | index("player_screen_shield_charge_micro_arcs") != null)
   and .first_contact_motion_readability_guard.shield_charge_arc_count == 3
-  and .first_contact_motion_readability_guard.shield_charge_arc_width_px == 10
+  and .first_contact_motion_readability_guard.shield_charge_arc_width_px == 6
   and .first_contact_motion_readability_guard.shield_charge_arc_height_px == 2
-  and .first_contact_motion_readability_guard.shield_charge_arc_pixel_budget <= 60
+  and .first_contact_motion_readability_guard.shield_charge_arc_pixel_budget <= 36
   and (.first_contact_motion_readability_guard.player_screen_animation_signatures | index("player_screen_sensor_sweep_micro_ticks") != null)
   and .first_contact_motion_readability_guard.sensor_sweep_tick_count == 3
   and .first_contact_motion_readability_guard.sensor_sweep_tick_width_px == 8
