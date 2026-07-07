@@ -59,6 +59,8 @@ blockers.
      `docs/development/trillionnium-world-review-slice-manifest-2026-07-07.md`
    - review triage queue:
      `docs/development/trillionnium-world-review-triage-queue-2026-07-07.md`
+   - review primary-owner plan:
+     `docs/development/trillionnium-world-review-primary-owner-plan-2026-07-07.md`
    - avoid external push/public actions until explicitly routed
 5. Public launch evidence:
    - S5 real-device matrix

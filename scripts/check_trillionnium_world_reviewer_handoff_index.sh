@@ -46,6 +46,7 @@ require_text "$DOC" "This is an index over existing local evidence, not a new ev
 require_text "$DOC" "Do not delete, compress, move, archive, rewrite, upload, or publish evidence"
 require_text "$DOC" "Review-slice manifest"
 require_text "$DOC" "Review triage queue"
+require_text "$DOC" "Review primary-owner plan"
 require_text "$DOC" "Public-launch blocker execution ledger"
 require_text "$DOC" '| `reviewer_summary` |'
 require_text "$DOC" '| `live_player_screen` |'
@@ -56,6 +57,7 @@ require_text "$DOC" '| `raw_visual_archive_candidates` |'
 "$ROOT/scripts/check_trillionnium_world_review_slice_strategy.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_review_slice_manifest.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_review_triage_queue.sh" >/dev/null
+"$ROOT/scripts/check_trillionnium_world_review_primary_owner_plan.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_first_contact_human_playtest_runbook.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_public_launch_blocker_execution_ledger.sh" >/dev/null
 
@@ -63,6 +65,7 @@ CURATION_JSON="$ACCEPTANCE_DIR/trillionnium-world-evidence-volume-curation.json"
 REVIEW_SLICE_JSON="$ACCEPTANCE_DIR/trillionnium-world-review-slice-strategy.json"
 REVIEW_SLICE_MANIFEST_JSON="$ACCEPTANCE_DIR/trillionnium-world-review-slice-manifest.json"
 REVIEW_TRIAGE_QUEUE_JSON="$ACCEPTANCE_DIR/trillionnium-world-review-triage-queue.json"
+REVIEW_PRIMARY_OWNER_PLAN_JSON="$ACCEPTANCE_DIR/trillionnium-world-review-primary-owner-plan.json"
 RUNBOOK_JSON="$ACCEPTANCE_DIR/first-contact-human-playtest-runbook.json"
 OBSERVATION_JSON="$ACCEPTANCE_DIR/first-contact-human-playtest-observation-log.json"
 PACKET_JSON="$ACCEPTANCE_DIR/release-review-packet-integrity.json"
@@ -121,6 +124,24 @@ jq -e '
 ' "$REVIEW_TRIAGE_QUEUE_JSON" >/dev/null
 
 jq -e '
+  .contract_version == "trillionnium_world_review_primary_owner_plan_v1"
+  and .status == "review_primary_owner_plan_ready"
+  and .owner_bucket_count == 11
+  and .bucket_primary_owner_assigned_count == 11
+  and .bucket_primary_owner_assignment_complete == true
+  and .commit_level_primary_owner_review_required_count >= 1
+  and .review_order_complete == true
+  and .push_performed == false
+  and .rebase_performed == false
+  and .reset_performed == false
+  and .squash_performed == false
+  and .history_rewrite_performed == false
+  and .external_action_performed == false
+  and .public_launch_ready_claimed == false
+  and .android_s5_real_device_claimed == false
+' "$REVIEW_PRIMARY_OWNER_PLAN_JSON" >/dev/null
+
+jq -e '
   .contract_version == "trillionnium_world_first_contact_human_playtest_runbook_v1"
   and .human_playtest_completion_claimed == false
   and .public_launch_ready_claimed == false
@@ -169,6 +190,7 @@ ARTIFACTS_JSON="$(
     artifact_json review_slice_strategy reviewer_summary "acceptance/S6_public_launch/latest/trillionnium-world-review-slice-strategy.json"
     artifact_json review_slice_manifest reviewer_summary "acceptance/S6_public_launch/latest/trillionnium-world-review-slice-manifest.json"
     artifact_json review_triage_queue reviewer_summary "acceptance/S6_public_launch/latest/trillionnium-world-review-triage-queue.json"
+    artifact_json review_primary_owner_plan reviewer_summary "acceptance/S6_public_launch/latest/trillionnium-world-review-primary-owner-plan.json"
     artifact_json public_launch_blocker_execution_ledger reviewer_summary "acceptance/S6_public_launch/latest/trillionnium-world-public-launch-blocker-execution-ledger.json"
     artifact_json human_playtest_observation reviewer_summary "acceptance/S6_public_launch/latest/first-contact-human-playtest-observation-log.json"
     artifact_json human_playtest_runbook reviewer_summary "acceptance/S6_public_launch/latest/first-contact-human-playtest-runbook.json"
@@ -246,8 +268,8 @@ jq -e '
   .contract_version == "trillionnium_world_reviewer_handoff_index_v1"
   and .status == "reviewer_handoff_index_green_with_public_launch_blockers"
   and .green == true
-  and .artifact_count == 27
-  and .reviewer_summary_count == 13
+  and .artifact_count == 28
+  and .reviewer_summary_count == 14
   and .live_player_screen_count == 3
   and .representative_visual_count == 5
   and .raw_visual_archive_candidate_count == 6
