@@ -79,6 +79,8 @@ blockers.
      `docs/development/trillionnium-world-review-runtime-core-semantics-batch-2026-07-08.md`
    - runtime-adapter/online batch review:
      `docs/development/trillionnium-world-review-runtime-adapter-online-batch-2026-07-08.md`
+   - OpenRA parity/claim batch review:
+     `docs/development/trillionnium-world-review-openra-parity-claim-batch-2026-07-08.md`
    - avoid external push/public actions until explicitly routed
 5. Public launch evidence:
    - S5 real-device matrix

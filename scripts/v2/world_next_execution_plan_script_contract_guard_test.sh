@@ -20,6 +20,7 @@ REVIEW_RELEASE_NATIVE_HANDOFF_BATCH_SCRIPT="$ROOT/scripts/check_trillionnium_wor
 REVIEW_RUNTIME_BOUNDARY_BATCH_SCRIPT="$ROOT/scripts/check_trillionnium_world_review_runtime_boundary_batch.sh"
 REVIEW_RUNTIME_CORE_SEMANTICS_BATCH_SCRIPT="$ROOT/scripts/check_trillionnium_world_review_runtime_core_semantics_batch.sh"
 REVIEW_RUNTIME_ADAPTER_ONLINE_BATCH_SCRIPT="$ROOT/scripts/check_trillionnium_world_review_runtime_adapter_online_batch.sh"
+REVIEW_OPENRA_PARITY_CLAIM_BATCH_SCRIPT="$ROOT/scripts/check_trillionnium_world_review_openra_parity_claim_batch.sh"
 BLOCKER_LEDGER_SCRIPT="$ROOT/scripts/check_trillionnium_world_public_launch_blocker_execution_ledger.sh"
 DOC="$ROOT/docs/development/trillionnium-world-next-execution-plan-v1.md"
 READABILITY_REVIEW_DOC="$ROOT/docs/development/trillionnium-world-first-contact-readability-review-2026-07-07.md"
@@ -40,6 +41,7 @@ REVIEW_RELEASE_NATIVE_HANDOFF_BATCH_DOC="$ROOT/docs/development/trillionnium-wor
 REVIEW_RUNTIME_BOUNDARY_BATCH_DOC="$ROOT/docs/development/trillionnium-world-review-runtime-boundary-batch-2026-07-08.md"
 REVIEW_RUNTIME_CORE_SEMANTICS_BATCH_DOC="$ROOT/docs/development/trillionnium-world-review-runtime-core-semantics-batch-2026-07-08.md"
 REVIEW_RUNTIME_ADAPTER_ONLINE_BATCH_DOC="$ROOT/docs/development/trillionnium-world-review-runtime-adapter-online-batch-2026-07-08.md"
+REVIEW_OPENRA_PARITY_CLAIM_BATCH_DOC="$ROOT/docs/development/trillionnium-world-review-openra-parity-claim-batch-2026-07-08.md"
 BLOCKER_LEDGER_DOC="$ROOT/docs/development/trillionnium-world-public-launch-blocker-execution-ledger-2026-07-07.md"
 
 required_script_lines=(
@@ -168,6 +170,14 @@ required_script_lines=(
   'adapter_path_resolves_runtime_core_source_boundary_followup'
   'sub_batch_2_exit_rule_satisfied'
   'sub_batch_3_unblocked_for_local_review'
+  'trillionnium-world-review-openra-parity-claim-batch-2026-07-08.md'
+  'review_openra_parity_claim_batch'
+  'trillionnium-world-review-openra-parity-claim-batch.json'
+  'review_openra_parity_claim_sub_batch_3_reviewed'
+  'TRNM_WORLD_REVIEW_OPENRA_PARITY_CLAIM_BATCH_REFRESH_INPUTS=0'
+  'sub_batch_3_exit_rule_satisfied'
+  'sub_batch_4_unblocked_for_local_review'
+  'first_contact_rts_data_extraction'
   'trillionnium-world-public-launch-blocker-execution-ledger-2026-07-07.md'
   'public_launch_blocker_execution_ledger'
   'trillionnium-world-public-launch-blocker-execution-ledger.json'
@@ -217,6 +227,14 @@ required_script_lines=(
   '.review_runtime_adapter_online_batch.batch_3_exit_rule_satisfied == false'
   '.review_runtime_adapter_online_batch.batch_4_unblocked_for_local_review == false'
   '.review_runtime_adapter_online_batch.external_action_performed == false'
+  '.review_openra_parity_claim_batch.reviewed_commit_count == 35'
+  '.review_openra_parity_claim_batch.unresolved_commit_review_count == 0'
+  '.review_openra_parity_claim_batch.batch_3_reviewed_commit_count == 147'
+  '.review_openra_parity_claim_batch.batch_3_remaining_commit_level_review_count == 126'
+  '.review_openra_parity_claim_batch.sub_batch_3_exit_rule_satisfied == true'
+  '.review_openra_parity_claim_batch.batch_3_exit_rule_satisfied == false'
+  '.review_openra_parity_claim_batch.batch_4_unblocked_for_local_review == false'
+  '.review_openra_parity_claim_batch.external_action_performed == false'
   '.human_playtest_runbook.prompts_bound == true'
   '.evidence_volume_curation.deletion_performed == false'
   '.reviewer_handoff_index.upload_performed == false'
@@ -322,6 +340,7 @@ required_reviewer_handoff_lines=(
   'Review runtime-boundary batch'
   'Review runtime-core semantics batch'
   'Review runtime-adapter/online batch'
+  'Review OpenRA parity/claim batch'
   'Public-launch blocker execution ledger'
   '| `reviewer_summary` |'
   '| `representative_visuals` |'
@@ -371,8 +390,8 @@ required_reviewer_handoff_script_lines=(
   'trillionnium_world_reviewer_handoff_index_v1'
   'trillionnium-world-reviewer-handoff-index.json'
   'reviewer_handoff_index_green_with_public_launch_blockers'
-  'artifact_count == 37'
-  'reviewer_summary_count == 23'
+  'artifact_count == 38'
+  'reviewer_summary_count == 24'
   'trillionnium-world-review-triage-queue.json'
   'trillionnium-world-review-primary-owner-plan.json'
   'trillionnium-world-review-release-owner-queue.json'
@@ -776,6 +795,46 @@ required_review_runtime_adapter_online_batch_script_lines=(
   'TRILLIONNIUM_WORLD_REVIEW_RUNTIME_ADAPTER_ONLINE_BATCH_GREEN'
 )
 
+required_review_openra_parity_claim_batch_lines=(
+  'Status: local review OpenRA parity/claim sub-batch 3.'
+  'openra_parity_and_claim_boundary'
+  'Reviewed commit count: `35`'
+  'Per-commit unresolved count: `0`'
+  'Do not convert this local review into OpenRA runtime compatibility'
+  'sub_batch_3_exit_rule_satisfied=true'
+  'sub_batch_4_unblocked_for_local_review=true'
+  'batch_3_exit_rule_satisfied=false'
+  'batch_4_unblocked_for_local_review=false'
+)
+
+required_review_openra_parity_claim_batch_script_lines=(
+  'trillionnium_world_review_openra_parity_claim_batch_v1'
+  'trillionnium-world-review-openra-parity-claim-batch.json'
+  'TRNM_WORLD_REVIEW_OPENRA_PARITY_CLAIM_BATCH_REFRESH_INPUTS'
+  'review_openra_parity_claim_sub_batch_3_reviewed'
+  'openra_parity_and_claim_boundary'
+  'reviewed_commit_count == 35'
+  'unresolved_commit_review_count == 0'
+  'batch_3_reviewed_commit_count == 147'
+  'batch_3_remaining_commit_level_review_count == 126'
+  'sub_batch_3_local_review_complete == true'
+  'sub_batch_3_exit_rule_satisfied == true'
+  'sub_batch_4_unblocked_for_local_review == true'
+  'batch_3_exit_rule_satisfied == false'
+  'batch_4_unblocked_for_local_review == false'
+  'next_sub_batch_id == "first_contact_rts_data_extraction"'
+  'openra_runtime_compatibility_claimed == false'
+  'openra_replay_compatibility_claimed == false'
+  'openra_network_order_stream_claimed == false'
+  'openra_engine_port_claimed == false'
+  'openra_pixel_perfect_asset_parity_claimed == false'
+  'third_party_asset_copied == false'
+  'external_action_performed == false'
+  'public_launch_ready_claimed == false'
+  'android_s5_real_device_claimed == false'
+  'TRILLIONNIUM_WORLD_REVIEW_OPENRA_PARITY_CLAIM_BATCH_GREEN'
+)
+
 for line in "${required_script_lines[@]}"; do
   if ! grep -Fq -- "$line" "$SCRIPT"; then
     echo "[FAIL] next execution plan script missing contract line: $line" >&2
@@ -902,6 +961,13 @@ for line in "${required_review_runtime_adapter_online_batch_lines[@]}"; do
   fi
 done
 
+for line in "${required_review_openra_parity_claim_batch_lines[@]}"; do
+  if ! grep -Fq -- "$line" "$REVIEW_OPENRA_PARITY_CLAIM_BATCH_DOC"; then
+    echo "[FAIL] review OpenRA parity/claim batch missing contract line: $line" >&2
+    exit 1
+  fi
+done
+
 for line in "${required_evidence_volume_lines[@]}"; do
   if ! grep -Fq -- "$line" "$EVIDENCE_VOLUME_DOC"; then
     echo "[FAIL] evidence volume curation missing contract line: $line" >&2
@@ -1017,6 +1083,13 @@ done
 for line in "${required_review_runtime_adapter_online_batch_script_lines[@]}"; do
   if ! grep -Fq -- "$line" "$REVIEW_RUNTIME_ADAPTER_ONLINE_BATCH_SCRIPT"; then
     echo "[FAIL] review runtime-adapter/online batch script missing contract line: $line" >&2
+    exit 1
+  fi
+done
+
+for line in "${required_review_openra_parity_claim_batch_script_lines[@]}"; do
+  if ! grep -Fq -- "$line" "$REVIEW_OPENRA_PARITY_CLAIM_BATCH_SCRIPT"; then
+    echo "[FAIL] review OpenRA parity/claim batch script missing contract line: $line" >&2
     exit 1
   fi
 done
