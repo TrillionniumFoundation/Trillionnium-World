@@ -60,6 +60,9 @@ REVIEW_RUNTIME_ADAPTER_ONLINE_BATCH_JSON="$ACCEPTANCE_DIR/trillionnium-world-rev
 REVIEW_OPENRA_PARITY_CLAIM_BATCH_DOC="$ROOT/docs/development/trillionnium-world-review-openra-parity-claim-batch-2026-07-08.md"
 REVIEW_OPENRA_PARITY_CLAIM_BATCH_DOC_REL="docs/development/trillionnium-world-review-openra-parity-claim-batch-2026-07-08.md"
 REVIEW_OPENRA_PARITY_CLAIM_BATCH_JSON="$ACCEPTANCE_DIR/trillionnium-world-review-openra-parity-claim-batch.json"
+REVIEW_FIRST_CONTACT_RTS_DATA_BATCH_DOC="$ROOT/docs/development/trillionnium-world-review-first-contact-rts-data-batch-2026-07-09.md"
+REVIEW_FIRST_CONTACT_RTS_DATA_BATCH_DOC_REL="docs/development/trillionnium-world-review-first-contact-rts-data-batch-2026-07-09.md"
+REVIEW_FIRST_CONTACT_RTS_DATA_BATCH_JSON="$ACCEPTANCE_DIR/trillionnium-world-review-first-contact-rts-data-batch.json"
 PUBLIC_LAUNCH_BLOCKER_LEDGER_DOC="$ROOT/docs/development/trillionnium-world-public-launch-blocker-execution-ledger-2026-07-07.md"
 PUBLIC_LAUNCH_BLOCKER_LEDGER_DOC_REL="docs/development/trillionnium-world-public-launch-blocker-execution-ledger-2026-07-07.md"
 PUBLIC_LAUNCH_BLOCKER_LEDGER_JSON="$ACCEPTANCE_DIR/trillionnium-world-public-launch-blocker-execution-ledger.json"
@@ -112,6 +115,7 @@ require_file "$REVIEW_RUNTIME_BOUNDARY_BATCH_DOC"
 require_file "$REVIEW_RUNTIME_CORE_SEMANTICS_BATCH_DOC"
 require_file "$REVIEW_RUNTIME_ADAPTER_ONLINE_BATCH_DOC"
 require_file "$REVIEW_OPENRA_PARITY_CLAIM_BATCH_DOC"
+require_file "$REVIEW_FIRST_CONTACT_RTS_DATA_BATCH_DOC"
 require_file "$PUBLIC_LAUNCH_BLOCKER_LEDGER_DOC"
 require_file "$PACKET_JSON"
 require_file "$PUBLIC_LAUNCH_JSON"
@@ -224,6 +228,11 @@ require_text "$REVIEW_OPENRA_PARITY_CLAIM_BATCH_DOC" "Status: local review OpenR
 require_text "$REVIEW_OPENRA_PARITY_CLAIM_BATCH_DOC" "openra_parity_and_claim_boundary"
 require_text "$REVIEW_OPENRA_PARITY_CLAIM_BATCH_DOC" "sub_batch_3_exit_rule_satisfied=true"
 require_text "$REVIEW_OPENRA_PARITY_CLAIM_BATCH_DOC" "batch_4_unblocked_for_local_review=false"
+require_text "$REVIEW_FIRST_CONTACT_RTS_DATA_BATCH_DOC" "Status: local review First Contact RTS data extraction sub-batch 4."
+require_text "$REVIEW_FIRST_CONTACT_RTS_DATA_BATCH_DOC" "first_contact_rts_data_extraction"
+require_text "$REVIEW_FIRST_CONTACT_RTS_DATA_BATCH_DOC" "sub_batch_4_exit_rule_satisfied=true"
+require_text "$REVIEW_FIRST_CONTACT_RTS_DATA_BATCH_DOC" "sub_batch_5_unblocked_for_local_review=true"
+require_text "$REVIEW_FIRST_CONTACT_RTS_DATA_BATCH_DOC" "batch_4_unblocked_for_local_review=false"
 require_text "$PUBLIC_LAUNCH_BLOCKER_LEDGER_DOC" "Status: local blocker execution ledger."
 require_text "$PUBLIC_LAUNCH_BLOCKER_LEDGER_DOC" "Do not use templates, status-only files, host-side screenshots"
 require_text "$PUBLIC_LAUNCH_BLOCKER_LEDGER_DOC" '| `s5_real_device_matrix` |'
@@ -282,8 +291,8 @@ require_file "$REVIEWER_HANDOFF_INDEX_JSON"
 jq -e '
   .contract_version == "trillionnium_world_reviewer_handoff_index_v1"
   and .status == "reviewer_handoff_index_green_with_public_launch_blockers"
-  and .artifact_count == 38
-  and .reviewer_summary_count == 24
+  and .artifact_count == 39
+  and .reviewer_summary_count == 25
   and .live_player_screen_count == 3
   and .representative_visual_count == 5
   and .raw_visual_archive_candidate_count == 6
@@ -638,6 +647,36 @@ jq -e '
   and .android_s5_real_device_claimed == false
 ' "$REVIEW_OPENRA_PARITY_CLAIM_BATCH_JSON" >/dev/null
 
+TRNM_WORLD_REVIEW_FIRST_CONTACT_RTS_DATA_BATCH_REFRESH_INPUTS=0 \
+  "$ROOT/scripts/check_trillionnium_world_review_first_contact_rts_data_batch.sh" >/dev/null
+require_file "$REVIEW_FIRST_CONTACT_RTS_DATA_BATCH_JSON"
+jq -e '
+  .contract_version == "trillionnium_world_review_first_contact_rts_data_batch_v1"
+  and .status == "review_first_contact_rts_data_sub_batch_4_reviewed"
+  and .batch_order == 3
+  and .sub_batch_order == 4
+  and .sub_batch_id == "first_contact_rts_data_extraction"
+  and .reviewed_commit_count == 24
+  and .unresolved_commit_review_count == 0
+  and .batch_3_reviewed_commit_count == 171
+  and .batch_3_remaining_commit_level_review_count == 102
+  and .sub_batch_4_local_review_complete == true
+  and .sub_batch_4_exit_rule_satisfied == true
+  and .sub_batch_5_unblocked_for_local_review == true
+  and .batch_3_exit_rule_satisfied == false
+  and .batch_4_unblocked_for_local_review == false
+  and .next_sub_batch_id == "rts_evidence_crate_boundary"
+  and .basin_spec_green == true
+  and .rts_data_profiles_renderer_neutral == true
+  and .renderer_draw_math_moved_to_rts_data == false
+  and .live_bevy_renderer_behavior_moved_to_rts_data == false
+  and .bevy_renderer_ownership_claimed == false
+  and .public_launch_ready_claimed == false
+  and .android_s5_real_device_claimed == false
+  and .external_action_performed == false
+  and .history_rewrite_performed == false
+' "$REVIEW_FIRST_CONTACT_RTS_DATA_BATCH_JSON" >/dev/null
+
 "$ROOT/scripts/check_trillionnium_world_public_launch_blocker_execution_ledger.sh" >/dev/null
 require_file "$PUBLIC_LAUNCH_BLOCKER_LEDGER_JSON"
 jq -e '
@@ -828,6 +867,23 @@ review_openra_parity_claim_batch_network_claimed="$(jq -r 'if has("openra_networ
 review_openra_parity_claim_batch_asset_copy_claimed="$(jq -r 'if has("third_party_asset_copied") then .third_party_asset_copied else true end' "$REVIEW_OPENRA_PARITY_CLAIM_BATCH_JSON")"
 review_openra_parity_claim_batch_external_action_performed="$(jq -r 'if has("external_action_performed") then .external_action_performed else true end' "$REVIEW_OPENRA_PARITY_CLAIM_BATCH_JSON")"
 review_openra_parity_claim_batch_history_rewrite_performed="$(jq -r 'if has("history_rewrite_performed") then .history_rewrite_performed else true end' "$REVIEW_OPENRA_PARITY_CLAIM_BATCH_JSON")"
+review_first_contact_rts_data_batch_status="$(jq -r '.status // "missing"' "$REVIEW_FIRST_CONTACT_RTS_DATA_BATCH_JSON")"
+review_first_contact_rts_data_batch_reviewed_commit_count="$(jq -r '.reviewed_commit_count // 0' "$REVIEW_FIRST_CONTACT_RTS_DATA_BATCH_JSON")"
+review_first_contact_rts_data_batch_unresolved_count="$(jq -r '.unresolved_commit_review_count // 999' "$REVIEW_FIRST_CONTACT_RTS_DATA_BATCH_JSON")"
+review_first_contact_rts_data_batch_batch3_reviewed_count="$(jq -r '.batch_3_reviewed_commit_count // 0' "$REVIEW_FIRST_CONTACT_RTS_DATA_BATCH_JSON")"
+review_first_contact_rts_data_batch_batch3_remaining_count="$(jq -r '.batch_3_remaining_commit_level_review_count // 999' "$REVIEW_FIRST_CONTACT_RTS_DATA_BATCH_JSON")"
+review_first_contact_rts_data_batch_local_review_complete="$(jq -r 'if has("sub_batch_4_local_review_complete") then .sub_batch_4_local_review_complete else false end' "$REVIEW_FIRST_CONTACT_RTS_DATA_BATCH_JSON")"
+review_first_contact_rts_data_batch_exit_rule_satisfied="$(jq -r 'if has("sub_batch_4_exit_rule_satisfied") then .sub_batch_4_exit_rule_satisfied else false end' "$REVIEW_FIRST_CONTACT_RTS_DATA_BATCH_JSON")"
+review_first_contact_rts_data_batch_next_unblocked="$(jq -r 'if has("sub_batch_5_unblocked_for_local_review") then .sub_batch_5_unblocked_for_local_review else false end' "$REVIEW_FIRST_CONTACT_RTS_DATA_BATCH_JSON")"
+review_first_contact_rts_data_batch_batch3_exit_rule_satisfied="$(jq -r 'if has("batch_3_exit_rule_satisfied") then .batch_3_exit_rule_satisfied else true end' "$REVIEW_FIRST_CONTACT_RTS_DATA_BATCH_JSON")"
+review_first_contact_rts_data_batch_batch4_unblocked="$(jq -r 'if has("batch_4_unblocked_for_local_review") then .batch_4_unblocked_for_local_review else true end' "$REVIEW_FIRST_CONTACT_RTS_DATA_BATCH_JSON")"
+review_first_contact_rts_data_batch_next_sub_batch_id="$(jq -r '.next_sub_batch_id // "missing"' "$REVIEW_FIRST_CONTACT_RTS_DATA_BATCH_JSON")"
+review_first_contact_rts_data_batch_basin_green="$(jq -r 'if has("basin_spec_green") then .basin_spec_green else false end' "$REVIEW_FIRST_CONTACT_RTS_DATA_BATCH_JSON")"
+review_first_contact_rts_data_batch_renderer_neutral="$(jq -r 'if has("rts_data_profiles_renderer_neutral") then .rts_data_profiles_renderer_neutral else false end' "$REVIEW_FIRST_CONTACT_RTS_DATA_BATCH_JSON")"
+review_first_contact_rts_data_batch_draw_math_moved="$(jq -r 'if has("renderer_draw_math_moved_to_rts_data") then .renderer_draw_math_moved_to_rts_data else true end' "$REVIEW_FIRST_CONTACT_RTS_DATA_BATCH_JSON")"
+review_first_contact_rts_data_batch_live_renderer_moved="$(jq -r 'if has("live_bevy_renderer_behavior_moved_to_rts_data") then .live_bevy_renderer_behavior_moved_to_rts_data else true end' "$REVIEW_FIRST_CONTACT_RTS_DATA_BATCH_JSON")"
+review_first_contact_rts_data_batch_external_action_performed="$(jq -r 'if has("external_action_performed") then .external_action_performed else true end' "$REVIEW_FIRST_CONTACT_RTS_DATA_BATCH_JSON")"
+review_first_contact_rts_data_batch_history_rewrite_performed="$(jq -r 'if has("history_rewrite_performed") then .history_rewrite_performed else true end' "$REVIEW_FIRST_CONTACT_RTS_DATA_BATCH_JSON")"
 blocker_execution_ledger_status="$(jq -r '.status // "missing"' "$PUBLIC_LAUNCH_BLOCKER_LEDGER_JSON")"
 blocker_execution_ledger_needs_collection_count="$(jq -r '.needs_collection_count // 0' "$PUBLIC_LAUNCH_BLOCKER_LEDGER_JSON")"
 blocker_execution_ledger_green_evidence_item_count="$(jq -r '.green_evidence_item_count // 0' "$PUBLIC_LAUNCH_BLOCKER_LEDGER_JSON")"
@@ -963,6 +1019,7 @@ jq -n \
   --arg review_runtime_core_semantics_batch_doc "$REVIEW_RUNTIME_CORE_SEMANTICS_BATCH_DOC_REL" \
   --arg review_runtime_adapter_online_batch_doc "$REVIEW_RUNTIME_ADAPTER_ONLINE_BATCH_DOC_REL" \
   --arg review_openra_parity_claim_batch_doc "$REVIEW_OPENRA_PARITY_CLAIM_BATCH_DOC_REL" \
+  --arg review_first_contact_rts_data_batch_doc "$REVIEW_FIRST_CONTACT_RTS_DATA_BATCH_DOC_REL" \
   --arg public_launch_blocker_ledger_doc "$PUBLIC_LAUNCH_BLOCKER_LEDGER_DOC_REL" \
   --arg observation_status "$observation_status" \
   --arg runbook_status "$runbook_status" \
@@ -989,6 +1046,8 @@ jq -n \
   --arg review_runtime_adapter_online_batch_next_sub_batch_id "$review_runtime_adapter_online_batch_next_sub_batch_id" \
   --arg review_openra_parity_claim_batch_status "$review_openra_parity_claim_batch_status" \
   --arg review_openra_parity_claim_batch_next_sub_batch_id "$review_openra_parity_claim_batch_next_sub_batch_id" \
+  --arg review_first_contact_rts_data_batch_status "$review_first_contact_rts_data_batch_status" \
+  --arg review_first_contact_rts_data_batch_next_sub_batch_id "$review_first_contact_rts_data_batch_next_sub_batch_id" \
   --arg blocker_execution_ledger_status "$blocker_execution_ledger_status" \
   --argjson green "$green" \
   --argjson packet_gate "$packet_gate" \
@@ -1134,6 +1193,21 @@ jq -n \
   --argjson review_openra_parity_claim_batch_asset_copy_claimed "$review_openra_parity_claim_batch_asset_copy_claimed" \
   --argjson review_openra_parity_claim_batch_external_action_performed "$review_openra_parity_claim_batch_external_action_performed" \
   --argjson review_openra_parity_claim_batch_history_rewrite_performed "$review_openra_parity_claim_batch_history_rewrite_performed" \
+  --argjson review_first_contact_rts_data_batch_reviewed_commit_count "$review_first_contact_rts_data_batch_reviewed_commit_count" \
+  --argjson review_first_contact_rts_data_batch_unresolved_count "$review_first_contact_rts_data_batch_unresolved_count" \
+  --argjson review_first_contact_rts_data_batch_batch3_reviewed_count "$review_first_contact_rts_data_batch_batch3_reviewed_count" \
+  --argjson review_first_contact_rts_data_batch_batch3_remaining_count "$review_first_contact_rts_data_batch_batch3_remaining_count" \
+  --argjson review_first_contact_rts_data_batch_local_review_complete "$review_first_contact_rts_data_batch_local_review_complete" \
+  --argjson review_first_contact_rts_data_batch_exit_rule_satisfied "$review_first_contact_rts_data_batch_exit_rule_satisfied" \
+  --argjson review_first_contact_rts_data_batch_next_unblocked "$review_first_contact_rts_data_batch_next_unblocked" \
+  --argjson review_first_contact_rts_data_batch_batch3_exit_rule_satisfied "$review_first_contact_rts_data_batch_batch3_exit_rule_satisfied" \
+  --argjson review_first_contact_rts_data_batch_batch4_unblocked "$review_first_contact_rts_data_batch_batch4_unblocked" \
+  --argjson review_first_contact_rts_data_batch_basin_green "$review_first_contact_rts_data_batch_basin_green" \
+  --argjson review_first_contact_rts_data_batch_renderer_neutral "$review_first_contact_rts_data_batch_renderer_neutral" \
+  --argjson review_first_contact_rts_data_batch_draw_math_moved "$review_first_contact_rts_data_batch_draw_math_moved" \
+  --argjson review_first_contact_rts_data_batch_live_renderer_moved "$review_first_contact_rts_data_batch_live_renderer_moved" \
+  --argjson review_first_contact_rts_data_batch_external_action_performed "$review_first_contact_rts_data_batch_external_action_performed" \
+  --argjson review_first_contact_rts_data_batch_history_rewrite_performed "$review_first_contact_rts_data_batch_history_rewrite_performed" \
   --argjson blocker_execution_ledger_needs_collection_count "$blocker_execution_ledger_needs_collection_count" \
   --argjson blocker_execution_ledger_green_evidence_item_count "$blocker_execution_ledger_green_evidence_item_count" \
   --argjson blocker_execution_ledger_consistency_failed_check_count "$blocker_execution_ledger_consistency_failed_check_count" \
@@ -1454,6 +1528,31 @@ jq -n \
       history_rewrite_performed: $review_openra_parity_claim_batch_history_rewrite_performed,
       no_credit_boundary: "local OpenRA parity/claim sub-batch 3 review only; no push, rebase, reset, squash, history rewrite, upload, publish, public launch, Android S5 real-device, beta, production-ready UI, commercial, socket, hosted-service, live multiplayer, OpenRA runtime/replay/network/binary/headless compatibility, OpenRA engine/full-engine/pixel-perfect/Westwood asset parity, third-party asset copy, multi-node, live-traffic, or public-network credit"
     },
+    review_first_contact_rts_data_batch: {
+      doc_path: $review_first_contact_rts_data_batch_doc,
+      artifact_path: "acceptance/S6_public_launch/latest/trillionnium-world-review-first-contact-rts-data-batch.json",
+      status: $review_first_contact_rts_data_batch_status,
+      batch_order: 3,
+      sub_batch_order: 4,
+      sub_batch_id: "first_contact_rts_data_extraction",
+      reviewed_commit_count: $review_first_contact_rts_data_batch_reviewed_commit_count,
+      unresolved_commit_review_count: $review_first_contact_rts_data_batch_unresolved_count,
+      batch_3_reviewed_commit_count: $review_first_contact_rts_data_batch_batch3_reviewed_count,
+      batch_3_remaining_commit_level_review_count: $review_first_contact_rts_data_batch_batch3_remaining_count,
+      sub_batch_4_local_review_complete: $review_first_contact_rts_data_batch_local_review_complete,
+      sub_batch_4_exit_rule_satisfied: $review_first_contact_rts_data_batch_exit_rule_satisfied,
+      sub_batch_5_unblocked_for_local_review: $review_first_contact_rts_data_batch_next_unblocked,
+      batch_3_exit_rule_satisfied: $review_first_contact_rts_data_batch_batch3_exit_rule_satisfied,
+      batch_4_unblocked_for_local_review: $review_first_contact_rts_data_batch_batch4_unblocked,
+      next_sub_batch_id: $review_first_contact_rts_data_batch_next_sub_batch_id,
+      basin_spec_green: $review_first_contact_rts_data_batch_basin_green,
+      rts_data_profiles_renderer_neutral: $review_first_contact_rts_data_batch_renderer_neutral,
+      renderer_draw_math_moved_to_rts_data: $review_first_contact_rts_data_batch_draw_math_moved,
+      live_bevy_renderer_behavior_moved_to_rts_data: $review_first_contact_rts_data_batch_live_renderer_moved,
+      external_action_performed: $review_first_contact_rts_data_batch_external_action_performed,
+      history_rewrite_performed: $review_first_contact_rts_data_batch_history_rewrite_performed,
+      no_credit_boundary: "local First Contact RTS data extraction sub-batch 4 review only; no push, rebase, reset, squash, history rewrite, upload, publish, public launch, Android S5 real-device, beta, production-ready UI, commercial, socket, hosted-service, live multiplayer, render-world extraction completion, GPU upload, renderer ownership transfer, live-traffic, or public-network credit"
+    },
     public_launch_blocker_execution_ledger: {
       doc_path: $public_launch_blocker_ledger_doc,
       artifact_path: "acceptance/S6_public_launch/latest/trillionnium-world-public-launch-blocker-execution-ledger.json",
@@ -1491,7 +1590,7 @@ jq -e '
   and .evidence_volume_curation.large_file_count > 100
   and .evidence_volume_curation.deletion_performed == false
   and .evidence_volume_curation.archive_movement_performed == false
-  and .reviewer_handoff_index.artifact_count == 38
+  and .reviewer_handoff_index.artifact_count == 39
   and .reviewer_handoff_index.representative_visual_count == 5
   and .reviewer_handoff_index.upload_performed == false
   and .reviewer_handoff_index.publish_performed == false
@@ -1643,6 +1742,26 @@ jq -e '
   and .review_openra_parity_claim_batch.third_party_asset_copied == false
   and .review_openra_parity_claim_batch.external_action_performed == false
   and .review_openra_parity_claim_batch.history_rewrite_performed == false
+  and .review_first_contact_rts_data_batch.status == "review_first_contact_rts_data_sub_batch_4_reviewed"
+  and .review_first_contact_rts_data_batch.batch_order == 3
+  and .review_first_contact_rts_data_batch.sub_batch_order == 4
+  and .review_first_contact_rts_data_batch.sub_batch_id == "first_contact_rts_data_extraction"
+  and .review_first_contact_rts_data_batch.reviewed_commit_count == 24
+  and .review_first_contact_rts_data_batch.unresolved_commit_review_count == 0
+  and .review_first_contact_rts_data_batch.batch_3_reviewed_commit_count == 171
+  and .review_first_contact_rts_data_batch.batch_3_remaining_commit_level_review_count == 102
+  and .review_first_contact_rts_data_batch.sub_batch_4_local_review_complete == true
+  and .review_first_contact_rts_data_batch.sub_batch_4_exit_rule_satisfied == true
+  and .review_first_contact_rts_data_batch.sub_batch_5_unblocked_for_local_review == true
+  and .review_first_contact_rts_data_batch.batch_3_exit_rule_satisfied == false
+  and .review_first_contact_rts_data_batch.batch_4_unblocked_for_local_review == false
+  and .review_first_contact_rts_data_batch.next_sub_batch_id == "rts_evidence_crate_boundary"
+  and .review_first_contact_rts_data_batch.basin_spec_green == true
+  and .review_first_contact_rts_data_batch.rts_data_profiles_renderer_neutral == true
+  and .review_first_contact_rts_data_batch.renderer_draw_math_moved_to_rts_data == false
+  and .review_first_contact_rts_data_batch.live_bevy_renderer_behavior_moved_to_rts_data == false
+  and .review_first_contact_rts_data_batch.external_action_performed == false
+  and .review_first_contact_rts_data_batch.history_rewrite_performed == false
   and .public_launch_blocker_execution_ledger.needs_collection_count == 6
   and .public_launch_blocker_execution_ledger.green_evidence_item_count == 0
   and .public_launch_blocker_execution_ledger.blocker_consistency_failed_check_count == 0
@@ -1679,6 +1798,7 @@ jq -e '
   printf -- '- runtime-core semantics batch review: `%s`\n\n' "$REVIEW_RUNTIME_CORE_SEMANTICS_BATCH_DOC_REL"
   printf -- '- runtime-adapter/online batch review: `%s`\n\n' "$REVIEW_RUNTIME_ADAPTER_ONLINE_BATCH_DOC_REL"
   printf -- '- OpenRA parity/claim batch review: `%s`\n\n' "$REVIEW_OPENRA_PARITY_CLAIM_BATCH_DOC_REL"
+  printf -- '- First Contact RTS data batch review: `%s`\n\n' "$REVIEW_FIRST_CONTACT_RTS_DATA_BATCH_DOC_REL"
   printf -- '- public-launch blocker execution ledger: `%s`\n\n' "$PUBLIC_LAUNCH_BLOCKER_LEDGER_DOC_REL"
   printf '## Risks\n\n'
   jq -r '.risks[] | "- `\(.id)`: \(.next_action)"' "$SUMMARY_JSON"

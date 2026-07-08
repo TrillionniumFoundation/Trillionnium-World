@@ -81,6 +81,8 @@ blockers.
      `docs/development/trillionnium-world-review-runtime-adapter-online-batch-2026-07-08.md`
    - OpenRA parity/claim batch review:
      `docs/development/trillionnium-world-review-openra-parity-claim-batch-2026-07-08.md`
+   - First Contact RTS data batch review:
+     `docs/development/trillionnium-world-review-first-contact-rts-data-batch-2026-07-09.md`
    - avoid external push/public actions until explicitly routed
 5. Public launch evidence:
    - S5 real-device matrix

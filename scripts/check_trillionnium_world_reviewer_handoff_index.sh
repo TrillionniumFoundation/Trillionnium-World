@@ -83,6 +83,8 @@ TRNM_WORLD_REVIEW_RUNTIME_ADAPTER_ONLINE_BATCH_REFRESH_INPUTS=0 \
   "$ROOT/scripts/check_trillionnium_world_review_runtime_adapter_online_batch.sh" >/dev/null
 TRNM_WORLD_REVIEW_OPENRA_PARITY_CLAIM_BATCH_REFRESH_INPUTS=0 \
   "$ROOT/scripts/check_trillionnium_world_review_openra_parity_claim_batch.sh" >/dev/null
+TRNM_WORLD_REVIEW_FIRST_CONTACT_RTS_DATA_BATCH_REFRESH_INPUTS=0 \
+  "$ROOT/scripts/check_trillionnium_world_review_first_contact_rts_data_batch.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_first_contact_human_playtest_runbook.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_public_launch_blocker_execution_ledger.sh" >/dev/null
 
@@ -101,6 +103,7 @@ REVIEW_RUNTIME_BOUNDARY_BATCH_JSON="$ACCEPTANCE_DIR/trillionnium-world-review-ru
 REVIEW_RUNTIME_CORE_SEMANTICS_BATCH_JSON="$ACCEPTANCE_DIR/trillionnium-world-review-runtime-core-semantics-batch.json"
 REVIEW_RUNTIME_ADAPTER_ONLINE_BATCH_JSON="$ACCEPTANCE_DIR/trillionnium-world-review-runtime-adapter-online-batch.json"
 REVIEW_OPENRA_PARITY_CLAIM_BATCH_JSON="$ACCEPTANCE_DIR/trillionnium-world-review-openra-parity-claim-batch.json"
+REVIEW_FIRST_CONTACT_RTS_DATA_BATCH_JSON="$ACCEPTANCE_DIR/trillionnium-world-review-first-contact-rts-data-batch.json"
 RUNBOOK_JSON="$ACCEPTANCE_DIR/first-contact-human-playtest-runbook.json"
 OBSERVATION_JSON="$ACCEPTANCE_DIR/first-contact-human-playtest-observation-log.json"
 PACKET_JSON="$ACCEPTANCE_DIR/release-review-packet-integrity.json"
@@ -381,6 +384,27 @@ jq -e '
 ' "$REVIEW_OPENRA_PARITY_CLAIM_BATCH_JSON" >/dev/null
 
 jq -e '
+  .contract_version == "trillionnium_world_review_first_contact_rts_data_batch_v1"
+  and .status == "review_first_contact_rts_data_sub_batch_4_reviewed"
+  and .reviewed_commit_count == 24
+  and .unresolved_commit_review_count == 0
+  and .batch_3_reviewed_commit_count == 171
+  and .batch_3_remaining_commit_level_review_count == 102
+  and .sub_batch_4_local_review_complete == true
+  and .sub_batch_4_exit_rule_satisfied == true
+  and .sub_batch_5_unblocked_for_local_review == true
+  and .batch_3_exit_rule_satisfied == false
+  and .batch_4_unblocked_for_local_review == false
+  and .basin_spec_green == true
+  and .rts_data_profiles_renderer_neutral == true
+  and .renderer_draw_math_moved_to_rts_data == false
+  and .live_bevy_renderer_behavior_moved_to_rts_data == false
+  and .external_action_performed == false
+  and .public_launch_ready_claimed == false
+  and .android_s5_real_device_claimed == false
+' "$REVIEW_FIRST_CONTACT_RTS_DATA_BATCH_JSON" >/dev/null
+
+jq -e '
   .contract_version == "trillionnium_world_first_contact_human_playtest_runbook_v1"
   and .human_playtest_completion_claimed == false
   and .public_launch_ready_claimed == false
@@ -445,6 +469,7 @@ ARTIFACTS_JSON="$(
     artifact_json review_runtime_core_semantics_batch reviewer_summary "acceptance/S6_public_launch/latest/trillionnium-world-review-runtime-core-semantics-batch.json"
     artifact_json review_runtime_adapter_online_batch reviewer_summary "acceptance/S6_public_launch/latest/trillionnium-world-review-runtime-adapter-online-batch.json"
     artifact_json review_openra_parity_claim_batch reviewer_summary "acceptance/S6_public_launch/latest/trillionnium-world-review-openra-parity-claim-batch.json"
+    artifact_json review_first_contact_rts_data_batch reviewer_summary "acceptance/S6_public_launch/latest/trillionnium-world-review-first-contact-rts-data-batch.json"
     artifact_json public_launch_blocker_execution_ledger reviewer_summary "acceptance/S6_public_launch/latest/trillionnium-world-public-launch-blocker-execution-ledger.json"
     artifact_json human_playtest_observation reviewer_summary "acceptance/S6_public_launch/latest/first-contact-human-playtest-observation-log.json"
     artifact_json human_playtest_runbook reviewer_summary "acceptance/S6_public_launch/latest/first-contact-human-playtest-runbook.json"
@@ -522,8 +547,8 @@ jq -e '
   .contract_version == "trillionnium_world_reviewer_handoff_index_v1"
   and .status == "reviewer_handoff_index_green_with_public_launch_blockers"
   and .green == true
-  and .artifact_count == 38
-  and .reviewer_summary_count == 24
+  and .artifact_count == 39
+  and .reviewer_summary_count == 25
   and .live_player_screen_count == 3
   and .representative_visual_count == 5
   and .raw_visual_archive_candidate_count == 6
