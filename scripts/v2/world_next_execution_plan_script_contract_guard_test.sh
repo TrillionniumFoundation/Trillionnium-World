@@ -16,6 +16,7 @@ REVIEW_RUNTIME_OWNER_QUEUE_SCRIPT="$ROOT/scripts/check_trillionnium_world_review
 REVIEW_RESIDUAL_QUEUE_SCRIPT="$ROOT/scripts/check_trillionnium_world_review_residual_queue.sh"
 REVIEW_EXECUTION_BATCHES_SCRIPT="$ROOT/scripts/check_trillionnium_world_review_execution_batches.sh"
 REVIEW_PUBLIC_BOUNDARY_BATCH_SCRIPT="$ROOT/scripts/check_trillionnium_world_review_public_boundary_batch.sh"
+REVIEW_RELEASE_NATIVE_HANDOFF_BATCH_SCRIPT="$ROOT/scripts/check_trillionnium_world_review_release_native_handoff_batch.sh"
 BLOCKER_LEDGER_SCRIPT="$ROOT/scripts/check_trillionnium_world_public_launch_blocker_execution_ledger.sh"
 DOC="$ROOT/docs/development/trillionnium-world-next-execution-plan-v1.md"
 READABILITY_REVIEW_DOC="$ROOT/docs/development/trillionnium-world-first-contact-readability-review-2026-07-07.md"
@@ -32,6 +33,7 @@ REVIEW_RUNTIME_OWNER_QUEUE_DOC="$ROOT/docs/development/trillionnium-world-review
 REVIEW_RESIDUAL_QUEUE_DOC="$ROOT/docs/development/trillionnium-world-review-residual-queue-2026-07-08.md"
 REVIEW_EXECUTION_BATCHES_DOC="$ROOT/docs/development/trillionnium-world-review-execution-batches-2026-07-08.md"
 REVIEW_PUBLIC_BOUNDARY_BATCH_DOC="$ROOT/docs/development/trillionnium-world-review-public-boundary-batch-2026-07-08.md"
+REVIEW_RELEASE_NATIVE_HANDOFF_BATCH_DOC="$ROOT/docs/development/trillionnium-world-review-release-native-handoff-batch-2026-07-08.md"
 BLOCKER_LEDGER_DOC="$ROOT/docs/development/trillionnium-world-public-launch-blocker-execution-ledger-2026-07-07.md"
 
 required_script_lines=(
@@ -130,6 +132,13 @@ required_script_lines=(
   'review_public_boundary_batch_1_ready'
   'unresolved_public_boundary_review_count'
   'batch_2_unblocked_for_local_review'
+  'trillionnium-world-review-release-native-handoff-batch-2026-07-08.md'
+  'review_release_native_handoff_batch'
+  'trillionnium-world-review-release-native-handoff-batch.json'
+  'review_release_native_handoff_batch_2_ready'
+  'unresolved_release_native_handoff_review_count'
+  'TRNM_WORLD_REVIEW_RELEASE_NATIVE_HANDOFF_BATCH_REFRESH_INPUTS=0'
+  'batch_3_unblocked_for_local_review'
   'trillionnium-world-public-launch-blocker-execution-ledger-2026-07-07.md'
   'public_launch_blocker_execution_ledger'
   'trillionnium-world-public-launch-blocker-execution-ledger.json'
@@ -156,6 +165,9 @@ required_script_lines=(
   '.review_public_boundary_batch.batch_1_exit_rule_satisfied == true'
   '.review_public_boundary_batch.unresolved_public_boundary_review_count == 0'
   '.review_public_boundary_batch.external_action_performed == false'
+  '.review_release_native_handoff_batch.batch_2_exit_rule_satisfied == true'
+  '.review_release_native_handoff_batch.unresolved_release_native_handoff_review_count == 0'
+  '.review_release_native_handoff_batch.external_action_performed == false'
   '.human_playtest_runbook.prompts_bound == true'
   '.evidence_volume_curation.deletion_performed == false'
   '.reviewer_handoff_index.upload_performed == false'
@@ -191,6 +203,7 @@ required_doc_lines=(
   'trillionnium-world-review-residual-queue-2026-07-08.md'
   'trillionnium-world-review-execution-batches-2026-07-08.md'
   'trillionnium-world-review-public-boundary-batch-2026-07-08.md'
+  'trillionnium-world-review-release-native-handoff-batch-2026-07-08.md'
   'trillionnium-world-public-launch-blocker-execution-ledger-2026-07-07.md'
   'Do not keep shrinking already-gated micro cues'
 )
@@ -253,6 +266,7 @@ required_reviewer_handoff_lines=(
   'Review residual queue'
   'Review execution batches'
   'Review public-boundary batch'
+  'Review release-native handoff batch'
   'Public-launch blocker execution ledger'
   '| `reviewer_summary` |'
   '| `representative_visuals` |'
@@ -302,8 +316,8 @@ required_reviewer_handoff_script_lines=(
   'trillionnium_world_reviewer_handoff_index_v1'
   'trillionnium-world-reviewer-handoff-index.json'
   'reviewer_handoff_index_green_with_public_launch_blockers'
-  'artifact_count == 33'
-  'reviewer_summary_count == 19'
+  'artifact_count == 34'
+  'reviewer_summary_count == 20'
   'trillionnium-world-review-triage-queue.json'
   'trillionnium-world-review-primary-owner-plan.json'
   'trillionnium-world-review-release-owner-queue.json'
@@ -311,6 +325,7 @@ required_reviewer_handoff_script_lines=(
   'trillionnium-world-review-residual-queue.json'
   'trillionnium-world-review-execution-batches.json'
   'trillionnium-world-review-public-boundary-batch.json'
+  'trillionnium-world-review-release-native-handoff-batch.json'
   'representative_visual_count == 5'
   'raw_visual_archive_candidate_count == 6'
   'upload_performed == false'
@@ -573,6 +588,36 @@ required_review_public_boundary_batch_script_lines=(
   'TRILLIONNIUM_WORLD_REVIEW_PUBLIC_BOUNDARY_BATCH_GREEN'
 )
 
+required_review_release_native_handoff_batch_lines=(
+  'Status: local review release-native handoff batch 2.'
+  'multi_release_native_handoff_overlap'
+  'Release-review packet integrity'
+  'It does not stage, commit, push, rebase, reset, squash'
+  '`bcc231f2fb`'
+  '`4b53cd606b`'
+  'unresolved_release_native_handoff_review_count=0'
+)
+
+required_review_release_native_handoff_batch_script_lines=(
+  'trillionnium_world_review_release_native_handoff_batch_v1'
+  'trillionnium-world-review-release-native-handoff-batch.json'
+  'TRNM_WORLD_REVIEW_RELEASE_NATIVE_HANDOFF_BATCH_REFRESH_INPUTS'
+  'review_release_native_handoff_batch_2_ready'
+  'multi_release_native_handoff_overlap'
+  'reviewed_commit_count == 29'
+  'unresolved_release_native_handoff_review_count == 0'
+  'review_group_count == 4'
+  'prior_public_boundary_batch_closed == true'
+  'packet_integrity_failed_check_count == 0'
+  'batch_2_exit_rule_satisfied == true'
+  'batch_3_unblocked_for_local_review == true'
+  'external_action_performed == false'
+  'history_rewrite_performed == false'
+  'public_launch_ready_claimed == false'
+  'android_s5_real_device_claimed == false'
+  'TRILLIONNIUM_WORLD_REVIEW_RELEASE_NATIVE_HANDOFF_BATCH_GREEN'
+)
+
 for line in "${required_script_lines[@]}"; do
   if ! grep -Fq -- "$line" "$SCRIPT"; then
     echo "[FAIL] next execution plan script missing contract line: $line" >&2
@@ -671,6 +716,13 @@ for line in "${required_review_public_boundary_batch_lines[@]}"; do
   fi
 done
 
+for line in "${required_review_release_native_handoff_batch_lines[@]}"; do
+  if ! grep -Fq -- "$line" "$REVIEW_RELEASE_NATIVE_HANDOFF_BATCH_DOC"; then
+    echo "[FAIL] review release-native handoff batch missing contract line: $line" >&2
+    exit 1
+  fi
+done
+
 for line in "${required_evidence_volume_lines[@]}"; do
   if ! grep -Fq -- "$line" "$EVIDENCE_VOLUME_DOC"; then
     echo "[FAIL] evidence volume curation missing contract line: $line" >&2
@@ -758,6 +810,13 @@ done
 for line in "${required_review_public_boundary_batch_script_lines[@]}"; do
   if ! grep -Fq -- "$line" "$REVIEW_PUBLIC_BOUNDARY_BATCH_SCRIPT"; then
     echo "[FAIL] review public-boundary batch script missing contract line: $line" >&2
+    exit 1
+  fi
+done
+
+for line in "${required_review_release_native_handoff_batch_script_lines[@]}"; do
+  if ! grep -Fq -- "$line" "$REVIEW_RELEASE_NATIVE_HANDOFF_BATCH_SCRIPT"; then
+    echo "[FAIL] review release-native handoff batch script missing contract line: $line" >&2
     exit 1
   fi
 done

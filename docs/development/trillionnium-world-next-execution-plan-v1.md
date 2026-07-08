@@ -71,6 +71,8 @@ blockers.
      `docs/development/trillionnium-world-review-execution-batches-2026-07-08.md`
    - public-boundary batch review:
      `docs/development/trillionnium-world-review-public-boundary-batch-2026-07-08.md`
+   - release-native handoff batch review:
+     `docs/development/trillionnium-world-review-release-native-handoff-batch-2026-07-08.md`
    - avoid external push/public actions until explicitly routed
 5. Public launch evidence:
    - S5 real-device matrix
