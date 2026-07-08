@@ -12,6 +12,7 @@ REVIEW_SLICE_MANIFEST_SCRIPT="$ROOT/scripts/check_trillionnium_world_review_slic
 REVIEW_TRIAGE_QUEUE_SCRIPT="$ROOT/scripts/check_trillionnium_world_review_triage_queue.sh"
 REVIEW_PRIMARY_OWNER_PLAN_SCRIPT="$ROOT/scripts/check_trillionnium_world_review_primary_owner_plan.sh"
 REVIEW_RELEASE_OWNER_QUEUE_SCRIPT="$ROOT/scripts/check_trillionnium_world_review_release_owner_queue.sh"
+REVIEW_RUNTIME_OWNER_QUEUE_SCRIPT="$ROOT/scripts/check_trillionnium_world_review_runtime_owner_queue.sh"
 BLOCKER_LEDGER_SCRIPT="$ROOT/scripts/check_trillionnium_world_public_launch_blocker_execution_ledger.sh"
 DOC="$ROOT/docs/development/trillionnium-world-next-execution-plan-v1.md"
 READABILITY_REVIEW_DOC="$ROOT/docs/development/trillionnium-world-first-contact-readability-review-2026-07-07.md"
@@ -24,6 +25,7 @@ REVIEW_SLICE_MANIFEST_DOC="$ROOT/docs/development/trillionnium-world-review-slic
 REVIEW_TRIAGE_QUEUE_DOC="$ROOT/docs/development/trillionnium-world-review-triage-queue-2026-07-07.md"
 REVIEW_PRIMARY_OWNER_PLAN_DOC="$ROOT/docs/development/trillionnium-world-review-primary-owner-plan-2026-07-07.md"
 REVIEW_RELEASE_OWNER_QUEUE_DOC="$ROOT/docs/development/trillionnium-world-review-release-owner-queue-2026-07-07.md"
+REVIEW_RUNTIME_OWNER_QUEUE_DOC="$ROOT/docs/development/trillionnium-world-review-runtime-owner-queue-2026-07-07.md"
 BLOCKER_LEDGER_DOC="$ROOT/docs/development/trillionnium-world-public-launch-blocker-execution-ledger-2026-07-07.md"
 
 required_script_lines=(
@@ -92,6 +94,13 @@ required_script_lines=(
   'release_queue_item_count'
   'queue_matches_owner_plan'
   'truth_source_review_item_count'
+  'trillionnium-world-review-runtime-owner-queue-2026-07-07.md'
+  'review_runtime_owner_queue'
+  'trillionnium-world-review-runtime-owner-queue.json'
+  'review_runtime_owner_queue_ready'
+  'runtime_queue_item_count'
+  'runtime_boundary_review_item_count'
+  'zero_count_bucket_count'
   'trillionnium-world-public-launch-blocker-execution-ledger-2026-07-07.md'
   'public_launch_blocker_execution_ledger'
   'trillionnium-world-public-launch-blocker-execution-ledger.json'
@@ -108,6 +117,8 @@ required_script_lines=(
   '.review_primary_owner_plan.commit_level_primary_owner_review_required == true'
   '.review_release_owner_queue.queue_matches_owner_plan == true'
   '.review_release_owner_queue.external_action_performed == false'
+  '.review_runtime_owner_queue.queue_matches_owner_plan == true'
+  '.review_runtime_owner_queue.external_action_performed == false'
   '.human_playtest_runbook.prompts_bound == true'
   '.evidence_volume_curation.deletion_performed == false'
   '.reviewer_handoff_index.upload_performed == false'
@@ -139,6 +150,7 @@ required_doc_lines=(
   'trillionnium-world-review-triage-queue-2026-07-07.md'
   'trillionnium-world-review-primary-owner-plan-2026-07-07.md'
   'trillionnium-world-review-release-owner-queue-2026-07-07.md'
+  'trillionnium-world-review-runtime-owner-queue-2026-07-07.md'
   'trillionnium-world-public-launch-blocker-execution-ledger-2026-07-07.md'
   'Do not keep shrinking already-gated micro cues'
 )
@@ -197,6 +209,7 @@ required_reviewer_handoff_lines=(
   'Review triage queue'
   'Review primary-owner plan'
   'Review release-owner queue'
+  'Review runtime-owner queue'
   'Public-launch blocker execution ledger'
   '| `reviewer_summary` |'
   '| `representative_visuals` |'
@@ -246,11 +259,12 @@ required_reviewer_handoff_script_lines=(
   'trillionnium_world_reviewer_handoff_index_v1'
   'trillionnium-world-reviewer-handoff-index.json'
   'reviewer_handoff_index_green_with_public_launch_blockers'
-  'artifact_count == 29'
-  'reviewer_summary_count == 15'
+  'artifact_count == 30'
+  'reviewer_summary_count == 16'
   'trillionnium-world-review-triage-queue.json'
   'trillionnium-world-review-primary-owner-plan.json'
   'trillionnium-world-review-release-owner-queue.json'
+  'trillionnium-world-review-runtime-owner-queue.json'
   'representative_visual_count == 5'
   'raw_visual_archive_candidate_count == 6'
   'upload_performed == false'
@@ -402,6 +416,34 @@ required_review_release_owner_queue_script_lines=(
   'TRILLIONNIUM_WORLD_REVIEW_RELEASE_OWNER_QUEUE_GREEN'
 )
 
+required_review_runtime_owner_queue_lines=(
+  'Status: local RTS runtime/data-boundary owner queue.'
+  'rts_runtime_data_boundaries'
+  'It does not stage, commit, push, rebase, reset, squash'
+  '| `multi_native_bevy_rts_boundary_overlap` |'
+  '| `unclassified_bot_executor_surface` |'
+  '| `unclassified_map_or_modeling_surface` |'
+)
+
+required_review_runtime_owner_queue_script_lines=(
+  'trillionnium_world_review_runtime_owner_queue_v1'
+  'trillionnium-world-review-runtime-owner-queue.json'
+  'review_runtime_owner_queue_ready'
+  'rts_runtime_data_boundaries'
+  'lane_bucket_count == 3'
+  'runtime_queue_item_count'
+  'queue_matches_owner_plan == true'
+  'commit_level_primary_owner_review_required_count'
+  'runtime_boundary_review_item_count'
+  'zero_count_bucket_count'
+  'bucket_coverage_complete == true'
+  'history_rewrite_performed == false'
+  'external_action_performed == false'
+  'public_launch_ready_claimed == false'
+  'android_s5_real_device_claimed == false'
+  'TRILLIONNIUM_WORLD_REVIEW_RUNTIME_OWNER_QUEUE_GREEN'
+)
+
 for line in "${required_script_lines[@]}"; do
   if ! grep -Fq -- "$line" "$SCRIPT"; then
     echo "[FAIL] next execution plan script missing contract line: $line" >&2
@@ -472,6 +514,13 @@ for line in "${required_review_release_owner_queue_lines[@]}"; do
   fi
 done
 
+for line in "${required_review_runtime_owner_queue_lines[@]}"; do
+  if ! grep -Fq -- "$line" "$REVIEW_RUNTIME_OWNER_QUEUE_DOC"; then
+    echo "[FAIL] review runtime-owner queue missing contract line: $line" >&2
+    exit 1
+  fi
+done
+
 for line in "${required_evidence_volume_lines[@]}"; do
   if ! grep -Fq -- "$line" "$EVIDENCE_VOLUME_DOC"; then
     echo "[FAIL] evidence volume curation missing contract line: $line" >&2
@@ -531,6 +580,13 @@ done
 for line in "${required_review_release_owner_queue_script_lines[@]}"; do
   if ! grep -Fq -- "$line" "$REVIEW_RELEASE_OWNER_QUEUE_SCRIPT"; then
     echo "[FAIL] review release-owner queue script missing contract line: $line" >&2
+    exit 1
+  fi
+done
+
+for line in "${required_review_runtime_owner_queue_script_lines[@]}"; do
+  if ! grep -Fq -- "$line" "$REVIEW_RUNTIME_OWNER_QUEUE_SCRIPT"; then
+    echo "[FAIL] review runtime-owner queue script missing contract line: $line" >&2
     exit 1
   fi
 done

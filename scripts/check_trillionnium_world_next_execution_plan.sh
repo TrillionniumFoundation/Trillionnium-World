@@ -33,6 +33,9 @@ REVIEW_PRIMARY_OWNER_PLAN_JSON="$ACCEPTANCE_DIR/trillionnium-world-review-primar
 REVIEW_RELEASE_OWNER_QUEUE_DOC="$ROOT/docs/development/trillionnium-world-review-release-owner-queue-2026-07-07.md"
 REVIEW_RELEASE_OWNER_QUEUE_DOC_REL="docs/development/trillionnium-world-review-release-owner-queue-2026-07-07.md"
 REVIEW_RELEASE_OWNER_QUEUE_JSON="$ACCEPTANCE_DIR/trillionnium-world-review-release-owner-queue.json"
+REVIEW_RUNTIME_OWNER_QUEUE_DOC="$ROOT/docs/development/trillionnium-world-review-runtime-owner-queue-2026-07-07.md"
+REVIEW_RUNTIME_OWNER_QUEUE_DOC_REL="docs/development/trillionnium-world-review-runtime-owner-queue-2026-07-07.md"
+REVIEW_RUNTIME_OWNER_QUEUE_JSON="$ACCEPTANCE_DIR/trillionnium-world-review-runtime-owner-queue.json"
 PUBLIC_LAUNCH_BLOCKER_LEDGER_DOC="$ROOT/docs/development/trillionnium-world-public-launch-blocker-execution-ledger-2026-07-07.md"
 PUBLIC_LAUNCH_BLOCKER_LEDGER_DOC_REL="docs/development/trillionnium-world-public-launch-blocker-execution-ledger-2026-07-07.md"
 PUBLIC_LAUNCH_BLOCKER_LEDGER_JSON="$ACCEPTANCE_DIR/trillionnium-world-public-launch-blocker-execution-ledger.json"
@@ -76,6 +79,7 @@ require_file "$REVIEW_SLICE_MANIFEST_DOC"
 require_file "$REVIEW_TRIAGE_QUEUE_DOC"
 require_file "$REVIEW_PRIMARY_OWNER_PLAN_DOC"
 require_file "$REVIEW_RELEASE_OWNER_QUEUE_DOC"
+require_file "$REVIEW_RUNTIME_OWNER_QUEUE_DOC"
 require_file "$PUBLIC_LAUNCH_BLOCKER_LEDGER_DOC"
 require_file "$PACKET_JSON"
 require_file "$PUBLIC_LAUNCH_JSON"
@@ -96,6 +100,7 @@ require_text "$DOC" "trillionnium-world-review-slice-manifest-2026-07-07.md"
 require_text "$DOC" "trillionnium-world-review-triage-queue-2026-07-07.md"
 require_text "$DOC" "trillionnium-world-review-primary-owner-plan-2026-07-07.md"
 require_text "$DOC" "trillionnium-world-review-release-owner-queue-2026-07-07.md"
+require_text "$DOC" "trillionnium-world-review-runtime-owner-queue-2026-07-07.md"
 require_text "$DOC" "trillionnium-world-public-launch-blocker-execution-ledger-2026-07-07.md"
 require_text "$READABILITY_REVIEW_DOC" "The central beacon fight is still the dominant whole-screen readability risk."
 require_text "$READABILITY_REVIEW_DOC" "Do a product-level silhouette and composition pass around the active center"
@@ -143,6 +148,11 @@ require_text "$REVIEW_RELEASE_OWNER_QUEUE_DOC" "Status: local release/public-bou
 require_text "$REVIEW_RELEASE_OWNER_QUEUE_DOC" "release_truth_and_public_boundary"
 require_text "$REVIEW_RELEASE_OWNER_QUEUE_DOC" '| `multi_public_boundary_overlap` |'
 require_text "$REVIEW_RELEASE_OWNER_QUEUE_DOC" '| `unclassified_generated_count_surface` |'
+require_text "$REVIEW_RUNTIME_OWNER_QUEUE_DOC" "Status: local RTS runtime/data-boundary owner queue."
+require_text "$REVIEW_RUNTIME_OWNER_QUEUE_DOC" "rts_runtime_data_boundaries"
+require_text "$REVIEW_RUNTIME_OWNER_QUEUE_DOC" '| `multi_native_bevy_rts_boundary_overlap` |'
+require_text "$REVIEW_RUNTIME_OWNER_QUEUE_DOC" '| `unclassified_bot_executor_surface` |'
+require_text "$REVIEW_RUNTIME_OWNER_QUEUE_DOC" '| `unclassified_map_or_modeling_surface` |'
 require_text "$PUBLIC_LAUNCH_BLOCKER_LEDGER_DOC" "Status: local blocker execution ledger."
 require_text "$PUBLIC_LAUNCH_BLOCKER_LEDGER_DOC" "Do not use templates, status-only files, host-side screenshots"
 require_text "$PUBLIC_LAUNCH_BLOCKER_LEDGER_DOC" '| `s5_real_device_matrix` |'
@@ -201,8 +211,8 @@ require_file "$REVIEWER_HANDOFF_INDEX_JSON"
 jq -e '
   .contract_version == "trillionnium_world_reviewer_handoff_index_v1"
   and .status == "reviewer_handoff_index_green_with_public_launch_blockers"
-  and .artifact_count == 29
-  and .reviewer_summary_count == 15
+  and .artifact_count == 30
+  and .reviewer_summary_count == 16
   and .live_player_screen_count == 3
   and .representative_visual_count == 5
   and .raw_visual_archive_candidate_count == 6
@@ -315,6 +325,30 @@ jq -e '
   and .android_s5_real_device_claimed == false
 ' "$REVIEW_RELEASE_OWNER_QUEUE_JSON" >/dev/null
 
+"$ROOT/scripts/check_trillionnium_world_review_runtime_owner_queue.sh" >/dev/null
+require_file "$REVIEW_RUNTIME_OWNER_QUEUE_JSON"
+jq -e '
+  .contract_version == "trillionnium_world_review_runtime_owner_queue_v1"
+  and .status == "review_runtime_owner_queue_ready"
+  and .primary_owner == "rts_runtime_data_boundaries"
+  and .lane_bucket_count == 3
+  and .runtime_queue_item_count == .owner_plan_runtime_commit_count
+  and .queue_matches_owner_plan == true
+  and .commit_level_primary_owner_review_required_count == .owner_plan_commit_level_required_count
+  and .runtime_boundary_review_item_count >= 1
+  and .bucket_coverage_complete == true
+  and .push_performed == false
+  and .rebase_performed == false
+  and .reset_performed == false
+  and .squash_performed == false
+  and .history_rewrite_performed == false
+  and .external_action_performed == false
+  and .upload_performed == false
+  and .publish_performed == false
+  and .public_launch_ready_claimed == false
+  and .android_s5_real_device_claimed == false
+' "$REVIEW_RUNTIME_OWNER_QUEUE_JSON" >/dev/null
+
 "$ROOT/scripts/check_trillionnium_world_public_launch_blocker_execution_ledger.sh" >/dev/null
 require_file "$PUBLIC_LAUNCH_BLOCKER_LEDGER_JSON"
 jq -e '
@@ -398,6 +432,15 @@ review_release_owner_queue_commit_level_required_count="$(jq -r '.commit_level_p
 review_release_owner_queue_truth_source_count="$(jq -r '.truth_source_review_item_count // 0' "$REVIEW_RELEASE_OWNER_QUEUE_JSON")"
 review_release_owner_queue_external_action_performed="$(jq -r 'if has("external_action_performed") then .external_action_performed else true end' "$REVIEW_RELEASE_OWNER_QUEUE_JSON")"
 review_release_owner_queue_history_rewrite_performed="$(jq -r 'if has("history_rewrite_performed") then .history_rewrite_performed else true end' "$REVIEW_RELEASE_OWNER_QUEUE_JSON")"
+review_runtime_owner_queue_status="$(jq -r '.status // "missing"' "$REVIEW_RUNTIME_OWNER_QUEUE_JSON")"
+review_runtime_owner_queue_item_count="$(jq -r '.runtime_queue_item_count // 0' "$REVIEW_RUNTIME_OWNER_QUEUE_JSON")"
+review_runtime_owner_queue_lane_bucket_count="$(jq -r '.lane_bucket_count // 0' "$REVIEW_RUNTIME_OWNER_QUEUE_JSON")"
+review_runtime_owner_queue_matches_owner_plan="$(jq -r 'if has("queue_matches_owner_plan") then .queue_matches_owner_plan else false end' "$REVIEW_RUNTIME_OWNER_QUEUE_JSON")"
+review_runtime_owner_queue_commit_level_required_count="$(jq -r '.commit_level_primary_owner_review_required_count // 0' "$REVIEW_RUNTIME_OWNER_QUEUE_JSON")"
+review_runtime_owner_queue_boundary_review_count="$(jq -r '.runtime_boundary_review_item_count // 0' "$REVIEW_RUNTIME_OWNER_QUEUE_JSON")"
+review_runtime_owner_queue_zero_count_bucket_count="$(jq -r '.zero_count_bucket_count // 0' "$REVIEW_RUNTIME_OWNER_QUEUE_JSON")"
+review_runtime_owner_queue_external_action_performed="$(jq -r 'if has("external_action_performed") then .external_action_performed else true end' "$REVIEW_RUNTIME_OWNER_QUEUE_JSON")"
+review_runtime_owner_queue_history_rewrite_performed="$(jq -r 'if has("history_rewrite_performed") then .history_rewrite_performed else true end' "$REVIEW_RUNTIME_OWNER_QUEUE_JSON")"
 blocker_execution_ledger_status="$(jq -r '.status // "missing"' "$PUBLIC_LAUNCH_BLOCKER_LEDGER_JSON")"
 blocker_execution_ledger_needs_collection_count="$(jq -r '.needs_collection_count // 0' "$PUBLIC_LAUNCH_BLOCKER_LEDGER_JSON")"
 blocker_execution_ledger_green_evidence_item_count="$(jq -r '.green_evidence_item_count // 0' "$PUBLIC_LAUNCH_BLOCKER_LEDGER_JSON")"
@@ -524,6 +567,7 @@ jq -n \
   --arg review_triage_queue_doc "$REVIEW_TRIAGE_QUEUE_DOC_REL" \
   --arg review_primary_owner_plan_doc "$REVIEW_PRIMARY_OWNER_PLAN_DOC_REL" \
   --arg review_release_owner_queue_doc "$REVIEW_RELEASE_OWNER_QUEUE_DOC_REL" \
+  --arg review_runtime_owner_queue_doc "$REVIEW_RUNTIME_OWNER_QUEUE_DOC_REL" \
   --arg public_launch_blocker_ledger_doc "$PUBLIC_LAUNCH_BLOCKER_LEDGER_DOC_REL" \
   --arg observation_status "$observation_status" \
   --arg runbook_status "$runbook_status" \
@@ -534,6 +578,7 @@ jq -n \
   --arg review_triage_queue_status "$review_triage_queue_status" \
   --arg review_primary_owner_plan_status "$review_primary_owner_plan_status" \
   --arg review_release_owner_queue_status "$review_release_owner_queue_status" \
+  --arg review_runtime_owner_queue_status "$review_runtime_owner_queue_status" \
   --arg blocker_execution_ledger_status "$blocker_execution_ledger_status" \
   --argjson green "$green" \
   --argjson packet_gate "$packet_gate" \
@@ -588,6 +633,14 @@ jq -n \
   --argjson review_release_owner_queue_truth_source_count "$review_release_owner_queue_truth_source_count" \
   --argjson review_release_owner_queue_external_action_performed "$review_release_owner_queue_external_action_performed" \
   --argjson review_release_owner_queue_history_rewrite_performed "$review_release_owner_queue_history_rewrite_performed" \
+  --argjson review_runtime_owner_queue_item_count "$review_runtime_owner_queue_item_count" \
+  --argjson review_runtime_owner_queue_lane_bucket_count "$review_runtime_owner_queue_lane_bucket_count" \
+  --argjson review_runtime_owner_queue_matches_owner_plan "$review_runtime_owner_queue_matches_owner_plan" \
+  --argjson review_runtime_owner_queue_commit_level_required_count "$review_runtime_owner_queue_commit_level_required_count" \
+  --argjson review_runtime_owner_queue_boundary_review_count "$review_runtime_owner_queue_boundary_review_count" \
+  --argjson review_runtime_owner_queue_zero_count_bucket_count "$review_runtime_owner_queue_zero_count_bucket_count" \
+  --argjson review_runtime_owner_queue_external_action_performed "$review_runtime_owner_queue_external_action_performed" \
+  --argjson review_runtime_owner_queue_history_rewrite_performed "$review_runtime_owner_queue_history_rewrite_performed" \
   --argjson blocker_execution_ledger_needs_collection_count "$blocker_execution_ledger_needs_collection_count" \
   --argjson blocker_execution_ledger_green_evidence_item_count "$blocker_execution_ledger_green_evidence_item_count" \
   --argjson blocker_execution_ledger_consistency_failed_check_count "$blocker_execution_ledger_consistency_failed_check_count" \
@@ -740,6 +793,21 @@ jq -n \
       history_rewrite_performed: $review_release_owner_queue_history_rewrite_performed,
       no_credit_boundary: "local release/public-boundary owner queue only; no push, rebase, reset, squash, history rewrite, upload, publish, public launch, Android S5 real-device, beta, production-ready UI, commercial, multi-node, live-traffic, or public-network credit"
     },
+    review_runtime_owner_queue: {
+      doc_path: $review_runtime_owner_queue_doc,
+      artifact_path: "acceptance/S6_public_launch/latest/trillionnium-world-review-runtime-owner-queue.json",
+      status: $review_runtime_owner_queue_status,
+      primary_owner: "rts_runtime_data_boundaries",
+      lane_bucket_count: $review_runtime_owner_queue_lane_bucket_count,
+      runtime_queue_item_count: $review_runtime_owner_queue_item_count,
+      queue_matches_owner_plan: $review_runtime_owner_queue_matches_owner_plan,
+      commit_level_primary_owner_review_required_count: $review_runtime_owner_queue_commit_level_required_count,
+      runtime_boundary_review_item_count: $review_runtime_owner_queue_boundary_review_count,
+      zero_count_bucket_count: $review_runtime_owner_queue_zero_count_bucket_count,
+      external_action_performed: $review_runtime_owner_queue_external_action_performed,
+      history_rewrite_performed: $review_runtime_owner_queue_history_rewrite_performed,
+      no_credit_boundary: "local RTS runtime/data-boundary owner queue only; no push, rebase, reset, squash, history rewrite, upload, publish, public launch, Android S5 real-device, beta, production-ready UI, commercial, multi-node, live-traffic, or public-network credit"
+    },
     public_launch_blocker_execution_ledger: {
       doc_path: $public_launch_blocker_ledger_doc,
       artifact_path: "acceptance/S6_public_launch/latest/trillionnium-world-public-launch-blocker-execution-ledger.json",
@@ -777,7 +845,7 @@ jq -e '
   and .evidence_volume_curation.large_file_count > 100
   and .evidence_volume_curation.deletion_performed == false
   and .evidence_volume_curation.archive_movement_performed == false
-  and .reviewer_handoff_index.artifact_count == 29
+  and .reviewer_handoff_index.artifact_count == 30
   and .reviewer_handoff_index.representative_visual_count == 5
   and .reviewer_handoff_index.upload_performed == false
   and .reviewer_handoff_index.publish_performed == false
@@ -810,6 +878,15 @@ jq -e '
   and .review_release_owner_queue.truth_source_review_item_count >= 1
   and .review_release_owner_queue.external_action_performed == false
   and .review_release_owner_queue.history_rewrite_performed == false
+  and .review_runtime_owner_queue.primary_owner == "rts_runtime_data_boundaries"
+  and .review_runtime_owner_queue.lane_bucket_count == 3
+  and .review_runtime_owner_queue.runtime_queue_item_count >= 1
+  and .review_runtime_owner_queue.queue_matches_owner_plan == true
+  and .review_runtime_owner_queue.commit_level_primary_owner_review_required_count >= 1
+  and .review_runtime_owner_queue.runtime_boundary_review_item_count >= 1
+  and .review_runtime_owner_queue.zero_count_bucket_count >= 1
+  and .review_runtime_owner_queue.external_action_performed == false
+  and .review_runtime_owner_queue.history_rewrite_performed == false
   and .public_launch_blocker_execution_ledger.needs_collection_count == 6
   and .public_launch_blocker_execution_ledger.green_evidence_item_count == 0
   and .public_launch_blocker_execution_ledger.blocker_consistency_failed_check_count == 0
@@ -837,6 +914,7 @@ jq -e '
   printf -- '- review triage queue: `%s`\n\n' "$REVIEW_TRIAGE_QUEUE_DOC_REL"
   printf -- '- review primary-owner plan: `%s`\n\n' "$REVIEW_PRIMARY_OWNER_PLAN_DOC_REL"
   printf -- '- release/public-boundary owner queue: `%s`\n\n' "$REVIEW_RELEASE_OWNER_QUEUE_DOC_REL"
+  printf -- '- RTS runtime/data-boundary owner queue: `%s`\n\n' "$REVIEW_RUNTIME_OWNER_QUEUE_DOC_REL"
   printf -- '- public-launch blocker execution ledger: `%s`\n\n' "$PUBLIC_LAUNCH_BLOCKER_LEDGER_DOC_REL"
   printf '## Risks\n\n'
   jq -r '.risks[] | "- `\(.id)`: \(.next_action)"' "$SUMMARY_JSON"
