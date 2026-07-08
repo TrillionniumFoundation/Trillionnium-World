@@ -42,6 +42,9 @@ REVIEW_RESIDUAL_QUEUE_JSON="$ACCEPTANCE_DIR/trillionnium-world-review-residual-q
 REVIEW_EXECUTION_BATCHES_DOC="$ROOT/docs/development/trillionnium-world-review-execution-batches-2026-07-08.md"
 REVIEW_EXECUTION_BATCHES_DOC_REL="docs/development/trillionnium-world-review-execution-batches-2026-07-08.md"
 REVIEW_EXECUTION_BATCHES_JSON="$ACCEPTANCE_DIR/trillionnium-world-review-execution-batches.json"
+REVIEW_PUBLIC_BOUNDARY_BATCH_DOC="$ROOT/docs/development/trillionnium-world-review-public-boundary-batch-2026-07-08.md"
+REVIEW_PUBLIC_BOUNDARY_BATCH_DOC_REL="docs/development/trillionnium-world-review-public-boundary-batch-2026-07-08.md"
+REVIEW_PUBLIC_BOUNDARY_BATCH_JSON="$ACCEPTANCE_DIR/trillionnium-world-review-public-boundary-batch.json"
 PUBLIC_LAUNCH_BLOCKER_LEDGER_DOC="$ROOT/docs/development/trillionnium-world-public-launch-blocker-execution-ledger-2026-07-07.md"
 PUBLIC_LAUNCH_BLOCKER_LEDGER_DOC_REL="docs/development/trillionnium-world-public-launch-blocker-execution-ledger-2026-07-07.md"
 PUBLIC_LAUNCH_BLOCKER_LEDGER_JSON="$ACCEPTANCE_DIR/trillionnium-world-public-launch-blocker-execution-ledger.json"
@@ -88,6 +91,7 @@ require_file "$REVIEW_RELEASE_OWNER_QUEUE_DOC"
 require_file "$REVIEW_RUNTIME_OWNER_QUEUE_DOC"
 require_file "$REVIEW_RESIDUAL_QUEUE_DOC"
 require_file "$REVIEW_EXECUTION_BATCHES_DOC"
+require_file "$REVIEW_PUBLIC_BOUNDARY_BATCH_DOC"
 require_file "$PUBLIC_LAUNCH_BLOCKER_LEDGER_DOC"
 require_file "$PACKET_JSON"
 require_file "$PUBLIC_LAUNCH_JSON"
@@ -111,6 +115,7 @@ require_text "$DOC" "trillionnium-world-review-release-owner-queue-2026-07-07.md
 require_text "$DOC" "trillionnium-world-review-runtime-owner-queue-2026-07-07.md"
 require_text "$DOC" "trillionnium-world-review-residual-queue-2026-07-08.md"
 require_text "$DOC" "trillionnium-world-review-execution-batches-2026-07-08.md"
+require_text "$DOC" "trillionnium-world-review-public-boundary-batch-2026-07-08.md"
 require_text "$DOC" "trillionnium-world-public-launch-blocker-execution-ledger-2026-07-07.md"
 require_text "$READABILITY_REVIEW_DOC" "The central beacon fight is still the dominant whole-screen readability risk."
 require_text "$READABILITY_REVIEW_DOC" "Do a product-level silhouette and composition pass around the active center"
@@ -173,6 +178,9 @@ require_text "$REVIEW_EXECUTION_BATCHES_DOC" "Status: local review execution bat
 require_text "$REVIEW_EXECUTION_BATCHES_DOC" "release, runtime, and residual owner queues"
 require_text "$REVIEW_EXECUTION_BATCHES_DOC" '| 1 | `multi_public_boundary_overlap` |'
 require_text "$REVIEW_EXECUTION_BATCHES_DOC" '| 11 | `multi_manual_overlap` |'
+require_text "$REVIEW_PUBLIC_BOUNDARY_BATCH_DOC" "Status: local review public-boundary batch 1."
+require_text "$REVIEW_PUBLIC_BOUNDARY_BATCH_DOC" "multi_public_boundary_overlap"
+require_text "$REVIEW_PUBLIC_BOUNDARY_BATCH_DOC" "unresolved_public_boundary_review_count=0"
 require_text "$PUBLIC_LAUNCH_BLOCKER_LEDGER_DOC" "Status: local blocker execution ledger."
 require_text "$PUBLIC_LAUNCH_BLOCKER_LEDGER_DOC" "Do not use templates, status-only files, host-side screenshots"
 require_text "$PUBLIC_LAUNCH_BLOCKER_LEDGER_DOC" '| `s5_real_device_matrix` |'
@@ -231,8 +239,8 @@ require_file "$REVIEWER_HANDOFF_INDEX_JSON"
 jq -e '
   .contract_version == "trillionnium_world_reviewer_handoff_index_v1"
   and .status == "reviewer_handoff_index_green_with_public_launch_blockers"
-  and .artifact_count == 32
-  and .reviewer_summary_count == 18
+  and .artifact_count == 33
+  and .reviewer_summary_count == 19
   and .live_player_screen_count == 3
   and .representative_visual_count == 5
   and .raw_visual_archive_candidate_count == 6
@@ -419,6 +427,31 @@ jq -e '
   and .android_s5_real_device_claimed == false
 ' "$REVIEW_EXECUTION_BATCHES_JSON" >/dev/null
 
+"$ROOT/scripts/check_trillionnium_world_review_public_boundary_batch.sh" >/dev/null
+require_file "$REVIEW_PUBLIC_BOUNDARY_BATCH_JSON"
+jq -e '
+  .contract_version == "trillionnium_world_review_public_boundary_batch_v1"
+  and .status == "review_public_boundary_batch_1_ready"
+  and .batch_order == 1
+  and .bucket_id == "multi_public_boundary_overlap"
+  and .reviewed_commit_count == 6
+  and .unresolved_public_boundary_review_count == 0
+  and .batch_1_exit_rule_satisfied == true
+  and .batch_2_unblocked_for_local_review == true
+  and .public_launch_blocker_count == 6
+  and .blocker_ledger_needs_collection_count == 6
+  and .push_performed == false
+  and .rebase_performed == false
+  and .reset_performed == false
+  and .squash_performed == false
+  and .history_rewrite_performed == false
+  and .external_action_performed == false
+  and .upload_performed == false
+  and .publish_performed == false
+  and .public_launch_ready_claimed == false
+  and .android_s5_real_device_claimed == false
+' "$REVIEW_PUBLIC_BOUNDARY_BATCH_JSON" >/dev/null
+
 "$ROOT/scripts/check_trillionnium_world_public_launch_blocker_execution_ledger.sh" >/dev/null
 require_file "$PUBLIC_LAUNCH_BLOCKER_LEDGER_JSON"
 jq -e '
@@ -534,6 +567,15 @@ review_execution_batches_first_batch_bucket_id="$(jq -r '.first_batch_bucket_id 
 review_execution_batches_final_batch_bucket_id="$(jq -r '.final_batch_bucket_id // "missing"' "$REVIEW_EXECUTION_BATCHES_JSON")"
 review_execution_batches_external_action_performed="$(jq -r 'if has("external_action_performed") then .external_action_performed else true end' "$REVIEW_EXECUTION_BATCHES_JSON")"
 review_execution_batches_history_rewrite_performed="$(jq -r 'if has("history_rewrite_performed") then .history_rewrite_performed else true end' "$REVIEW_EXECUTION_BATCHES_JSON")"
+review_public_boundary_batch_status="$(jq -r '.status // "missing"' "$REVIEW_PUBLIC_BOUNDARY_BATCH_JSON")"
+review_public_boundary_batch_reviewed_commit_count="$(jq -r '.reviewed_commit_count // 0' "$REVIEW_PUBLIC_BOUNDARY_BATCH_JSON")"
+review_public_boundary_batch_unresolved_count="$(jq -r '.unresolved_public_boundary_review_count // 999' "$REVIEW_PUBLIC_BOUNDARY_BATCH_JSON")"
+review_public_boundary_batch_exit_rule_satisfied="$(jq -r 'if has("batch_1_exit_rule_satisfied") then .batch_1_exit_rule_satisfied else false end' "$REVIEW_PUBLIC_BOUNDARY_BATCH_JSON")"
+review_public_boundary_batch_next_unblocked="$(jq -r 'if has("batch_2_unblocked_for_local_review") then .batch_2_unblocked_for_local_review else false end' "$REVIEW_PUBLIC_BOUNDARY_BATCH_JSON")"
+review_public_boundary_batch_blocker_count="$(jq -r '.public_launch_blocker_count // 0' "$REVIEW_PUBLIC_BOUNDARY_BATCH_JSON")"
+review_public_boundary_batch_needs_collection_count="$(jq -r '.blocker_ledger_needs_collection_count // 0' "$REVIEW_PUBLIC_BOUNDARY_BATCH_JSON")"
+review_public_boundary_batch_external_action_performed="$(jq -r 'if has("external_action_performed") then .external_action_performed else true end' "$REVIEW_PUBLIC_BOUNDARY_BATCH_JSON")"
+review_public_boundary_batch_history_rewrite_performed="$(jq -r 'if has("history_rewrite_performed") then .history_rewrite_performed else true end' "$REVIEW_PUBLIC_BOUNDARY_BATCH_JSON")"
 blocker_execution_ledger_status="$(jq -r '.status // "missing"' "$PUBLIC_LAUNCH_BLOCKER_LEDGER_JSON")"
 blocker_execution_ledger_needs_collection_count="$(jq -r '.needs_collection_count // 0' "$PUBLIC_LAUNCH_BLOCKER_LEDGER_JSON")"
 blocker_execution_ledger_green_evidence_item_count="$(jq -r '.green_evidence_item_count // 0' "$PUBLIC_LAUNCH_BLOCKER_LEDGER_JSON")"
@@ -663,6 +705,7 @@ jq -n \
   --arg review_runtime_owner_queue_doc "$REVIEW_RUNTIME_OWNER_QUEUE_DOC_REL" \
   --arg review_residual_queue_doc "$REVIEW_RESIDUAL_QUEUE_DOC_REL" \
   --arg review_execution_batches_doc "$REVIEW_EXECUTION_BATCHES_DOC_REL" \
+  --arg review_public_boundary_batch_doc "$REVIEW_PUBLIC_BOUNDARY_BATCH_DOC_REL" \
   --arg public_launch_blocker_ledger_doc "$PUBLIC_LAUNCH_BLOCKER_LEDGER_DOC_REL" \
   --arg observation_status "$observation_status" \
   --arg runbook_status "$runbook_status" \
@@ -679,6 +722,7 @@ jq -n \
   --arg review_execution_batches_status "$review_execution_batches_status" \
   --arg review_execution_batches_first_batch_bucket_id "$review_execution_batches_first_batch_bucket_id" \
   --arg review_execution_batches_final_batch_bucket_id "$review_execution_batches_final_batch_bucket_id" \
+  --arg review_public_boundary_batch_status "$review_public_boundary_batch_status" \
   --arg blocker_execution_ledger_status "$blocker_execution_ledger_status" \
   --argjson green "$green" \
   --argjson packet_gate "$packet_gate" \
@@ -759,6 +803,14 @@ jq -n \
   --argjson review_execution_batches_all_match_plan "$review_execution_batches_all_match_plan" \
   --argjson review_execution_batches_external_action_performed "$review_execution_batches_external_action_performed" \
   --argjson review_execution_batches_history_rewrite_performed "$review_execution_batches_history_rewrite_performed" \
+  --argjson review_public_boundary_batch_reviewed_commit_count "$review_public_boundary_batch_reviewed_commit_count" \
+  --argjson review_public_boundary_batch_unresolved_count "$review_public_boundary_batch_unresolved_count" \
+  --argjson review_public_boundary_batch_exit_rule_satisfied "$review_public_boundary_batch_exit_rule_satisfied" \
+  --argjson review_public_boundary_batch_next_unblocked "$review_public_boundary_batch_next_unblocked" \
+  --argjson review_public_boundary_batch_blocker_count "$review_public_boundary_batch_blocker_count" \
+  --argjson review_public_boundary_batch_needs_collection_count "$review_public_boundary_batch_needs_collection_count" \
+  --argjson review_public_boundary_batch_external_action_performed "$review_public_boundary_batch_external_action_performed" \
+  --argjson review_public_boundary_batch_history_rewrite_performed "$review_public_boundary_batch_history_rewrite_performed" \
   --argjson blocker_execution_ledger_needs_collection_count "$blocker_execution_ledger_needs_collection_count" \
   --argjson blocker_execution_ledger_green_evidence_item_count "$blocker_execution_ledger_green_evidence_item_count" \
   --argjson blocker_execution_ledger_consistency_failed_check_count "$blocker_execution_ledger_consistency_failed_check_count" \
@@ -959,6 +1011,22 @@ jq -n \
       history_rewrite_performed: $review_execution_batches_history_rewrite_performed,
       no_credit_boundary: "local review execution batches only; no push, rebase, reset, squash, history rewrite, upload, publish, public launch, Android S5 real-device, beta, production-ready UI, commercial, multi-node, live-traffic, or public-network credit"
     },
+    review_public_boundary_batch: {
+      doc_path: $review_public_boundary_batch_doc,
+      artifact_path: "acceptance/S6_public_launch/latest/trillionnium-world-review-public-boundary-batch.json",
+      status: $review_public_boundary_batch_status,
+      batch_order: 1,
+      bucket_id: "multi_public_boundary_overlap",
+      reviewed_commit_count: $review_public_boundary_batch_reviewed_commit_count,
+      unresolved_public_boundary_review_count: $review_public_boundary_batch_unresolved_count,
+      batch_1_exit_rule_satisfied: $review_public_boundary_batch_exit_rule_satisfied,
+      batch_2_unblocked_for_local_review: $review_public_boundary_batch_next_unblocked,
+      public_launch_blocker_count: $review_public_boundary_batch_blocker_count,
+      blocker_ledger_needs_collection_count: $review_public_boundary_batch_needs_collection_count,
+      external_action_performed: $review_public_boundary_batch_external_action_performed,
+      history_rewrite_performed: $review_public_boundary_batch_history_rewrite_performed,
+      no_credit_boundary: "local public-boundary batch review only; no push, rebase, reset, squash, history rewrite, upload, publish, public launch, Android S5 real-device, beta, production-ready UI, commercial, multi-node, live-traffic, or public-network credit"
+    },
     public_launch_blocker_execution_ledger: {
       doc_path: $public_launch_blocker_ledger_doc,
       artifact_path: "acceptance/S6_public_launch/latest/trillionnium-world-public-launch-blocker-execution-ledger.json",
@@ -996,7 +1064,7 @@ jq -e '
   and .evidence_volume_curation.large_file_count > 100
   and .evidence_volume_curation.deletion_performed == false
   and .evidence_volume_curation.archive_movement_performed == false
-  and .reviewer_handoff_index.artifact_count == 32
+  and .reviewer_handoff_index.artifact_count == 33
   and .reviewer_handoff_index.representative_visual_count == 5
   and .reviewer_handoff_index.upload_performed == false
   and .reviewer_handoff_index.publish_performed == false
@@ -1058,6 +1126,17 @@ jq -e '
   and .review_execution_batches.final_batch_bucket_id == "multi_manual_overlap"
   and .review_execution_batches.external_action_performed == false
   and .review_execution_batches.history_rewrite_performed == false
+  and .review_public_boundary_batch.status == "review_public_boundary_batch_1_ready"
+  and .review_public_boundary_batch.batch_order == 1
+  and .review_public_boundary_batch.bucket_id == "multi_public_boundary_overlap"
+  and .review_public_boundary_batch.reviewed_commit_count == 6
+  and .review_public_boundary_batch.unresolved_public_boundary_review_count == 0
+  and .review_public_boundary_batch.batch_1_exit_rule_satisfied == true
+  and .review_public_boundary_batch.batch_2_unblocked_for_local_review == true
+  and .review_public_boundary_batch.public_launch_blocker_count == 6
+  and .review_public_boundary_batch.blocker_ledger_needs_collection_count == 6
+  and .review_public_boundary_batch.external_action_performed == false
+  and .review_public_boundary_batch.history_rewrite_performed == false
   and .public_launch_blocker_execution_ledger.needs_collection_count == 6
   and .public_launch_blocker_execution_ledger.green_evidence_item_count == 0
   and .public_launch_blocker_execution_ledger.blocker_consistency_failed_check_count == 0
@@ -1088,6 +1167,7 @@ jq -e '
   printf -- '- RTS runtime/data-boundary owner queue: `%s`\n\n' "$REVIEW_RUNTIME_OWNER_QUEUE_DOC_REL"
   printf -- '- residual owner-resolution queue: `%s`\n\n' "$REVIEW_RESIDUAL_QUEUE_DOC_REL"
   printf -- '- review execution batches: `%s`\n\n' "$REVIEW_EXECUTION_BATCHES_DOC_REL"
+  printf -- '- public-boundary batch review: `%s`\n\n' "$REVIEW_PUBLIC_BOUNDARY_BATCH_DOC_REL"
   printf -- '- public-launch blocker execution ledger: `%s`\n\n' "$PUBLIC_LAUNCH_BLOCKER_LEDGER_DOC_REL"
   printf '## Risks\n\n'
   jq -r '.risks[] | "- `\(.id)`: \(.next_action)"' "$SUMMARY_JSON"

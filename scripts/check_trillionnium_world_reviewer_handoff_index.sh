@@ -51,6 +51,7 @@ require_text "$DOC" "Review release-owner queue"
 require_text "$DOC" "Review runtime-owner queue"
 require_text "$DOC" "Review residual queue"
 require_text "$DOC" "Review execution batches"
+require_text "$DOC" "Review public-boundary batch"
 require_text "$DOC" "Public-launch blocker execution ledger"
 require_text "$DOC" '| `reviewer_summary` |'
 require_text "$DOC" '| `live_player_screen` |'
@@ -67,6 +68,7 @@ require_text "$DOC" '| `raw_visual_archive_candidates` |'
 "$ROOT/scripts/check_trillionnium_world_review_residual_queue.sh" >/dev/null
 TRNM_WORLD_REVIEW_EXECUTION_BATCHES_REFRESH_INPUTS=0 \
   "$ROOT/scripts/check_trillionnium_world_review_execution_batches.sh" >/dev/null
+"$ROOT/scripts/check_trillionnium_world_review_public_boundary_batch.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_first_contact_human_playtest_runbook.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_public_launch_blocker_execution_ledger.sh" >/dev/null
 
@@ -79,6 +81,7 @@ REVIEW_RELEASE_OWNER_QUEUE_JSON="$ACCEPTANCE_DIR/trillionnium-world-review-relea
 REVIEW_RUNTIME_OWNER_QUEUE_JSON="$ACCEPTANCE_DIR/trillionnium-world-review-runtime-owner-queue.json"
 REVIEW_RESIDUAL_QUEUE_JSON="$ACCEPTANCE_DIR/trillionnium-world-review-residual-queue.json"
 REVIEW_EXECUTION_BATCHES_JSON="$ACCEPTANCE_DIR/trillionnium-world-review-execution-batches.json"
+REVIEW_PUBLIC_BOUNDARY_BATCH_JSON="$ACCEPTANCE_DIR/trillionnium-world-review-public-boundary-batch.json"
 RUNBOOK_JSON="$ACCEPTANCE_DIR/first-contact-human-playtest-runbook.json"
 OBSERVATION_JSON="$ACCEPTANCE_DIR/first-contact-human-playtest-observation-log.json"
 PACKET_JSON="$ACCEPTANCE_DIR/release-review-packet-integrity.json"
@@ -230,6 +233,29 @@ jq -e '
 ' "$REVIEW_EXECUTION_BATCHES_JSON" >/dev/null
 
 jq -e '
+  .contract_version == "trillionnium_world_review_public_boundary_batch_v1"
+  and .status == "review_public_boundary_batch_1_ready"
+  and .batch_order == 1
+  and .bucket_id == "multi_public_boundary_overlap"
+  and .reviewed_commit_count == 6
+  and .unresolved_public_boundary_review_count == 0
+  and .batch_1_exit_rule_satisfied == true
+  and .batch_2_unblocked_for_local_review == true
+  and .public_launch_blocker_count == 6
+  and .blocker_ledger_needs_collection_count == 6
+  and .push_performed == false
+  and .rebase_performed == false
+  and .reset_performed == false
+  and .squash_performed == false
+  and .history_rewrite_performed == false
+  and .external_action_performed == false
+  and .upload_performed == false
+  and .publish_performed == false
+  and .public_launch_ready_claimed == false
+  and .android_s5_real_device_claimed == false
+' "$REVIEW_PUBLIC_BOUNDARY_BATCH_JSON" >/dev/null
+
+jq -e '
   .contract_version == "trillionnium_world_first_contact_human_playtest_runbook_v1"
   and .human_playtest_completion_claimed == false
   and .public_launch_ready_claimed == false
@@ -288,6 +314,7 @@ ARTIFACTS_JSON="$(
     artifact_json review_runtime_owner_queue reviewer_summary "acceptance/S6_public_launch/latest/trillionnium-world-review-runtime-owner-queue.json"
     artifact_json review_residual_queue reviewer_summary "acceptance/S6_public_launch/latest/trillionnium-world-review-residual-queue.json"
     artifact_json review_execution_batches reviewer_summary "acceptance/S6_public_launch/latest/trillionnium-world-review-execution-batches.json"
+    artifact_json review_public_boundary_batch reviewer_summary "acceptance/S6_public_launch/latest/trillionnium-world-review-public-boundary-batch.json"
     artifact_json public_launch_blocker_execution_ledger reviewer_summary "acceptance/S6_public_launch/latest/trillionnium-world-public-launch-blocker-execution-ledger.json"
     artifact_json human_playtest_observation reviewer_summary "acceptance/S6_public_launch/latest/first-contact-human-playtest-observation-log.json"
     artifact_json human_playtest_runbook reviewer_summary "acceptance/S6_public_launch/latest/first-contact-human-playtest-runbook.json"
@@ -365,8 +392,8 @@ jq -e '
   .contract_version == "trillionnium_world_reviewer_handoff_index_v1"
   and .status == "reviewer_handoff_index_green_with_public_launch_blockers"
   and .green == true
-  and .artifact_count == 32
-  and .reviewer_summary_count == 18
+  and .artifact_count == 33
+  and .reviewer_summary_count == 19
   and .live_player_screen_count == 3
   and .representative_visual_count == 5
   and .raw_visual_archive_candidate_count == 6
