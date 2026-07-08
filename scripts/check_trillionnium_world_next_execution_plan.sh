@@ -51,6 +51,9 @@ REVIEW_RELEASE_NATIVE_HANDOFF_BATCH_JSON="$ACCEPTANCE_DIR/trillionnium-world-rev
 REVIEW_RUNTIME_BOUNDARY_BATCH_DOC="$ROOT/docs/development/trillionnium-world-review-runtime-boundary-batch-2026-07-08.md"
 REVIEW_RUNTIME_BOUNDARY_BATCH_DOC_REL="docs/development/trillionnium-world-review-runtime-boundary-batch-2026-07-08.md"
 REVIEW_RUNTIME_BOUNDARY_BATCH_JSON="$ACCEPTANCE_DIR/trillionnium-world-review-runtime-boundary-batch.json"
+REVIEW_RUNTIME_CORE_SEMANTICS_BATCH_DOC="$ROOT/docs/development/trillionnium-world-review-runtime-core-semantics-batch-2026-07-08.md"
+REVIEW_RUNTIME_CORE_SEMANTICS_BATCH_DOC_REL="docs/development/trillionnium-world-review-runtime-core-semantics-batch-2026-07-08.md"
+REVIEW_RUNTIME_CORE_SEMANTICS_BATCH_JSON="$ACCEPTANCE_DIR/trillionnium-world-review-runtime-core-semantics-batch.json"
 PUBLIC_LAUNCH_BLOCKER_LEDGER_DOC="$ROOT/docs/development/trillionnium-world-public-launch-blocker-execution-ledger-2026-07-07.md"
 PUBLIC_LAUNCH_BLOCKER_LEDGER_DOC_REL="docs/development/trillionnium-world-public-launch-blocker-execution-ledger-2026-07-07.md"
 PUBLIC_LAUNCH_BLOCKER_LEDGER_JSON="$ACCEPTANCE_DIR/trillionnium-world-public-launch-blocker-execution-ledger.json"
@@ -100,6 +103,7 @@ require_file "$REVIEW_EXECUTION_BATCHES_DOC"
 require_file "$REVIEW_PUBLIC_BOUNDARY_BATCH_DOC"
 require_file "$REVIEW_RELEASE_NATIVE_HANDOFF_BATCH_DOC"
 require_file "$REVIEW_RUNTIME_BOUNDARY_BATCH_DOC"
+require_file "$REVIEW_RUNTIME_CORE_SEMANTICS_BATCH_DOC"
 require_file "$PUBLIC_LAUNCH_BLOCKER_LEDGER_DOC"
 require_file "$PACKET_JSON"
 require_file "$PUBLIC_LAUNCH_JSON"
@@ -126,6 +130,7 @@ require_text "$DOC" "trillionnium-world-review-execution-batches-2026-07-08.md"
 require_text "$DOC" "trillionnium-world-review-public-boundary-batch-2026-07-08.md"
 require_text "$DOC" "trillionnium-world-review-release-native-handoff-batch-2026-07-08.md"
 require_text "$DOC" "trillionnium-world-review-runtime-boundary-batch-2026-07-08.md"
+require_text "$DOC" "trillionnium-world-review-runtime-core-semantics-batch-2026-07-08.md"
 require_text "$DOC" "trillionnium-world-public-launch-blocker-execution-ledger-2026-07-07.md"
 require_text "$READABILITY_REVIEW_DOC" "The central beacon fight is still the dominant whole-screen readability risk."
 require_text "$READABILITY_REVIEW_DOC" "Do a product-level silhouette and composition pass around the active center"
@@ -198,6 +203,10 @@ require_text "$REVIEW_RUNTIME_BOUNDARY_BATCH_DOC" "Status: local review runtime-
 require_text "$REVIEW_RUNTIME_BOUNDARY_BATCH_DOC" "multi_native_bevy_rts_boundary_overlap"
 require_text "$REVIEW_RUNTIME_BOUNDARY_BATCH_DOC" "batch_3_exit_rule_satisfied=false"
 require_text "$REVIEW_RUNTIME_BOUNDARY_BATCH_DOC" "batch_4_unblocked_for_local_review=false"
+require_text "$REVIEW_RUNTIME_CORE_SEMANTICS_BATCH_DOC" "Status: local review runtime-core semantics sub-batch 1."
+require_text "$REVIEW_RUNTIME_CORE_SEMANTICS_BATCH_DOC" "systemic runtime-core source boundary follow-up"
+require_text "$REVIEW_RUNTIME_CORE_SEMANTICS_BATCH_DOC" "sub_batch_1_exit_rule_satisfied=false"
+require_text "$REVIEW_RUNTIME_CORE_SEMANTICS_BATCH_DOC" "batch_4_unblocked_for_local_review=false"
 require_text "$PUBLIC_LAUNCH_BLOCKER_LEDGER_DOC" "Status: local blocker execution ledger."
 require_text "$PUBLIC_LAUNCH_BLOCKER_LEDGER_DOC" "Do not use templates, status-only files, host-side screenshots"
 require_text "$PUBLIC_LAUNCH_BLOCKER_LEDGER_DOC" '| `s5_real_device_matrix` |'
@@ -256,8 +265,8 @@ require_file "$REVIEWER_HANDOFF_INDEX_JSON"
 jq -e '
   .contract_version == "trillionnium_world_reviewer_handoff_index_v1"
   and .status == "reviewer_handoff_index_green_with_public_launch_blockers"
-  and .artifact_count == 35
-  and .reviewer_summary_count == 21
+  and .artifact_count == 36
+  and .reviewer_summary_count == 22
   and .live_player_screen_count == 3
   and .representative_visual_count == 5
   and .raw_visual_archive_candidate_count == 6
@@ -524,6 +533,33 @@ jq -e '
   and .android_s5_real_device_claimed == false
 ' "$REVIEW_RUNTIME_BOUNDARY_BATCH_JSON" >/dev/null
 
+TRNM_WORLD_REVIEW_RUNTIME_CORE_SEMANTICS_BATCH_REFRESH_INPUTS=0 \
+  "$ROOT/scripts/check_trillionnium_world_review_runtime_core_semantics_batch.sh" >/dev/null
+require_file "$REVIEW_RUNTIME_CORE_SEMANTICS_BATCH_JSON"
+jq -e '
+  .contract_version == "trillionnium_world_review_runtime_core_semantics_batch_v1"
+  and .status == "review_runtime_core_semantics_sub_batch_1_reviewed_with_boundary_followup"
+  and .batch_order == 3
+  and .sub_batch_order == 1
+  and .sub_batch_id == "runtime_core_semantics"
+  and .reviewed_commit_count == 55
+  and .unresolved_commit_review_count == 0
+  and .systemic_runtime_core_boundary_followup_count == 1
+  and .sub_batch_1_local_review_complete == true
+  and .sub_batch_1_exit_rule_satisfied == false
+  and .sub_batch_2_unblocked_for_local_review == true
+  and .batch_3_exit_rule_satisfied == false
+  and .batch_4_unblocked_for_local_review == false
+  and .next_sub_batch_id == "runtime_adapter_and_online_boundary"
+  and .openra_like_core_all_gates_green == true
+  and .openra_runtime_compatibility_claimed == false
+  and .openra_replay_compatibility_claimed == false
+  and .openra_network_compatibility_claimed == false
+  and .external_action_performed == false
+  and .public_launch_ready_claimed == false
+  and .android_s5_real_device_claimed == false
+' "$REVIEW_RUNTIME_CORE_SEMANTICS_BATCH_JSON" >/dev/null
+
 "$ROOT/scripts/check_trillionnium_world_public_launch_blocker_execution_ledger.sh" >/dev/null
 require_file "$PUBLIC_LAUNCH_BLOCKER_LEDGER_JSON"
 jq -e '
@@ -669,6 +705,19 @@ review_runtime_boundary_batch_batch4_unblocked="$(jq -r 'if has("batch_4_unblock
 review_runtime_boundary_batch_next_sub_batch_id="$(jq -r '.next_sub_batch_id // "missing"' "$REVIEW_RUNTIME_BOUNDARY_BATCH_JSON")"
 review_runtime_boundary_batch_external_action_performed="$(jq -r 'if has("external_action_performed") then .external_action_performed else true end' "$REVIEW_RUNTIME_BOUNDARY_BATCH_JSON")"
 review_runtime_boundary_batch_history_rewrite_performed="$(jq -r 'if has("history_rewrite_performed") then .history_rewrite_performed else true end' "$REVIEW_RUNTIME_BOUNDARY_BATCH_JSON")"
+review_runtime_core_semantics_batch_status="$(jq -r '.status // "missing"' "$REVIEW_RUNTIME_CORE_SEMANTICS_BATCH_JSON")"
+review_runtime_core_semantics_batch_reviewed_commit_count="$(jq -r '.reviewed_commit_count // 0' "$REVIEW_RUNTIME_CORE_SEMANTICS_BATCH_JSON")"
+review_runtime_core_semantics_batch_unresolved_count="$(jq -r '.unresolved_commit_review_count // 999' "$REVIEW_RUNTIME_CORE_SEMANTICS_BATCH_JSON")"
+review_runtime_core_semantics_batch_followup_count="$(jq -r '.systemic_runtime_core_boundary_followup_count // 999' "$REVIEW_RUNTIME_CORE_SEMANTICS_BATCH_JSON")"
+review_runtime_core_semantics_batch_local_review_complete="$(jq -r 'if has("sub_batch_1_local_review_complete") then .sub_batch_1_local_review_complete else false end' "$REVIEW_RUNTIME_CORE_SEMANTICS_BATCH_JSON")"
+review_runtime_core_semantics_batch_exit_rule_satisfied="$(jq -r 'if has("sub_batch_1_exit_rule_satisfied") then .sub_batch_1_exit_rule_satisfied else true end' "$REVIEW_RUNTIME_CORE_SEMANTICS_BATCH_JSON")"
+review_runtime_core_semantics_batch_next_unblocked="$(jq -r 'if has("sub_batch_2_unblocked_for_local_review") then .sub_batch_2_unblocked_for_local_review else false end' "$REVIEW_RUNTIME_CORE_SEMANTICS_BATCH_JSON")"
+review_runtime_core_semantics_batch_batch3_exit_rule_satisfied="$(jq -r 'if has("batch_3_exit_rule_satisfied") then .batch_3_exit_rule_satisfied else true end' "$REVIEW_RUNTIME_CORE_SEMANTICS_BATCH_JSON")"
+review_runtime_core_semantics_batch_batch4_unblocked="$(jq -r 'if has("batch_4_unblocked_for_local_review") then .batch_4_unblocked_for_local_review else true end' "$REVIEW_RUNTIME_CORE_SEMANTICS_BATCH_JSON")"
+review_runtime_core_semantics_batch_next_sub_batch_id="$(jq -r '.next_sub_batch_id // "missing"' "$REVIEW_RUNTIME_CORE_SEMANTICS_BATCH_JSON")"
+review_runtime_core_semantics_batch_openra_core_green="$(jq -r 'if has("openra_like_core_all_gates_green") then .openra_like_core_all_gates_green else false end' "$REVIEW_RUNTIME_CORE_SEMANTICS_BATCH_JSON")"
+review_runtime_core_semantics_batch_external_action_performed="$(jq -r 'if has("external_action_performed") then .external_action_performed else true end' "$REVIEW_RUNTIME_CORE_SEMANTICS_BATCH_JSON")"
+review_runtime_core_semantics_batch_history_rewrite_performed="$(jq -r 'if has("history_rewrite_performed") then .history_rewrite_performed else true end' "$REVIEW_RUNTIME_CORE_SEMANTICS_BATCH_JSON")"
 blocker_execution_ledger_status="$(jq -r '.status // "missing"' "$PUBLIC_LAUNCH_BLOCKER_LEDGER_JSON")"
 blocker_execution_ledger_needs_collection_count="$(jq -r '.needs_collection_count // 0' "$PUBLIC_LAUNCH_BLOCKER_LEDGER_JSON")"
 blocker_execution_ledger_green_evidence_item_count="$(jq -r '.green_evidence_item_count // 0' "$PUBLIC_LAUNCH_BLOCKER_LEDGER_JSON")"
@@ -801,6 +850,7 @@ jq -n \
   --arg review_public_boundary_batch_doc "$REVIEW_PUBLIC_BOUNDARY_BATCH_DOC_REL" \
   --arg review_release_native_handoff_batch_doc "$REVIEW_RELEASE_NATIVE_HANDOFF_BATCH_DOC_REL" \
   --arg review_runtime_boundary_batch_doc "$REVIEW_RUNTIME_BOUNDARY_BATCH_DOC_REL" \
+  --arg review_runtime_core_semantics_batch_doc "$REVIEW_RUNTIME_CORE_SEMANTICS_BATCH_DOC_REL" \
   --arg public_launch_blocker_ledger_doc "$PUBLIC_LAUNCH_BLOCKER_LEDGER_DOC_REL" \
   --arg observation_status "$observation_status" \
   --arg runbook_status "$runbook_status" \
@@ -821,6 +871,8 @@ jq -n \
   --arg review_release_native_handoff_batch_status "$review_release_native_handoff_batch_status" \
   --arg review_runtime_boundary_batch_status "$review_runtime_boundary_batch_status" \
   --arg review_runtime_boundary_batch_next_sub_batch_id "$review_runtime_boundary_batch_next_sub_batch_id" \
+  --arg review_runtime_core_semantics_batch_status "$review_runtime_core_semantics_batch_status" \
+  --arg review_runtime_core_semantics_batch_next_sub_batch_id "$review_runtime_core_semantics_batch_next_sub_batch_id" \
   --arg blocker_execution_ledger_status "$blocker_execution_ledger_status" \
   --argjson green "$green" \
   --argjson packet_gate "$packet_gate" \
@@ -927,6 +979,17 @@ jq -n \
   --argjson review_runtime_boundary_batch_batch4_unblocked "$review_runtime_boundary_batch_batch4_unblocked" \
   --argjson review_runtime_boundary_batch_external_action_performed "$review_runtime_boundary_batch_external_action_performed" \
   --argjson review_runtime_boundary_batch_history_rewrite_performed "$review_runtime_boundary_batch_history_rewrite_performed" \
+  --argjson review_runtime_core_semantics_batch_reviewed_commit_count "$review_runtime_core_semantics_batch_reviewed_commit_count" \
+  --argjson review_runtime_core_semantics_batch_unresolved_count "$review_runtime_core_semantics_batch_unresolved_count" \
+  --argjson review_runtime_core_semantics_batch_followup_count "$review_runtime_core_semantics_batch_followup_count" \
+  --argjson review_runtime_core_semantics_batch_local_review_complete "$review_runtime_core_semantics_batch_local_review_complete" \
+  --argjson review_runtime_core_semantics_batch_exit_rule_satisfied "$review_runtime_core_semantics_batch_exit_rule_satisfied" \
+  --argjson review_runtime_core_semantics_batch_next_unblocked "$review_runtime_core_semantics_batch_next_unblocked" \
+  --argjson review_runtime_core_semantics_batch_batch3_exit_rule_satisfied "$review_runtime_core_semantics_batch_batch3_exit_rule_satisfied" \
+  --argjson review_runtime_core_semantics_batch_batch4_unblocked "$review_runtime_core_semantics_batch_batch4_unblocked" \
+  --argjson review_runtime_core_semantics_batch_openra_core_green "$review_runtime_core_semantics_batch_openra_core_green" \
+  --argjson review_runtime_core_semantics_batch_external_action_performed "$review_runtime_core_semantics_batch_external_action_performed" \
+  --argjson review_runtime_core_semantics_batch_history_rewrite_performed "$review_runtime_core_semantics_batch_history_rewrite_performed" \
   --argjson blocker_execution_ledger_needs_collection_count "$blocker_execution_ledger_needs_collection_count" \
   --argjson blocker_execution_ledger_green_evidence_item_count "$blocker_execution_ledger_green_evidence_item_count" \
   --argjson blocker_execution_ledger_consistency_failed_check_count "$blocker_execution_ledger_consistency_failed_check_count" \
@@ -1178,6 +1241,27 @@ jq -n \
       history_rewrite_performed: $review_runtime_boundary_batch_history_rewrite_performed,
       no_credit_boundary: "local runtime-boundary batch 3 shard plan only; no push, rebase, reset, squash, history rewrite, upload, publish, public launch, Android S5 real-device, beta, production-ready UI, commercial, multi-node, live-traffic, or public-network credit"
     },
+    review_runtime_core_semantics_batch: {
+      doc_path: $review_runtime_core_semantics_batch_doc,
+      artifact_path: "acceptance/S6_public_launch/latest/trillionnium-world-review-runtime-core-semantics-batch.json",
+      status: $review_runtime_core_semantics_batch_status,
+      batch_order: 3,
+      sub_batch_order: 1,
+      sub_batch_id: "runtime_core_semantics",
+      reviewed_commit_count: $review_runtime_core_semantics_batch_reviewed_commit_count,
+      unresolved_commit_review_count: $review_runtime_core_semantics_batch_unresolved_count,
+      systemic_runtime_core_boundary_followup_count: $review_runtime_core_semantics_batch_followup_count,
+      sub_batch_1_local_review_complete: $review_runtime_core_semantics_batch_local_review_complete,
+      sub_batch_1_exit_rule_satisfied: $review_runtime_core_semantics_batch_exit_rule_satisfied,
+      sub_batch_2_unblocked_for_local_review: $review_runtime_core_semantics_batch_next_unblocked,
+      batch_3_exit_rule_satisfied: $review_runtime_core_semantics_batch_batch3_exit_rule_satisfied,
+      batch_4_unblocked_for_local_review: $review_runtime_core_semantics_batch_batch4_unblocked,
+      next_sub_batch_id: $review_runtime_core_semantics_batch_next_sub_batch_id,
+      openra_like_core_all_gates_green: $review_runtime_core_semantics_batch_openra_core_green,
+      external_action_performed: $review_runtime_core_semantics_batch_external_action_performed,
+      history_rewrite_performed: $review_runtime_core_semantics_batch_history_rewrite_performed,
+      no_credit_boundary: "local runtime-core semantics sub-batch 1 review only; no push, rebase, reset, squash, history rewrite, upload, publish, public launch, Android S5 real-device, beta, production-ready UI, commercial, OpenRA runtime/replay/network compatibility, multi-node, live-traffic, or public-network credit"
+    },
     public_launch_blocker_execution_ledger: {
       doc_path: $public_launch_blocker_ledger_doc,
       artifact_path: "acceptance/S6_public_launch/latest/trillionnium-world-public-launch-blocker-execution-ledger.json",
@@ -1215,7 +1299,7 @@ jq -e '
   and .evidence_volume_curation.large_file_count > 100
   and .evidence_volume_curation.deletion_performed == false
   and .evidence_volume_curation.archive_movement_performed == false
-  and .reviewer_handoff_index.artifact_count == 35
+  and .reviewer_handoff_index.artifact_count == 36
   and .reviewer_handoff_index.representative_visual_count == 5
   and .reviewer_handoff_index.upload_performed == false
   and .reviewer_handoff_index.publish_performed == false
@@ -1313,6 +1397,22 @@ jq -e '
   and .review_runtime_boundary_batch.next_sub_batch_id == "runtime_core_semantics"
   and .review_runtime_boundary_batch.external_action_performed == false
   and .review_runtime_boundary_batch.history_rewrite_performed == false
+  and .review_runtime_core_semantics_batch.status == "review_runtime_core_semantics_sub_batch_1_reviewed_with_boundary_followup"
+  and .review_runtime_core_semantics_batch.batch_order == 3
+  and .review_runtime_core_semantics_batch.sub_batch_order == 1
+  and .review_runtime_core_semantics_batch.sub_batch_id == "runtime_core_semantics"
+  and .review_runtime_core_semantics_batch.reviewed_commit_count == 55
+  and .review_runtime_core_semantics_batch.unresolved_commit_review_count == 0
+  and .review_runtime_core_semantics_batch.systemic_runtime_core_boundary_followup_count == 1
+  and .review_runtime_core_semantics_batch.sub_batch_1_local_review_complete == true
+  and .review_runtime_core_semantics_batch.sub_batch_1_exit_rule_satisfied == false
+  and .review_runtime_core_semantics_batch.sub_batch_2_unblocked_for_local_review == true
+  and .review_runtime_core_semantics_batch.batch_3_exit_rule_satisfied == false
+  and .review_runtime_core_semantics_batch.batch_4_unblocked_for_local_review == false
+  and .review_runtime_core_semantics_batch.next_sub_batch_id == "runtime_adapter_and_online_boundary"
+  and .review_runtime_core_semantics_batch.openra_like_core_all_gates_green == true
+  and .review_runtime_core_semantics_batch.external_action_performed == false
+  and .review_runtime_core_semantics_batch.history_rewrite_performed == false
   and .public_launch_blocker_execution_ledger.needs_collection_count == 6
   and .public_launch_blocker_execution_ledger.green_evidence_item_count == 0
   and .public_launch_blocker_execution_ledger.blocker_consistency_failed_check_count == 0
@@ -1346,6 +1446,7 @@ jq -e '
   printf -- '- public-boundary batch review: `%s`\n\n' "$REVIEW_PUBLIC_BOUNDARY_BATCH_DOC_REL"
   printf -- '- release-native handoff batch review: `%s`\n\n' "$REVIEW_RELEASE_NATIVE_HANDOFF_BATCH_DOC_REL"
   printf -- '- runtime-boundary batch review: `%s`\n\n' "$REVIEW_RUNTIME_BOUNDARY_BATCH_DOC_REL"
+  printf -- '- runtime-core semantics batch review: `%s`\n\n' "$REVIEW_RUNTIME_CORE_SEMANTICS_BATCH_DOC_REL"
   printf -- '- public-launch blocker execution ledger: `%s`\n\n' "$PUBLIC_LAUNCH_BLOCKER_LEDGER_DOC_REL"
   printf '## Risks\n\n'
   jq -r '.risks[] | "- `\(.id)`: \(.next_action)"' "$SUMMARY_JSON"

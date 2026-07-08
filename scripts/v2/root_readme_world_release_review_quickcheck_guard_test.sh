@@ -24,6 +24,7 @@ required_lines=(
   './scripts/check_trillionnium_world_review_public_boundary_batch.sh'
   './scripts/check_trillionnium_world_review_release_native_handoff_batch.sh'
   './scripts/check_trillionnium_world_review_runtime_boundary_batch.sh'
+  './scripts/check_trillionnium_world_review_runtime_core_semantics_batch.sh'
   './scripts/check_trillionnium_world_public_launch_blocker_execution_ledger.sh'
   './scripts/check_trillionnium_world_public_launch_operator_handoff.sh'
   './scripts/check_trillionnium_world_production_map_pack_public_evidence_collection.sh'
@@ -61,6 +62,7 @@ required_lines=(
   'acceptance/S6_public_launch/latest/trillionnium-world-review-public-boundary-batch.json'
   'acceptance/S6_public_launch/latest/trillionnium-world-review-release-native-handoff-batch.json'
   'acceptance/S6_public_launch/latest/trillionnium-world-review-runtime-boundary-batch.json'
+  'acceptance/S6_public_launch/latest/trillionnium-world-review-runtime-core-semantics-batch.json'
   'acceptance/S6_public_launch/latest/trillionnium-world-public-launch-blocker-execution-ledger.json'
   'acceptance/S6_public_launch/latest/public-launch-operator-handoff.json'
   'checksum-binding the six collection actions, templates, validator commands, bundle template, and negative fixtures'
@@ -80,6 +82,7 @@ required_lines=(
   'public-boundary batch review'
   'release-native handoff batch review'
   'runtime-boundary batch review'
+  'runtime-core semantics batch review'
   'blocker execution ledger'
   'public-launch blockers preserved'
 )
