@@ -108,6 +108,7 @@ run_check bash_syntax bash -n \
   "$ROOT/scripts/check_trillionnium_world_review_primary_owner_plan.sh" \
   "$ROOT/scripts/check_trillionnium_world_review_release_owner_queue.sh" \
   "$ROOT/scripts/check_trillionnium_world_review_runtime_owner_queue.sh" \
+  "$ROOT/scripts/check_trillionnium_world_review_residual_queue.sh" \
   "$ROOT/scripts/check_trillionnium_world_public_launch_status_only_fixtures.sh" \
   "$ROOT/scripts/check_trillionnium_world_cohort_commercial_evidence_collection.sh" \
   "$ROOT/scripts/check_trillionnium_world_cohort_commercial_evidence.sh" \
@@ -1015,6 +1016,7 @@ run_check world_review_triage_queue "$ROOT/scripts/check_trillionnium_world_revi
 run_check world_review_primary_owner_plan "$ROOT/scripts/check_trillionnium_world_review_primary_owner_plan.sh"
 run_check world_review_release_owner_queue "$ROOT/scripts/check_trillionnium_world_review_release_owner_queue.sh"
 run_check world_review_runtime_owner_queue "$ROOT/scripts/check_trillionnium_world_review_runtime_owner_queue.sh"
+run_check world_review_residual_queue "$ROOT/scripts/check_trillionnium_world_review_residual_queue.sh"
 run_check readme_local_links "$ROOT/scripts/check_root_readme_local_links.sh"
 run_check workflow_script_refs env \
   WORKFLOW_SCRIPT_REF_STRICT=1 \
