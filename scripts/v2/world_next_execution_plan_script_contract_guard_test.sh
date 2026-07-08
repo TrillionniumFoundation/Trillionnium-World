@@ -19,6 +19,7 @@ REVIEW_PUBLIC_BOUNDARY_BATCH_SCRIPT="$ROOT/scripts/check_trillionnium_world_revi
 REVIEW_RELEASE_NATIVE_HANDOFF_BATCH_SCRIPT="$ROOT/scripts/check_trillionnium_world_review_release_native_handoff_batch.sh"
 REVIEW_RUNTIME_BOUNDARY_BATCH_SCRIPT="$ROOT/scripts/check_trillionnium_world_review_runtime_boundary_batch.sh"
 REVIEW_RUNTIME_CORE_SEMANTICS_BATCH_SCRIPT="$ROOT/scripts/check_trillionnium_world_review_runtime_core_semantics_batch.sh"
+REVIEW_RUNTIME_ADAPTER_ONLINE_BATCH_SCRIPT="$ROOT/scripts/check_trillionnium_world_review_runtime_adapter_online_batch.sh"
 BLOCKER_LEDGER_SCRIPT="$ROOT/scripts/check_trillionnium_world_public_launch_blocker_execution_ledger.sh"
 DOC="$ROOT/docs/development/trillionnium-world-next-execution-plan-v1.md"
 READABILITY_REVIEW_DOC="$ROOT/docs/development/trillionnium-world-first-contact-readability-review-2026-07-07.md"
@@ -38,6 +39,7 @@ REVIEW_PUBLIC_BOUNDARY_BATCH_DOC="$ROOT/docs/development/trillionnium-world-revi
 REVIEW_RELEASE_NATIVE_HANDOFF_BATCH_DOC="$ROOT/docs/development/trillionnium-world-review-release-native-handoff-batch-2026-07-08.md"
 REVIEW_RUNTIME_BOUNDARY_BATCH_DOC="$ROOT/docs/development/trillionnium-world-review-runtime-boundary-batch-2026-07-08.md"
 REVIEW_RUNTIME_CORE_SEMANTICS_BATCH_DOC="$ROOT/docs/development/trillionnium-world-review-runtime-core-semantics-batch-2026-07-08.md"
+REVIEW_RUNTIME_ADAPTER_ONLINE_BATCH_DOC="$ROOT/docs/development/trillionnium-world-review-runtime-adapter-online-batch-2026-07-08.md"
 BLOCKER_LEDGER_DOC="$ROOT/docs/development/trillionnium-world-public-launch-blocker-execution-ledger-2026-07-07.md"
 
 required_script_lines=(
@@ -158,6 +160,14 @@ required_script_lines=(
   'systemic_runtime_core_boundary_followup_count'
   'sub_batch_1_exit_rule_satisfied'
   'sub_batch_2_unblocked_for_local_review'
+  'trillionnium-world-review-runtime-adapter-online-batch-2026-07-08.md'
+  'review_runtime_adapter_online_batch'
+  'trillionnium-world-review-runtime-adapter-online-batch.json'
+  'review_runtime_adapter_online_sub_batch_2_reviewed'
+  'TRNM_WORLD_REVIEW_RUNTIME_ADAPTER_ONLINE_BATCH_REFRESH_INPUTS=0'
+  'adapter_path_resolves_runtime_core_source_boundary_followup'
+  'sub_batch_2_exit_rule_satisfied'
+  'sub_batch_3_unblocked_for_local_review'
   'trillionnium-world-public-launch-blocker-execution-ledger-2026-07-07.md'
   'public_launch_blocker_execution_ledger'
   'trillionnium-world-public-launch-blocker-execution-ledger.json'
@@ -198,6 +208,15 @@ required_script_lines=(
   '.review_runtime_core_semantics_batch.batch_3_exit_rule_satisfied == false'
   '.review_runtime_core_semantics_batch.batch_4_unblocked_for_local_review == false'
   '.review_runtime_core_semantics_batch.external_action_performed == false'
+  '.review_runtime_adapter_online_batch.reviewed_commit_count == 57'
+  '.review_runtime_adapter_online_batch.unresolved_commit_review_count == 0'
+  '.review_runtime_adapter_online_batch.batch_3_reviewed_commit_count == 112'
+  '.review_runtime_adapter_online_batch.batch_3_remaining_commit_level_review_count == 161'
+  '.review_runtime_adapter_online_batch.adapter_path_resolves_runtime_core_source_boundary_followup == true'
+  '.review_runtime_adapter_online_batch.sub_batch_2_exit_rule_satisfied == true'
+  '.review_runtime_adapter_online_batch.batch_3_exit_rule_satisfied == false'
+  '.review_runtime_adapter_online_batch.batch_4_unblocked_for_local_review == false'
+  '.review_runtime_adapter_online_batch.external_action_performed == false'
   '.human_playtest_runbook.prompts_bound == true'
   '.evidence_volume_curation.deletion_performed == false'
   '.reviewer_handoff_index.upload_performed == false'
@@ -236,6 +255,7 @@ required_doc_lines=(
   'trillionnium-world-review-release-native-handoff-batch-2026-07-08.md'
   'trillionnium-world-review-runtime-boundary-batch-2026-07-08.md'
   'trillionnium-world-review-runtime-core-semantics-batch-2026-07-08.md'
+  'trillionnium-world-review-runtime-adapter-online-batch-2026-07-08.md'
   'trillionnium-world-public-launch-blocker-execution-ledger-2026-07-07.md'
   'Do not keep shrinking already-gated micro cues'
 )
@@ -301,6 +321,7 @@ required_reviewer_handoff_lines=(
   'Review release-native handoff batch'
   'Review runtime-boundary batch'
   'Review runtime-core semantics batch'
+  'Review runtime-adapter/online batch'
   'Public-launch blocker execution ledger'
   '| `reviewer_summary` |'
   '| `representative_visuals` |'
@@ -350,8 +371,8 @@ required_reviewer_handoff_script_lines=(
   'trillionnium_world_reviewer_handoff_index_v1'
   'trillionnium-world-reviewer-handoff-index.json'
   'reviewer_handoff_index_green_with_public_launch_blockers'
-  'artifact_count == 36'
-  'reviewer_summary_count == 22'
+  'artifact_count == 37'
+  'reviewer_summary_count == 23'
   'trillionnium-world-review-triage-queue.json'
   'trillionnium-world-review-primary-owner-plan.json'
   'trillionnium-world-review-release-owner-queue.json'
@@ -362,6 +383,7 @@ required_reviewer_handoff_script_lines=(
   'trillionnium-world-review-release-native-handoff-batch.json'
   'trillionnium-world-review-runtime-boundary-batch.json'
   'trillionnium-world-review-runtime-core-semantics-batch.json'
+  'trillionnium-world-review-runtime-adapter-online-batch.json'
   'representative_visual_count == 5'
   'raw_visual_archive_candidate_count == 6'
   'upload_performed == false'
@@ -714,6 +736,46 @@ required_review_runtime_core_semantics_batch_script_lines=(
   'TRILLIONNIUM_WORLD_REVIEW_RUNTIME_CORE_SEMANTICS_BATCH_GREEN'
 )
 
+required_review_runtime_adapter_online_batch_lines=(
+  'Status: local review runtime adapter/online sub-batch 2.'
+  'runtime_adapter_and_online_boundary'
+  'Reviewed commit count: `57`'
+  'Per-commit unresolved count: `0`'
+  'adapter-path part of the prior runtime-core source-boundary'
+  'sub_batch_2_exit_rule_satisfied=true'
+  'batch_3_exit_rule_satisfied=false'
+  'batch_4_unblocked_for_local_review=false'
+)
+
+required_review_runtime_adapter_online_batch_script_lines=(
+  'trillionnium_world_review_runtime_adapter_online_batch_v1'
+  'trillionnium-world-review-runtime-adapter-online-batch.json'
+  'TRNM_WORLD_REVIEW_RUNTIME_ADAPTER_ONLINE_BATCH_REFRESH_INPUTS'
+  'review_runtime_adapter_online_sub_batch_2_reviewed'
+  'runtime_adapter_and_online_boundary'
+  'reviewed_commit_count == 57'
+  'unresolved_commit_review_count == 0'
+  'batch_3_reviewed_commit_count == 112'
+  'batch_3_remaining_commit_level_review_count == 161'
+  'adapter_path_resolves_runtime_core_source_boundary_followup == true'
+  'sub_batch_2_local_review_complete == true'
+  'sub_batch_2_exit_rule_satisfied == true'
+  'sub_batch_3_unblocked_for_local_review == true'
+  'batch_3_exit_rule_satisfied == false'
+  'batch_4_unblocked_for_local_review == false'
+  'online_offline_adapter_green == true'
+  'socket_opened == false'
+  'hosted_service_claimed == false'
+  'client_prediction_claimed == false'
+  'rollback_netcode_claimed == false'
+  'openra_runtime_compatibility_claimed == false'
+  'openra_replay_compatibility_claimed == false'
+  'external_action_performed == false'
+  'public_launch_ready_claimed == false'
+  'android_s5_real_device_claimed == false'
+  'TRILLIONNIUM_WORLD_REVIEW_RUNTIME_ADAPTER_ONLINE_BATCH_GREEN'
+)
+
 for line in "${required_script_lines[@]}"; do
   if ! grep -Fq -- "$line" "$SCRIPT"; then
     echo "[FAIL] next execution plan script missing contract line: $line" >&2
@@ -833,6 +895,13 @@ for line in "${required_review_runtime_core_semantics_batch_lines[@]}"; do
   fi
 done
 
+for line in "${required_review_runtime_adapter_online_batch_lines[@]}"; do
+  if ! grep -Fq -- "$line" "$REVIEW_RUNTIME_ADAPTER_ONLINE_BATCH_DOC"; then
+    echo "[FAIL] review runtime-adapter/online batch missing contract line: $line" >&2
+    exit 1
+  fi
+done
+
 for line in "${required_evidence_volume_lines[@]}"; do
   if ! grep -Fq -- "$line" "$EVIDENCE_VOLUME_DOC"; then
     echo "[FAIL] evidence volume curation missing contract line: $line" >&2
@@ -941,6 +1010,13 @@ done
 for line in "${required_review_runtime_core_semantics_batch_script_lines[@]}"; do
   if ! grep -Fq -- "$line" "$REVIEW_RUNTIME_CORE_SEMANTICS_BATCH_SCRIPT"; then
     echo "[FAIL] review runtime-core semantics batch script missing contract line: $line" >&2
+    exit 1
+  fi
+done
+
+for line in "${required_review_runtime_adapter_online_batch_script_lines[@]}"; do
+  if ! grep -Fq -- "$line" "$REVIEW_RUNTIME_ADAPTER_ONLINE_BATCH_SCRIPT"; then
+    echo "[FAIL] review runtime-adapter/online batch script missing contract line: $line" >&2
     exit 1
   fi
 done
