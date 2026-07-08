@@ -20,6 +20,7 @@ required_lines=(
   './scripts/check_trillionnium_world_review_release_owner_queue.sh'
   './scripts/check_trillionnium_world_review_runtime_owner_queue.sh'
   './scripts/check_trillionnium_world_review_residual_queue.sh'
+  './scripts/check_trillionnium_world_review_execution_batches.sh'
   './scripts/check_trillionnium_world_public_launch_blocker_execution_ledger.sh'
   './scripts/check_trillionnium_world_public_launch_operator_handoff.sh'
   './scripts/check_trillionnium_world_production_map_pack_public_evidence_collection.sh'
@@ -53,6 +54,7 @@ required_lines=(
   'acceptance/S6_public_launch/latest/trillionnium-world-review-release-owner-queue.json'
   'acceptance/S6_public_launch/latest/trillionnium-world-review-runtime-owner-queue.json'
   'acceptance/S6_public_launch/latest/trillionnium-world-review-residual-queue.json'
+  'acceptance/S6_public_launch/latest/trillionnium-world-review-execution-batches.json'
   'acceptance/S6_public_launch/latest/trillionnium-world-public-launch-blocker-execution-ledger.json'
   'acceptance/S6_public_launch/latest/public-launch-operator-handoff.json'
   'checksum-binding the six collection actions, templates, validator commands, bundle template, and negative fixtures'
@@ -68,6 +70,7 @@ required_lines=(
   'release-owner queue'
   'runtime-owner queue'
   'residual queue'
+  'review execution batches'
   'blocker execution ledger'
   'public-launch blockers preserved'
 )

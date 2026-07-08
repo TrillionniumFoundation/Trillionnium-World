@@ -67,6 +67,8 @@ blockers.
      `docs/development/trillionnium-world-review-runtime-owner-queue-2026-07-07.md`
    - residual owner-resolution queue:
      `docs/development/trillionnium-world-review-residual-queue-2026-07-08.md`
+   - review execution batches:
+     `docs/development/trillionnium-world-review-execution-batches-2026-07-08.md`
    - avoid external push/public actions until explicitly routed
 5. Public launch evidence:
    - S5 real-device matrix
