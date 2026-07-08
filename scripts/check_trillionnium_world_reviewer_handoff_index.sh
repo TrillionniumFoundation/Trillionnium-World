@@ -56,6 +56,7 @@ require_text "$DOC" "Review release-native handoff batch"
 require_text "$DOC" "Review runtime-boundary batch"
 require_text "$DOC" "Review runtime-core semantics batch"
 require_text "$DOC" "Review runtime-adapter/online batch"
+require_text "$DOC" "Review RTS evidence crate batch"
 require_text "$DOC" "Public-launch blocker execution ledger"
 require_text "$DOC" '| `reviewer_summary` |'
 require_text "$DOC" '| `live_player_screen` |'
@@ -85,6 +86,8 @@ TRNM_WORLD_REVIEW_OPENRA_PARITY_CLAIM_BATCH_REFRESH_INPUTS=0 \
   "$ROOT/scripts/check_trillionnium_world_review_openra_parity_claim_batch.sh" >/dev/null
 TRNM_WORLD_REVIEW_FIRST_CONTACT_RTS_DATA_BATCH_REFRESH_INPUTS=0 \
   "$ROOT/scripts/check_trillionnium_world_review_first_contact_rts_data_batch.sh" >/dev/null
+TRNM_WORLD_REVIEW_RTS_EVIDENCE_CRATE_BATCH_REFRESH_INPUTS=0 \
+  "$ROOT/scripts/check_trillionnium_world_review_rts_evidence_crate_batch.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_first_contact_human_playtest_runbook.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_public_launch_blocker_execution_ledger.sh" >/dev/null
 
@@ -104,6 +107,7 @@ REVIEW_RUNTIME_CORE_SEMANTICS_BATCH_JSON="$ACCEPTANCE_DIR/trillionnium-world-rev
 REVIEW_RUNTIME_ADAPTER_ONLINE_BATCH_JSON="$ACCEPTANCE_DIR/trillionnium-world-review-runtime-adapter-online-batch.json"
 REVIEW_OPENRA_PARITY_CLAIM_BATCH_JSON="$ACCEPTANCE_DIR/trillionnium-world-review-openra-parity-claim-batch.json"
 REVIEW_FIRST_CONTACT_RTS_DATA_BATCH_JSON="$ACCEPTANCE_DIR/trillionnium-world-review-first-contact-rts-data-batch.json"
+REVIEW_RTS_EVIDENCE_CRATE_BATCH_JSON="$ACCEPTANCE_DIR/trillionnium-world-review-rts-evidence-crate-batch.json"
 RUNBOOK_JSON="$ACCEPTANCE_DIR/first-contact-human-playtest-runbook.json"
 OBSERVATION_JSON="$ACCEPTANCE_DIR/first-contact-human-playtest-observation-log.json"
 PACKET_JSON="$ACCEPTANCE_DIR/release-review-packet-integrity.json"
@@ -405,6 +409,27 @@ jq -e '
 ' "$REVIEW_FIRST_CONTACT_RTS_DATA_BATCH_JSON" >/dev/null
 
 jq -e '
+  .contract_version == "trillionnium_world_review_rts_evidence_crate_batch_v1"
+  and .status == "review_rts_evidence_crate_sub_batch_5_reviewed"
+  and .reviewed_commit_count == 20
+  and .unresolved_commit_review_count == 0
+  and .batch_3_reviewed_commit_count == 191
+  and .batch_3_remaining_commit_level_review_count == 82
+  and .sub_batch_5_local_review_complete == true
+  and .sub_batch_5_exit_rule_satisfied == true
+  and .sub_batch_6_unblocked_for_local_review == true
+  and .batch_3_exit_rule_satisfied == false
+  and .batch_4_unblocked_for_local_review == false
+  and .evidence_guard_all_green == true
+  and .evidence_crate_controls_playable_runtime == false
+  and .playable_renderer_ownership_claimed == false
+  and .live_bevy_renderer_behavior_moved_to_rts_evidence == false
+  and .external_action_performed == false
+  and .public_launch_ready_claimed == false
+  and .android_s5_real_device_claimed == false
+' "$REVIEW_RTS_EVIDENCE_CRATE_BATCH_JSON" >/dev/null
+
+jq -e '
   .contract_version == "trillionnium_world_first_contact_human_playtest_runbook_v1"
   and .human_playtest_completion_claimed == false
   and .public_launch_ready_claimed == false
@@ -470,6 +495,7 @@ ARTIFACTS_JSON="$(
     artifact_json review_runtime_adapter_online_batch reviewer_summary "acceptance/S6_public_launch/latest/trillionnium-world-review-runtime-adapter-online-batch.json"
     artifact_json review_openra_parity_claim_batch reviewer_summary "acceptance/S6_public_launch/latest/trillionnium-world-review-openra-parity-claim-batch.json"
     artifact_json review_first_contact_rts_data_batch reviewer_summary "acceptance/S6_public_launch/latest/trillionnium-world-review-first-contact-rts-data-batch.json"
+    artifact_json review_rts_evidence_crate_batch reviewer_summary "acceptance/S6_public_launch/latest/trillionnium-world-review-rts-evidence-crate-batch.json"
     artifact_json public_launch_blocker_execution_ledger reviewer_summary "acceptance/S6_public_launch/latest/trillionnium-world-public-launch-blocker-execution-ledger.json"
     artifact_json human_playtest_observation reviewer_summary "acceptance/S6_public_launch/latest/first-contact-human-playtest-observation-log.json"
     artifact_json human_playtest_runbook reviewer_summary "acceptance/S6_public_launch/latest/first-contact-human-playtest-runbook.json"
@@ -547,8 +573,8 @@ jq -e '
   .contract_version == "trillionnium_world_reviewer_handoff_index_v1"
   and .status == "reviewer_handoff_index_green_with_public_launch_blockers"
   and .green == true
-  and .artifact_count == 39
-  and .reviewer_summary_count == 25
+  and .artifact_count == 40
+  and .reviewer_summary_count == 26
   and .live_player_screen_count == 3
   and .representative_visual_count == 5
   and .raw_visual_archive_candidate_count == 6
