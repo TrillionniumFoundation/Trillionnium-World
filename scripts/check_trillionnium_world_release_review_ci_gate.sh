@@ -112,6 +112,7 @@ run_check bash_syntax bash -n \
   "$ROOT/scripts/check_trillionnium_world_review_execution_batches.sh" \
   "$ROOT/scripts/check_trillionnium_world_review_public_boundary_batch.sh" \
   "$ROOT/scripts/check_trillionnium_world_review_release_native_handoff_batch.sh" \
+  "$ROOT/scripts/check_trillionnium_world_review_runtime_boundary_batch.sh" \
   "$ROOT/scripts/check_trillionnium_world_public_launch_status_only_fixtures.sh" \
   "$ROOT/scripts/check_trillionnium_world_cohort_commercial_evidence_collection.sh" \
   "$ROOT/scripts/check_trillionnium_world_cohort_commercial_evidence.sh" \
@@ -1027,6 +1028,9 @@ run_check world_review_public_boundary_batch "$ROOT/scripts/check_trillionnium_w
 run_check world_review_release_native_handoff_batch env \
   TRNM_WORLD_REVIEW_RELEASE_NATIVE_HANDOFF_BATCH_REFRESH_INPUTS=0 \
   "$ROOT/scripts/check_trillionnium_world_review_release_native_handoff_batch.sh"
+run_check world_review_runtime_boundary_batch env \
+  TRNM_WORLD_REVIEW_RUNTIME_BOUNDARY_BATCH_REFRESH_INPUTS=0 \
+  "$ROOT/scripts/check_trillionnium_world_review_runtime_boundary_batch.sh"
 run_check readme_local_links "$ROOT/scripts/check_root_readme_local_links.sh"
 run_check workflow_script_refs env \
   WORKFLOW_SCRIPT_REF_STRICT=1 \

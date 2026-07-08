@@ -39,6 +39,8 @@ acceptance directory first.
   `acceptance/S6_public_launch/latest/trillionnium-world-review-public-boundary-batch.json`
 - Review release-native handoff batch:
   `acceptance/S6_public_launch/latest/trillionnium-world-review-release-native-handoff-batch.json`
+- Review runtime-boundary batch:
+  `acceptance/S6_public_launch/latest/trillionnium-world-review-runtime-boundary-batch.json`
 - Public-launch blocker execution ledger:
   `acceptance/S6_public_launch/latest/trillionnium-world-public-launch-blocker-execution-ledger.json`
 - First Contact observation/runbook artifacts:
