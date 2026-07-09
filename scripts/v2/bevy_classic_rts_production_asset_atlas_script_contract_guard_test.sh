@@ -25,6 +25,10 @@ required_script_lines=(
   'binding_runtime_target_count'
   'runtime_material_slot_count'
   'runtime_scene_layer_count'
+  'first_contact_production_art_pack_id == "first_contact_production_art_pack_v1"'
+  'first_contact_pack_atlas_slot_count == 6'
+  'first_contact_pack_atlas_slot_pixel_count > 3000'
+  'first_contact_production_art_pack_atlas_gate == true'
   'production_asset_atlas_gate == true'
   'runtime_texture_asset_gate == true'
   'gate_count == 8'
@@ -55,6 +59,8 @@ required_source_lines=(
   'runtime_texture_asset_gate'
   'texture_atlas_binding_gate'
   'production_asset_atlas_preview_gate'
+  'first_contact_production_art_pack_atlas_gate'
+  'first_contact_pack_atlas_slot_names'
   'production_asset_atlas_gate'
   'no_copy_boundary_gate'
   'final_external_bitmap_art_shipped'
@@ -77,6 +83,9 @@ required_readiness_lines=(
   'rts_production_asset_atlas'
   'classic_rts_production_asset_atlas_green'
   'bevy-classic-rts-production-asset-atlas.json'
+  'rts_production_asset_atlas_first_contact_pack_slot_count'
+  'rts_production_asset_atlas_first_contact_pack_slot_pixel_count'
+  'rts_production_asset_atlas_first_contact_pack_atlas_gate'
 )
 
 for line in "${required_readiness_lines[@]}"; do

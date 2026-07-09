@@ -117,7 +117,9 @@ jq -e '
   and .preview_gate == true
   and .player_first_first_contact_screen_readability_gate == true
   and .first_contact_art_direction == "top_down_pixel_rts"
+  and .first_contact_production_art_pack_id == "first_contact_production_art_pack_v1"
   and .player_first_map_composition_gate == true
+  and .player_first_production_art_pack_gate == true
   and .player_first_hud_player_copy_gate == true
   and .player_first_five_second_readability_gate == true
   and .player_first_tactical_composition_gate == true
@@ -173,12 +175,24 @@ jq -e '
   and .pixel_counts.player_first_first_contact_combat_flow >= 100
   and .pixel_counts.player_first_first_contact_target_rim >= 80
   and .pixel_counts.player_first_tactical_occluding_panel < 2000
+  and .pixel_counts.player_first_production_terrain_material > 20000
+  and .pixel_counts.player_first_production_edge_blend > 1000
+  and .pixel_counts.player_first_production_unit_sprite > 120
+  and .pixel_counts.player_first_production_structure_sprite > 160
+  and .pixel_counts.player_first_production_action_flow > 120
+  and .pixel_counts.player_first_production_hud_skin > 8000
   and .first_contact_art_direction_pixel_counts.terrain_regions > 80000
   and .first_contact_art_direction_pixel_counts.terrain_edge_transitions > 1500
   and .first_contact_art_direction_pixel_counts.unit_sprite_family_marks > 80
   and .first_contact_art_direction_pixel_counts.structure_sprite_family_marks > 80
   and .first_contact_art_direction_pixel_counts.blocked_route_geometry > 40
   and .first_contact_art_direction_pixel_counts.next_command_chip > 900
+  and .first_contact_production_art_pack_pixel_counts.terrain_material > 20000
+  and .first_contact_production_art_pack_pixel_counts.edge_blend > 1000
+  and .first_contact_production_art_pack_pixel_counts.unit_sprite_skin > 120
+  and .first_contact_production_art_pack_pixel_counts.structure_sprite_skin > 160
+  and .first_contact_production_art_pack_pixel_counts.action_flow > 120
+  and .first_contact_production_art_pack_pixel_counts.hud_skin > 8000
   and .source_headline.full_screen_surface_count == 10
   and .source_headline.shell_meta_surface_count == 12
   and .source_headline.match_setup_surface_count == 10
