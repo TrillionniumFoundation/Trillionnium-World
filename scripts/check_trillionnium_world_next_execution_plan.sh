@@ -69,6 +69,9 @@ REVIEW_RTS_EVIDENCE_CRATE_BATCH_JSON="$ACCEPTANCE_DIR/trillionnium-world-review-
 REVIEW_EVIDENCE_EXPOSURE_BATCH_DOC="$ROOT/docs/development/trillionnium-world-review-evidence-exposure-batch-2026-07-09.md"
 REVIEW_EVIDENCE_EXPOSURE_BATCH_DOC_REL="docs/development/trillionnium-world-review-evidence-exposure-batch-2026-07-09.md"
 REVIEW_EVIDENCE_EXPOSURE_BATCH_JSON="$ACCEPTANCE_DIR/trillionnium-world-review-evidence-exposure-batch.json"
+REVIEW_BEVY_RUNTIME_RENDERER_BATCH_DOC="$ROOT/docs/development/trillionnium-world-review-bevy-runtime-renderer-batch-2026-07-09.md"
+REVIEW_BEVY_RUNTIME_RENDERER_BATCH_DOC_REL="docs/development/trillionnium-world-review-bevy-runtime-renderer-batch-2026-07-09.md"
+REVIEW_BEVY_RUNTIME_RENDERER_BATCH_JSON="$ACCEPTANCE_DIR/trillionnium-world-review-bevy-runtime-renderer-batch.json"
 PUBLIC_LAUNCH_BLOCKER_LEDGER_DOC="$ROOT/docs/development/trillionnium-world-public-launch-blocker-execution-ledger-2026-07-07.md"
 PUBLIC_LAUNCH_BLOCKER_LEDGER_DOC_REL="docs/development/trillionnium-world-public-launch-blocker-execution-ledger-2026-07-07.md"
 PUBLIC_LAUNCH_BLOCKER_LEDGER_JSON="$ACCEPTANCE_DIR/trillionnium-world-public-launch-blocker-execution-ledger.json"
@@ -124,6 +127,7 @@ require_file "$REVIEW_OPENRA_PARITY_CLAIM_BATCH_DOC"
 require_file "$REVIEW_FIRST_CONTACT_RTS_DATA_BATCH_DOC"
 require_file "$REVIEW_RTS_EVIDENCE_CRATE_BATCH_DOC"
 require_file "$REVIEW_EVIDENCE_EXPOSURE_BATCH_DOC"
+require_file "$REVIEW_BEVY_RUNTIME_RENDERER_BATCH_DOC"
 require_file "$PUBLIC_LAUNCH_BLOCKER_LEDGER_DOC"
 require_file "$PACKET_JSON"
 require_file "$PUBLIC_LAUNCH_JSON"
@@ -252,6 +256,11 @@ require_text "$REVIEW_EVIDENCE_EXPOSURE_BATCH_DOC" "review_evidence_exposure_bou
 require_text "$REVIEW_EVIDENCE_EXPOSURE_BATCH_DOC" "sub_batch_6_exit_rule_satisfied=true"
 require_text "$REVIEW_EVIDENCE_EXPOSURE_BATCH_DOC" "sub_batch_7_unblocked_for_local_review=true"
 require_text "$REVIEW_EVIDENCE_EXPOSURE_BATCH_DOC" "batch_4_unblocked_for_local_review=false"
+require_text "$REVIEW_BEVY_RUNTIME_RENDERER_BATCH_DOC" "Status: local review Bevy runtime renderer boundary sub-batch 7."
+require_text "$REVIEW_BEVY_RUNTIME_RENDERER_BATCH_DOC" "bevy_runtime_renderer_boundary"
+require_text "$REVIEW_BEVY_RUNTIME_RENDERER_BATCH_DOC" "sub_batch_7_exit_rule_satisfied=true"
+require_text "$REVIEW_BEVY_RUNTIME_RENDERER_BATCH_DOC" "sub_batch_8_unblocked_for_local_review=true"
+require_text "$REVIEW_BEVY_RUNTIME_RENDERER_BATCH_DOC" "batch_4_unblocked_for_local_review=false"
 require_text "$PUBLIC_LAUNCH_BLOCKER_LEDGER_DOC" "Status: local blocker execution ledger."
 require_text "$PUBLIC_LAUNCH_BLOCKER_LEDGER_DOC" "Do not use templates, status-only files, host-side screenshots"
 require_text "$PUBLIC_LAUNCH_BLOCKER_LEDGER_DOC" '| `s5_real_device_matrix` |'
@@ -310,8 +319,8 @@ require_file "$REVIEWER_HANDOFF_INDEX_JSON"
 jq -e '
   .contract_version == "trillionnium_world_reviewer_handoff_index_v1"
   and .status == "reviewer_handoff_index_green_with_public_launch_blockers"
-  and .artifact_count == 41
-  and .reviewer_summary_count == 27
+  and .artifact_count == 42
+  and .reviewer_summary_count == 28
   and .live_player_screen_count == 3
   and .representative_visual_count == 5
   and .raw_visual_archive_candidate_count == 6
@@ -758,6 +767,40 @@ jq -e '
   and .history_rewrite_performed == false
 ' "$REVIEW_EVIDENCE_EXPOSURE_BATCH_JSON" >/dev/null
 
+TRNM_WORLD_REVIEW_BEVY_RUNTIME_RENDERER_BATCH_REFRESH_INPUTS=0 \
+  "$ROOT/scripts/check_trillionnium_world_review_bevy_runtime_renderer_batch.sh" >/dev/null
+require_file "$REVIEW_BEVY_RUNTIME_RENDERER_BATCH_JSON"
+jq -e '
+  .contract_version == "trillionnium_world_review_bevy_runtime_renderer_batch_v1"
+  and .status == "review_bevy_runtime_renderer_sub_batch_7_reviewed"
+  and .batch_order == 3
+  and .sub_batch_order == 7
+  and .sub_batch_id == "bevy_runtime_renderer_boundary"
+  and .reviewed_commit_count == 7
+  and .unresolved_commit_review_count == 0
+  and .batch_3_reviewed_commit_count == 210
+  and .batch_3_remaining_commit_level_review_count == 63
+  and .sub_batch_7_local_review_complete == true
+  and .sub_batch_7_exit_rule_satisfied == true
+  and .sub_batch_8_unblocked_for_local_review == true
+  and .batch_3_exit_rule_satisfied == false
+  and .batch_4_unblocked_for_local_review == false
+  and .next_sub_batch_id == "first_contact_player_surface_cues"
+  and .bevy_runtime_adapter_gate == true
+  and .classic_model_catalog_renderer_gate == true
+  and .classic_asset_boundary_renderer_gate == true
+  and .bevy_runtime_renderer_consumer_only == true
+  and .data_truth_source_moved_to_bevy_renderer == false
+  and .renderer_owns_rts_data_truth == false
+  and .playable_renderer_ownership_claimed == false
+  and .render_world_extraction_complete_claimed == false
+  and .gpu_upload_claimed == false
+  and .public_launch_ready_claimed == false
+  and .android_s5_real_device_claimed == false
+  and .external_action_performed == false
+  and .history_rewrite_performed == false
+' "$REVIEW_BEVY_RUNTIME_RENDERER_BATCH_JSON" >/dev/null
+
 "$ROOT/scripts/check_trillionnium_world_public_launch_blocker_execution_ledger.sh" >/dev/null
 require_file "$PUBLIC_LAUNCH_BLOCKER_LEDGER_JSON"
 jq -e '
@@ -1002,6 +1045,28 @@ review_evidence_exposure_batch_render_world_claimed="$(jq -r 'if has("render_wor
 review_evidence_exposure_batch_gpu_upload_claimed="$(jq -r 'if has("gpu_upload_claimed") then .gpu_upload_claimed else true end' "$REVIEW_EVIDENCE_EXPOSURE_BATCH_JSON")"
 review_evidence_exposure_batch_external_action_performed="$(jq -r 'if has("external_action_performed") then .external_action_performed else true end' "$REVIEW_EVIDENCE_EXPOSURE_BATCH_JSON")"
 review_evidence_exposure_batch_history_rewrite_performed="$(jq -r 'if has("history_rewrite_performed") then .history_rewrite_performed else true end' "$REVIEW_EVIDENCE_EXPOSURE_BATCH_JSON")"
+review_bevy_runtime_renderer_batch_status="$(jq -r '.status // "missing"' "$REVIEW_BEVY_RUNTIME_RENDERER_BATCH_JSON")"
+review_bevy_runtime_renderer_batch_reviewed_commit_count="$(jq -r '.reviewed_commit_count // 0' "$REVIEW_BEVY_RUNTIME_RENDERER_BATCH_JSON")"
+review_bevy_runtime_renderer_batch_unresolved_count="$(jq -r '.unresolved_commit_review_count // 999' "$REVIEW_BEVY_RUNTIME_RENDERER_BATCH_JSON")"
+review_bevy_runtime_renderer_batch_batch3_reviewed_count="$(jq -r '.batch_3_reviewed_commit_count // 0' "$REVIEW_BEVY_RUNTIME_RENDERER_BATCH_JSON")"
+review_bevy_runtime_renderer_batch_batch3_remaining_count="$(jq -r '.batch_3_remaining_commit_level_review_count // 999' "$REVIEW_BEVY_RUNTIME_RENDERER_BATCH_JSON")"
+review_bevy_runtime_renderer_batch_local_review_complete="$(jq -r 'if has("sub_batch_7_local_review_complete") then .sub_batch_7_local_review_complete else false end' "$REVIEW_BEVY_RUNTIME_RENDERER_BATCH_JSON")"
+review_bevy_runtime_renderer_batch_exit_rule_satisfied="$(jq -r 'if has("sub_batch_7_exit_rule_satisfied") then .sub_batch_7_exit_rule_satisfied else false end' "$REVIEW_BEVY_RUNTIME_RENDERER_BATCH_JSON")"
+review_bevy_runtime_renderer_batch_next_unblocked="$(jq -r 'if has("sub_batch_8_unblocked_for_local_review") then .sub_batch_8_unblocked_for_local_review else false end' "$REVIEW_BEVY_RUNTIME_RENDERER_BATCH_JSON")"
+review_bevy_runtime_renderer_batch_batch3_exit_rule_satisfied="$(jq -r 'if has("batch_3_exit_rule_satisfied") then .batch_3_exit_rule_satisfied else true end' "$REVIEW_BEVY_RUNTIME_RENDERER_BATCH_JSON")"
+review_bevy_runtime_renderer_batch_batch4_unblocked="$(jq -r 'if has("batch_4_unblocked_for_local_review") then .batch_4_unblocked_for_local_review else true end' "$REVIEW_BEVY_RUNTIME_RENDERER_BATCH_JSON")"
+review_bevy_runtime_renderer_batch_next_sub_batch_id="$(jq -r '.next_sub_batch_id // "missing"' "$REVIEW_BEVY_RUNTIME_RENDERER_BATCH_JSON")"
+review_bevy_runtime_renderer_batch_adapter_gate="$(jq -r 'if has("bevy_runtime_adapter_gate") then .bevy_runtime_adapter_gate else false end' "$REVIEW_BEVY_RUNTIME_RENDERER_BATCH_JSON")"
+review_bevy_runtime_renderer_batch_model_catalog_gate="$(jq -r 'if has("classic_model_catalog_renderer_gate") then .classic_model_catalog_renderer_gate else false end' "$REVIEW_BEVY_RUNTIME_RENDERER_BATCH_JSON")"
+review_bevy_runtime_renderer_batch_asset_boundary_gate="$(jq -r 'if has("classic_asset_boundary_renderer_gate") then .classic_asset_boundary_renderer_gate else false end' "$REVIEW_BEVY_RUNTIME_RENDERER_BATCH_JSON")"
+review_bevy_runtime_renderer_batch_consumer_only="$(jq -r 'if has("bevy_runtime_renderer_consumer_only") then .bevy_runtime_renderer_consumer_only else false end' "$REVIEW_BEVY_RUNTIME_RENDERER_BATCH_JSON")"
+review_bevy_runtime_renderer_batch_data_truth_moved="$(jq -r 'if has("data_truth_source_moved_to_bevy_renderer") then .data_truth_source_moved_to_bevy_renderer else true end' "$REVIEW_BEVY_RUNTIME_RENDERER_BATCH_JSON")"
+review_bevy_runtime_renderer_batch_renderer_owns_data="$(jq -r 'if has("renderer_owns_rts_data_truth") then .renderer_owns_rts_data_truth else true end' "$REVIEW_BEVY_RUNTIME_RENDERER_BATCH_JSON")"
+review_bevy_runtime_renderer_batch_renderer_ownership_claimed="$(jq -r 'if has("playable_renderer_ownership_claimed") then .playable_renderer_ownership_claimed else true end' "$REVIEW_BEVY_RUNTIME_RENDERER_BATCH_JSON")"
+review_bevy_runtime_renderer_batch_render_world_claimed="$(jq -r 'if has("render_world_extraction_complete_claimed") then .render_world_extraction_complete_claimed else true end' "$REVIEW_BEVY_RUNTIME_RENDERER_BATCH_JSON")"
+review_bevy_runtime_renderer_batch_gpu_upload_claimed="$(jq -r 'if has("gpu_upload_claimed") then .gpu_upload_claimed else true end' "$REVIEW_BEVY_RUNTIME_RENDERER_BATCH_JSON")"
+review_bevy_runtime_renderer_batch_external_action_performed="$(jq -r 'if has("external_action_performed") then .external_action_performed else true end' "$REVIEW_BEVY_RUNTIME_RENDERER_BATCH_JSON")"
+review_bevy_runtime_renderer_batch_history_rewrite_performed="$(jq -r 'if has("history_rewrite_performed") then .history_rewrite_performed else true end' "$REVIEW_BEVY_RUNTIME_RENDERER_BATCH_JSON")"
 blocker_execution_ledger_status="$(jq -r '.status // "missing"' "$PUBLIC_LAUNCH_BLOCKER_LEDGER_JSON")"
 blocker_execution_ledger_needs_collection_count="$(jq -r '.needs_collection_count // 0' "$PUBLIC_LAUNCH_BLOCKER_LEDGER_JSON")"
 blocker_execution_ledger_green_evidence_item_count="$(jq -r '.green_evidence_item_count // 0' "$PUBLIC_LAUNCH_BLOCKER_LEDGER_JSON")"
@@ -1172,6 +1237,9 @@ jq -n \
   --arg review_rts_evidence_crate_batch_next_sub_batch_id "$review_rts_evidence_crate_batch_next_sub_batch_id" \
   --arg review_evidence_exposure_batch_status "$review_evidence_exposure_batch_status" \
   --arg review_evidence_exposure_batch_next_sub_batch_id "$review_evidence_exposure_batch_next_sub_batch_id" \
+  --arg review_bevy_runtime_renderer_batch_doc "$REVIEW_BEVY_RUNTIME_RENDERER_BATCH_DOC_REL" \
+  --arg review_bevy_runtime_renderer_batch_status "$review_bevy_runtime_renderer_batch_status" \
+  --arg review_bevy_runtime_renderer_batch_next_sub_batch_id "$review_bevy_runtime_renderer_batch_next_sub_batch_id" \
   --arg blocker_execution_ledger_status "$blocker_execution_ledger_status" \
   --argjson green "$green" \
   --argjson packet_gate "$packet_gate" \
@@ -1365,6 +1433,26 @@ jq -n \
   --argjson review_evidence_exposure_batch_gpu_upload_claimed "$review_evidence_exposure_batch_gpu_upload_claimed" \
   --argjson review_evidence_exposure_batch_external_action_performed "$review_evidence_exposure_batch_external_action_performed" \
   --argjson review_evidence_exposure_batch_history_rewrite_performed "$review_evidence_exposure_batch_history_rewrite_performed" \
+  --argjson review_bevy_runtime_renderer_batch_reviewed_commit_count "$review_bevy_runtime_renderer_batch_reviewed_commit_count" \
+  --argjson review_bevy_runtime_renderer_batch_unresolved_count "$review_bevy_runtime_renderer_batch_unresolved_count" \
+  --argjson review_bevy_runtime_renderer_batch_batch3_reviewed_count "$review_bevy_runtime_renderer_batch_batch3_reviewed_count" \
+  --argjson review_bevy_runtime_renderer_batch_batch3_remaining_count "$review_bevy_runtime_renderer_batch_batch3_remaining_count" \
+  --argjson review_bevy_runtime_renderer_batch_local_review_complete "$review_bevy_runtime_renderer_batch_local_review_complete" \
+  --argjson review_bevy_runtime_renderer_batch_exit_rule_satisfied "$review_bevy_runtime_renderer_batch_exit_rule_satisfied" \
+  --argjson review_bevy_runtime_renderer_batch_next_unblocked "$review_bevy_runtime_renderer_batch_next_unblocked" \
+  --argjson review_bevy_runtime_renderer_batch_batch3_exit_rule_satisfied "$review_bevy_runtime_renderer_batch_batch3_exit_rule_satisfied" \
+  --argjson review_bevy_runtime_renderer_batch_batch4_unblocked "$review_bevy_runtime_renderer_batch_batch4_unblocked" \
+  --argjson review_bevy_runtime_renderer_batch_adapter_gate "$review_bevy_runtime_renderer_batch_adapter_gate" \
+  --argjson review_bevy_runtime_renderer_batch_model_catalog_gate "$review_bevy_runtime_renderer_batch_model_catalog_gate" \
+  --argjson review_bevy_runtime_renderer_batch_asset_boundary_gate "$review_bevy_runtime_renderer_batch_asset_boundary_gate" \
+  --argjson review_bevy_runtime_renderer_batch_consumer_only "$review_bevy_runtime_renderer_batch_consumer_only" \
+  --argjson review_bevy_runtime_renderer_batch_data_truth_moved "$review_bevy_runtime_renderer_batch_data_truth_moved" \
+  --argjson review_bevy_runtime_renderer_batch_renderer_owns_data "$review_bevy_runtime_renderer_batch_renderer_owns_data" \
+  --argjson review_bevy_runtime_renderer_batch_renderer_ownership_claimed "$review_bevy_runtime_renderer_batch_renderer_ownership_claimed" \
+  --argjson review_bevy_runtime_renderer_batch_render_world_claimed "$review_bevy_runtime_renderer_batch_render_world_claimed" \
+  --argjson review_bevy_runtime_renderer_batch_gpu_upload_claimed "$review_bevy_runtime_renderer_batch_gpu_upload_claimed" \
+  --argjson review_bevy_runtime_renderer_batch_external_action_performed "$review_bevy_runtime_renderer_batch_external_action_performed" \
+  --argjson review_bevy_runtime_renderer_batch_history_rewrite_performed "$review_bevy_runtime_renderer_batch_history_rewrite_performed" \
   --argjson blocker_execution_ledger_needs_collection_count "$blocker_execution_ledger_needs_collection_count" \
   --argjson blocker_execution_ledger_green_evidence_item_count "$blocker_execution_ledger_green_evidence_item_count" \
   --argjson blocker_execution_ledger_consistency_failed_check_count "$blocker_execution_ledger_consistency_failed_check_count" \
@@ -1763,6 +1851,36 @@ jq -n \
       history_rewrite_performed: $review_evidence_exposure_batch_history_rewrite_performed,
       no_credit_boundary: "local review evidence exposure boundary sub-batch 6 review only; no push, rebase, reset, squash, history rewrite, upload, publish, public launch, Android S5 real-device, beta, production-ready UI, commercial, socket, hosted-service, live multiplayer, OpenRA runtime/replay/network compatibility, playable renderer ownership, render-world extraction completion, GPU upload, live-traffic, or public-network credit"
     },
+    review_bevy_runtime_renderer_batch: {
+      doc_path: $review_bevy_runtime_renderer_batch_doc,
+      artifact_path: "acceptance/S6_public_launch/latest/trillionnium-world-review-bevy-runtime-renderer-batch.json",
+      status: $review_bevy_runtime_renderer_batch_status,
+      batch_order: 3,
+      sub_batch_order: 7,
+      sub_batch_id: "bevy_runtime_renderer_boundary",
+      reviewed_commit_count: $review_bevy_runtime_renderer_batch_reviewed_commit_count,
+      unresolved_commit_review_count: $review_bevy_runtime_renderer_batch_unresolved_count,
+      batch_3_reviewed_commit_count: $review_bevy_runtime_renderer_batch_batch3_reviewed_count,
+      batch_3_remaining_commit_level_review_count: $review_bevy_runtime_renderer_batch_batch3_remaining_count,
+      sub_batch_7_local_review_complete: $review_bevy_runtime_renderer_batch_local_review_complete,
+      sub_batch_7_exit_rule_satisfied: $review_bevy_runtime_renderer_batch_exit_rule_satisfied,
+      sub_batch_8_unblocked_for_local_review: $review_bevy_runtime_renderer_batch_next_unblocked,
+      batch_3_exit_rule_satisfied: $review_bevy_runtime_renderer_batch_batch3_exit_rule_satisfied,
+      batch_4_unblocked_for_local_review: $review_bevy_runtime_renderer_batch_batch4_unblocked,
+      next_sub_batch_id: $review_bevy_runtime_renderer_batch_next_sub_batch_id,
+      bevy_runtime_adapter_gate: $review_bevy_runtime_renderer_batch_adapter_gate,
+      classic_model_catalog_renderer_gate: $review_bevy_runtime_renderer_batch_model_catalog_gate,
+      classic_asset_boundary_renderer_gate: $review_bevy_runtime_renderer_batch_asset_boundary_gate,
+      bevy_runtime_renderer_consumer_only: $review_bevy_runtime_renderer_batch_consumer_only,
+      data_truth_source_moved_to_bevy_renderer: $review_bevy_runtime_renderer_batch_data_truth_moved,
+      renderer_owns_rts_data_truth: $review_bevy_runtime_renderer_batch_renderer_owns_data,
+      playable_renderer_ownership_claimed: $review_bevy_runtime_renderer_batch_renderer_ownership_claimed,
+      render_world_extraction_complete_claimed: $review_bevy_runtime_renderer_batch_render_world_claimed,
+      gpu_upload_claimed: $review_bevy_runtime_renderer_batch_gpu_upload_claimed,
+      external_action_performed: $review_bevy_runtime_renderer_batch_external_action_performed,
+      history_rewrite_performed: $review_bevy_runtime_renderer_batch_history_rewrite_performed,
+      no_credit_boundary: "local Bevy runtime/renderer boundary sub-batch 7 review only; no push, rebase, reset, squash, history rewrite, upload, publish, public launch, Android S5 real-device, beta, production-ready UI, commercial, socket, hosted-service, live multiplayer, OpenRA runtime/replay/network compatibility, playable renderer ownership, render-world extraction completion, GPU upload, live-traffic, or public-network credit"
+    },
     public_launch_blocker_execution_ledger: {
       doc_path: $public_launch_blocker_ledger_doc,
       artifact_path: "acceptance/S6_public_launch/latest/trillionnium-world-public-launch-blocker-execution-ledger.json",
@@ -1800,7 +1918,7 @@ jq -e '
   and .evidence_volume_curation.large_file_count > 100
   and .evidence_volume_curation.deletion_performed == false
   and .evidence_volume_curation.archive_movement_performed == false
-  and .reviewer_handoff_index.artifact_count == 41
+  and .reviewer_handoff_index.artifact_count == 42
   and .reviewer_handoff_index.representative_visual_count == 5
   and .reviewer_handoff_index.upload_performed == false
   and .reviewer_handoff_index.publish_performed == false
@@ -2015,6 +2133,31 @@ jq -e '
   and .review_evidence_exposure_batch.gpu_upload_claimed == false
   and .review_evidence_exposure_batch.external_action_performed == false
   and .review_evidence_exposure_batch.history_rewrite_performed == false
+  and .review_bevy_runtime_renderer_batch.status == "review_bevy_runtime_renderer_sub_batch_7_reviewed"
+  and .review_bevy_runtime_renderer_batch.batch_order == 3
+  and .review_bevy_runtime_renderer_batch.sub_batch_order == 7
+  and .review_bevy_runtime_renderer_batch.sub_batch_id == "bevy_runtime_renderer_boundary"
+  and .review_bevy_runtime_renderer_batch.reviewed_commit_count == 7
+  and .review_bevy_runtime_renderer_batch.unresolved_commit_review_count == 0
+  and .review_bevy_runtime_renderer_batch.batch_3_reviewed_commit_count == 210
+  and .review_bevy_runtime_renderer_batch.batch_3_remaining_commit_level_review_count == 63
+  and .review_bevy_runtime_renderer_batch.sub_batch_7_local_review_complete == true
+  and .review_bevy_runtime_renderer_batch.sub_batch_7_exit_rule_satisfied == true
+  and .review_bevy_runtime_renderer_batch.sub_batch_8_unblocked_for_local_review == true
+  and .review_bevy_runtime_renderer_batch.batch_3_exit_rule_satisfied == false
+  and .review_bevy_runtime_renderer_batch.batch_4_unblocked_for_local_review == false
+  and .review_bevy_runtime_renderer_batch.next_sub_batch_id == "first_contact_player_surface_cues"
+  and .review_bevy_runtime_renderer_batch.bevy_runtime_adapter_gate == true
+  and .review_bevy_runtime_renderer_batch.classic_model_catalog_renderer_gate == true
+  and .review_bevy_runtime_renderer_batch.classic_asset_boundary_renderer_gate == true
+  and .review_bevy_runtime_renderer_batch.bevy_runtime_renderer_consumer_only == true
+  and .review_bevy_runtime_renderer_batch.data_truth_source_moved_to_bevy_renderer == false
+  and .review_bevy_runtime_renderer_batch.renderer_owns_rts_data_truth == false
+  and .review_bevy_runtime_renderer_batch.playable_renderer_ownership_claimed == false
+  and .review_bevy_runtime_renderer_batch.render_world_extraction_complete_claimed == false
+  and .review_bevy_runtime_renderer_batch.gpu_upload_claimed == false
+  and .review_bevy_runtime_renderer_batch.external_action_performed == false
+  and .review_bevy_runtime_renderer_batch.history_rewrite_performed == false
   and .public_launch_blocker_execution_ledger.needs_collection_count == 6
   and .public_launch_blocker_execution_ledger.green_evidence_item_count == 0
   and .public_launch_blocker_execution_ledger.blocker_consistency_failed_check_count == 0

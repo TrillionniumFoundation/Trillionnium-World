@@ -24,6 +24,7 @@ REVIEW_OPENRA_PARITY_CLAIM_BATCH_SCRIPT="$ROOT/scripts/check_trillionnium_world_
 REVIEW_FIRST_CONTACT_RTS_DATA_BATCH_SCRIPT="$ROOT/scripts/check_trillionnium_world_review_first_contact_rts_data_batch.sh"
 REVIEW_RTS_EVIDENCE_CRATE_BATCH_SCRIPT="$ROOT/scripts/check_trillionnium_world_review_rts_evidence_crate_batch.sh"
 REVIEW_EVIDENCE_EXPOSURE_BATCH_SCRIPT="$ROOT/scripts/check_trillionnium_world_review_evidence_exposure_batch.sh"
+REVIEW_BEVY_RUNTIME_RENDERER_BATCH_SCRIPT="$ROOT/scripts/check_trillionnium_world_review_bevy_runtime_renderer_batch.sh"
 BLOCKER_LEDGER_SCRIPT="$ROOT/scripts/check_trillionnium_world_public_launch_blocker_execution_ledger.sh"
 DOC="$ROOT/docs/development/trillionnium-world-next-execution-plan-v1.md"
 READABILITY_REVIEW_DOC="$ROOT/docs/development/trillionnium-world-first-contact-readability-review-2026-07-07.md"
@@ -48,6 +49,7 @@ REVIEW_OPENRA_PARITY_CLAIM_BATCH_DOC="$ROOT/docs/development/trillionnium-world-
 REVIEW_FIRST_CONTACT_RTS_DATA_BATCH_DOC="$ROOT/docs/development/trillionnium-world-review-first-contact-rts-data-batch-2026-07-09.md"
 REVIEW_RTS_EVIDENCE_CRATE_BATCH_DOC="$ROOT/docs/development/trillionnium-world-review-rts-evidence-crate-batch-2026-07-09.md"
 REVIEW_EVIDENCE_EXPOSURE_BATCH_DOC="$ROOT/docs/development/trillionnium-world-review-evidence-exposure-batch-2026-07-09.md"
+REVIEW_BEVY_RUNTIME_RENDERER_BATCH_DOC="$ROOT/docs/development/trillionnium-world-review-bevy-runtime-renderer-batch-2026-07-09.md"
 BLOCKER_LEDGER_DOC="$ROOT/docs/development/trillionnium-world-public-launch-blocker-execution-ledger-2026-07-07.md"
 
 required_script_lines=(
@@ -208,6 +210,14 @@ required_script_lines=(
   'sub_batch_6_exit_rule_satisfied'
   'sub_batch_7_unblocked_for_local_review'
   'bevy_runtime_renderer_boundary'
+  'trillionnium-world-review-bevy-runtime-renderer-batch-2026-07-09.md'
+  'review_bevy_runtime_renderer_batch'
+  'trillionnium-world-review-bevy-runtime-renderer-batch.json'
+  'review_bevy_runtime_renderer_sub_batch_7_reviewed'
+  'TRNM_WORLD_REVIEW_BEVY_RUNTIME_RENDERER_BATCH_REFRESH_INPUTS=0'
+  'sub_batch_7_exit_rule_satisfied'
+  'sub_batch_8_unblocked_for_local_review'
+  'first_contact_player_surface_cues'
   'trillionnium-world-public-launch-blocker-execution-ledger-2026-07-07.md'
   'public_launch_blocker_execution_ledger'
   'trillionnium-world-public-launch-blocker-execution-ledger.json'
@@ -289,6 +299,14 @@ required_script_lines=(
   '.review_evidence_exposure_batch.batch_3_exit_rule_satisfied == false'
   '.review_evidence_exposure_batch.batch_4_unblocked_for_local_review == false'
   '.review_evidence_exposure_batch.external_action_performed == false'
+  '.review_bevy_runtime_renderer_batch.reviewed_commit_count == 7'
+  '.review_bevy_runtime_renderer_batch.unresolved_commit_review_count == 0'
+  '.review_bevy_runtime_renderer_batch.batch_3_reviewed_commit_count == 210'
+  '.review_bevy_runtime_renderer_batch.batch_3_remaining_commit_level_review_count == 63'
+  '.review_bevy_runtime_renderer_batch.sub_batch_7_exit_rule_satisfied == true'
+  '.review_bevy_runtime_renderer_batch.batch_3_exit_rule_satisfied == false'
+  '.review_bevy_runtime_renderer_batch.batch_4_unblocked_for_local_review == false'
+  '.review_bevy_runtime_renderer_batch.external_action_performed == false'
   '.human_playtest_runbook.prompts_bound == true'
   '.evidence_volume_curation.deletion_performed == false'
   '.reviewer_handoff_index.upload_performed == false'
@@ -446,8 +464,8 @@ required_reviewer_handoff_script_lines=(
   'trillionnium_world_reviewer_handoff_index_v1'
   'trillionnium-world-reviewer-handoff-index.json'
   'reviewer_handoff_index_green_with_public_launch_blockers'
-  'artifact_count == 41'
-  'reviewer_summary_count == 27'
+  'artifact_count == 42'
+  'reviewer_summary_count == 28'
   'trillionnium-world-review-triage-queue.json'
   'trillionnium-world-review-primary-owner-plan.json'
   'trillionnium-world-review-release-owner-queue.json'
@@ -1010,6 +1028,49 @@ required_review_evidence_exposure_batch_script_lines=(
   'TRILLIONNIUM_WORLD_REVIEW_EVIDENCE_EXPOSURE_BATCH_GREEN'
 )
 
+required_review_bevy_runtime_renderer_batch_lines=(
+  'Status: local review Bevy runtime renderer boundary sub-batch 7.'
+  'bevy_runtime_renderer_boundary'
+  'Reviewed commit count: `7`'
+  'Per-commit unresolved count: `0`'
+  'Bevy runtime and renderer splits may move player-screen runtime adapter'
+  'sub_batch_7_exit_rule_satisfied=true'
+  'sub_batch_8_unblocked_for_local_review=true'
+  'batch_3_exit_rule_satisfied=false'
+  'batch_4_unblocked_for_local_review=false'
+)
+
+required_review_bevy_runtime_renderer_batch_script_lines=(
+  'trillionnium_world_review_bevy_runtime_renderer_batch_v1'
+  'trillionnium-world-review-bevy-runtime-renderer-batch.json'
+  'TRNM_WORLD_REVIEW_BEVY_RUNTIME_RENDERER_BATCH_REFRESH_INPUTS'
+  'review_bevy_runtime_renderer_sub_batch_7_reviewed'
+  'bevy_runtime_renderer_boundary'
+  'reviewed_commit_count == 7'
+  'unresolved_commit_review_count == 0'
+  'batch_3_reviewed_commit_count == 210'
+  'batch_3_remaining_commit_level_review_count == 63'
+  'sub_batch_7_local_review_complete == true'
+  'sub_batch_7_exit_rule_satisfied == true'
+  'sub_batch_8_unblocked_for_local_review == true'
+  'batch_3_exit_rule_satisfied == false'
+  'batch_4_unblocked_for_local_review == false'
+  'next_sub_batch_id == "first_contact_player_surface_cues"'
+  'bevy_runtime_adapter_gate == true'
+  'classic_model_catalog_renderer_gate == true'
+  'classic_asset_boundary_renderer_gate == true'
+  'bevy_runtime_renderer_consumer_only == true'
+  'data_truth_source_moved_to_bevy_renderer == false'
+  'renderer_owns_rts_data_truth == false'
+  'playable_renderer_ownership_claimed == false'
+  'render_world_extraction_complete_claimed == false'
+  'gpu_upload_claimed == false'
+  'external_action_performed == false'
+  'public_launch_ready_claimed == false'
+  'android_s5_real_device_claimed == false'
+  'TRILLIONNIUM_WORLD_REVIEW_BEVY_RUNTIME_RENDERER_BATCH_GREEN'
+)
+
 for line in "${required_script_lines[@]}"; do
   if ! grep -Fq -- "$line" "$SCRIPT"; then
     echo "[FAIL] next execution plan script missing contract line: $line" >&2
@@ -1164,6 +1225,13 @@ for line in "${required_review_evidence_exposure_batch_lines[@]}"; do
   fi
 done
 
+for line in "${required_review_bevy_runtime_renderer_batch_lines[@]}"; do
+  if ! grep -Fq -- "$line" "$REVIEW_BEVY_RUNTIME_RENDERER_BATCH_DOC"; then
+    echo "[FAIL] review Bevy runtime renderer batch missing contract line: $line" >&2
+    exit 1
+  fi
+done
+
 for line in "${required_evidence_volume_lines[@]}"; do
   if ! grep -Fq -- "$line" "$EVIDENCE_VOLUME_DOC"; then
     echo "[FAIL] evidence volume curation missing contract line: $line" >&2
@@ -1307,6 +1375,13 @@ done
 for line in "${required_review_evidence_exposure_batch_script_lines[@]}"; do
   if ! grep -Fq -- "$line" "$REVIEW_EVIDENCE_EXPOSURE_BATCH_SCRIPT"; then
     echo "[FAIL] review evidence exposure batch script missing contract line: $line" >&2
+    exit 1
+  fi
+done
+
+for line in "${required_review_bevy_runtime_renderer_batch_script_lines[@]}"; do
+  if ! grep -Fq -- "$line" "$REVIEW_BEVY_RUNTIME_RENDERER_BATCH_SCRIPT"; then
+    echo "[FAIL] review Bevy runtime renderer batch script missing contract line: $line" >&2
     exit 1
   fi
 done

@@ -30,6 +30,7 @@ required_lines=(
   './scripts/check_trillionnium_world_review_first_contact_rts_data_batch.sh'
   './scripts/check_trillionnium_world_review_rts_evidence_crate_batch.sh'
   './scripts/check_trillionnium_world_review_evidence_exposure_batch.sh'
+  './scripts/check_trillionnium_world_review_bevy_runtime_renderer_batch.sh'
   './scripts/check_trillionnium_world_public_launch_blocker_execution_ledger.sh'
   './scripts/check_trillionnium_world_public_launch_operator_handoff.sh'
   './scripts/check_trillionnium_world_production_map_pack_public_evidence_collection.sh'

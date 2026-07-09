@@ -87,6 +87,8 @@ blockers.
      `docs/development/trillionnium-world-review-rts-evidence-crate-batch-2026-07-09.md`
    - review evidence exposure batch:
      `docs/development/trillionnium-world-review-evidence-exposure-batch-2026-07-09.md`
+   - Bevy runtime renderer batch review:
+     `docs/development/trillionnium-world-review-bevy-runtime-renderer-batch-2026-07-09.md`
    - avoid external push/public actions until explicitly routed
 5. Public launch evidence:
    - S5 real-device matrix
