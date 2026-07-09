@@ -72,6 +72,9 @@ REVIEW_EVIDENCE_EXPOSURE_BATCH_JSON="$ACCEPTANCE_DIR/trillionnium-world-review-e
 REVIEW_BEVY_RUNTIME_RENDERER_BATCH_DOC="$ROOT/docs/development/trillionnium-world-review-bevy-runtime-renderer-batch-2026-07-09.md"
 REVIEW_BEVY_RUNTIME_RENDERER_BATCH_DOC_REL="docs/development/trillionnium-world-review-bevy-runtime-renderer-batch-2026-07-09.md"
 REVIEW_BEVY_RUNTIME_RENDERER_BATCH_JSON="$ACCEPTANCE_DIR/trillionnium-world-review-bevy-runtime-renderer-batch.json"
+REVIEW_FIRST_CONTACT_PLAYER_SURFACE_CUES_BATCH_DOC="$ROOT/docs/development/trillionnium-world-review-first-contact-player-surface-cues-batch-2026-07-09.md"
+REVIEW_FIRST_CONTACT_PLAYER_SURFACE_CUES_BATCH_DOC_REL="docs/development/trillionnium-world-review-first-contact-player-surface-cues-batch-2026-07-09.md"
+REVIEW_FIRST_CONTACT_PLAYER_SURFACE_CUES_BATCH_JSON="$ACCEPTANCE_DIR/trillionnium-world-review-first-contact-player-surface-cues-batch.json"
 PUBLIC_LAUNCH_BLOCKER_LEDGER_DOC="$ROOT/docs/development/trillionnium-world-public-launch-blocker-execution-ledger-2026-07-07.md"
 PUBLIC_LAUNCH_BLOCKER_LEDGER_DOC_REL="docs/development/trillionnium-world-public-launch-blocker-execution-ledger-2026-07-07.md"
 PUBLIC_LAUNCH_BLOCKER_LEDGER_JSON="$ACCEPTANCE_DIR/trillionnium-world-public-launch-blocker-execution-ledger.json"
@@ -80,12 +83,20 @@ PUBLIC_LAUNCH_JSON="$ACCEPTANCE_DIR/public-launch-readiness.json"
 RUNNER_JSON="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-runner-status.json"
 SUMMARY_JSON="$ACCEPTANCE_DIR/trillionnium-world-next-execution-plan.json"
 SUMMARY_MD="$ACCEPTANCE_DIR/trillionnium-world-next-execution-plan.md"
+REFRESH_INPUTS="${TRNM_WORLD_NEXT_EXECUTION_PLAN_REFRESH_INPUTS:-1}"
 
 if [[ -v TRILLIONNIUM_WORLD_NEXT_EXECUTION_PLAN_SUMMARY && -n "$TRILLIONNIUM_WORLD_NEXT_EXECUTION_PLAN_SUMMARY" ]]; then
   SUMMARY_JSON="$TRILLIONNIUM_WORLD_NEXT_EXECUTION_PLAN_SUMMARY"
 fi
 
 mkdir -p "$ACCEPTANCE_DIR"
+
+refresh_input() {
+  if [[ "$REFRESH_INPUTS" == "0" ]]; then
+    return 0
+  fi
+  "$@"
+}
 
 require_file() {
   local path="$1"
@@ -128,6 +139,7 @@ require_file "$REVIEW_FIRST_CONTACT_RTS_DATA_BATCH_DOC"
 require_file "$REVIEW_RTS_EVIDENCE_CRATE_BATCH_DOC"
 require_file "$REVIEW_EVIDENCE_EXPOSURE_BATCH_DOC"
 require_file "$REVIEW_BEVY_RUNTIME_RENDERER_BATCH_DOC"
+require_file "$REVIEW_FIRST_CONTACT_PLAYER_SURFACE_CUES_BATCH_DOC"
 require_file "$PUBLIC_LAUNCH_BLOCKER_LEDGER_DOC"
 require_file "$PACKET_JSON"
 require_file "$PUBLIC_LAUNCH_JSON"
@@ -157,6 +169,8 @@ require_text "$DOC" "trillionnium-world-review-runtime-boundary-batch-2026-07-08
 require_text "$DOC" "trillionnium-world-review-runtime-core-semantics-batch-2026-07-08.md"
 require_text "$DOC" "trillionnium-world-review-runtime-adapter-online-batch-2026-07-08.md"
 require_text "$DOC" "trillionnium-world-review-evidence-exposure-batch-2026-07-09.md"
+require_text "$DOC" "trillionnium-world-review-bevy-runtime-renderer-batch-2026-07-09.md"
+require_text "$DOC" "trillionnium-world-review-first-contact-player-surface-cues-batch-2026-07-09.md"
 require_text "$DOC" "trillionnium-world-public-launch-blocker-execution-ledger-2026-07-07.md"
 require_text "$READABILITY_REVIEW_DOC" "The central beacon fight is still the dominant whole-screen readability risk."
 require_text "$READABILITY_REVIEW_DOC" "Do a product-level silhouette and composition pass around the active center"
@@ -261,12 +275,18 @@ require_text "$REVIEW_BEVY_RUNTIME_RENDERER_BATCH_DOC" "bevy_runtime_renderer_bo
 require_text "$REVIEW_BEVY_RUNTIME_RENDERER_BATCH_DOC" "sub_batch_7_exit_rule_satisfied=true"
 require_text "$REVIEW_BEVY_RUNTIME_RENDERER_BATCH_DOC" "sub_batch_8_unblocked_for_local_review=true"
 require_text "$REVIEW_BEVY_RUNTIME_RENDERER_BATCH_DOC" "batch_4_unblocked_for_local_review=false"
+require_text "$REVIEW_FIRST_CONTACT_PLAYER_SURFACE_CUES_BATCH_DOC" "Status: local review First Contact player-surface cues sub-batch 8."
+require_text "$REVIEW_FIRST_CONTACT_PLAYER_SURFACE_CUES_BATCH_DOC" "first_contact_player_surface_cues"
+require_text "$REVIEW_FIRST_CONTACT_PLAYER_SURFACE_CUES_BATCH_DOC" "sub_batch_8_exit_rule_satisfied=true"
+require_text "$REVIEW_FIRST_CONTACT_PLAYER_SURFACE_CUES_BATCH_DOC" "batch_3_exit_rule_satisfied=true"
+require_text "$REVIEW_FIRST_CONTACT_PLAYER_SURFACE_CUES_BATCH_DOC" "batch_4_unblocked_for_local_review=true"
+require_text "$REVIEW_FIRST_CONTACT_PLAYER_SURFACE_CUES_BATCH_DOC" "next_batch_bucket_id=unclassified_generated_count_surface"
 require_text "$PUBLIC_LAUNCH_BLOCKER_LEDGER_DOC" "Status: local blocker execution ledger."
 require_text "$PUBLIC_LAUNCH_BLOCKER_LEDGER_DOC" "Do not use templates, status-only files, host-side screenshots"
 require_text "$PUBLIC_LAUNCH_BLOCKER_LEDGER_DOC" '| `s5_real_device_matrix` |'
 require_text "$PUBLIC_LAUNCH_BLOCKER_LEDGER_DOC" '| `public_network_live_exposure_evidence` |'
 
-"$ROOT/scripts/check_trillionnium_world_first_contact_human_playtest_observation_log.sh" >/dev/null
+refresh_input "$ROOT/scripts/check_trillionnium_world_first_contact_human_playtest_observation_log.sh" >/dev/null
 require_file "$PLAYTEST_OBSERVATION_LOG_JSON"
 jq -e '
   .contract_version == "trillionnium_world_first_contact_human_playtest_observation_log_v1"
@@ -281,7 +301,7 @@ jq -e '
   and .android_s5_real_device_claimed == false
 ' "$PLAYTEST_OBSERVATION_LOG_JSON" >/dev/null
 
-"$ROOT/scripts/check_trillionnium_world_first_contact_human_playtest_runbook.sh" >/dev/null
+refresh_input "$ROOT/scripts/check_trillionnium_world_first_contact_human_playtest_runbook.sh" >/dev/null
 require_file "$PLAYTEST_RUNBOOK_JSON"
 jq -e '
   .contract_version == "trillionnium_world_first_contact_human_playtest_runbook_v1"
@@ -299,7 +319,7 @@ jq -e '
   and .android_s5_real_device_claimed == false
 ' "$PLAYTEST_RUNBOOK_JSON" >/dev/null
 
-"$ROOT/scripts/check_trillionnium_world_evidence_volume_curation.sh" >/dev/null
+refresh_input "$ROOT/scripts/check_trillionnium_world_evidence_volume_curation.sh" >/dev/null
 require_file "$EVIDENCE_VOLUME_CURATION_JSON"
 jq -e '
   .contract_version == "trillionnium_world_evidence_volume_curation_v1"
@@ -314,13 +334,13 @@ jq -e '
   and .android_s5_real_device_claimed == false
 ' "$EVIDENCE_VOLUME_CURATION_JSON" >/dev/null
 
-"$ROOT/scripts/check_trillionnium_world_reviewer_handoff_index.sh" >/dev/null
+refresh_input "$ROOT/scripts/check_trillionnium_world_reviewer_handoff_index.sh" >/dev/null
 require_file "$REVIEWER_HANDOFF_INDEX_JSON"
 jq -e '
   .contract_version == "trillionnium_world_reviewer_handoff_index_v1"
   and .status == "reviewer_handoff_index_green_with_public_launch_blockers"
-  and .artifact_count == 42
-  and .reviewer_summary_count == 28
+  and .artifact_count == 43
+  and .reviewer_summary_count == 29
   and .live_player_screen_count == 3
   and .representative_visual_count == 5
   and .raw_visual_archive_candidate_count == 6
@@ -333,7 +353,7 @@ jq -e '
   and .android_s5_real_device_claimed == false
 ' "$REVIEWER_HANDOFF_INDEX_JSON" >/dev/null
 
-"$ROOT/scripts/check_trillionnium_world_review_slice_strategy.sh" >/dev/null
+refresh_input "$ROOT/scripts/check_trillionnium_world_review_slice_strategy.sh" >/dev/null
 require_file "$REVIEW_SLICE_STRATEGY_JSON"
 jq -e '
   .contract_version == "trillionnium_world_review_slice_strategy_v1"
@@ -348,7 +368,7 @@ jq -e '
   and .android_s5_real_device_claimed == false
 ' "$REVIEW_SLICE_STRATEGY_JSON" >/dev/null
 
-"$ROOT/scripts/check_trillionnium_world_review_slice_manifest.sh" >/dev/null
+refresh_input "$ROOT/scripts/check_trillionnium_world_review_slice_manifest.sh" >/dev/null
 require_file "$REVIEW_SLICE_MANIFEST_JSON"
 jq -e '
   .contract_version == "trillionnium_world_review_slice_manifest_v1"
@@ -367,7 +387,7 @@ jq -e '
   and .android_s5_real_device_claimed == false
 ' "$REVIEW_SLICE_MANIFEST_JSON" >/dev/null
 
-"$ROOT/scripts/check_trillionnium_world_review_triage_queue.sh" >/dev/null
+refresh_input "$ROOT/scripts/check_trillionnium_world_review_triage_queue.sh" >/dev/null
 require_file "$REVIEW_TRIAGE_QUEUE_JSON"
 jq -e '
   .contract_version == "trillionnium_world_review_triage_queue_v1"
@@ -387,7 +407,7 @@ jq -e '
   and .android_s5_real_device_claimed == false
 ' "$REVIEW_TRIAGE_QUEUE_JSON" >/dev/null
 
-"$ROOT/scripts/check_trillionnium_world_review_primary_owner_plan.sh" >/dev/null
+refresh_input "$ROOT/scripts/check_trillionnium_world_review_primary_owner_plan.sh" >/dev/null
 require_file "$REVIEW_PRIMARY_OWNER_PLAN_JSON"
 jq -e '
   .contract_version == "trillionnium_world_review_primary_owner_plan_v1"
@@ -410,7 +430,7 @@ jq -e '
   and .android_s5_real_device_claimed == false
 ' "$REVIEW_PRIMARY_OWNER_PLAN_JSON" >/dev/null
 
-"$ROOT/scripts/check_trillionnium_world_review_release_owner_queue.sh" >/dev/null
+refresh_input "$ROOT/scripts/check_trillionnium_world_review_release_owner_queue.sh" >/dev/null
 require_file "$REVIEW_RELEASE_OWNER_QUEUE_JSON"
 jq -e '
   .contract_version == "trillionnium_world_review_release_owner_queue_v1"
@@ -433,7 +453,7 @@ jq -e '
   and .android_s5_real_device_claimed == false
 ' "$REVIEW_RELEASE_OWNER_QUEUE_JSON" >/dev/null
 
-"$ROOT/scripts/check_trillionnium_world_review_runtime_owner_queue.sh" >/dev/null
+refresh_input "$ROOT/scripts/check_trillionnium_world_review_runtime_owner_queue.sh" >/dev/null
 require_file "$REVIEW_RUNTIME_OWNER_QUEUE_JSON"
 jq -e '
   .contract_version == "trillionnium_world_review_runtime_owner_queue_v1"
@@ -457,7 +477,7 @@ jq -e '
   and .android_s5_real_device_claimed == false
 ' "$REVIEW_RUNTIME_OWNER_QUEUE_JSON" >/dev/null
 
-"$ROOT/scripts/check_trillionnium_world_review_residual_queue.sh" >/dev/null
+refresh_input "$ROOT/scripts/check_trillionnium_world_review_residual_queue.sh" >/dev/null
 require_file "$REVIEW_RESIDUAL_QUEUE_JSON"
 jq -e '
   .contract_version == "trillionnium_world_review_residual_queue_v1"
@@ -483,7 +503,7 @@ jq -e '
   and .android_s5_real_device_claimed == false
 ' "$REVIEW_RESIDUAL_QUEUE_JSON" >/dev/null
 
-TRNM_WORLD_REVIEW_EXECUTION_BATCHES_REFRESH_INPUTS=0 \
+refresh_input env TRNM_WORLD_REVIEW_EXECUTION_BATCHES_REFRESH_INPUTS=0 \
   "$ROOT/scripts/check_trillionnium_world_review_execution_batches.sh" >/dev/null
 require_file "$REVIEW_EXECUTION_BATCHES_JSON"
 jq -e '
@@ -507,7 +527,7 @@ jq -e '
   and .android_s5_real_device_claimed == false
 ' "$REVIEW_EXECUTION_BATCHES_JSON" >/dev/null
 
-"$ROOT/scripts/check_trillionnium_world_review_public_boundary_batch.sh" >/dev/null
+refresh_input "$ROOT/scripts/check_trillionnium_world_review_public_boundary_batch.sh" >/dev/null
 require_file "$REVIEW_PUBLIC_BOUNDARY_BATCH_JSON"
 jq -e '
   .contract_version == "trillionnium_world_review_public_boundary_batch_v1"
@@ -532,7 +552,7 @@ jq -e '
   and .android_s5_real_device_claimed == false
 ' "$REVIEW_PUBLIC_BOUNDARY_BATCH_JSON" >/dev/null
 
-TRNM_WORLD_REVIEW_RELEASE_NATIVE_HANDOFF_BATCH_REFRESH_INPUTS=0 \
+refresh_input env TRNM_WORLD_REVIEW_RELEASE_NATIVE_HANDOFF_BATCH_REFRESH_INPUTS=0 \
   "$ROOT/scripts/check_trillionnium_world_review_release_native_handoff_batch.sh" >/dev/null
 require_file "$REVIEW_RELEASE_NATIVE_HANDOFF_BATCH_JSON"
 jq -e '
@@ -559,7 +579,7 @@ jq -e '
   and .android_s5_real_device_claimed == false
 ' "$REVIEW_RELEASE_NATIVE_HANDOFF_BATCH_JSON" >/dev/null
 
-TRNM_WORLD_REVIEW_RUNTIME_BOUNDARY_BATCH_REFRESH_INPUTS=0 \
+refresh_input env TRNM_WORLD_REVIEW_RUNTIME_BOUNDARY_BATCH_REFRESH_INPUTS=0 \
   "$ROOT/scripts/check_trillionnium_world_review_runtime_boundary_batch.sh" >/dev/null
 require_file "$REVIEW_RUNTIME_BOUNDARY_BATCH_JSON"
 jq -e '
@@ -587,7 +607,7 @@ jq -e '
   and .android_s5_real_device_claimed == false
 ' "$REVIEW_RUNTIME_BOUNDARY_BATCH_JSON" >/dev/null
 
-TRNM_WORLD_REVIEW_RUNTIME_CORE_SEMANTICS_BATCH_REFRESH_INPUTS=0 \
+refresh_input env TRNM_WORLD_REVIEW_RUNTIME_CORE_SEMANTICS_BATCH_REFRESH_INPUTS=0 \
   "$ROOT/scripts/check_trillionnium_world_review_runtime_core_semantics_batch.sh" >/dev/null
 require_file "$REVIEW_RUNTIME_CORE_SEMANTICS_BATCH_JSON"
 jq -e '
@@ -614,7 +634,7 @@ jq -e '
   and .android_s5_real_device_claimed == false
 ' "$REVIEW_RUNTIME_CORE_SEMANTICS_BATCH_JSON" >/dev/null
 
-TRNM_WORLD_REVIEW_RUNTIME_ADAPTER_ONLINE_BATCH_REFRESH_INPUTS=0 \
+refresh_input env TRNM_WORLD_REVIEW_RUNTIME_ADAPTER_ONLINE_BATCH_REFRESH_INPUTS=0 \
   "$ROOT/scripts/check_trillionnium_world_review_runtime_adapter_online_batch.sh" >/dev/null
 require_file "$REVIEW_RUNTIME_ADAPTER_ONLINE_BATCH_JSON"
 jq -e '
@@ -645,7 +665,7 @@ jq -e '
   and .android_s5_real_device_claimed == false
 ' "$REVIEW_RUNTIME_ADAPTER_ONLINE_BATCH_JSON" >/dev/null
 
-TRNM_WORLD_REVIEW_OPENRA_PARITY_CLAIM_BATCH_REFRESH_INPUTS=0 \
+refresh_input env TRNM_WORLD_REVIEW_OPENRA_PARITY_CLAIM_BATCH_REFRESH_INPUTS=0 \
   "$ROOT/scripts/check_trillionnium_world_review_openra_parity_claim_batch.sh" >/dev/null
 require_file "$REVIEW_OPENRA_PARITY_CLAIM_BATCH_JSON"
 jq -e '
@@ -675,7 +695,7 @@ jq -e '
   and .android_s5_real_device_claimed == false
 ' "$REVIEW_OPENRA_PARITY_CLAIM_BATCH_JSON" >/dev/null
 
-TRNM_WORLD_REVIEW_FIRST_CONTACT_RTS_DATA_BATCH_REFRESH_INPUTS=0 \
+refresh_input env TRNM_WORLD_REVIEW_FIRST_CONTACT_RTS_DATA_BATCH_REFRESH_INPUTS=0 \
   "$ROOT/scripts/check_trillionnium_world_review_first_contact_rts_data_batch.sh" >/dev/null
 require_file "$REVIEW_FIRST_CONTACT_RTS_DATA_BATCH_JSON"
 jq -e '
@@ -705,7 +725,7 @@ jq -e '
   and .history_rewrite_performed == false
 ' "$REVIEW_FIRST_CONTACT_RTS_DATA_BATCH_JSON" >/dev/null
 
-TRNM_WORLD_REVIEW_RTS_EVIDENCE_CRATE_BATCH_REFRESH_INPUTS=0 \
+refresh_input env TRNM_WORLD_REVIEW_RTS_EVIDENCE_CRATE_BATCH_REFRESH_INPUTS=0 \
   "$ROOT/scripts/check_trillionnium_world_review_rts_evidence_crate_batch.sh" >/dev/null
 require_file "$REVIEW_RTS_EVIDENCE_CRATE_BATCH_JSON"
 jq -e '
@@ -735,7 +755,7 @@ jq -e '
   and .history_rewrite_performed == false
 ' "$REVIEW_RTS_EVIDENCE_CRATE_BATCH_JSON" >/dev/null
 
-TRNM_WORLD_REVIEW_EVIDENCE_EXPOSURE_BATCH_REFRESH_INPUTS=0 \
+refresh_input env TRNM_WORLD_REVIEW_EVIDENCE_EXPOSURE_BATCH_REFRESH_INPUTS=0 \
   "$ROOT/scripts/check_trillionnium_world_review_evidence_exposure_batch.sh" >/dev/null
 require_file "$REVIEW_EVIDENCE_EXPOSURE_BATCH_JSON"
 jq -e '
@@ -767,7 +787,7 @@ jq -e '
   and .history_rewrite_performed == false
 ' "$REVIEW_EVIDENCE_EXPOSURE_BATCH_JSON" >/dev/null
 
-TRNM_WORLD_REVIEW_BEVY_RUNTIME_RENDERER_BATCH_REFRESH_INPUTS=0 \
+refresh_input env TRNM_WORLD_REVIEW_BEVY_RUNTIME_RENDERER_BATCH_REFRESH_INPUTS=0 \
   "$ROOT/scripts/check_trillionnium_world_review_bevy_runtime_renderer_batch.sh" >/dev/null
 require_file "$REVIEW_BEVY_RUNTIME_RENDERER_BATCH_JSON"
 jq -e '
@@ -801,7 +821,37 @@ jq -e '
   and .history_rewrite_performed == false
 ' "$REVIEW_BEVY_RUNTIME_RENDERER_BATCH_JSON" >/dev/null
 
-"$ROOT/scripts/check_trillionnium_world_public_launch_blocker_execution_ledger.sh" >/dev/null
+refresh_input env TRNM_WORLD_REVIEW_FIRST_CONTACT_PLAYER_SURFACE_CUES_BATCH_REFRESH_INPUTS=0 \
+  "$ROOT/scripts/check_trillionnium_world_review_first_contact_player_surface_cues_batch.sh" >/dev/null
+require_file "$REVIEW_FIRST_CONTACT_PLAYER_SURFACE_CUES_BATCH_JSON"
+jq -e '
+  .contract_version == "trillionnium_world_review_first_contact_player_surface_cues_batch_v1"
+  and .status == "review_first_contact_player_surface_cues_sub_batch_8_reviewed"
+  and .batch_order == 3
+  and .sub_batch_order == 8
+  and .sub_batch_id == "first_contact_player_surface_cues"
+  and .reviewed_commit_count == 63
+  and .unresolved_commit_review_count == 0
+  and .batch_3_reviewed_commit_count == 273
+  and .batch_3_remaining_commit_level_review_count == 0
+  and .sub_batch_8_local_review_complete == true
+  and .sub_batch_8_exit_rule_satisfied == true
+  and .batch_3_exit_rule_satisfied == true
+  and .batch_4_unblocked_for_local_review == true
+  and .next_batch_bucket_id == "unclassified_generated_count_surface"
+  and .player_surface_cues_downstream_renderer_readability == true
+  and .runtime_data_truth_source_unchanged == true
+  and .human_playtest_completion_claimed == false
+  and .playable_renderer_ownership_claimed == false
+  and .render_world_extraction_complete_claimed == false
+  and .gpu_upload_claimed == false
+  and .public_launch_ready_claimed == false
+  and .android_s5_real_device_claimed == false
+  and .external_action_performed == false
+  and .history_rewrite_performed == false
+' "$REVIEW_FIRST_CONTACT_PLAYER_SURFACE_CUES_BATCH_JSON" >/dev/null
+
+refresh_input "$ROOT/scripts/check_trillionnium_world_public_launch_blocker_execution_ledger.sh" >/dev/null
 require_file "$PUBLIC_LAUNCH_BLOCKER_LEDGER_JSON"
 jq -e '
   .contract_version == "trillionnium_world_public_launch_blocker_execution_ledger_v1"
@@ -1067,6 +1117,25 @@ review_bevy_runtime_renderer_batch_render_world_claimed="$(jq -r 'if has("render
 review_bevy_runtime_renderer_batch_gpu_upload_claimed="$(jq -r 'if has("gpu_upload_claimed") then .gpu_upload_claimed else true end' "$REVIEW_BEVY_RUNTIME_RENDERER_BATCH_JSON")"
 review_bevy_runtime_renderer_batch_external_action_performed="$(jq -r 'if has("external_action_performed") then .external_action_performed else true end' "$REVIEW_BEVY_RUNTIME_RENDERER_BATCH_JSON")"
 review_bevy_runtime_renderer_batch_history_rewrite_performed="$(jq -r 'if has("history_rewrite_performed") then .history_rewrite_performed else true end' "$REVIEW_BEVY_RUNTIME_RENDERER_BATCH_JSON")"
+review_first_contact_player_surface_cues_batch_status="$(jq -r '.status // "missing"' "$REVIEW_FIRST_CONTACT_PLAYER_SURFACE_CUES_BATCH_JSON")"
+review_first_contact_player_surface_cues_batch_reviewed_commit_count="$(jq -r '.reviewed_commit_count // 0' "$REVIEW_FIRST_CONTACT_PLAYER_SURFACE_CUES_BATCH_JSON")"
+review_first_contact_player_surface_cues_batch_unresolved_count="$(jq -r '.unresolved_commit_review_count // 999' "$REVIEW_FIRST_CONTACT_PLAYER_SURFACE_CUES_BATCH_JSON")"
+review_first_contact_player_surface_cues_batch_batch3_reviewed_count="$(jq -r '.batch_3_reviewed_commit_count // 0' "$REVIEW_FIRST_CONTACT_PLAYER_SURFACE_CUES_BATCH_JSON")"
+review_first_contact_player_surface_cues_batch_batch3_remaining_count="$(jq -r '.batch_3_remaining_commit_level_review_count // 999' "$REVIEW_FIRST_CONTACT_PLAYER_SURFACE_CUES_BATCH_JSON")"
+review_first_contact_player_surface_cues_batch_local_review_complete="$(jq -r 'if has("sub_batch_8_local_review_complete") then .sub_batch_8_local_review_complete else false end' "$REVIEW_FIRST_CONTACT_PLAYER_SURFACE_CUES_BATCH_JSON")"
+review_first_contact_player_surface_cues_batch_exit_rule_satisfied="$(jq -r 'if has("sub_batch_8_exit_rule_satisfied") then .sub_batch_8_exit_rule_satisfied else false end' "$REVIEW_FIRST_CONTACT_PLAYER_SURFACE_CUES_BATCH_JSON")"
+review_first_contact_player_surface_cues_batch_batch3_exit_rule_satisfied="$(jq -r 'if has("batch_3_exit_rule_satisfied") then .batch_3_exit_rule_satisfied else false end' "$REVIEW_FIRST_CONTACT_PLAYER_SURFACE_CUES_BATCH_JSON")"
+review_first_contact_player_surface_cues_batch_batch4_unblocked="$(jq -r 'if has("batch_4_unblocked_for_local_review") then .batch_4_unblocked_for_local_review else false end' "$REVIEW_FIRST_CONTACT_PLAYER_SURFACE_CUES_BATCH_JSON")"
+review_first_contact_player_surface_cues_batch_next_batch_bucket_id="$(jq -r '.next_batch_bucket_id // "missing"' "$REVIEW_FIRST_CONTACT_PLAYER_SURFACE_CUES_BATCH_JSON")"
+review_first_contact_player_surface_cues_batch_runtime_followup_closed="$(jq -r 'if has("runtime_core_source_boundary_followup_closed_by_adapter_path") then .runtime_core_source_boundary_followup_closed_by_adapter_path else false end' "$REVIEW_FIRST_CONTACT_PLAYER_SURFACE_CUES_BATCH_JSON")"
+review_first_contact_player_surface_cues_batch_downstream_readability="$(jq -r 'if has("player_surface_cues_downstream_renderer_readability") then .player_surface_cues_downstream_renderer_readability else false end' "$REVIEW_FIRST_CONTACT_PLAYER_SURFACE_CUES_BATCH_JSON")"
+review_first_contact_player_surface_cues_batch_truth_source_unchanged="$(jq -r 'if has("runtime_data_truth_source_unchanged") then .runtime_data_truth_source_unchanged else false end' "$REVIEW_FIRST_CONTACT_PLAYER_SURFACE_CUES_BATCH_JSON")"
+review_first_contact_player_surface_cues_batch_human_playtest_claimed="$(jq -r 'if has("human_playtest_completion_claimed") then .human_playtest_completion_claimed else true end' "$REVIEW_FIRST_CONTACT_PLAYER_SURFACE_CUES_BATCH_JSON")"
+review_first_contact_player_surface_cues_batch_renderer_ownership_claimed="$(jq -r 'if has("playable_renderer_ownership_claimed") then .playable_renderer_ownership_claimed else true end' "$REVIEW_FIRST_CONTACT_PLAYER_SURFACE_CUES_BATCH_JSON")"
+review_first_contact_player_surface_cues_batch_render_world_claimed="$(jq -r 'if has("render_world_extraction_complete_claimed") then .render_world_extraction_complete_claimed else true end' "$REVIEW_FIRST_CONTACT_PLAYER_SURFACE_CUES_BATCH_JSON")"
+review_first_contact_player_surface_cues_batch_gpu_upload_claimed="$(jq -r 'if has("gpu_upload_claimed") then .gpu_upload_claimed else true end' "$REVIEW_FIRST_CONTACT_PLAYER_SURFACE_CUES_BATCH_JSON")"
+review_first_contact_player_surface_cues_batch_external_action_performed="$(jq -r 'if has("external_action_performed") then .external_action_performed else true end' "$REVIEW_FIRST_CONTACT_PLAYER_SURFACE_CUES_BATCH_JSON")"
+review_first_contact_player_surface_cues_batch_history_rewrite_performed="$(jq -r 'if has("history_rewrite_performed") then .history_rewrite_performed else true end' "$REVIEW_FIRST_CONTACT_PLAYER_SURFACE_CUES_BATCH_JSON")"
 blocker_execution_ledger_status="$(jq -r '.status // "missing"' "$PUBLIC_LAUNCH_BLOCKER_LEDGER_JSON")"
 blocker_execution_ledger_needs_collection_count="$(jq -r '.needs_collection_count // 0' "$PUBLIC_LAUNCH_BLOCKER_LEDGER_JSON")"
 blocker_execution_ledger_green_evidence_item_count="$(jq -r '.green_evidence_item_count // 0' "$PUBLIC_LAUNCH_BLOCKER_LEDGER_JSON")"
@@ -1240,6 +1309,9 @@ jq -n \
   --arg review_bevy_runtime_renderer_batch_doc "$REVIEW_BEVY_RUNTIME_RENDERER_BATCH_DOC_REL" \
   --arg review_bevy_runtime_renderer_batch_status "$review_bevy_runtime_renderer_batch_status" \
   --arg review_bevy_runtime_renderer_batch_next_sub_batch_id "$review_bevy_runtime_renderer_batch_next_sub_batch_id" \
+  --arg review_first_contact_player_surface_cues_batch_doc "$REVIEW_FIRST_CONTACT_PLAYER_SURFACE_CUES_BATCH_DOC_REL" \
+  --arg review_first_contact_player_surface_cues_batch_status "$review_first_contact_player_surface_cues_batch_status" \
+  --arg review_first_contact_player_surface_cues_batch_next_batch_bucket_id "$review_first_contact_player_surface_cues_batch_next_batch_bucket_id" \
   --arg blocker_execution_ledger_status "$blocker_execution_ledger_status" \
   --argjson green "$green" \
   --argjson packet_gate "$packet_gate" \
@@ -1453,6 +1525,23 @@ jq -n \
   --argjson review_bevy_runtime_renderer_batch_gpu_upload_claimed "$review_bevy_runtime_renderer_batch_gpu_upload_claimed" \
   --argjson review_bevy_runtime_renderer_batch_external_action_performed "$review_bevy_runtime_renderer_batch_external_action_performed" \
   --argjson review_bevy_runtime_renderer_batch_history_rewrite_performed "$review_bevy_runtime_renderer_batch_history_rewrite_performed" \
+  --argjson review_first_contact_player_surface_cues_batch_reviewed_commit_count "$review_first_contact_player_surface_cues_batch_reviewed_commit_count" \
+  --argjson review_first_contact_player_surface_cues_batch_unresolved_count "$review_first_contact_player_surface_cues_batch_unresolved_count" \
+  --argjson review_first_contact_player_surface_cues_batch_batch3_reviewed_count "$review_first_contact_player_surface_cues_batch_batch3_reviewed_count" \
+  --argjson review_first_contact_player_surface_cues_batch_batch3_remaining_count "$review_first_contact_player_surface_cues_batch_batch3_remaining_count" \
+  --argjson review_first_contact_player_surface_cues_batch_local_review_complete "$review_first_contact_player_surface_cues_batch_local_review_complete" \
+  --argjson review_first_contact_player_surface_cues_batch_exit_rule_satisfied "$review_first_contact_player_surface_cues_batch_exit_rule_satisfied" \
+  --argjson review_first_contact_player_surface_cues_batch_batch3_exit_rule_satisfied "$review_first_contact_player_surface_cues_batch_batch3_exit_rule_satisfied" \
+  --argjson review_first_contact_player_surface_cues_batch_batch4_unblocked "$review_first_contact_player_surface_cues_batch_batch4_unblocked" \
+  --argjson review_first_contact_player_surface_cues_batch_runtime_followup_closed "$review_first_contact_player_surface_cues_batch_runtime_followup_closed" \
+  --argjson review_first_contact_player_surface_cues_batch_downstream_readability "$review_first_contact_player_surface_cues_batch_downstream_readability" \
+  --argjson review_first_contact_player_surface_cues_batch_truth_source_unchanged "$review_first_contact_player_surface_cues_batch_truth_source_unchanged" \
+  --argjson review_first_contact_player_surface_cues_batch_human_playtest_claimed "$review_first_contact_player_surface_cues_batch_human_playtest_claimed" \
+  --argjson review_first_contact_player_surface_cues_batch_renderer_ownership_claimed "$review_first_contact_player_surface_cues_batch_renderer_ownership_claimed" \
+  --argjson review_first_contact_player_surface_cues_batch_render_world_claimed "$review_first_contact_player_surface_cues_batch_render_world_claimed" \
+  --argjson review_first_contact_player_surface_cues_batch_gpu_upload_claimed "$review_first_contact_player_surface_cues_batch_gpu_upload_claimed" \
+  --argjson review_first_contact_player_surface_cues_batch_external_action_performed "$review_first_contact_player_surface_cues_batch_external_action_performed" \
+  --argjson review_first_contact_player_surface_cues_batch_history_rewrite_performed "$review_first_contact_player_surface_cues_batch_history_rewrite_performed" \
   --argjson blocker_execution_ledger_needs_collection_count "$blocker_execution_ledger_needs_collection_count" \
   --argjson blocker_execution_ledger_green_evidence_item_count "$blocker_execution_ledger_green_evidence_item_count" \
   --argjson blocker_execution_ledger_consistency_failed_check_count "$blocker_execution_ledger_consistency_failed_check_count" \
@@ -1881,6 +1970,33 @@ jq -n \
       history_rewrite_performed: $review_bevy_runtime_renderer_batch_history_rewrite_performed,
       no_credit_boundary: "local Bevy runtime/renderer boundary sub-batch 7 review only; no push, rebase, reset, squash, history rewrite, upload, publish, public launch, Android S5 real-device, beta, production-ready UI, commercial, socket, hosted-service, live multiplayer, OpenRA runtime/replay/network compatibility, playable renderer ownership, render-world extraction completion, GPU upload, live-traffic, or public-network credit"
     },
+    review_first_contact_player_surface_cues_batch: {
+      doc_path: $review_first_contact_player_surface_cues_batch_doc,
+      artifact_path: "acceptance/S6_public_launch/latest/trillionnium-world-review-first-contact-player-surface-cues-batch.json",
+      status: $review_first_contact_player_surface_cues_batch_status,
+      batch_order: 3,
+      sub_batch_order: 8,
+      sub_batch_id: "first_contact_player_surface_cues",
+      reviewed_commit_count: $review_first_contact_player_surface_cues_batch_reviewed_commit_count,
+      unresolved_commit_review_count: $review_first_contact_player_surface_cues_batch_unresolved_count,
+      batch_3_reviewed_commit_count: $review_first_contact_player_surface_cues_batch_batch3_reviewed_count,
+      batch_3_remaining_commit_level_review_count: $review_first_contact_player_surface_cues_batch_batch3_remaining_count,
+      sub_batch_8_local_review_complete: $review_first_contact_player_surface_cues_batch_local_review_complete,
+      sub_batch_8_exit_rule_satisfied: $review_first_contact_player_surface_cues_batch_exit_rule_satisfied,
+      batch_3_exit_rule_satisfied: $review_first_contact_player_surface_cues_batch_batch3_exit_rule_satisfied,
+      batch_4_unblocked_for_local_review: $review_first_contact_player_surface_cues_batch_batch4_unblocked,
+      next_batch_bucket_id: $review_first_contact_player_surface_cues_batch_next_batch_bucket_id,
+      runtime_core_source_boundary_followup_closed_by_adapter_path: $review_first_contact_player_surface_cues_batch_runtime_followup_closed,
+      player_surface_cues_downstream_renderer_readability: $review_first_contact_player_surface_cues_batch_downstream_readability,
+      runtime_data_truth_source_unchanged: $review_first_contact_player_surface_cues_batch_truth_source_unchanged,
+      human_playtest_completion_claimed: $review_first_contact_player_surface_cues_batch_human_playtest_claimed,
+      playable_renderer_ownership_claimed: $review_first_contact_player_surface_cues_batch_renderer_ownership_claimed,
+      render_world_extraction_complete_claimed: $review_first_contact_player_surface_cues_batch_render_world_claimed,
+      gpu_upload_claimed: $review_first_contact_player_surface_cues_batch_gpu_upload_claimed,
+      external_action_performed: $review_first_contact_player_surface_cues_batch_external_action_performed,
+      history_rewrite_performed: $review_first_contact_player_surface_cues_batch_history_rewrite_performed,
+      no_credit_boundary: "local First Contact player-surface cue sub-batch 8 review only; no push, rebase, reset, squash, history rewrite, upload, publish, public launch, Android S5 real-device, beta, production-ready UI, commercial, socket, hosted-service, live multiplayer, human-playtest completion, OpenRA runtime/replay/network compatibility, playable renderer ownership, render-world extraction completion, GPU upload, live-traffic, or public-network credit"
+    },
     public_launch_blocker_execution_ledger: {
       doc_path: $public_launch_blocker_ledger_doc,
       artifact_path: "acceptance/S6_public_launch/latest/trillionnium-world-public-launch-blocker-execution-ledger.json",
@@ -1918,7 +2034,7 @@ jq -e '
   and .evidence_volume_curation.large_file_count > 100
   and .evidence_volume_curation.deletion_performed == false
   and .evidence_volume_curation.archive_movement_performed == false
-  and .reviewer_handoff_index.artifact_count == 42
+  and .reviewer_handoff_index.artifact_count == 43
   and .reviewer_handoff_index.representative_visual_count == 5
   and .reviewer_handoff_index.upload_performed == false
   and .reviewer_handoff_index.publish_performed == false
@@ -2158,6 +2274,28 @@ jq -e '
   and .review_bevy_runtime_renderer_batch.gpu_upload_claimed == false
   and .review_bevy_runtime_renderer_batch.external_action_performed == false
   and .review_bevy_runtime_renderer_batch.history_rewrite_performed == false
+  and .review_first_contact_player_surface_cues_batch.status == "review_first_contact_player_surface_cues_sub_batch_8_reviewed"
+  and .review_first_contact_player_surface_cues_batch.batch_order == 3
+  and .review_first_contact_player_surface_cues_batch.sub_batch_order == 8
+  and .review_first_contact_player_surface_cues_batch.sub_batch_id == "first_contact_player_surface_cues"
+  and .review_first_contact_player_surface_cues_batch.reviewed_commit_count == 63
+  and .review_first_contact_player_surface_cues_batch.unresolved_commit_review_count == 0
+  and .review_first_contact_player_surface_cues_batch.batch_3_reviewed_commit_count == 273
+  and .review_first_contact_player_surface_cues_batch.batch_3_remaining_commit_level_review_count == 0
+  and .review_first_contact_player_surface_cues_batch.sub_batch_8_local_review_complete == true
+  and .review_first_contact_player_surface_cues_batch.sub_batch_8_exit_rule_satisfied == true
+  and .review_first_contact_player_surface_cues_batch.batch_3_exit_rule_satisfied == true
+  and .review_first_contact_player_surface_cues_batch.batch_4_unblocked_for_local_review == true
+  and .review_first_contact_player_surface_cues_batch.next_batch_bucket_id == "unclassified_generated_count_surface"
+  and .review_first_contact_player_surface_cues_batch.runtime_core_source_boundary_followup_closed_by_adapter_path == true
+  and .review_first_contact_player_surface_cues_batch.player_surface_cues_downstream_renderer_readability == true
+  and .review_first_contact_player_surface_cues_batch.runtime_data_truth_source_unchanged == true
+  and .review_first_contact_player_surface_cues_batch.human_playtest_completion_claimed == false
+  and .review_first_contact_player_surface_cues_batch.playable_renderer_ownership_claimed == false
+  and .review_first_contact_player_surface_cues_batch.render_world_extraction_complete_claimed == false
+  and .review_first_contact_player_surface_cues_batch.gpu_upload_claimed == false
+  and .review_first_contact_player_surface_cues_batch.external_action_performed == false
+  and .review_first_contact_player_surface_cues_batch.history_rewrite_performed == false
   and .public_launch_blocker_execution_ledger.needs_collection_count == 6
   and .public_launch_blocker_execution_ledger.green_evidence_item_count == 0
   and .public_launch_blocker_execution_ledger.blocker_consistency_failed_check_count == 0
@@ -2195,6 +2333,10 @@ jq -e '
   printf -- '- runtime-adapter/online batch review: `%s`\n\n' "$REVIEW_RUNTIME_ADAPTER_ONLINE_BATCH_DOC_REL"
   printf -- '- OpenRA parity/claim batch review: `%s`\n\n' "$REVIEW_OPENRA_PARITY_CLAIM_BATCH_DOC_REL"
   printf -- '- First Contact RTS data batch review: `%s`\n\n' "$REVIEW_FIRST_CONTACT_RTS_DATA_BATCH_DOC_REL"
+  printf -- '- RTS evidence crate batch review: `%s`\n\n' "$REVIEW_RTS_EVIDENCE_CRATE_BATCH_DOC_REL"
+  printf -- '- review evidence exposure batch: `%s`\n\n' "$REVIEW_EVIDENCE_EXPOSURE_BATCH_DOC_REL"
+  printf -- '- Bevy runtime renderer batch review: `%s`\n\n' "$REVIEW_BEVY_RUNTIME_RENDERER_BATCH_DOC_REL"
+  printf -- '- First Contact player-surface cues batch review: `%s`\n\n' "$REVIEW_FIRST_CONTACT_PLAYER_SURFACE_CUES_BATCH_DOC_REL"
   printf -- '- public-launch blocker execution ledger: `%s`\n\n' "$PUBLIC_LAUNCH_BLOCKER_LEDGER_DOC_REL"
   printf '## Risks\n\n'
   jq -r '.risks[] | "- `\(.id)`: \(.next_action)"' "$SUMMARY_JSON"
