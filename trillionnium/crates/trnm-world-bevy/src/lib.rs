@@ -84732,6 +84732,14 @@ fn classic_draw_scene(
     classic_draw_rts_hover_preview_overlay(buffer, width, height, runtime);
     classic_draw_rts_context_cursor_overlay(buffer, width, height, runtime);
     classic_draw_rts_command_stamp_overlay(buffer, width, height, runtime);
+    classic_draw_first_contact_player_post_overlay_combat_flow(
+        buffer,
+        width,
+        height,
+        runtime,
+        scene_id,
+        player_screen,
+    );
     if let Some(status_stage) = classic_rts_unit_status_portrait_stage(Some(runtime)) {
         classic_draw_rts_unit_status_portrait_overlay(buffer, width, height, runtime, status_stage);
     }
@@ -92715,6 +92723,18 @@ fn classic_draw_first_contact_actor_glyph(
         glyph_body,
         RtsActorGlyphBody::Structure | RtsActorGlyphBody::ObjectiveBeacon
     ) {
+        if player_screen {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                base_x - 3,
+                base_y + size_h - 2,
+                size_w + 6,
+                5,
+                CLASSIC_RTS_TACTICAL_VIEWPORT_SHADOW_COLOR,
+            );
+        }
         classic_draw_rect(
             buffer,
             width,
@@ -92745,6 +92765,18 @@ fn classic_draw_first_contact_actor_glyph(
             size_h.max(8),
             render_color,
         );
+        if player_screen {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x - size_w / 4,
+                base_y - 4,
+                (size_w / 2).max(8),
+                3,
+                highlight,
+            );
+        }
         classic_draw_first_contact_actor_depth_detail(
             buffer,
             width,
@@ -92915,7 +92947,7 @@ fn classic_draw_first_contact_actor_glyph(
             _ => {}
         }
     } else {
-        if classic_first_contact_runtime_actor_shadow(actor) {
+        if classic_first_contact_runtime_actor_shadow(actor) || player_screen {
             classic_draw_iso_shadow(
                 buffer,
                 width,
@@ -93436,6 +93468,365 @@ fn classic_draw_first_contact_terrain_layer(
             }
         }
     }
+}
+
+#[cfg(not(target_os = "android"))]
+#[allow(clippy::too_many_arguments)]
+fn classic_draw_first_contact_player_lane_grounding(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    map_x: i32,
+    map_y: i32,
+    cell_w: i32,
+    cell_h: i32,
+    player_screen: bool,
+    renderer_model: &RtsMapRendererModel,
+) {
+    if !player_screen {
+        return;
+    }
+
+    let lane_ground = classic_mix_color(
+        CLASSIC_RTS_PRODUCT_LANE_COLOR,
+        CLASSIC_RTS_TACTICAL_VIEWPORT_TILE_COLOR,
+        1,
+        2,
+    );
+    let lane_shadow = classic_mix_color(
+        CLASSIC_RTS_TACTICAL_VIEWPORT_SHADOW_COLOR,
+        CLASSIC_RTS_TACTICAL_VIEWPORT_TILE_COLOR,
+        1,
+        2,
+    );
+    for tile in &renderer_model.lane_tiles {
+        let lane_tile = classic_first_contact_tile_tuple(*tile);
+        let (tile_x, tile_y) =
+            classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, lane_tile);
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            tile_x,
+            tile_y,
+            cell_w - 1,
+            cell_h - 1,
+            lane_ground,
+        );
+        if (lane_tile.0 + lane_tile.1).rem_euclid(3) == 0 {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                tile_x + cell_w / 4,
+                tile_y + cell_h / 2,
+                (cell_w / 2).max(6),
+                1,
+                lane_shadow,
+            );
+        }
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+#[allow(clippy::too_many_arguments)]
+fn classic_draw_first_contact_player_focus_grounding(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    runtime: &NativeFirstPlayableRuntime,
+    map_x: i32,
+    map_y: i32,
+    cell_w: i32,
+    cell_h: i32,
+    player_screen: bool,
+) {
+    if !player_screen {
+        return;
+    }
+
+    let route_ground = classic_mix_color(
+        CLASSIC_RTS_SELECTION_FEEDBACK_MOVE_COLOR,
+        CLASSIC_RTS_TACTICAL_VIEWPORT_TILE_COLOR,
+        1,
+        4,
+    );
+    let route_shadow = classic_mix_color(
+        CLASSIC_RTS_TACTICAL_VIEWPORT_SHADOW_COLOR,
+        CLASSIC_RTS_TACTICAL_VIEWPORT_TILE_COLOR,
+        1,
+        2,
+    );
+    let route_tiles = first_contact_tiles::selection_combat_focus_route_tiles(runtime);
+    for pair in route_tiles.windows(2) {
+        for step in rts_bevy_runtime::rts_runtime_tile_line(pair[0], pair[1]) {
+            let (tile_x, tile_y) = classic_first_contact_tile_screen(
+                map_x,
+                map_y,
+                cell_w,
+                cell_h,
+                (step.tile_x, step.tile_y),
+            );
+            let center_x = tile_x + cell_w / 2;
+            let center_y = tile_y + cell_h / 2;
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x - cell_w / 3,
+                center_y - 3,
+                (cell_w * 2 / 3).max(8),
+                6,
+                route_shadow,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x - cell_w / 3,
+                center_y - 2,
+                (cell_w * 2 / 3).max(10),
+                4,
+                route_ground,
+            );
+        }
+    }
+
+    for tile_id in runtime.rts_selection_box_tile_ids.iter().take(4) {
+        let Some(tile) = classic_parse_rts_tile(tile_id) else {
+            continue;
+        };
+        let (tile_x, tile_y) =
+            classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, tile);
+        classic_draw_iso_ellipse(
+            buffer,
+            width,
+            height,
+            tile_x + cell_w / 2,
+            tile_y + cell_h,
+            (cell_w / 2 + 9).max(12),
+            (cell_h / 3 + 5).max(6),
+            route_shadow,
+        );
+    }
+
+    let feedback = classic_first_contact_command_feedback();
+    let target_tile = runtime
+        .rts_command_destination_tile
+        .as_deref()
+        .and_then(classic_parse_rts_tile)
+        .unwrap_or_else(|| classic_first_contact_tile_tuple(feedback.target_tile));
+    let (target_x, target_y) =
+        classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, target_tile);
+    let target_cx = target_x + cell_w / 2;
+    let target_ground = classic_mix_color(
+        CLASSIC_RTS_COMMAND_SURFACE_TARGET_COLOR,
+        CLASSIC_RTS_TACTICAL_VIEWPORT_TILE_COLOR,
+        1,
+        4,
+    );
+    classic_draw_iso_diamond(
+        buffer,
+        width,
+        height,
+        target_cx,
+        target_y - 3,
+        cell_w * 2 + 12,
+        cell_h * 2 + 12,
+        target_ground,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        target_cx - cell_w,
+        target_y + cell_h / 2 - 5,
+        cell_w * 2,
+        10,
+        target_ground,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        target_cx - cell_w / 2,
+        target_y + cell_h / 2 + 7,
+        cell_w,
+        3,
+        route_shadow,
+    );
+
+    let blocked_tile = classic_first_contact_tile_tuple(feedback.blocked_tile);
+    let (blocked_x, blocked_y) =
+        classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, blocked_tile);
+    let blocked_ground = classic_mix_color(
+        CLASSIC_RTS_SELECTION_FEEDBACK_ERROR_COLOR,
+        CLASSIC_RTS_TACTICAL_VIEWPORT_TILE_COLOR,
+        1,
+        5,
+    );
+    classic_draw_iso_diamond(
+        buffer,
+        width,
+        height,
+        blocked_x + cell_w / 2,
+        blocked_y,
+        cell_w + 12,
+        cell_h + 10,
+        blocked_ground,
+    );
+
+    for tile in route_tiles
+        .iter()
+        .copied()
+        .filter(|tile| *tile != target_tile)
+    {
+        let (tile_x, tile_y) =
+            classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, tile);
+        let center_x = tile_x + cell_w / 2;
+        let center_y = tile_y + cell_h / 2;
+        for y in [center_y - 6, center_y + 4] {
+            classic_draw_rect(buffer, width, height, center_x - 5, y, 10, 2, route_ground);
+        }
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+#[allow(clippy::too_many_arguments)]
+fn classic_draw_first_contact_player_combat_flow_ribbon(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    runtime: &NativeFirstPlayableRuntime,
+    map_x: i32,
+    map_y: i32,
+    cell_w: i32,
+    cell_h: i32,
+    player_screen: bool,
+) {
+    if !player_screen {
+        return;
+    }
+
+    let route_shadow = classic_mix_color(
+        CLASSIC_RTS_TACTICAL_VIEWPORT_SHADOW_COLOR,
+        CLASSIC_RTS_TACTICAL_VIEWPORT_TILE_COLOR,
+        1,
+        3,
+    );
+    let route_flow = classic_mix_color(
+        CLASSIC_RTS_SELECTION_FEEDBACK_MOVE_COLOR,
+        CLASSIC_RTS_TACTICAL_VIEWPORT_TILE_COLOR,
+        2,
+        5,
+    );
+    let target_rim = classic_mix_color(
+        CLASSIC_RTS_COMMAND_SURFACE_TARGET_COLOR,
+        CLASSIC_RTS_TACTICAL_VIEWPORT_TILE_COLOR,
+        2,
+        5,
+    );
+    let feedback = classic_first_contact_command_feedback();
+    let target_tile = runtime
+        .rts_command_destination_tile
+        .as_deref()
+        .and_then(classic_parse_rts_tile)
+        .unwrap_or_else(|| classic_first_contact_tile_tuple(feedback.target_tile));
+    let blocked_tile = classic_first_contact_tile_tuple(feedback.blocked_tile);
+    let mut step_index = 0_i32;
+    for pair in first_contact_tiles::selection_combat_focus_route_tiles(runtime).windows(2) {
+        for step in rts_bevy_runtime::rts_runtime_tile_line(pair[0], pair[1]) {
+            let tile = (step.tile_x, step.tile_y);
+            if tile == target_tile || tile == blocked_tile {
+                continue;
+            }
+            let (tile_x, tile_y) =
+                classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, tile);
+            let center_x = tile_x + cell_w / 2;
+            let center_y = tile_y + cell_h / 2;
+            let rail_y = center_y + cell_h / 2 - 3 + step_index.rem_euclid(2);
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x - 10,
+                rail_y,
+                20,
+                2,
+                route_shadow,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x - 7,
+                rail_y,
+                14,
+                2,
+                route_flow,
+            );
+            step_index += 1;
+        }
+    }
+
+    let (target_x, target_y) =
+        classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, target_tile);
+    let target_cx = target_x + cell_w / 2;
+    let target_cy = target_y + cell_h / 2;
+    for (x, y, w, h) in [
+        (target_cx - cell_w - 4, target_cy - cell_h - 4, 12, 2),
+        (target_cx + cell_w - 8, target_cy - cell_h - 4, 12, 2),
+        (target_cx - cell_w - 4, target_cy + cell_h + 2, 12, 2),
+        (target_cx + cell_w - 8, target_cy + cell_h + 2, 12, 2),
+    ] {
+        classic_draw_rect(buffer, width, height, x, y, w, h, target_rim);
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_draw_first_contact_player_post_overlay_combat_flow(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    runtime: &NativeFirstPlayableRuntime,
+    scene_id: &str,
+    player_screen: bool,
+) {
+    if scene_id != "first_contact_basin" || !player_screen {
+        return;
+    }
+
+    let player_screen_profile = classic_first_contact_player_screen_profile();
+    let screen_layout = player_screen_profile.layout.player_map;
+    let map_model = first_contact_basin_map();
+    let map_projection =
+        rts_bevy_runtime::rts_runtime_map_projection(rts_bevy_runtime::RtsRuntimeMapLayoutInput {
+            viewport_width: width as i32,
+            viewport_height: height as i32,
+            map_width_tiles: map_model.width as i32,
+            map_height_tiles: map_model.height as i32,
+            map_origin_x: screen_layout.map_origin_x,
+            map_origin_y: screen_layout.map_origin_y,
+            right_reserved_px: screen_layout.right_reserved_px,
+            bottom_reserved_px: screen_layout.bottom_reserved_px,
+            min_map_width_px: screen_layout.min_map_width_px,
+            min_map_height_px: screen_layout.min_map_height_px,
+            cell_width_min: screen_layout.cell_width.min,
+            cell_width_max: screen_layout.cell_width.max,
+            cell_height_min: screen_layout.cell_height.min,
+            cell_height_max: screen_layout.cell_height.max,
+        });
+    classic_draw_first_contact_player_combat_flow_ribbon(
+        buffer,
+        width,
+        height,
+        runtime,
+        map_projection.map_x,
+        map_projection.map_y,
+        map_projection.cell_w,
+        map_projection.cell_h,
+        player_screen,
+    );
 }
 
 #[cfg(not(target_os = "android"))]
@@ -95224,8 +95615,35 @@ fn classic_draw_first_contact_actor(
                 .map(|profile| i32::from(profile.glyph.footprint_height_cells).max(1))
                 .unwrap_or(1);
             if player_screen {
+                classic_draw_iso_ellipse(
+                    buffer,
+                    width,
+                    height,
+                    cx,
+                    cy + cell_h / 2,
+                    (cell_w / 2 + 5).max(9),
+                    (cell_h / 4 + 3).max(4),
+                    CLASSIC_RTS_TACTICAL_VIEWPORT_SHADOW_COLOR,
+                );
                 classic_draw_first_contact_player_unit_actor_body(
-                    buffer, width, height, cx, cy, cell_h, color, None,
+                    buffer,
+                    width,
+                    height,
+                    cx,
+                    cy,
+                    cell_h,
+                    color,
+                    Some(CLASSIC_ISO_OUTLINE_COLOR),
+                );
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    cx - CLASSIC_FIRST_CONTACT_PLAYER_UNIT_BODY_HEAD_W_PX / 2 + 1,
+                    cy - cell_h / 2 - 3,
+                    (CLASSIC_FIRST_CONTACT_PLAYER_UNIT_BODY_HEAD_W_PX - 2).max(2),
+                    1,
+                    classic_lighten(color, 1, 5),
                 );
             } else {
                 classic_draw_first_contact_actor_footprint_body(
@@ -95257,18 +95675,65 @@ fn classic_draw_first_contact_actor(
                 .as_ref()
                 .map(|profile| i32::from(profile.glyph.footprint_height_cells).max(1))
                 .unwrap_or(1);
-            classic_draw_first_contact_actor_footprint_body(
-                buffer,
-                width,
-                height,
-                cx,
-                cy,
-                cell_w,
-                cell_h,
-                footprint_w,
-                footprint_h,
-                color,
-            );
+            if player_screen {
+                let footprint_px_w = (cell_w * footprint_w).max(10);
+                let footprint_px_h = (cell_h * footprint_h).max(8);
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    cx - footprint_px_w / 2 - 4,
+                    cy - footprint_px_h / 2 + 4,
+                    footprint_px_w + 8,
+                    5,
+                    CLASSIC_RTS_TACTICAL_VIEWPORT_SHADOW_COLOR,
+                );
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    cx - footprint_px_w / 2 - 2,
+                    cy - footprint_px_h / 2 - 2,
+                    footprint_px_w + 4,
+                    footprint_px_h + 4,
+                    CLASSIC_ISO_OUTLINE_COLOR,
+                );
+                classic_draw_first_contact_actor_footprint_body(
+                    buffer,
+                    width,
+                    height,
+                    cx,
+                    cy,
+                    cell_w,
+                    cell_h,
+                    footprint_w,
+                    footprint_h,
+                    color,
+                );
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    cx - footprint_px_w / 3,
+                    cy - footprint_px_h / 2 - 5,
+                    (footprint_px_w * 2 / 3).max(8),
+                    3,
+                    classic_lighten(color, 1, 6),
+                );
+            } else {
+                classic_draw_first_contact_actor_footprint_body(
+                    buffer,
+                    width,
+                    height,
+                    cx,
+                    cy,
+                    cell_w,
+                    cell_h,
+                    footprint_w,
+                    footprint_h,
+                    color,
+                );
+            }
         }
     }
     if matches!(
@@ -98104,6 +98569,17 @@ fn classic_draw_first_contact_basin_scene(
             );
         }
     }
+    classic_draw_first_contact_player_lane_grounding(
+        buffer,
+        width,
+        height,
+        map_x,
+        map_y,
+        cell_w,
+        cell_h,
+        player_screen,
+        &renderer_model,
+    );
     classic_draw_first_contact_terrain_layer(
         buffer,
         width,
@@ -98132,6 +98608,18 @@ fn classic_draw_first_contact_basin_scene(
             lane_tile,
         );
     }
+
+    classic_draw_first_contact_player_focus_grounding(
+        buffer,
+        width,
+        height,
+        runtime,
+        map_x,
+        map_y,
+        cell_w,
+        cell_h,
+        player_screen,
+    );
 
     for actor in classic_first_contact_map_actors_from_rts_data() {
         classic_draw_first_contact_actor(
@@ -98320,6 +98808,17 @@ fn classic_draw_first_contact_basin_scene(
     );
     classic_draw_first_contact_selection_combat_focus_layer(
         buffer, width, height, runtime, map_x, map_y, cell_w, cell_h,
+    );
+    classic_draw_first_contact_player_combat_flow_ribbon(
+        buffer,
+        width,
+        height,
+        runtime,
+        map_x,
+        map_y,
+        cell_w,
+        cell_h,
+        player_screen,
     );
     if !player_screen {
         classic_draw_first_contact_tactical_viewport(
@@ -155523,6 +156022,297 @@ mod tests {
         }
 
         assert!(checked_actors >= 3, "{checked_actors}");
+    }
+
+    #[cfg(not(target_os = "android"))]
+    #[test]
+    fn classic_first_contact_player_screen_grounding_mutes_lane_groups_and_preserves_focus() {
+        let width = 1280;
+        let height = 699;
+        let map_x = 32;
+        let map_y = 68;
+        let cell_w = 28;
+        let cell_h = 14;
+        let map_model = first_contact_basin_map();
+        let renderer_model = first_contact_map_renderer_model(&map_model);
+        let runtime = classic_first_contact_player_screen_runtime();
+        let mut buffer = vec![0_u32; width * height];
+
+        classic_draw_first_contact_player_lane_grounding(
+            &mut buffer,
+            width,
+            height,
+            map_x,
+            map_y,
+            cell_w,
+            cell_h,
+            true,
+            &renderer_model,
+        );
+        classic_draw_first_contact_player_focus_grounding(
+            &mut buffer,
+            width,
+            height,
+            &runtime,
+            map_x,
+            map_y,
+            cell_w,
+            cell_h,
+            true,
+        );
+
+        let lane_ground = classic_mix_color(
+            CLASSIC_RTS_PRODUCT_LANE_COLOR,
+            CLASSIC_RTS_TACTICAL_VIEWPORT_TILE_COLOR,
+            1,
+            2,
+        );
+        let route_ground = classic_mix_color(
+            CLASSIC_RTS_SELECTION_FEEDBACK_MOVE_COLOR,
+            CLASSIC_RTS_TACTICAL_VIEWPORT_TILE_COLOR,
+            1,
+            4,
+        );
+        let target_ground = classic_mix_color(
+            CLASSIC_RTS_COMMAND_SURFACE_TARGET_COLOR,
+            CLASSIC_RTS_TACTICAL_VIEWPORT_TILE_COLOR,
+            1,
+            4,
+        );
+        let lane_components = exact_color_components(&buffer, width, height, lane_ground);
+        let route_components = exact_color_components(&buffer, width, height, route_ground);
+        let target_components = exact_color_components(&buffer, width, height, target_ground);
+        let hot_lane_components =
+            exact_color_components(&buffer, width, height, CLASSIC_RTS_PRODUCT_LANE_COLOR);
+
+        let lane_pixels = lane_components
+            .iter()
+            .map(|(pixels, _, _)| pixels)
+            .sum::<usize>();
+        let route_pixels = route_components
+            .iter()
+            .map(|(pixels, _, _)| pixels)
+            .sum::<usize>();
+        let target_pixels = target_components
+            .iter()
+            .map(|(pixels, _, _)| pixels)
+            .sum::<usize>();
+
+        assert!(lane_pixels > 6_000, "{lane_pixels} {lane_components:?}");
+        assert!(route_pixels > 60, "{route_pixels} {route_components:?}");
+        assert!(target_pixels > 600, "{target_pixels} {target_components:?}");
+        assert!(hot_lane_components.is_empty(), "{hot_lane_components:?}");
+    }
+
+    #[cfg(not(target_os = "android"))]
+    #[test]
+    fn classic_first_contact_player_combat_flow_ribbon_marks_route_without_covering_units() {
+        let width = 1280;
+        let height = 699;
+        let map_x = 32;
+        let map_y = 68;
+        let cell_w = 28;
+        let cell_h = 14;
+        let runtime = classic_first_contact_player_screen_runtime();
+        let mut buffer = vec![0_u32; width * height];
+
+        classic_draw_first_contact_player_combat_flow_ribbon(
+            &mut buffer,
+            width,
+            height,
+            &runtime,
+            map_x,
+            map_y,
+            cell_w,
+            cell_h,
+            true,
+        );
+
+        let route_flow = classic_mix_color(
+            CLASSIC_RTS_SELECTION_FEEDBACK_MOVE_COLOR,
+            CLASSIC_RTS_TACTICAL_VIEWPORT_TILE_COLOR,
+            2,
+            5,
+        );
+        let target_rim = classic_mix_color(
+            CLASSIC_RTS_COMMAND_SURFACE_TARGET_COLOR,
+            CLASSIC_RTS_TACTICAL_VIEWPORT_TILE_COLOR,
+            2,
+            5,
+        );
+        let route_components = exact_color_components(&buffer, width, height, route_flow);
+        let target_components = exact_color_components(&buffer, width, height, target_rim);
+        let route_pixels = route_components
+            .iter()
+            .map(|(pixels, _, _)| pixels)
+            .sum::<usize>();
+        let target_pixels = target_components
+            .iter()
+            .map(|(pixels, _, _)| pixels)
+            .sum::<usize>();
+
+        assert!(route_pixels >= 100, "{route_pixels} {route_components:?}");
+        assert_eq!(target_pixels, 96, "{target_pixels} {target_components:?}");
+        assert!(
+            route_components.iter().all(|(_, w, h)| *w <= 42 && *h <= 3),
+            "{route_components:?}"
+        );
+        assert!(
+            target_components
+                .iter()
+                .all(|(_, w, h)| *w <= 12 && *h <= 2),
+            "{target_components:?}"
+        );
+    }
+
+    #[cfg(not(target_os = "android"))]
+    #[test]
+    fn classic_first_contact_player_post_overlay_combat_flow_survives_screen_projection() {
+        let width = 1280;
+        let height = 699;
+        let runtime = classic_first_contact_player_screen_runtime();
+        let mut buffer = vec![0_u32; width * height];
+
+        classic_draw_first_contact_player_post_overlay_combat_flow(
+            &mut buffer,
+            width,
+            height,
+            &runtime,
+            "first_contact_basin",
+            true,
+        );
+
+        let route_flow = classic_mix_color(
+            CLASSIC_RTS_SELECTION_FEEDBACK_MOVE_COLOR,
+            CLASSIC_RTS_TACTICAL_VIEWPORT_TILE_COLOR,
+            2,
+            5,
+        );
+        let route_pixels = exact_color_components(&buffer, width, height, route_flow)
+            .iter()
+            .map(|(pixels, _, _)| pixels)
+            .sum::<usize>();
+        assert!(route_pixels >= 100, "{route_pixels}");
+    }
+
+    #[cfg(not(target_os = "android"))]
+    #[test]
+    fn classic_first_contact_player_actor_bodies_have_readable_screen_outlines() {
+        let width = 900;
+        let height = 620;
+        let map_x = 80;
+        let map_y = 96;
+        let cell_w = 28;
+        let cell_h = 14;
+        let mut checked_unit = false;
+        let mut checked_structure = false;
+        let world = classic_first_contact_openra_like_core_preview_world();
+
+        for actor in world
+            .actors
+            .iter()
+            .filter(|actor| classic_first_contact_runtime_core_actor_player_visible(actor))
+            .filter(|actor| {
+                classic_first_contact_runtime_actor_glyph_body(actor)
+                    == RtsActorGlyphBody::Structure
+            })
+        {
+            let mut buffer = vec![0_u32; width * height];
+            let (tile_x, tile_y) =
+                classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, actor.tile);
+            let (size_w, size_h) = classic_first_contact_runtime_actor_size(actor, cell_w, cell_h);
+            let color = classic_first_contact_runtime_actor_color(actor);
+            classic_draw_first_contact_actor_glyph(
+                &mut buffer,
+                width,
+                height,
+                actor,
+                tile_x,
+                tile_y,
+                size_w,
+                size_h,
+                color,
+                true,
+            );
+            let outline_components =
+                exact_color_components(&buffer, width, height, CLASSIC_ISO_OUTLINE_COLOR);
+            let shadow_components = exact_color_components(
+                &buffer,
+                width,
+                height,
+                CLASSIC_RTS_TACTICAL_VIEWPORT_SHADOW_COLOR,
+            );
+            let outline_pixels = outline_components
+                .iter()
+                .map(|(pixels, _, _)| pixels)
+                .sum::<usize>();
+            let shadow_pixels = shadow_components
+                .iter()
+                .map(|(pixels, _, _)| pixels)
+                .sum::<usize>();
+
+            assert!(
+                outline_pixels > 0 && shadow_pixels > 0,
+                "{} {} {outline_components:?} {shadow_components:?}",
+                actor.id,
+                actor.rule_id
+            );
+
+            checked_structure = true;
+            break;
+        }
+
+        for actor in world
+            .actors
+            .iter()
+            .filter(|actor| classic_first_contact_runtime_core_actor_player_visible(actor))
+            .filter(|actor| {
+                classic_first_contact_runtime_actor_glyph_body(actor) == RtsActorGlyphBody::Unit
+            })
+        {
+            let mut buffer = vec![0_u32; width * height];
+            let (tile_x, tile_y) =
+                classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, actor.tile);
+            let (size_w, size_h) = classic_first_contact_runtime_actor_size(actor, cell_w, cell_h);
+            let color = classic_first_contact_runtime_actor_color(actor);
+            classic_draw_first_contact_actor_glyph(
+                &mut buffer,
+                width,
+                height,
+                actor,
+                tile_x,
+                tile_y,
+                size_w,
+                size_h,
+                color,
+                true,
+            );
+
+            let outline_components =
+                exact_color_components(&buffer, width, height, CLASSIC_ISO_OUTLINE_COLOR);
+            let shadow_components =
+                exact_color_components(&buffer, width, height, CLASSIC_ISO_SHADOW_COLOR);
+            let outline_pixels = outline_components
+                .iter()
+                .map(|(pixels, _, _)| pixels)
+                .sum::<usize>();
+            let shadow_pixels = shadow_components
+                .iter()
+                .map(|(pixels, _, _)| pixels)
+                .sum::<usize>();
+
+            assert!(
+                outline_pixels > 0 && shadow_pixels > 0,
+                "{} {} {outline_components:?} {shadow_components:?}",
+                actor.id,
+                actor.rule_id
+            );
+            checked_unit = true;
+            break;
+        }
+
+        assert!(checked_unit);
+        assert!(checked_structure);
     }
 
     #[cfg(not(target_os = "android"))]
