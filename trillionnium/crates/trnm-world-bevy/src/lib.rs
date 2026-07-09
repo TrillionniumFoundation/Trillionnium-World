@@ -954,12 +954,12 @@ const CLASSIC_FIRST_CONTACT_PLAYER_UNIT_IDENTITY_MARK_W_PX: i32 = 8;
 const CLASSIC_FIRST_CONTACT_PLAYER_UNIT_IDENTITY_MARK_H_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_PLAYER_STRUCTURE_IDENTITY_MARK_W_PX: i32 = 8;
 const CLASSIC_FIRST_CONTACT_PLAYER_STRUCTURE_IDENTITY_MARK_H_PX: i32 = 2;
-const CLASSIC_FIRST_CONTACT_PLAYER_UNIT_BODY_HEAD_W_PX: i32 = 6;
-const CLASSIC_FIRST_CONTACT_PLAYER_UNIT_BODY_HEAD_H_PX: i32 = 2;
-const CLASSIC_FIRST_CONTACT_PLAYER_UNIT_BODY_CORE_W_PX: i32 = 10;
-const CLASSIC_FIRST_CONTACT_PLAYER_UNIT_BODY_CORE_H_PX: i32 = 4;
-const CLASSIC_FIRST_CONTACT_PLAYER_UNIT_BODY_FOOT_W_PX: i32 = 8;
-const CLASSIC_FIRST_CONTACT_PLAYER_UNIT_BODY_FOOT_H_PX: i32 = 2;
+const CLASSIC_FIRST_CONTACT_PLAYER_UNIT_BODY_HEAD_W_PX: i32 = 10;
+const CLASSIC_FIRST_CONTACT_PLAYER_UNIT_BODY_HEAD_H_PX: i32 = 4;
+const CLASSIC_FIRST_CONTACT_PLAYER_UNIT_BODY_CORE_W_PX: i32 = 18;
+const CLASSIC_FIRST_CONTACT_PLAYER_UNIT_BODY_CORE_H_PX: i32 = 8;
+const CLASSIC_FIRST_CONTACT_PLAYER_UNIT_BODY_FOOT_W_PX: i32 = 16;
+const CLASSIC_FIRST_CONTACT_PLAYER_UNIT_BODY_FOOT_H_PX: i32 = 4;
 const CLASSIC_FIRST_CONTACT_PLAYER_INLINE_HEALTH_PIP_COUNT: usize = 4;
 const CLASSIC_FIRST_CONTACT_PLAYER_INLINE_HEALTH_PIP_W_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_PLAYER_INLINE_HEALTH_PIP_H_PX: i32 = 2;
@@ -23876,6 +23876,7 @@ pub fn native_classic_rts_full_game_visual_ui_replication_evidence_json(
         &runtime,
         "first_contact_basin",
         true,
+        Some(tactical_player_layout),
     );
     let tactical_preview_non_background_pixels = tactical_pixels
         .iter()
@@ -84806,6 +84807,7 @@ fn classic_draw_scene(
         runtime,
         scene_id,
         player_screen,
+        None,
     );
     if let Some(status_stage) = classic_rts_unit_status_portrait_stage(Some(runtime)) {
         classic_draw_rts_unit_status_portrait_overlay(buffer, width, height, runtime, status_stage);
@@ -92795,10 +92797,10 @@ fn classic_draw_first_contact_actor_glyph(
                 buffer,
                 width,
                 height,
-                base_x - 3,
-                base_y + size_h - 2,
-                size_w + 6,
-                5,
+                base_x - 5,
+                base_y + size_h - 3,
+                size_w + 10,
+                7,
                 CLASSIC_RTS_TACTICAL_VIEWPORT_SHADOW_COLOR,
             );
         }
@@ -92838,9 +92840,9 @@ fn classic_draw_first_contact_actor_glyph(
                 width,
                 height,
                 center_x - size_w / 4,
-                base_y - 4,
+                base_y - 5,
                 (size_w / 2).max(8),
-                3,
+                4,
                 highlight,
             );
         }
@@ -93816,20 +93818,20 @@ fn classic_draw_first_contact_player_combat_flow_ribbon(
                 buffer,
                 width,
                 height,
-                center_x - 10,
+                center_x - 16,
                 rail_y,
-                20,
-                2,
+                32,
+                4,
                 route_shadow,
             );
             classic_draw_rect(
                 buffer,
                 width,
                 height,
-                center_x - 7,
+                center_x - 12,
                 rail_y,
-                14,
-                2,
+                24,
+                3,
                 route_flow,
             );
             step_index += 1;
@@ -93841,10 +93843,10 @@ fn classic_draw_first_contact_player_combat_flow_ribbon(
     let target_cx = target_x + cell_w / 2;
     let target_cy = target_y + cell_h / 2;
     for (x, y, w, h) in [
-        (target_cx - cell_w - 4, target_cy - cell_h - 4, 12, 2),
-        (target_cx + cell_w - 8, target_cy - cell_h - 4, 12, 2),
-        (target_cx - cell_w - 4, target_cy + cell_h + 2, 12, 2),
-        (target_cx + cell_w - 8, target_cy + cell_h + 2, 12, 2),
+        (target_cx - cell_w - 6, target_cy - cell_h - 5, 18, 3),
+        (target_cx + cell_w - 12, target_cy - cell_h - 5, 18, 3),
+        (target_cx - cell_w - 6, target_cy + cell_h + 2, 18, 3),
+        (target_cx + cell_w - 12, target_cy + cell_h + 2, 18, 3),
     ] {
         classic_draw_rect(buffer, width, height, x, y, w, h, target_rim);
     }
@@ -93858,13 +93860,14 @@ fn classic_draw_first_contact_player_post_overlay_combat_flow(
     runtime: &NativeFirstPlayableRuntime,
     scene_id: &str,
     player_screen: bool,
+    layout_override: Option<RtsFirstContactMapLayoutProfile>,
 ) {
     if scene_id != "first_contact_basin" || !player_screen {
         return;
     }
 
     let player_screen_profile = classic_first_contact_player_screen_profile();
-    let screen_layout = player_screen_profile.layout.player_map;
+    let screen_layout = layout_override.unwrap_or(player_screen_profile.layout.player_map);
     let map_model = first_contact_basin_map();
     let map_projection =
         rts_bevy_runtime::rts_runtime_map_projection(rts_bevy_runtime::RtsRuntimeMapLayoutInput {
@@ -156258,16 +156261,16 @@ mod tests {
             .map(|(pixels, _, _)| pixels)
             .sum::<usize>();
 
-        assert!(route_pixels >= 100, "{route_pixels} {route_components:?}");
-        assert_eq!(target_pixels, 96, "{target_pixels} {target_components:?}");
+        assert!(route_pixels >= 216, "{route_pixels} {route_components:?}");
+        assert_eq!(target_pixels, 216, "{target_pixels} {target_components:?}");
         assert!(
-            route_components.iter().all(|(_, w, h)| *w <= 42 && *h <= 3),
+            route_components.iter().all(|(_, w, h)| *w <= 72 && *h <= 4),
             "{route_components:?}"
         );
         assert!(
             target_components
                 .iter()
-                .all(|(_, w, h)| *w <= 12 && *h <= 2),
+                .all(|(_, w, h)| *w <= 18 && *h <= 3),
             "{target_components:?}"
         );
     }
@@ -156287,6 +156290,7 @@ mod tests {
             &runtime,
             "first_contact_basin",
             true,
+            None,
         );
 
         let route_flow = classic_mix_color(
