@@ -95,6 +95,8 @@ blockers.
      `docs/development/trillionnium-world-review-generated-count-surface-batch-2026-07-09.md`
    - docs/plan truth-source batch review:
      `docs/development/trillionnium-world-review-docs-plan-truth-source-batch-2026-07-09.md`
+   - bot/executor surface batch review:
+     `docs/development/trillionnium-world-review-bot-executor-surface-batch-2026-07-09.md`
    - avoid external push/public actions until explicitly routed
 5. Public launch evidence:
    - S5 real-device matrix

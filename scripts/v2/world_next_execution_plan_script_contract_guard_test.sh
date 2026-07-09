@@ -28,6 +28,7 @@ REVIEW_BEVY_RUNTIME_RENDERER_BATCH_SCRIPT="$ROOT/scripts/check_trillionnium_worl
 REVIEW_FIRST_CONTACT_PLAYER_SURFACE_CUES_BATCH_SCRIPT="$ROOT/scripts/check_trillionnium_world_review_first_contact_player_surface_cues_batch.sh"
 REVIEW_GENERATED_COUNT_SURFACE_BATCH_SCRIPT="$ROOT/scripts/check_trillionnium_world_review_generated_count_surface_batch.sh"
 REVIEW_DOCS_PLAN_TRUTH_SOURCE_BATCH_SCRIPT="$ROOT/scripts/check_trillionnium_world_review_docs_plan_truth_source_batch.sh"
+REVIEW_BOT_EXECUTOR_SURFACE_BATCH_SCRIPT="$ROOT/scripts/check_trillionnium_world_review_bot_executor_surface_batch.sh"
 BLOCKER_LEDGER_SCRIPT="$ROOT/scripts/check_trillionnium_world_public_launch_blocker_execution_ledger.sh"
 DOC="$ROOT/docs/development/trillionnium-world-next-execution-plan-v1.md"
 READABILITY_REVIEW_DOC="$ROOT/docs/development/trillionnium-world-first-contact-readability-review-2026-07-07.md"
@@ -56,6 +57,7 @@ REVIEW_BEVY_RUNTIME_RENDERER_BATCH_DOC="$ROOT/docs/development/trillionnium-worl
 REVIEW_FIRST_CONTACT_PLAYER_SURFACE_CUES_BATCH_DOC="$ROOT/docs/development/trillionnium-world-review-first-contact-player-surface-cues-batch-2026-07-09.md"
 REVIEW_GENERATED_COUNT_SURFACE_BATCH_DOC="$ROOT/docs/development/trillionnium-world-review-generated-count-surface-batch-2026-07-09.md"
 REVIEW_DOCS_PLAN_TRUTH_SOURCE_BATCH_DOC="$ROOT/docs/development/trillionnium-world-review-docs-plan-truth-source-batch-2026-07-09.md"
+REVIEW_BOT_EXECUTOR_SURFACE_BATCH_DOC="$ROOT/docs/development/trillionnium-world-review-bot-executor-surface-batch-2026-07-09.md"
 BLOCKER_LEDGER_DOC="$ROOT/docs/development/trillionnium-world-public-launch-blocker-execution-ledger-2026-07-07.md"
 
 required_script_lines=(
@@ -258,6 +260,18 @@ required_script_lines=(
   'batch_5_exit_rule_satisfied'
   'batch_6_unblocked_for_local_review'
   'unclassified_bot_executor_surface'
+  'trillionnium-world-review-bot-executor-surface-batch-2026-07-09.md'
+  'review_bot_executor_surface_batch'
+  'trillionnium-world-review-bot-executor-surface-batch.json'
+  'review_bot_executor_surface_batch_6_ready'
+  'TRNM_WORLD_REVIEW_BOT_EXECUTOR_SURFACE_BATCH_REFRESH_INPUTS=0'
+  'unresolved_bot_executor_surface_review_count'
+  'bot_executor_surface_route_complete'
+  'packet_semantic_fixture_owner_bound'
+  'rts_runtime_data_boundary_preserved'
+  'release_evidence_contract_bound'
+  'batch_7_unblocked_for_local_review'
+  'unclassified_classic_evidence_surface'
   'trillionnium-world-public-launch-blocker-execution-ledger-2026-07-07.md'
   'public_launch_blocker_execution_ledger'
   'trillionnium-world-public-launch-blocker-execution-ledger.json'
@@ -374,6 +388,16 @@ required_script_lines=(
   '.review_docs_plan_truth_source_batch.batch_6_unblocked_for_local_review == true'
   '.review_docs_plan_truth_source_batch.next_batch_bucket_id == "unclassified_bot_executor_surface"'
   '.review_docs_plan_truth_source_batch.external_action_performed == false'
+  '.review_bot_executor_surface_batch.reviewed_commit_count == 10'
+  '.review_bot_executor_surface_batch.unresolved_bot_executor_surface_review_count == 0'
+  '.review_bot_executor_surface_batch.bot_executor_surface_route_complete == true'
+  '.review_bot_executor_surface_batch.packet_semantic_fixture_owner_bound == true'
+  '.review_bot_executor_surface_batch.rts_runtime_data_boundary_preserved == true'
+  '.review_bot_executor_surface_batch.release_evidence_contract_bound == true'
+  '.review_bot_executor_surface_batch.batch_6_exit_rule_satisfied == true'
+  '.review_bot_executor_surface_batch.batch_7_unblocked_for_local_review == true'
+  '.review_bot_executor_surface_batch.next_batch_bucket_id == "unclassified_classic_evidence_surface"'
+  '.review_bot_executor_surface_batch.external_action_performed == false'
   '.human_playtest_runbook.prompts_bound == true'
   '.evidence_volume_curation.deletion_performed == false'
   '.reviewer_handoff_index.upload_performed == false'
@@ -484,6 +508,7 @@ required_reviewer_handoff_lines=(
   'Review runtime-adapter/online batch'
   'Review OpenRA parity/claim batch'
   'Review First Contact RTS data batch'
+  'Review bot/executor surface batch'
   'Public-launch blocker execution ledger'
   '| `reviewer_summary` |'
   '| `representative_visuals` |'
@@ -533,8 +558,8 @@ required_reviewer_handoff_script_lines=(
   'trillionnium_world_reviewer_handoff_index_v1'
   'trillionnium-world-reviewer-handoff-index.json'
   'reviewer_handoff_index_green_with_public_launch_blockers'
-  'artifact_count == 45'
-  'reviewer_summary_count == 31'
+  'artifact_count == 46'
+  'reviewer_summary_count == 32'
   'trillionnium-world-review-triage-queue.json'
   'trillionnium-world-review-primary-owner-plan.json'
   'trillionnium-world-review-release-owner-queue.json'
@@ -552,6 +577,8 @@ required_reviewer_handoff_script_lines=(
   'trillionnium-world-review-bevy-runtime-renderer-batch.json'
   'trillionnium-world-review-first-contact-player-surface-cues-batch.json'
   'trillionnium-world-review-generated-count-surface-batch.json'
+  'trillionnium-world-review-docs-plan-truth-source-batch.json'
+  'trillionnium-world-review-bot-executor-surface-batch.json'
   'representative_visual_count == 5'
   'raw_visual_archive_candidate_count == 6'
   'upload_performed == false'
@@ -1248,6 +1275,40 @@ required_review_docs_plan_truth_source_batch_script_lines=(
   'TRILLIONNIUM_WORLD_REVIEW_DOCS_PLAN_TRUTH_SOURCE_BATCH_GREEN'
 )
 
+required_review_bot_executor_surface_batch_lines=(
+  'Status: local review bot/executor surface batch 6.'
+  'unclassified_bot_executor_surface'
+  'Reviewed commit count: `10`'
+  'Unresolved bot/executor surface route count: `0`'
+  'bot_executor_surface_route_complete=true'
+  'packet_semantic_fixture_owner_bound=true'
+  'rts_runtime_data_boundary_preserved=true'
+  'release_evidence_contract_bound=true'
+  'batch_6_exit_rule_satisfied=true'
+  'batch_7_unblocked_for_local_review=true'
+  'next_batch_bucket_id=unclassified_classic_evidence_surface'
+)
+
+required_review_bot_executor_surface_batch_script_lines=(
+  'trillionnium_world_review_bot_executor_surface_batch_v1'
+  'trillionnium-world-review-bot-executor-surface-batch.json'
+  'TRNM_WORLD_REVIEW_BOT_EXECUTOR_SURFACE_BATCH_REFRESH_INPUTS'
+  'review_bot_executor_surface_batch_6_ready'
+  'unclassified_bot_executor_surface'
+  'reviewed_commit_count == 10'
+  'unresolved_bot_executor_surface_review_count == 0'
+  'bot_executor_surface_route_complete == true'
+  'packet_semantic_fixture_owner_bound == true'
+  'rts_runtime_data_boundary_preserved == true'
+  'release_evidence_contract_bound == true'
+  'batch_6_exit_rule_satisfied == true'
+  'batch_7_unblocked_for_local_review == true'
+  'next_batch_bucket_id == "unclassified_classic_evidence_surface"'
+  'bevy_integration_ownership_claimed == false'
+  'external_action_performed == false'
+  'TRILLIONNIUM_WORLD_REVIEW_BOT_EXECUTOR_SURFACE_BATCH_GREEN'
+)
+
 for line in "${required_script_lines[@]}"; do
   if ! grep -Fq -- "$line" "$SCRIPT"; then
     echo "[FAIL] next execution plan script missing contract line: $line" >&2
@@ -1430,6 +1491,13 @@ for line in "${required_review_docs_plan_truth_source_batch_lines[@]}"; do
   fi
 done
 
+for line in "${required_review_bot_executor_surface_batch_lines[@]}"; do
+  if ! grep -Fq -- "$line" "$REVIEW_BOT_EXECUTOR_SURFACE_BATCH_DOC"; then
+    echo "[FAIL] review bot/executor surface batch missing contract line: $line" >&2
+    exit 1
+  fi
+done
+
 for line in "${required_evidence_volume_lines[@]}"; do
   if ! grep -Fq -- "$line" "$EVIDENCE_VOLUME_DOC"; then
     echo "[FAIL] evidence volume curation missing contract line: $line" >&2
@@ -1601,6 +1669,13 @@ done
 for line in "${required_review_docs_plan_truth_source_batch_script_lines[@]}"; do
   if ! grep -Fq -- "$line" "$REVIEW_DOCS_PLAN_TRUTH_SOURCE_BATCH_SCRIPT"; then
     echo "[FAIL] review docs/plan truth-source batch script missing contract line: $line" >&2
+    exit 1
+  fi
+done
+
+for line in "${required_review_bot_executor_surface_batch_script_lines[@]}"; do
+  if ! grep -Fq -- "$line" "$REVIEW_BOT_EXECUTOR_SURFACE_BATCH_SCRIPT"; then
+    echo "[FAIL] review bot/executor surface batch script missing contract line: $line" >&2
     exit 1
   fi
 done
