@@ -26,6 +26,7 @@ REVIEW_RTS_EVIDENCE_CRATE_BATCH_SCRIPT="$ROOT/scripts/check_trillionnium_world_r
 REVIEW_EVIDENCE_EXPOSURE_BATCH_SCRIPT="$ROOT/scripts/check_trillionnium_world_review_evidence_exposure_batch.sh"
 REVIEW_BEVY_RUNTIME_RENDERER_BATCH_SCRIPT="$ROOT/scripts/check_trillionnium_world_review_bevy_runtime_renderer_batch.sh"
 REVIEW_FIRST_CONTACT_PLAYER_SURFACE_CUES_BATCH_SCRIPT="$ROOT/scripts/check_trillionnium_world_review_first_contact_player_surface_cues_batch.sh"
+REVIEW_GENERATED_COUNT_SURFACE_BATCH_SCRIPT="$ROOT/scripts/check_trillionnium_world_review_generated_count_surface_batch.sh"
 BLOCKER_LEDGER_SCRIPT="$ROOT/scripts/check_trillionnium_world_public_launch_blocker_execution_ledger.sh"
 DOC="$ROOT/docs/development/trillionnium-world-next-execution-plan-v1.md"
 READABILITY_REVIEW_DOC="$ROOT/docs/development/trillionnium-world-first-contact-readability-review-2026-07-07.md"
@@ -52,6 +53,7 @@ REVIEW_RTS_EVIDENCE_CRATE_BATCH_DOC="$ROOT/docs/development/trillionnium-world-r
 REVIEW_EVIDENCE_EXPOSURE_BATCH_DOC="$ROOT/docs/development/trillionnium-world-review-evidence-exposure-batch-2026-07-09.md"
 REVIEW_BEVY_RUNTIME_RENDERER_BATCH_DOC="$ROOT/docs/development/trillionnium-world-review-bevy-runtime-renderer-batch-2026-07-09.md"
 REVIEW_FIRST_CONTACT_PLAYER_SURFACE_CUES_BATCH_DOC="$ROOT/docs/development/trillionnium-world-review-first-contact-player-surface-cues-batch-2026-07-09.md"
+REVIEW_GENERATED_COUNT_SURFACE_BATCH_DOC="$ROOT/docs/development/trillionnium-world-review-generated-count-surface-batch-2026-07-09.md"
 BLOCKER_LEDGER_DOC="$ROOT/docs/development/trillionnium-world-public-launch-blocker-execution-ledger-2026-07-07.md"
 
 required_script_lines=(
@@ -230,6 +232,17 @@ required_script_lines=(
   'batch_4_unblocked_for_local_review'
   'next_batch_bucket_id'
   'unclassified_generated_count_surface'
+  'trillionnium-world-review-generated-count-surface-batch-2026-07-09.md'
+  'review_generated_count_surface_batch'
+  'trillionnium-world-review-generated-count-surface-batch.json'
+  'review_generated_count_surface_batch_4_ready'
+  'TRNM_WORLD_REVIEW_GENERATED_COUNT_SURFACE_BATCH_REFRESH_INPUTS=0'
+  'unresolved_generated_count_surface_review_count'
+  'count_contract_owner_assignment_complete'
+  'owning_checker_artifact_binding_complete'
+  'batch_4_exit_rule_satisfied'
+  'batch_5_unblocked_for_local_review'
+  'unclassified_docs_plan_truth_source'
   'trillionnium-world-public-launch-blocker-execution-ledger-2026-07-07.md'
   'public_launch_blocker_execution_ledger'
   'trillionnium-world-public-launch-blocker-execution-ledger.json'
@@ -328,6 +341,14 @@ required_script_lines=(
   '.review_first_contact_player_surface_cues_batch.batch_4_unblocked_for_local_review == true'
   '.review_first_contact_player_surface_cues_batch.next_batch_bucket_id == "unclassified_generated_count_surface"'
   '.review_first_contact_player_surface_cues_batch.external_action_performed == false'
+  '.review_generated_count_surface_batch.reviewed_commit_count == 14'
+  '.review_generated_count_surface_batch.unresolved_generated_count_surface_review_count == 0'
+  '.review_generated_count_surface_batch.count_contract_owner_assignment_complete == true'
+  '.review_generated_count_surface_batch.owning_checker_artifact_binding_complete == true'
+  '.review_generated_count_surface_batch.batch_4_exit_rule_satisfied == true'
+  '.review_generated_count_surface_batch.batch_5_unblocked_for_local_review == true'
+  '.review_generated_count_surface_batch.next_batch_bucket_id == "unclassified_docs_plan_truth_source"'
+  '.review_generated_count_surface_batch.external_action_performed == false'
   '.human_playtest_runbook.prompts_bound == true'
   '.evidence_volume_curation.deletion_performed == false'
   '.reviewer_handoff_index.upload_performed == false'
@@ -368,6 +389,7 @@ required_doc_lines=(
   'trillionnium-world-review-runtime-core-semantics-batch-2026-07-08.md'
   'trillionnium-world-review-runtime-adapter-online-batch-2026-07-08.md'
   'trillionnium-world-review-first-contact-rts-data-batch-2026-07-09.md'
+  'trillionnium-world-review-generated-count-surface-batch-2026-07-09.md'
   'trillionnium-world-public-launch-blocker-execution-ledger-2026-07-07.md'
   'Do not keep shrinking already-gated micro cues'
 )
@@ -485,8 +507,8 @@ required_reviewer_handoff_script_lines=(
   'trillionnium_world_reviewer_handoff_index_v1'
   'trillionnium-world-reviewer-handoff-index.json'
   'reviewer_handoff_index_green_with_public_launch_blockers'
-  'artifact_count == 43'
-  'reviewer_summary_count == 29'
+  'artifact_count == 44'
+  'reviewer_summary_count == 30'
   'trillionnium-world-review-triage-queue.json'
   'trillionnium-world-review-primary-owner-plan.json'
   'trillionnium-world-review-release-owner-queue.json'
@@ -503,6 +525,7 @@ required_reviewer_handoff_script_lines=(
   'trillionnium-world-review-evidence-exposure-batch.json'
   'trillionnium-world-review-bevy-runtime-renderer-batch.json'
   'trillionnium-world-review-first-contact-player-surface-cues-batch.json'
+  'trillionnium-world-review-generated-count-surface-batch.json'
   'representative_visual_count == 5'
   'raw_visual_archive_candidate_count == 6'
   'upload_performed == false'
@@ -1132,6 +1155,40 @@ required_review_first_contact_player_surface_cues_batch_script_lines=(
   'TRILLIONNIUM_WORLD_REVIEW_FIRST_CONTACT_PLAYER_SURFACE_CUES_BATCH_GREEN'
 )
 
+required_review_generated_count_surface_batch_lines=(
+  'Status: local review generated count surface batch 4.'
+  'unclassified_generated_count_surface'
+  'Reviewed commit count: `14`'
+  'Per-count unresolved owner assignment count: `0`'
+  'Generated count surfaces must be assigned to the checker and artifact'
+  'count_contract_owner_assignment_complete=true'
+  'owning_checker_artifact_binding_complete=true'
+  'release_ci_count_guard_bound=true'
+  'packet_semantic_count_guard_bound=true'
+  'batch_4_exit_rule_satisfied=true'
+  'batch_5_unblocked_for_local_review=true'
+  'next_batch_bucket_id=unclassified_docs_plan_truth_source'
+)
+
+required_review_generated_count_surface_batch_script_lines=(
+  'trillionnium_world_review_generated_count_surface_batch_v1'
+  'trillionnium-world-review-generated-count-surface-batch.json'
+  'TRNM_WORLD_REVIEW_GENERATED_COUNT_SURFACE_BATCH_REFRESH_INPUTS'
+  'review_generated_count_surface_batch_4_ready'
+  'unclassified_generated_count_surface'
+  'reviewed_commit_count == 14'
+  'unresolved_generated_count_surface_review_count == 0'
+  'count_contract_owner_assignment_complete == true'
+  'owning_checker_artifact_binding_complete == true'
+  'release_ci_count_guard_bound == true'
+  'packet_semantic_count_guard_bound == true'
+  'batch_4_exit_rule_satisfied == true'
+  'batch_5_unblocked_for_local_review == true'
+  'next_batch_bucket_id == "unclassified_docs_plan_truth_source"'
+  'external_action_performed == false'
+  'TRILLIONNIUM_WORLD_REVIEW_GENERATED_COUNT_SURFACE_BATCH_GREEN'
+)
+
 for line in "${required_script_lines[@]}"; do
   if ! grep -Fq -- "$line" "$SCRIPT"; then
     echo "[FAIL] next execution plan script missing contract line: $line" >&2
@@ -1300,6 +1357,13 @@ for line in "${required_review_first_contact_player_surface_cues_batch_lines[@]}
   fi
 done
 
+for line in "${required_review_generated_count_surface_batch_lines[@]}"; do
+  if ! grep -Fq -- "$line" "$REVIEW_GENERATED_COUNT_SURFACE_BATCH_DOC"; then
+    echo "[FAIL] review generated count surface batch missing contract line: $line" >&2
+    exit 1
+  fi
+done
+
 for line in "${required_evidence_volume_lines[@]}"; do
   if ! grep -Fq -- "$line" "$EVIDENCE_VOLUME_DOC"; then
     echo "[FAIL] evidence volume curation missing contract line: $line" >&2
@@ -1457,6 +1521,13 @@ done
 for line in "${required_review_first_contact_player_surface_cues_batch_script_lines[@]}"; do
   if ! grep -Fq -- "$line" "$REVIEW_FIRST_CONTACT_PLAYER_SURFACE_CUES_BATCH_SCRIPT"; then
     echo "[FAIL] review First Contact player-surface cues batch script missing contract line: $line" >&2
+    exit 1
+  fi
+done
+
+for line in "${required_review_generated_count_surface_batch_script_lines[@]}"; do
+  if ! grep -Fq -- "$line" "$REVIEW_GENERATED_COUNT_SURFACE_BATCH_SCRIPT"; then
+    echo "[FAIL] review generated count surface batch script missing contract line: $line" >&2
     exit 1
   fi
 done

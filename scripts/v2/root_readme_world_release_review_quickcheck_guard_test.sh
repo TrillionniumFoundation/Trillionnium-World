@@ -32,6 +32,7 @@ required_lines=(
   './scripts/check_trillionnium_world_review_evidence_exposure_batch.sh'
   './scripts/check_trillionnium_world_review_bevy_runtime_renderer_batch.sh'
   './scripts/check_trillionnium_world_review_first_contact_player_surface_cues_batch.sh'
+  './scripts/check_trillionnium_world_review_generated_count_surface_batch.sh'
   './scripts/check_trillionnium_world_public_launch_blocker_execution_ledger.sh'
   './scripts/check_trillionnium_world_public_launch_operator_handoff.sh'
   './scripts/check_trillionnium_world_production_map_pack_public_evidence_collection.sh'
@@ -105,6 +106,8 @@ required_lines=(
   'Bevy runtime renderer batch note'
   'First Contact player-surface cues batch note'
   'unblocks batch 4 `unclassified_generated_count_surface`'
+  'Generated count surface batch note'
+  'unblocks batch 5 `unclassified_docs_plan_truth_source`'
   'blocker execution ledger'
   'public-launch blockers preserved'
 )

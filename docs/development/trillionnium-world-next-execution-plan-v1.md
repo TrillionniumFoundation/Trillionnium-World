@@ -91,6 +91,8 @@ blockers.
      `docs/development/trillionnium-world-review-bevy-runtime-renderer-batch-2026-07-09.md`
    - First Contact player-surface cues batch review:
      `docs/development/trillionnium-world-review-first-contact-player-surface-cues-batch-2026-07-09.md`
+   - generated count surface batch review:
+     `docs/development/trillionnium-world-review-generated-count-surface-batch-2026-07-09.md`
    - avoid external push/public actions until explicitly routed
 5. Public launch evidence:
    - S5 real-device matrix
