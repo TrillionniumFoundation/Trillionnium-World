@@ -64,9 +64,10 @@ jq -e '
   and (.atlas_family_names | index("PLAYER UNITS") != null)
   and (.atlas_family_names | index("HUD ICONS") != null)
   and (.atlas_family_names | index("FEEDBACK VFX") != null)
-  and .first_contact_production_art_pack_id == "first_contact_production_art_pack_v2"
-  and .first_contact_pack_atlas_slot_count == 11
+  and .first_contact_production_art_pack_id == "first_contact_production_art_pack_v3"
+  and .first_contact_pack_atlas_slot_count == 17
   and .first_contact_pack_v2_atlas_slot_count == 5
+  and .first_contact_pack_v3_atlas_slot_count == 6
   and (.first_contact_pack_atlas_slot_names | index("terrain_material") != null)
   and (.first_contact_pack_atlas_slot_names | index("edge_blend") != null)
   and (.first_contact_pack_atlas_slot_names | index("unit_sprite_skin") != null)
@@ -78,6 +79,12 @@ jq -e '
   and (.first_contact_pack_atlas_slot_names | index("unit_silhouette") != null)
   and (.first_contact_pack_atlas_slot_names | index("structure_facade") != null)
   and (.first_contact_pack_atlas_slot_names | index("action_stroke") != null)
+  and (.first_contact_pack_atlas_slot_names | index("terrain_cluster") != null)
+  and (.first_contact_pack_atlas_slot_names | index("transition_corner") != null)
+  and (.first_contact_pack_atlas_slot_names | index("unit_role_block") != null)
+  and (.first_contact_pack_atlas_slot_names | index("structure_roof_depth") != null)
+  and (.first_contact_pack_atlas_slot_names | index("action_priority_ribbon") != null)
+  and (.first_contact_pack_atlas_slot_names | index("hud_command_plate") != null)
   and .atlas_frame_count >= 32
   and .sprite_binding_count >= 32
   and .material_asset_count == 4
@@ -116,7 +123,7 @@ jq -e '
   and .feedback_vfx_pixel_count > 1500
   and .runtime_binding_lane_pixel_count > 8000
   and .uv_rect_pixel_count > 6000
-  and .first_contact_pack_atlas_slot_pixel_count > 5000
+  and .first_contact_pack_atlas_slot_pixel_count > 7000
   and .first_contact_pack_atlas_uv_pixel_count > 6000
   and .production_art_replication_gate == true
   and .sprite_sheet_gate == true

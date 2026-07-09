@@ -117,9 +117,10 @@ jq -e '
   and .preview_gate == true
   and .player_first_first_contact_screen_readability_gate == true
   and .first_contact_art_direction == "top_down_pixel_rts"
-  and .first_contact_production_art_pack_id == "first_contact_production_art_pack_v2"
+  and .first_contact_production_art_pack_id == "first_contact_production_art_pack_v3"
   and .player_first_map_composition_gate == true
   and .player_first_production_art_pack_v2_gate == true
+  and .player_first_production_art_pack_v3_gate == true
   and .player_first_production_art_pack_gate == true
   and .player_first_hud_player_copy_gate == true
   and .player_first_five_second_readability_gate == true
@@ -204,6 +205,12 @@ jq -e '
   and .first_contact_production_art_pack_v2_pixel_counts.unit_silhouette > 80
   and .first_contact_production_art_pack_v2_pixel_counts.structure_facade > 100
   and .first_contact_production_art_pack_v2_pixel_counts.action_stroke > 80
+  and .first_contact_production_art_pack_v3_pixel_counts.terrain_cluster > 1000
+  and .first_contact_production_art_pack_v3_pixel_counts.transition_corner > 300
+  and .first_contact_production_art_pack_v3_pixel_counts.unit_role_block > 80
+  and .first_contact_production_art_pack_v3_pixel_counts.structure_roof_depth > 100
+  and .first_contact_production_art_pack_v3_pixel_counts.action_priority_ribbon > 80
+  and .first_contact_production_art_pack_v3_pixel_counts.hud_command_plate > 8000
   and .source_headline.full_screen_surface_count == 10
   and .source_headline.shell_meta_surface_count == 12
   and .source_headline.match_setup_surface_count == 10
