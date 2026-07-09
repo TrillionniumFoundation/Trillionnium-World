@@ -44,14 +44,15 @@ use trnm_rts_data::{
     first_contact_preview_actors, first_contact_samples, first_contact_terrain_profile,
     first_contact_visual_telemetry_profile, RtsActorColorRole, RtsActorGlyphAccent,
     RtsActorGlyphBody, RtsActorPresentationProfile, RtsCommandFeedbackProfile,
-    RtsFirstContactPlayerScreenChromeProfile, RtsFirstContactPlayerScreenProfile,
-    RtsFirstContactPreviewActor, RtsFirstContactPreviewActorKind,
-    RtsFirstContactVisualTelemetryProfile, RtsMapRendererModel, RtsOpeningLoopProfile,
-    RtsPlayerScreenBuildPaletteSlotProfile, RtsPlayerScreenResourceReadoutKind,
-    RtsPlayerScreenResourceReadoutProfile, RtsPlayerScreenTacticsRowKind,
-    RtsPlayerScreenTacticsRowProfile, RtsPlayerStartupProfile, RtsRule, RtsRuleKind,
-    RtsTacticalTrackProfile, RtsTerrainTileProfile, RtsVisualTelemetryColorRole,
-    TRNM_RTS_DATA_CONTRACT, TRNM_RTS_DATA_FIRST_CONTACT_ACTOR_GLYPH_CONTRACT,
+    RtsFirstContactMapLayoutProfile, RtsFirstContactPlayerScreenChromeProfile,
+    RtsFirstContactPlayerScreenProfile, RtsFirstContactPreviewActor,
+    RtsFirstContactPreviewActorKind, RtsFirstContactVisualTelemetryProfile, RtsMapRendererModel,
+    RtsOpeningLoopProfile, RtsPlayerScreenBuildPaletteSlotProfile,
+    RtsPlayerScreenResourceReadoutKind, RtsPlayerScreenResourceReadoutProfile,
+    RtsPlayerScreenTacticsRowKind, RtsPlayerScreenTacticsRowProfile, RtsPlayerStartupProfile,
+    RtsRule, RtsRuleKind, RtsTacticalTrackProfile, RtsTerrainTileProfile,
+    RtsVisualTelemetryColorRole, TRNM_RTS_DATA_CONTRACT,
+    TRNM_RTS_DATA_FIRST_CONTACT_ACTOR_GLYPH_CONTRACT,
     TRNM_RTS_DATA_FIRST_CONTACT_ACTOR_PRESENTATION_CONTRACT,
     TRNM_RTS_DATA_FIRST_CONTACT_COMMAND_FEEDBACK_CONTRACT,
     TRNM_RTS_DATA_FIRST_CONTACT_OPENING_PROFILE_CONTRACT,
@@ -23817,9 +23818,7 @@ pub fn native_classic_rts_full_game_visual_ui_replication_evidence_json(
     };
 
     let assets = load_classic_runtime_assets();
-    let mut runtime = classic_product_alignment_runtime();
-    runtime.current_room_id = "league-coliseum".to_string();
-    runtime.map_scene = "arena_league_coliseum".to_string();
+    let mut runtime = classic_first_contact_player_screen_runtime();
     runtime.objective_status = "open_world_after_action_ready".to_string();
     runtime.rts_open_world_handoff_state = "resumed:league-coliseum".to_string();
     runtime.rts_open_world_resume_room_id = "league-coliseum".to_string();
@@ -23849,13 +23848,34 @@ pub fn native_classic_rts_full_game_visual_ui_replication_evidence_json(
     classic_draw_scene(&mut pixels, WIDTH, HEIGHT, (7, 5), &runtime, &assets);
     let mut tactical_pixels =
         vec![TACTICAL_MATTE_COLOR; TACTICAL_VIEWPORT_WIDTH * TACTICAL_VIEWPORT_HEIGHT];
-    classic_draw_scene(
+    let tactical_player_layout = {
+        let mut layout = classic_first_contact_player_screen_profile()
+            .layout
+            .player_map;
+        layout.map_origin_x = 18;
+        layout.map_origin_y = 30;
+        layout.right_reserved_px = 24;
+        layout.bottom_reserved_px = 36;
+        layout.cell_width.max = 34;
+        layout.cell_height.max = 18;
+        layout
+    };
+    classic_draw_first_contact_basin_scene_with_layout(
         &mut tactical_pixels,
         TACTICAL_VIEWPORT_WIDTH,
         TACTICAL_VIEWPORT_HEIGHT,
-        (7, 5),
         &runtime,
         &assets,
+        true,
+        Some(tactical_player_layout),
+    );
+    classic_draw_first_contact_player_post_overlay_combat_flow(
+        &mut tactical_pixels,
+        TACTICAL_VIEWPORT_WIDTH,
+        TACTICAL_VIEWPORT_HEIGHT,
+        &runtime,
+        "first_contact_basin",
+        true,
     );
     let tactical_preview_non_background_pixels = tactical_pixels
         .iter()
@@ -24568,9 +24588,50 @@ pub fn native_classic_rts_full_game_visual_ui_replication_evidence_json(
     let highlight_pixel_count = count_color(HIGHLIGHT_COLOR);
     let tactical_viewport_frame_pixel_count = count_color(TACTICAL_VIEWPORT_FRAME_COLOR);
     let tactical_status_strip_pixel_count = count_color(TACTICAL_STATUS_STRIP_COLOR);
+    let count_tactical_color = |color: u32| -> usize {
+        tactical_pixels
+            .iter()
+            .filter(|pixel| **pixel == color)
+            .count()
+    };
+    let first_contact_lane_ground_color = classic_mix_color(
+        CLASSIC_RTS_PRODUCT_LANE_COLOR,
+        CLASSIC_RTS_TACTICAL_VIEWPORT_TILE_COLOR,
+        1,
+        2,
+    );
+    let first_contact_combat_flow_color = classic_mix_color(
+        CLASSIC_RTS_SELECTION_FEEDBACK_MOVE_COLOR,
+        CLASSIC_RTS_TACTICAL_VIEWPORT_TILE_COLOR,
+        2,
+        5,
+    );
+    let first_contact_target_rim_color = classic_mix_color(
+        CLASSIC_RTS_COMMAND_SURFACE_TARGET_COLOR,
+        CLASSIC_RTS_TACTICAL_VIEWPORT_TILE_COLOR,
+        2,
+        5,
+    );
+    let player_first_first_contact_lane_ground_pixel_count =
+        count_tactical_color(first_contact_lane_ground_color);
+    let player_first_first_contact_hot_lane_anchor_pixel_count =
+        count_tactical_color(CLASSIC_RTS_PRODUCT_LANE_COLOR);
+    let player_first_first_contact_combat_flow_pixel_count =
+        count_tactical_color(first_contact_combat_flow_color);
+    let player_first_first_contact_target_rim_pixel_count =
+        count_tactical_color(first_contact_target_rim_color);
+    let player_first_tactical_occluding_panel_pixel_count =
+        count_tactical_color(CLASSIC_RTS_STRATEGY_PANEL_COLOR);
+    let player_first_first_contact_screen_readability_gate =
+        player_first_first_contact_lane_ground_pixel_count > 40_000
+            && player_first_first_contact_hot_lane_anchor_pixel_count < 1_500
+            && player_first_first_contact_combat_flow_pixel_count >= 100
+            && player_first_first_contact_target_rim_pixel_count >= 80
+            && player_first_tactical_occluding_panel_pixel_count < 2_000;
     let player_first_tactical_composition_gate = tactical_preview_non_background_pixels > 350_000
         && tactical_viewport_frame_pixel_count > 8_000
-        && tactical_status_strip_pixel_count > 10_000;
+        && tactical_status_strip_pixel_count > 10_000
+        && player_first_first_contact_screen_readability_gate;
 
     let source_contract_gate = contract_is(
         &visual,
@@ -24781,7 +24842,12 @@ pub fn native_classic_rts_full_game_visual_ui_replication_evidence_json(
             "highlight": highlight_pixel_count,
             "player_first_tactical_viewport_frame": tactical_viewport_frame_pixel_count,
             "player_first_tactical_status_strip": tactical_status_strip_pixel_count,
-            "player_first_tactical_preview_non_background": tactical_preview_non_background_pixels
+            "player_first_tactical_preview_non_background": tactical_preview_non_background_pixels,
+            "player_first_first_contact_lane_ground": player_first_first_contact_lane_ground_pixel_count,
+            "player_first_first_contact_hot_lane_anchor": player_first_first_contact_hot_lane_anchor_pixel_count,
+            "player_first_first_contact_combat_flow": player_first_first_contact_combat_flow_pixel_count,
+            "player_first_first_contact_target_rim": player_first_first_contact_target_rim_pixel_count,
+            "player_first_tactical_occluding_panel": player_first_tactical_occluding_panel_pixel_count
         },
         "full_game_command_grid_state_samples": command_grid_state_samples,
         "full_game_command_grid_role_ids": full_game_command_grid_role_ids,
@@ -24792,6 +24858,7 @@ pub fn native_classic_rts_full_game_visual_ui_replication_evidence_json(
         "full_game_command_grid_sent_slot_count": full_game_command_grid_sent_slot_count,
         "full_game_command_grid_available_slot_count": full_game_command_grid_available_slot_count,
         "full_game_command_grid_readability_gate": full_game_command_grid_readability_gate,
+        "player_first_first_contact_screen_readability_gate": player_first_first_contact_screen_readability_gate,
         "player_first_tactical_composition_gate": player_first_tactical_composition_gate,
         "player_first_full_game_visual_ui_screen_gate": player_first_full_game_visual_ui_screen_gate,
         "source_headline": {
@@ -24831,7 +24898,7 @@ pub fn native_classic_rts_full_game_visual_ui_replication_evidence_json(
         "openra_asset_copied": false,
         "third_party_asset_copied": false,
         "source_of_truth": format!(
-            "This gate is the local Rust/Bevy full-game visual/UI replication completion surface: it renders one 1920x1080 native runtime screen and binds {} UI surfaces across shell/session, match setup, tactical viewport, minimap/camera, HUD/resources, unit status, a role-readable command grid, production/tech, ability feedback, save/load/resume, campaign outcome, and open-world handoff. It is an original Trillionnium implementation and keeps public launch, S5 real-device, OpenRA screen-for-screen, OpenRA engine port, and copied third-party asset claims false.",
+            "This gate is the local Rust/Bevy full-game visual/UI replication completion surface: it renders one 1920x1080 native runtime screen and binds {} UI surfaces across shell/session, match setup, a real First Contact player-screen tactical viewport, minimap/camera, HUD/resources, unit status, a role-readable command grid, production/tech, ability feedback, save/load/resume, campaign outcome, and open-world handoff. It is an original Trillionnium implementation and keeps public launch, S5 real-device, OpenRA screen-for-screen, OpenRA engine port, and copied third-party asset claims false.",
             coverage_surfaces.len()
         )
     });
@@ -98493,14 +98560,54 @@ fn classic_draw_first_contact_basin_scene(
     assets: &ClassicRuntimeAssets,
 ) {
     let player_screen = classic_player_screen_mode_enabled();
+    classic_draw_first_contact_basin_scene_with_player_screen(
+        buffer,
+        width,
+        height,
+        runtime,
+        assets,
+        player_screen,
+    );
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_draw_first_contact_basin_scene_with_player_screen(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    runtime: &NativeFirstPlayableRuntime,
+    assets: &ClassicRuntimeAssets,
+    player_screen: bool,
+) {
+    classic_draw_first_contact_basin_scene_with_layout(
+        buffer,
+        width,
+        height,
+        runtime,
+        assets,
+        player_screen,
+        None,
+    );
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_draw_first_contact_basin_scene_with_layout(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    runtime: &NativeFirstPlayableRuntime,
+    assets: &ClassicRuntimeAssets,
+    player_screen: bool,
+    layout_override: Option<RtsFirstContactMapLayoutProfile>,
+) {
     let player_screen_profile = classic_first_contact_player_screen_profile();
     let command_feedback = classic_first_contact_command_feedback();
     let target_tile = classic_first_contact_tile_tuple(command_feedback.target_tile);
-    let screen_layout = if player_screen {
+    let screen_layout = layout_override.unwrap_or(if player_screen {
         player_screen_profile.layout.player_map
     } else {
         player_screen_profile.layout.spec_map
-    };
+    });
     let map_model = first_contact_basin_map();
     let map_summary = map_model.summary();
     let renderer_model = first_contact_map_renderer_model(&map_model);

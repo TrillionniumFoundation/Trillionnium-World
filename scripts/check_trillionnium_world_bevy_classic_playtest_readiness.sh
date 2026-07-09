@@ -2376,6 +2376,11 @@ mv "$SUMMARY_WITH_COUNTS" "$SUMMARY"
       rts_full_game_visual_ui_replication_player_first_tactical_preview_non_background: $rts_full_game_visual_ui_replication[0].pixel_counts.player_first_tactical_preview_non_background,
       rts_full_game_visual_ui_replication_player_first_tactical_viewport_frame_pixel_count: $rts_full_game_visual_ui_replication[0].pixel_counts.player_first_tactical_viewport_frame,
       rts_full_game_visual_ui_replication_player_first_tactical_status_strip_pixel_count: $rts_full_game_visual_ui_replication[0].pixel_counts.player_first_tactical_status_strip,
+      rts_full_game_visual_ui_replication_first_contact_lane_ground_pixel_count: $rts_full_game_visual_ui_replication[0].pixel_counts.player_first_first_contact_lane_ground,
+      rts_full_game_visual_ui_replication_first_contact_hot_lane_anchor_pixel_count: $rts_full_game_visual_ui_replication[0].pixel_counts.player_first_first_contact_hot_lane_anchor,
+      rts_full_game_visual_ui_replication_first_contact_combat_flow_pixel_count: $rts_full_game_visual_ui_replication[0].pixel_counts.player_first_first_contact_combat_flow,
+      rts_full_game_visual_ui_replication_first_contact_target_rim_pixel_count: $rts_full_game_visual_ui_replication[0].pixel_counts.player_first_first_contact_target_rim,
+      rts_full_game_visual_ui_replication_first_contact_occluding_panel_pixel_count: $rts_full_game_visual_ui_replication[0].pixel_counts.player_first_tactical_occluding_panel,
       rts_full_game_visual_ui_replication_command_grid_unique_icon_signature_count: $rts_full_game_visual_ui_replication[0].full_game_command_grid_unique_icon_signature_count,
       rts_full_game_visual_ui_replication_command_grid_active_role: $rts_full_game_visual_ui_replication[0].full_game_command_grid_active_role,
       rts_full_game_visual_ui_replication_command_grid_active_slot_count: $rts_full_game_visual_ui_replication[0].full_game_command_grid_active_slot_count,
@@ -3269,6 +3274,7 @@ mv "$SUMMARY_WITH_COUNTS" "$SUMMARY"
       rts_full_game_visual_ui_replication_player_flow_gate: $rts_full_game_visual_ui_replication[0].player_flow_gate,
       rts_full_game_visual_ui_replication_coverage_surface_gate: $rts_full_game_visual_ui_replication[0].coverage_surface_gate,
       rts_full_game_visual_ui_replication_preview_gate: $rts_full_game_visual_ui_replication[0].preview_gate,
+      rts_full_game_visual_ui_replication_first_contact_screen_readability_gate: $rts_full_game_visual_ui_replication[0].player_first_first_contact_screen_readability_gate,
       rts_full_game_visual_ui_replication_player_first_tactical_composition_gate: $rts_full_game_visual_ui_replication[0].player_first_tactical_composition_gate,
       rts_full_game_visual_ui_replication_command_grid_readability_gate: $rts_full_game_visual_ui_replication[0].full_game_command_grid_readability_gate,
       rts_full_game_visual_ui_replication_player_first_screen_gate: $rts_full_game_visual_ui_replication[0].player_first_full_game_visual_ui_screen_gate,
@@ -4146,22 +4152,27 @@ run_validation_filter_in_chunks "$VALIDATION_FILTER" "$SUMMARY" "$VALIDATION_CHU
   and .headline.rts_full_game_visual_ui_replication_source_review_source_count == 3
   and .headline.rts_full_game_visual_ui_replication_source_headline_field_count == 15
   and .headline.rts_full_game_visual_ui_replication_single_screen_runtime_layout_count == 5
-  and .headline.rts_full_game_visual_ui_replication_pixel_count_field_count == 14
+  and .headline.rts_full_game_visual_ui_replication_pixel_count_field_count == 19
   and .headline.rts_full_game_visual_ui_replication_coverage_surface_name_count == 18
   and .headline.rts_full_game_visual_ui_replication_command_grid_role_id_count == 12
   and .headline.rts_full_game_visual_ui_replication_command_grid_icon_signature_count == 12
   and .headline.rts_full_game_visual_ui_replication_command_grid_state_sample_count == 12
-  and .headline.rts_full_game_visual_ui_replication_gate_count == 13
-  and .headline.rts_full_game_visual_ui_replication_passed_gate_count == 13
+  and .headline.rts_full_game_visual_ui_replication_gate_count == 14
+  and .headline.rts_full_game_visual_ui_replication_passed_gate_count == 14
   and .headline.rts_full_game_visual_ui_replication_failed_gate_count == 0
   and .headline.rts_full_game_visual_ui_replication_non_background_pixels > 900000
   and .headline.rts_full_game_visual_ui_replication_hud_chrome_pixel_count > 120000
   and .headline.rts_full_game_visual_ui_replication_command_pixel_count > 20000
   and .headline.rts_full_game_visual_ui_replication_session_pixel_count > 10000
   and .headline.rts_full_game_visual_ui_replication_outcome_pixel_count > 10000
-  and .headline.rts_full_game_visual_ui_replication_player_first_tactical_preview_non_background > 350000
+  and .headline.rts_full_game_visual_ui_replication_player_first_tactical_preview_non_background > 700000
   and .headline.rts_full_game_visual_ui_replication_player_first_tactical_viewport_frame_pixel_count > 8000
   and .headline.rts_full_game_visual_ui_replication_player_first_tactical_status_strip_pixel_count > 10000
+  and .headline.rts_full_game_visual_ui_replication_first_contact_lane_ground_pixel_count > 90000
+  and .headline.rts_full_game_visual_ui_replication_first_contact_hot_lane_anchor_pixel_count < 1500
+  and .headline.rts_full_game_visual_ui_replication_first_contact_combat_flow_pixel_count >= 200
+  and .headline.rts_full_game_visual_ui_replication_first_contact_target_rim_pixel_count >= 160
+  and .headline.rts_full_game_visual_ui_replication_first_contact_occluding_panel_pixel_count == 0
   and .headline.rts_full_game_visual_ui_replication_command_grid_unique_icon_signature_count >= 6
   and .headline.rts_full_game_visual_ui_replication_command_grid_active_role == "signal"
   and .headline.rts_full_game_visual_ui_replication_command_grid_active_slot_count >= 1
@@ -5893,6 +5904,7 @@ run_validation_filter_in_chunks "$VALIDATION_FILTER" "$SUMMARY" "$VALIDATION_CHU
   and .gates.rts_full_game_visual_ui_replication_player_flow_gate == true
   and .gates.rts_full_game_visual_ui_replication_coverage_surface_gate == true
   and .gates.rts_full_game_visual_ui_replication_preview_gate == true
+  and .gates.rts_full_game_visual_ui_replication_first_contact_screen_readability_gate == true
   and .gates.rts_full_game_visual_ui_replication_player_first_tactical_composition_gate == true
   and .gates.rts_full_game_visual_ui_replication_command_grid_readability_gate == true
   and .gates.rts_full_game_visual_ui_replication_player_first_screen_gate == true

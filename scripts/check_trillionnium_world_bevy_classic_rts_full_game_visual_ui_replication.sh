@@ -32,6 +32,7 @@ jq '
       .player_flow_gate,
       .coverage_surface_gate,
       .preview_gate,
+      .player_first_first_contact_screen_readability_gate,
       .player_first_tactical_composition_gate,
       .full_game_command_grid_readability_gate,
       .player_first_full_game_visual_ui_screen_gate,
@@ -47,6 +48,7 @@ jq '
       .player_flow_gate,
       .coverage_surface_gate,
       .preview_gate,
+      .player_first_first_contact_screen_readability_gate,
       .player_first_tactical_composition_gate,
       .full_game_command_grid_readability_gate,
       .player_first_full_game_visual_ui_screen_gate,
@@ -81,8 +83,8 @@ jq -e '
   and .command_grid_role_id_count == (.full_game_command_grid_role_ids | length)
   and .command_grid_icon_signature_count == (.full_game_command_grid_icon_signatures | length)
   and .command_grid_state_sample_count == (.full_game_command_grid_state_samples | length)
-  and .gate_count == 13
-  and .passed_gate_count == 13
+  and .gate_count == 14
+  and .passed_gate_count == 14
   and .failed_gate_count == 0
   and ([.coverage_surface_names[]] | index("title_account_shell") != null)
   and ([.coverage_surface_names[]] | index("match_setup_start") != null)
@@ -113,6 +115,7 @@ jq -e '
   and .player_flow_gate == true
   and .coverage_surface_gate == true
   and .preview_gate == true
+  and .player_first_first_contact_screen_readability_gate == true
   and .player_first_tactical_composition_gate == true
   and .full_game_command_grid_readability_gate == true
   and .full_game_command_grid_role_ids == ["worker","scout","warden","relay","core","signal","worker","scout","warden","relay","core","signal"]
@@ -153,9 +156,14 @@ jq -e '
   and .pixel_counts.command > 20000
   and .pixel_counts.session > 10000
   and .pixel_counts.outcome > 10000
-  and .pixel_counts.player_first_tactical_preview_non_background > 350000
+  and .pixel_counts.player_first_tactical_preview_non_background > 700000
   and .pixel_counts.player_first_tactical_viewport_frame > 8000
   and .pixel_counts.player_first_tactical_status_strip > 10000
+  and .pixel_counts.player_first_first_contact_lane_ground > 40000
+  and .pixel_counts.player_first_first_contact_hot_lane_anchor < 1500
+  and .pixel_counts.player_first_first_contact_combat_flow >= 100
+  and .pixel_counts.player_first_first_contact_target_rim >= 80
+  and .pixel_counts.player_first_tactical_occluding_panel < 2000
   and .source_headline.full_screen_surface_count == 10
   and .source_headline.shell_meta_surface_count == 12
   and .source_headline.match_setup_surface_count == 10
