@@ -66,8 +66,9 @@ jq -e '
   and (.required_replacement_slots | index("actor_sprite_slot") != null)
   and (.required_replacement_slots | index("feedback_glyph_slot") != null)
   and .production_family_count == 9
-  and .first_contact_production_art_pack_id == "first_contact_production_art_pack_v1"
+  and .first_contact_production_art_pack_id == "first_contact_production_art_pack_v2"
   and .first_contact_production_pack_family_count == 6
+  and .first_contact_production_pack_v2_feature_count == 5
   and .production_board_pixel_count > 80000
   and .actor_silhouette_pixel_count > 5000
   and .building_material_pixel_count > 3000
@@ -81,6 +82,12 @@ jq -e '
   and .first_contact_production_art_pack_pixel_counts.structure_sprite_skin > 600
   and .first_contact_production_art_pack_pixel_counts.hud_skin > 600
   and .first_contact_production_art_pack_pixel_counts.action_flow > 600
+  and .first_contact_production_art_pack_v2_pixel_counts.terrain_texture > 100
+  and .first_contact_production_art_pack_v2_pixel_counts.transition_tile > 100
+  and .first_contact_production_art_pack_v2_pixel_counts.unit_silhouette > 100
+  and .first_contact_production_art_pack_v2_pixel_counts.structure_facade > 100
+  and .first_contact_production_art_pack_v2_pixel_counts.action_stroke > 100
+  and .first_contact_production_art_pack_v2_gate == true
   and .authored_replacement_slot_gate == true
   and .map_ui_gate == true
   and .production_preview_gate == true
