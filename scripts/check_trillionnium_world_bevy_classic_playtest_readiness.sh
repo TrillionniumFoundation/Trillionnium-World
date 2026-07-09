@@ -2129,6 +2129,8 @@ mv "$SUMMARY_WITH_COUNTS" "$SUMMARY"
       rts_production_art_replication_first_contact_pack_family_count: $rts_production_art_replication[0].first_contact_production_pack_family_count,
       rts_production_art_replication_first_contact_pack_v3_feature_count: $rts_production_art_replication[0].first_contact_production_pack_v3_feature_count,
       rts_production_art_replication_first_contact_pack_v3_gate: $rts_production_art_replication[0].first_contact_production_art_pack_v3_gate,
+      rts_production_art_replication_first_contact_pack_v4_feature_count: $rts_production_art_replication[0].first_contact_production_pack_v4_feature_count,
+      rts_production_art_replication_first_contact_pack_v4_gate: $rts_production_art_replication[0].first_contact_production_art_pack_v4_gate,
       rts_production_art_replication_first_contact_pack_gate: $rts_production_art_replication[0].first_contact_production_art_pack_gate,
       rts_production_art_replication_first_contact_terrain_material_pixel_count: $rts_production_art_replication[0].first_contact_production_art_pack_pixel_counts.terrain_material,
       rts_production_art_replication_first_contact_unit_sprite_skin_pixel_count: $rts_production_art_replication[0].first_contact_production_art_pack_pixel_counts.unit_sprite_skin,
@@ -2152,6 +2154,7 @@ mv "$SUMMARY_WITH_COUNTS" "$SUMMARY"
       rts_production_asset_atlas_first_contact_pack_slot_count: $rts_production_asset_atlas[0].first_contact_pack_atlas_slot_count,
       rts_production_asset_atlas_first_contact_pack_v2_slot_count: $rts_production_asset_atlas[0].first_contact_pack_v2_atlas_slot_count,
       rts_production_asset_atlas_first_contact_pack_v3_slot_count: $rts_production_asset_atlas[0].first_contact_pack_v3_atlas_slot_count,
+      rts_production_asset_atlas_first_contact_pack_v4_slot_count: $rts_production_asset_atlas[0].first_contact_pack_v4_atlas_slot_count,
       rts_production_asset_atlas_first_contact_pack_slot_pixel_count: $rts_production_asset_atlas[0].first_contact_pack_atlas_slot_pixel_count,
       rts_production_asset_atlas_first_contact_pack_atlas_gate: $rts_production_asset_atlas[0].first_contact_production_art_pack_atlas_gate,
       rts_production_ui_skin_surface_count: $rts_production_ui_skin[0].ui_skin_surface_count,
@@ -2410,6 +2413,13 @@ mv "$SUMMARY_WITH_COUNTS" "$SUMMARY"
       rts_full_game_visual_ui_replication_first_contact_production_structure_roof_depth_pixel_count: $rts_full_game_visual_ui_replication[0].first_contact_production_art_pack_v3_pixel_counts.structure_roof_depth,
       rts_full_game_visual_ui_replication_first_contact_production_action_priority_ribbon_pixel_count: $rts_full_game_visual_ui_replication[0].first_contact_production_art_pack_v3_pixel_counts.action_priority_ribbon,
       rts_full_game_visual_ui_replication_first_contact_production_hud_command_plate_pixel_count: $rts_full_game_visual_ui_replication[0].first_contact_production_art_pack_v3_pixel_counts.hud_command_plate,
+      rts_full_game_visual_ui_replication_first_contact_production_v4_gate: $rts_full_game_visual_ui_replication[0].player_first_production_art_pack_v4_gate,
+      rts_full_game_visual_ui_replication_first_contact_production_terrain_strata_pixel_count: $rts_full_game_visual_ui_replication[0].first_contact_production_art_pack_v4_pixel_counts.terrain_strata,
+      rts_full_game_visual_ui_replication_first_contact_production_edge_occlusion_pixel_count: $rts_full_game_visual_ui_replication[0].first_contact_production_art_pack_v4_pixel_counts.edge_occlusion,
+      rts_full_game_visual_ui_replication_first_contact_production_unit_readability_crest_pixel_count: $rts_full_game_visual_ui_replication[0].first_contact_production_art_pack_v4_pixel_counts.unit_readability_crest,
+      rts_full_game_visual_ui_replication_first_contact_production_structure_volume_shadow_pixel_count: $rts_full_game_visual_ui_replication[0].first_contact_production_art_pack_v4_pixel_counts.structure_volume_shadow,
+      rts_full_game_visual_ui_replication_first_contact_production_action_intent_arrow_pixel_count: $rts_full_game_visual_ui_replication[0].first_contact_production_art_pack_v4_pixel_counts.action_intent_arrow,
+      rts_full_game_visual_ui_replication_first_contact_production_hud_focus_strip_pixel_count: $rts_full_game_visual_ui_replication[0].first_contact_production_art_pack_v4_pixel_counts.hud_focus_strip,
       rts_full_game_visual_ui_replication_command_grid_unique_icon_signature_count: $rts_full_game_visual_ui_replication[0].full_game_command_grid_unique_icon_signature_count,
       rts_full_game_visual_ui_replication_command_grid_active_role: $rts_full_game_visual_ui_replication[0].full_game_command_grid_active_role,
       rts_full_game_visual_ui_replication_command_grid_active_slot_count: $rts_full_game_visual_ui_replication[0].full_game_command_grid_active_slot_count,
@@ -3945,6 +3955,8 @@ run_validation_filter_in_chunks "$VALIDATION_FILTER" "$SUMMARY" "$VALIDATION_CHU
   and .headline.rts_production_art_replication_first_contact_pack_family_count == 6
   and .headline.rts_production_art_replication_first_contact_pack_v3_feature_count == 6
   and .headline.rts_production_art_replication_first_contact_pack_v3_gate == true
+  and .headline.rts_production_art_replication_first_contact_pack_v4_feature_count == 6
+  and .headline.rts_production_art_replication_first_contact_pack_v4_gate == true
   and .headline.rts_production_art_replication_first_contact_pack_gate == true
   and .headline.rts_production_art_replication_first_contact_terrain_material_pixel_count > 600
   and .headline.rts_production_art_replication_first_contact_unit_sprite_skin_pixel_count > 600
@@ -3965,10 +3977,11 @@ run_validation_filter_in_chunks "$VALIDATION_FILTER" "$SUMMARY" "$VALIDATION_CHU
   and .headline.rts_production_asset_atlas_board_pixel_count > 80000
   and .headline.rts_production_asset_atlas_runtime_binding_lane_pixel_count > 8000
   and .headline.rts_production_asset_atlas_uv_rect_pixel_count > 6000
-  and .headline.rts_production_asset_atlas_first_contact_pack_slot_count == 17
+  and .headline.rts_production_asset_atlas_first_contact_pack_slot_count == 23
   and .headline.rts_production_asset_atlas_first_contact_pack_v2_slot_count == 5
   and .headline.rts_production_asset_atlas_first_contact_pack_v3_slot_count == 6
-  and .headline.rts_production_asset_atlas_first_contact_pack_slot_pixel_count > 7000
+  and .headline.rts_production_asset_atlas_first_contact_pack_v4_slot_count == 6
+  and .headline.rts_production_asset_atlas_first_contact_pack_slot_pixel_count > 9500
   and .headline.rts_production_asset_atlas_first_contact_pack_atlas_gate == true
   and .headline.rts_production_ui_skin_surface_count == 8
   and .headline.rts_production_ui_skin_source_contract_count == 7
@@ -4231,6 +4244,13 @@ run_validation_filter_in_chunks "$VALIDATION_FILTER" "$SUMMARY" "$VALIDATION_CHU
   and .headline.rts_full_game_visual_ui_replication_first_contact_production_structure_roof_depth_pixel_count > 100
   and .headline.rts_full_game_visual_ui_replication_first_contact_production_action_priority_ribbon_pixel_count > 80
   and .headline.rts_full_game_visual_ui_replication_first_contact_production_hud_command_plate_pixel_count > 8000
+  and .headline.rts_full_game_visual_ui_replication_first_contact_production_v4_gate == true
+  and .headline.rts_full_game_visual_ui_replication_first_contact_production_terrain_strata_pixel_count > 1000
+  and .headline.rts_full_game_visual_ui_replication_first_contact_production_edge_occlusion_pixel_count > 300
+  and .headline.rts_full_game_visual_ui_replication_first_contact_production_unit_readability_crest_pixel_count > 80
+  and .headline.rts_full_game_visual_ui_replication_first_contact_production_structure_volume_shadow_pixel_count > 100
+  and .headline.rts_full_game_visual_ui_replication_first_contact_production_action_intent_arrow_pixel_count > 80
+  and .headline.rts_full_game_visual_ui_replication_first_contact_production_hud_focus_strip_pixel_count > 600
   and .headline.rts_full_game_visual_ui_replication_command_grid_unique_icon_signature_count >= 6
   and .headline.rts_full_game_visual_ui_replication_command_grid_active_role == "signal"
   and .headline.rts_full_game_visual_ui_replication_command_grid_active_slot_count >= 1

@@ -969,7 +969,7 @@ const CLASSIC_FIRST_CONTACT_PLAYER_UNIT_FAMILY_MARK_COLOR: u32 = 0x9ee6d0;
 const CLASSIC_FIRST_CONTACT_PLAYER_STRUCTURE_FAMILY_MARK_COLOR: u32 = 0xffdf9a;
 const CLASSIC_FIRST_CONTACT_PLAYER_BLOCKED_ROUTE_GEOMETRY_COLOR: u32 = 0xe18f7d;
 const CLASSIC_FIRST_CONTACT_PLAYER_NEXT_COMMAND_CHIP_COLOR: u32 = 0xffd57f;
-const CLASSIC_FIRST_CONTACT_PRODUCTION_ART_PACK_ID: &str = "first_contact_production_art_pack_v3";
+const CLASSIC_FIRST_CONTACT_PRODUCTION_ART_PACK_ID: &str = "first_contact_production_art_pack_v4";
 const CLASSIC_FIRST_CONTACT_PRODUCTION_TERRAIN_BLEND_COLOR: u32 = 0x5f7c62;
 const CLASSIC_FIRST_CONTACT_PRODUCTION_TERRAIN_SHADOW_COLOR: u32 = 0x26382f;
 const CLASSIC_FIRST_CONTACT_PRODUCTION_EDGE_BLEND_COLOR: u32 = 0xa2ad76;
@@ -991,6 +991,12 @@ const CLASSIC_FIRST_CONTACT_PRODUCTION_UNIT_ROLE_BLOCK_COLOR: u32 = 0xf0fff4;
 const CLASSIC_FIRST_CONTACT_PRODUCTION_STRUCTURE_ROOF_DEPTH_COLOR: u32 = 0xffe4a8;
 const CLASSIC_FIRST_CONTACT_PRODUCTION_ACTION_PRIORITY_RIBBON_COLOR: u32 = 0xcaf7b8;
 const CLASSIC_FIRST_CONTACT_PRODUCTION_HUD_COMMAND_PLATE_COLOR: u32 = 0x365f52;
+const CLASSIC_FIRST_CONTACT_PRODUCTION_TERRAIN_STRATA_COLOR: u32 = 0x6f8c64;
+const CLASSIC_FIRST_CONTACT_PRODUCTION_EDGE_OCCLUSION_COLOR: u32 = 0x324a3e;
+const CLASSIC_FIRST_CONTACT_PRODUCTION_UNIT_READABILITY_CREST_COLOR: u32 = 0xeaffd3;
+const CLASSIC_FIRST_CONTACT_PRODUCTION_STRUCTURE_VOLUME_SHADOW_COLOR: u32 = 0x4f4634;
+const CLASSIC_FIRST_CONTACT_PRODUCTION_ACTION_INTENT_ARROW_COLOR: u32 = 0xf3f19a;
+const CLASSIC_FIRST_CONTACT_PRODUCTION_HUD_FOCUS_STRIP_COLOR: u32 = 0x4a725f;
 const CLASSIC_FIRST_CONTACT_PLAYER_INLINE_HEALTH_PIP_COUNT: usize = 4;
 const CLASSIC_FIRST_CONTACT_PLAYER_INLINE_HEALTH_PIP_W_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_PLAYER_INLINE_HEALTH_PIP_H_PX: i32 = 2;
@@ -15166,6 +15172,32 @@ pub fn native_classic_rts_production_art_replication_evidence_json(preview_path:
             CLASSIC_FIRST_CONTACT_PRODUCTION_HUD_COMMAND_PLATE_COLOR,
         ),
     ];
+    let first_contact_pack_v4_features = [
+        (
+            "FC TERRAIN STRATA",
+            CLASSIC_FIRST_CONTACT_PRODUCTION_TERRAIN_STRATA_COLOR,
+        ),
+        (
+            "FC EDGE OCCLUSION",
+            CLASSIC_FIRST_CONTACT_PRODUCTION_EDGE_OCCLUSION_COLOR,
+        ),
+        (
+            "FC UNIT CREST",
+            CLASSIC_FIRST_CONTACT_PRODUCTION_UNIT_READABILITY_CREST_COLOR,
+        ),
+        (
+            "FC STRUCTURE SHADOW",
+            CLASSIC_FIRST_CONTACT_PRODUCTION_STRUCTURE_VOLUME_SHADOW_COLOR,
+        ),
+        (
+            "FC INTENT ARROW",
+            CLASSIC_FIRST_CONTACT_PRODUCTION_ACTION_INTENT_ARROW_COLOR,
+        ),
+        (
+            "FC HUD FOCUS",
+            CLASSIC_FIRST_CONTACT_PRODUCTION_HUD_FOCUS_STRIP_COLOR,
+        ),
+    ];
     classic_draw_rect(
         &mut preview_pixels,
         PANEL_WIDTH,
@@ -15265,6 +15297,29 @@ pub fn native_classic_rts_production_art_replication_evidence_json(preview_path:
             CLASSIC_FIRST_CONTACT_PRODUCTION_HUD_ACCENT_COLOR,
         );
     }
+    for (index, (_label, color)) in first_contact_pack_v4_features.iter().enumerate() {
+        let x = 62 + index as i32 * 184;
+        classic_draw_rect(
+            &mut preview_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            x,
+            599,
+            42,
+            4,
+            *color,
+        );
+        classic_draw_rect(
+            &mut preview_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            x + 46,
+            599,
+            18,
+            4,
+            CLASSIC_FIRST_CONTACT_PRODUCTION_HUD_ACCENT_COLOR,
+        );
+    }
 
     classic_draw_rect(
         &mut preview_pixels,
@@ -15323,6 +15378,29 @@ pub fn native_classic_rts_production_art_replication_evidence_json(preview_path:
             PANEL_HEIGHT,
             x + 52,
             592,
+            18,
+            4,
+            CLASSIC_FIRST_CONTACT_PRODUCTION_HUD_ACCENT_COLOR,
+        );
+    }
+    for (index, (_label, color)) in first_contact_pack_v4_features.iter().enumerate() {
+        let x = 72 + index as i32 * 176;
+        classic_draw_rect(
+            &mut preview_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            x,
+            599,
+            48,
+            4,
+            *color,
+        );
+        classic_draw_rect(
+            &mut preview_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            x + 52,
+            599,
             18,
             4,
             CLASSIC_FIRST_CONTACT_PRODUCTION_HUD_ACCENT_COLOR,
@@ -15400,6 +15478,18 @@ pub fn native_classic_rts_production_art_replication_evidence_json(preview_path:
         count_color(CLASSIC_FIRST_CONTACT_PRODUCTION_ACTION_PRIORITY_RIBBON_COLOR);
     let first_contact_v3_hud_command_plate_pixel_count =
         count_color(CLASSIC_FIRST_CONTACT_PRODUCTION_HUD_COMMAND_PLATE_COLOR);
+    let first_contact_v4_terrain_strata_pixel_count =
+        count_color(CLASSIC_FIRST_CONTACT_PRODUCTION_TERRAIN_STRATA_COLOR);
+    let first_contact_v4_edge_occlusion_pixel_count =
+        count_color(CLASSIC_FIRST_CONTACT_PRODUCTION_EDGE_OCCLUSION_COLOR);
+    let first_contact_v4_unit_readability_crest_pixel_count =
+        count_color(CLASSIC_FIRST_CONTACT_PRODUCTION_UNIT_READABILITY_CREST_COLOR);
+    let first_contact_v4_structure_volume_shadow_pixel_count =
+        count_color(CLASSIC_FIRST_CONTACT_PRODUCTION_STRUCTURE_VOLUME_SHADOW_COLOR);
+    let first_contact_v4_action_intent_arrow_pixel_count =
+        count_color(CLASSIC_FIRST_CONTACT_PRODUCTION_ACTION_INTENT_ARROW_COLOR);
+    let first_contact_v4_hud_focus_strip_pixel_count =
+        count_color(CLASSIC_FIRST_CONTACT_PRODUCTION_HUD_FOCUS_STRIP_COLOR);
     let first_contact_production_art_pack_v2_gate = first_contact_pack_v2_features.len() == 5
         && first_contact_v2_terrain_texture_pixel_count > 100
         && first_contact_v2_transition_tile_pixel_count > 100
@@ -15413,6 +15503,13 @@ pub fn native_classic_rts_production_art_replication_evidence_json(preview_path:
         && first_contact_v3_structure_roof_depth_pixel_count > 100
         && first_contact_v3_action_priority_ribbon_pixel_count > 100
         && first_contact_v3_hud_command_plate_pixel_count > 100;
+    let first_contact_production_art_pack_v4_gate = first_contact_pack_v4_features.len() == 6
+        && first_contact_v4_terrain_strata_pixel_count > 100
+        && first_contact_v4_edge_occlusion_pixel_count > 100
+        && first_contact_v4_unit_readability_crest_pixel_count > 100
+        && first_contact_v4_structure_volume_shadow_pixel_count > 100
+        && first_contact_v4_action_intent_arrow_pixel_count > 100
+        && first_contact_v4_hud_focus_strip_pixel_count > 100;
     let first_contact_production_art_pack_gate = first_contact_pack_families.len() == 6
         && first_contact_terrain_material_pixel_count > 600
         && first_contact_edge_blend_pixel_count > 600
@@ -15421,7 +15518,8 @@ pub fn native_classic_rts_production_art_replication_evidence_json(preview_path:
         && first_contact_hud_skin_pixel_count > 600
         && first_contact_action_flow_pixel_count > 600
         && first_contact_production_art_pack_v2_gate
-        && first_contact_production_art_pack_v3_gate;
+        && first_contact_production_art_pack_v3_gate
+        && first_contact_production_art_pack_v4_gate;
     let production_preview_gate = write_gate
         && production_board_pixel_count > 80_000
         && actor_silhouette_pixel_count > 5_000
@@ -15468,6 +15566,7 @@ pub fn native_classic_rts_production_art_replication_evidence_json(preview_path:
         "first_contact_production_pack_family_count": first_contact_pack_families.len(),
         "first_contact_production_pack_v2_feature_count": first_contact_pack_v2_features.len(),
         "first_contact_production_pack_v3_feature_count": first_contact_pack_v3_features.len(),
+        "first_contact_production_pack_v4_feature_count": first_contact_pack_v4_features.len(),
         "production_board_pixel_count": production_board_pixel_count,
         "actor_silhouette_pixel_count": actor_silhouette_pixel_count,
         "building_material_pixel_count": building_material_pixel_count,
@@ -15498,11 +15597,20 @@ pub fn native_classic_rts_production_art_replication_evidence_json(preview_path:
             "action_priority_ribbon": first_contact_v3_action_priority_ribbon_pixel_count,
             "hud_command_plate": first_contact_v3_hud_command_plate_pixel_count
         },
+        "first_contact_production_art_pack_v4_pixel_counts": {
+            "terrain_strata": first_contact_v4_terrain_strata_pixel_count,
+            "edge_occlusion": first_contact_v4_edge_occlusion_pixel_count,
+            "unit_readability_crest": first_contact_v4_unit_readability_crest_pixel_count,
+            "structure_volume_shadow": first_contact_v4_structure_volume_shadow_pixel_count,
+            "action_intent_arrow": first_contact_v4_action_intent_arrow_pixel_count,
+            "hud_focus_strip": first_contact_v4_hud_focus_strip_pixel_count
+        },
         "authored_replacement_slot_gate": authored_replacement_slot_gate,
         "map_ui_gate": map_ui_gate,
         "production_preview_gate": production_preview_gate,
         "first_contact_production_art_pack_v2_gate": first_contact_production_art_pack_v2_gate,
         "first_contact_production_art_pack_v3_gate": first_contact_production_art_pack_v3_gate,
+        "first_contact_production_art_pack_v4_gate": first_contact_production_art_pack_v4_gate,
         "first_contact_production_art_pack_gate": first_contact_production_art_pack_gate,
         "production_art_replication_gate": production_art_replication_gate,
         "no_copy_boundary_gate": no_copy_boundary_gate,
@@ -15968,6 +16076,30 @@ pub fn native_classic_rts_production_asset_atlas_evidence_json(preview_path: &st
             "hud_command_plate",
             CLASSIC_FIRST_CONTACT_PRODUCTION_HUD_COMMAND_PLATE_COLOR,
         ),
+        (
+            "terrain_strata",
+            CLASSIC_FIRST_CONTACT_PRODUCTION_TERRAIN_STRATA_COLOR,
+        ),
+        (
+            "edge_occlusion",
+            CLASSIC_FIRST_CONTACT_PRODUCTION_EDGE_OCCLUSION_COLOR,
+        ),
+        (
+            "unit_readability_crest",
+            CLASSIC_FIRST_CONTACT_PRODUCTION_UNIT_READABILITY_CREST_COLOR,
+        ),
+        (
+            "structure_volume_shadow",
+            CLASSIC_FIRST_CONTACT_PRODUCTION_STRUCTURE_VOLUME_SHADOW_COLOR,
+        ),
+        (
+            "action_intent_arrow",
+            CLASSIC_FIRST_CONTACT_PRODUCTION_ACTION_INTENT_ARROW_COLOR,
+        ),
+        (
+            "hud_focus_strip",
+            CLASSIC_FIRST_CONTACT_PRODUCTION_HUD_FOCUS_STRIP_COLOR,
+        ),
     ];
     classic_draw_rect(
         &mut pixels,
@@ -15990,22 +16122,22 @@ pub fn native_classic_rts_production_asset_atlas_evidence_json(preview_path: &st
         CLASSIC_HUD_TEXT_COLOR,
     );
     for (index, (_slot, color)) in first_contact_pack_slots.iter().enumerate() {
-        let x = 344 + index as i32 * 48;
+        let x = 214 + index as i32 * 42;
         classic_draw_rect(
             &mut pixels,
             PANEL_WIDTH,
             PANEL_HEIGHT,
             x,
             714,
-            44,
-            12,
+            38,
+            14,
             *color,
         );
         classic_draw_rect(
             &mut pixels,
             PANEL_WIDTH,
             PANEL_HEIGHT,
-            x + 28,
+            x + 24,
             716,
             10,
             8,
@@ -16095,7 +16227,7 @@ pub fn native_classic_rts_production_asset_atlas_evidence_json(preview_path: &st
         && runtime_binding_lane_pixel_count > 8_000
         && uv_rect_pixel_count > 6_000;
     let first_contact_production_art_pack_atlas_gate =
-        first_contact_pack_slots.len() == 17 && first_contact_pack_atlas_slot_pixel_count > 7_000;
+        first_contact_pack_slots.len() == 23 && first_contact_pack_atlas_slot_pixel_count > 9_500;
     let no_copy_boundary_gate = bool_at(&production_replication, "no_copy_boundary_gate")
         && !bool_at(&production_replication, "warcraft_iii_asset_copied")
         && !bool_at(&production_replication, "openra_asset_copied")
@@ -16158,7 +16290,8 @@ pub fn native_classic_rts_production_asset_atlas_evidence_json(preview_path: &st
         "first_contact_production_art_pack_id": CLASSIC_FIRST_CONTACT_PRODUCTION_ART_PACK_ID,
         "first_contact_pack_atlas_slot_count": first_contact_pack_slots.len(),
         "first_contact_pack_v2_atlas_slot_count": 5,
-        "first_contact_pack_v3_atlas_slot_count": first_contact_pack_slots.len() - 11,
+        "first_contact_pack_v3_atlas_slot_count": 6,
+        "first_contact_pack_v4_atlas_slot_count": first_contact_pack_slots.len() - 17,
         "first_contact_pack_atlas_slot_names": first_contact_pack_slots
             .iter()
             .map(|(slot, _)| *slot)
@@ -25032,6 +25165,26 @@ pub fn native_classic_rts_full_game_visual_ui_replication_evidence_json(
         WIDTH,
         HEIGHT,
         348,
+        HEIGHT as i32 - 24,
+        520,
+        4,
+        CLASSIC_FIRST_CONTACT_PRODUCTION_HUD_FOCUS_STRIP_COLOR,
+    );
+    classic_draw_rect(
+        &mut pixels,
+        WIDTH,
+        HEIGHT,
+        1338,
+        command_y + 8,
+        224,
+        4,
+        CLASSIC_FIRST_CONTACT_PRODUCTION_HUD_FOCUS_STRIP_COLOR,
+    );
+    classic_draw_rect(
+        &mut pixels,
+        WIDTH,
+        HEIGHT,
+        348,
         HEIGHT as i32 - 36,
         316,
         4,
@@ -25221,6 +25374,18 @@ pub fn native_classic_rts_full_game_visual_ui_replication_evidence_json(
         count_tactical_color(CLASSIC_FIRST_CONTACT_PRODUCTION_ACTION_PRIORITY_RIBBON_COLOR);
     let player_first_production_hud_command_plate_pixel_count =
         count_color(CLASSIC_FIRST_CONTACT_PRODUCTION_HUD_COMMAND_PLATE_COLOR);
+    let player_first_production_terrain_strata_pixel_count =
+        count_tactical_color(CLASSIC_FIRST_CONTACT_PRODUCTION_TERRAIN_STRATA_COLOR);
+    let player_first_production_edge_occlusion_pixel_count =
+        count_tactical_color(CLASSIC_FIRST_CONTACT_PRODUCTION_EDGE_OCCLUSION_COLOR);
+    let player_first_production_unit_readability_crest_pixel_count =
+        count_tactical_color(CLASSIC_FIRST_CONTACT_PRODUCTION_UNIT_READABILITY_CREST_COLOR);
+    let player_first_production_structure_volume_shadow_pixel_count =
+        count_tactical_color(CLASSIC_FIRST_CONTACT_PRODUCTION_STRUCTURE_VOLUME_SHADOW_COLOR);
+    let player_first_production_action_intent_arrow_pixel_count =
+        count_tactical_color(CLASSIC_FIRST_CONTACT_PRODUCTION_ACTION_INTENT_ARROW_COLOR);
+    let player_first_production_hud_focus_strip_pixel_count =
+        count_color(CLASSIC_FIRST_CONTACT_PRODUCTION_HUD_FOCUS_STRIP_COLOR);
     let player_first_production_art_pack_v2_gate =
         player_first_production_terrain_texture_pixel_count > 1_000
             && player_first_production_transition_tile_pixel_count > 300
@@ -25234,6 +25399,13 @@ pub fn native_classic_rts_full_game_visual_ui_replication_evidence_json(
             && player_first_production_structure_roof_depth_pixel_count > 100
             && player_first_production_action_priority_ribbon_pixel_count > 80
             && player_first_production_hud_command_plate_pixel_count > 8_000;
+    let player_first_production_art_pack_v4_gate =
+        player_first_production_terrain_strata_pixel_count > 1_000
+            && player_first_production_edge_occlusion_pixel_count > 300
+            && player_first_production_unit_readability_crest_pixel_count > 80
+            && player_first_production_structure_volume_shadow_pixel_count > 100
+            && player_first_production_action_intent_arrow_pixel_count > 80
+            && player_first_production_hud_focus_strip_pixel_count > 600;
     let player_first_production_art_pack_gate = player_first_production_terrain_material_pixel_count
         > 20_000
         && player_first_production_edge_blend_pixel_count > 1_000
@@ -25242,7 +25414,8 @@ pub fn native_classic_rts_full_game_visual_ui_replication_evidence_json(
         && player_first_production_action_flow_pixel_count > 120
         && player_first_production_hud_skin_pixel_count > 8_000
         && player_first_production_art_pack_v2_gate
-        && player_first_production_art_pack_v3_gate;
+        && player_first_production_art_pack_v3_gate
+        && player_first_production_art_pack_v4_gate;
     let player_first_first_contact_screen_readability_gate =
         player_first_first_contact_lane_ground_pixel_count > 40_000
             && player_first_first_contact_hot_lane_anchor_pixel_count < 1_500
@@ -25542,6 +25715,14 @@ pub fn native_classic_rts_full_game_visual_ui_replication_evidence_json(
             "action_priority_ribbon": player_first_production_action_priority_ribbon_pixel_count,
             "hud_command_plate": player_first_production_hud_command_plate_pixel_count
         },
+        "first_contact_production_art_pack_v4_pixel_counts": {
+            "terrain_strata": player_first_production_terrain_strata_pixel_count,
+            "edge_occlusion": player_first_production_edge_occlusion_pixel_count,
+            "unit_readability_crest": player_first_production_unit_readability_crest_pixel_count,
+            "structure_volume_shadow": player_first_production_structure_volume_shadow_pixel_count,
+            "action_intent_arrow": player_first_production_action_intent_arrow_pixel_count,
+            "hud_focus_strip": player_first_production_hud_focus_strip_pixel_count
+        },
         "first_contact_five_second_readability_checks": {
             "selected_group": player_first_selected_group_readability_gate,
             "beacon": player_first_beacon_readability_gate,
@@ -25563,6 +25744,7 @@ pub fn native_classic_rts_full_game_visual_ui_replication_evidence_json(
         "player_first_hud_player_copy_gate": player_first_hud_player_copy_gate,
         "player_first_production_art_pack_v2_gate": player_first_production_art_pack_v2_gate,
         "player_first_production_art_pack_v3_gate": player_first_production_art_pack_v3_gate,
+        "player_first_production_art_pack_v4_gate": player_first_production_art_pack_v4_gate,
         "player_first_production_art_pack_gate": player_first_production_art_pack_gate,
         "player_first_five_second_readability_gate": player_first_five_second_readability_gate,
         "player_first_tactical_composition_gate": player_first_tactical_composition_gate,
@@ -94337,6 +94519,37 @@ fn classic_draw_first_contact_player_production_terrain_pack(
                 );
             }
         }
+        if seed.rem_euclid(2) == 0 || terrain.height >= 2 || terrain.resource_zone {
+            let strata_w = if terrain.resource_zone {
+                (cell_w - 8).max(14)
+            } else {
+                (cell_w / 2 + 6).max(12)
+            };
+            let strata_x = tile_x + 4 + seed.rem_euclid(4) as i32;
+            let strata_y = tile_y + cell_h / 2 + 3;
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                strata_x,
+                strata_y,
+                strata_w.min(cell_w - 7),
+                2,
+                CLASSIC_FIRST_CONTACT_PRODUCTION_TERRAIN_STRATA_COLOR,
+            );
+            if terrain.height >= 2 {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    tile_x + cell_w / 2 - 5,
+                    tile_y + 5,
+                    10,
+                    2,
+                    CLASSIC_FIRST_CONTACT_PRODUCTION_TERRAIN_STRATA_COLOR,
+                );
+            }
+        }
 
         let region_id = classic_first_contact_player_terrain_region_id(*terrain);
         for (dx, dy, vertical_edge) in [(1, 0, true), (0, 1, false)] {
@@ -94378,6 +94591,16 @@ fn classic_draw_first_contact_player_production_terrain_pack(
                     3,
                     CLASSIC_FIRST_CONTACT_PRODUCTION_TRANSITION_CORNER_COLOR,
                 );
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    tile_x + cell_w - 2,
+                    tile_y + 4,
+                    2,
+                    (cell_h - 8).max(4),
+                    CLASSIC_FIRST_CONTACT_PRODUCTION_EDGE_OCCLUSION_COLOR,
+                );
             } else {
                 classic_draw_rect(
                     buffer,
@@ -94408,6 +94631,16 @@ fn classic_draw_first_contact_player_production_terrain_pack(
                     5,
                     3,
                     CLASSIC_FIRST_CONTACT_PRODUCTION_TRANSITION_CORNER_COLOR,
+                );
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    tile_x + 5,
+                    tile_y + cell_h - 2,
+                    (cell_w - 10).max(8),
+                    2,
+                    CLASSIC_FIRST_CONTACT_PRODUCTION_EDGE_OCCLUSION_COLOR,
                 );
             }
         }
@@ -94892,6 +95125,26 @@ fn classic_draw_first_contact_player_production_action_flow(
                 2,
                 CLASSIC_FIRST_CONTACT_PRODUCTION_ACTION_PRIORITY_RIBBON_COLOR,
             );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                cx + 9,
+                cy - 4,
+                8,
+                3,
+                CLASSIC_FIRST_CONTACT_PRODUCTION_ACTION_INTENT_ARROW_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                cx + 15,
+                cy - 1,
+                4,
+                3,
+                CLASSIC_FIRST_CONTACT_PRODUCTION_ACTION_INTENT_ARROW_COLOR,
+            );
             if step_index.rem_euclid(3) == 0 {
                 classic_draw_rect(
                     buffer,
@@ -95050,6 +95303,26 @@ fn classic_draw_first_contact_player_combat_flow_ribbon(
                 20,
                 2,
                 CLASSIC_FIRST_CONTACT_PRODUCTION_ACTION_PRIORITY_RIBBON_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x + 12,
+                rail_y,
+                9,
+                3,
+                CLASSIC_FIRST_CONTACT_PRODUCTION_ACTION_INTENT_ARROW_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x + 20,
+                rail_y + 3,
+                4,
+                3,
+                CLASSIC_FIRST_CONTACT_PRODUCTION_ACTION_INTENT_ARROW_COLOR,
             );
             step_index += 1;
         }
@@ -96216,6 +96489,26 @@ fn classic_draw_first_contact_player_production_unit_sprite_skin(
         buffer,
         width,
         height,
+        cx - 6,
+        cy - cell_h / 2 - 3,
+        12,
+        2,
+        CLASSIC_FIRST_CONTACT_PRODUCTION_UNIT_READABILITY_CREST_COLOR,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        cx - 12,
+        cy + 5,
+        24,
+        2,
+        CLASSIC_FIRST_CONTACT_PRODUCTION_UNIT_READABILITY_CREST_COLOR,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
         cx - 7,
         cy - cell_h / 2,
         14,
@@ -96502,6 +96795,26 @@ fn classic_draw_first_contact_player_production_structure_sprite_skin(
         (size_w - 14).max(8),
         (size_h / 2).max(4),
         CLASSIC_FIRST_CONTACT_PRODUCTION_STRUCTURE_FACADE_COLOR,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        cx - size_w / 2 + 9,
+        cy + size_h / 2 - 2,
+        (size_w - 12).max(10),
+        4,
+        CLASSIC_FIRST_CONTACT_PRODUCTION_STRUCTURE_VOLUME_SHADOW_COLOR,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        cx + size_w / 2 - 5,
+        cy - size_h / 2 + 7,
+        4,
+        (size_h - 10).max(8),
+        CLASSIC_FIRST_CONTACT_PRODUCTION_STRUCTURE_VOLUME_SHADOW_COLOR,
     );
     classic_draw_rect(
         buffer,
@@ -158230,6 +158543,12 @@ mod tests {
                 .and_then(Value::as_bool),
             Some(true)
         );
+        assert_eq!(
+            evidence
+                .get("player_first_production_art_pack_v4_gate")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
         for (pointer, minimum) in [
             (
                 "/first_contact_production_art_pack_pixel_counts/terrain_material",
@@ -158299,6 +158618,30 @@ mod tests {
                 "/first_contact_production_art_pack_v3_pixel_counts/hud_command_plate",
                 8_000_u64,
             ),
+            (
+                "/first_contact_production_art_pack_v4_pixel_counts/terrain_strata",
+                1_000_u64,
+            ),
+            (
+                "/first_contact_production_art_pack_v4_pixel_counts/edge_occlusion",
+                300_u64,
+            ),
+            (
+                "/first_contact_production_art_pack_v4_pixel_counts/unit_readability_crest",
+                80_u64,
+            ),
+            (
+                "/first_contact_production_art_pack_v4_pixel_counts/structure_volume_shadow",
+                100_u64,
+            ),
+            (
+                "/first_contact_production_art_pack_v4_pixel_counts/action_intent_arrow",
+                80_u64,
+            ),
+            (
+                "/first_contact_production_art_pack_v4_pixel_counts/hud_focus_strip",
+                600_u64,
+            ),
         ] {
             let actual = evidence
                 .pointer(pointer)
@@ -158362,6 +158705,12 @@ mod tests {
             Some(true)
         );
         assert_eq!(
+            production
+                .get("first_contact_production_art_pack_v4_gate")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
             atlas
                 .get("first_contact_production_art_pack_id")
                 .and_then(Value::as_str),
@@ -158377,7 +158726,7 @@ mod tests {
             atlas
                 .get("first_contact_pack_atlas_slot_count")
                 .and_then(Value::as_u64),
-            Some(17)
+            Some(23)
         );
         assert_eq!(
             atlas
@@ -158388,6 +158737,12 @@ mod tests {
         assert_eq!(
             atlas
                 .get("first_contact_pack_v3_atlas_slot_count")
+                .and_then(Value::as_u64),
+            Some(6)
+        );
+        assert_eq!(
+            atlas
+                .get("first_contact_pack_v4_atlas_slot_count")
                 .and_then(Value::as_u64),
             Some(6)
         );
