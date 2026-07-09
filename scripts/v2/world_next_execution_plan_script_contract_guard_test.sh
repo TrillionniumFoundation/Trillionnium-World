@@ -23,6 +23,7 @@ REVIEW_RUNTIME_ADAPTER_ONLINE_BATCH_SCRIPT="$ROOT/scripts/check_trillionnium_wor
 REVIEW_OPENRA_PARITY_CLAIM_BATCH_SCRIPT="$ROOT/scripts/check_trillionnium_world_review_openra_parity_claim_batch.sh"
 REVIEW_FIRST_CONTACT_RTS_DATA_BATCH_SCRIPT="$ROOT/scripts/check_trillionnium_world_review_first_contact_rts_data_batch.sh"
 REVIEW_RTS_EVIDENCE_CRATE_BATCH_SCRIPT="$ROOT/scripts/check_trillionnium_world_review_rts_evidence_crate_batch.sh"
+REVIEW_EVIDENCE_EXPOSURE_BATCH_SCRIPT="$ROOT/scripts/check_trillionnium_world_review_evidence_exposure_batch.sh"
 BLOCKER_LEDGER_SCRIPT="$ROOT/scripts/check_trillionnium_world_public_launch_blocker_execution_ledger.sh"
 DOC="$ROOT/docs/development/trillionnium-world-next-execution-plan-v1.md"
 READABILITY_REVIEW_DOC="$ROOT/docs/development/trillionnium-world-first-contact-readability-review-2026-07-07.md"
@@ -46,6 +47,7 @@ REVIEW_RUNTIME_ADAPTER_ONLINE_BATCH_DOC="$ROOT/docs/development/trillionnium-wor
 REVIEW_OPENRA_PARITY_CLAIM_BATCH_DOC="$ROOT/docs/development/trillionnium-world-review-openra-parity-claim-batch-2026-07-08.md"
 REVIEW_FIRST_CONTACT_RTS_DATA_BATCH_DOC="$ROOT/docs/development/trillionnium-world-review-first-contact-rts-data-batch-2026-07-09.md"
 REVIEW_RTS_EVIDENCE_CRATE_BATCH_DOC="$ROOT/docs/development/trillionnium-world-review-rts-evidence-crate-batch-2026-07-09.md"
+REVIEW_EVIDENCE_EXPOSURE_BATCH_DOC="$ROOT/docs/development/trillionnium-world-review-evidence-exposure-batch-2026-07-09.md"
 BLOCKER_LEDGER_DOC="$ROOT/docs/development/trillionnium-world-public-launch-blocker-execution-ledger-2026-07-07.md"
 
 required_script_lines=(
@@ -198,6 +200,14 @@ required_script_lines=(
   'sub_batch_5_exit_rule_satisfied'
   'sub_batch_6_unblocked_for_local_review'
   'review_evidence_exposure_boundary'
+  'trillionnium-world-review-evidence-exposure-batch-2026-07-09.md'
+  'review_evidence_exposure_batch'
+  'trillionnium-world-review-evidence-exposure-batch.json'
+  'review_evidence_exposure_sub_batch_6_reviewed'
+  'TRNM_WORLD_REVIEW_EVIDENCE_EXPOSURE_BATCH_REFRESH_INPUTS=0'
+  'sub_batch_6_exit_rule_satisfied'
+  'sub_batch_7_unblocked_for_local_review'
+  'bevy_runtime_renderer_boundary'
   'trillionnium-world-public-launch-blocker-execution-ledger-2026-07-07.md'
   'public_launch_blocker_execution_ledger'
   'trillionnium-world-public-launch-blocker-execution-ledger.json'
@@ -271,6 +281,14 @@ required_script_lines=(
   '.review_rts_evidence_crate_batch.batch_3_exit_rule_satisfied == false'
   '.review_rts_evidence_crate_batch.batch_4_unblocked_for_local_review == false'
   '.review_rts_evidence_crate_batch.external_action_performed == false'
+  '.review_evidence_exposure_batch.reviewed_commit_count == 12'
+  '.review_evidence_exposure_batch.unresolved_commit_review_count == 0'
+  '.review_evidence_exposure_batch.batch_3_reviewed_commit_count == 203'
+  '.review_evidence_exposure_batch.batch_3_remaining_commit_level_review_count == 70'
+  '.review_evidence_exposure_batch.sub_batch_6_exit_rule_satisfied == true'
+  '.review_evidence_exposure_batch.batch_3_exit_rule_satisfied == false'
+  '.review_evidence_exposure_batch.batch_4_unblocked_for_local_review == false'
+  '.review_evidence_exposure_batch.external_action_performed == false'
   '.human_playtest_runbook.prompts_bound == true'
   '.evidence_volume_curation.deletion_performed == false'
   '.reviewer_handoff_index.upload_performed == false'
@@ -428,8 +446,8 @@ required_reviewer_handoff_script_lines=(
   'trillionnium_world_reviewer_handoff_index_v1'
   'trillionnium-world-reviewer-handoff-index.json'
   'reviewer_handoff_index_green_with_public_launch_blockers'
-  'artifact_count == 40'
-  'reviewer_summary_count == 26'
+  'artifact_count == 41'
+  'reviewer_summary_count == 27'
   'trillionnium-world-review-triage-queue.json'
   'trillionnium-world-review-primary-owner-plan.json'
   'trillionnium-world-review-release-owner-queue.json'
@@ -951,6 +969,47 @@ required_review_rts_evidence_crate_batch_script_lines=(
   'TRILLIONNIUM_WORLD_REVIEW_RTS_EVIDENCE_CRATE_BATCH_GREEN'
 )
 
+required_review_evidence_exposure_batch_lines=(
+  'Status: local review evidence exposure boundary sub-batch 6.'
+  'review_evidence_exposure_boundary'
+  'Reviewed commit count: `12`'
+  'Per-commit unresolved count: `0`'
+  'Review exposure may surface local review payloads'
+  'sub_batch_6_exit_rule_satisfied=true'
+  'sub_batch_7_unblocked_for_local_review=true'
+  'batch_3_exit_rule_satisfied=false'
+  'batch_4_unblocked_for_local_review=false'
+)
+
+required_review_evidence_exposure_batch_script_lines=(
+  'trillionnium_world_review_evidence_exposure_batch_v1'
+  'trillionnium-world-review-evidence-exposure-batch.json'
+  'TRNM_WORLD_REVIEW_EVIDENCE_EXPOSURE_BATCH_REFRESH_INPUTS'
+  'review_evidence_exposure_sub_batch_6_reviewed'
+  'review_evidence_exposure_boundary'
+  'reviewed_commit_count == 12'
+  'unresolved_commit_review_count == 0'
+  'batch_3_reviewed_commit_count == 203'
+  'batch_3_remaining_commit_level_review_count == 70'
+  'sub_batch_6_local_review_complete == true'
+  'sub_batch_6_exit_rule_satisfied == true'
+  'sub_batch_7_unblocked_for_local_review == true'
+  'batch_3_exit_rule_satisfied == false'
+  'batch_4_unblocked_for_local_review == false'
+  'next_sub_batch_id == "bevy_runtime_renderer_boundary"'
+  'first_contact_runtime_review_gate == true'
+  'classic_visual_flow_counts_exposed == true'
+  'packet_assembly_review_exposed == true'
+  'exposed_review_artifacts_local_only == true'
+  'playable_renderer_ownership_claimed == false'
+  'render_world_extraction_complete_claimed == false'
+  'gpu_upload_claimed == false'
+  'external_action_performed == false'
+  'public_launch_ready_claimed == false'
+  'android_s5_real_device_claimed == false'
+  'TRILLIONNIUM_WORLD_REVIEW_EVIDENCE_EXPOSURE_BATCH_GREEN'
+)
+
 for line in "${required_script_lines[@]}"; do
   if ! grep -Fq -- "$line" "$SCRIPT"; then
     echo "[FAIL] next execution plan script missing contract line: $line" >&2
@@ -1098,6 +1157,13 @@ for line in "${required_review_rts_evidence_crate_batch_lines[@]}"; do
   fi
 done
 
+for line in "${required_review_evidence_exposure_batch_lines[@]}"; do
+  if ! grep -Fq -- "$line" "$REVIEW_EVIDENCE_EXPOSURE_BATCH_DOC"; then
+    echo "[FAIL] review evidence exposure batch missing contract line: $line" >&2
+    exit 1
+  fi
+done
+
 for line in "${required_evidence_volume_lines[@]}"; do
   if ! grep -Fq -- "$line" "$EVIDENCE_VOLUME_DOC"; then
     echo "[FAIL] evidence volume curation missing contract line: $line" >&2
@@ -1234,6 +1300,13 @@ done
 for line in "${required_review_rts_evidence_crate_batch_script_lines[@]}"; do
   if ! grep -Fq -- "$line" "$REVIEW_RTS_EVIDENCE_CRATE_BATCH_SCRIPT"; then
     echo "[FAIL] review RTS evidence crate batch script missing contract line: $line" >&2
+    exit 1
+  fi
+done
+
+for line in "${required_review_evidence_exposure_batch_script_lines[@]}"; do
+  if ! grep -Fq -- "$line" "$REVIEW_EVIDENCE_EXPOSURE_BATCH_SCRIPT"; then
+    echo "[FAIL] review evidence exposure batch script missing contract line: $line" >&2
     exit 1
   fi
 done

@@ -51,6 +51,8 @@ acceptance directory first.
   `acceptance/S6_public_launch/latest/trillionnium-world-review-first-contact-rts-data-batch.json`
 - Review RTS evidence crate batch:
   `acceptance/S6_public_launch/latest/trillionnium-world-review-rts-evidence-crate-batch.json`
+- Review evidence exposure batch:
+  `acceptance/S6_public_launch/latest/trillionnium-world-review-evidence-exposure-batch.json`
 - Public-launch blocker execution ledger:
   `acceptance/S6_public_launch/latest/trillionnium-world-public-launch-blocker-execution-ledger.json`
 - First Contact observation/runbook artifacts:
@@ -63,7 +65,7 @@ acceptance directory first.
 
 | Section ID | Contents | Reviewer Use |
 | --- | --- | --- |
-| `reviewer_summary` | Small JSON/Markdown status, packet, runbook, curation, review-slice strategy/manifest, review triage queue, primary-owner plan, release-owner queue, runtime-owner queue, residual queue, review execution batches, public-boundary batch, release-native handoff batch, runtime-boundary batch, runtime-core semantics batch, runtime-adapter/online batch, OpenRA parity/claim batch, First Contact RTS data batch, RTS evidence crate batch, blocker-ledger, and blocker artifacts. | Read first for state, next action, and no-credit boundaries. |
+| `reviewer_summary` | Small JSON/Markdown status, packet, runbook, curation, review-slice strategy/manifest, review triage queue, primary-owner plan, release-owner queue, runtime-owner queue, residual queue, review execution batches, public-boundary batch, release-native handoff batch, runtime-boundary batch, runtime-core semantics batch, runtime-adapter/online batch, OpenRA parity/claim batch, First Contact RTS data batch, RTS evidence crate batch, review evidence exposure batch, blocker-ledger, and blocker artifacts. | Read first for state, next action, and no-credit boundaries. |
 | `live_player_screen` | Current runner status JSON/probe plus live player-screen PNG. | Inspect the current playable First Contact surface. |
 | `representative_visuals` | A short PNG set covering full-game, full-screen, shell/meta, match setup, and HUD surfaces. | Inspect product breadth without loading raw PPM archives. |
 | `raw_visual_archive_candidates` | Large PPM evidence files kept in place and checksummed for deep audit. | Prove the large raw evidence remains addressable without making it the first reviewer path. |
