@@ -122,6 +122,7 @@ run_check bash_syntax bash -n \
   "$ROOT/scripts/check_trillionnium_world_review_bevy_runtime_renderer_batch.sh" \
   "$ROOT/scripts/check_trillionnium_world_review_first_contact_player_surface_cues_batch.sh" \
   "$ROOT/scripts/check_trillionnium_world_review_generated_count_surface_batch.sh" \
+  "$ROOT/scripts/check_trillionnium_world_review_docs_plan_truth_source_batch.sh" \
   "$ROOT/scripts/check_trillionnium_world_public_launch_status_only_fixtures.sh" \
   "$ROOT/scripts/check_trillionnium_world_cohort_commercial_evidence_collection.sh" \
   "$ROOT/scripts/check_trillionnium_world_cohort_commercial_evidence.sh" \
@@ -1067,6 +1068,9 @@ run_check world_review_first_contact_player_surface_cues_batch env \
 run_check world_review_generated_count_surface_batch env \
   TRNM_WORLD_REVIEW_GENERATED_COUNT_SURFACE_BATCH_REFRESH_INPUTS=0 \
   "$ROOT/scripts/check_trillionnium_world_review_generated_count_surface_batch.sh"
+run_check world_review_docs_plan_truth_source_batch env \
+  TRNM_WORLD_REVIEW_DOCS_PLAN_TRUTH_SOURCE_BATCH_REFRESH_INPUTS=0 \
+  "$ROOT/scripts/check_trillionnium_world_review_docs_plan_truth_source_batch.sh"
 run_check readme_local_links "$ROOT/scripts/check_root_readme_local_links.sh"
 run_check workflow_script_refs env \
   WORKFLOW_SCRIPT_REF_STRICT=1 \
