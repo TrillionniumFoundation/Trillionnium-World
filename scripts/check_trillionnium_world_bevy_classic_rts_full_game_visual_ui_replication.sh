@@ -116,7 +116,16 @@ jq -e '
   and .coverage_surface_gate == true
   and .preview_gate == true
   and .player_first_first_contact_screen_readability_gate == true
+  and .first_contact_art_direction == "top_down_pixel_rts"
+  and .player_first_map_composition_gate == true
+  and .player_first_hud_player_copy_gate == true
+  and .player_first_five_second_readability_gate == true
   and .player_first_tactical_composition_gate == true
+  and .first_contact_five_second_readability_checks.selected_group == true
+  and .first_contact_five_second_readability_checks.beacon == true
+  and .first_contact_five_second_readability_checks.route == true
+  and .first_contact_five_second_readability_checks.blocked_route == true
+  and .first_contact_five_second_readability_checks.next_command == true
   and .full_game_command_grid_readability_gate == true
   and .full_game_command_grid_role_ids == ["worker","scout","warden","relay","core","signal","worker","scout","warden","relay","core","signal"]
   and (.full_game_command_grid_icon_signatures | index("unit_pickaxe_ore") != null)
@@ -164,6 +173,12 @@ jq -e '
   and .pixel_counts.player_first_first_contact_combat_flow >= 100
   and .pixel_counts.player_first_first_contact_target_rim >= 80
   and .pixel_counts.player_first_tactical_occluding_panel < 2000
+  and .first_contact_art_direction_pixel_counts.terrain_regions > 80000
+  and .first_contact_art_direction_pixel_counts.terrain_edge_transitions > 1500
+  and .first_contact_art_direction_pixel_counts.unit_sprite_family_marks > 80
+  and .first_contact_art_direction_pixel_counts.structure_sprite_family_marks > 80
+  and .first_contact_art_direction_pixel_counts.blocked_route_geometry > 40
+  and .first_contact_art_direction_pixel_counts.next_command_chip > 900
   and .source_headline.full_screen_surface_count == 10
   and .source_headline.shell_meta_surface_count == 12
   and .source_headline.match_setup_surface_count == 10
