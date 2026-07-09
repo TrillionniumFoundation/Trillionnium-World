@@ -25076,7 +25076,7 @@ pub fn native_classic_rts_full_game_visual_ui_replication_evidence_json(
         HEIGHT,
         right_x + 12,
         764,
-        "LEAGUE COLISEUM READY",
+        "COLISEUM READY",
         1,
         0x111817,
     );
