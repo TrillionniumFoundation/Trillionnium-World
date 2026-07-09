@@ -66,11 +66,12 @@ jq -e '
   and (.required_replacement_slots | index("actor_sprite_slot") != null)
   and (.required_replacement_slots | index("feedback_glyph_slot") != null)
   and .production_family_count == 9
-  and .first_contact_production_art_pack_id == "first_contact_production_art_pack_v4"
+  and .first_contact_production_art_pack_id == "first_contact_production_art_pack_v5"
   and .first_contact_production_pack_family_count == 6
   and .first_contact_production_pack_v2_feature_count == 5
   and .first_contact_production_pack_v3_feature_count == 6
   and .first_contact_production_pack_v4_feature_count == 6
+  and .first_contact_production_pack_v5_feature_count == 6
   and .production_board_pixel_count > 80000
   and .actor_silhouette_pixel_count > 5000
   and .building_material_pixel_count > 3000
@@ -104,6 +105,13 @@ jq -e '
   and .first_contact_production_art_pack_v4_pixel_counts.action_intent_arrow > 100
   and .first_contact_production_art_pack_v4_pixel_counts.hud_focus_strip > 100
   and .first_contact_production_art_pack_v4_gate == true
+  and .first_contact_production_art_pack_v5_pixel_counts.terrain_micro_detail > 100
+  and .first_contact_production_art_pack_v5_pixel_counts.edge_bevel > 100
+  and .first_contact_production_art_pack_v5_pixel_counts.unit_stance_shadow > 100
+  and .first_contact_production_art_pack_v5_pixel_counts.structure_light_rim > 100
+  and .first_contact_production_art_pack_v5_pixel_counts.action_target_chevron > 100
+  and .first_contact_production_art_pack_v5_pixel_counts.hud_command_highlight > 100
+  and .first_contact_production_art_pack_v5_gate == true
   and .authored_replacement_slot_gate == true
   and .map_ui_gate == true
   and .production_preview_gate == true

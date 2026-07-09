@@ -117,11 +117,12 @@ jq -e '
   and .preview_gate == true
   and .player_first_first_contact_screen_readability_gate == true
   and .first_contact_art_direction == "top_down_pixel_rts"
-  and .first_contact_production_art_pack_id == "first_contact_production_art_pack_v4"
+  and .first_contact_production_art_pack_id == "first_contact_production_art_pack_v5"
   and .player_first_map_composition_gate == true
   and .player_first_production_art_pack_v2_gate == true
   and .player_first_production_art_pack_v3_gate == true
   and .player_first_production_art_pack_v4_gate == true
+  and .player_first_production_art_pack_v5_gate == true
   and .player_first_production_art_pack_gate == true
   and .player_first_hud_player_copy_gate == true
   and .player_first_five_second_readability_gate == true
@@ -189,6 +190,12 @@ jq -e '
   and .pixel_counts.player_first_production_unit_silhouette > 80
   and .pixel_counts.player_first_production_structure_facade > 100
   and .pixel_counts.player_first_production_action_stroke > 80
+  and .pixel_counts.player_first_production_terrain_micro_detail > 1000
+  and .pixel_counts.player_first_production_edge_bevel > 300
+  and .pixel_counts.player_first_production_unit_stance_shadow > 80
+  and .pixel_counts.player_first_production_structure_light_rim > 100
+  and .pixel_counts.player_first_production_action_target_chevron > 80
+  and .pixel_counts.player_first_production_hud_command_highlight > 600
   and .first_contact_art_direction_pixel_counts.terrain_regions > 80000
   and .first_contact_art_direction_pixel_counts.terrain_edge_transitions > 1500
   and .first_contact_art_direction_pixel_counts.unit_sprite_family_marks > 80
@@ -218,6 +225,12 @@ jq -e '
   and .first_contact_production_art_pack_v4_pixel_counts.structure_volume_shadow > 100
   and .first_contact_production_art_pack_v4_pixel_counts.action_intent_arrow > 80
   and .first_contact_production_art_pack_v4_pixel_counts.hud_focus_strip > 600
+  and .first_contact_production_art_pack_v5_pixel_counts.terrain_micro_detail > 1000
+  and .first_contact_production_art_pack_v5_pixel_counts.edge_bevel > 300
+  and .first_contact_production_art_pack_v5_pixel_counts.unit_stance_shadow > 80
+  and .first_contact_production_art_pack_v5_pixel_counts.structure_light_rim > 100
+  and .first_contact_production_art_pack_v5_pixel_counts.action_target_chevron > 80
+  and .first_contact_production_art_pack_v5_pixel_counts.hud_command_highlight > 600
   and .source_headline.full_screen_surface_count == 10
   and .source_headline.shell_meta_surface_count == 12
   and .source_headline.match_setup_surface_count == 10

@@ -64,11 +64,12 @@ jq -e '
   and (.atlas_family_names | index("PLAYER UNITS") != null)
   and (.atlas_family_names | index("HUD ICONS") != null)
   and (.atlas_family_names | index("FEEDBACK VFX") != null)
-  and .first_contact_production_art_pack_id == "first_contact_production_art_pack_v4"
-  and .first_contact_pack_atlas_slot_count == 23
+  and .first_contact_production_art_pack_id == "first_contact_production_art_pack_v5"
+  and .first_contact_pack_atlas_slot_count == 29
   and .first_contact_pack_v2_atlas_slot_count == 5
   and .first_contact_pack_v3_atlas_slot_count == 6
   and .first_contact_pack_v4_atlas_slot_count == 6
+  and .first_contact_pack_v5_atlas_slot_count == 6
   and (.first_contact_pack_atlas_slot_names | index("terrain_material") != null)
   and (.first_contact_pack_atlas_slot_names | index("edge_blend") != null)
   and (.first_contact_pack_atlas_slot_names | index("unit_sprite_skin") != null)
@@ -92,6 +93,12 @@ jq -e '
   and (.first_contact_pack_atlas_slot_names | index("structure_volume_shadow") != null)
   and (.first_contact_pack_atlas_slot_names | index("action_intent_arrow") != null)
   and (.first_contact_pack_atlas_slot_names | index("hud_focus_strip") != null)
+  and (.first_contact_pack_atlas_slot_names | index("terrain_micro_detail") != null)
+  and (.first_contact_pack_atlas_slot_names | index("edge_bevel") != null)
+  and (.first_contact_pack_atlas_slot_names | index("unit_stance_shadow") != null)
+  and (.first_contact_pack_atlas_slot_names | index("structure_light_rim") != null)
+  and (.first_contact_pack_atlas_slot_names | index("action_target_chevron") != null)
+  and (.first_contact_pack_atlas_slot_names | index("hud_command_highlight") != null)
   and .atlas_frame_count >= 32
   and .sprite_binding_count >= 32
   and .material_asset_count == 4
@@ -130,7 +137,7 @@ jq -e '
   and .feedback_vfx_pixel_count > 1500
   and .runtime_binding_lane_pixel_count > 8000
   and .uv_rect_pixel_count > 6000
-  and .first_contact_pack_atlas_slot_pixel_count > 9500
+  and .first_contact_pack_atlas_slot_pixel_count > 12000
   and .first_contact_pack_atlas_uv_pixel_count > 6000
   and .production_art_replication_gate == true
   and .sprite_sheet_gate == true

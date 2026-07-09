@@ -969,7 +969,7 @@ const CLASSIC_FIRST_CONTACT_PLAYER_UNIT_FAMILY_MARK_COLOR: u32 = 0x9ee6d0;
 const CLASSIC_FIRST_CONTACT_PLAYER_STRUCTURE_FAMILY_MARK_COLOR: u32 = 0xffdf9a;
 const CLASSIC_FIRST_CONTACT_PLAYER_BLOCKED_ROUTE_GEOMETRY_COLOR: u32 = 0xe18f7d;
 const CLASSIC_FIRST_CONTACT_PLAYER_NEXT_COMMAND_CHIP_COLOR: u32 = 0xffd57f;
-const CLASSIC_FIRST_CONTACT_PRODUCTION_ART_PACK_ID: &str = "first_contact_production_art_pack_v4";
+const CLASSIC_FIRST_CONTACT_PRODUCTION_ART_PACK_ID: &str = "first_contact_production_art_pack_v5";
 const CLASSIC_FIRST_CONTACT_PRODUCTION_TERRAIN_BLEND_COLOR: u32 = 0x5f7c62;
 const CLASSIC_FIRST_CONTACT_PRODUCTION_TERRAIN_SHADOW_COLOR: u32 = 0x26382f;
 const CLASSIC_FIRST_CONTACT_PRODUCTION_EDGE_BLEND_COLOR: u32 = 0xa2ad76;
@@ -997,6 +997,12 @@ const CLASSIC_FIRST_CONTACT_PRODUCTION_UNIT_READABILITY_CREST_COLOR: u32 = 0xeaf
 const CLASSIC_FIRST_CONTACT_PRODUCTION_STRUCTURE_VOLUME_SHADOW_COLOR: u32 = 0x4f4634;
 const CLASSIC_FIRST_CONTACT_PRODUCTION_ACTION_INTENT_ARROW_COLOR: u32 = 0xf3f19a;
 const CLASSIC_FIRST_CONTACT_PRODUCTION_HUD_FOCUS_STRIP_COLOR: u32 = 0x4a725f;
+const CLASSIC_FIRST_CONTACT_PRODUCTION_TERRAIN_MICRO_DETAIL_COLOR: u32 = 0x9ab879;
+const CLASSIC_FIRST_CONTACT_PRODUCTION_EDGE_BEVEL_COLOR: u32 = 0xcbd58d;
+const CLASSIC_FIRST_CONTACT_PRODUCTION_UNIT_STANCE_SHADOW_COLOR: u32 = 0x2e554a;
+const CLASSIC_FIRST_CONTACT_PRODUCTION_STRUCTURE_LIGHT_RIM_COLOR: u32 = 0xfff4c2;
+const CLASSIC_FIRST_CONTACT_PRODUCTION_ACTION_TARGET_CHEVRON_COLOR: u32 = 0xffe37d;
+const CLASSIC_FIRST_CONTACT_PRODUCTION_HUD_COMMAND_HIGHLIGHT_COLOR: u32 = 0x668c72;
 const CLASSIC_FIRST_CONTACT_PLAYER_INLINE_HEALTH_PIP_COUNT: usize = 4;
 const CLASSIC_FIRST_CONTACT_PLAYER_INLINE_HEALTH_PIP_W_PX: i32 = 2;
 const CLASSIC_FIRST_CONTACT_PLAYER_INLINE_HEALTH_PIP_H_PX: i32 = 2;
@@ -15198,6 +15204,32 @@ pub fn native_classic_rts_production_art_replication_evidence_json(preview_path:
             CLASSIC_FIRST_CONTACT_PRODUCTION_HUD_FOCUS_STRIP_COLOR,
         ),
     ];
+    let first_contact_pack_v5_features = [
+        (
+            "FC TERRAIN DETAIL",
+            CLASSIC_FIRST_CONTACT_PRODUCTION_TERRAIN_MICRO_DETAIL_COLOR,
+        ),
+        (
+            "FC EDGE BEVEL",
+            CLASSIC_FIRST_CONTACT_PRODUCTION_EDGE_BEVEL_COLOR,
+        ),
+        (
+            "FC UNIT STANCE",
+            CLASSIC_FIRST_CONTACT_PRODUCTION_UNIT_STANCE_SHADOW_COLOR,
+        ),
+        (
+            "FC STRUCTURE RIM",
+            CLASSIC_FIRST_CONTACT_PRODUCTION_STRUCTURE_LIGHT_RIM_COLOR,
+        ),
+        (
+            "FC TARGET CHEVRON",
+            CLASSIC_FIRST_CONTACT_PRODUCTION_ACTION_TARGET_CHEVRON_COLOR,
+        ),
+        (
+            "FC COMMAND FOCUS",
+            CLASSIC_FIRST_CONTACT_PRODUCTION_HUD_COMMAND_HIGHLIGHT_COLOR,
+        ),
+    ];
     classic_draw_rect(
         &mut preview_pixels,
         PANEL_WIDTH,
@@ -15320,6 +15352,29 @@ pub fn native_classic_rts_production_art_replication_evidence_json(preview_path:
             CLASSIC_FIRST_CONTACT_PRODUCTION_HUD_ACCENT_COLOR,
         );
     }
+    for (index, (_label, color)) in first_contact_pack_v5_features.iter().enumerate() {
+        let x = 62 + index as i32 * 184;
+        classic_draw_rect(
+            &mut preview_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            x,
+            609,
+            42,
+            4,
+            *color,
+        );
+        classic_draw_rect(
+            &mut preview_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            x + 46,
+            609,
+            18,
+            4,
+            CLASSIC_FIRST_CONTACT_PRODUCTION_HUD_ACCENT_COLOR,
+        );
+    }
 
     classic_draw_rect(
         &mut preview_pixels,
@@ -15401,6 +15456,29 @@ pub fn native_classic_rts_production_art_replication_evidence_json(preview_path:
             PANEL_HEIGHT,
             x + 52,
             599,
+            18,
+            4,
+            CLASSIC_FIRST_CONTACT_PRODUCTION_HUD_ACCENT_COLOR,
+        );
+    }
+    for (index, (_label, color)) in first_contact_pack_v5_features.iter().enumerate() {
+        let x = 72 + index as i32 * 176;
+        classic_draw_rect(
+            &mut preview_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            x,
+            606,
+            48,
+            4,
+            *color,
+        );
+        classic_draw_rect(
+            &mut preview_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            x + 52,
+            606,
             18,
             4,
             CLASSIC_FIRST_CONTACT_PRODUCTION_HUD_ACCENT_COLOR,
@@ -15490,6 +15568,18 @@ pub fn native_classic_rts_production_art_replication_evidence_json(preview_path:
         count_color(CLASSIC_FIRST_CONTACT_PRODUCTION_ACTION_INTENT_ARROW_COLOR);
     let first_contact_v4_hud_focus_strip_pixel_count =
         count_color(CLASSIC_FIRST_CONTACT_PRODUCTION_HUD_FOCUS_STRIP_COLOR);
+    let first_contact_v5_terrain_micro_detail_pixel_count =
+        count_color(CLASSIC_FIRST_CONTACT_PRODUCTION_TERRAIN_MICRO_DETAIL_COLOR);
+    let first_contact_v5_edge_bevel_pixel_count =
+        count_color(CLASSIC_FIRST_CONTACT_PRODUCTION_EDGE_BEVEL_COLOR);
+    let first_contact_v5_unit_stance_shadow_pixel_count =
+        count_color(CLASSIC_FIRST_CONTACT_PRODUCTION_UNIT_STANCE_SHADOW_COLOR);
+    let first_contact_v5_structure_light_rim_pixel_count =
+        count_color(CLASSIC_FIRST_CONTACT_PRODUCTION_STRUCTURE_LIGHT_RIM_COLOR);
+    let first_contact_v5_action_target_chevron_pixel_count =
+        count_color(CLASSIC_FIRST_CONTACT_PRODUCTION_ACTION_TARGET_CHEVRON_COLOR);
+    let first_contact_v5_hud_command_highlight_pixel_count =
+        count_color(CLASSIC_FIRST_CONTACT_PRODUCTION_HUD_COMMAND_HIGHLIGHT_COLOR);
     let first_contact_production_art_pack_v2_gate = first_contact_pack_v2_features.len() == 5
         && first_contact_v2_terrain_texture_pixel_count > 100
         && first_contact_v2_transition_tile_pixel_count > 100
@@ -15510,6 +15600,13 @@ pub fn native_classic_rts_production_art_replication_evidence_json(preview_path:
         && first_contact_v4_structure_volume_shadow_pixel_count > 100
         && first_contact_v4_action_intent_arrow_pixel_count > 100
         && first_contact_v4_hud_focus_strip_pixel_count > 100;
+    let first_contact_production_art_pack_v5_gate = first_contact_pack_v5_features.len() == 6
+        && first_contact_v5_terrain_micro_detail_pixel_count > 100
+        && first_contact_v5_edge_bevel_pixel_count > 100
+        && first_contact_v5_unit_stance_shadow_pixel_count > 100
+        && first_contact_v5_structure_light_rim_pixel_count > 100
+        && first_contact_v5_action_target_chevron_pixel_count > 100
+        && first_contact_v5_hud_command_highlight_pixel_count > 100;
     let first_contact_production_art_pack_gate = first_contact_pack_families.len() == 6
         && first_contact_terrain_material_pixel_count > 600
         && first_contact_edge_blend_pixel_count > 600
@@ -15519,7 +15616,8 @@ pub fn native_classic_rts_production_art_replication_evidence_json(preview_path:
         && first_contact_action_flow_pixel_count > 600
         && first_contact_production_art_pack_v2_gate
         && first_contact_production_art_pack_v3_gate
-        && first_contact_production_art_pack_v4_gate;
+        && first_contact_production_art_pack_v4_gate
+        && first_contact_production_art_pack_v5_gate;
     let production_preview_gate = write_gate
         && production_board_pixel_count > 80_000
         && actor_silhouette_pixel_count > 5_000
@@ -15567,6 +15665,7 @@ pub fn native_classic_rts_production_art_replication_evidence_json(preview_path:
         "first_contact_production_pack_v2_feature_count": first_contact_pack_v2_features.len(),
         "first_contact_production_pack_v3_feature_count": first_contact_pack_v3_features.len(),
         "first_contact_production_pack_v4_feature_count": first_contact_pack_v4_features.len(),
+        "first_contact_production_pack_v5_feature_count": first_contact_pack_v5_features.len(),
         "production_board_pixel_count": production_board_pixel_count,
         "actor_silhouette_pixel_count": actor_silhouette_pixel_count,
         "building_material_pixel_count": building_material_pixel_count,
@@ -15605,12 +15704,21 @@ pub fn native_classic_rts_production_art_replication_evidence_json(preview_path:
             "action_intent_arrow": first_contact_v4_action_intent_arrow_pixel_count,
             "hud_focus_strip": first_contact_v4_hud_focus_strip_pixel_count
         },
+        "first_contact_production_art_pack_v5_pixel_counts": {
+            "terrain_micro_detail": first_contact_v5_terrain_micro_detail_pixel_count,
+            "edge_bevel": first_contact_v5_edge_bevel_pixel_count,
+            "unit_stance_shadow": first_contact_v5_unit_stance_shadow_pixel_count,
+            "structure_light_rim": first_contact_v5_structure_light_rim_pixel_count,
+            "action_target_chevron": first_contact_v5_action_target_chevron_pixel_count,
+            "hud_command_highlight": first_contact_v5_hud_command_highlight_pixel_count
+        },
         "authored_replacement_slot_gate": authored_replacement_slot_gate,
         "map_ui_gate": map_ui_gate,
         "production_preview_gate": production_preview_gate,
         "first_contact_production_art_pack_v2_gate": first_contact_production_art_pack_v2_gate,
         "first_contact_production_art_pack_v3_gate": first_contact_production_art_pack_v3_gate,
         "first_contact_production_art_pack_v4_gate": first_contact_production_art_pack_v4_gate,
+        "first_contact_production_art_pack_v5_gate": first_contact_production_art_pack_v5_gate,
         "first_contact_production_art_pack_gate": first_contact_production_art_pack_gate,
         "production_art_replication_gate": production_art_replication_gate,
         "no_copy_boundary_gate": no_copy_boundary_gate,
@@ -16100,6 +16208,30 @@ pub fn native_classic_rts_production_asset_atlas_evidence_json(preview_path: &st
             "hud_focus_strip",
             CLASSIC_FIRST_CONTACT_PRODUCTION_HUD_FOCUS_STRIP_COLOR,
         ),
+        (
+            "terrain_micro_detail",
+            CLASSIC_FIRST_CONTACT_PRODUCTION_TERRAIN_MICRO_DETAIL_COLOR,
+        ),
+        (
+            "edge_bevel",
+            CLASSIC_FIRST_CONTACT_PRODUCTION_EDGE_BEVEL_COLOR,
+        ),
+        (
+            "unit_stance_shadow",
+            CLASSIC_FIRST_CONTACT_PRODUCTION_UNIT_STANCE_SHADOW_COLOR,
+        ),
+        (
+            "structure_light_rim",
+            CLASSIC_FIRST_CONTACT_PRODUCTION_STRUCTURE_LIGHT_RIM_COLOR,
+        ),
+        (
+            "action_target_chevron",
+            CLASSIC_FIRST_CONTACT_PRODUCTION_ACTION_TARGET_CHEVRON_COLOR,
+        ),
+        (
+            "hud_command_highlight",
+            CLASSIC_FIRST_CONTACT_PRODUCTION_HUD_COMMAND_HIGHLIGHT_COLOR,
+        ),
     ];
     classic_draw_rect(
         &mut pixels,
@@ -16122,7 +16254,7 @@ pub fn native_classic_rts_production_asset_atlas_evidence_json(preview_path: &st
         CLASSIC_HUD_TEXT_COLOR,
     );
     for (index, (_slot, color)) in first_contact_pack_slots.iter().enumerate() {
-        let x = 214 + index as i32 * 42;
+        let x = 144 + index as i32 * 38;
         classic_draw_rect(
             &mut pixels,
             PANEL_WIDTH,
@@ -16227,7 +16359,7 @@ pub fn native_classic_rts_production_asset_atlas_evidence_json(preview_path: &st
         && runtime_binding_lane_pixel_count > 8_000
         && uv_rect_pixel_count > 6_000;
     let first_contact_production_art_pack_atlas_gate =
-        first_contact_pack_slots.len() == 23 && first_contact_pack_atlas_slot_pixel_count > 9_500;
+        first_contact_pack_slots.len() == 29 && first_contact_pack_atlas_slot_pixel_count > 12_000;
     let no_copy_boundary_gate = bool_at(&production_replication, "no_copy_boundary_gate")
         && !bool_at(&production_replication, "warcraft_iii_asset_copied")
         && !bool_at(&production_replication, "openra_asset_copied")
@@ -16291,7 +16423,8 @@ pub fn native_classic_rts_production_asset_atlas_evidence_json(preview_path: &st
         "first_contact_pack_atlas_slot_count": first_contact_pack_slots.len(),
         "first_contact_pack_v2_atlas_slot_count": 5,
         "first_contact_pack_v3_atlas_slot_count": 6,
-        "first_contact_pack_v4_atlas_slot_count": first_contact_pack_slots.len() - 17,
+        "first_contact_pack_v4_atlas_slot_count": 6,
+        "first_contact_pack_v5_atlas_slot_count": first_contact_pack_slots.len() - 23,
         "first_contact_pack_atlas_slot_names": first_contact_pack_slots
             .iter()
             .map(|(slot, _)| *slot)
@@ -25184,6 +25317,36 @@ pub fn native_classic_rts_full_game_visual_ui_replication_evidence_json(
         &mut pixels,
         WIDTH,
         HEIGHT,
+        344,
+        HEIGHT as i32 - 39,
+        326,
+        3,
+        CLASSIC_FIRST_CONTACT_PRODUCTION_HUD_COMMAND_HIGHLIGHT_COLOR,
+    );
+    classic_draw_rect(
+        &mut pixels,
+        WIDTH,
+        HEIGHT,
+        344,
+        HEIGHT as i32 - 19,
+        326,
+        3,
+        CLASSIC_FIRST_CONTACT_PRODUCTION_HUD_COMMAND_HIGHLIGHT_COLOR,
+    );
+    classic_draw_rect(
+        &mut pixels,
+        WIDTH,
+        HEIGHT,
+        1338,
+        command_y + 15,
+        224,
+        3,
+        CLASSIC_FIRST_CONTACT_PRODUCTION_HUD_COMMAND_HIGHLIGHT_COLOR,
+    );
+    classic_draw_rect(
+        &mut pixels,
+        WIDTH,
+        HEIGHT,
         348,
         HEIGHT as i32 - 36,
         316,
@@ -25386,6 +25549,18 @@ pub fn native_classic_rts_full_game_visual_ui_replication_evidence_json(
         count_tactical_color(CLASSIC_FIRST_CONTACT_PRODUCTION_ACTION_INTENT_ARROW_COLOR);
     let player_first_production_hud_focus_strip_pixel_count =
         count_color(CLASSIC_FIRST_CONTACT_PRODUCTION_HUD_FOCUS_STRIP_COLOR);
+    let player_first_production_terrain_micro_detail_pixel_count =
+        count_tactical_color(CLASSIC_FIRST_CONTACT_PRODUCTION_TERRAIN_MICRO_DETAIL_COLOR);
+    let player_first_production_edge_bevel_pixel_count =
+        count_tactical_color(CLASSIC_FIRST_CONTACT_PRODUCTION_EDGE_BEVEL_COLOR);
+    let player_first_production_unit_stance_shadow_pixel_count =
+        count_tactical_color(CLASSIC_FIRST_CONTACT_PRODUCTION_UNIT_STANCE_SHADOW_COLOR);
+    let player_first_production_structure_light_rim_pixel_count =
+        count_tactical_color(CLASSIC_FIRST_CONTACT_PRODUCTION_STRUCTURE_LIGHT_RIM_COLOR);
+    let player_first_production_action_target_chevron_pixel_count =
+        count_tactical_color(CLASSIC_FIRST_CONTACT_PRODUCTION_ACTION_TARGET_CHEVRON_COLOR);
+    let player_first_production_hud_command_highlight_pixel_count =
+        count_color(CLASSIC_FIRST_CONTACT_PRODUCTION_HUD_COMMAND_HIGHLIGHT_COLOR);
     let player_first_production_art_pack_v2_gate =
         player_first_production_terrain_texture_pixel_count > 1_000
             && player_first_production_transition_tile_pixel_count > 300
@@ -25406,6 +25581,13 @@ pub fn native_classic_rts_full_game_visual_ui_replication_evidence_json(
             && player_first_production_structure_volume_shadow_pixel_count > 100
             && player_first_production_action_intent_arrow_pixel_count > 80
             && player_first_production_hud_focus_strip_pixel_count > 600;
+    let player_first_production_art_pack_v5_gate =
+        player_first_production_terrain_micro_detail_pixel_count > 1_000
+            && player_first_production_edge_bevel_pixel_count > 300
+            && player_first_production_unit_stance_shadow_pixel_count > 80
+            && player_first_production_structure_light_rim_pixel_count > 100
+            && player_first_production_action_target_chevron_pixel_count > 80
+            && player_first_production_hud_command_highlight_pixel_count > 600;
     let player_first_production_art_pack_gate = player_first_production_terrain_material_pixel_count
         > 20_000
         && player_first_production_edge_blend_pixel_count > 1_000
@@ -25415,7 +25597,8 @@ pub fn native_classic_rts_full_game_visual_ui_replication_evidence_json(
         && player_first_production_hud_skin_pixel_count > 8_000
         && player_first_production_art_pack_v2_gate
         && player_first_production_art_pack_v3_gate
-        && player_first_production_art_pack_v4_gate;
+        && player_first_production_art_pack_v4_gate
+        && player_first_production_art_pack_v5_gate;
     let player_first_first_contact_screen_readability_gate =
         player_first_first_contact_lane_ground_pixel_count > 40_000
             && player_first_first_contact_hot_lane_anchor_pixel_count < 1_500
@@ -25682,7 +25865,13 @@ pub fn native_classic_rts_full_game_visual_ui_replication_evidence_json(
             "player_first_production_transition_tile": player_first_production_transition_tile_pixel_count,
             "player_first_production_unit_silhouette": player_first_production_unit_silhouette_pixel_count,
             "player_first_production_structure_facade": player_first_production_structure_facade_pixel_count,
-            "player_first_production_action_stroke": player_first_production_action_stroke_pixel_count
+            "player_first_production_action_stroke": player_first_production_action_stroke_pixel_count,
+            "player_first_production_terrain_micro_detail": player_first_production_terrain_micro_detail_pixel_count,
+            "player_first_production_edge_bevel": player_first_production_edge_bevel_pixel_count,
+            "player_first_production_unit_stance_shadow": player_first_production_unit_stance_shadow_pixel_count,
+            "player_first_production_structure_light_rim": player_first_production_structure_light_rim_pixel_count,
+            "player_first_production_action_target_chevron": player_first_production_action_target_chevron_pixel_count,
+            "player_first_production_hud_command_highlight": player_first_production_hud_command_highlight_pixel_count
         },
         "first_contact_art_direction_pixel_counts": {
             "terrain_regions": player_first_terrain_region_pixel_count,
@@ -25723,6 +25912,14 @@ pub fn native_classic_rts_full_game_visual_ui_replication_evidence_json(
             "action_intent_arrow": player_first_production_action_intent_arrow_pixel_count,
             "hud_focus_strip": player_first_production_hud_focus_strip_pixel_count
         },
+        "first_contact_production_art_pack_v5_pixel_counts": {
+            "terrain_micro_detail": player_first_production_terrain_micro_detail_pixel_count,
+            "edge_bevel": player_first_production_edge_bevel_pixel_count,
+            "unit_stance_shadow": player_first_production_unit_stance_shadow_pixel_count,
+            "structure_light_rim": player_first_production_structure_light_rim_pixel_count,
+            "action_target_chevron": player_first_production_action_target_chevron_pixel_count,
+            "hud_command_highlight": player_first_production_hud_command_highlight_pixel_count
+        },
         "first_contact_five_second_readability_checks": {
             "selected_group": player_first_selected_group_readability_gate,
             "beacon": player_first_beacon_readability_gate,
@@ -25745,6 +25942,7 @@ pub fn native_classic_rts_full_game_visual_ui_replication_evidence_json(
         "player_first_production_art_pack_v2_gate": player_first_production_art_pack_v2_gate,
         "player_first_production_art_pack_v3_gate": player_first_production_art_pack_v3_gate,
         "player_first_production_art_pack_v4_gate": player_first_production_art_pack_v4_gate,
+        "player_first_production_art_pack_v5_gate": player_first_production_art_pack_v5_gate,
         "player_first_production_art_pack_gate": player_first_production_art_pack_gate,
         "player_first_five_second_readability_gate": player_first_five_second_readability_gate,
         "player_first_tactical_composition_gate": player_first_tactical_composition_gate,
@@ -94550,6 +94748,30 @@ fn classic_draw_first_contact_player_production_terrain_pack(
                 );
             }
         }
+        if seed.rem_euclid(3) != 1 || terrain.resource_zone || terrain.base_pad {
+            let detail_x = tile_x + 6 + seed.rem_euclid(5) as i32;
+            let detail_y = tile_y + 6 + seed.rem_euclid(4) as i32;
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                detail_x,
+                detail_y,
+                4,
+                2,
+                CLASSIC_FIRST_CONTACT_PRODUCTION_TERRAIN_MICRO_DETAIL_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                tile_x + cell_w - 11 - seed.rem_euclid(3) as i32,
+                tile_y + cell_h - 8,
+                5,
+                2,
+                CLASSIC_FIRST_CONTACT_PRODUCTION_TERRAIN_MICRO_DETAIL_COLOR,
+            );
+        }
 
         let region_id = classic_first_contact_player_terrain_region_id(*terrain);
         for (dx, dy, vertical_edge) in [(1, 0, true), (0, 1, false)] {
@@ -94601,6 +94823,16 @@ fn classic_draw_first_contact_player_production_terrain_pack(
                     (cell_h - 8).max(4),
                     CLASSIC_FIRST_CONTACT_PRODUCTION_EDGE_OCCLUSION_COLOR,
                 );
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    tile_x + cell_w - 10,
+                    tile_y + cell_h / 2 - 5,
+                    2,
+                    10,
+                    CLASSIC_FIRST_CONTACT_PRODUCTION_EDGE_BEVEL_COLOR,
+                );
             } else {
                 classic_draw_rect(
                     buffer,
@@ -94641,6 +94873,16 @@ fn classic_draw_first_contact_player_production_terrain_pack(
                     (cell_w - 10).max(8),
                     2,
                     CLASSIC_FIRST_CONTACT_PRODUCTION_EDGE_OCCLUSION_COLOR,
+                );
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    tile_x + cell_w / 2 - 7,
+                    tile_y + cell_h - 10,
+                    14,
+                    2,
+                    CLASSIC_FIRST_CONTACT_PRODUCTION_EDGE_BEVEL_COLOR,
                 );
             }
         }
@@ -95145,6 +95387,26 @@ fn classic_draw_first_contact_player_production_action_flow(
                 3,
                 CLASSIC_FIRST_CONTACT_PRODUCTION_ACTION_INTENT_ARROW_COLOR,
             );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                cx - 14,
+                cy - 5,
+                7,
+                3,
+                CLASSIC_FIRST_CONTACT_PRODUCTION_ACTION_TARGET_CHEVRON_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                cx - 10,
+                cy - 2,
+                7,
+                3,
+                CLASSIC_FIRST_CONTACT_PRODUCTION_ACTION_TARGET_CHEVRON_COLOR,
+            );
             if step_index.rem_euclid(3) == 0 {
                 classic_draw_rect(
                     buffer,
@@ -95324,6 +95586,26 @@ fn classic_draw_first_contact_player_combat_flow_ribbon(
                 3,
                 CLASSIC_FIRST_CONTACT_PRODUCTION_ACTION_INTENT_ARROW_COLOR,
             );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x - 22,
+                rail_y - 7,
+                7,
+                3,
+                CLASSIC_FIRST_CONTACT_PRODUCTION_ACTION_TARGET_CHEVRON_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x - 18,
+                rail_y - 4,
+                7,
+                3,
+                CLASSIC_FIRST_CONTACT_PRODUCTION_ACTION_TARGET_CHEVRON_COLOR,
+            );
             step_index += 1;
         }
     }
@@ -95339,6 +95621,33 @@ fn classic_draw_first_contact_player_combat_flow_ribbon(
         (target_cx + cell_w - 12, target_cy + cell_h + 2, 18, 3),
     ] {
         classic_draw_rect(buffer, width, height, x, y, w, h, target_rim);
+    }
+    for (x, y) in [
+        (target_cx - cell_w - 11, target_cy - cell_h - 13),
+        (target_cx + cell_w + 3, target_cy - cell_h - 13),
+        (target_cx - cell_w - 11, target_cy + cell_h + 9),
+        (target_cx + cell_w + 3, target_cy + cell_h + 9),
+    ] {
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            x,
+            y,
+            9,
+            3,
+            CLASSIC_FIRST_CONTACT_PRODUCTION_ACTION_TARGET_CHEVRON_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            x + 4,
+            y + 3,
+            9,
+            3,
+            CLASSIC_FIRST_CONTACT_PRODUCTION_ACTION_TARGET_CHEVRON_COLOR,
+        );
     }
 }
 
@@ -96427,13 +96736,13 @@ fn classic_draw_first_contact_player_unit_actor_body(
         ),
         (
             cx - CLASSIC_FIRST_CONTACT_PLAYER_UNIT_BODY_CORE_W_PX / 2,
-            cy - 1,
+            cy - 3,
             CLASSIC_FIRST_CONTACT_PLAYER_UNIT_BODY_CORE_W_PX,
             CLASSIC_FIRST_CONTACT_PLAYER_UNIT_BODY_CORE_H_PX,
         ),
         (
             cx - CLASSIC_FIRST_CONTACT_PLAYER_UNIT_BODY_FOOT_W_PX / 2,
-            cy + cell_h / 2 - 2,
+            cy + cell_h / 2 - 1,
             CLASSIC_FIRST_CONTACT_PLAYER_UNIT_BODY_FOOT_W_PX,
             CLASSIC_FIRST_CONTACT_PLAYER_UNIT_BODY_FOOT_H_PX,
         ),
@@ -96452,6 +96761,16 @@ fn classic_draw_first_contact_player_unit_actor_body(
         }
         classic_draw_rect(buffer, width, height, x, y, body_w, body_h, color);
     }
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        cx - CLASSIC_FIRST_CONTACT_PLAYER_UNIT_BODY_FOOT_W_PX / 2,
+        cy + cell_h / 2 - 1,
+        CLASSIC_FIRST_CONTACT_PLAYER_UNIT_BODY_FOOT_W_PX,
+        CLASSIC_FIRST_CONTACT_PLAYER_UNIT_BODY_FOOT_H_PX,
+        color,
+    );
 }
 
 #[cfg(not(target_os = "android"))]
@@ -96465,6 +96784,26 @@ fn classic_draw_first_contact_player_production_unit_sprite_skin(
     cell_h: i32,
     glyph_accent: RtsActorGlyphAccent,
 ) {
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        cx - 15,
+        cy + cell_h / 2 + 4,
+        30,
+        3,
+        CLASSIC_FIRST_CONTACT_PRODUCTION_UNIT_STANCE_SHADOW_COLOR,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        cx - 9,
+        cy + cell_h / 2 + 7,
+        18,
+        2,
+        CLASSIC_FIRST_CONTACT_PRODUCTION_UNIT_STANCE_SHADOW_COLOR,
+    );
     classic_draw_rect(
         buffer,
         width,
@@ -96676,9 +97015,9 @@ fn classic_draw_first_contact_player_unit_family_mark(
                 buffer,
                 width,
                 height,
-                cx + 5,
-                cy,
-                6,
+                cx + 11,
+                cy - 2,
+                5,
                 4,
                 CLASSIC_FIRST_CONTACT_PLAYER_UNIT_FAMILY_MARK_COLOR,
             );
@@ -96686,8 +97025,8 @@ fn classic_draw_first_contact_player_unit_family_mark(
                 buffer,
                 width,
                 height,
-                cx + 7,
-                cy - 4,
+                cx + 13,
+                cy - 6,
                 3,
                 2,
                 CLASSIC_FIRST_CONTACT_PLAYER_UNIT_FAMILY_MARK_COLOR,
@@ -96699,9 +97038,9 @@ fn classic_draw_first_contact_player_unit_family_mark(
                 width,
                 height,
                 cx - 1,
-                cy - cell_h / 2 - 6,
+                cy - cell_h / 2 - 14,
                 2,
-                8,
+                6,
                 CLASSIC_FIRST_CONTACT_PLAYER_UNIT_FAMILY_MARK_COLOR,
             );
             classic_draw_rect(
@@ -96709,7 +97048,7 @@ fn classic_draw_first_contact_player_unit_family_mark(
                 width,
                 height,
                 cx - 6,
-                cy - cell_h / 2 - 5,
+                cy - cell_h / 2 - 15,
                 12,
                 2,
                 CLASSIC_FIRST_CONTACT_PLAYER_UNIT_FAMILY_MARK_COLOR,
@@ -96720,9 +97059,9 @@ fn classic_draw_first_contact_player_unit_family_mark(
                 buffer,
                 width,
                 height,
-                cx - 9,
-                cy + cell_h / 2 + 3,
-                18,
+                cx - 12,
+                cy + cell_h / 2 + 14,
+                24,
                 2,
                 CLASSIC_FIRST_CONTACT_PLAYER_UNIT_FAMILY_MARK_COLOR,
             );
@@ -96731,9 +97070,9 @@ fn classic_draw_first_contact_player_unit_family_mark(
                 width,
                 height,
                 cx - 1,
-                cy + cell_h / 2,
+                cy + cell_h / 2 + 9,
                 2,
-                7,
+                6,
                 CLASSIC_FIRST_CONTACT_PLAYER_UNIT_FAMILY_MARK_COLOR,
             );
         }
@@ -96742,8 +97081,8 @@ fn classic_draw_first_contact_player_unit_family_mark(
                 buffer,
                 width,
                 height,
-                cx - 10,
-                cy - 4,
+                cx - 12,
+                cy - cell_h / 2 - 10,
                 16,
                 2,
                 CLASSIC_FIRST_CONTACT_PLAYER_UNIT_FAMILY_MARK_COLOR,
@@ -96752,8 +97091,8 @@ fn classic_draw_first_contact_player_unit_family_mark(
                 buffer,
                 width,
                 height,
-                cx - 6,
-                cy - 1,
+                cx - 8,
+                cy - cell_h / 2 - 7,
                 16,
                 2,
                 CLASSIC_FIRST_CONTACT_PLAYER_UNIT_FAMILY_MARK_COLOR,
@@ -96786,6 +97125,26 @@ fn classic_draw_first_contact_player_production_structure_sprite_skin(
     size_h: i32,
     glyph_accent: RtsActorGlyphAccent,
 ) {
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        cx - size_w / 2 + 5,
+        cy - size_h / 2 - 2,
+        (size_w - 10).max(10),
+        2,
+        CLASSIC_FIRST_CONTACT_PRODUCTION_STRUCTURE_LIGHT_RIM_COLOR,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        cx - size_w / 2 + 3,
+        cy - size_h / 2 + 3,
+        2,
+        (size_h - 6).max(8),
+        CLASSIC_FIRST_CONTACT_PRODUCTION_STRUCTURE_LIGHT_RIM_COLOR,
+    );
     classic_draw_rect(
         buffer,
         width,
@@ -97767,6 +98126,15 @@ fn classic_draw_first_contact_actor(
                     (cell_h / 4 + 3).max(4),
                     CLASSIC_RTS_TACTICAL_VIEWPORT_SHADOW_COLOR,
                 );
+                classic_draw_first_contact_player_production_unit_sprite_skin(
+                    buffer,
+                    width,
+                    height,
+                    cx,
+                    cy,
+                    cell_h,
+                    glyph_accent,
+                );
                 classic_draw_first_contact_player_unit_actor_body(
                     buffer,
                     width,
@@ -97776,15 +98144,6 @@ fn classic_draw_first_contact_actor(
                     cell_h,
                     color,
                     Some(CLASSIC_ISO_OUTLINE_COLOR),
-                );
-                classic_draw_first_contact_player_production_unit_sprite_skin(
-                    buffer,
-                    width,
-                    height,
-                    cx,
-                    cy,
-                    cell_h,
-                    glyph_accent,
                 );
                 classic_draw_rect(
                     buffer,
@@ -97804,6 +98163,16 @@ fn classic_draw_first_contact_actor(
                     cy,
                     cell_h,
                     glyph_accent,
+                );
+                classic_draw_first_contact_player_unit_actor_body(
+                    buffer,
+                    width,
+                    height,
+                    cx,
+                    cy,
+                    cell_h,
+                    color,
+                    Some(CLASSIC_ISO_OUTLINE_COLOR),
                 );
             } else {
                 classic_draw_first_contact_actor_footprint_body(
@@ -158642,6 +159011,30 @@ mod tests {
                 "/first_contact_production_art_pack_v4_pixel_counts/hud_focus_strip",
                 600_u64,
             ),
+            (
+                "/first_contact_production_art_pack_v5_pixel_counts/terrain_micro_detail",
+                1_000_u64,
+            ),
+            (
+                "/first_contact_production_art_pack_v5_pixel_counts/edge_bevel",
+                300_u64,
+            ),
+            (
+                "/first_contact_production_art_pack_v5_pixel_counts/unit_stance_shadow",
+                80_u64,
+            ),
+            (
+                "/first_contact_production_art_pack_v5_pixel_counts/structure_light_rim",
+                100_u64,
+            ),
+            (
+                "/first_contact_production_art_pack_v5_pixel_counts/action_target_chevron",
+                80_u64,
+            ),
+            (
+                "/first_contact_production_art_pack_v5_pixel_counts/hud_command_highlight",
+                600_u64,
+            ),
         ] {
             let actual = evidence
                 .pointer(pointer)
@@ -158711,6 +159104,12 @@ mod tests {
             Some(true)
         );
         assert_eq!(
+            production
+                .get("first_contact_production_art_pack_v5_gate")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
             atlas
                 .get("first_contact_production_art_pack_id")
                 .and_then(Value::as_str),
@@ -158726,7 +159125,7 @@ mod tests {
             atlas
                 .get("first_contact_pack_atlas_slot_count")
                 .and_then(Value::as_u64),
-            Some(23)
+            Some(29)
         );
         assert_eq!(
             atlas
@@ -158743,6 +159142,12 @@ mod tests {
         assert_eq!(
             atlas
                 .get("first_contact_pack_v4_atlas_slot_count")
+                .and_then(Value::as_u64),
+            Some(6)
+        );
+        assert_eq!(
+            atlas
+                .get("first_contact_pack_v5_atlas_slot_count")
                 .and_then(Value::as_u64),
             Some(6)
         );
