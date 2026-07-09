@@ -24799,7 +24799,7 @@ pub fn native_classic_rts_full_game_visual_ui_replication_evidence_json(
         HEIGHT,
         960,
         18,
-        "SLOT A / FIRST CONTACT BASIN / LIVE RTS",
+        "FIRST CONTACT BASIN / GROUP 1 ACTIVE",
         1,
         CLASSIC_HUD_TEXT_COLOR,
     );
@@ -24810,7 +24810,7 @@ pub fn native_classic_rts_full_game_visual_ui_replication_evidence_json(
         HEIGHT,
         24,
         78,
-        "SHELL / SESSION",
+        "SESSION",
         1,
         SHELL_COLOR,
     );
@@ -24942,7 +24942,7 @@ pub fn native_classic_rts_full_game_visual_ui_replication_evidence_json(
         HEIGHT,
         right_x,
         78,
-        "UNIT / RESOURCE HUD",
+        "UNITS / RESOURCES",
         1,
         HUD_COLOR,
     );
@@ -25028,7 +25028,7 @@ pub fn native_classic_rts_full_game_visual_ui_replication_evidence_json(
         HEIGHT,
         right_x,
         506,
-        "ABILITY / COMMAND",
+        "COMMANDS",
         1,
         COMMAND_COLOR,
     );
@@ -25066,7 +25066,7 @@ pub fn native_classic_rts_full_game_visual_ui_replication_evidence_json(
         HEIGHT,
         right_x + 12,
         736,
-        "OUTCOME OPEN WORLD",
+        "WORLD READY",
         1,
         0x111817,
     );
@@ -25076,7 +25076,7 @@ pub fn native_classic_rts_full_game_visual_ui_replication_evidence_json(
         HEIGHT,
         right_x + 12,
         764,
-        "RESUMED LEAGUE COLISEUM",
+        "LEAGUE COLISEUM READY",
         1,
         0x111817,
     );
@@ -25088,7 +25088,7 @@ pub fn native_classic_rts_full_game_visual_ui_replication_evidence_json(
         HEIGHT,
         330,
         command_y - 20,
-        "COMMAND GRID / NEXT ORDER",
+        "COMMANDS / NEXT ORDER",
         1,
         COMMAND_COLOR,
     );
@@ -25359,7 +25359,7 @@ pub fn native_classic_rts_full_game_visual_ui_replication_evidence_json(
         HEIGHT,
         348,
         HEIGHT as i32 - 34,
-        "LOCAL REVIEW BUILD / PUBLIC S5 OPENRA COPY CLAIMS FALSE",
+        "GROUP 1 READY / SECURE BEACON / SIDE STEP LOCKED",
         1,
         CLASSIC_HUD_MUTED_TEXT_COLOR,
     );
@@ -25833,7 +25833,7 @@ pub fn native_classic_rts_full_game_visual_ui_replication_evidence_json(
             "left_rail": "shell/session controls, match setup, minimap/camera",
             "tactical_viewport": "single large live First Contact top-down pixel RTS map with terrain regions, edge transitions, route, target, blocked-route, and sprite family marks",
             "right_rail": "resource HUD, production, tech, abilities, outcome/open-world",
-            "bottom_command_bar": "command grid, queue, save/load/resume, no-credit boundary"
+            "bottom_command_bar": "command grid, queue, save/load/resume, mission status"
         },
         "pixel_counts": {
             "non_background": non_background_pixels,
