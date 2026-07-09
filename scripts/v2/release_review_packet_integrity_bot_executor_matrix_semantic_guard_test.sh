@@ -757,6 +757,7 @@ add_artifact_from_path native_bevy_multi_match_bot_executor_evaluation_ppm "Nati
 matrix_summary_json="$TMP_DIR/bevy-classic-rts-bot-executor-failure-recovery-matrix.bad.json"
 jq '
   .blocked_rejection_count = 5
+  | .matrix_log_count = 5
   | .blocked_expected_reason_count = 5
   | .blocked_command_queue_unchanged_count = 5
   | .recovery_accepted_action_count = 5
@@ -2363,7 +2364,7 @@ jq -n '{
     rts_full_game_visual_ui_replication_source_review_source_count: 3,
     rts_full_game_visual_ui_replication_source_headline_field_count: 15,
     rts_full_game_visual_ui_replication_single_screen_runtime_layout_count: 5,
-    rts_full_game_visual_ui_replication_pixel_count_field_count: 25,
+    rts_full_game_visual_ui_replication_pixel_count_field_count: 30,
     rts_full_game_visual_ui_replication_coverage_surface_name_count: 18,
     rts_full_game_visual_ui_replication_command_grid_role_id_count: 12,
     rts_full_game_visual_ui_replication_command_grid_icon_signature_count: 12,
@@ -2389,6 +2390,12 @@ jq -n '{
     rts_full_game_visual_ui_replication_first_contact_production_unit_sprite_skin_pixel_count: 444,
     rts_full_game_visual_ui_replication_first_contact_production_structure_sprite_skin_pixel_count: 1366,
     rts_full_game_visual_ui_replication_first_contact_production_hud_skin_pixel_count: 29120,
+    rts_full_game_visual_ui_replication_first_contact_production_v2_gate: true,
+    rts_full_game_visual_ui_replication_first_contact_production_terrain_texture_pixel_count: 6611,
+    rts_full_game_visual_ui_replication_first_contact_production_transition_tile_pixel_count: 6278,
+    rts_full_game_visual_ui_replication_first_contact_production_unit_silhouette_pixel_count: 388,
+    rts_full_game_visual_ui_replication_first_contact_production_structure_facade_pixel_count: 838,
+    rts_full_game_visual_ui_replication_first_contact_production_action_stroke_pixel_count: 138,
     rts_live_session_playthrough_runtime_screen_mode: "player_runtime_live_session_playthrough_screen",
     rts_full_game_visual_ui_replication_live_session_stage_count: 6,
     rts_full_game_visual_ui_replication_live_session_accepted_input_count: 91,
@@ -2453,8 +2460,9 @@ jq -n '{
     rts_production_asset_atlas_gate_count: 8,
     rts_production_asset_atlas_passed_gate_count: 8,
     rts_production_asset_atlas_failed_gate_count: 0,
-    rts_production_asset_atlas_first_contact_pack_slot_count: 6,
-    rts_production_asset_atlas_first_contact_pack_slot_pixel_count: 4656,
+    rts_production_asset_atlas_first_contact_pack_slot_count: 11,
+    rts_production_asset_atlas_first_contact_pack_slot_pixel_count: 5984,
+    rts_production_asset_atlas_first_contact_pack_v2_slot_count: 5,
     rts_production_asset_atlas_first_contact_pack_atlas_gate: true,
     rts_production_ui_skin_source_contract_count: 7,
     rts_production_ui_skin_source_path_count: 7,
@@ -2561,17 +2569,21 @@ if [[ ! -f "$summary_json" ]]; then
   exit 1
 fi
 
-jq -e '
+if ! jq -e '
   .status == "release_review_packet_integrity_blocked"
   and .green == false
-  and (.failures | length) == 3
+  and (.failures | length) == 4
   and ([.failures[].name] | index("bot_executor_failure_recovery_matrix_semantics"))
+  and ([.failures[].name] | index("bot_executor_failure_recovery_matrix_count_semantics"))
   and ([.failures[].name] | index("bot_executor_failure_recovery_matrix_log_semantics"))
   and ([.failures[].name] | index("bot_executor_failure_recovery_matrix_ppm_semantics"))
   and (([.failures[].detail] | index("sha256_mismatch")) == null)
   and (([.failures[].detail] | index("bytes_mismatch")) == null)
   and (([.failures[].detail] | index("contract_mismatch")) == null)
   and (([.failures[].detail] | index("status_mismatch")) == null)
-' "$summary_json" >/dev/null
+' "$summary_json" >/dev/null; then
+  jq '{status, green, failure_count: (.failures | length), failures: [.failures[].name]}' "$summary_json" >&2
+  exit 1
+fi
 
 echo "[PASS] release review packet integrity rejects semantically invalid bot executor failure/recovery matrix artifacts even when checksums match"
