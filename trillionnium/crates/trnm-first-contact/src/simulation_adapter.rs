@@ -318,6 +318,11 @@ impl FirstContactRuntime {
             BattlePhase::Contact => FirstContactCommand::Attack,
             BattlePhase::Relay if self.contact_hp > 0.0 => FirstContactCommand::Attack,
             BattlePhase::Relay | BattlePhase::Complete => FirstContactCommand::Hold,
+            BattlePhase::ConvoyEscort | BattlePhase::Extraction => FirstContactCommand::Move,
+            BattlePhase::GeneratorDefense if self.enemy_hp_percent > 0 => {
+                FirstContactCommand::Attack
+            }
+            BattlePhase::GeneratorDefense => FirstContactCommand::Hold,
         }
     }
 }
@@ -1060,14 +1065,7 @@ pub(super) fn advance_first_contact_simulation(
         };
         runtime.phase = mission.phase;
         runtime.command_feedback = if runtime.victory {
-            let mission_name = if matches!(
-                mission.seed.map_id.as_str(),
-                "aftershock_patrol" | "first_contact_aftershock"
-            ) {
-                "AFTERSHOCK PATROL"
-            } else {
-                "FIRST CONTACT"
-            };
+            let mission_name = mission.seed.mission.title.to_ascii_uppercase();
             format!("{mission_name} SECURED: rewards and resources will return to town")
         } else if runtime.defeat {
             "PARTY DEFEATED: injuries applied, no harvested credits retained".to_string()
@@ -1098,6 +1096,18 @@ pub(super) fn advance_first_contact_simulation(
                 BattlePhase::Relay => format!(
                     "RELAY EXPOSED: press R to secure {}%",
                     mission.capture_percent()
+                ),
+                BattlePhase::ConvoyEscort => format!(
+                    "ESCORT: stay near the convoy and move toward {}",
+                    mission.current_objective_id().unwrap_or("the generator")
+                ),
+                BattlePhase::GeneratorDefense => format!(
+                    "DEFEND: hold the generator {} ticks; clear incoming raiders",
+                    mission.objective_progress_ticks
+                ),
+                BattlePhase::Extraction => format!(
+                    "EXTRACT: escort the convoy to the north gate ({}/80)",
+                    mission.objective_progress_ticks
                 ),
                 BattlePhase::Complete => "Battle complete".to_string(),
             }
@@ -1136,6 +1146,12 @@ pub(super) fn advance_first_contact_simulation(
             simulated_visuals.insert(
                 support.unit_id.clone(),
                 (support.position, support.hp > 0, true, false, true),
+            );
+        }
+        if let Some(position) = mission.convoy_position {
+            simulated_visuals.insert(
+                "supply_convoy".to_string(),
+                (position, mission.convoy_hp > 0, true, false, true),
             );
         }
     }

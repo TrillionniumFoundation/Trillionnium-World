@@ -1,6 +1,6 @@
 # Trillionnium RPG -> RTS -> RPG Closed Loop v1
 
-Status: canonical local product truth source as of 2026-07-10, growth/economy/encounter P0-P3 revision.
+Status: canonical local product truth source as of 2026-07-11, route/mission/origin/traffic P0-P3 revision.
 
 ## Product Definition
 
@@ -26,6 +26,8 @@ Mirror Square
   -> fight, settle and continue the campaign loop
   -> complete the typed Signal Road quest chain
   -> unlock the persistent Relay Quarter world room
+  -> escort a supply convoy, defend its generator and extract on a third original map
+  -> unlock the outer Signal Road and retain the repeatable patrol loop
 ```
 
 ## Authority Boundaries
@@ -37,22 +39,23 @@ Mirror Square
 | Frame-order contract | `trnm-rts-protocol` | Lightweight player-order validation and deterministic stream contract. |
 | Battle simulation | `trnm-rts-sim` | Bevy-free, two-dimensional, map-aware simulation consuming `RtsFrameOrder` as its only player input. |
 | Native presentation/input | `trnm-first-contact` | Consumes `BattleSeedV1`; may only emit `BattleResultV1`. |
-| Authored map/art | `assets/first_contact` | Two canonical original 40x24 mission maps and PNG atlases. |
+| Authored map/art | `assets/first_contact` | Three canonical original 40x24 mission maps and PNG atlases. |
 | Legacy implementation | `trillionnium/crates/legacy-game/trnm-world-bevy/src/legacy.rs` | Feature-gated frozen behavior/test reference; not reconnected wholesale. |
 | Older World/RTS cores and data/evidence/online | `legacy-game/trnm-world-domain`, `legacy-game/trnm-rts-core`, `trnm-rts-data`, `trnm-rts-evidence`, `trnm-rts-online` | Frozen outside this closure. GPL-derived internal map data is not a product dependency. |
 
 ## Stable Contracts
 
 - `trnm_campaign_save_v1`
-- `trnm_battle_seed_v3`
+- `trnm_battle_seed_v4`
 - `trnm_battle_result_v2`
 - `trnm_settlement_receipt_v1`
-- `trnm_rts_sim_v5`
-- `trnm_rts_sim_checkpoint_v5`
+- `trnm_rts_sim_v6`
+- `trnm_rts_sim_checkpoint_v6`
 
 `BattleSeedV1` binds campaign revision, battle id, map/rules version, four
 persistent party members, spawn slots, skills, typed equipment modifiers,
-injuries, mapped RTS stats, and a SHA-256 payload hash.
+injuries, character origin, earned mastery title, a typed mission/objective
+sequence, mapped RTS stats, and a SHA-256 payload hash.
 
 `BattleResultV1` binds the seed hash, terminal outcome, every party member's
 HP/status/XP, loot, resource and reputation deltas, world flags, elapsed ticks,
@@ -74,6 +77,7 @@ Settlement is two-phase and crash safe:
 - insight + resolve -> energy and ability range, both consumed by signature abilities;
 - skill rank -> bounded skill-power multiplier;
 - equipment -> typed modifiers keyed by item id, never parsed display text;
+- origin + build path + earned mastery -> conditional equipment affixes;
 - injury -> bounded HP and movement penalties;
 - party member -> named persistent unit bound to `party_0..party_3` spawn slots.
 
@@ -99,7 +103,8 @@ Town:
 - `H`: consume a Field Tonic or pay the field clinic to reduce injuries
 - `G`: equip the recovered Relay Core relic after a victory
 - `A`: cycle a permanent stat-allocation preview; `S`: confirm and consume one
-  growth point; `D`: cancel without spending; `V`: cycle unlocked build titles
+  growth point; `D`: cancel without spending; `O`: select origin before mentor
+  commitment; `Q`: complete the selected path mastery; `V`: cycle earned titles
 - `J`: begin the Signal Road typed RPG encounter from Relay Quarter (or the
   Gate Warden route); during it use `J/R/I/Esc` for attack/defend/item/withdraw
 - `F`: accept mission / deploy
@@ -204,6 +209,20 @@ Debrief:
 - Growth/economy P3: complete. The persistent Signal Road encounter supports
   attack, defend, real item consumption and withdrawal. Victory/defeat writes
   loot, injury, reputation and world flags to the campaign aggregate.
+- Route/mission P0: complete. `WorldRoutePlan` performs lock-aware stable BFS,
+  explicit unreachable diagnostics and ordered multi-waypoint planning. Town UI
+  shows the next exit or the exact blocked reason for the current story step.
+- Route/mission P1: complete. `MissionDefinition` and `ObjectiveKind` own typed
+  objective sequences. The original Convoy Exodus map runs Escort -> Defend ->
+  Extract rather than reusing the relay phases, and has a full settlement/reload E2E.
+- Route/mission P2: complete. Mirror Ward, Workshop Kin and Signal Runner origins
+  combine with three growth paths. Growth selects a path only; a typed mastery
+  challenge earns the title. Conditional affixes and all 3x3 combinations produce
+  distinct hashed seeds and observable combat stats.
+- Route/mission P3: complete. Movement owns typed intents, per-tick tile
+  reservations, stable blocked priority, bounded yield/replanning and checkpoint
+  hashes. The eight-actor congestion regression proves no overlap and recovery
+  after a blocked chokepoint opens.
 
 ## Repeatable Campaign Loop
 
@@ -211,6 +230,8 @@ Debrief:
   Patrol rather than terminating progression.
 - Aftershock is repeatable, scales the relay guard and reinforcement waves,
   records its own completion count and uses a distinct authored terrain layout.
+- The first Aftershock unlocks Convoy Exodus; its escort/defend/extract victory
+  sets `convoy_exodus_secured` and `outer_signal_road_open` before patrol repeats.
 - Character level, companion experience, reputation, relic modifiers and
   injuries all alter the next mission seed.
 - Campaign load/restart preserves the unlock, growth and next seed mapping.
@@ -236,7 +257,7 @@ cargo clippy --manifest-path trillionnium/Cargo.toml \
 cargo build --manifest-path trillionnium/Cargo.toml --release -p trnm-first-contact
 ```
 
-The seven M4 cases and gameplay exploit/resource regressions live in
+The eight closed-loop cases and gameplay exploit/resource regressions live in
 `trillionnium/crates/trnm-rts-sim/tests/campaign_closed_loop.rs`.
 
 ## Workspace Boundaries

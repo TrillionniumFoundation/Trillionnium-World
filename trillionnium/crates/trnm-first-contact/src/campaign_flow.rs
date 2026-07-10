@@ -314,6 +314,20 @@ pub(super) fn handle_campaign_input(
     } else if input.just_pressed(KeyCode::KeyV) {
         let result = flow.mutate_town(|save| save.cycle_active_title().map(|_| ()));
         set_status(&mut flow, result, "Changed the active build title");
+    } else if input.just_pressed(KeyCode::KeyO) {
+        let result = flow.mutate_town(|save| save.cycle_character_origin().map(|_| ()));
+        set_status(
+            &mut flow,
+            result,
+            "Changed character origin before mentor commitment",
+        );
+    } else if input.just_pressed(KeyCode::KeyQ) {
+        let result = flow.mutate_town(|save| save.attempt_mastery_challenge().map(|_| ()));
+        set_status(
+            &mut flow,
+            result,
+            "Completed the selected path mastery challenge",
+        );
     } else if input.just_pressed(KeyCode::KeyJ)
         && (flow.save.room == CampaignRoom::RelayQuarter
             || flow
@@ -325,7 +339,7 @@ pub(super) fn handle_campaign_input(
         let result = flow.mutate_town(CampaignSaveV1::begin_signal_road_encounter);
         set_status(&mut flow, result, "Signal Road ambush began");
     } else if input.just_pressed(KeyCode::KeyF) {
-        let repeatable_aftershock = flow.save.quest_state == QuestState::Completed
+        let repeatable_campaign = flow.save.quest_state == QuestState::Completed
             && flow
                 .save
                 .progression
@@ -334,7 +348,7 @@ pub(super) fn handle_campaign_input(
         if matches!(
             flow.save.quest_state,
             QuestState::Available | QuestState::Failed | QuestState::Withdrawn
-        ) || repeatable_aftershock
+        ) || repeatable_campaign
         {
             let result = flow.mutate_town(CampaignSaveV1::accept_first_contact_quest);
             set_status(

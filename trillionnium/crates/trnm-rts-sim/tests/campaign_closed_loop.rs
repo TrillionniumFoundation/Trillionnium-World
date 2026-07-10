@@ -47,6 +47,14 @@ fn aftershock_map() -> BattleMapSeedV1 {
     authored
 }
 
+fn convoy_map() -> BattleMapSeedV1 {
+    let mut authored = map();
+    authored.approach_point = BattleGridPoint::new(9, 6);
+    authored.objective = BattleGridPoint::new(18, 2);
+    authored.terrain_rows[1] = "gggggggggggggggbbbbg".to_string();
+    authored
+}
+
 fn ready_campaign() -> CampaignSaveV1 {
     let mut campaign = CampaignSaveV1::default();
     campaign.move_to(CampaignRoom::MentorHall).unwrap();
@@ -170,6 +178,26 @@ fn run_victory(mut sim: MissionSimV1) -> MissionSimV1 {
     sim
 }
 
+fn run_convoy_victory(mut sim: MissionSimV1) -> MissionSimV1 {
+    assert_eq!(sim.phase, BattlePhase::ConvoyEscort);
+    let generator = sim.seed.map.approach_point;
+    sim.issue_order(order(&sim, RtsOrderKind::Move, generator))
+        .unwrap();
+    step_until(&mut sim, |sim| sim.objective_index >= 1, 1_200);
+    assert_eq!(sim.phase, BattlePhase::GeneratorDefense);
+    sim.issue_order(order(&sim, RtsOrderKind::Attack, generator))
+        .unwrap();
+    step_until(&mut sim, |sim| sim.objective_index >= 2, 2_400);
+    assert_eq!(sim.reinforcement_wave, 2);
+    assert_eq!(sim.phase, BattlePhase::Extraction);
+    let extraction = sim.seed.map.objective;
+    sim.issue_order(order(&sim, RtsOrderKind::Move, extraction))
+        .unwrap();
+    step_until(&mut sim, MissionSimV1::terminal, FIVE_MINUTE_TICKS);
+    assert_eq!(sim.outcome, Some(BattleOutcome::Victory));
+    sim
+}
+
 #[test]
 fn e2e_first_victory_unlocks_repeatable_aftershock_and_growth_changes_next_seed() {
     let directory = tempdir().unwrap();
@@ -219,7 +247,66 @@ fn e2e_first_victory_unlocks_repeatable_aftershock_and_growth_changes_next_seed(
     restarted.move_to(CampaignRoom::MirrorSquare).unwrap();
     restarted.move_to(CampaignRoom::ExpeditionGate).unwrap();
     restarted.accept_first_contact_quest().unwrap();
-    assert_eq!(restarted.active_mission.map_id(), "aftershock_patrol");
+    assert_eq!(restarted.active_mission.map_id(), "convoy_exodus");
+}
+
+#[test]
+fn e2e_third_mission_escorts_defends_extracts_and_unlocks_outer_road() {
+    let directory = tempdir().unwrap();
+    let store = CampaignStore::new(directory.path().join("campaign.json"));
+    let mut campaign = ready_campaign();
+
+    let first = campaign.start_first_contact_battle(map()).unwrap();
+    let result = run_victory(MissionSimV1::from_seed(first).unwrap())
+        .into_result()
+        .unwrap();
+    campaign.submit_battle_result(result).unwrap();
+    campaign.equip_relay_core().unwrap();
+    campaign.move_to(CampaignRoom::ExpeditionGate).unwrap();
+    campaign.accept_first_contact_quest().unwrap();
+    let aftershock = campaign
+        .start_first_contact_battle(aftershock_map())
+        .unwrap();
+    let result = run_victory(MissionSimV1::from_seed(aftershock).unwrap())
+        .into_result()
+        .unwrap();
+    campaign.submit_battle_result(result).unwrap();
+
+    campaign.move_to(CampaignRoom::ExpeditionGate).unwrap();
+    campaign.accept_first_contact_quest().unwrap();
+    assert_eq!(campaign.active_mission.map_id(), "convoy_exodus");
+    let convoy = campaign.start_first_contact_battle(convoy_map()).unwrap();
+    assert_eq!(
+        convoy
+            .mission
+            .objectives
+            .iter()
+            .map(|objective| objective.kind)
+            .collect::<Vec<_>>(),
+        [
+            trnm_campaign_core::ObjectiveKind::Escort,
+            trnm_campaign_core::ObjectiveKind::Defend,
+            trnm_campaign_core::ObjectiveKind::Extract,
+        ]
+    );
+    let result = run_convoy_victory(MissionSimV1::from_seed(convoy).unwrap())
+        .into_result()
+        .unwrap();
+    campaign.submit_battle_result(result).unwrap();
+    assert!(campaign
+        .progression
+        .world_flags
+        .contains("outer_signal_road_open"));
+    assert_eq!(
+        campaign.story.current_step,
+        trnm_campaign_core::StoryStepId::SignalRoadComplete
+    );
+    store.save_atomic(&campaign).unwrap();
+    let restarted = store.load().unwrap();
+    assert!(restarted
+        .progression
+        .world_flags
+        .contains("convoy_exodus_secured"));
 }
 
 #[test]

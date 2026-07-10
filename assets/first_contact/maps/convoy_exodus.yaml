@@ -1,0 +1,110 @@
+contract_version: trnm_first_contact_map_v1
+id: convoy_exodus
+title: Signal Convoy Exodus
+width: 40
+height: 24
+tile_size: 32
+player_start: { x: 5, y: 20 }
+camera_start: { x: 12, y: 17 }
+objective:
+  id: north_extraction
+  label: Escort, defend, then extract the convoy
+  x: 34
+  y: 3
+
+terrain_legend:
+  g: moss_a
+  r: route_a
+  b: basalt_a
+  w: water_a
+
+terrain_rows:
+  - wwwwwwwgggggggggggbbbbgggggggggggggggggg
+  - wwwwwwggggggggggggbbbbgggggbbbbbbbbbbbbg
+  - wwwwwgggggggggggggbbbbgggggbgggrrrrrggbg
+  - wwwwggggggggggggggbbbbgggggbgggrgggrggbg
+  - wwwgggggggggggggggbbbbgggggbgggrgggrggbg
+  - ggggggggggggggggggbbbbgggggbgggrgggrggbg
+  - ggggggggggggggggggggggggrrrrrrrrrrgggggg
+  - ggggggggggggrrrrrrrrrrrrrgggbggggggggggg
+  - ggggggggggggrgggggggggrggggbggggggggggbg
+  - ggggggggggggrgggggbbbgrggggbggggggggggbg
+  - ggggggggggggrgggggbbbgrggggbbbbbbbbbbbbg
+  - gggggggrrrrrrggggggbbbgrgggggggggggggggg
+  - gggggggggggrggggggbbbbgrgggggggggggggggg
+  - gggggggrggggggggggbbbgrrrrrrgggggggggggg
+  - ggbbbbbrrrbbbbggggbbbbgggggrgggggggggggg
+  - ggbggggrgggggbggggggggggggrggggggggggggg
+  - ggbgggggggggrbgggrrrrggggrgggggggggggggg
+  - ggbgggggggrrrrrrrgggggggggrggggggggggggg
+  - ggbgggrrrrggggggggbbbbggggrggggggggggggg
+  - ggbgggggggggggggggbbbbgggggggggggggggggg
+  - ggbggggggggggbggggbbbbggggggggggggwwwwww
+  - ggbggggggggggbggggbbbbgggggggggggggwwwww
+  - ggbbbbbbbbbbbbggggbbbbggggggggggggggwwww
+  - ggggggggggggggggggbbbbgggggggggggggggwww
+
+height_rows:
+  - '0000000000000000002222000000000000000000'
+  - '0000000000000000002222000002222222222220'
+  - '0000000000000000002222000002000111110020'
+  - '0000000000000000002222000002000100010020'
+  - '0000000000000000002222000002000100010020'
+  - '0000000000000000002222000002000100010020'
+  - '0000000000000000000000001111111111000000'
+  - '0000000000011111111111110002000000000000'
+  - '0000000000010000000000100002000000000020'
+  - '0000000000010000002220100002000000000020'
+  - '0000000000010000002220100002222222222220'
+  - '0000000111111000002220100000000000000000'
+  - '0000000100000000002220100000000000000000'
+  - '0000000100000000002220111111000000000000'
+  - '0022222111222200002222000010000000000000'
+  - '0020000100000200000000000010000000000000'
+  - '0020000100000200011111111110000000000000'
+  - '0020000111111111100000000000000000000000'
+  - '0020001111000000002222000000000000000000'
+  - '0020000000000000002222000000000000000000'
+  - '0020111111111200002222000000000000000000'
+  - '0020100000001200002222000000000000000000'
+  - '0022222222222200002222000000000000000000'
+  - '0000000000000000002222000000000000000000'
+
+bases:
+  - { id: convoy_yard, owner: player, x: 2, y: 14, width: 12, height: 9, entrance_x: 13, entrance_y: 18 }
+  - { id: extraction_camp, owner: contact, x: 27, y: 1, width: 12, height: 10, entrance_x: 38, entrance_y: 6 }
+
+chokepoints:
+  - { id: north_pass, x: 28, y: 5, width: 5, height: 3, approach: extraction }
+  - { id: south_pass, x: 17, y: 15, width: 3, height: 4, approach: generator }
+
+resources:
+  - { id: convoy_cells, kind: cyan_crystal, x: 9, y: 20, route: yard_to_generator }
+  - { id: generator_salvage, kind: amber_salvage, x: 22, y: 16, route: generator_hold }
+  - { id: extraction_cells, kind: cyan_crystal, x: 32, y: 6, route: generator_to_extract }
+
+landmarks:
+  - { id: convoy_yard_marker, role: front, x: 10, y: 19, frame: front }
+  - { id: signal_generator, role: mid, x: 23, y: 13, frame: mid }
+  - { id: north_extraction, role: rear, x: 34, y: 3, frame: rear }
+
+structures:
+  - { id: convoy_command, family: command_core, owner: player, x: 5, y: 21, active: true }
+  - { id: convoy_workshop, family: foundry, owner: player, x: 9, y: 21, active: true }
+  - { id: convoy_refinery, family: refinery, owner: player, x: 3, y: 20, active: true }
+  - { id: signal_generator, family: shield_relay, owner: player, x: 23, y: 13, active: true }
+  - { id: generator_turret, family: defense_turret, owner: player, x: 21, y: 14, active: true }
+  - { id: raider_command, family: command_core, owner: contact, x: 34, y: 4, active: true }
+  - { id: raider_foundry, family: foundry, owner: contact, x: 30, y: 3, active: true }
+  - { id: extraction_relay, family: shield_relay, owner: contact, x: 36, y: 6, active: true }
+
+units:
+  - { id: party_0, spawn_slot: party_0, family: worker, owner: player, x: 6, y: 20, selected: true }
+  - { id: party_1, spawn_slot: party_1, family: scout, owner: player, x: 7, y: 20, selected: true }
+  - { id: party_2, spawn_slot: party_2, family: warden, owner: player, x: 6, y: 19, selected: true }
+  - { id: party_3, spawn_slot: party_3, family: striker, owner: player, x: 7, y: 19, selected: true }
+  - { id: supply_convoy, family: relay_engineer, owner: player, x: 5, y: 19, selected: false }
+  - { id: convoy_sentinel, family: sentinel, owner: player, x: 10, y: 20, selected: false }
+  - { id: raider_scout, family: scout, owner: contact, x: 21, y: 15, selected: false }
+  - { id: raider_warden, family: warden, owner: contact, x: 26, y: 10, selected: false }
+  - { id: raider_striker, family: striker, owner: contact, x: 31, y: 7, selected: false }

@@ -21,6 +21,10 @@ map data or whole-world state was reconnected.
 | active enemy combat, reinforcements and objective phases | `trnm-rts-sim` | approach/contact/relay 3-5 minute, 8-12 order tests |
 | abilities and RPG stat mapping | campaign/sim cores | typed mapping and ability-rush route tests |
 | save/restart/settlement | `trnm-campaign-core` | crash, recovery and duplicate-result E2E |
+| room BFS, lock-aware task routing and multi-waypoint navigation | `trnm-rpg-core` + `trnm-first-contact` | unknown/locked/unreachable routes, stable next-exit and town guidance tests |
+| mission objectives beyond relay capture | `trnm-campaign-core` + `trnm-rts-sim` | typed destroy/capture/defend/escort/extract definitions and Convoy Exodus E2E |
+| origins, mastery challenges and conditional equipment affixes | `trnm-rpg-core` + `trnm-campaign-core` | three origins x three paths produce nine distinct seeds/stats; title requires mastery |
+| reservation, opposing traffic yield and stuck recovery | `trnm-rts-sim` | typed intent/reservation, bounded replan, eight-actor uniqueness and checkpoint hash test |
 
 Anything not listed remains historical reference only. New gameplay work must
 land in the five-crate game workspace with a focused test before the matching

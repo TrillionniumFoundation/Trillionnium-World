@@ -14,12 +14,12 @@ use std::{
 };
 use trnm_campaign_core::{
     BattleGridPoint, BattleOutcome, BattleResultV1, BattleSeedV1, CampaignError, LootStack,
-    UnitBattleReportV1, UnitBattleStatus, BATTLE_RESULT_CONTRACT,
+    ObjectiveKind, UnitBattleReportV1, UnitBattleStatus, BATTLE_RESULT_CONTRACT,
 };
 use trnm_rts_protocol::{RtsFrameOrder, RtsOrderKind, RtsUnitStance};
 
-pub const RTS_SIM_CONTRACT: &str = "trnm_rts_sim_v5";
-pub const RTS_SIM_CHECKPOINT_CONTRACT: &str = "trnm_rts_sim_checkpoint_v5";
+pub const RTS_SIM_CONTRACT: &str = "trnm_rts_sim_v6";
+pub const RTS_SIM_CHECKPOINT_CONTRACT: &str = "trnm_rts_sim_checkpoint_v6";
 pub const TICKS_PER_SECOND: u64 = 10;
 pub const THREE_MINUTE_TICKS: u64 = 3 * 60 * TICKS_PER_SECOND;
 pub const FIVE_MINUTE_TICKS: u64 = 5 * 60 * TICKS_PER_SECOND;
@@ -88,6 +88,9 @@ pub enum BattlePhase {
     Approach,
     Contact,
     Relay,
+    ConvoyEscort,
+    GeneratorDefense,
+    Extraction,
     Complete,
 }
 
@@ -238,11 +241,38 @@ pub struct SupportUnit {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MoveIntent {
+    pub unit_id: String,
+    pub target: BattleGridPoint,
+    pub desired_tile: Option<BattleGridPoint>,
+    pub blocked_ticks: u16,
+    pub replan_count: u16,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TileReservation {
+    pub tile: BattleGridPoint,
+    pub unit_id: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MissionSimV1 {
     pub contract_version: String,
     pub seed: BattleSeedV1,
     pub tick: u64,
     pub phase: BattlePhase,
+    #[serde(default)]
+    pub objective_index: usize,
+    #[serde(default)]
+    pub objective_progress_ticks: u32,
+    #[serde(default)]
+    pub convoy_position: Option<BattleGridPoint>,
+    #[serde(default)]
+    pub convoy_hp: i64,
+    #[serde(default)]
+    pub move_intents: BTreeMap<String, MoveIntent>,
+    #[serde(default)]
+    pub tile_reservations: Vec<TileReservation>,
     pub active_order: Option<RtsFrameOrder>,
     #[serde(default)]
     pub queued_orders: VecDeque<RtsFrameOrder>,
@@ -387,7 +417,30 @@ impl MissionSimV1 {
             contract_version: RTS_SIM_CONTRACT.to_string(),
             seed: seed.clone(),
             tick: 0,
-            phase: BattlePhase::Approach,
+            phase: if seed.mission.mission == trnm_campaign_core::CampaignMission::ConvoyExodus {
+                BattlePhase::ConvoyEscort
+            } else {
+                BattlePhase::Approach
+            },
+            objective_index: 0,
+            objective_progress_ticks: 0,
+            convoy_position: (seed.mission.mission
+                == trnm_campaign_core::CampaignMission::ConvoyExodus)
+                .then(|| {
+                    nearest_passable(
+                        &seed,
+                        BattleGridPoint::new(seed.map.party_start.x - 1, seed.map.party_start.y),
+                    )
+                    .unwrap_or(seed.map.party_start)
+                }),
+            convoy_hp: if seed.mission.mission == trnm_campaign_core::CampaignMission::ConvoyExodus
+            {
+                1_200
+            } else {
+                0
+            },
+            move_intents: BTreeMap::new(),
+            tile_reservations: Vec::new(),
             active_order: None,
             queued_orders: VecDeque::new(),
             control_groups: BTreeMap::new(),
@@ -488,6 +541,28 @@ impl MissionSimV1 {
                     unit.unit_id
                 )));
             }
+        }
+        if self.objective_index > self.seed.mission.objectives.len()
+            || self.convoy_position.is_some_and(|position| {
+                !self.seed.map.in_bounds(position) || !self.seed.map.passable(position)
+            })
+            || self.convoy_hp < 0
+        {
+            return Err(SimError::Integrity(
+                "mission objective or convoy state is invalid".to_string(),
+            ));
+        }
+        if self.tile_reservations.iter().any(|reservation| {
+            !self.seed.map.in_bounds(reservation.tile)
+                || !self.seed.map.passable(reservation.tile)
+                || !self
+                    .party
+                    .iter()
+                    .any(|unit| unit.unit_id == reservation.unit_id)
+        }) {
+            return Err(SimError::Integrity(
+                "tile reservation references invalid traffic state".to_string(),
+            ));
         }
         for support in &self.support_units {
             if !self.seed.map.in_bounds(support.position)
@@ -902,6 +977,7 @@ impl MissionSimV1 {
         self.resolve_enemy_ai();
         self.resolve_support_fire();
         self.resolve_relay_pressure();
+        self.resolve_mission_objective();
         self.update_phase();
         self.prune_control_groups();
         self.refresh_visibility();
@@ -913,9 +989,7 @@ impl MissionSimV1 {
             self.outcome = Some(BattleOutcome::Defeat);
             self.phase = BattlePhase::Complete;
             self.event_count += 1;
-        } else if self.relay_capture_ticks >= CAPTURE_TICKS_REQUIRED
-            && self.enemies.iter().all(|enemy| !enemy.alive())
-        {
+        } else if self.objective_index >= self.seed.mission.objectives.len() {
             self.outcome = Some(BattleOutcome::Victory);
             self.phase = BattlePhase::Complete;
             self.event_count += 1;
@@ -980,6 +1054,18 @@ impl MissionSimV1 {
     }
 
     fn update_phase(&mut self) {
+        if self.seed.mission.mission == trnm_campaign_core::CampaignMission::ConvoyExodus {
+            self.phase = match self.current_objective_kind() {
+                Some(ObjectiveKind::Escort) => BattlePhase::ConvoyEscort,
+                Some(ObjectiveKind::Defend) => BattlePhase::GeneratorDefense,
+                Some(ObjectiveKind::Extract) => BattlePhase::Extraction,
+                _ if self.objective_index >= self.seed.mission.objectives.len() => {
+                    BattlePhase::Complete
+                }
+                _ => self.phase,
+            };
+            return;
+        }
         if self.phase == BattlePhase::Approach
             && self
                 .party
@@ -988,11 +1074,118 @@ impl MissionSimV1 {
                 .any(|unit| distance(unit.position, self.seed.map.approach_point) <= 2)
         {
             self.phase = BattlePhase::Contact;
+            self.objective_index = 1;
             self.event_count += 1;
         }
         if self.phase == BattlePhase::Contact && self.enemies.iter().all(|unit| !unit.alive()) {
             self.phase = BattlePhase::Relay;
             self.event_count += 1;
+        }
+        if self.objective_index == 1 && self.relay_guard_hp <= 0 {
+            self.objective_index = 2;
+            self.objective_progress_ticks = self.relay_capture_ticks;
+        }
+    }
+
+    pub fn current_objective_kind(&self) -> Option<ObjectiveKind> {
+        self.seed
+            .mission
+            .objectives
+            .get(self.objective_index)
+            .map(|objective| objective.kind)
+    }
+
+    pub fn current_objective_id(&self) -> Option<&str> {
+        self.seed
+            .mission
+            .objectives
+            .get(self.objective_index)
+            .map(|objective| objective.id.as_str())
+    }
+
+    fn resolve_mission_objective(&mut self) {
+        let Some(objective) = self
+            .seed
+            .mission
+            .objectives
+            .get(self.objective_index)
+            .cloned()
+        else {
+            return;
+        };
+        if self.seed.mission.mission != trnm_campaign_core::CampaignMission::ConvoyExodus {
+            if objective.kind == ObjectiveKind::Capture {
+                self.objective_progress_ticks = self.relay_capture_ticks;
+                if self.relay_capture_ticks >= objective.duration_ticks {
+                    self.objective_index += 1;
+                }
+            }
+            return;
+        }
+
+        match objective.kind {
+            ObjectiveKind::Escort | ObjectiveKind::Extract => {
+                let Some(position) = self.convoy_position else {
+                    return;
+                };
+                let escort_ordered = self.active_order.as_ref().is_some_and(|order| {
+                    matches!(order.kind, RtsOrderKind::Move | RtsOrderKind::AttackMove)
+                        && order.target_tile.is_some_and(|tile| {
+                            BattleGridPoint::new(tile.x as i16, tile.y as i16) == objective.target
+                        })
+                });
+                let escorted = escort_ordered
+                    || self.party.iter().filter(|unit| unit.alive()).any(|unit| {
+                        distance(unit.position, position) <= 3
+                            || distance(unit.position, objective.target) <= 3
+                    });
+                if escorted && self.tick.is_multiple_of(8) && position != objective.target {
+                    let occupied = self
+                        .party
+                        .iter()
+                        .chain(&self.enemies)
+                        .filter(|unit| unit.alive())
+                        .map(|unit| unit.position)
+                        .chain(self.support_units.iter().map(|unit| unit.position))
+                        .collect::<BTreeSet<_>>();
+                    if let Some(next) =
+                        next_step_toward(&self.seed, position, objective.target, 0, &occupied)
+                    {
+                        self.convoy_position = Some(next);
+                        self.event_count += 1;
+                    }
+                }
+                if self.convoy_position == Some(objective.target) {
+                    if objective.kind == ObjectiveKind::Escort {
+                        self.objective_index += 1;
+                        self.objective_progress_ticks = 0;
+                    } else if escorted {
+                        self.objective_progress_ticks =
+                            self.objective_progress_ticks.saturating_add(1);
+                        if self.objective_progress_ticks >= objective.duration_ticks {
+                            self.objective_index += 1;
+                        }
+                    }
+                }
+            }
+            ObjectiveKind::Defend => {
+                let defenders = self
+                    .party
+                    .iter()
+                    .filter(|unit| unit.alive() && distance(unit.position, objective.target) <= 4)
+                    .count();
+                if defenders > 0 {
+                    self.objective_progress_ticks = self.objective_progress_ticks.saturating_add(1);
+                }
+                if self.objective_progress_ticks == 1 || self.objective_progress_ticks == 130 {
+                    self.spawn_reinforcement_wave(true);
+                }
+                if self.objective_progress_ticks >= objective.duration_ticks {
+                    self.objective_index += 1;
+                    self.objective_progress_ticks = 0;
+                }
+            }
+            ObjectiveKind::Destroy | ObjectiveKind::Capture => {}
         }
     }
 
@@ -1003,17 +1196,32 @@ impl MissionSimV1 {
         stop_range: i16,
         formation_id: Option<&str>,
     ) {
+        self.tile_reservations.clear();
         let mut occupied = self
             .party
             .iter()
             .chain(&self.enemies)
             .filter(|unit| unit.alive())
             .map(|unit| unit.position)
+            .chain(self.support_units.iter().map(|unit| unit.position))
             .collect::<BTreeSet<_>>();
-        for index in 0..self.party.len() {
-            if !self.party[index].alive() || !selected.contains(&self.party[index].unit_id) {
-                continue;
-            }
+        let mut indices = (0..self.party.len())
+            .filter(|index| {
+                self.party[*index].alive() && selected.contains(&self.party[*index].unit_id)
+            })
+            .collect::<Vec<_>>();
+        indices.sort_by(|left, right| {
+            let blocked = |index: usize| {
+                self.move_intents
+                    .get(&self.party[index].unit_id)
+                    .map(|intent| intent.blocked_ticks)
+                    .unwrap_or(0)
+            };
+            blocked(*right)
+                .cmp(&blocked(*left))
+                .then_with(|| self.party[*left].unit_id.cmp(&self.party[*right].unit_id))
+        });
+        for index in indices {
             self.party[index].movement_budget_milli += self.party[index].move_speed_milli;
             if self.party[index].movement_budget_milli < MOVEMENT_TILE_COST {
                 continue;
@@ -1021,15 +1229,58 @@ impl MissionSimV1 {
             occupied.remove(&self.party[index].position);
             let formation_target =
                 formation_target_for(target, index, formation_id.unwrap_or("none"), &self.seed);
-            if let Some(next) = next_step_toward(
+            let previous = self.move_intents.get(&self.party[index].unit_id);
+            let mut blocked_ticks = previous.map(|intent| intent.blocked_ticks).unwrap_or(0);
+            let mut replan_count = previous.map(|intent| intent.replan_count).unwrap_or(0);
+            let mut next = next_step_toward(
                 &self.seed,
                 self.party[index].position,
                 formation_target,
                 stop_range,
                 &occupied,
-            ) {
+            );
+            if next.is_none() && distance(self.party[index].position, formation_target) > stop_range
+            {
+                blocked_ticks = blocked_ticks.saturating_add(1);
+                if blocked_ticks >= 6 {
+                    next = deterministic_yield_step(
+                        &self.seed,
+                        self.party[index].position,
+                        formation_target,
+                        &occupied,
+                        &self.tile_reservations,
+                    );
+                    replan_count = replan_count.saturating_add(1);
+                    blocked_ticks = 0;
+                }
+            } else if next.is_some() {
+                blocked_ticks = 0;
+            }
+            if next.is_some_and(|candidate| {
+                self.tile_reservations
+                    .iter()
+                    .any(|reservation| reservation.tile == candidate)
+            }) {
+                next = None;
+                blocked_ticks = blocked_ticks.saturating_add(1);
+            }
+            self.move_intents.insert(
+                self.party[index].unit_id.clone(),
+                MoveIntent {
+                    unit_id: self.party[index].unit_id.clone(),
+                    target: formation_target,
+                    desired_tile: next,
+                    blocked_ticks,
+                    replan_count,
+                },
+            );
+            if let Some(next) = next {
                 self.party[index].position = next;
                 self.party[index].movement_budget_milli -= MOVEMENT_TILE_COST;
+                self.tile_reservations.push(TileReservation {
+                    tile: next,
+                    unit_id: self.party[index].unit_id.clone(),
+                });
                 occupied.insert(next);
             } else {
                 occupied.insert(self.party[index].position);
@@ -1221,7 +1472,7 @@ impl MissionSimV1 {
                     }
                     self.event_count += 1;
                 }
-            } else if self.phase == BattlePhase::Relay
+            } else if self.current_objective_kind() == Some(ObjectiveKind::Destroy)
                 && distance(self.party[attacker_index].position, self.seed.map.objective)
                     <= self.party[attacker_index].attack_range() + 1
                 && self.relay_guard_hp > 0
@@ -1308,7 +1559,7 @@ impl MissionSimV1 {
     }
 
     fn resolve_capture(&mut self, selected: &BTreeSet<String>) {
-        if self.phase != BattlePhase::Relay
+        if self.current_objective_kind() != Some(ObjectiveKind::Capture)
             || self.relay_guard_hp > 0
             || self.enemies.iter().any(SimUnit::alive)
         {
@@ -1629,8 +1880,7 @@ impl MissionSimV1 {
         for job in completed {
             match job.kind {
                 SimJobKind::TrainSupport => {
-                    let position = nearest_passable(&self.seed, job.target)
-                        .unwrap_or(self.seed.map.party_start);
+                    let position = self.unoccupied_spawn_tile(job.target);
                     self.support_units.push(SupportUnit {
                         unit_id: format!("field_support_{}", self.support_units.len() + 1),
                         role: "support".to_string(),
@@ -1641,8 +1891,7 @@ impl MissionSimV1 {
                     });
                 }
                 SimJobKind::TrainMedic => {
-                    let position = nearest_passable(&self.seed, job.target)
-                        .unwrap_or(self.seed.map.party_start);
+                    let position = self.unoccupied_spawn_tile(job.target);
                     self.support_units.push(SupportUnit {
                         unit_id: format!("field_medic_{}", self.support_units.len() + 1),
                         role: "medic".to_string(),
@@ -1680,6 +1929,30 @@ impl MissionSimV1 {
             }
             self.event_count += 1;
         }
+    }
+
+    fn unoccupied_spawn_tile(&self, preferred: BattleGridPoint) -> BattleGridPoint {
+        let occupied = self
+            .party
+            .iter()
+            .chain(&self.enemies)
+            .filter(|unit| unit.alive())
+            .map(|unit| unit.position)
+            .chain(self.support_units.iter().map(|unit| unit.position))
+            .collect::<BTreeSet<_>>();
+        let mut frontier = VecDeque::from([preferred]);
+        let mut visited = BTreeSet::from([preferred]);
+        while let Some(tile) = frontier.pop_front() {
+            if self.seed.map.passable(tile) && !occupied.contains(&tile) {
+                return tile;
+            }
+            for next in neighbors(tile) {
+                if self.seed.map.in_bounds(next) && visited.insert(next) {
+                    frontier.push_back(next);
+                }
+            }
+        }
+        self.seed.map.party_start
     }
 
     fn resolve_support_fire(&mut self) {
@@ -1749,6 +2022,7 @@ impl MissionSimV1 {
         for index in 0..count {
             let spawn = &self.seed.map.enemy_spawns
                 [(index + self.reinforcement_wave as usize) % self.seed.map.enemy_spawns.len()];
+            let spawn_position = self.unoccupied_spawn_tile(spawn.position);
             let role = if index % 2 == 0 { "striker" } else { "warden" };
             let hp = 420 * scale / 100;
             self.enemies.push(SimUnit {
@@ -1769,7 +2043,7 @@ impl MissionSimV1 {
                 ability_range: 1,
                 ability_cooldown_ticks: 0,
                 guard_ticks: 0,
-                position: spawn.position,
+                position: spawn_position,
                 attacks_made: 0,
                 stance: RtsUnitStance::Aggressive,
                 patrol_anchor: None,
@@ -1977,7 +2251,7 @@ impl MissionSimV1 {
     }
 
     fn resolve_relay_pressure(&mut self) {
-        if self.phase != BattlePhase::Relay
+        if self.current_objective_kind() != Some(ObjectiveKind::Destroy)
             || self.relay_guard_hp <= 0
             || !self.tick.is_multiple_of(24)
         {
@@ -2093,6 +2367,7 @@ impl MissionSimV1 {
         })?;
         let final_snapshot_hash = self.snapshot_hash()?;
         let experience = match outcome {
+            BattleOutcome::Victory if self.seed.map_id == "convoy_exodus" => 60,
             BattleOutcome::Victory if is_aftershock_map(&self.seed.map_id) => 55,
             BattleOutcome::Victory => 40,
             BattleOutcome::Defeat if self.tick >= 60 * TICKS_PER_SECOND => 3,
@@ -2124,7 +2399,16 @@ impl MissionSimV1 {
             })
             .collect();
         let aftershock = is_aftershock_map(&self.seed.map_id);
+        let convoy = self.seed.map_id == "convoy_exodus";
         let (loot, reputation_delta, world_flags) = match outcome {
+            BattleOutcome::Victory if convoy => (
+                vec![LootStack {
+                    item_id: "signal-convoy-seal".to_string(),
+                    quantity: 1,
+                }],
+                6,
+                vec!["convoy_exodus_secured".to_string()],
+            ),
             BattleOutcome::Victory if aftershock => (
                 vec![LootStack {
                     item_id: "field-tonic-kit".to_string(),
@@ -2150,7 +2434,9 @@ impl MissionSimV1 {
             BattleOutcome::Defeat => (
                 Vec::new(),
                 -2,
-                vec![if aftershock {
+                vec![if convoy {
+                    "convoy_exodus_lost".to_string()
+                } else if aftershock {
                     "aftershock_patrol_repulsed".to_string()
                 } else {
                     "first_contact_repulsed".to_string()
@@ -2159,7 +2445,9 @@ impl MissionSimV1 {
             BattleOutcome::Withdrawal => (
                 Vec::new(),
                 0,
-                vec![if aftershock {
+                vec![if convoy {
+                    "convoy_exodus_withdrawn".to_string()
+                } else if aftershock {
                     "aftershock_patrol_withdrawn".to_string()
                 } else {
                     "first_contact_withdrawn".to_string()
@@ -2357,6 +2645,27 @@ fn next_step_toward(
         current = parent;
     }
     None
+}
+
+fn deterministic_yield_step(
+    seed: &BattleSeedV1,
+    start: BattleGridPoint,
+    target: BattleGridPoint,
+    occupied: &BTreeSet<BattleGridPoint>,
+    reservations: &[TileReservation],
+) -> Option<BattleGridPoint> {
+    let mut candidates = neighbors(start)
+        .into_iter()
+        .filter(|candidate| {
+            seed.map.passable(*candidate)
+                && !occupied.contains(candidate)
+                && !reservations
+                    .iter()
+                    .any(|reservation| reservation.tile == *candidate)
+        })
+        .collect::<Vec<_>>();
+    candidates.sort_by_key(|candidate| (distance(*candidate, target), candidate.y, candidate.x));
+    candidates.into_iter().next()
 }
 
 fn deterministic_evade(tick: u64, unit_index: usize, evasion_permille: u16) -> bool {
@@ -3169,5 +3478,102 @@ mod tests {
             .unwrap();
         assert_eq!(hero_report.confirmed_kills, 2);
         assert_eq!(hero_report.veteran_rank, 1);
+    }
+
+    #[test]
+    fn reservation_yield_and_bounded_replan_keep_eight_actors_unique() {
+        let mut baseline = MissionSimV1::from_seed(seed()).unwrap();
+        for enemy in &mut baseline.enemies {
+            enemy.hp = 0;
+        }
+        baseline.party[0].position = BattleGridPoint::new(5, 5);
+        baseline.party[1].position = BattleGridPoint::new(1, 1);
+        baseline.party[2].position = BattleGridPoint::new(2, 1);
+        baseline.party[3].position = BattleGridPoint::new(3, 1);
+        baseline.support_units = [
+            BattleGridPoint::new(4, 5),
+            BattleGridPoint::new(6, 5),
+            BattleGridPoint::new(5, 4),
+            BattleGridPoint::new(5, 6),
+        ]
+        .into_iter()
+        .enumerate()
+        .map(|(index, position)| SupportUnit {
+            unit_id: format!("traffic_support_{index}"),
+            role: "support".to_string(),
+            position,
+            hp: 100,
+            damage: 1,
+            attack_interval_ticks: 20,
+        })
+        .collect();
+        let hero = BTreeSet::from([baseline.party[0].unit_id.clone()]);
+        let target = BattleGridPoint::new(9, 5);
+        for _ in 0..7 {
+            baseline.party[0].movement_budget_milli = MOVEMENT_TILE_COST;
+            baseline.move_selected_toward(&hero, target, 0, None);
+        }
+        let intent = baseline.move_intents.get("hero").unwrap();
+        assert!(
+            intent.replan_count >= 1,
+            "blocked actor must enter bounded replan"
+        );
+        assert_eq!(baseline.party[0].position, BattleGridPoint::new(5, 5));
+
+        baseline.support_units[1].position = BattleGridPoint::new(8, 8);
+        baseline.party[0].movement_budget_milli = MOVEMENT_TILE_COST;
+        baseline.move_selected_toward(&hero, target, 0, None);
+        assert_ne!(baseline.party[0].position, BattleGridPoint::new(5, 5));
+        let positions = baseline
+            .party
+            .iter()
+            .map(|unit| unit.position)
+            .chain(baseline.support_units.iter().map(|unit| unit.position))
+            .collect::<BTreeSet<_>>();
+        assert_eq!(positions.len(), 8);
+        assert!(baseline.tile_reservations.len() <= 1);
+
+        let first_hash = baseline.snapshot_hash().unwrap();
+        let checkpoint = SimCheckpointV1::capture(&baseline).unwrap();
+        let resumed: SimCheckpointV1 =
+            serde_json::from_slice(&serde_json::to_vec(&checkpoint).unwrap()).unwrap();
+        resumed.validate().unwrap();
+        assert_eq!(resumed.sim.snapshot_hash().unwrap(), first_hash);
+    }
+
+    #[test]
+    fn opposing_traffic_uses_a_stable_side_step() {
+        let seed = seed();
+        let left = BattleGridPoint::new(5, 5);
+        let right = BattleGridPoint::new(6, 5);
+        let first = deterministic_yield_step(
+            &seed,
+            left,
+            BattleGridPoint::new(9, 5),
+            &BTreeSet::from([right]),
+            &[],
+        )
+        .expect("left actor must find a deterministic side step");
+        let repeated = deterministic_yield_step(
+            &seed,
+            left,
+            BattleGridPoint::new(9, 5),
+            &BTreeSet::from([right]),
+            &[],
+        )
+        .unwrap();
+        assert_eq!(first, repeated);
+        assert_ne!(first, right);
+
+        let second = deterministic_yield_step(
+            &seed,
+            right,
+            BattleGridPoint::new(2, 5),
+            &BTreeSet::from([left, first]),
+            &[],
+        )
+        .expect("right actor must yield without entering the reserved side step");
+        assert_ne!(second, left);
+        assert_ne!(second, first);
     }
 }

@@ -5,7 +5,7 @@
 
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap, VecDeque};
 
 pub const MIRROR_SQUARE_ROOM: &str = "mirror_square";
 pub const MENTOR_HALL_ROOM: &str = "mentor_hall";
@@ -72,6 +72,119 @@ pub enum BuildPath {
     Vanguard,
     Windrunner,
     Artificer,
+}
+
+impl BuildPath {
+    pub fn display_name(self) -> &'static str {
+        match self {
+            Self::Unformed => "Unformed",
+            Self::Vanguard => "Vanguard",
+            Self::Windrunner => "Windrunner",
+            Self::Artificer => "Artificer",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CharacterOrigin {
+    #[default]
+    Balanced,
+    Artisan,
+    Scout,
+}
+
+impl CharacterOrigin {
+    pub fn next(self) -> Self {
+        match self {
+            Self::Balanced => Self::Artisan,
+            Self::Artisan => Self::Scout,
+            Self::Scout => Self::Balanced,
+        }
+    }
+
+    pub fn display_name(self) -> &'static str {
+        match self {
+            Self::Balanced => "Mirror Ward",
+            Self::Artisan => "Workshop Kin",
+            Self::Scout => "Signal Runner",
+        }
+    }
+
+    pub fn starter_skill(self) -> &'static str {
+        match self {
+            Self::Balanced => "iron_guard",
+            Self::Artisan => "relay_overcharge",
+            Self::Scout => "wind_step",
+        }
+    }
+
+    pub fn apply(self, attributes: &mut TrillionniumAttributes) {
+        match self {
+            Self::Balanced => {
+                attributes.physique = attributes.physique.saturating_add(2);
+                attributes.resolve = attributes.resolve.saturating_add(2);
+            }
+            Self::Artisan => {
+                attributes.craft = attributes.craft.saturating_add(4);
+                attributes.insight = attributes.insight.saturating_add(1);
+            }
+            Self::Scout => {
+                attributes.agility = attributes.agility.saturating_add(4);
+                attributes.insight = attributes.insight.saturating_add(1);
+            }
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum MasteryChallenge {
+    VanguardStand,
+    WindrunnerCircuit,
+    ArtificerCommission,
+}
+
+impl MasteryChallenge {
+    pub fn for_path(path: BuildPath) -> Option<Self> {
+        match path {
+            BuildPath::Unformed => None,
+            BuildPath::Vanguard => Some(Self::VanguardStand),
+            BuildPath::Windrunner => Some(Self::WindrunnerCircuit),
+            BuildPath::Artificer => Some(Self::ArtificerCommission),
+        }
+    }
+
+    pub fn title(self) -> BuildTitle {
+        match self {
+            Self::VanguardStand => BuildTitle::GateWarden,
+            Self::WindrunnerCircuit => BuildTitle::RelayRunner,
+            Self::ArtificerCommission => BuildTitle::ForgeMaster,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case", tag = "kind", content = "value")]
+pub enum EquipmentAffixCondition {
+    Origin(CharacterOrigin),
+    BuildPath(BuildPath),
+    MasteryTitle(BuildTitle),
+}
+
+impl EquipmentAffixCondition {
+    pub fn active(
+        self,
+        origin: CharacterOrigin,
+        build_path: BuildPath,
+        title: Option<BuildTitle>,
+    ) -> bool {
+        match self {
+            Self::Origin(expected) => origin == expected,
+            Self::BuildPath(expected) => build_path == expected,
+            Self::MasteryTitle(expected) => title == Some(expected),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
@@ -347,6 +460,37 @@ pub struct WorldGraph {
     pub exits: Vec<WorldExit>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case", tag = "kind")]
+pub enum WorldRouteBlockedReason {
+    UnknownStart {
+        room_id: String,
+    },
+    UnknownDestination {
+        room_id: String,
+    },
+    LockedRoom {
+        room_id: String,
+        required_flag: String,
+    },
+    Unreachable,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct WorldRoutePlan {
+    pub start_room_id: String,
+    pub destination_room_id: String,
+    pub path: Vec<String>,
+    pub next_exit: Option<WorldExit>,
+    pub blocked_reason: Option<WorldRouteBlockedReason>,
+}
+
+impl WorldRoutePlan {
+    pub fn reachable(&self) -> bool {
+        self.blocked_reason.is_none()
+    }
+}
+
 impl WorldGraph {
     pub fn validate(&self) -> Result<(), String> {
         if self.rooms.is_empty() {
@@ -408,6 +552,171 @@ impl WorldGraph {
         self.can_enter(to, world_flags)?;
         self.room(to)
             .ok_or_else(|| format!("unknown_world_room:{to}"))
+    }
+
+    pub fn shortest_route(
+        &self,
+        start: &str,
+        destination: &str,
+        world_flags: &BTreeSet<String>,
+    ) -> WorldRoutePlan {
+        if !self.rooms.contains_key(start) {
+            return WorldRoutePlan {
+                start_room_id: start.to_string(),
+                destination_room_id: destination.to_string(),
+                path: Vec::new(),
+                next_exit: None,
+                blocked_reason: Some(WorldRouteBlockedReason::UnknownStart {
+                    room_id: start.to_string(),
+                }),
+            };
+        }
+        if !self.rooms.contains_key(destination) {
+            return WorldRoutePlan {
+                start_room_id: start.to_string(),
+                destination_room_id: destination.to_string(),
+                path: Vec::new(),
+                next_exit: None,
+                blocked_reason: Some(WorldRouteBlockedReason::UnknownDestination {
+                    room_id: destination.to_string(),
+                }),
+            };
+        }
+        if start == destination {
+            return WorldRoutePlan {
+                start_room_id: start.to_string(),
+                destination_room_id: destination.to_string(),
+                path: vec![start.to_string()],
+                next_exit: None,
+                blocked_reason: None,
+            };
+        }
+
+        let accessible = self.bfs_path(start, destination, |room| {
+            self.can_enter(room, world_flags).is_ok()
+        });
+        if let Some(path) = accessible {
+            let next_exit = path.get(1).and_then(|next| {
+                self.exits
+                    .iter()
+                    .find(|exit| exit.from == start && exit.to == *next)
+                    .cloned()
+            });
+            return WorldRoutePlan {
+                start_room_id: start.to_string(),
+                destination_room_id: destination.to_string(),
+                path,
+                next_exit,
+                blocked_reason: None,
+            };
+        }
+
+        let structural = self.bfs_path(start, destination, |_| true);
+        let blocked_reason = structural
+            .as_ref()
+            .and_then(|path| {
+                path.iter().skip(1).find_map(|room_id| {
+                    self.rooms
+                        .get(room_id)
+                        .and_then(|room| room.unlock_flag.as_ref().map(|flag| (room_id, flag)))
+                        .filter(|(_, flag)| !world_flags.contains(*flag))
+                })
+            })
+            .map(
+                |(room_id, required_flag)| WorldRouteBlockedReason::LockedRoom {
+                    room_id: room_id.clone(),
+                    required_flag: required_flag.clone(),
+                },
+            )
+            .unwrap_or(WorldRouteBlockedReason::Unreachable);
+        WorldRoutePlan {
+            start_room_id: start.to_string(),
+            destination_room_id: destination.to_string(),
+            path: Vec::new(),
+            next_exit: None,
+            blocked_reason: Some(blocked_reason),
+        }
+    }
+
+    pub fn ordered_task_route(
+        &self,
+        start: &str,
+        waypoints: &[String],
+        world_flags: &BTreeSet<String>,
+    ) -> WorldRoutePlan {
+        let destination = waypoints
+            .last()
+            .cloned()
+            .unwrap_or_else(|| start.to_string());
+        let mut combined = vec![start.to_string()];
+        let mut current = start.to_string();
+        for waypoint in waypoints {
+            let segment = self.shortest_route(&current, waypoint, world_flags);
+            if !segment.reachable() {
+                return WorldRoutePlan {
+                    start_room_id: start.to_string(),
+                    destination_room_id: destination,
+                    path: Vec::new(),
+                    next_exit: None,
+                    blocked_reason: segment.blocked_reason,
+                };
+            }
+            combined.extend(segment.path.into_iter().skip(1));
+            current = waypoint.clone();
+        }
+        let next_exit = combined.get(1).and_then(|next| {
+            self.exits
+                .iter()
+                .find(|exit| exit.from == start && exit.to == *next)
+                .cloned()
+        });
+        WorldRoutePlan {
+            start_room_id: start.to_string(),
+            destination_room_id: destination,
+            path: combined,
+            next_exit,
+            blocked_reason: None,
+        }
+    }
+
+    fn bfs_path(
+        &self,
+        start: &str,
+        destination: &str,
+        can_enter: impl Fn(&str) -> bool,
+    ) -> Option<Vec<String>> {
+        let mut queue = VecDeque::from([start.to_string()]);
+        let mut visited = BTreeSet::from([start.to_string()]);
+        let mut previous = BTreeMap::<String, String>::new();
+        while let Some(current) = queue.pop_front() {
+            if current == destination {
+                let mut path = vec![current.clone()];
+                let mut cursor = current;
+                while let Some(parent) = previous.get(&cursor).cloned() {
+                    path.push(parent.clone());
+                    cursor = parent;
+                }
+                path.reverse();
+                return Some(path);
+            }
+            let mut exits = self
+                .exits
+                .iter()
+                .filter(|exit| exit.from == current)
+                .collect::<Vec<_>>();
+            exits.sort_by(|left, right| {
+                left.direction
+                    .cmp(&right.direction)
+                    .then_with(|| left.to.cmp(&right.to))
+            });
+            for exit in exits {
+                if can_enter(&exit.to) && visited.insert(exit.to.clone()) {
+                    previous.insert(exit.to.clone(), current.clone());
+                    queue.push_back(exit.to.clone());
+                }
+            }
+        }
+        None
     }
 }
 
@@ -740,6 +1049,101 @@ mod tests {
             .transition(MIRROR_SQUARE_ROOM, RELAY_QUARTER_ROOM, &flags)
             .unwrap_err()
             .contains("signal_road_secured"));
+    }
+
+    #[test]
+    fn route_plan_is_lock_aware_stable_and_supports_ordered_waypoints() {
+        let graph = mirror_city_world_graph();
+        let mut flags = BTreeSet::from(["expedition_gate_open".to_string()]);
+        let blocked = graph.shortest_route(MENTOR_HALL_ROOM, RELAY_QUARTER_ROOM, &flags);
+        assert_eq!(
+            blocked.blocked_reason,
+            Some(WorldRouteBlockedReason::LockedRoom {
+                room_id: RELAY_QUARTER_ROOM.to_string(),
+                required_flag: "signal_road_secured".to_string(),
+            })
+        );
+        flags.insert("signal_road_secured".to_string());
+        let waypoints = vec![
+            EXPEDITION_GATE_ROOM.to_string(),
+            RELAY_QUARTER_ROOM.to_string(),
+        ];
+        let route = graph.ordered_task_route(MENTOR_HALL_ROOM, &waypoints, &flags);
+        assert_eq!(
+            route.path.first().map(String::as_str),
+            Some(MENTOR_HALL_ROOM)
+        );
+        assert_eq!(
+            route.path.last().map(String::as_str),
+            Some(RELAY_QUARTER_ROOM)
+        );
+        assert_eq!(
+            route.next_exit.as_ref().map(|exit| exit.to.as_str()),
+            Some(EXPEDITION_GATE_ROOM)
+        );
+        assert_eq!(
+            route,
+            graph.ordered_task_route(MENTOR_HALL_ROOM, &waypoints, &flags)
+        );
+        assert!(matches!(
+            graph
+                .shortest_route("unknown", RELAY_QUARTER_ROOM, &flags)
+                .blocked_reason,
+            Some(WorldRouteBlockedReason::UnknownStart { .. })
+        ));
+        assert!(matches!(
+            graph
+                .shortest_route(MIRROR_SQUARE_ROOM, "unknown", &flags)
+                .blocked_reason,
+            Some(WorldRouteBlockedReason::UnknownDestination { .. })
+        ));
+
+        let mut disconnected = graph.clone();
+        disconnected.rooms.insert(
+            "sealed_annex".to_string(),
+            WorldRoom {
+                id: "sealed_annex".to_string(),
+                title: "Sealed Annex".to_string(),
+                region_id: "mirror_city".to_string(),
+                unlock_flag: None,
+            },
+        );
+        assert_eq!(
+            disconnected
+                .shortest_route(MIRROR_SQUARE_ROOM, "sealed_annex", &flags)
+                .blocked_reason,
+            Some(WorldRouteBlockedReason::Unreachable)
+        );
+    }
+
+    #[test]
+    fn origins_masteries_and_affix_conditions_are_typed() {
+        let mut balanced = TrillionniumAttributes::default();
+        CharacterOrigin::Balanced.apply(&mut balanced);
+        let mut scout = TrillionniumAttributes::default();
+        CharacterOrigin::Scout.apply(&mut scout);
+        assert!(balanced.physique > scout.physique);
+        assert!(scout.agility > balanced.agility);
+        assert_eq!(
+            MasteryChallenge::for_path(BuildPath::Artificer)
+                .unwrap()
+                .title(),
+            BuildTitle::ForgeMaster
+        );
+        assert!(
+            EquipmentAffixCondition::Origin(CharacterOrigin::Scout).active(
+                CharacterOrigin::Scout,
+                BuildPath::Windrunner,
+                None
+            )
+        );
+        assert!(
+            !EquipmentAffixCondition::MasteryTitle(BuildTitle::RelayRunner).active(
+                CharacterOrigin::Scout,
+                BuildPath::Windrunner,
+                None
+            )
+        );
     }
 
     #[test]

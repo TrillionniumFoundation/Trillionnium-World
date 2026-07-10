@@ -105,6 +105,7 @@ pub struct FirstContactMap {
 pub struct MissionMapCatalog {
     pub first_contact: FirstContactMap,
     pub aftershock_patrol: FirstContactMap,
+    pub convoy_exodus: FirstContactMap,
 }
 
 impl MissionMapCatalog {
@@ -116,6 +117,9 @@ impl MissionMapCatalog {
             aftershock_patrol: load_first_contact_map(
                 &asset_root.join("first_contact/maps/aftershock_patrol.yaml"),
             )?,
+            convoy_exodus: load_first_contact_map(
+                &asset_root.join("first_contact/maps/convoy_exodus.yaml"),
+            )?,
         })
     }
 
@@ -123,6 +127,7 @@ impl MissionMapCatalog {
         match mission {
             CampaignMission::FirstContact => &self.first_contact,
             CampaignMission::AftershockPatrol => &self.aftershock_patrol,
+            CampaignMission::ConvoyExodus => &self.convoy_exodus,
         }
     }
 }
@@ -191,8 +196,10 @@ impl FirstContactMap {
         if self.width < 24 || self.height < 18 || self.tile_size < 16 {
             return Err("First Contact map dimensions are below the playable slice minimum".into());
         }
-        if !matches!(self.id.as_str(), "first_contact" | "aftershock_patrol")
-            || self.title.trim().is_empty()
+        if !matches!(
+            self.id.as_str(),
+            "first_contact" | "aftershock_patrol" | "convoy_exodus"
+        ) || self.title.trim().is_empty()
         {
             return Err("campaign map identity/title is invalid".into());
         }
@@ -390,6 +397,11 @@ mod tests {
         assert_ne!(
             catalog.first_contact.chokepoints[1].width,
             catalog.aftershock_patrol.chokepoints[1].width
+        );
+        assert_eq!(catalog.convoy_exodus.id, "convoy_exodus");
+        assert_ne!(
+            catalog.convoy_exodus.terrain_rows,
+            catalog.aftershock_patrol.terrain_rows
         );
     }
 }

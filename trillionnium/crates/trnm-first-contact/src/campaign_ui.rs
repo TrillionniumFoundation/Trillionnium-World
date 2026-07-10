@@ -1,7 +1,7 @@
 use super::campaign_flow::{CampaignFlow, CampaignMode};
 use bevy::prelude::*;
 use bevy::window::RequestRedraw;
-use trnm_campaign_core::{CampaignRoom, QuestState};
+use trnm_campaign_core::{CampaignRoom, MasteryChallenge, QuestState};
 
 #[derive(Component)]
 pub(super) struct CampaignOverlayRoot;
@@ -106,6 +106,17 @@ fn quest_label(state: QuestState) -> &'static str {
 
 fn town_body(flow: &CampaignFlow) -> String {
     let save = &flow.save;
+    let route = save.current_task_route_plan();
+    let navigation = if let Some(exit) = route.next_exit.as_ref() {
+        format!(
+            "NEXT EXIT: {} -> {} ({})",
+            exit.from, exit.to, exit.direction
+        )
+    } else if let Some(reason) = route.blocked_reason.as_ref() {
+        format!("ROUTE BLOCKED: {reason:?}")
+    } else {
+        "NEXT EXIT: objective is in this room".to_string()
+    };
     if let Some(encounter) = &save.active_encounter {
         return format!(
             "SIGNAL ROAD AMBUSH\n\nROUND {}  |  HERO HP {}/{}  |  ENEMY HP {}/{}\n\nThis is a persistent typed RPG encounter. Attack, defend, consume a real inventory item, or withdraw; its terminal result writes injury, loot and route flags to the same campaign save.",
@@ -118,9 +129,10 @@ fn town_body(flow: &CampaignFlow) -> String {
     }
     match save.room {
         CampaignRoom::MirrorSquare => format!(
-            "{}\n\n{}  |  LV {}  |  XP {}  |  CR {}  |  REP {}\nGROWTH {}  |  PREVIEW {:?}  |  BUILD {:?}  |  TITLE {:?}\n\nA cycles a stat preview; S confirms one permanent point; D cancels without spending; V cycles unlocked titles. H treats injuries and Forge Master changes the real clinic price.\n\nSTORY: {:?}  |  MISSION: {}  |  AFTERSHOCK WINS {}  |  SAVE REVISION {}",
+            "{}\n\n{}  |  ORIGIN {}  |  LV {}  |  XP {}  |  CR {}  |  REP {}\nGROWTH {}  |  PREVIEW {:?}  |  BUILD {:?}  |  TITLE {:?}\n{}\n\nO changes origin before mentor progress; A/S/D choose growth; Q earns the selected path title through its mastery challenge.\n\nSTORY: {:?}  |  MISSION: {}  |  AFTERSHOCK WINS {}  |  SAVE REVISION {}",
             room_label(save.room),
             "MIRROR RANGER",
+            save.character_origin.display_name(),
             save.progression.level,
             save.progression.experience,
             save.progression.credits,
@@ -129,6 +141,7 @@ fn town_body(flow: &CampaignFlow) -> String {
             save.pending_growth_stat,
             save.build_path,
             save.active_title,
+            navigation,
             save.story.current_step,
             quest_label(save.quest_state),
             save.progression.aftershock_completions,
@@ -142,7 +155,7 @@ fn town_body(flow: &CampaignFlow) -> String {
                 .map(|progress| progress.rank)
                 .unwrap_or(0);
             format!(
-                "{}\n\nMENTOR MET: {}  |  TRAINING COMPLETE: {}\nSELECTED PATH: {}  |  PATH RANK: {}\nSESSIONS: {}/{}  |  CREDITS: {}  |  FACTION: {:?}\n\nL cycles paths; K trains; Y runs the deterministic guard/inner-power/strike sparring bout. Sparring raises trust and can grant Disciple rank once.",
+                "{}\n\nMENTOR MET: {}  |  TRAINING COMPLETE: {}\nSELECTED PATH: {}  |  PATH RANK: {}\nSESSIONS: {}/{}  |  CREDITS: {}  |  FACTION: {:?}\n{}\n\nL cycles training; K trains; Y spars; Q attempts the typed {:?} mastery. Growth selects a path, but only mastery grants its title.",
                 room_label(save.room),
                 save.mentor_met,
                 save.trained_with_mentor,
@@ -152,6 +165,8 @@ fn town_body(flow: &CampaignFlow) -> String {
                 trnm_campaign_core::MAX_MENTOR_TRAINING_SESSIONS,
                 save.progression.credits,
                 save.faction_rank,
+                navigation,
+                MasteryChallenge::for_path(save.build_path),
             )
         }
         CampaignRoom::ExpeditionGate => {
@@ -335,10 +350,10 @@ pub(super) fn update_campaign_ui(
         } else {
             match flow.save.room {
                 CampaignRoom::MirrorSquare => {
-                    "A PREVIEW | S CONFIRM | D CANCEL | V TITLE | E LOADOUT | P PARTY | H HEAL | G RELIC | 1-4 TRAVEL".to_string()
+                "O ORIGIN | A PREVIEW | S CONFIRM | D CANCEL | Q MASTERY | V TITLE | E LOADOUT | P PARTY | H HEAL | G RELIC | 1-4 TRAVEL".to_string()
                 }
                 CampaignRoom::MentorHall => {
-                    "T TALK | L PATH | K TRAIN | Y SPAR | E LOADOUT | H HEAL | 1 SQUARE | 3 GATE".to_string()
+                    "T TALK | L PATH | K TRAIN | Y SPAR | Q MASTERY | E LOADOUT | H HEAL | 1 SQUARE | 3 GATE".to_string()
                 }
                 CampaignRoom::ExpeditionGate => {
                     "Z/X/C FREE PARTY | P PRESET | E LOADOUT | F ACCEPT/DEPLOY | 1 SQUARE | 2 MENTOR | 4 RELAY"

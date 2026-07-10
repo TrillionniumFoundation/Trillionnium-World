@@ -42,13 +42,10 @@ impl FirstContactLivePlugin {
             .as_ref()
             .map(|mission| mission.seed.map_id.as_str())
             .unwrap_or(campaign.save.active_mission.map_id());
-        let map = if matches!(
-            active_mission,
-            "aftershock_patrol" | "first_contact_aftershock"
-        ) {
-            maps.aftershock_patrol.clone()
-        } else {
-            maps.first_contact.clone()
+        let map = match active_mission {
+            "aftershock_patrol" | "first_contact_aftershock" => maps.aftershock_patrol.clone(),
+            "convoy_exodus" => maps.convoy_exodus.clone(),
+            _ => maps.first_contact.clone(),
         };
         Ok(Self {
             map,

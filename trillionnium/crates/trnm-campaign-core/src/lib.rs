@@ -12,20 +12,21 @@ use std::{
     io::Write,
     path::{Path, PathBuf},
 };
-pub use trnm_rpg_core::EncounterAction;
 use trnm_rpg_core::{
     inventory_item_for as trillionnium_inventory_item_for, mirror_city_world_graph,
     resolve_mentor_sparring, BuildPath, BuildTitle, Character as WorldTrillionniumCharacter,
-    EncounterOutcome, FactionRank, GrowthStat, NpcRelationship, RelationshipAction,
-    RpgEncounterState, SparringAction, SparringOutcome, SparringReport, TrillionniumAttributes,
-    EXPEDITION_GATE_ROOM, MENTOR_HALL_ROOM, MIRROR_SQUARE_ROOM, RELAY_QUARTER_ROOM,
+    CharacterOrigin, EncounterOutcome, EquipmentAffixCondition, FactionRank, GrowthStat,
+    NpcRelationship, RelationshipAction, RpgEncounterState, SparringAction, SparringOutcome,
+    SparringReport, TrillionniumAttributes, WorldRoutePlan, EXPEDITION_GATE_ROOM, MENTOR_HALL_ROOM,
+    MIRROR_SQUARE_ROOM, RELAY_QUARTER_ROOM,
 };
+pub use trnm_rpg_core::{EncounterAction, MasteryChallenge};
 
 pub const CAMPAIGN_SAVE_CONTRACT: &str = "trnm_campaign_save_v1";
-pub const BATTLE_SEED_CONTRACT: &str = "trnm_battle_seed_v3";
+pub const BATTLE_SEED_CONTRACT: &str = "trnm_battle_seed_v4";
 pub const BATTLE_RESULT_CONTRACT: &str = "trnm_battle_result_v2";
 pub const SETTLEMENT_RECEIPT_CONTRACT: &str = "trnm_settlement_receipt_v1";
-pub const FIRST_CONTACT_RULES_VERSION: &str = "first_contact_campaign_rules_v3";
+pub const FIRST_CONTACT_RULES_VERSION: &str = "first_contact_campaign_rules_v4";
 pub const MAX_MENTOR_TRAINING_SESSIONS: u8 = 2;
 pub const FIELD_CLINIC_CREDIT_COST: i64 = 40;
 
@@ -192,6 +193,7 @@ pub enum CampaignMission {
     #[default]
     FirstContact,
     AftershockPatrol,
+    ConvoyExodus,
 }
 
 impl CampaignMission {
@@ -199,6 +201,7 @@ impl CampaignMission {
         match self {
             Self::FirstContact => "first_contact",
             Self::AftershockPatrol => "aftershock_patrol",
+            Self::ConvoyExodus => "convoy_exodus",
         }
     }
 
@@ -206,7 +209,116 @@ impl CampaignMission {
         match self {
             Self::FirstContact => "First Contact",
             Self::AftershockPatrol => "Aftershock Patrol",
+            Self::ConvoyExodus => "Signal Convoy Exodus",
         }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ObjectiveKind {
+    Destroy,
+    Capture,
+    Defend,
+    Escort,
+    Extract,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MissionObjectiveDefinition {
+    pub id: String,
+    pub kind: ObjectiveKind,
+    pub target: BattleGridPoint,
+    pub duration_ticks: u32,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MissionDefinition {
+    pub mission: CampaignMission,
+    pub map_id: String,
+    pub title: String,
+    pub objectives: Vec<MissionObjectiveDefinition>,
+}
+
+impl MissionDefinition {
+    pub fn for_mission(mission: CampaignMission, map: &BattleMapSeedV1) -> Self {
+        let objectives = match mission {
+            CampaignMission::FirstContact | CampaignMission::AftershockPatrol => vec![
+                MissionObjectiveDefinition {
+                    id: "reach_contact_line".to_string(),
+                    kind: ObjectiveKind::Escort,
+                    target: map.approach_point,
+                    duration_ticks: 0,
+                },
+                MissionObjectiveDefinition {
+                    id: "break_relay_guard".to_string(),
+                    kind: ObjectiveKind::Destroy,
+                    target: map.objective,
+                    duration_ticks: 0,
+                },
+                MissionObjectiveDefinition {
+                    id: "secure_relay".to_string(),
+                    kind: ObjectiveKind::Capture,
+                    target: map.objective,
+                    duration_ticks: 602,
+                },
+            ],
+            CampaignMission::ConvoyExodus => vec![
+                MissionObjectiveDefinition {
+                    id: "escort_supply_convoy".to_string(),
+                    kind: ObjectiveKind::Escort,
+                    target: map.approach_point,
+                    duration_ticks: 0,
+                },
+                MissionObjectiveDefinition {
+                    id: "hold_signal_generator".to_string(),
+                    kind: ObjectiveKind::Defend,
+                    target: map.approach_point,
+                    duration_ticks: 260,
+                },
+                MissionObjectiveDefinition {
+                    id: "extract_at_north_gate".to_string(),
+                    kind: ObjectiveKind::Extract,
+                    target: map.objective,
+                    duration_ticks: 80,
+                },
+            ],
+        };
+        Self {
+            mission,
+            map_id: mission.map_id().to_string(),
+            title: mission.display_name().to_string(),
+            objectives,
+        }
+    }
+
+    pub fn validate(&self, map: &BattleMapSeedV1) -> Result<(), CampaignError> {
+        if self.map_id != self.mission.map_id() || self.objectives.len() < 2 {
+            return Err(CampaignError::InvalidContract(
+                "mission definition identity/objectives are invalid".to_string(),
+            ));
+        }
+        let ids = self
+            .objectives
+            .iter()
+            .map(|objective| objective.id.as_str())
+            .collect::<BTreeSet<_>>();
+        if ids.len() != self.objectives.len()
+            || self.objectives.iter().any(|objective| {
+                objective.id.trim().is_empty()
+                    || !map.in_bounds(objective.target)
+                    || !map.passable(objective.target)
+                    || matches!(
+                        objective.kind,
+                        ObjectiveKind::Defend | ObjectiveKind::Capture | ObjectiveKind::Extract
+                    ) && objective.duration_ticks == 0
+            })
+        {
+            return Err(CampaignError::InvalidContract(
+                "mission objective is invalid".to_string(),
+            ));
+        }
+        Ok(())
     }
 }
 
@@ -224,6 +336,7 @@ pub enum StoryStepId {
     MeetMentor,
     SecureFirstContact,
     BreakAftershock,
+    EvacuateConvoy,
     SignalRoadComplete,
 }
 
@@ -303,6 +416,16 @@ pub fn signal_road_quest_definition() -> QuestDefinition {
                         room_id: RELAY_QUARTER_ROOM.to_string(),
                     },
                 ],
+            },
+            QuestStepDefinition {
+                id: StoryStepId::EvacuateConvoy,
+                mission: Some(CampaignMission::ConvoyExodus),
+                conditions: vec![UnlockCondition::WorldFlag {
+                    flag: "convoy_exodus_secured".to_string(),
+                }],
+                rewards: vec![QuestReward::WorldFlag {
+                    flag: "outer_signal_road_open".to_string(),
+                }],
             },
         ],
     }
@@ -538,6 +661,9 @@ pub struct BattleSeedV1 {
     pub rules_version: String,
     pub map: BattleMapSeedV1,
     pub party: Vec<BattleUnitSeedV1>,
+    pub mission: MissionDefinition,
+    #[serde(default)]
+    pub character_origin: CharacterOrigin,
     #[serde(default)]
     pub build_path: BuildPath,
     #[serde(default)]
@@ -560,7 +686,7 @@ impl BattleSeedV1 {
         }
         if !matches!(
             self.map_id.as_str(),
-            "first_contact" | "aftershock_patrol" | "first_contact_aftershock"
+            "first_contact" | "aftershock_patrol" | "first_contact_aftershock" | "convoy_exodus"
         ) || self.rules_version != FIRST_CONTACT_RULES_VERSION
         {
             return Err(CampaignError::InvalidContract(
@@ -568,6 +694,12 @@ impl BattleSeedV1 {
             ));
         }
         self.map.validate()?;
+        self.mission.validate(&self.map)?;
+        if self.mission.map_id != self.map_id {
+            return Err(CampaignError::InvalidContract(
+                "BattleSeed map and mission definition disagree".to_string(),
+            ));
+        }
         if self.party.len() != 4 {
             return Err(CampaignError::InvalidContract(
                 "First Contact requires exactly four party units".to_string(),
@@ -723,6 +855,8 @@ pub struct CampaignSaveV1 {
     pub room: CampaignRoom,
     pub phase: CampaignPhase,
     pub character: WorldTrillionniumCharacter,
+    #[serde(default)]
+    pub character_origin: CharacterOrigin,
     pub progression: CampaignProgression,
     pub party: Vec<PartyMember>,
     pub active_party_ids: Vec<String>,
@@ -763,6 +897,10 @@ pub struct CampaignSaveV1 {
 impl Default for CampaignSaveV1 {
     fn default() -> Self {
         let mut character = WorldTrillionniumCharacter::default_for("local-player");
+        CharacterOrigin::Balanced.apply(&mut character.attributes);
+        character
+            .skill_ids
+            .push(CharacterOrigin::Balanced.starter_skill().to_string());
         for item_id in [
             "iron-workshop-blade",
             "market-wind-sword",
@@ -793,7 +931,7 @@ impl Default for CampaignSaveV1 {
                 },
             );
         }
-        let base = TrillionniumAttributes::default();
+        let base = character.attributes.clone();
         let mut scout = base.clone();
         scout.agility += 4;
         scout.insight += 2;
@@ -810,6 +948,7 @@ impl Default for CampaignSaveV1 {
             room: CampaignRoom::MirrorSquare,
             phase: CampaignPhase::Town,
             character,
+            character_origin: CharacterOrigin::Balanced,
             progression: CampaignProgression {
                 level: 1,
                 experience: 0,
@@ -1135,6 +1274,54 @@ impl CampaignSaveV1 {
         Ok(())
     }
 
+    pub fn current_task_route_plan(&self) -> WorldRoutePlan {
+        let destination = match self.story.current_step {
+            StoryStepId::MeetMentor => MENTOR_HALL_ROOM,
+            StoryStepId::SecureFirstContact
+            | StoryStepId::BreakAftershock
+            | StoryStepId::EvacuateConvoy => EXPEDITION_GATE_ROOM,
+            StoryStepId::SignalRoadComplete => RELAY_QUARTER_ROOM,
+        };
+        let mut flags = self.progression.world_flags.clone();
+        if self.active_title == Some(BuildTitle::RelayRunner) {
+            flags.insert("signal_road_secured".to_string());
+        }
+        mirror_city_world_graph().shortest_route(self.room.id(), destination, &flags)
+    }
+
+    pub fn cycle_character_origin(&mut self) -> Result<CharacterOrigin, CampaignError> {
+        self.require_town()?;
+        if self.mentor_met
+            || self.progression.mentor_training_sessions > 0
+            || !self.progression.growth_allocations.is_empty()
+        {
+            return Err(CampaignError::InvalidState(
+                "character origin is fixed after mentor progression begins".to_string(),
+            ));
+        }
+        let previous = self.character_origin;
+        let next = previous.next();
+        remove_origin_bonus(previous, &mut self.character.attributes);
+        next.apply(&mut self.character.attributes);
+        self.character_origin = next;
+        self.character.skill_ids.retain(|skill| {
+            !["iron_guard", "relay_overcharge", "wind_step"].contains(&skill.as_str())
+        });
+        self.character
+            .skill_ids
+            .push(next.starter_skill().to_string());
+        if let Some(hero) = self
+            .party
+            .iter_mut()
+            .find(|member| member.unit_id == "hero")
+        {
+            hero.attributes = self.character.attributes.clone();
+            hero.skill_ids = self.character.skill_ids.clone();
+        }
+        self.revision += 1;
+        Ok(next)
+    }
+
     pub fn talk_to_mentor(&mut self) -> Result<(), CampaignError> {
         self.require_room(CampaignRoom::MentorHall)?;
         self.mentor_met = true;
@@ -1253,27 +1440,61 @@ impl CampaignSaveV1 {
         }
         self.progression.growth_points_available -= 1;
         *self.progression.growth_allocations.entry(stat).or_default() += 1;
-        let (path, title, flag) = match stat {
-            GrowthStat::Force | GrowthStat::Physique | GrowthStat::Resolve => (
-                BuildPath::Vanguard,
-                BuildTitle::GateWarden,
-                "gate_warden_route",
-            ),
-            GrowthStat::Agility | GrowthStat::Insight => (
-                BuildPath::Windrunner,
-                BuildTitle::RelayRunner,
-                "relay_runner_shortcut",
-            ),
-            GrowthStat::Craft | GrowthStat::Commerce => (
-                BuildPath::Artificer,
-                BuildTitle::ForgeMaster,
-                "forge_master_prices",
-            ),
+        let path = match stat {
+            GrowthStat::Force | GrowthStat::Physique | GrowthStat::Resolve => BuildPath::Vanguard,
+            GrowthStat::Agility | GrowthStat::Insight => BuildPath::Windrunner,
+            GrowthStat::Craft | GrowthStat::Commerce => BuildPath::Artificer,
         };
         self.build_path = path;
+        self.active_title = None;
+        self.character.title = format!("{} Aspirant", path.display_name());
+        self.progression.world_flags.insert(format!(
+            "{}_path_chosen",
+            path.display_name().to_ascii_lowercase()
+        ));
+        self.revision += 1;
+        self.validate()?;
+        Ok(stat)
+    }
+
+    pub fn attempt_mastery_challenge(&mut self) -> Result<BuildTitle, CampaignError> {
+        self.require_room(CampaignRoom::MentorHall)?;
+        let challenge = MasteryChallenge::for_path(self.build_path).ok_or_else(|| {
+            CampaignError::InvalidState("choose a growth path before mastery".to_string())
+        })?;
+        if !self.trained_with_mentor {
+            return Err(CampaignError::InvalidState(
+                "complete mentor training before the mastery challenge".to_string(),
+            ));
+        }
+        let success = match challenge {
+            MasteryChallenge::VanguardStand => {
+                self.spar_with_mentor()?.outcome == SparringOutcome::Victory
+            }
+            MasteryChallenge::WindrunnerCircuit => self.character.attributes.agility >= 13,
+            MasteryChallenge::ArtificerCommission => {
+                if self.progression.credits < 25 {
+                    false
+                } else {
+                    self.progression.credits -= 25;
+                    self.character.attributes.craft >= 11
+                }
+            }
+        };
+        if !success {
+            return Err(CampaignError::InvalidState(
+                "mastery challenge requirements were not met".to_string(),
+            ));
+        }
+        let title = challenge.title();
         self.unlocked_titles.insert(title);
         self.active_title = Some(title);
         self.character.title = title.display_name().to_string();
+        let flag = match title {
+            BuildTitle::GateWarden => "gate_warden_route",
+            BuildTitle::RelayRunner => "relay_runner_shortcut",
+            BuildTitle::ForgeMaster => "forge_master_prices",
+        };
         self.progression.world_flags.insert(flag.to_string());
         if title == BuildTitle::RelayRunner {
             self.story
@@ -1281,8 +1502,7 @@ impl CampaignSaveV1 {
                 .insert(RELAY_QUARTER_ROOM.to_string());
         }
         self.revision += 1;
-        self.validate()?;
-        Ok(stat)
+        Ok(title)
     }
 
     pub fn cycle_active_title(&mut self) -> Result<BuildTitle, CampaignError> {
@@ -1699,12 +1919,22 @@ impl CampaignSaveV1 {
                 "equip a weapon before deployment".to_string(),
             ));
         }
-        let aftershock_unlocked = self
+        let first_contact_secured = self
             .progression
             .world_flags
             .contains("first_contact_secured");
-        if self.quest_state == QuestState::Completed && aftershock_unlocked {
-            self.active_mission = CampaignMission::AftershockPatrol;
+        let convoy_secured = self
+            .progression
+            .world_flags
+            .contains("convoy_exodus_secured");
+        if self.quest_state == QuestState::Completed && first_contact_secured {
+            self.active_mission = if self.progression.aftershock_completions == 0 {
+                CampaignMission::AftershockPatrol
+            } else if !convoy_secured {
+                CampaignMission::ConvoyExodus
+            } else {
+                CampaignMission::AftershockPatrol
+            };
         } else if self.quest_state == QuestState::Available {
             self.active_mission = CampaignMission::FirstContact;
         } else if !matches!(self.quest_state, QuestState::Failed | QuestState::Withdrawn) {
@@ -1774,6 +2004,13 @@ impl CampaignSaveV1 {
                     &member_equipment,
                     member.injury_level,
                 );
+                apply_conditional_equipment_affixes(
+                    &mut stats,
+                    &member_equipment,
+                    self.character_origin,
+                    self.build_path,
+                    self.active_title,
+                );
                 apply_campaign_growth(&mut stats, unit_level, reputation);
                 BattleUnitSeedV1 {
                     unit_id: member.unit_id.clone(),
@@ -1790,6 +2027,7 @@ impl CampaignSaveV1 {
             })
             .collect();
         let map_id = self.active_mission.map_id();
+        let mission = MissionDefinition::for_mission(self.active_mission, &map);
         let mut seed = BattleSeedV1 {
             contract_version: BATTLE_SEED_CONTRACT.to_string(),
             battle_id: format!("{map_id}-{next_revision:08}"),
@@ -1798,6 +2036,8 @@ impl CampaignSaveV1 {
             rules_version: FIRST_CONTACT_RULES_VERSION.to_string(),
             map,
             party,
+            mission,
+            character_origin: self.character_origin,
             build_path: self.build_path,
             active_title: self.active_title,
             field_build_cost_permille: if self.active_title == Some(BuildTitle::ForgeMaster) {
@@ -1982,10 +2222,9 @@ impl CampaignSaveV1 {
                 "aftershock_patrol" | "first_contact_aftershock"
             )
         {
-            self.complete_story_step(
-                StoryStepId::BreakAftershock,
-                StoryStepId::SignalRoadComplete,
-            )?;
+            self.complete_story_step(StoryStepId::BreakAftershock, StoryStepId::EvacuateConvoy)?;
+        } else if result.outcome == BattleOutcome::Victory && mission_id == "convoy_exodus" {
+            self.complete_story_step(StoryStepId::EvacuateConvoy, StoryStepId::SignalRoadComplete)?;
         }
         self.phase = CampaignPhase::Town;
         self.room = CampaignRoom::MirrorSquare;
@@ -2054,6 +2293,10 @@ impl CampaignSaveV1 {
                 CampaignMission::AftershockPatrol => {
                     self.progression.aftershock_completions >= *count
                 }
+                CampaignMission::ConvoyExodus => self
+                    .progression
+                    .world_flags
+                    .contains("convoy_exodus_secured"),
             },
         });
         if !conditions_met {
@@ -2130,6 +2373,86 @@ pub fn typed_equipment_modifier(item_id: &str) -> TypedEquipmentModifier {
         _ => {}
     }
     modifier
+}
+
+fn apply_conditional_equipment_affixes(
+    stats: &mut RtsUnitStats,
+    equipment_ids: &[String],
+    origin: CharacterOrigin,
+    build_path: BuildPath,
+    title: Option<BuildTitle>,
+) {
+    for item_id in equipment_ids {
+        let (condition, hp, damage, armor, speed, evasion, energy, range) = match item_id.as_str() {
+            "route-guard-staff" => (
+                EquipmentAffixCondition::Origin(CharacterOrigin::Balanced),
+                18,
+                0,
+                2,
+                0,
+                0,
+                0,
+                0,
+            ),
+            "night-watch-cloak" => (
+                EquipmentAffixCondition::BuildPath(BuildPath::Windrunner),
+                0,
+                0,
+                0,
+                90,
+                35,
+                0,
+                0,
+            ),
+            "raid-signal-drum" => (
+                EquipmentAffixCondition::Origin(CharacterOrigin::Artisan),
+                0,
+                0,
+                0,
+                0,
+                0,
+                30,
+                1,
+            ),
+            "relay-core-fragment" => (
+                EquipmentAffixCondition::MasteryTitle(BuildTitle::ForgeMaster),
+                0,
+                3,
+                2,
+                0,
+                0,
+                0,
+                0,
+            ),
+            _ => continue,
+        };
+        if condition.active(origin, build_path, title) {
+            stats.max_hp = stats.max_hp.saturating_add(hp);
+            stats.damage = stats.damage.saturating_add(damage);
+            stats.armor = stats.armor.saturating_add(armor);
+            stats.move_speed_milli = stats.move_speed_milli.saturating_add(speed);
+            stats.evasion_permille = stats.evasion_permille.saturating_add(evasion).min(500);
+            stats.energy = stats.energy.saturating_add(energy);
+            stats.ability_range = stats.ability_range.saturating_add(range);
+        }
+    }
+}
+
+fn remove_origin_bonus(origin: CharacterOrigin, attributes: &mut TrillionniumAttributes) {
+    match origin {
+        CharacterOrigin::Balanced => {
+            attributes.physique = attributes.physique.saturating_sub(2);
+            attributes.resolve = attributes.resolve.saturating_sub(2);
+        }
+        CharacterOrigin::Artisan => {
+            attributes.craft = attributes.craft.saturating_sub(4);
+            attributes.insight = attributes.insight.saturating_sub(1);
+        }
+        CharacterOrigin::Scout => {
+            attributes.agility = attributes.agility.saturating_sub(4);
+            attributes.insight = attributes.insight.saturating_sub(1);
+        }
+    }
 }
 
 pub fn map_rpg_to_rts_stats(
@@ -2641,7 +2964,8 @@ mod tests {
         assert_eq!(campaign.character.attributes.force, force_before + 1);
         assert_eq!(campaign.progression.growth_points_available, 0);
         assert_eq!(campaign.build_path, BuildPath::Vanguard);
-        assert_eq!(campaign.active_title, Some(BuildTitle::GateWarden));
+        assert_eq!(campaign.active_title, None);
+        assert!(campaign.unlocked_titles.is_empty());
         assert!(campaign.confirm_growth_allocation().is_err());
         store.save_atomic(&campaign).unwrap();
         assert_eq!(store.load().unwrap(), campaign);
@@ -2666,6 +2990,67 @@ mod tests {
         assert!(force.party[0].stats.damage > agility.party[0].stats.damage);
         assert!(agility.party[0].stats.move_speed_milli > force.party[0].stats.move_speed_milli);
         assert_ne!(force.seed_hash, agility.seed_hash);
+    }
+
+    #[test]
+    fn three_origins_by_three_paths_emit_nine_observable_builds() {
+        let origins = [
+            CharacterOrigin::Balanced,
+            CharacterOrigin::Artisan,
+            CharacterOrigin::Scout,
+        ];
+        let paths = [GrowthStat::Force, GrowthStat::Agility, GrowthStat::Craft];
+        let mut hashes = BTreeSet::new();
+        let mut stat_signatures = BTreeSet::new();
+        for origin in origins {
+            for stat in paths {
+                let mut campaign = CampaignSaveV1::default();
+                while campaign.character_origin != origin {
+                    campaign.cycle_character_origin().unwrap();
+                }
+                campaign.preview_growth_allocation(stat).unwrap();
+                campaign.confirm_growth_allocation().unwrap();
+                campaign.move_to(CampaignRoom::MentorHall).unwrap();
+                campaign.talk_to_mentor().unwrap();
+                campaign.train_with_mentor().unwrap();
+                campaign.attempt_mastery_challenge().unwrap();
+                campaign.equip_starter_weapon().unwrap();
+                campaign.move_to(CampaignRoom::ExpeditionGate).unwrap();
+                campaign.accept_first_contact_quest().unwrap();
+                let seed = campaign.start_first_contact_battle(map()).unwrap();
+                assert_eq!(seed.character_origin, origin);
+                assert!(seed.active_title.is_some());
+                hashes.insert(seed.seed_hash.clone());
+                let hero = &seed.party[0].stats;
+                stat_signatures.insert((
+                    hero.max_hp,
+                    hero.damage,
+                    hero.armor,
+                    hero.move_speed_milli,
+                    hero.energy,
+                    hero.ability_range,
+                ));
+            }
+        }
+        assert_eq!(hashes.len(), 9);
+        assert_eq!(stat_signatures.len(), 9);
+    }
+
+    #[test]
+    fn task_navigation_reports_next_exit_and_locked_failure() {
+        let campaign = CampaignSaveV1::default();
+        let route = campaign.current_task_route_plan();
+        assert_eq!(
+            route.next_exit.as_ref().map(|exit| exit.to.as_str()),
+            Some(MENTOR_HALL_ROOM)
+        );
+        let mut campaign = campaign;
+        campaign.story.current_step = StoryStepId::SignalRoadComplete;
+        let blocked = campaign.current_task_route_plan();
+        assert!(matches!(
+            blocked.blocked_reason,
+            Some(trnm_rpg_core::WorldRouteBlockedReason::LockedRoom { .. })
+        ));
     }
 
     #[test]
@@ -2743,12 +3128,22 @@ mod tests {
             .preview_growth_allocation(GrowthStat::Agility)
             .unwrap();
         runner.confirm_growth_allocation().unwrap();
+        runner.move_to(CampaignRoom::MentorHall).unwrap();
+        runner.talk_to_mentor().unwrap();
+        runner.train_with_mentor().unwrap();
+        runner.attempt_mastery_challenge().unwrap();
+        runner.move_to(CampaignRoom::MirrorSquare).unwrap();
         runner.move_to(CampaignRoom::RelayQuarter).unwrap();
         assert_eq!(runner.active_title, Some(BuildTitle::RelayRunner));
 
         let mut smith = CampaignSaveV1::default();
         smith.preview_growth_allocation(GrowthStat::Craft).unwrap();
         smith.confirm_growth_allocation().unwrap();
+        smith.move_to(CampaignRoom::MentorHall).unwrap();
+        smith.talk_to_mentor().unwrap();
+        smith.train_with_mentor().unwrap();
+        smith.attempt_mastery_challenge().unwrap();
+        smith.move_to(CampaignRoom::MirrorSquare).unwrap();
         smith.party[0].injury_level = 1;
         let credits = smith.progression.credits;
         smith.heal_party().unwrap();
@@ -2757,10 +3152,11 @@ mod tests {
         let mut warden = CampaignSaveV1::default();
         warden.preview_growth_allocation(GrowthStat::Force).unwrap();
         warden.confirm_growth_allocation().unwrap();
-        warden
-            .progression
-            .world_flags
-            .insert("expedition_gate_open".to_string());
+        warden.move_to(CampaignRoom::MentorHall).unwrap();
+        warden.talk_to_mentor().unwrap();
+        warden.train_with_mentor().unwrap();
+        warden.attempt_mastery_challenge().unwrap();
+        warden.move_to(CampaignRoom::MirrorSquare).unwrap();
         warden.move_to(CampaignRoom::ExpeditionGate).unwrap();
         warden.begin_signal_road_encounter().unwrap();
         assert!(warden.active_encounter.is_some());
