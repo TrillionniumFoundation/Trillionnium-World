@@ -5,7 +5,148 @@
 
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use std::collections::HashMap;
+use std::collections::{BTreeMap, BTreeSet, HashMap};
+
+pub const MIRROR_SQUARE_ROOM: &str = "mirror_square";
+pub const MENTOR_HALL_ROOM: &str = "mentor_hall";
+pub const EXPEDITION_GATE_ROOM: &str = "expedition_gate";
+pub const RELAY_QUARTER_ROOM: &str = "relay_quarter";
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct WorldRoom {
+    pub id: String,
+    pub title: String,
+    pub region_id: String,
+    #[serde(default)]
+    pub unlock_flag: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct WorldExit {
+    pub from: String,
+    pub to: String,
+    pub direction: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct WorldGraph {
+    pub rooms: BTreeMap<String, WorldRoom>,
+    pub exits: Vec<WorldExit>,
+}
+
+impl WorldGraph {
+    pub fn validate(&self) -> Result<(), String> {
+        if self.rooms.is_empty() {
+            return Err("world_graph_has_no_rooms".to_string());
+        }
+        for (id, room) in &self.rooms {
+            if id != &room.id || room.title.trim().is_empty() || room.region_id.trim().is_empty() {
+                return Err(format!("world_room_invalid:{id}"));
+            }
+        }
+        for exit in &self.exits {
+            if exit.direction.trim().is_empty()
+                || !self.rooms.contains_key(&exit.from)
+                || !self.rooms.contains_key(&exit.to)
+                || exit.from == exit.to
+            {
+                return Err(format!("world_exit_invalid:{}:{}", exit.from, exit.to));
+            }
+        }
+        Ok(())
+    }
+
+    pub fn room(&self, id: &str) -> Option<&WorldRoom> {
+        self.rooms.get(id)
+    }
+
+    pub fn can_enter(&self, id: &str, world_flags: &BTreeSet<String>) -> Result<(), String> {
+        let room = self
+            .room(id)
+            .ok_or_else(|| format!("unknown_world_room:{id}"))?;
+        if let Some(flag) = &room.unlock_flag {
+            if !world_flags.contains(flag) {
+                return Err(format!("world_room_locked:{id}:requires:{flag}"));
+            }
+        }
+        Ok(())
+    }
+
+    pub fn transition(
+        &self,
+        from: &str,
+        to: &str,
+        world_flags: &BTreeSet<String>,
+    ) -> Result<&WorldRoom, String> {
+        self.validate()?;
+        if from == to {
+            self.can_enter(to, world_flags)?;
+            return self
+                .room(to)
+                .ok_or_else(|| format!("unknown_world_room:{to}"));
+        }
+        if !self
+            .exits
+            .iter()
+            .any(|exit| exit.from == from && exit.to == to)
+        {
+            return Err(format!("world_rooms_not_adjacent:{from}:{to}"));
+        }
+        self.can_enter(to, world_flags)?;
+        self.room(to)
+            .ok_or_else(|| format!("unknown_world_room:{to}"))
+    }
+}
+
+pub fn mirror_city_world_graph() -> WorldGraph {
+    let rooms = [
+        WorldRoom {
+            id: MIRROR_SQUARE_ROOM.to_string(),
+            title: "镜城广场".to_string(),
+            region_id: "mirror_city".to_string(),
+            unlock_flag: None,
+        },
+        WorldRoom {
+            id: MENTOR_HALL_ROOM.to_string(),
+            title: "街指南师父居".to_string(),
+            region_id: "mirror_city".to_string(),
+            unlock_flag: None,
+        },
+        WorldRoom {
+            id: EXPEDITION_GATE_ROOM.to_string(),
+            title: "信标出征口".to_string(),
+            region_id: "mirror_city".to_string(),
+            unlock_flag: Some("expedition_gate_open".to_string()),
+        },
+        WorldRoom {
+            id: RELAY_QUARTER_ROOM.to_string(),
+            title: "中继新街".to_string(),
+            region_id: "signal_road".to_string(),
+            unlock_flag: Some("signal_road_secured".to_string()),
+        },
+    ]
+    .into_iter()
+    .map(|room| (room.id.clone(), room))
+    .collect();
+    let mut exits = Vec::new();
+    for (from, to, direction) in [
+        (MIRROR_SQUARE_ROOM, MENTOR_HALL_ROOM, "north"),
+        (MENTOR_HALL_ROOM, MIRROR_SQUARE_ROOM, "south"),
+        (MIRROR_SQUARE_ROOM, EXPEDITION_GATE_ROOM, "east"),
+        (EXPEDITION_GATE_ROOM, MIRROR_SQUARE_ROOM, "west"),
+        (MENTOR_HALL_ROOM, EXPEDITION_GATE_ROOM, "southeast"),
+        (EXPEDITION_GATE_ROOM, MENTOR_HALL_ROOM, "northwest"),
+        (MIRROR_SQUARE_ROOM, RELAY_QUARTER_ROOM, "northeast"),
+        (RELAY_QUARTER_ROOM, MIRROR_SQUARE_ROOM, "southwest"),
+    ] {
+        exits.push(WorldExit {
+            from: from.to_string(),
+            to: to.to_string(),
+            direction: direction.to_string(),
+        });
+    }
+    WorldGraph { rooms, exits }
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DerivedStats {
@@ -259,5 +400,32 @@ mod tests {
         let second = inventory_item_for("player", "relay-core-fragment", "loot", None, 2).unwrap();
         assert_eq!(first.item_instance_id, second.item_instance_id);
         assert_eq!(first.slot, "relic");
+    }
+
+    #[test]
+    fn mirror_city_graph_enforces_adjacency_and_story_locks() {
+        let graph = mirror_city_world_graph();
+        graph.validate().unwrap();
+        let mut flags = BTreeSet::new();
+        assert!(graph
+            .transition(MIRROR_SQUARE_ROOM, EXPEDITION_GATE_ROOM, &flags)
+            .unwrap_err()
+            .contains("expedition_gate_open"));
+        flags.insert("expedition_gate_open".to_string());
+        assert_eq!(
+            graph
+                .transition(MIRROR_SQUARE_ROOM, EXPEDITION_GATE_ROOM, &flags)
+                .unwrap()
+                .id,
+            EXPEDITION_GATE_ROOM
+        );
+        assert!(graph
+            .transition(EXPEDITION_GATE_ROOM, RELAY_QUARTER_ROOM, &flags)
+            .unwrap_err()
+            .contains("not_adjacent"));
+        assert!(graph
+            .transition(MIRROR_SQUARE_ROOM, RELAY_QUARTER_ROOM, &flags)
+            .unwrap_err()
+            .contains("signal_road_secured"));
     }
 }

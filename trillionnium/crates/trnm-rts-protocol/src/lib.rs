@@ -18,6 +18,10 @@ pub enum RtsOrderKind {
     FocusFire,
     Ability,
     Repair,
+    Recon,
+    Train,
+    Research,
+    Upgrade,
     Hold,
 }
 
@@ -34,6 +38,10 @@ impl RtsOrderKind {
             Self::FocusFire => "focus_fire",
             Self::Ability => "ability",
             Self::Repair => "repair",
+            Self::Recon => "recon",
+            Self::Train => "train",
+            Self::Research => "research",
+            Self::Upgrade => "upgrade",
             Self::Hold => "hold",
         }
     }
@@ -143,6 +151,16 @@ impl RtsFrameOrder {
                     return Err("build_rule_or_tile_missing".to_string());
                 }
             }
+            RtsOrderKind::Recon => {
+                if self.target_tile.is_none() {
+                    return Err("recon_target_missing".to_string());
+                }
+            }
+            RtsOrderKind::Train | RtsOrderKind::Research | RtsOrderKind::Upgrade => {
+                if self.target_rule_id.is_none() || self.queue_id.is_none() {
+                    return Err(format!("{}_rule_or_queue_missing", self.kind.as_str()));
+                }
+            }
             RtsOrderKind::Hold => {}
         }
         Ok(())
@@ -217,5 +235,26 @@ mod tests {
                 .validate()
                 .is_err()
         );
+    }
+
+    #[test]
+    fn gameplay_orders_require_typed_rules_and_queues() {
+        for kind in [
+            RtsOrderKind::Train,
+            RtsOrderKind::Research,
+            RtsOrderKind::Upgrade,
+        ] {
+            let mut order = RtsFrameOrder::new(
+                1,
+                "player",
+                vec!["hero".to_string()],
+                kind,
+                RtsOrderSource::LocalInput,
+            );
+            assert!(order.validate().is_err());
+            order.target_rule_id = Some("field_support".to_string());
+            order.queue_id = Some("expedition_queue".to_string());
+            assert!(order.validate().is_ok());
+        }
     }
 }

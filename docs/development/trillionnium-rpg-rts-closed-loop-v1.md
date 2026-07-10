@@ -1,6 +1,6 @@
 # Trillionnium RPG -> RTS -> RPG Closed Loop v1
 
-Status: canonical local product truth source as of 2026-07-10, gameplay P0-P2 revision.
+Status: canonical local product truth source as of 2026-07-10, legacy-value extraction P0-P3 revision.
 
 ## Product Definition
 
@@ -24,18 +24,20 @@ Mirror Square
   -> unlock repeatable Aftershock Patrol
   -> consume the persisted growth in a stronger BattleSeed
   -> fight, settle and continue the campaign loop
+  -> complete the typed Signal Road quest chain
+  -> unlock the persistent Relay Quarter world room
 ```
 
 ## Authority Boundaries
 
 | Surface | Owner | Rule |
 | --- | --- | --- |
-| RPG/world primitives | `trnm-rpg-core` | Lightweight attributes, character and inventory vocabulary used by the product. |
+| RPG/world primitives | `trnm-rpg-core` | Lightweight attributes, character/inventory vocabulary and data-driven world graph/transition rules used by the product. |
 | Campaign/save/progression | `trnm-campaign-core` | Sole authority for RPG mutation and settlement. |
 | Frame-order contract | `trnm-rts-protocol` | Lightweight player-order validation and deterministic stream contract. |
 | Battle simulation | `trnm-rts-sim` | Bevy-free, two-dimensional, map-aware simulation consuming `RtsFrameOrder` as its only player input. |
 | Native presentation/input | `trnm-first-contact` | Consumes `BattleSeedV1`; may only emit `BattleResultV1`. |
-| Authored map/art | `assets/first_contact` | Canonical original 40x24 map and PNG atlases. |
+| Authored map/art | `assets/first_contact` | Two canonical original 40x24 mission maps and PNG atlases. |
 | Legacy implementation | `trillionnium/crates/legacy-game/trnm-world-bevy/src/legacy.rs` | Feature-gated frozen behavior/test reference; not reconnected wholesale. |
 | Older World/RTS cores and data/evidence/online | `legacy-game/trnm-world-domain`, `legacy-game/trnm-rts-core`, `trnm-rts-data`, `trnm-rts-evidence`, `trnm-rts-online` | Frozen outside this closure. GPL-derived internal map data is not a product dependency. |
 
@@ -85,6 +87,7 @@ Town:
 - `1`: Mirror Square
 - `2`: mentor hall
 - `3`: expedition gate
+- `4`: Relay Quarter after the two-mission Signal Road chain
 - `T`: talk to mentor
 - `L`: cycle Iron Guard / Wind Step / Inner Flame training path
 - `K`: buy one capped mentor training session
@@ -103,8 +106,14 @@ Battle:
 - `A`: activate selected units' energy/cooldown/range-bound signature abilities
 - `S`: spend 20 field resources on Field Aid for selected units
 - `D`: spend 30 field resources to fortify the relay counterattack phase
+- `C`: spend 10 field resources on a recon sweep and timed intel bonus
+- `V`: spend 40 field resources to queue a support unit
+- `B`: spend 35 field resources to research Field Logistics
+- `N`: after research, spend 45 field resources to upgrade Relay Arms
 - `X`: withdraw
 - `0`: select all party units; `1..4`: select one party slot
+- mouse drag: select one or more party units; click the minimap to retarget and center the camera
+- `F`: cycle wedge / line / column formation during battle
 - `Tab`: cycle unit/resource/objective targets
 - `I/J/K/L`: move a free target across passable map tiles
 - arrow keys: camera
@@ -146,13 +155,28 @@ Debrief:
   broad World/RTS cores live only in legacy; the product uses the lightweight
   RPG and order-protocol cores.
   The canonical player, map, save and order authorities are singular.
+- Legacy extraction P0: complete. The three-room town now uses a validated
+  data-driven world graph. The expedition gate is mentor-locked, non-adjacent
+  travel is rejected and Relay Quarter is story-locked.
+- Legacy extraction P1: complete. Typed `QuestDefinition`, conditions, rewards
+  and persisted story steps drive an original Signal Road arc. First Contact
+  and Aftershock use distinct authored 40x24 maps; winning both and returning
+  to town unlocks Relay Quarter, including after save/reload.
+- Legacy extraction P2: software-complete. Camera clamps and minimap mapping are
+  parameterized by map/viewport size; mouse drag selection, minimap targeting
+  and wedge/line/column orders are wired to the live client. Human five-second
+  evidence remains pending and is not claimed by these software tests.
+- Legacy extraction P3: complete for the first playable rules. Recon,
+  production, research and upgrade orders are typed protocol commands consumed
+  by the deterministic sim. They spend authoritative field resources, use
+  deterministic queues, survive checkpoints and alter combat state.
 
 ## Repeatable Campaign Loop
 
 - A First Contact victory sets `first_contact_secured` and unlocks Aftershock
   Patrol rather than terminating progression.
 - Aftershock is repeatable, scales the relay guard and reinforcement waves,
-  and records its own completion count.
+  records its own completion count and uses a distinct authored terrain layout.
 - Character level, companion experience, reputation, relic modifiers and
   injuries all alter the next mission seed.
 - Campaign load/restart preserves the unlock, growth and next seed mapping.

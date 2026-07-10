@@ -1,7 +1,7 @@
 use bevy::prelude::Resource;
 use serde::Deserialize;
 use std::{collections::BTreeMap, fs, path::Path};
-use trnm_campaign_core::{BattleGridPoint, BattleMapNodeV1, BattleMapSeedV1};
+use trnm_campaign_core::{BattleGridPoint, BattleMapNodeV1, BattleMapSeedV1, CampaignMission};
 
 #[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
 pub struct MapPoint {
@@ -101,6 +101,32 @@ pub struct FirstContactMap {
     pub units: Vec<MapUnit>,
 }
 
+#[derive(Debug, Clone, Resource)]
+pub struct MissionMapCatalog {
+    pub first_contact: FirstContactMap,
+    pub aftershock_patrol: FirstContactMap,
+}
+
+impl MissionMapCatalog {
+    pub fn load(asset_root: &Path) -> Result<Self, String> {
+        Ok(Self {
+            first_contact: load_first_contact_map(
+                &asset_root.join("first_contact/maps/first_contact.yaml"),
+            )?,
+            aftershock_patrol: load_first_contact_map(
+                &asset_root.join("first_contact/maps/aftershock_patrol.yaml"),
+            )?,
+        })
+    }
+
+    pub fn for_mission(&self, mission: CampaignMission) -> &FirstContactMap {
+        match mission {
+            CampaignMission::FirstContact => &self.first_contact,
+            CampaignMission::AftershockPatrol => &self.aftershock_patrol,
+        }
+    }
+}
+
 impl FirstContactMap {
     pub fn battle_seed_map(&self) -> Result<BattleMapSeedV1, String> {
         let south_pass = self
@@ -165,8 +191,10 @@ impl FirstContactMap {
         if self.width < 24 || self.height < 18 || self.tile_size < 16 {
             return Err("First Contact map dimensions are below the playable slice minimum".into());
         }
-        if self.id != "first_contact" || self.title.trim().is_empty() {
-            return Err("First Contact map identity/title is invalid".into());
+        if !matches!(self.id.as_str(), "first_contact" | "aftershock_patrol")
+            || self.title.trim().is_empty()
+        {
+            return Err("campaign map identity/title is invalid".into());
         }
         if self.terrain_rows.len() != self.height as usize
             || self.height_rows.len() != self.height as usize
@@ -347,6 +375,21 @@ mod tests {
                 .collect::<std::collections::BTreeSet<_>>()
                 .len(),
             6
+        );
+    }
+
+    #[test]
+    fn aftershock_is_a_distinct_authored_campaign_map() {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../assets");
+        let catalog = MissionMapCatalog::load(&root).expect("both authored maps load");
+        assert_eq!(catalog.aftershock_patrol.id, "aftershock_patrol");
+        assert_ne!(
+            catalog.first_contact.terrain_rows,
+            catalog.aftershock_patrol.terrain_rows
+        );
+        assert_ne!(
+            catalog.first_contact.chokepoints[1].width,
+            catalog.aftershock_patrol.chokepoints[1].width
         );
     }
 }

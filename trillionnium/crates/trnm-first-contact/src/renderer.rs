@@ -2,15 +2,19 @@ use super::{
     asset_loader::{register_first_contact_atlases, FirstContactAtlasManifest},
     map_loader::FirstContactMap,
 };
+use crate::view_math::ViewportSpec;
 use bevy::prelude::*;
 
-const FIRST_CONTACT_CAMERA_SCALE: f32 = 0.74;
+pub(super) const FIRST_CONTACT_CAMERA_SCALE: f32 = 0.74;
 
 #[derive(Component)]
 pub(super) struct FirstContactCamera;
 
 #[derive(Component)]
-pub(super) struct FirstContactTerrainTile;
+pub(super) struct FirstContactTerrainTile {
+    x: usize,
+    y: usize,
+}
 
 #[derive(Component)]
 pub(super) struct FirstContactUnitSprite {
@@ -47,17 +51,15 @@ pub(super) fn map_world_position(map: &FirstContactMap, x: i32, y: i32, z: f32) 
 
 fn authored_camera_translation(map: &FirstContactMap, viewport_size: Vec2) -> Vec3 {
     let authored = map_world_position(map, map.camera_start.x, map.camera_start.y, 0.0);
-    let map_half_size = Vec2::new(
-        map.width as f32 * map.tile_size as f32 * 0.5,
-        map.height as f32 * map.tile_size as f32 * 0.5,
-    );
-    let viewport_half_size = viewport_size * FIRST_CONTACT_CAMERA_SCALE * 0.5;
-    let max_offset = (map_half_size - viewport_half_size).max(Vec2::ZERO);
-    Vec3::new(
-        authored.x.clamp(-max_offset.x, max_offset.x),
-        authored.y.clamp(-max_offset.y, max_offset.y),
-        authored.z,
+    let clamped = ViewportSpec::new(
+        map.width,
+        map.height,
+        map.tile_size,
+        viewport_size,
+        FIRST_CONTACT_CAMERA_SCALE,
     )
+    .clamp_camera(authored.truncate());
+    clamped.extend(authored.z)
 }
 
 pub(super) fn atlas_sprite(
@@ -174,7 +176,7 @@ pub(super) fn spawn_first_contact_live_scene(
                     y as i32,
                     -20.0 + height * 0.05,
                 )),
-                FirstContactTerrainTile,
+                FirstContactTerrainTile { x, y },
             ));
             if let Some(transition_name) = transition_frame_name(&map, x, y) {
                 let transition = *manifest
@@ -352,6 +354,54 @@ pub(super) fn spawn_first_contact_live_scene(
         )),
         FirstContactObjectivePulse,
     ));
+}
+
+#[allow(clippy::type_complexity)]
+pub(super) fn sync_first_contact_authored_map(
+    map: Res<FirstContactMap>,
+    manifest: Res<FirstContactAtlasManifest>,
+    handles: Option<Res<super::asset_loader::FirstContactAtlasHandles>>,
+    windows: Query<&Window>,
+    mut terrain: Query<(&mut Sprite, &mut Transform, &FirstContactTerrainTile)>,
+    mut cameras: Query<
+        &mut Transform,
+        (With<FirstContactCamera>, Without<FirstContactTerrainTile>),
+    >,
+    mut pulses: Query<
+        &mut Transform,
+        (
+            With<FirstContactObjectivePulse>,
+            Without<FirstContactCamera>,
+            Without<FirstContactTerrainTile>,
+        ),
+    >,
+) {
+    if !map.is_changed() {
+        return;
+    }
+    let Some(handles) = handles else {
+        return;
+    };
+    for (mut sprite, mut transform, tile) in &mut terrain {
+        let key = map.terrain_at(tile.x, tile.y).unwrap_or('g');
+        let frame_name = terrain_frame_name(key, (tile.x + tile.y) % 2 == 1);
+        if let Some(atlas) = sprite.texture_atlas.as_mut() {
+            atlas.index = manifest.terrain_frames[frame_name];
+            atlas.layout = handles.world_layout.clone();
+        }
+        sprite.image = handles.world_image.clone();
+        transform.translation = map_world_position(&map, tile.x as i32, tile.y as i32, -20.0);
+    }
+    let viewport_size = windows
+        .single()
+        .map(|window| Vec2::new(window.width(), window.height()))
+        .unwrap_or(Vec2::new(1280.0, 720.0));
+    for mut camera in &mut cameras {
+        camera.translation = authored_camera_translation(&map, viewport_size);
+    }
+    for mut pulse in &mut pulses {
+        pulse.translation = map_world_position(&map, map.objective.x, map.objective.y, 7.0);
+    }
 }
 
 #[cfg(test)]

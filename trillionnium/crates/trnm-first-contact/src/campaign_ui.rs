@@ -65,7 +65,7 @@ fn spawn_campaign_ui_root(commands: &mut Commands) {
                 )],
             ),
             (
-                Text::new("1 SQUARE  |  2 MENTOR  |  3 GATE"),
+                Text::new("1 SQUARE  |  2 MENTOR  |  3 GATE  |  4 RELAY QUARTER"),
                 CampaignActions,
                 TextFont::from_font_size(18.0),
                 TextColor(Color::srgb(0.62, 0.88, 0.70)),
@@ -89,6 +89,7 @@ fn room_label(room: CampaignRoom) -> &'static str {
         CampaignRoom::MirrorSquare => "MIRROR SQUARE",
         CampaignRoom::MentorHall => "STREET COMPASS SIFU HALL",
         CampaignRoom::ExpeditionGate => "FIRST CONTACT EXPEDITION GATE",
+        CampaignRoom::RelayQuarter => "RELAY QUARTER / SIGNAL ROAD",
     }
 }
 
@@ -107,7 +108,7 @@ fn town_body(flow: &CampaignFlow) -> String {
     let save = &flow.save;
     match save.room {
         CampaignRoom::MirrorSquare => format!(
-            "{}\n\n{}  |  LV {}  |  XP {}  |  CR {}  |  REP {}\n\nChoose a mentor path, equipment loadout and four-person party. H treats one injury level using a Field Tonic or {} credits; G equips recovered Relay Core loot.\n\nMISSION: {}  |  AFTERSHOCK WINS {}  |  SAVE REVISION {}",
+            "{}\n\n{}  |  LV {}  |  XP {}  |  CR {}  |  REP {}\n\nChoose a mentor path, equipment loadout and four-person party. H treats one injury level using a Field Tonic or {} credits; G equips recovered Relay Core loot.\n\nSTORY: {:?}  |  MISSION: {}  |  AFTERSHOCK WINS {}  |  SAVE REVISION {}",
             room_label(save.room),
             "MIRROR RANGER",
             save.progression.level,
@@ -115,6 +116,7 @@ fn town_body(flow: &CampaignFlow) -> String {
             save.progression.credits,
             save.character.attributes.reputation,
             trnm_campaign_core::FIELD_CLINIC_CREDIT_COST,
+            save.story.current_step,
             quest_label(save.quest_state),
             save.progression.aftershock_completions,
             save.revision,
@@ -164,6 +166,15 @@ fn town_body(flow: &CampaignFlow) -> String {
                 roster,
             )
         }
+        CampaignRoom::RelayQuarter => format!(
+            "{}\n\nThe route opened only after First Contact and Aftershock were both secured.\n\nGrowth is now a visible world consequence: the new district, its patrol board and future story exits are available after restart.\n\nSIGNAL ROAD FLAGS: {:?}",
+            room_label(save.room),
+            save.progression
+                .world_flags
+                .iter()
+                .filter(|flag| flag.contains("contact") || flag.contains("aftershock") || flag.contains("signal_road"))
+                .collect::<Vec<_>>(),
+        ),
     }
 }
 
@@ -295,14 +306,17 @@ pub(super) fn update_campaign_ui(
         } else {
             match flow.save.room {
                 CampaignRoom::MirrorSquare => {
-                    "1 SQUARE | 2 MENTOR | 3 GATE | E LOADOUT | P PARTY | H HEAL | G RELIC".to_string()
+                    "1 SQUARE | 2 MENTOR | 3 GATE | 4 RELAY | E LOADOUT | P PARTY | H HEAL | G RELIC".to_string()
                 }
                 CampaignRoom::MentorHall => {
                     "T TALK | L PATH | K TRAIN | E LOADOUT | H HEAL | G RELIC | 1 SQUARE | 3 GATE".to_string()
                 }
                 CampaignRoom::ExpeditionGate => {
-                    "P PARTY | E LOADOUT | H HEAL | G RELIC | F ACCEPT / DEPLOY | 1 SQUARE | 2 MENTOR"
+                    "P PARTY | E LOADOUT | H HEAL | G RELIC | F ACCEPT / DEPLOY | 1 SQUARE | 2 MENTOR | 4 RELAY"
                         .to_string()
+                }
+                CampaignRoom::RelayQuarter => {
+                    "1 SQUARE | 2 MENTOR | 3 GATE | SIGNAL ROAD STORY UNLOCKED".to_string()
                 }
             }
         };

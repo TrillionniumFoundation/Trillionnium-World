@@ -31,6 +31,10 @@ const RELAY_GUARD_HP: i64 = 5_400;
 const WITHDRAWAL_MIN_TICKS: u64 = 30;
 const FIELD_AID_COST: u32 = 20;
 const FORTIFY_COST: u32 = 30;
+const RECON_COST: u32 = 10;
+const TRAIN_SUPPORT_COST: u32 = 40;
+const RESEARCH_COST: u32 = 35;
+const UPGRADE_COST: u32 = 45;
 
 #[derive(Debug)]
 pub enum SimError {
@@ -122,6 +126,32 @@ impl SimUnit {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SimJobKind {
+    TrainSupport,
+    ResearchLogistics,
+    UpgradeRelayArms,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SimJob {
+    pub job_id: String,
+    pub kind: SimJobKind,
+    pub rule_id: String,
+    pub remaining_ticks: u32,
+    pub target: BattleGridPoint,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SupportUnit {
+    pub unit_id: String,
+    pub position: BattleGridPoint,
+    pub hp: i64,
+    pub damage: i64,
+    pub attack_interval_ticks: u32,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MissionSimV1 {
     pub contract_version: String,
@@ -141,6 +171,18 @@ pub struct MissionSimV1 {
     pub resources_available: u32,
     pub resources_spent: u32,
     pub reinforcement_wave: u8,
+    #[serde(default)]
+    pub intel_level: u8,
+    #[serde(default)]
+    pub recon_bonus_ticks: u32,
+    #[serde(default)]
+    pub jobs: Vec<SimJob>,
+    #[serde(default)]
+    pub support_units: Vec<SupportUnit>,
+    #[serde(default)]
+    pub researched_techs: BTreeSet<String>,
+    #[serde(default)]
+    pub upgrade_level: u8,
     pub outcome: Option<BattleOutcome>,
     pub event_count: u64,
 }
@@ -182,7 +224,7 @@ impl MissionSimV1 {
             ("striker", 900, 12, 4, 900, 20),
             ("relay_guard", 1_400, 11, 8, 680, 26),
         ];
-        let aftershock = seed.map_id == "first_contact_aftershock";
+        let aftershock = is_aftershock_map(&seed.map_id);
         let enemy_scale = if aftershock { 112 } else { 100 };
         let enemies = seed
             .map
@@ -238,6 +280,12 @@ impl MissionSimV1 {
             resources_available: 0,
             resources_spent: 0,
             reinforcement_wave: 0,
+            intel_level: 0,
+            recon_bonus_ticks: 0,
+            jobs: Vec::new(),
+            support_units: Vec::new(),
+            researched_techs: BTreeSet::new(),
+            upgrade_level: 0,
             outcome: None,
             event_count: 0,
         };
@@ -274,6 +322,25 @@ impl MissionSimV1 {
                 return Err(SimError::Integrity(format!(
                     "unit {} occupies an invalid map tile",
                     unit.unit_id
+                )));
+            }
+        }
+        for support in &self.support_units {
+            if !self.seed.map.in_bounds(support.position)
+                || !self.seed.map.passable(support.position)
+                || support.hp <= 0
+            {
+                return Err(SimError::Integrity(format!(
+                    "support unit {} occupies an invalid state",
+                    support.unit_id
+                )));
+            }
+        }
+        for job in &self.jobs {
+            if job.remaining_ticks == 0 || !self.seed.map.in_bounds(job.target) {
+                return Err(SimError::Integrity(format!(
+                    "queued job {} is invalid",
+                    job.job_id
                 )));
             }
         }
@@ -361,6 +428,10 @@ impl MissionSimV1 {
                 RtsOrderKind::Ability => self.resolve_party_ability(&order)?,
                 RtsOrderKind::Repair => self.resolve_field_aid(&order)?,
                 RtsOrderKind::Build => self.resolve_fortify(&order)?,
+                RtsOrderKind::Recon => self.resolve_recon(&order)?,
+                RtsOrderKind::Train => self.queue_job(&order, SimJobKind::TrainSupport)?,
+                RtsOrderKind::Research => self.queue_job(&order, SimJobKind::ResearchLogistics)?,
+                RtsOrderKind::Upgrade => self.queue_job(&order, SimJobKind::UpgradeRelayArms)?,
                 _ => {}
             }
         }
@@ -381,6 +452,8 @@ impl MissionSimV1 {
             ));
         }
         self.tick += 1;
+        self.recon_bonus_ticks = self.recon_bonus_ticks.saturating_sub(1);
+        self.process_jobs();
         for unit in &mut self.party {
             unit.ability_cooldown_ticks = unit.ability_cooldown_ticks.saturating_sub(1);
             unit.guard_ticks = unit.guard_ticks.saturating_sub(1);
@@ -391,6 +464,7 @@ impl MissionSimV1 {
         self.resolve_player_order();
         self.update_phase();
         self.resolve_enemy_ai();
+        self.resolve_support_fire();
         self.resolve_relay_pressure();
         self.update_phase();
         if self.party.iter().all(|unit| !unit.alive()) || self.tick >= FIVE_MINUTE_TICKS {
@@ -423,6 +497,7 @@ impl MissionSimV1 {
                         &selected,
                         BattleGridPoint::new(tile.x as i16, tile.y as i16),
                         0,
+                        order.formation_id.as_deref(),
                     );
                 }
                 if order.kind == RtsOrderKind::AttackMove {
@@ -432,7 +507,7 @@ impl MissionSimV1 {
             RtsOrderKind::Attack | RtsOrderKind::FocusFire => {
                 let target = self.attack_target_position(order.target_actor_id.as_deref());
                 if let Some(target) = target {
-                    self.move_selected_toward(&selected, target, 1);
+                    self.move_selected_toward(&selected, target, 1, None);
                 }
                 self.party_attack(&selected, order.target_actor_id.as_deref());
             }
@@ -441,6 +516,10 @@ impl MissionSimV1 {
             RtsOrderKind::Ability
             | RtsOrderKind::Repair
             | RtsOrderKind::Build
+            | RtsOrderKind::Recon
+            | RtsOrderKind::Train
+            | RtsOrderKind::Research
+            | RtsOrderKind::Upgrade
             | RtsOrderKind::Extract => {}
         }
     }
@@ -467,6 +546,7 @@ impl MissionSimV1 {
         selected: &BTreeSet<String>,
         target: BattleGridPoint,
         stop_range: i16,
+        formation_id: Option<&str>,
     ) {
         let mut occupied = self
             .party
@@ -484,10 +564,12 @@ impl MissionSimV1 {
                 continue;
             }
             occupied.remove(&self.party[index].position);
+            let formation_target =
+                formation_target_for(target, index, formation_id.unwrap_or("none"), &self.seed);
             if let Some(next) = next_step_toward(
                 &self.seed,
                 self.party[index].position,
-                target,
+                formation_target,
                 stop_range,
                 &occupied,
             ) {
@@ -548,7 +630,12 @@ impl MissionSimV1 {
                     self.enemies[target_index].position,
                 ) <= self.party[attacker_index].attack_range()
                 {
-                    let damage = (self.party[attacker_index].damage
+                    let intel_bonus = if self.recon_bonus_ticks > 0 {
+                        i64::from(self.intel_level) * 2
+                    } else {
+                        0
+                    };
+                    let damage = (self.party[attacker_index].damage + intel_bonus
                         - self.enemies[target_index].armor)
                         .max(1);
                     if !deterministic_evade(
@@ -590,7 +677,7 @@ impl MissionSimV1 {
         else {
             return;
         };
-        self.move_selected_toward(selected, node.position, 1);
+        self.move_selected_toward(selected, node.position, 1, None);
         let workers = self
             .party
             .iter()
@@ -631,7 +718,7 @@ impl MissionSimV1 {
             .count() as u32;
         if holders > 0 {
             self.relay_capture_ticks = self.relay_capture_ticks.saturating_add(holders.min(2));
-            let aftershock = self.seed.map_id == "first_contact_aftershock";
+            let aftershock = is_aftershock_map(&self.seed.map_id);
             let thresholds: &[u32] = &[200, 400];
             if let Some(threshold) = thresholds.get(self.reinforcement_wave as usize) {
                 if self.relay_capture_ticks >= *threshold {
@@ -671,6 +758,141 @@ impl MissionSimV1 {
         }
         self.event_count += 1;
         Ok(())
+    }
+
+    fn resolve_recon(&mut self, _order: &RtsFrameOrder) -> Result<(), SimError> {
+        self.spend_resources(RECON_COST, "recon sweep")?;
+        self.intel_level = self.intel_level.saturating_add(1).min(3);
+        self.recon_bonus_ticks = 300;
+        self.event_count += 1;
+        Ok(())
+    }
+
+    fn queue_job(&mut self, order: &RtsFrameOrder, kind: SimJobKind) -> Result<(), SimError> {
+        let rule_id = order
+            .target_rule_id
+            .clone()
+            .ok_or_else(|| SimError::Order("job rule is required".to_string()))?;
+        if self.jobs.iter().any(|job| job.kind == kind) {
+            return Err(SimError::Order(
+                "that production or technology job is already queued".to_string(),
+            ));
+        }
+        let (cost, duration, label) = match kind {
+            SimJobKind::TrainSupport => (TRAIN_SUPPORT_COST, 80, "support production"),
+            SimJobKind::ResearchLogistics => {
+                if self.researched_techs.contains("field_logistics") {
+                    return Err(SimError::Order(
+                        "field logistics is already researched".to_string(),
+                    ));
+                }
+                (RESEARCH_COST, 70, "field logistics research")
+            }
+            SimJobKind::UpgradeRelayArms => {
+                if !self.researched_techs.contains("field_logistics") {
+                    return Err(SimError::Order(
+                        "research field logistics before upgrading relay arms".to_string(),
+                    ));
+                }
+                (UPGRADE_COST, 60, "relay arms upgrade")
+            }
+        };
+        self.spend_resources(cost, label)?;
+        let target = order
+            .target_tile
+            .map(|tile| BattleGridPoint::new(tile.x as i16, tile.y as i16))
+            .unwrap_or(self.seed.map.party_start);
+        self.jobs.push(SimJob {
+            job_id: format!(
+                "{}-{}",
+                order.queue_id.as_deref().unwrap_or("field"),
+                self.tick
+            ),
+            kind,
+            rule_id,
+            remaining_ticks: duration,
+            target,
+        });
+        self.event_count += 1;
+        Ok(())
+    }
+
+    fn process_jobs(&mut self) {
+        for job in &mut self.jobs {
+            job.remaining_ticks = job.remaining_ticks.saturating_sub(1);
+        }
+        let completed = self
+            .jobs
+            .iter()
+            .filter(|job| job.remaining_ticks == 0)
+            .cloned()
+            .collect::<Vec<_>>();
+        self.jobs.retain(|job| job.remaining_ticks > 0);
+        for job in completed {
+            match job.kind {
+                SimJobKind::TrainSupport => {
+                    let position = nearest_passable(&self.seed, job.target)
+                        .unwrap_or(self.seed.map.party_start);
+                    self.support_units.push(SupportUnit {
+                        unit_id: format!("field_support_{}", self.support_units.len() + 1),
+                        position,
+                        hp: 240,
+                        damage: 18 + i64::from(self.upgrade_level) * 5,
+                        attack_interval_ticks: 18,
+                    });
+                }
+                SimJobKind::ResearchLogistics => {
+                    self.researched_techs.insert("field_logistics".to_string());
+                }
+                SimJobKind::UpgradeRelayArms => {
+                    self.upgrade_level = self.upgrade_level.saturating_add(1).min(3);
+                    for unit in &mut self.party {
+                        unit.damage += 3;
+                        unit.armor += 1;
+                    }
+                    for support in &mut self.support_units {
+                        support.damage += 5;
+                    }
+                }
+            }
+            self.event_count += 1;
+        }
+    }
+
+    fn resolve_support_fire(&mut self) {
+        for support_index in 0..self.support_units.len() {
+            if !self
+                .tick
+                .is_multiple_of(self.support_units[support_index].attack_interval_ticks as u64)
+            {
+                continue;
+            }
+            let target = self
+                .enemies
+                .iter()
+                .enumerate()
+                .filter(|(_, enemy)| enemy.alive())
+                .filter(|(_, enemy)| {
+                    distance(self.support_units[support_index].position, enemy.position) <= 4
+                })
+                .min_by_key(|(_, enemy)| {
+                    distance(self.support_units[support_index].position, enemy.position)
+                })
+                .map(|(index, _)| index);
+            if let Some(target) = target {
+                self.enemies[target].hp -= self.support_units[support_index].damage;
+                self.event_count += 1;
+            } else if self.phase == BattlePhase::Relay
+                && self.relay_guard_hp > 0
+                && distance(
+                    self.support_units[support_index].position,
+                    self.seed.map.objective,
+                ) <= 5
+            {
+                self.relay_guard_hp -= self.support_units[support_index].damage;
+                self.event_count += 1;
+            }
+        }
     }
 
     fn spend_resources(&mut self, cost: u32, label: &str) -> Result<(), SimError> {
@@ -962,7 +1184,7 @@ impl MissionSimV1 {
         })?;
         let final_snapshot_hash = self.snapshot_hash()?;
         let experience = match outcome {
-            BattleOutcome::Victory if self.seed.map_id == "first_contact_aftershock" => 55,
+            BattleOutcome::Victory if is_aftershock_map(&self.seed.map_id) => 55,
             BattleOutcome::Victory => 40,
             BattleOutcome::Defeat if self.tick >= 60 * TICKS_PER_SECOND => 3,
             BattleOutcome::Defeat | BattleOutcome::Withdrawal => 0,
@@ -990,7 +1212,7 @@ impl MissionSimV1 {
                 }
             })
             .collect();
-        let aftershock = self.seed.map_id == "first_contact_aftershock";
+        let aftershock = is_aftershock_map(&self.seed.map_id);
         let (loot, reputation_delta, world_flags) = match outcome {
             BattleOutcome::Victory if aftershock => (
                 vec![LootStack {
@@ -1051,6 +1273,40 @@ impl MissionSimV1 {
             final_snapshot_hash,
         })
     }
+}
+
+fn is_aftershock_map(map_id: &str) -> bool {
+    matches!(map_id, "aftershock_patrol" | "first_contact_aftershock")
+}
+
+fn formation_target_for(
+    center: BattleGridPoint,
+    index: usize,
+    formation_id: &str,
+    seed: &BattleSeedV1,
+) -> BattleGridPoint {
+    let offsets: &[(i16, i16)] = match formation_id {
+        "party_line" => &[(-1, 0), (0, 0), (1, 0), (2, 0)],
+        "party_column" => &[(0, -1), (0, 0), (0, 1), (0, 2)],
+        "party_wedge" => &[(0, 0), (-1, 1), (1, 1), (0, 2)],
+        _ => &[(0, 0)],
+    };
+    let (x, y) = offsets[index % offsets.len()];
+    let candidate = BattleGridPoint::new(center.x + x, center.y + y);
+    if seed.map.passable(candidate) {
+        candidate
+    } else {
+        center
+    }
+}
+
+fn nearest_passable(seed: &BattleSeedV1, target: BattleGridPoint) -> Option<BattleGridPoint> {
+    if seed.map.passable(target) {
+        return Some(target);
+    }
+    neighbors(target)
+        .into_iter()
+        .find(|candidate| seed.map.passable(*candidate))
 }
 
 fn signature_skill(unit: &SimUnit) -> &'static str {
@@ -1329,6 +1585,18 @@ mod tests {
         order
     }
 
+    fn job_order(
+        sim: &MissionSimV1,
+        kind: RtsOrderKind,
+        rule: &str,
+        target: BattleGridPoint,
+    ) -> RtsFrameOrder {
+        let mut order = order(sim, kind, target);
+        order.target_rule_id = Some(rule.to_string());
+        order.queue_id = Some("test_queue".to_string());
+        order
+    }
+
     fn step_until(sim: &mut MissionSimV1, predicate: impl Fn(&MissionSimV1) -> bool, limit: u64) {
         while !sim.terminal() && !predicate(sim) && sim.tick < limit {
             sim.step().unwrap();
@@ -1523,5 +1791,70 @@ mod tests {
             SimCheckpointV1::capture(&MissionSimV1::from_seed(seed()).unwrap()).unwrap();
         checkpoint.sim.resources_gathered += 1;
         assert!(matches!(checkpoint.validate(), Err(SimError::Integrity(_))));
+    }
+
+    #[test]
+    fn recon_production_research_upgrade_and_formations_change_authoritative_state() {
+        let seed = seed();
+        let mut sim = MissionSimV1::from_seed(seed.clone()).unwrap();
+        sim.resources_gathered = 200;
+        sim.resources_available = 200;
+        let target = seed.map.approach_point;
+
+        sim.issue_order(order(&sim, RtsOrderKind::Recon, target))
+            .unwrap();
+        assert_eq!(sim.intel_level, 1);
+        sim.issue_order(job_order(
+            &sim,
+            RtsOrderKind::Train,
+            "field_support_drone",
+            target,
+        ))
+        .unwrap();
+        sim.issue_order(job_order(
+            &sim,
+            RtsOrderKind::Research,
+            "field_logistics",
+            target,
+        ))
+        .unwrap();
+        for _ in 0..80 {
+            sim.step().unwrap();
+        }
+        assert_eq!(sim.support_units.len(), 1);
+        assert!(sim.researched_techs.contains("field_logistics"));
+        let damage_before = sim.party[0].damage;
+        sim.issue_order(job_order(&sim, RtsOrderKind::Upgrade, "relay_arms", target))
+            .unwrap();
+        for _ in 0..60 {
+            sim.step().unwrap();
+        }
+        assert_eq!(sim.upgrade_level, 1);
+        assert!(sim.party[0].damage > damage_before);
+        assert_eq!(sim.resources_available + sim.resources_spent, 200);
+
+        let mut line = MissionSimV1::from_seed(seed.clone()).unwrap();
+        let mut line_order = order(&line, RtsOrderKind::Move, target);
+        line_order.formation_id = Some("party_line".to_string());
+        line.issue_order(line_order).unwrap();
+        let mut column = MissionSimV1::from_seed(seed).unwrap();
+        let mut column_order = order(&column, RtsOrderKind::Move, target);
+        column_order.formation_id = Some("party_column".to_string());
+        column.issue_order(column_order).unwrap();
+        for _ in 0..180 {
+            line.step().unwrap();
+            column.step().unwrap();
+        }
+        assert_ne!(
+            line.party
+                .iter()
+                .map(|unit| unit.position)
+                .collect::<Vec<_>>(),
+            column
+                .party
+                .iter()
+                .map(|unit| unit.position)
+                .collect::<Vec<_>>()
+        );
     }
 }

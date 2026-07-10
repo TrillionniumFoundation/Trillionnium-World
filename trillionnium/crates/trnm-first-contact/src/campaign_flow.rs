@@ -1,4 +1,4 @@
-use super::map_loader::FirstContactMap;
+use super::map_loader::{FirstContactMap, MissionMapCatalog};
 use super::simulation_adapter::{
     FirstContactCommand, FirstContactRuntime, FirstContactSimulationAdapter,
 };
@@ -182,7 +182,8 @@ fn set_status(flow: &mut CampaignFlow, result: Result<(), CampaignError>, succes
 
 pub(super) fn handle_campaign_input(
     input: Res<ButtonInput<KeyCode>>,
-    map: Res<FirstContactMap>,
+    mut map: ResMut<FirstContactMap>,
+    maps: Res<MissionMapCatalog>,
     mut flow: ResMut<CampaignFlow>,
     mut runtime: ResMut<FirstContactRuntime>,
     mut adapter: ResMut<FirstContactSimulationAdapter>,
@@ -208,6 +209,9 @@ pub(super) fn handle_campaign_input(
     } else if input.just_pressed(KeyCode::Digit3) {
         let result = flow.mutate_town(|save| save.move_to(CampaignRoom::ExpeditionGate));
         set_status(&mut flow, result, "Entered the expedition gate");
+    } else if input.just_pressed(KeyCode::Digit4) {
+        let result = flow.mutate_town(|save| save.move_to(CampaignRoom::RelayQuarter));
+        set_status(&mut flow, result, "Entered Relay Quarter");
     } else if input.just_pressed(KeyCode::KeyT) {
         let result = flow.mutate_town(CampaignSaveV1::talk_to_mentor);
         set_status(
@@ -256,6 +260,7 @@ pub(super) fn handle_campaign_input(
                 "Accepted campaign mission; press F to deploy",
             );
         } else if flow.save.quest_state == QuestState::Accepted {
+            *map = maps.for_mission(flow.save.active_mission).clone();
             match flow.start_battle(&map) {
                 Ok(()) => {
                     runtime.reset_for_battle(&map);

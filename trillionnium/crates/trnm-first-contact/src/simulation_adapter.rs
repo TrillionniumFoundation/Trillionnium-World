@@ -5,9 +5,13 @@ use super::{
     renderer::{
         atlas_sprite, map_world_position, FirstContactCamera, FirstContactObjectivePulse,
         FirstContactSelectionRing, FirstContactStructureSprite, FirstContactUnitSprite,
+        FIRST_CONTACT_CAMERA_SCALE,
     },
+    view_math::{minimap_to_tile, points_in_drag_rect, ViewportSpec},
 };
 use bevy::prelude::*;
+use bevy::window::PrimaryWindow;
+use std::collections::BTreeSet;
 use trnm_campaign_core::{BattleGridPoint, BattleOutcome};
 use trnm_rts_protocol::{
     RtsFrameOrder, RtsFrameOrderStream, RtsOrderKind, RtsOrderSource, RtsTile,
@@ -22,6 +26,10 @@ pub enum FirstContactCommand {
     Ability,
     FieldAid,
     Fortify,
+    Recon,
+    Train,
+    Research,
+    Upgrade,
     Retreat,
     #[default]
     Hold,
@@ -36,6 +44,10 @@ impl FirstContactCommand {
             Self::Ability => "ABILITY",
             Self::FieldAid => "FIELD_AID",
             Self::Fortify => "FORTIFY",
+            Self::Recon => "RECON",
+            Self::Train => "TRAIN",
+            Self::Research => "RESEARCH",
+            Self::Upgrade => "UPGRADE",
             Self::Retreat => "RETREAT",
             Self::Hold => "HOLD",
         }
@@ -62,6 +74,10 @@ fn frame_order_for_command(
         FirstContactCommand::Ability => RtsOrderKind::Ability,
         FirstContactCommand::FieldAid => RtsOrderKind::Repair,
         FirstContactCommand::Fortify => RtsOrderKind::Build,
+        FirstContactCommand::Recon => RtsOrderKind::Recon,
+        FirstContactCommand::Train => RtsOrderKind::Train,
+        FirstContactCommand::Research => RtsOrderKind::Research,
+        FirstContactCommand::Upgrade => RtsOrderKind::Upgrade,
         FirstContactCommand::Retreat => RtsOrderKind::Extract,
         FirstContactCommand::Hold => RtsOrderKind::Hold,
     };
@@ -99,6 +115,22 @@ fn frame_order_for_command(
             order.target_rule_id = Some("field_barricade".to_string());
             order.target_tile = Some(RtsTile::new(target_tile.x, target_tile.y));
         }
+        FirstContactCommand::Recon => {
+            order.target_tile = Some(RtsTile::new(target_tile.x, target_tile.y));
+        }
+        FirstContactCommand::Train => {
+            order.target_rule_id = Some("field_support_drone".to_string());
+            order.queue_id = Some("expedition_production".to_string());
+            order.target_tile = Some(RtsTile::new(target_tile.x, target_tile.y));
+        }
+        FirstContactCommand::Research => {
+            order.target_rule_id = Some("field_logistics".to_string());
+            order.queue_id = Some("expedition_research".to_string());
+        }
+        FirstContactCommand::Upgrade => {
+            order.target_rule_id = Some("relay_arms".to_string());
+            order.queue_id = Some("expedition_upgrade".to_string());
+        }
         FirstContactCommand::Retreat => {
             order.target_actor_id = Some("expedition_gate".to_string());
             order.target_tile = Some(RtsTile::new(map.player_start.x, map.player_start.y));
@@ -110,6 +142,37 @@ fn frame_order_for_command(
     }
     order.raw_command_label = Some(format!("FIRST_CONTACT:{}", command.label()));
     order
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum FormationStyle {
+    #[default]
+    Wedge,
+    Line,
+    Column,
+}
+
+impl FormationStyle {
+    fn next(self) -> Self {
+        match self {
+            Self::Wedge => Self::Line,
+            Self::Line => Self::Column,
+            Self::Column => Self::Wedge,
+        }
+    }
+
+    pub(super) fn id(self) -> &'static str {
+        match self {
+            Self::Wedge => "party_wedge",
+            Self::Line => "party_line",
+            Self::Column => "party_column",
+        }
+    }
+}
+
+#[derive(Resource, Default)]
+pub(super) struct MouseSelectionState {
+    drag_start_world: Option<Vec2>,
 }
 
 #[derive(Resource)]
@@ -128,9 +191,14 @@ pub struct FirstContactRuntime {
     pub withdrawal: bool,
     pub party_hp_percent: u8,
     pub enemy_hp_percent: u8,
+    pub intel_level: u8,
+    pub queued_jobs: usize,
+    pub support_units: usize,
+    pub tech_level: u8,
     pub group_world_position: Vec2,
     pub phase: BattlePhase,
-    pub selected_slot: Option<usize>,
+    pub selected_slots: BTreeSet<usize>,
+    pub formation: FormationStyle,
     pub target_tile: IVec2,
     pub target_actor_id: Option<String>,
     animation_timer: Timer,
@@ -158,9 +226,14 @@ impl Default for FirstContactRuntime {
             withdrawal: false,
             party_hp_percent: 100,
             enemy_hp_percent: 100,
+            intel_level: 0,
+            queued_jobs: 0,
+            support_units: 0,
+            tech_level: 0,
             group_world_position: Vec2::ZERO,
             phase: BattlePhase::Approach,
-            selected_slot: None,
+            selected_slots: BTreeSet::new(),
+            formation: FormationStyle::default(),
             target_tile: IVec2::ZERO,
             target_actor_id: None,
             animation_timer: Timer::from_seconds(0.14, TimerMode::Repeating),
@@ -244,6 +317,114 @@ fn target_cycle(
     targets[next].clone()
 }
 
+#[allow(clippy::too_many_arguments, clippy::type_complexity)]
+pub(super) fn handle_first_contact_mouse_selection(
+    buttons: Res<ButtonInput<MouseButton>>,
+    windows: Query<&Window, With<PrimaryWindow>>,
+    mut cameras: Query<
+        (&Camera, &GlobalTransform, &mut Transform),
+        (With<FirstContactCamera>, Without<FirstContactUnitSprite>),
+    >,
+    units: Query<
+        (&Transform, &FirstContactUnitSprite),
+        (With<FirstContactUnitSprite>, Without<FirstContactCamera>),
+    >,
+    map: Res<FirstContactMap>,
+    flow: Res<CampaignFlow>,
+    mut mouse: ResMut<MouseSelectionState>,
+    mut runtime: ResMut<FirstContactRuntime>,
+) {
+    if !flow.in_battle()
+        || (!buttons.just_pressed(MouseButton::Left) && !buttons.just_released(MouseButton::Left))
+    {
+        return;
+    }
+    let Ok(window) = windows.single() else {
+        return;
+    };
+    let Some(cursor) = window.cursor_position() else {
+        return;
+    };
+    let Ok((camera, camera_global, mut camera_transform)) = cameras.single_mut() else {
+        return;
+    };
+    if buttons.just_pressed(MouseButton::Left) {
+        if let Ok(world) = camera.viewport_to_world_2d(camera_global, cursor) {
+            mouse.drag_start_world = Some(world);
+        }
+        return;
+    }
+
+    let radar_left = window.width() - 208.0;
+    let radar_top = 60.0;
+    if cursor.x >= radar_left
+        && cursor.x <= radar_left + 190.0
+        && cursor.y >= radar_top
+        && cursor.y <= radar_top + 132.0
+    {
+        let local = Vec2::new(
+            (cursor.x - radar_left - 13.0).clamp(0.0, 164.0),
+            (132.0 - (cursor.y - radar_top) - 17.0).clamp(0.0, 98.0),
+        );
+        let tile = minimap_to_tile(local, Vec2::new(164.0, 98.0), map.width, map.height);
+        runtime.target_tile = tile;
+        runtime.target_actor_id = None;
+        let desired = map_world_position(&map, tile.x, tile.y, camera_transform.translation.z);
+        camera_transform.translation = ViewportSpec::new(
+            map.width,
+            map.height,
+            map.tile_size,
+            Vec2::new(window.width(), window.height()),
+            FIRST_CONTACT_CAMERA_SCALE,
+        )
+        .clamp_camera(desired.truncate())
+        .extend(desired.z);
+        runtime.command_feedback = format!("Minimap target/camera: {},{}", tile.x, tile.y);
+        mouse.drag_start_world = None;
+        return;
+    }
+
+    let Some(start) = mouse.drag_start_world.take() else {
+        return;
+    };
+    let Ok(mut end) = camera.viewport_to_world_2d(camera_global, cursor) else {
+        return;
+    };
+    let mut start = start;
+    if start.distance(end) < 6.0 {
+        let radius = map.tile_size as f32 * 0.6;
+        start -= Vec2::splat(radius);
+        end += Vec2::splat(radius);
+    }
+    let mut slots = Vec::new();
+    let mut positions = Vec::new();
+    for (transform, unit) in &units {
+        if unit.owner != "player" {
+            continue;
+        }
+        let Some(slot) = unit
+            .id
+            .strip_prefix("party_")
+            .and_then(|value| value.parse().ok())
+        else {
+            continue;
+        };
+        slots.push(slot);
+        positions.push(transform.translation.truncate());
+    }
+    let selected = points_in_drag_rect(start, end, &positions)
+        .into_iter()
+        .filter_map(|index| slots.get(index).copied())
+        .collect::<BTreeSet<_>>();
+    if !selected.is_empty() {
+        runtime.selected_slots = selected;
+        runtime.command_feedback = format!(
+            "Mouse selected {} unit(s); F cycles formation",
+            runtime.selected_slots.len()
+        );
+    }
+}
+
 pub(super) fn handle_first_contact_commands(
     input: Res<ButtonInput<KeyCode>>,
     map: Res<FirstContactMap>,
@@ -255,7 +436,7 @@ pub(super) fn handle_first_contact_commands(
         return;
     }
     if input.just_pressed(KeyCode::Digit0) {
-        runtime.selected_slot = None;
+        runtime.selected_slots.clear();
         runtime.command_feedback = "Selected the full four-person party".to_string();
     }
     for (key, slot) in [
@@ -265,9 +446,14 @@ pub(super) fn handle_first_contact_commands(
         (KeyCode::Digit4, 3),
     ] {
         if input.just_pressed(key) {
-            runtime.selected_slot = Some(slot);
+            runtime.selected_slots.clear();
+            runtime.selected_slots.insert(slot);
             runtime.command_feedback = format!("Selected party slot {}", slot + 1);
         }
+    }
+    if input.just_pressed(KeyCode::KeyF) {
+        runtime.formation = runtime.formation.next();
+        runtime.command_feedback = format!("Formation selected: {}", runtime.formation.id());
     }
     if input.just_pressed(KeyCode::Tab) {
         let (target, tile) = target_cycle(&map, &flow, runtime.target_actor_id.as_deref());
@@ -317,6 +503,14 @@ pub(super) fn handle_first_contact_commands(
         Some(FirstContactCommand::FieldAid)
     } else if input.just_pressed(KeyCode::KeyD) {
         Some(FirstContactCommand::Fortify)
+    } else if input.just_pressed(KeyCode::KeyC) {
+        Some(FirstContactCommand::Recon)
+    } else if input.just_pressed(KeyCode::KeyV) {
+        Some(FirstContactCommand::Train)
+    } else if input.just_pressed(KeyCode::KeyB) {
+        Some(FirstContactCommand::Research)
+    } else if input.just_pressed(KeyCode::KeyN) {
+        Some(FirstContactCommand::Upgrade)
     } else if input.just_pressed(KeyCode::KeyX) {
         Some(FirstContactCommand::Retreat)
     } else {
@@ -343,11 +537,12 @@ pub(super) fn handle_first_contact_commands(
         .iter()
         .enumerate()
         .filter(|(index, unit)| {
-            unit.alive() && runtime.selected_slot.is_none_or(|slot| slot == *index)
+            unit.alive()
+                && (runtime.selected_slots.is_empty() || runtime.selected_slots.contains(index))
         })
         .map(|(_, unit)| unit.unit_id.clone())
         .collect::<Vec<_>>();
-    let order = frame_order_for_command(
+    let mut order = frame_order_for_command(
         &map,
         mission.tick as u32,
         command,
@@ -355,6 +550,12 @@ pub(super) fn handle_first_contact_commands(
         runtime.target_tile,
         runtime.target_actor_id.clone(),
     );
+    if matches!(
+        command,
+        FirstContactCommand::Move | FirstContactCommand::Attack | FirstContactCommand::Hold
+    ) {
+        order.formation_id = Some(runtime.formation.id().to_string());
+    }
     let mut candidate = adapter.accepted_orders.clone();
     candidate.push(order.clone());
     if let Err(error) = RtsFrameOrderStream::new(
@@ -393,6 +594,18 @@ pub(super) fn handle_first_contact_commands(
         }
         FirstContactCommand::Fortify => {
             "Spent 30 field resources to fortify selected units".to_string()
+        }
+        FirstContactCommand::Recon => {
+            "Spent 10 field resources: recon now boosts mapped contact damage".to_string()
+        }
+        FirstContactCommand::Train => {
+            "Queued a persistent-in-battle support drone for 40 field resources".to_string()
+        }
+        FirstContactCommand::Research => {
+            "Queued Field Logistics research for 35 field resources".to_string()
+        }
+        FirstContactCommand::Upgrade => {
+            "Queued Relay Arms upgrade after research for 45 field resources".to_string()
         }
         FirstContactCommand::Hold => {
             "Guarding position; HOLD captures an exposed relay".to_string()
@@ -490,6 +703,13 @@ pub(super) fn advance_first_contact_simulation(
         runtime.defeat = mission.outcome == Some(BattleOutcome::Defeat);
         runtime.withdrawal = mission.outcome == Some(BattleOutcome::Withdrawal);
         runtime.credits = mission.resources_available;
+        runtime.intel_level = mission.intel_level;
+        runtime.queued_jobs = mission.jobs.len();
+        runtime.support_units = mission.support_units.len();
+        runtime.tech_level = mission.upgrade_level;
+        runtime.supply_used =
+            (mission.party.len() + mission.support_units.len()).min(u8::MAX as usize) as u8;
+        runtime.supply_cap = 8;
         runtime.phase = mission.phase;
         runtime.command_feedback = if runtime.victory {
             let mission_name = if mission.seed.map_id == "first_contact_aftershock" {
@@ -538,7 +758,8 @@ pub(super) fn advance_first_contact_simulation(
                 .iter()
                 .find(|unit| unit.unit_id == seeded.unit_id)
             {
-                let selected = runtime.selected_slot.is_none_or(|slot| slot == index);
+                let selected =
+                    runtime.selected_slots.is_empty() || runtime.selected_slots.contains(&index);
                 simulated_visuals.insert(
                     seeded.spawn_slot.clone(),
                     (unit.position, unit.alive(), true, selected),
@@ -550,6 +771,50 @@ pub(super) fn advance_first_contact_simulation(
                 unit.unit_id.clone(),
                 (unit.position, unit.alive(), false, false),
             );
+        }
+        for support in &mission.support_units {
+            simulated_visuals.insert(
+                support.unit_id.clone(),
+                (support.position, support.hp > 0, true, false),
+            );
+        }
+    }
+
+    let existing_visual_ids = units
+        .iter()
+        .map(|(_, _, unit)| unit.id.clone())
+        .collect::<BTreeSet<_>>();
+    if let Some(handles) = handles.as_deref() {
+        let family = manifest
+            .unit("sentinel")
+            .expect("support sentinel family is authored");
+        for (id, (position, alive, player, _)) in &simulated_visuals {
+            if !id.starts_with("field_support_") || existing_visual_ids.contains(id) {
+                continue;
+            }
+            commands.spawn((
+                atlas_sprite(
+                    handles.world_image.clone(),
+                    handles.world_layout.clone(),
+                    if *alive {
+                        family.idle[0]
+                    } else {
+                        family.disabled
+                    },
+                    Vec2::splat(map.tile_size as f32 * 1.55),
+                ),
+                Transform::from_translation(map_world_position(
+                    &map,
+                    position.x as i32,
+                    position.y as i32,
+                    8.0,
+                )),
+                FirstContactUnitSprite {
+                    id: id.clone(),
+                    family: "sentinel".to_string(),
+                    owner: if *player { "player" } else { "contact" }.to_string(),
+                },
+            ));
         }
     }
 
@@ -668,6 +933,7 @@ pub(super) fn pan_first_contact_camera(
     input: Res<ButtonInput<KeyCode>>,
     time: Res<Time>,
     map: Res<FirstContactMap>,
+    windows: Query<&Window, With<PrimaryWindow>>,
     flow: Res<CampaignFlow>,
     mut cameras: Query<&mut Transform, With<FirstContactCamera>>,
 ) {
@@ -691,16 +957,20 @@ pub(super) fn pan_first_contact_camera(
         direction.y -= 1.0;
     }
     camera.translation += direction.normalize_or_zero().extend(0.0) * 360.0 * time.delta_secs();
-    let half_width = map.width as f32 * map.tile_size as f32 * 0.5;
-    let half_height = map.height as f32 * map.tile_size as f32 * 0.5;
-    camera.translation.x = camera
-        .translation
-        .x
-        .clamp(-half_width * 0.35, half_width * 0.35);
-    camera.translation.y = camera
-        .translation
-        .y
-        .clamp(-half_height * 0.35, half_height * 0.35);
+    let viewport = windows
+        .single()
+        .map(|window| Vec2::new(window.width(), window.height()))
+        .unwrap_or(Vec2::new(1280.0, 720.0));
+    let clamped = ViewportSpec::new(
+        map.width,
+        map.height,
+        map.tile_size,
+        viewport,
+        FIRST_CONTACT_CAMERA_SCALE,
+    )
+    .clamp_camera(camera.translation.truncate());
+    camera.translation.x = clamped.x;
+    camera.translation.y = clamped.y;
 }
 
 #[cfg(test)]
@@ -732,6 +1002,10 @@ mod tests {
             FirstContactCommand::Ability,
             FirstContactCommand::FieldAid,
             FirstContactCommand::Fortify,
+            FirstContactCommand::Recon,
+            FirstContactCommand::Train,
+            FirstContactCommand::Research,
+            FirstContactCommand::Upgrade,
             FirstContactCommand::Retreat,
         ];
         let orders = commands
@@ -809,7 +1083,12 @@ mod tests {
         }
         assert!(
             !sim.terminal(),
-            "authored route must reach the exposed relay"
+            "authored route must reach the exposed relay: tick {} phase {:?} outcome {:?} guard {} enemies {}",
+            sim.tick,
+            sim.phase,
+            sim.outcome,
+            sim.relay_guard_hp,
+            sim.enemies.iter().filter(|enemy| enemy.alive()).count(),
         );
         let hold_order = frame_order_for_command(
             &map,

@@ -6,6 +6,7 @@ mod hud;
 mod map_loader;
 mod renderer;
 mod simulation_adapter;
+mod view_math;
 
 use asset_loader::{load_first_contact_atlas, FirstContactAtlasManifest};
 use bevy::prelude::*;
@@ -13,11 +14,12 @@ use campaign_flow::{handle_campaign_input, settle_finished_battle, CampaignFlow}
 use campaign_ui::{spawn_campaign_ui, update_campaign_ui};
 use evidence_adapter::FirstContactVisualAcceptance;
 use hud::{spawn_first_contact_hud, update_first_contact_hud};
-use map_loader::{load_first_contact_map, FirstContactMap};
-use renderer::spawn_first_contact_live_scene;
+use map_loader::{FirstContactMap, MissionMapCatalog};
+use renderer::{spawn_first_contact_live_scene, sync_first_contact_authored_map};
 use simulation_adapter::{
     advance_first_contact_simulation, expire_first_contact_feedback, handle_first_contact_commands,
-    pan_first_contact_camera, FirstContactRuntime, FirstContactSimulationAdapter,
+    handle_first_contact_mouse_selection, pan_first_contact_camera, FirstContactRuntime,
+    FirstContactSimulationAdapter, MouseSelectionState,
 };
 use std::path::{Path, PathBuf};
 
@@ -25,18 +27,32 @@ pub use evidence_adapter::{FirstContactVisualAcceptance as VisualAcceptance, Obs
 
 pub struct FirstContactLivePlugin {
     map: FirstContactMap,
+    maps: MissionMapCatalog,
     atlas: FirstContactAtlasManifest,
     campaign: CampaignFlow,
 }
 
 impl FirstContactLivePlugin {
     pub fn load(asset_root: &Path) -> Result<Self, String> {
-        let map =
-            load_first_contact_map(&asset_root.join("first_contact/maps/first_contact.yaml"))?;
+        let maps = MissionMapCatalog::load(asset_root)?;
         let atlas = load_first_contact_atlas(&asset_root.join("first_contact/atlas.yaml"))?;
         let campaign = CampaignFlow::load()?;
+        let active_mission = campaign
+            .mission
+            .as_ref()
+            .map(|mission| mission.seed.map_id.as_str())
+            .unwrap_or(campaign.save.active_mission.map_id());
+        let map = if matches!(
+            active_mission,
+            "aftershock_patrol" | "first_contact_aftershock"
+        ) {
+            maps.aftershock_patrol.clone()
+        } else {
+            maps.first_contact.clone()
+        };
         Ok(Self {
             map,
+            maps,
             atlas,
             campaign,
         })
@@ -46,10 +62,12 @@ impl FirstContactLivePlugin {
 impl Plugin for FirstContactLivePlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(self.map.clone())
+            .insert_resource(self.maps.clone())
             .insert_resource(self.atlas.clone())
             .insert_resource(self.campaign.clone())
             .init_resource::<FirstContactRuntime>()
             .init_resource::<FirstContactSimulationAdapter>()
+            .init_resource::<MouseSelectionState>()
             .init_resource::<FirstContactVisualAcceptance>()
             .add_systems(
                 Startup,
@@ -64,6 +82,8 @@ impl Plugin for FirstContactLivePlugin {
                 Update,
                 (
                     handle_campaign_input,
+                    sync_first_contact_authored_map,
+                    handle_first_contact_mouse_selection,
                     handle_first_contact_commands,
                     advance_first_contact_simulation,
                     settle_finished_battle,

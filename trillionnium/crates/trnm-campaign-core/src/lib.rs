@@ -13,8 +13,9 @@ use std::{
     path::{Path, PathBuf},
 };
 use trnm_rpg_core::{
-    inventory_item_for as trillionnium_inventory_item_for, Character as WorldTrillionniumCharacter,
-    TrillionniumAttributes,
+    inventory_item_for as trillionnium_inventory_item_for, mirror_city_world_graph,
+    Character as WorldTrillionniumCharacter, TrillionniumAttributes, EXPEDITION_GATE_ROOM,
+    MENTOR_HALL_ROOM, MIRROR_SQUARE_ROOM, RELAY_QUARTER_ROOM,
 };
 
 pub const CAMPAIGN_SAVE_CONTRACT: &str = "trnm_campaign_save_v1";
@@ -140,14 +141,25 @@ pub enum CampaignRoom {
     MirrorSquare,
     MentorHall,
     ExpeditionGate,
+    RelayQuarter,
 }
 
 impl CampaignRoom {
+    pub fn id(self) -> &'static str {
+        match self {
+            Self::MirrorSquare => MIRROR_SQUARE_ROOM,
+            Self::MentorHall => MENTOR_HALL_ROOM,
+            Self::ExpeditionGate => EXPEDITION_GATE_ROOM,
+            Self::RelayQuarter => RELAY_QUARTER_ROOM,
+        }
+    }
+
     pub fn title(self) -> &'static str {
         match self {
             Self::MirrorSquare => "镜城广场",
             Self::MentorHall => "街指南师父居",
             Self::ExpeditionGate => "First Contact 出征口",
+            Self::RelayQuarter => "中继新街",
         }
     }
 }
@@ -183,7 +195,7 @@ impl CampaignMission {
     pub fn map_id(self) -> &'static str {
         match self {
             Self::FirstContact => "first_contact",
-            Self::AftershockPatrol => "first_contact_aftershock",
+            Self::AftershockPatrol => "aftershock_patrol",
         }
     }
 
@@ -191,6 +203,128 @@ impl CampaignMission {
         match self {
             Self::FirstContact => "First Contact",
             Self::AftershockPatrol => "Aftershock Patrol",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum StoryQuestId {
+    #[default]
+    SignalRoad,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum StoryStepId {
+    #[default]
+    MeetMentor,
+    SecureFirstContact,
+    BreakAftershock,
+    SignalRoadComplete,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case", tag = "kind")]
+pub enum UnlockCondition {
+    MentorMet,
+    WorldFlag {
+        flag: String,
+    },
+    MissionVictories {
+        mission: CampaignMission,
+        count: u32,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case", tag = "kind")]
+pub enum QuestReward {
+    WorldFlag { flag: String },
+    UnlockRoom { room_id: String },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct QuestStepDefinition {
+    pub id: StoryStepId,
+    pub mission: Option<CampaignMission>,
+    pub conditions: Vec<UnlockCondition>,
+    pub rewards: Vec<QuestReward>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct QuestDefinition {
+    pub id: StoryQuestId,
+    pub title: String,
+    pub steps: Vec<QuestStepDefinition>,
+}
+
+pub fn signal_road_quest_definition() -> QuestDefinition {
+    QuestDefinition {
+        id: StoryQuestId::SignalRoad,
+        title: "信号之路".to_string(),
+        steps: vec![
+            QuestStepDefinition {
+                id: StoryStepId::MeetMentor,
+                mission: None,
+                conditions: vec![UnlockCondition::MentorMet],
+                rewards: vec![
+                    QuestReward::WorldFlag {
+                        flag: "expedition_gate_open".to_string(),
+                    },
+                    QuestReward::UnlockRoom {
+                        room_id: EXPEDITION_GATE_ROOM.to_string(),
+                    },
+                ],
+            },
+            QuestStepDefinition {
+                id: StoryStepId::SecureFirstContact,
+                mission: Some(CampaignMission::FirstContact),
+                conditions: vec![UnlockCondition::WorldFlag {
+                    flag: "first_contact_secured".to_string(),
+                }],
+                rewards: Vec::new(),
+            },
+            QuestStepDefinition {
+                id: StoryStepId::BreakAftershock,
+                mission: Some(CampaignMission::AftershockPatrol),
+                conditions: vec![UnlockCondition::MissionVictories {
+                    mission: CampaignMission::AftershockPatrol,
+                    count: 1,
+                }],
+                rewards: vec![
+                    QuestReward::WorldFlag {
+                        flag: "signal_road_secured".to_string(),
+                    },
+                    QuestReward::UnlockRoom {
+                        room_id: RELAY_QUARTER_ROOM.to_string(),
+                    },
+                ],
+            },
+        ],
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct StoryProgress {
+    pub quest_id: StoryQuestId,
+    pub current_step: StoryStepId,
+    #[serde(default)]
+    pub completed_steps: BTreeSet<StoryStepId>,
+    #[serde(default)]
+    pub unlocked_room_ids: BTreeSet<String>,
+}
+
+impl Default for StoryProgress {
+    fn default() -> Self {
+        Self {
+            quest_id: StoryQuestId::SignalRoad,
+            current_step: StoryStepId::MeetMentor,
+            completed_steps: BTreeSet::new(),
+            unlocked_room_ids: BTreeSet::from([
+                MIRROR_SQUARE_ROOM.to_string(),
+                MENTOR_HALL_ROOM.to_string(),
+            ]),
         }
     }
 }
@@ -401,7 +535,7 @@ impl BattleSeedV1 {
         }
         if !matches!(
             self.map_id.as_str(),
-            "first_contact" | "first_contact_aftershock"
+            "first_contact" | "aftershock_patrol" | "first_contact_aftershock"
         ) || self.rules_version != FIRST_CONTACT_RULES_VERSION
         {
             return Err(CampaignError::InvalidContract(
@@ -569,6 +703,8 @@ pub struct CampaignSaveV1 {
     pub selected_loadout: LoadoutPreset,
     #[serde(default)]
     pub active_mission: CampaignMission,
+    #[serde(default)]
+    pub story: StoryProgress,
     pub mentor_met: bool,
     pub trained_with_mentor: bool,
     pub quest_state: QuestState,
@@ -744,6 +880,7 @@ impl Default for CampaignSaveV1 {
             selected_training_path: TrainingPath::default(),
             selected_loadout: LoadoutPreset::default(),
             active_mission: CampaignMission::default(),
+            story: StoryProgress::default(),
             mentor_met: false,
             trained_with_mentor: false,
             quest_state: QuestState::Locked,
@@ -781,6 +918,29 @@ impl CampaignSaveV1 {
             {
                 self.character.inventory_items.push(item);
             }
+        }
+        self.story
+            .unlocked_room_ids
+            .extend([MIRROR_SQUARE_ROOM.to_string(), MENTOR_HALL_ROOM.to_string()]);
+        if self.mentor_met {
+            self.progression
+                .world_flags
+                .insert("expedition_gate_open".to_string());
+            self.story
+                .unlocked_room_ids
+                .insert(EXPEDITION_GATE_ROOM.to_string());
+        }
+        if self.progression.world_flags.contains("signal_road_secured") {
+            self.story
+                .unlocked_room_ids
+                .insert(RELAY_QUARTER_ROOM.to_string());
+            self.story.current_step = StoryStepId::SignalRoadComplete;
+        }
+        if mirror_city_world_graph()
+            .can_enter(self.room.id(), &self.progression.world_flags)
+            .is_err()
+        {
+            self.room = CampaignRoom::MirrorSquare;
         }
     }
 
@@ -844,6 +1004,9 @@ impl CampaignSaveV1 {
 
     pub fn move_to(&mut self, room: CampaignRoom) -> Result<(), CampaignError> {
         self.require_town()?;
+        mirror_city_world_graph()
+            .transition(self.room.id(), room.id(), &self.progression.world_flags)
+            .map_err(CampaignError::InvalidState)?;
         self.room = room;
         self.revision += 1;
         Ok(())
@@ -855,6 +1018,7 @@ impl CampaignSaveV1 {
         if self.quest_state == QuestState::Locked {
             self.quest_state = QuestState::Available;
         }
+        self.complete_story_step(StoryStepId::MeetMentor, StoryStepId::SecureFirstContact)?;
         self.revision += 1;
         Ok(())
     }
@@ -1236,20 +1400,22 @@ impl CampaignSaveV1 {
                 "no staged battle result is ready for settlement".to_string(),
             ));
         }
-        let pending = self.pending_battle.as_ref().ok_or_else(|| {
-            CampaignError::InvalidState("pending settlement payload is missing".to_string())
-        })?;
-        let mission_id = pending.seed.map_id.clone();
-        let result = pending.result.as_ref().ok_or_else(|| {
-            CampaignError::InvalidState("pending settlement result is missing".to_string())
-        })?;
+        let (mission_id, seed, result) = {
+            let pending = self.pending_battle.as_ref().ok_or_else(|| {
+                CampaignError::InvalidState("pending settlement payload is missing".to_string())
+            })?;
+            let result = pending.result.clone().ok_or_else(|| {
+                CampaignError::InvalidState("pending settlement result is missing".to_string())
+            })?;
+            (pending.seed.map_id.clone(), pending.seed.clone(), result)
+        };
         if self.settled_battle_ids.contains(&result.battle_id) {
             let existing = self.receipt_for(&result.battle_id).ok_or_else(|| {
                 CampaignError::Integrity("settled battle is missing its receipt".to_string())
             })?;
             return Ok(SettlementReceiptV1::duplicate_from(existing, self.revision));
         }
-        result.validate_against(&pending.seed)?;
+        result.validate_against(&seed)?;
         let revision_before = self.revision;
         let experience_delta = result
             .units
@@ -1313,9 +1479,30 @@ impl CampaignSaveV1 {
             BattleOutcome::Defeat => QuestState::Failed,
             BattleOutcome::Withdrawal => QuestState::Withdrawn,
         };
-        if result.outcome == BattleOutcome::Victory && mission_id == "first_contact_aftershock" {
+        if result.outcome == BattleOutcome::Victory
+            && matches!(
+                mission_id.as_str(),
+                "aftershock_patrol" | "first_contact_aftershock"
+            )
+        {
             self.progression.aftershock_completions =
                 self.progression.aftershock_completions.saturating_add(1);
+        }
+        if result.outcome == BattleOutcome::Victory && mission_id == "first_contact" {
+            self.complete_story_step(
+                StoryStepId::SecureFirstContact,
+                StoryStepId::BreakAftershock,
+            )?;
+        } else if result.outcome == BattleOutcome::Victory
+            && matches!(
+                mission_id.as_str(),
+                "aftershock_patrol" | "first_contact_aftershock"
+            )
+        {
+            self.complete_story_step(
+                StoryStepId::BreakAftershock,
+                StoryStepId::SignalRoadComplete,
+            )?;
         }
         self.phase = CampaignPhase::Town;
         self.room = CampaignRoom::MirrorSquare;
@@ -1356,6 +1543,54 @@ impl CampaignSaveV1 {
                 "town action is unavailable during battle handoff".to_string(),
             ))
         }
+    }
+
+    fn complete_story_step(
+        &mut self,
+        step_id: StoryStepId,
+        next_step: StoryStepId,
+    ) -> Result<(), CampaignError> {
+        let definition = signal_road_quest_definition();
+        let step = definition
+            .steps
+            .into_iter()
+            .find(|step| step.id == step_id)
+            .ok_or_else(|| {
+                CampaignError::InvalidState(format!("missing story step definition: {step_id:?}"))
+            })?;
+        let conditions_met = step.conditions.iter().all(|condition| match condition {
+            UnlockCondition::MentorMet => self.mentor_met,
+            UnlockCondition::WorldFlag { flag } => {
+                self.progression.world_flags.contains(flag.as_str())
+            }
+            UnlockCondition::MissionVictories { mission, count } => match mission {
+                CampaignMission::FirstContact => self
+                    .progression
+                    .world_flags
+                    .contains("first_contact_secured"),
+                CampaignMission::AftershockPatrol => {
+                    self.progression.aftershock_completions >= *count
+                }
+            },
+        });
+        if !conditions_met {
+            return Err(CampaignError::InvalidState(format!(
+                "story step conditions are not met: {step_id:?}"
+            )));
+        }
+        for reward in step.rewards {
+            match reward {
+                QuestReward::WorldFlag { flag } => {
+                    self.progression.world_flags.insert(flag);
+                }
+                QuestReward::UnlockRoom { room_id } => {
+                    self.story.unlocked_room_ids.insert(room_id);
+                }
+            }
+        }
+        self.story.completed_steps.insert(step_id);
+        self.story.current_step = next_step;
+        Ok(())
     }
 
     fn require_room(&self, room: CampaignRoom) -> Result<(), CampaignError> {
@@ -1690,8 +1925,7 @@ mod tests {
     #[test]
     fn mentor_training_and_loadout_are_required_before_battle() {
         let mut campaign = CampaignSaveV1::default();
-        campaign.move_to(CampaignRoom::ExpeditionGate).unwrap();
-        assert!(campaign.accept_first_contact_quest().is_err());
+        assert!(campaign.move_to(CampaignRoom::ExpeditionGate).is_err());
         let mut campaign = ready_campaign();
         let seed = campaign.start_first_contact_battle(map()).unwrap();
         assert_eq!(seed.party.len(), 4);

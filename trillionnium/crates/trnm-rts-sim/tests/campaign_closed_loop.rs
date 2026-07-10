@@ -41,6 +41,12 @@ fn map() -> BattleMapSeedV1 {
     }
 }
 
+fn aftershock_map() -> BattleMapSeedV1 {
+    let mut authored = map();
+    authored.terrain_rows[0] = "bbbbbbbbgggggggggggg".to_string();
+    authored
+}
+
 fn ready_campaign() -> CampaignSaveV1 {
     let mut campaign = CampaignSaveV1::default();
     campaign.move_to(CampaignRoom::MentorHall).unwrap();
@@ -170,6 +176,7 @@ fn e2e_first_victory_unlocks_repeatable_aftershock_and_growth_changes_next_seed(
     let store = CampaignStore::new(directory.path().join("campaign.json"));
     let mut campaign = ready_campaign();
     let first_seed = campaign.start_first_contact_battle(map()).unwrap();
+    let first_terrain_rows = first_seed.map.terrain_rows.clone();
     let first_hero = first_seed
         .party
         .iter()
@@ -184,8 +191,11 @@ fn e2e_first_victory_unlocks_repeatable_aftershock_and_growth_changes_next_seed(
     campaign.equip_relay_core().unwrap();
     campaign.move_to(CampaignRoom::ExpeditionGate).unwrap();
     campaign.accept_first_contact_quest().unwrap();
-    let aftershock_seed = campaign.start_first_contact_battle(map()).unwrap();
-    assert_eq!(aftershock_seed.map_id, "first_contact_aftershock");
+    let aftershock_seed = campaign
+        .start_first_contact_battle(aftershock_map())
+        .unwrap();
+    assert_eq!(aftershock_seed.map_id, "aftershock_patrol");
+    assert_ne!(first_terrain_rows, aftershock_seed.map.terrain_rows);
     let aftershock_hero = aftershock_seed
         .party
         .iter()
@@ -198,14 +208,18 @@ fn e2e_first_victory_unlocks_repeatable_aftershock_and_growth_changes_next_seed(
         .unwrap();
     campaign.submit_battle_result(aftershock_result).unwrap();
     assert_eq!(campaign.progression.aftershock_completions, 1);
+    assert!(campaign
+        .progression
+        .world_flags
+        .contains("signal_road_secured"));
     store.save_atomic(&campaign).unwrap();
     let mut restarted = store.load().unwrap();
+    restarted.move_to(CampaignRoom::RelayQuarter).unwrap();
+    assert_eq!(restarted.room, CampaignRoom::RelayQuarter);
+    restarted.move_to(CampaignRoom::MirrorSquare).unwrap();
     restarted.move_to(CampaignRoom::ExpeditionGate).unwrap();
     restarted.accept_first_contact_quest().unwrap();
-    assert_eq!(
-        restarted.active_mission.map_id(),
-        "first_contact_aftershock"
-    );
+    assert_eq!(restarted.active_mission.map_id(), "aftershock_patrol");
 }
 
 #[test]

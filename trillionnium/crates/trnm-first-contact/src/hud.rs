@@ -1,6 +1,7 @@
 use super::{
     map_loader::FirstContactMap,
     simulation_adapter::{FirstContactCommand, FirstContactRuntime},
+    view_math::world_to_minimap,
 };
 use bevy::prelude::*;
 
@@ -199,7 +200,7 @@ pub(super) fn spawn_first_contact_hud(mut commands: Commands, map: Res<FirstCont
                     left: px(0),
                     bottom: px(0),
                     width: percent(100),
-                    height: px(154),
+                    height: px(198),
                     padding: UiRect::axes(px(18), px(14)),
                     flex_direction: FlexDirection::Row,
                     column_gap: px(24),
@@ -265,6 +266,19 @@ pub(super) fn spawn_first_contact_hud(mut commands: Commands, map: Res<FirstCont
                                     command_card(FirstContactCommand::FieldAid, "S", "AID"),
                                     command_card(FirstContactCommand::Fortify, "D", "FORTIFY"),
                                     command_card(FirstContactCommand::Retreat, "X", "RETREAT"),
+                                ],
+                            ),
+                            (
+                                Node {
+                                    flex_direction: FlexDirection::Row,
+                                    column_gap: px(6),
+                                    ..default()
+                                },
+                                children![
+                                    command_card(FirstContactCommand::Recon, "C", "RECON"),
+                                    command_card(FirstContactCommand::Train, "V", "TRAIN"),
+                                    command_card(FirstContactCommand::Research, "B", "RESEARCH"),
+                                    command_card(FirstContactCommand::Upgrade, "N", "UPGRADE"),
                                 ],
                             ),
                         ],
@@ -361,10 +375,13 @@ pub(super) fn update_first_contact_hud(
 ) {
     for mut text in &mut resources {
         text.0 = format!(
-            "FIELD {}  |  PARTY {}%  |  POWER {}%  |  SUPPLY {}/{}",
+            "FIELD {} | PARTY {}% | INTEL {} | JOBS {} | SUPPORT {} | TECH {} | SUPPLY {}/{}",
             runtime.credits,
             runtime.party_hp_percent,
-            runtime.power_percent,
+            runtime.intel_level,
+            runtime.queued_jobs,
+            runtime.support_units,
+            runtime.tech_level,
             runtime.supply_used,
             runtime.supply_cap
         );
@@ -405,19 +422,31 @@ pub(super) fn update_first_contact_hud(
                 FirstContactCommand::Ability => "A",
                 FirstContactCommand::FieldAid => "S",
                 FirstContactCommand::Fortify => "D",
+                FirstContactCommand::Recon => "C",
+                FirstContactCommand::Train => "V",
+                FirstContactCommand::Research => "B",
+                FirstContactCommand::Upgrade => "N",
                 FirstContactCommand::Retreat => "X",
             },
             next.label()
         );
     }
     for mut text in &mut rosters {
-        let selection = runtime
-            .selected_slot
-            .map(|slot| format!("SLOT {}", slot + 1))
-            .unwrap_or_else(|| "ALL 4".to_string());
-        text.0 = format!(
-            "SELECTED {selection}\n0 ALL | 1-4 UNIT | TAB TARGET\nPARTY HEALTH {}%",
-            runtime.party_hp_percent
+        let selection = if runtime.selected_slots.is_empty() {
+            "ALL 4".to_string()
+        } else {
+            runtime
+                .selected_slots
+                .iter()
+                .map(|slot| (slot + 1).to_string())
+                .collect::<Vec<_>>()
+                .join(",")
+        };
+        text.0 =
+            format!(
+            "SELECTED {selection} | {}\nDRAG SELECT | F FORMATION | TAB TARGET\nPARTY HEALTH {}%",
+            runtime.formation.id().trim_start_matches("party_").to_uppercase(),
+            runtime.party_hp_percent,
         );
     }
     let minutes = runtime.elapsed_seconds as u32 / 60;
@@ -440,10 +469,13 @@ pub(super) fn update_first_contact_hud(
     }
     let world_width = map.width as f32 * map.tile_size as f32;
     let world_height = map.height as f32 * map.tile_size as f32;
-    let normalized_x = (runtime.group_world_position.x / world_width + 0.5).clamp(0.0, 1.0);
-    let normalized_y = (runtime.group_world_position.y / world_height + 0.5).clamp(0.0, 1.0);
+    let minimap = world_to_minimap(
+        runtime.group_world_position,
+        Vec2::new(world_width, world_height),
+        Vec2::new(164.0, 98.0),
+    );
     for mut marker in &mut radar_markers {
-        marker.left = px(8.0 + normalized_x * 164.0);
-        marker.bottom = px(8.0 + normalized_y * 98.0);
+        marker.left = px(8.0 + minimap.x);
+        marker.bottom = px(8.0 + minimap.y);
     }
 }
