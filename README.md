@@ -2,7 +2,9 @@
 
 **TRNM** is a Rust-native Layer 1 focused on **Decentralized AI Compute** (PoCO).
 
-- Active mainline: `trillionnium/`
+- Active game workspace: `trillionnium/Cargo.toml` (5 product crates only)
+- Platform workspace: `trillionnium/crates/platform/Cargo.toml`
+- Frozen legacy-game workspace: `trillionnium/crates/legacy-game/Cargo.toml`
 - Historical status/archive docs live under `docs/archive/`
 
 ## Trillionnium World Client Boundary
@@ -11,11 +13,11 @@
 - Native playable client: `trillionnium/crates/trnm-first-contact`
 - Authoritative campaign aggregate: `trillionnium/crates/trnm-campaign-core`
 - Authoritative Bevy-free battle simulation: `trillionnium/crates/trnm-rts-sim`
-- `trnm-world-bevy` is frozen legacy/reference code and is not the default player path.
-- Manual playtest entry: `scripts/run_trillionnium_world_bevy_client.sh`
+- `trnm-world-bevy` is feature-gated under the frozen legacy workspace and is not the player path.
+- Manual playtest entry: `scripts/run_trnm_first_contact.sh`
 - CEX is a legacy incubator/evidence adapter only. Do not use CEX web runtime as the Trillionnium World client.
 - Account/auth work for the game must land behind Trillionnium-owned APIs consumed by the current native client; CEX account code may be used as migration reference, not as the product entry.
-- Boundary gate: `scripts/check_trillionnium_world_client_boundary.sh`
+- Current game boundary gate: `scripts/check_trnm_game_product.sh`
 
 The cohort/commercial collection command writes `acceptance/S6_public_launch/latest/cohort-commercial-evidence-collection.json` plus `.md`, listing first-beta participant/session/feedback/signoff evidence and payment/refund/support/legal/operator/traffic drill evidence with privacy boundaries before the strict validator is run.
 
@@ -39,17 +41,13 @@ TRNM is a Rust L1 protocol for task-based AI compute settlement and verification
 TrillionniumChain/
 ├── trillionnium/                    # Rust workspace (current source-of-truth lane)
 │   ├── crates/
-│   │   ├── trnm-node
-│   │   ├── trnm-types
-│   │   ├── trnm-state
-│   │   ├── trnm-pouw
-│   │   ├── trnm-executor
-│   │   ├── trnm-mempool
-│   │   ├── trnm-rpc
-│   │   ├── trnm-bench
-│   │   ├── trnm-worker-agent
-│   │   ├── trnm-cli
-│   │   └── trnm-bridge-poc
+│   │   ├── trnm-first-contact       # canonical player
+│   │   ├── trnm-campaign-core       # save/progression authority
+│   │   ├── trnm-rts-sim             # 2D order-driven battle authority
+│   │   ├── trnm-rts-core            # frame-order contract
+│   │   ├── trnm-world-domain        # reusable RPG vocabulary
+│   │   ├── platform/                 # separate 12-crate chain/platform workspace
+│   │   └── legacy-game/              # separate frozen 12-crate reference workspace
 │   ├── configs/
 │   ├── scripts/
 │   └── run/

@@ -1,6 +1,6 @@
 # Trillionnium RPG -> RTS -> RPG Closed Loop v1
 
-Status: canonical local product truth source as of 2026-07-10.
+Status: canonical local product truth source as of 2026-07-10, gameplay P0-P2 revision.
 
 ## Product Definition
 
@@ -30,20 +30,20 @@ Mirror Square
 | RPG/world primitives | `trnm-world-domain` | Reusable attributes, character and inventory vocabulary. |
 | Campaign/save/progression | `trnm-campaign-core` | Sole authority for RPG mutation and settlement. |
 | Frame-order contract | `trnm-rts-core` | Validates player command ordering. |
-| Battle simulation | `trnm-rts-sim` | Bevy-free deterministic HP, movement, enemy AI, combat, capture and terminal outcome. |
+| Battle simulation | `trnm-rts-sim` | Bevy-free, two-dimensional, map-aware simulation consuming `RtsFrameOrder` as its only player input. |
 | Native presentation/input | `trnm-first-contact` | Consumes `BattleSeedV1`; may only emit `BattleResultV1`. |
 | Authored map/art | `assets/first_contact` | Canonical original 40x24 map and PNG atlases. |
-| Legacy implementation | `trnm-world-bevy/src/legacy.rs` | Frozen behavior/test reference; not reconnected wholesale. |
+| Legacy implementation | `trillionnium/crates/legacy-game/trnm-world-bevy/src/legacy.rs` | Feature-gated frozen behavior/test reference; not reconnected wholesale. |
 | Older RTS data/evidence/online | `trnm-rts-data`, `trnm-rts-evidence`, `trnm-rts-online` | Frozen outside this closure. GPL-derived internal map data is not a product dependency. |
 
 ## Stable Contracts
 
 - `trnm_campaign_save_v1`
-- `trnm_battle_seed_v1`
+- `trnm_battle_seed_v2`
 - `trnm_battle_result_v1`
 - `trnm_settlement_receipt_v1`
-- `trnm_rts_sim_v1`
-- `trnm_rts_sim_checkpoint_v1`
+- `trnm_rts_sim_v2`
+- `trnm_rts_sim_checkpoint_v2`
 
 `BattleSeedV1` binds campaign revision, battle id, map/rules version, four
 persistent party members, spawn slots, skills, typed equipment modifiers,
@@ -66,7 +66,7 @@ Settlement is two-phase and crash safe:
 - physique + resolve -> HP and armor;
 - force -> base damage;
 - agility -> move speed, attack interval and evasion;
-- insight + resolve -> energy and ability range;
+- insight + resolve -> energy and ability range, both consumed by signature abilities;
 - skill rank -> bounded skill-power multiplier;
 - equipment -> typed modifiers keyed by item id, never parsed display text;
 - injury -> bounded HP and movement penalties;
@@ -83,9 +83,12 @@ Town:
 - `2`: mentor hall
 - `3`: expedition gate
 - `T`: talk to mentor
-- `K`: train
-- `E`: equip starter weapon
-- `P`: select hero plus three companions
+- `L`: cycle Iron Guard / Wind Step / Inner Flame training path
+- `K`: buy one capped mentor training session
+- `E`: cycle Guard / Raider / Mystic typed loadouts
+- `P`: cycle three four-person parties drawn from hero + six companions
+- `H`: consume a Field Tonic or pay the field clinic to reduce injuries
+- `G`: equip the recovered Relay Core relic after a victory
 - `F`: accept mission / deploy
 
 Battle:
@@ -94,7 +97,11 @@ Battle:
 - `W`: assault
 - `E`: harvest
 - `R`: hold
+- `A`: activate selected units' energy/cooldown/range-bound signature abilities
 - `X`: withdraw
+- `0`: select all party units; `1..4`: select one party slot
+- `Tab`: cycle unit/resource/objective targets
+- `I/J/K/L`: move a free target across passable map tiles
 - arrow keys: camera
 
 Debrief:
@@ -107,21 +114,34 @@ Debrief:
   atomic save tests are in `trnm-campaign-core`.
 - M1: complete. Three-room RPG, mentor dialogue/training, equipment, party,
   quest acceptance, campaign UI and atomic save are in the default client.
-- M2: complete. `BattleSeedV1` drives deterministic party/enemy movement, unit
-  HP, active enemy attacks, relay guard, capture, victory, defeat, withdrawal,
-  casualties and battle checkpoints.
+- M2: complete. `BattleSeedV1` embeds the authored 40x24 navigation projection;
+  `RtsFrameOrder` directly drives deterministic 2D pathfinding, occupancy,
+  selection, free targets, resources, active map-aware enemies, relay pressure,
+  abilities, victory, defeat, withdrawal, casualties and checkpoints.
 - M3: complete. Battle result staging, crash recovery, idempotent settlement,
   debrief/return UI, XP, skill XP, loot, reputation, injuries, quest state and
   durable reload are connected.
 - M4 software gates: complete. Six closed-loop E2E cases cover victory, defeat,
-  withdrawal, mid-battle crash, mid-settlement crash and duplicate result. The
-  deterministic victory path is constrained to 10-15 simulated minutes.
+  withdrawal, mid-battle crash, mid-settlement crash and duplicate result.
+- Gameplay P0: complete. Training is paid and capped; withdrawal pays zero XP
+  and resources; defeat rewards are bounded; harvested resources settle only
+  on victory; loot can be consumed for healing or equipped as a typed relic;
+  single-order victories are rejected.
+- Gameplay P1: complete. Seven candidates provide three party compositions,
+  three mentor paths and three equipment loadouts; signature skills consume
+  energy/range/cooldown; harvest and ability-rush routes are both viable. The
+  first mission requires approach, contact, relay assault and hold/capture and
+  is constrained to 3-5 simulated minutes.
+- Gameplay P2: complete. The root workspace contains only five product crates;
+  platform and frozen legacy game crates live in separate 12-crate workspaces.
+  The canonical player, map, save and order authorities are singular.
 
 Human gates remain evidence-bound and must not be fabricated:
 
 - three independent observers must answer player, selection, objective and next
   command within five seconds;
-- one real 10-15 minute play session must record input/readability/flow notes;
+- one real 10-15 minute session must cover town choices plus at least one 3-5
+  minute mission and record input/readability/flow notes;
 - `playtests/first_contact-visual-review.yaml` remains pending until those
   observations are actually recorded.
 
@@ -137,8 +157,17 @@ cargo clippy --manifest-path trillionnium/Cargo.toml \
 cargo build --manifest-path trillionnium/Cargo.toml --release -p trnm-first-contact
 ```
 
-The six M4 cases live in
+The six M4 cases and gameplay exploit/resource regressions live in
 `trillionnium/crates/trnm-rts-sim/tests/campaign_closed_loop.rs`.
+
+## Workspace Boundaries
+
+- game product: `trillionnium/Cargo.toml` (5 members);
+- platform: `trillionnium/crates/platform/Cargo.toml` (12 members);
+- frozen legacy game: `trillionnium/crates/legacy-game/Cargo.toml` (12 members);
+- legacy monolith compilation requires explicit `--features legacy`;
+- `scripts/run_trnm_first_contact.sh` is the only player runner. The old
+  `run_trillionnium_world_bevy_client.sh` name is a compatibility delegator.
 
 ## Frozen Scope
 

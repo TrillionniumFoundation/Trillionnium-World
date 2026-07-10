@@ -1,34 +1,14 @@
 [workspace]
 members = [
-  "crates/trnm-node",
-  "crates/trnm-types",
-  "crates/trnm-state",
-  "crates/trnm-pouw",
-  "crates/trnm-executor",
-  "crates/trnm-mempool",
-  "crates/trnm-rpc",
-  "crates/trnm-bench",
-  "crates/trnm-worker-agent",
-  "crates/trnm-cli",
-  "crates/trnm-bridge-poc",
-  "crates/trnm-oracle",
   "crates/trnm-world-domain",
-  "crates/trnm-world-command",
   "crates/trnm-campaign-core",
   "crates/trnm-rts-core",
   "crates/trnm-rts-sim",
-  "crates/trnm-rts-data",
-  "crates/trnm-rts-bevy-runtime",
-  "crates/trnm-rts-evidence",
-  "crates/trnm-rts-online",
   "crates/trnm-first-contact",
-  "crates/trnm-world-projection",
-  "crates/trnm-world-map-provider",
-  "crates/trnm-world-ui-fragments",
-  "crates/trnm-world-api",
-  "crates/trnm-world-server",
-  "crates/trnm-world-bevy",
-  "crates/trnm-world-dev-env",
+]
+exclude = [
+  "crates/platform",
+  "crates/legacy-game",
 ]
 resolver = "2"
 
@@ -36,3 +16,10 @@ resolver = "2"
 edition = "2021"
 license = "LicenseRef-Trillionnium-Internal"
 authors = ["Trillionnium Contributors"]
+
+[workspace.metadata.trnm]
+lane = "game-product"
+canonical_binary = "trnm-first-contact"
+canonical_map = "../assets/first_contact/maps/first_contact.yaml"
+platform_workspace = "crates/platform/Cargo.toml"
+legacy_game_workspace = "crates/legacy-game/Cargo.toml"

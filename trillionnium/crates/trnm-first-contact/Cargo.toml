@@ -6,7 +6,7 @@ license.workspace = true
 authors.workspace = true
 
 [dependencies]
-bevy = { version = "0.19.0-rc.1", default-features = false, features = [
+bevy = { version = "=0.19.0-rc.1", default-features = false, features = [
   "default_app",
   "bevy_log",
   "bevy_window",

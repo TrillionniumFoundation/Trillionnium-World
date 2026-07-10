@@ -261,6 +261,7 @@ pub(super) fn spawn_first_contact_hud(mut commands: Commands, map: Res<FirstCont
                                     command_card(FirstContactCommand::Attack, "W", "ATTACK"),
                                     command_card(FirstContactCommand::Harvest, "E", "HARVEST"),
                                     command_card(FirstContactCommand::Hold, "R", "HOLD"),
+                                    command_card(FirstContactCommand::Ability, "A", "ABILITY"),
                                     command_card(FirstContactCommand::Retreat, "X", "RETREAT"),
                                 ],
                             ),
@@ -373,6 +374,11 @@ pub(super) fn update_first_contact_hud(
             "MISSION FAILED  |  RETURNING TO MIRROR SQUARE".to_string()
         } else if runtime.withdrawal {
             "WITHDRAWAL COMPLETE".to_string()
+        } else if runtime.phase == trnm_rts_sim::BattlePhase::Approach {
+            format!(
+                "APPROACH SOUTH PASS  |  TARGET {},{}",
+                runtime.target_tile.x, runtime.target_tile.y
+            )
         } else if runtime.enemy_hp_percent > 0 {
             format!(
                 "BREAK CONTACT FORCE  |  ENEMY {}%",
@@ -394,14 +400,19 @@ pub(super) fn update_first_contact_hud(
                 FirstContactCommand::Attack => "W",
                 FirstContactCommand::Harvest => "E",
                 FirstContactCommand::Hold => "R",
+                FirstContactCommand::Ability => "A",
                 FirstContactCommand::Retreat => "X",
             },
             next.label()
         );
     }
     for mut text in &mut rosters {
+        let selection = runtime
+            .selected_slot
+            .map(|slot| format!("SLOT {}", slot + 1))
+            .unwrap_or_else(|| "ALL 4".to_string());
         text.0 = format!(
-            "HERO   SCOUT\nWARDEN   STRIKER\nPARTY HEALTH {}%",
+            "SELECTED {selection}\n0 ALL | 1-4 UNIT | TAB TARGET\nPARTY HEALTH {}%",
             runtime.party_hp_percent
         );
     }

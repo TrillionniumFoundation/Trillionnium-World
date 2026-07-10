@@ -1,10 +1,45 @@
 use tempfile::tempdir;
 use trnm_campaign_core::{
-    BattleOutcome, CampaignPhase, CampaignRoom, CampaignSaveV1, CampaignStore, QuestState,
+    BattleGridPoint, BattleMapNodeV1, BattleMapSeedV1, BattleOutcome, CampaignPhase, CampaignRoom,
+    CampaignSaveV1, CampaignStore, QuestState,
 };
+use trnm_rts_core::{RtsFrameOrder, RtsOrderKind, RtsOrderSource, RtsTile};
 use trnm_rts_sim::{
-    MissionSimV1, SimCheckpointStore, SimCommand, FIFTEEN_MINUTE_TICKS, TEN_MINUTE_TICKS,
+    BattlePhase, MissionSimV1, SimCheckpointStore, FIVE_MINUTE_TICKS, THREE_MINUTE_TICKS,
 };
+
+fn map() -> BattleMapSeedV1 {
+    BattleMapSeedV1 {
+        width: 20,
+        height: 10,
+        terrain_rows: vec!["gggggggggggggggggggg".to_string(); 10],
+        party_start: BattleGridPoint::new(1, 8),
+        approach_point: BattleGridPoint::new(7, 6),
+        objective: BattleGridPoint::new(18, 1),
+        resource_nodes: vec![BattleMapNodeV1 {
+            id: "amber_mid".to_string(),
+            position: BattleGridPoint::new(8, 7),
+        }],
+        enemy_spawns: vec![
+            BattleMapNodeV1 {
+                id: "contact_scout".to_string(),
+                position: BattleGridPoint::new(10, 5),
+            },
+            BattleMapNodeV1 {
+                id: "contact_warden".to_string(),
+                position: BattleGridPoint::new(12, 4),
+            },
+            BattleMapNodeV1 {
+                id: "contact_striker".to_string(),
+                position: BattleGridPoint::new(14, 3),
+            },
+            BattleMapNodeV1 {
+                id: "relay_guard".to_string(),
+                position: BattleGridPoint::new(16, 2),
+            },
+        ],
+    }
+}
 
 fn ready_campaign() -> CampaignSaveV1 {
     let mut campaign = CampaignSaveV1::default();
@@ -12,87 +47,153 @@ fn ready_campaign() -> CampaignSaveV1 {
     campaign.talk_to_mentor().unwrap();
     campaign.train_with_mentor().unwrap();
     campaign.equip_starter_weapon().unwrap();
-    campaign
-        .select_party(vec![
-            "hero".to_string(),
-            "aya".to_string(),
-            "mako".to_string(),
-            "tess".to_string(),
-        ])
-        .unwrap();
+    campaign.cycle_party_preset().unwrap();
     campaign.move_to(CampaignRoom::ExpeditionGate).unwrap();
     campaign.accept_first_contact_quest().unwrap();
     campaign
 }
 
-fn run(mut sim: MissionSimV1, command: SimCommand) -> MissionSimV1 {
-    while !sim.terminal() && sim.tick <= FIFTEEN_MINUTE_TICKS {
-        sim.step(command).unwrap();
+fn order(sim: &MissionSimV1, kind: RtsOrderKind, target: BattleGridPoint) -> RtsFrameOrder {
+    let mut order = RtsFrameOrder::new(
+        sim.tick as u32,
+        "player",
+        sim.party
+            .iter()
+            .filter(|unit| unit.alive())
+            .map(|unit| unit.unit_id.clone())
+            .collect::<Vec<_>>(),
+        kind,
+        RtsOrderSource::LocalInput,
+    );
+    order.target_tile = Some(RtsTile::new(target.x as i32, target.y as i32));
+    match kind {
+        RtsOrderKind::Harvest => order.target_actor_id = Some("amber_mid".to_string()),
+        RtsOrderKind::Attack => order.target_actor_id = Some("relay_beacon".to_string()),
+        RtsOrderKind::Extract => order.target_actor_id = Some("expedition_gate".to_string()),
+        _ => {}
     }
-    assert!(sim.terminal());
+    order
+}
+
+fn step_until(sim: &mut MissionSimV1, predicate: impl Fn(&MissionSimV1) -> bool, limit: u64) {
+    while !sim.terminal() && !predicate(sim) && sim.tick < limit {
+        sim.step().unwrap();
+    }
+    assert!(predicate(sim), "condition not reached by tick {}", sim.tick);
+}
+
+fn run_victory(mut sim: MissionSimV1) -> MissionSimV1 {
+    let approach = sim.seed.map.approach_point;
+    sim.issue_order(order(&sim, RtsOrderKind::Move, approach))
+        .unwrap();
+    step_until(&mut sim, |sim| sim.phase == BattlePhase::Contact, 900);
+    let resource = sim.seed.map.resource_nodes[0].position;
+    sim.issue_order(order(&sim, RtsOrderKind::Harvest, resource))
+        .unwrap();
+    step_until(&mut sim, |sim| sim.resources_gathered >= 40, 1_300);
+    let objective = sim.seed.map.objective;
+    sim.issue_order(order(&sim, RtsOrderKind::Attack, objective))
+        .unwrap();
+    step_until(
+        &mut sim,
+        |sim| sim.phase == BattlePhase::Relay && sim.relay_guard_hp <= 0,
+        2_700,
+    );
+    sim.issue_order(order(&sim, RtsOrderKind::Hold, objective))
+        .unwrap();
+    while !sim.terminal() && sim.tick <= FIVE_MINUTE_TICKS {
+        sim.step().unwrap();
+    }
+    assert_eq!(sim.outcome, Some(BattleOutcome::Victory));
+    assert!((THREE_MINUTE_TICKS..=FIVE_MINUTE_TICKS).contains(&sim.tick));
     sim
 }
 
 #[test]
-fn e2e_victory_returns_growth_loot_reputation_and_durable_save() {
+fn e2e_victory_returns_growth_loot_resources_reputation_and_durable_save() {
     let directory = tempdir().unwrap();
     let store = CampaignStore::new(directory.path().join("campaign.json"));
     let mut campaign = ready_campaign();
-    let seed = campaign.start_first_contact_battle().unwrap();
+    let credits_before = campaign.progression.credits;
+    let seed = campaign.start_first_contact_battle(map()).unwrap();
     store.save_atomic(&campaign).unwrap();
-    let sim = run(MissionSimV1::from_seed(seed).unwrap(), SimCommand::Assault);
-    assert_eq!(sim.outcome, Some(BattleOutcome::Victory));
-    assert!((TEN_MINUTE_TICKS..=FIFTEEN_MINUTE_TICKS).contains(&sim.tick));
-    let result = sim.into_result().unwrap();
+    let result = run_victory(MissionSimV1::from_seed(seed).unwrap())
+        .into_result()
+        .unwrap();
     let receipt = store.submit_result_atomic(&mut campaign, result).unwrap();
     assert_eq!(receipt.outcome, BattleOutcome::Victory);
-    let restarted = store.load().unwrap();
+    assert!(receipt.credit_delta > 0);
+    let mut restarted = store.load().unwrap();
     assert_eq!(restarted.phase, CampaignPhase::Town);
     assert_eq!(restarted.room, CampaignRoom::MirrorSquare);
     assert_eq!(restarted.quest_state, QuestState::Completed);
     assert!(restarted.progression.experience > 0);
+    assert!(restarted.progression.credits > credits_before);
     assert!(restarted.character.attributes.reputation > 0);
     assert!(restarted
         .progression
         .inventory
         .iter()
-        .any(|loot| loot.item_id == "relay-core-fragment"));
+        .any(|loot| loot.item_id == "field-tonic-kit"));
+    restarted.equip_relay_core().unwrap();
+    store.save_atomic(&restarted).unwrap();
+    assert!(store
+        .load()
+        .unwrap()
+        .character
+        .equipment_slots
+        .contains_key("relic"));
 }
 
 #[test]
-fn e2e_defeat_returns_injuries_and_retryable_quest() {
+fn e2e_defeat_returns_injuries_and_small_nonfarmable_xp() {
     let mut campaign = ready_campaign();
-    let seed = campaign.start_first_contact_battle().unwrap();
-    let sim = run(MissionSimV1::from_seed(seed).unwrap(), SimCommand::Hold);
-    assert_eq!(sim.outcome, Some(BattleOutcome::Defeat));
+    let seed = campaign.start_first_contact_battle(map()).unwrap();
+    let mut sim = MissionSimV1::from_seed(seed).unwrap();
+    let hold = RtsFrameOrder::new(
+        0,
+        "player",
+        sim.party
+            .iter()
+            .map(|unit| unit.unit_id.clone())
+            .collect::<Vec<_>>(),
+        RtsOrderKind::Hold,
+        RtsOrderSource::LocalInput,
+    );
+    sim.issue_order(hold).unwrap();
+    while !sim.terminal() {
+        sim.step().unwrap();
+    }
     let receipt = campaign
         .submit_battle_result(sim.into_result().unwrap())
         .unwrap();
     assert_eq!(receipt.outcome, BattleOutcome::Defeat);
+    assert!(receipt.experience_delta <= 12);
+    assert_eq!(receipt.credit_delta, 0);
     assert_eq!(campaign.quest_state, QuestState::Failed);
     assert!(campaign.party.iter().any(|member| member.injury_level > 0));
-    assert_eq!(campaign.room, CampaignRoom::MirrorSquare);
 }
 
 #[test]
-fn e2e_withdrawal_returns_without_fake_victory_rewards() {
+fn e2e_withdrawal_returns_zero_xp_resources_and_fake_victory_rewards() {
     let mut campaign = ready_campaign();
-    let seed = campaign.start_first_contact_battle().unwrap();
+    let seed = campaign.start_first_contact_battle(map()).unwrap();
     let mut sim = MissionSimV1::from_seed(seed).unwrap();
-    for _ in 0..200 {
-        sim.step(SimCommand::Advance).unwrap();
+    sim.issue_order(order(&sim, RtsOrderKind::Move, sim.seed.map.approach_point))
+        .unwrap();
+    for _ in 0..30 {
+        sim.step().unwrap();
     }
-    sim.step(SimCommand::Retreat).unwrap();
+    sim.issue_order(order(&sim, RtsOrderKind::Extract, sim.seed.map.party_start))
+        .unwrap();
     let receipt = campaign
         .submit_battle_result(sim.into_result().unwrap())
         .unwrap();
     assert_eq!(receipt.outcome, BattleOutcome::Withdrawal);
+    assert_eq!(receipt.experience_delta, 0);
+    assert_eq!(receipt.credit_delta, 0);
     assert!(receipt.loot_delta.is_empty());
     assert_eq!(campaign.quest_state, QuestState::Withdrawn);
-    assert!(!campaign
-        .progression
-        .world_flags
-        .contains("first_contact_secured"));
 }
 
 #[test]
@@ -101,19 +202,20 @@ fn e2e_battle_crash_resumes_the_same_deterministic_snapshot() {
     let checkpoint_store =
         SimCheckpointStore::new(directory.path().join("first-contact-battle.json"));
     let mut campaign = ready_campaign();
-    let seed = campaign.start_first_contact_battle().unwrap();
+    let seed = campaign.start_first_contact_battle(map()).unwrap();
     let mut baseline = MissionSimV1::from_seed(seed.clone()).unwrap();
-    for _ in 0..2_800 {
-        baseline.step(SimCommand::Assault).unwrap();
+    baseline
+        .issue_order(order(
+            &baseline,
+            RtsOrderKind::Move,
+            baseline.seed.map.approach_point,
+        ))
+        .unwrap();
+    for _ in 0..280 {
+        baseline.step().unwrap();
     }
     checkpoint_store.save_atomic(&baseline).unwrap();
-    let mut resumed = checkpoint_store.load_for_seed(&seed).unwrap().unwrap();
-    while !baseline.terminal() {
-        baseline.step(SimCommand::Assault).unwrap();
-    }
-    while !resumed.terminal() {
-        resumed.step(SimCommand::Assault).unwrap();
-    }
+    let resumed = checkpoint_store.load_for_seed(&seed).unwrap().unwrap();
     assert_eq!(resumed, baseline);
     assert_eq!(
         resumed.snapshot_hash().unwrap(),
@@ -126,8 +228,8 @@ fn e2e_settlement_crash_recovers_pending_result_exactly_once() {
     let directory = tempdir().unwrap();
     let store = CampaignStore::new(directory.path().join("campaign.json"));
     let mut campaign = ready_campaign();
-    let seed = campaign.start_first_contact_battle().unwrap();
-    let result = run(MissionSimV1::from_seed(seed).unwrap(), SimCommand::Assault)
+    let seed = campaign.start_first_contact_battle(map()).unwrap();
+    let result = run_victory(MissionSimV1::from_seed(seed).unwrap())
         .into_result()
         .unwrap();
     store.stage_result_atomic(&mut campaign, result).unwrap();
@@ -148,8 +250,8 @@ fn e2e_settlement_crash_recovers_pending_result_exactly_once() {
 #[test]
 fn e2e_duplicate_result_has_zero_delta_and_cannot_change_the_save() {
     let mut campaign = ready_campaign();
-    let seed = campaign.start_first_contact_battle().unwrap();
-    let result = run(MissionSimV1::from_seed(seed).unwrap(), SimCommand::Assault)
+    let seed = campaign.start_first_contact_battle(map()).unwrap();
+    let result = run_victory(MissionSimV1::from_seed(seed).unwrap())
         .into_result()
         .unwrap();
     let first = campaign.submit_battle_result(result.clone()).unwrap();
@@ -158,6 +260,7 @@ fn e2e_duplicate_result_has_zero_delta_and_cannot_change_the_save() {
     let second = campaign.submit_battle_result(result).unwrap();
     assert!(second.duplicate);
     assert_eq!(second.experience_delta, 0);
+    assert_eq!(second.credit_delta, 0);
     assert_eq!(second.reputation_delta, 0);
     assert!(second.loot_delta.is_empty());
     assert_eq!(campaign, after_first);

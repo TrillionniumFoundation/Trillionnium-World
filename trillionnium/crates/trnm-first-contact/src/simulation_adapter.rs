@@ -8,15 +8,16 @@ use super::{
     },
 };
 use bevy::prelude::*;
-use trnm_campaign_core::BattleOutcome;
+use trnm_campaign_core::{BattleGridPoint, BattleOutcome};
 use trnm_rts_core::{RtsFrameOrder, RtsFrameOrderStream, RtsOrderKind, RtsOrderSource, RtsTile};
-use trnm_rts_sim::{SimCommand, TICKS_PER_SECOND};
+use trnm_rts_sim::{BattlePhase, TICKS_PER_SECOND};
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub enum FirstContactCommand {
     Move,
     Attack,
     Harvest,
+    Ability,
     Retreat,
     #[default]
     Hold,
@@ -28,6 +29,7 @@ impl FirstContactCommand {
             Self::Move => "MOVE",
             Self::Attack => "ATTACK",
             Self::Harvest => "HARVEST",
+            Self::Ability => "ABILITY",
             Self::Retreat => "RETREAT",
             Self::Hold => "HOLD",
         }
@@ -44,40 +46,50 @@ fn frame_order_for_command(
     frame: u32,
     command: FirstContactCommand,
     actor_ids: Vec<String>,
+    target_tile: IVec2,
+    target_actor_id: Option<String>,
 ) -> RtsFrameOrder {
     let kind = match command {
         FirstContactCommand::Move => RtsOrderKind::Move,
         FirstContactCommand::Attack => RtsOrderKind::Attack,
         FirstContactCommand::Harvest => RtsOrderKind::Harvest,
-        FirstContactCommand::Retreat => RtsOrderKind::Move,
+        FirstContactCommand::Ability => RtsOrderKind::Ability,
+        FirstContactCommand::Retreat => RtsOrderKind::Extract,
         FirstContactCommand::Hold => RtsOrderKind::Hold,
     };
     let mut order =
         RtsFrameOrder::new(frame, "player", actor_ids, kind, RtsOrderSource::LocalInput);
     match command {
         FirstContactCommand::Move => {
-            let choke = &map.chokepoints[1];
-            order.target_tile = Some(RtsTile::new(
-                choke.x + choke.width as i32 / 2,
-                choke.y + choke.height as i32 / 2,
-            ));
-            order.formation_id = Some("group1_wedge".to_string());
+            order.target_tile = Some(RtsTile::new(target_tile.x, target_tile.y));
+            order.formation_id = Some("party_adaptive_wedge".to_string());
         }
         FirstContactCommand::Attack => {
-            order.target_actor_id = Some(map.objective.id.clone());
-            order.target_tile = Some(RtsTile::new(map.objective.x, map.objective.y));
-            order.formation_id = Some("group1_assault_box".to_string());
+            order.target_actor_id = target_actor_id.or_else(|| Some(map.objective.id.clone()));
+            order.target_tile = Some(RtsTile::new(target_tile.x, target_tile.y));
+            order.formation_id = Some("party_assault_box".to_string());
         }
         FirstContactCommand::Harvest => {
-            order.target_actor_id = Some(map.resources[0].id.clone());
-            order.target_tile = Some(RtsTile::new(map.resources[0].x, map.resources[0].y));
+            let resource = map
+                .resources
+                .iter()
+                .find(|resource| Some(resource.id.as_str()) == target_actor_id.as_deref())
+                .unwrap_or(&map.resources[0]);
+            order.target_actor_id = Some(resource.id.clone());
+            order.target_tile = Some(RtsTile::new(resource.x, resource.y));
+        }
+        FirstContactCommand::Ability => {
+            order.target_rule_id = Some("party_signature".to_string());
+            order.target_actor_id = target_actor_id;
+            order.target_tile = Some(RtsTile::new(target_tile.x, target_tile.y));
         }
         FirstContactCommand::Retreat => {
+            order.target_actor_id = Some("expedition_gate".to_string());
             order.target_tile = Some(RtsTile::new(map.player_start.x, map.player_start.y));
             order.formation_id = Some("party_withdraw".to_string());
         }
         FirstContactCommand::Hold => {
-            order.formation_id = Some("group1_hold".to_string());
+            order.formation_id = Some("party_guard_capture".to_string());
         }
     }
     order.raw_command_label = Some(format!("FIRST_CONTACT:{}", command.label()));
@@ -101,12 +113,15 @@ pub struct FirstContactRuntime {
     pub party_hp_percent: u8,
     pub enemy_hp_percent: u8,
     pub group_world_position: Vec2,
+    pub phase: BattlePhase,
+    pub selected_slot: Option<usize>,
+    pub target_tile: IVec2,
+    pub target_actor_id: Option<String>,
     animation_timer: Timer,
     feedback_timer: Timer,
     pressure_timer: Timer,
     animation_phase: usize,
     pressure_flash_seconds: f32,
-    harvest_credit_buffer: f32,
     sim_tick_accumulator: f32,
 }
 
@@ -114,48 +129,55 @@ impl Default for FirstContactRuntime {
     fn default() -> Self {
         Self {
             elapsed_seconds: 0.0,
-            credits: 1160,
-            power_percent: 91,
-            supply_used: 12,
-            supply_cap: 22,
+            credits: 0,
+            power_percent: 100,
+            supply_used: 4,
+            supply_cap: 4,
             contact_hp: 100.0,
             objective_progress: 0.0,
             command: FirstContactCommand::Hold,
-            command_feedback: "Group 1 ready".to_string(),
+            command_feedback: "Select a route and issue MOVE".to_string(),
             victory: false,
             defeat: false,
             withdrawal: false,
             party_hp_percent: 100,
             enemy_hp_percent: 100,
             group_world_position: Vec2::ZERO,
+            phase: BattlePhase::Approach,
+            selected_slot: None,
+            target_tile: IVec2::ZERO,
+            target_actor_id: None,
             animation_timer: Timer::from_seconds(0.14, TimerMode::Repeating),
             feedback_timer: Timer::from_seconds(1.8, TimerMode::Repeating),
             pressure_timer: Timer::from_seconds(15.0, TimerMode::Repeating),
             animation_phase: 0,
             pressure_flash_seconds: 0.0,
-            harvest_credit_buffer: 0.0,
             sim_tick_accumulator: 0.0,
         }
     }
 }
 
 impl FirstContactRuntime {
-    pub(super) fn reset_for_battle(&mut self) {
+    pub(super) fn reset_for_battle(&mut self, map: &FirstContactMap) {
         *self = Self::default();
-        self.command_feedback = "Campaign party deployed from BattleSeed".to_string();
+        let choke = &map.chokepoints[1];
+        self.target_tile = IVec2::new(
+            choke.x + choke.width as i32 / 2,
+            choke.y + choke.height as i32 / 2,
+        );
+        self.command_feedback = "APPROACH: Q moves to the south pass".to_string();
     }
 
     pub fn recommended_command(&self) -> FirstContactCommand {
-        if self.victory {
-            FirstContactCommand::Hold
-        } else {
-            match self.command {
-                FirstContactCommand::Move
-                | FirstContactCommand::Attack
-                | FirstContactCommand::Harvest => self.command,
-                FirstContactCommand::Retreat => FirstContactCommand::Hold,
-                FirstContactCommand::Hold => FirstContactCommand::Attack,
-            }
+        if self.victory || self.defeat || self.withdrawal {
+            return FirstContactCommand::Hold;
+        }
+        match self.phase {
+            BattlePhase::Approach => FirstContactCommand::Move,
+            BattlePhase::Contact if self.credits < 40 => FirstContactCommand::Harvest,
+            BattlePhase::Contact => FirstContactCommand::Attack,
+            BattlePhase::Relay if self.contact_hp > 0.0 => FirstContactCommand::Attack,
+            BattlePhase::Relay | BattlePhase::Complete => FirstContactCommand::Hold,
         }
     }
 }
@@ -165,16 +187,100 @@ pub(super) struct FirstContactTransient {
     timer: Timer,
 }
 
+fn target_cycle(
+    map: &FirstContactMap,
+    flow: &CampaignFlow,
+    current: Option<&str>,
+) -> (String, IVec2) {
+    let mut targets = flow
+        .mission
+        .as_ref()
+        .into_iter()
+        .flat_map(|mission| mission.enemies.iter())
+        .filter(|unit| unit.alive())
+        .map(|unit| {
+            (
+                unit.unit_id.clone(),
+                IVec2::new(unit.position.x as i32, unit.position.y as i32),
+            )
+        })
+        .collect::<Vec<_>>();
+    targets.extend(
+        map.resources
+            .iter()
+            .map(|resource| (resource.id.clone(), IVec2::new(resource.x, resource.y))),
+    );
+    targets.push((
+        map.objective.id.clone(),
+        IVec2::new(map.objective.x, map.objective.y),
+    ));
+    let next = targets
+        .iter()
+        .position(|(id, _)| Some(id.as_str()) == current)
+        .map(|index| (index + 1) % targets.len())
+        .unwrap_or(0);
+    targets[next].clone()
+}
+
 pub(super) fn handle_first_contact_commands(
     input: Res<ButtonInput<KeyCode>>,
     map: Res<FirstContactMap>,
     mut runtime: ResMut<FirstContactRuntime>,
     mut adapter: ResMut<FirstContactSimulationAdapter>,
-    flow: Res<CampaignFlow>,
+    mut flow: ResMut<CampaignFlow>,
 ) {
     if !flow.in_battle() {
         return;
     }
+    if input.just_pressed(KeyCode::Digit0) {
+        runtime.selected_slot = None;
+        runtime.command_feedback = "Selected the full four-person party".to_string();
+    }
+    for (key, slot) in [
+        (KeyCode::Digit1, 0),
+        (KeyCode::Digit2, 1),
+        (KeyCode::Digit3, 2),
+        (KeyCode::Digit4, 3),
+    ] {
+        if input.just_pressed(key) {
+            runtime.selected_slot = Some(slot);
+            runtime.command_feedback = format!("Selected party slot {}", slot + 1);
+        }
+    }
+    if input.just_pressed(KeyCode::Tab) {
+        let (target, tile) = target_cycle(&map, &flow, runtime.target_actor_id.as_deref());
+        runtime.target_actor_id = Some(target.clone());
+        runtime.target_tile = tile;
+        runtime.command_feedback = format!("Target locked: {target} at {},{}", tile.x, tile.y);
+    }
+    let mut target_delta = IVec2::ZERO;
+    if input.just_pressed(KeyCode::KeyJ) {
+        target_delta.x -= 1;
+    }
+    if input.just_pressed(KeyCode::KeyL) {
+        target_delta.x += 1;
+    }
+    if input.just_pressed(KeyCode::KeyI) {
+        target_delta.y -= 1;
+    }
+    if input.just_pressed(KeyCode::KeyK) {
+        target_delta.y += 1;
+    }
+    if target_delta != IVec2::ZERO {
+        let candidate = runtime.target_tile + target_delta;
+        let passable = flow.mission.as_ref().is_some_and(|mission| {
+            mission
+                .seed
+                .map
+                .passable(BattleGridPoint::new(candidate.x as i16, candidate.y as i16))
+        });
+        if passable {
+            runtime.target_tile = candidate;
+            runtime.target_actor_id = None;
+            runtime.command_feedback = format!("Free target: {},{}", candidate.x, candidate.y);
+        }
+    }
+
     let command = if input.just_pressed(KeyCode::KeyQ) {
         Some(FirstContactCommand::Move)
     } else if input.just_pressed(KeyCode::KeyW) {
@@ -183,6 +289,8 @@ pub(super) fn handle_first_contact_commands(
         Some(FirstContactCommand::Harvest)
     } else if input.just_pressed(KeyCode::KeyR) {
         Some(FirstContactCommand::Hold)
+    } else if input.just_pressed(KeyCode::KeyA) {
+        Some(FirstContactCommand::Ability)
     } else if input.just_pressed(KeyCode::KeyX) {
         Some(FirstContactCommand::Retreat)
     } else {
@@ -191,84 +299,78 @@ pub(super) fn handle_first_contact_commands(
     let Some(command) = command else {
         return;
     };
-    let actor_ids = flow
-        .mission
-        .as_ref()
-        .map(|mission| {
-            mission
-                .seed
-                .party
-                .iter()
-                .map(|unit| unit.unit_id.clone())
-                .collect()
+    if command == FirstContactCommand::Harvest {
+        let resource = map
+            .resources
+            .iter()
+            .find(|resource| Some(resource.id.as_str()) == runtime.target_actor_id.as_deref())
+            .unwrap_or(&map.resources[1]);
+        runtime.target_actor_id = Some(resource.id.clone());
+        runtime.target_tile = IVec2::new(resource.x, resource.y);
+    }
+    let Some(mission) = flow.mission.as_ref() else {
+        flow.status = "Battle mode lost its authoritative simulation".to_string();
+        return;
+    };
+    let actor_ids = mission
+        .party
+        .iter()
+        .enumerate()
+        .filter(|(index, unit)| {
+            unit.alive() && runtime.selected_slot.is_none_or(|slot| slot == *index)
         })
-        .unwrap_or_default();
+        .map(|(_, unit)| unit.unit_id.clone())
+        .collect::<Vec<_>>();
     let order = frame_order_for_command(
         &map,
-        (runtime.elapsed_seconds * 60.0) as u32,
+        mission.tick as u32,
         command,
         actor_ids,
+        runtime.target_tile,
+        runtime.target_actor_id.clone(),
     );
     let mut candidate = adapter.accepted_orders.clone();
-    candidate.push(order);
-    RtsFrameOrderStream::new(map.id.clone(), "first_contact_rules_v1", candidate.clone())
-        .validate()
-        .expect("live First Contact commands remain valid RTS core frame orders");
+    candidate.push(order.clone());
+    if let Err(error) = RtsFrameOrderStream::new(
+        map.id.clone(),
+        "first_contact_campaign_rules_v2",
+        candidate.clone(),
+    )
+    .validate()
+    {
+        flow.status = format!("Order stream rejected: {error}");
+        return;
+    }
+    if let Err(error) = flow
+        .mission
+        .as_mut()
+        .expect("mission checked above")
+        .issue_order(order)
+    {
+        runtime.command_feedback = error.to_string();
+        return;
+    }
     adapter.accepted_orders = candidate;
     runtime.command = command;
     runtime.command_feedback = match command {
-        FirstContactCommand::Move => "Moving through the south pass".to_string(),
-        FirstContactCommand::Attack => "Attacking the Relay Beacon".to_string(),
-        FirstContactCommand::Harvest => "Harvesting the home crystal route".to_string(),
-        FirstContactCommand::Hold => "Holding the current formation".to_string(),
-        FirstContactCommand::Retreat => "Withdrawing to Mirror Square".to_string(),
+        FirstContactCommand::Move => format!(
+            "Moving selected units to {},{}",
+            runtime.target_tile.x, runtime.target_tile.y
+        ),
+        FirstContactCommand::Attack => "Map-aware assault order accepted".to_string(),
+        FirstContactCommand::Harvest => {
+            "Harvest route accepted; resources power abilities and return credits".to_string()
+        }
+        FirstContactCommand::Ability => "Signature abilities activated".to_string(),
+        FirstContactCommand::Hold => {
+            "Guarding position; HOLD captures an exposed relay".to_string()
+        }
+        FirstContactCommand::Retreat => {
+            "Withdrawal accepted with zero progression reward".to_string()
+        }
     };
 }
 
-fn command_target(map: &FirstContactMap, command: FirstContactCommand) -> Vec3 {
-    match command {
-        FirstContactCommand::Move => {
-            let choke = &map.chokepoints[1];
-            map_world_position(
-                map,
-                choke.x + choke.width as i32 / 2,
-                choke.y + choke.height as i32 / 2,
-                8.0,
-            )
-        }
-        FirstContactCommand::Attack => {
-            map_world_position(map, map.objective.x, map.objective.y, 8.0)
-        }
-        FirstContactCommand::Harvest => {
-            let resource = &map.resources[0];
-            map_world_position(map, resource.x, resource.y, 8.0)
-        }
-        FirstContactCommand::Retreat => {
-            map_world_position(map, map.player_start.x, map.player_start.y, 8.0)
-        }
-        FirstContactCommand::Hold => Vec3::ZERO,
-    }
-}
-
-fn formation_offset(unit_id: &str) -> Vec2 {
-    match unit_id {
-        "party_0" => Vec2::new(-46.0, 28.0),
-        "party_1" => Vec2::new(46.0, 28.0),
-        "party_2" => Vec2::new(-46.0, -28.0),
-        "party_3" => Vec2::new(46.0, -28.0),
-        _ => Vec2::ZERO,
-    }
-}
-
-fn simulated_world_position(map: &FirstContactMap, progress_milli: i32, visual_id: &str) -> Vec2 {
-    let start = map_world_position(map, map.player_start.x, map.player_start.y, 8.0).truncate();
-    let objective = map_world_position(map, map.objective.x, map.objective.y, 8.0).truncate();
-    let progress = (progress_milli as f32 / 100_000.0).clamp(0.0, 1.0);
-    start.lerp(objective, progress) + formation_offset(visual_id)
-}
-
-// Explicit disjoint query filters let Bevy validate the mutable component
-// access while keeping this frame update as one ordered simulation system.
 #[allow(clippy::too_many_arguments, clippy::type_complexity)]
 pub(super) fn advance_first_contact_simulation(
     mut commands: Commands,
@@ -327,16 +429,8 @@ pub(super) fn advance_first_contact_simulation(
     if runtime.pressure_timer.just_finished() && !runtime.victory {
         runtime.power_percent = runtime.power_percent.saturating_sub(1).max(45);
         runtime.pressure_flash_seconds = 0.42;
-        runtime.command_feedback = "Contact pressure hit the outer relay".to_string();
     }
 
-    let sim_command = match runtime.command {
-        FirstContactCommand::Move => SimCommand::Advance,
-        FirstContactCommand::Attack => SimCommand::Assault,
-        FirstContactCommand::Harvest => SimCommand::Harvest,
-        FirstContactCommand::Hold => SimCommand::Hold,
-        FirstContactCommand::Retreat => SimCommand::Retreat,
-    };
     let tick_seconds = 1.0 / TICKS_PER_SECOND as f32;
     while runtime.sim_tick_accumulator >= tick_seconds {
         let Some(mission) = flow.mission.as_mut() else {
@@ -346,7 +440,7 @@ pub(super) fn advance_first_contact_simulation(
         if mission.terminal() {
             break;
         }
-        if let Err(error) = mission.step(sim_command) {
+        if let Err(error) = mission.step() {
             flow.status = error.to_string();
             break;
         }
@@ -363,50 +457,65 @@ pub(super) fn advance_first_contact_simulation(
         runtime.victory = mission.outcome == Some(BattleOutcome::Victory);
         runtime.defeat = mission.outcome == Some(BattleOutcome::Defeat);
         runtime.withdrawal = mission.outcome == Some(BattleOutcome::Withdrawal);
-        runtime.credits = 1_160_u32.saturating_add(mission.resources_gathered);
+        runtime.credits = mission.resources_gathered;
+        runtime.phase = mission.phase;
         runtime.command_feedback = if runtime.victory {
-            "FIRST CONTACT SECURED".to_string()
+            "FIRST CONTACT SECURED: rewards and resources will return to town".to_string()
         } else if runtime.defeat {
-            "PARTY INCAPACITATED".to_string()
+            "PARTY DEFEATED: injuries applied, no harvested credits retained".to_string()
         } else if runtime.withdrawal {
-            "WITHDRAWAL COMPLETE".to_string()
-        } else if mission.enemy_hp_percent() > 0 {
-            format!(
-                "Party {}% | Contact force {}%",
-                mission.party_hp_percent(),
-                mission.enemy_hp_percent()
-            )
-        } else if mission.relay_guard_hp > 0 {
-            format!("Relay guard {}%", mission.relay_guard_percent())
+            "WITHDRAWAL COMPLETE: no XP or resource payout".to_string()
         } else {
-            format!("Securing relay {}%", mission.capture_percent())
+            match mission.phase {
+                BattlePhase::Approach => "APPROACH: move through the south pass".to_string(),
+                BattlePhase::Contact if mission.resources_gathered < 40 => format!(
+                    "CONTACT: Party {}% | Enemy {}% | harvest for ability energy",
+                    mission.party_hp_percent(),
+                    mission.enemy_hp_percent()
+                ),
+                BattlePhase::Contact => format!(
+                    "CONTACT: Party {}% | Enemy {}% | assault or use A",
+                    mission.party_hp_percent(),
+                    mission.enemy_hp_percent()
+                ),
+                BattlePhase::Relay if mission.relay_guard_hp > 0 => {
+                    format!(
+                        "RELAY: guard {}% | assault the objective",
+                        mission.relay_guard_percent()
+                    )
+                }
+                BattlePhase::Relay => format!(
+                    "RELAY EXPOSED: press R to secure {}%",
+                    mission.capture_percent()
+                ),
+                BattlePhase::Complete => "Battle complete".to_string(),
+            }
         };
     }
 
     let mut simulated_visuals = std::collections::HashMap::new();
     if let Some(mission) = flow.mission.as_ref() {
-        for seeded in &mission.seed.party {
+        for (index, seeded) in mission.seed.party.iter().enumerate() {
             if let Some(unit) = mission
                 .party
                 .iter()
                 .find(|unit| unit.unit_id == seeded.unit_id)
             {
+                let selected = runtime.selected_slot.is_none_or(|slot| slot == index);
                 simulated_visuals.insert(
                     seeded.spawn_slot.clone(),
-                    (unit.position_milli, unit.alive(), true),
+                    (unit.position, unit.alive(), true, selected),
                 );
             }
         }
         for unit in &mission.enemies {
             simulated_visuals.insert(
                 unit.unit_id.clone(),
-                (unit.position_milli, unit.alive(), false),
+                (unit.position, unit.alive(), false, false),
             );
         }
     }
 
-    let target = command_target(&map, runtime.command);
-    let mut selected_near_target = 0usize;
     let mut selected_position_sum = Vec2::ZERO;
     let mut selected_position_count = 0usize;
     let mut unit_positions = std::collections::HashMap::new();
@@ -414,45 +523,27 @@ pub(super) fn advance_first_contact_simulation(
         let family = manifest
             .unit(&unit.family)
             .expect("rendered unit family remains in atlas");
-        let selected_player = unit.owner == "player" && unit.selected;
-        let unit_target = target.truncate() + formation_offset(&unit.id);
-        if let Some((progress_milli, _, _)) = simulated_visuals.get(&unit.id) {
-            let position = simulated_world_position(&map, *progress_milli, &unit.id);
-            transform.translation.x = position.x;
-            transform.translation.y = position.y;
-        }
-        let distance = transform.translation.truncate().distance(unit_target);
-        if selected_player
-            && !simulated_visuals.contains_key(&unit.id)
-            && runtime.command != FirstContactCommand::Hold
-            && distance > 84.0
-        {
-            let direction = (unit_target - transform.translation.truncate()).normalize_or_zero();
-            transform.translation += direction.extend(0.0) * 56.0 * delta;
-        }
-        if selected_player && distance <= 120.0 {
-            selected_near_target += 1;
-        }
-        if selected_player {
+        let Some((position, alive, player, selected)) = simulated_visuals.get(&unit.id).copied()
+        else {
+            continue;
+        };
+        let world = map_world_position(&map, position.x as i32, position.y as i32, 8.0);
+        let old = transform.translation.truncate();
+        transform.translation.x = world.x;
+        transform.translation.y = world.y;
+        if player && selected {
             selected_position_sum += transform.translation.truncate();
             selected_position_count += 1;
         }
+        let moved = old.distance(transform.translation.truncate()) > 0.5;
         let phase = runtime.animation_phase % 2;
-        let simulated_alive = simulated_visuals
-            .get(&unit.id)
-            .map(|(_, alive, _)| *alive)
-            .unwrap_or(true);
-        let column = if !simulated_alive || (runtime.victory && unit.owner == "contact") {
+        let column = if !alive || (runtime.victory && unit.owner == "contact") {
             family.disabled
-        } else if selected_player && runtime.pressure_flash_seconds > 0.0 {
+        } else if player && selected && runtime.pressure_flash_seconds > 0.0 {
             family.hit
-        } else if selected_player
-            && runtime.command == FirstContactCommand::Attack
-            && distance <= 132.0
-        {
+        } else if player && runtime.command == FirstContactCommand::Attack {
             family.attack[phase]
-        } else if selected_player && runtime.command != FirstContactCommand::Hold && distance > 84.0
-        {
+        } else if moved {
             family.r#move[phase]
         } else {
             family.idle[phase]
@@ -460,33 +551,24 @@ pub(super) fn advance_first_contact_simulation(
         if let Some(atlas) = sprite.texture_atlas.as_mut() {
             atlas.index = family.atlas_index(column);
         }
-        unit_positions.insert(unit.id.clone(), transform.translation);
+        unit_positions.insert(unit.id.clone(), (transform.translation, selected));
     }
     if selected_position_count > 0 {
         runtime.group_world_position = selected_position_sum / selected_position_count as f32;
     }
 
     for (mut transform, ring) in &mut rings {
-        if let Some(position) = unit_positions.get(&ring.unit_id) {
+        if let Some((position, selected)) = unit_positions.get(&ring.unit_id) {
             transform.translation.x = position.x;
             transform.translation.y = position.y - 3.0;
+            transform.scale = if *selected { Vec3::ONE } else { Vec3::ZERO };
         }
     }
 
-    if runtime.command == FirstContactCommand::Harvest && selected_near_target >= 3 {
-        runtime.harvest_credit_buffer += 5.0 * delta;
-        let harvested = runtime.harvest_credit_buffer.floor() as u32;
-        if harvested > 0 {
-            runtime.credits = runtime.credits.saturating_add(harvested);
-            runtime.harvest_credit_buffer -= harvested as f32;
-        }
-        runtime.command_feedback = "Crystal flow online".to_string();
-    }
     if runtime.command == FirstContactCommand::Attack
-        && selected_near_target >= 3
+        && runtime.feedback_timer.just_finished()
         && !runtime.victory
         && !runtime.defeat
-        && runtime.feedback_timer.just_finished()
     {
         if let Some(handles) = handles.as_deref() {
             let hit = manifest.effect_frames[if runtime.animation_phase.is_multiple_of(2) {
@@ -503,8 +585,8 @@ pub(super) fn advance_first_contact_simulation(
                 ),
                 Transform::from_translation(map_world_position(
                     &map,
-                    map.objective.x,
-                    map.objective.y,
+                    runtime.target_tile.x,
+                    runtime.target_tile.y,
                     12.0,
                 )),
                 FirstContactTransient {
@@ -526,7 +608,6 @@ pub(super) fn advance_first_contact_simulation(
             };
         }
     }
-
     let pulse = 0.96 + (runtime.elapsed_seconds * 3.0).sin().abs() * 0.10;
     for (mut transform, _) in &mut pulses {
         transform.scale = Vec3::splat(pulse);
@@ -590,36 +671,124 @@ mod tests {
     use super::*;
     use crate::map_loader::load_first_contact_map;
     use std::path::Path;
+    use trnm_campaign_core::{BattleOutcome, CampaignRoom, CampaignSaveV1};
+    use trnm_rts_sim::{BattlePhase, MissionSimV1, FIVE_MINUTE_TICKS, THREE_MINUTE_TICKS};
+
+    fn living_subjects(sim: &MissionSimV1) -> Vec<String> {
+        sim.party
+            .iter()
+            .filter(|unit| unit.alive())
+            .map(|unit| unit.unit_id.clone())
+            .collect()
+    }
 
     #[test]
-    fn player_commands_enter_the_existing_rts_frame_order_contract() {
+    fn player_commands_are_the_same_orders_consumed_by_the_sim() {
         let path = Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("../../../assets/first_contact/maps/first_contact.yaml");
         let map = load_first_contact_map(&path).expect("authored map loads");
-        let orders = [
+        let commands = [
             FirstContactCommand::Move,
             FirstContactCommand::Attack,
             FirstContactCommand::Harvest,
             FirstContactCommand::Hold,
+            FirstContactCommand::Ability,
             FirstContactCommand::Retreat,
-        ]
-        .into_iter()
-        .enumerate()
-        .map(|(frame, command)| {
-            frame_order_for_command(
-                &map,
-                frame as u32,
-                command,
-                vec![
-                    "hero".to_string(),
-                    "aya".to_string(),
-                    "mako".to_string(),
-                    "tess".to_string(),
-                ],
-            )
-        })
-        .collect();
-        let stream = RtsFrameOrderStream::new(map.id.clone(), "first_contact_rules_v1", orders);
-        stream.validate().expect("frame orders validate");
+        ];
+        let orders = commands
+            .into_iter()
+            .enumerate()
+            .map(|(frame, command)| {
+                frame_order_for_command(
+                    &map,
+                    frame as u32,
+                    command,
+                    vec!["hero".to_string()],
+                    IVec2::new(map.objective.x, map.objective.y),
+                    Some(map.objective.id.clone()),
+                )
+            })
+            .collect();
+        RtsFrameOrderStream::new(map.id.clone(), "first_contact_campaign_rules_v2", orders)
+            .validate()
+            .expect("frame orders validate");
+    }
+
+    #[test]
+    fn authored_map_supports_the_three_phase_three_to_five_minute_route() {
+        let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../../assets/first_contact/maps/first_contact.yaml");
+        let map = load_first_contact_map(&path).expect("authored map loads");
+        let mut campaign = CampaignSaveV1::default();
+        campaign.move_to(CampaignRoom::MentorHall).unwrap();
+        campaign.talk_to_mentor().unwrap();
+        campaign.train_with_mentor().unwrap();
+        campaign.equip_starter_weapon().unwrap();
+        campaign.move_to(CampaignRoom::ExpeditionGate).unwrap();
+        campaign.accept_first_contact_quest().unwrap();
+        let seed = campaign
+            .start_first_contact_battle(map.battle_seed_map().unwrap())
+            .unwrap();
+        let mut sim = MissionSimV1::from_seed(seed).unwrap();
+        let approach = sim.seed.map.approach_point;
+        let move_order = frame_order_for_command(
+            &map,
+            sim.tick as u32,
+            FirstContactCommand::Move,
+            living_subjects(&sim),
+            IVec2::new(approach.x as i32, approach.y as i32),
+            None,
+        );
+        sim.issue_order(move_order).unwrap();
+        while sim.phase == BattlePhase::Approach && !sim.terminal() {
+            sim.step().unwrap();
+        }
+        let resource = &map.resources[1];
+        let harvest_order = frame_order_for_command(
+            &map,
+            sim.tick as u32,
+            FirstContactCommand::Harvest,
+            living_subjects(&sim),
+            IVec2::new(resource.x, resource.y),
+            Some(resource.id.clone()),
+        );
+        sim.issue_order(harvest_order).unwrap();
+        while sim.resources_gathered < 40 && !sim.terminal() {
+            sim.step().unwrap();
+        }
+        let attack_order = frame_order_for_command(
+            &map,
+            sim.tick as u32,
+            FirstContactCommand::Attack,
+            living_subjects(&sim),
+            IVec2::new(map.objective.x, map.objective.y),
+            Some(map.objective.id.clone()),
+        );
+        sim.issue_order(attack_order).unwrap();
+        while !(sim.terminal() || sim.phase == BattlePhase::Relay && sim.relay_guard_hp <= 0) {
+            sim.step().unwrap();
+        }
+        assert!(
+            !sim.terminal(),
+            "authored route must reach the exposed relay"
+        );
+        let hold_order = frame_order_for_command(
+            &map,
+            sim.tick as u32,
+            FirstContactCommand::Hold,
+            living_subjects(&sim),
+            IVec2::new(map.objective.x, map.objective.y),
+            Some(map.objective.id.clone()),
+        );
+        sim.issue_order(hold_order).unwrap();
+        while !sim.terminal() && sim.tick <= FIVE_MINUTE_TICKS {
+            sim.step().unwrap();
+        }
+        assert_eq!(sim.outcome, Some(BattleOutcome::Victory));
+        assert!(
+            (THREE_MINUTE_TICKS..=FIVE_MINUTE_TICKS).contains(&sim.tick),
+            "authored-map victory tick {} is outside 3-5 minutes",
+            sim.tick
+        );
     }
 }

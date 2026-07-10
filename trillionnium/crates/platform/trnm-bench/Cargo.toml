@@ -1,0 +1,11 @@
+[package]
+name = "trnm-bench"
+version = "0.1.0"
+edition = "2021"
+license = "LicenseRef-Trillionnium-Internal"
+authors = ["Trillionnium Contributors"]
+
+[dependencies]
+clap = { version = "4", features = ["derive"] }
+trnm-executor = { path = "../trnm-executor" }
+trnm-types = { path = "../trnm-types" }

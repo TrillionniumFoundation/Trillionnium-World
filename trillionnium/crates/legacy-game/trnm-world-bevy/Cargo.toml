@@ -1,0 +1,68 @@
+[package]
+name = "trnm-world-bevy"
+version = "0.1.0"
+edition = "2021"
+license = "LicenseRef-Trillionnium-Internal"
+authors = ["Trillionnium Contributors"]
+
+[lib]
+crate-type = ["rlib", "cdylib"]
+
+[features]
+default = []
+legacy = [
+  "dep:bevy",
+  "dep:serde",
+  "dep:serde_json",
+  "dep:sha2",
+  "dep:trnm-world-api",
+  "dep:trnm-world-command",
+  "dep:trnm-world-domain",
+  "dep:trnm-world-map-provider",
+  "dep:trnm-world-projection",
+  "dep:trnm-rts-bevy-runtime",
+  "dep:trnm-rts-core",
+  "dep:trnm-rts-data",
+  "dep:trnm-rts-evidence",
+  "dep:trnm-rts-online",
+  "dep:minifb",
+]
+
+[dependencies]
+bevy = { version = "=0.19.0-rc.1", optional = true, default-features = false, features = [
+  "default_app",
+  "bevy_log",
+  "bevy_state",
+  "bevy_window",
+  "bevy_winit",
+  "bevy_input_focus",
+  "bevy_ui",
+  "bevy_ui_render",
+  "bevy_text",
+  "default_font",
+  "bevy_sprite",
+  "bevy_sprite_render",
+  "bevy_render",
+  "bevy_core_pipeline",
+  "png",
+  "x11",
+  "wayland",
+  "android-native-activity",
+] }
+serde = { version = "1", optional = true, features = ["derive"] }
+serde_json = { version = "1", optional = true }
+sha2 = { version = "0.10", optional = true }
+trnm-first-contact = { path = "../../trnm-first-contact" }
+trnm-world-api = { path = "../trnm-world-api", optional = true }
+trnm-world-command = { path = "../trnm-world-command", optional = true }
+trnm-world-domain = { path = "../../trnm-world-domain", optional = true }
+trnm-world-map-provider = { path = "../trnm-world-map-provider", optional = true }
+trnm-world-projection = { path = "../trnm-world-projection", optional = true }
+trnm-rts-bevy-runtime = { path = "../trnm-rts-bevy-runtime", optional = true }
+trnm-rts-core = { path = "../../trnm-rts-core", optional = true }
+trnm-rts-data = { path = "../trnm-rts-data", optional = true }
+trnm-rts-evidence = { path = "../trnm-rts-evidence", optional = true }
+trnm-rts-online = { path = "../trnm-rts-online", optional = true }
+
+[target.'cfg(not(target_os = "android"))'.dependencies]
+minifb = { version = "0.27", optional = true }

@@ -1,0 +1,25 @@
+[workspace]
+members = [
+  "trnm-node",
+  "trnm-types",
+  "trnm-state",
+  "trnm-pouw",
+  "trnm-executor",
+  "trnm-mempool",
+  "trnm-rpc",
+  "trnm-bench",
+  "trnm-worker-agent",
+  "trnm-cli",
+  "trnm-bridge-poc",
+  "trnm-oracle",
+]
+resolver = "2"
+
+[workspace.package]
+edition = "2021"
+license = "LicenseRef-Trillionnium-Internal"
+authors = ["Trillionnium Contributors"]
+
+[workspace.metadata.trnm]
+lane = "platform"
+game_workspace = "../../Cargo.toml"

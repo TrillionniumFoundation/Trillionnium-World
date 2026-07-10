@@ -1,6 +1,7 @@
 use bevy::prelude::Resource;
 use serde::Deserialize;
 use std::{collections::BTreeMap, fs, path::Path};
+use trnm_campaign_core::{BattleGridPoint, BattleMapNodeV1, BattleMapSeedV1};
 
 #[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
 pub struct MapPoint {
@@ -101,6 +102,47 @@ pub struct FirstContactMap {
 }
 
 impl FirstContactMap {
+    pub fn battle_seed_map(&self) -> Result<BattleMapSeedV1, String> {
+        let south_pass = self
+            .chokepoints
+            .iter()
+            .find(|choke| choke.id == "south_pass")
+            .ok_or_else(|| "authored map is missing south_pass".to_string())?;
+        let map = BattleMapSeedV1 {
+            width: self.width as u16,
+            height: self.height as u16,
+            terrain_rows: self.terrain_rows.clone(),
+            party_start: BattleGridPoint::new(
+                self.player_start.x as i16,
+                self.player_start.y as i16,
+            ),
+            approach_point: BattleGridPoint::new(
+                (south_pass.x + south_pass.width as i32 / 2) as i16,
+                (south_pass.y + south_pass.height as i32 / 2) as i16,
+            ),
+            objective: BattleGridPoint::new(self.objective.x as i16, self.objective.y as i16),
+            resource_nodes: self
+                .resources
+                .iter()
+                .map(|resource| BattleMapNodeV1 {
+                    id: resource.id.clone(),
+                    position: BattleGridPoint::new(resource.x as i16, resource.y as i16),
+                })
+                .collect(),
+            enemy_spawns: self
+                .units
+                .iter()
+                .filter(|unit| unit.owner == "contact")
+                .map(|unit| BattleMapNodeV1 {
+                    id: unit.id.clone(),
+                    position: BattleGridPoint::new(unit.x as i16, unit.y as i16),
+                })
+                .collect(),
+        };
+        map.validate().map_err(|error| error.to_string())?;
+        Ok(map)
+    }
+
     pub fn terrain_at(&self, x: usize, y: usize) -> Option<char> {
         self.terrain_rows.get(y)?.chars().nth(x)
     }

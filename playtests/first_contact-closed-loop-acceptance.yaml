@@ -9,7 +9,15 @@ software:
     - mid_battle_crash_resume
     - mid_settlement_crash_recovery
     - duplicate_result_zero_delta
-  deterministic_victory_minutes: { min: 10, max: 15 }
+  deterministic_victory_minutes: { min: 3, max: 5 }
+  gameplay_gates:
+    - no_single_order_victory
+    - withdrawal_zero_xp_and_resources
+    - paid_capped_training
+    - harvest_route_persists_victory_resources
+    - victory_loot_is_consumable_or_equippable
+    - ability_rush_route_is_viable
+    - authored_2d_map_drives_pathfinding
 human:
   status: pending_real_observers
   five_second_observers_required: 3

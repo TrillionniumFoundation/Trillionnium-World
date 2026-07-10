@@ -30,7 +30,7 @@ Current major drift risks include:
 6. `/api/v0/web4/*` references are historical V0 naming. There is no corresponding Next.js route currently; effective read semantics come from `web4-frontend/lib/api-contract/*` and `web4-frontend/lib/dashboard/source.ts`.
 7. Concurrency closeout and external comparisons are still in document-consolidation phase: `docs/reports/TRNM_CONCURRENCY_BOTTLENECK_MAP_AND_8W_ROADMAP_2026-03-10.md` is the current bottleneck map and 8-week route entry, `docs/reports/TRNM_CONCURRENCY_COMPARISON_2026-03-05.md` is an external benchmark draft; both describe progress, not release proof.
 8. Trillionnium World release-review handoff gates can be green for local review while public launch remains blocked. Treat `release_review_ci_gate_green_with_public_launch_blockers` as a local review packet result, not external readiness.
-9. Trillionnium World client/account work can drift back to the old CEX web runtime if the boundary is not checked. The native playable client is `trillionnium/crates/trnm-world-bevy`; CEX is legacy adapter evidence only.
+9. Trillionnium World work can drift back to old CEX or `trnm-world-bevy` paths if the boundary is not checked. The only native playable client is `trillionnium/crates/trnm-first-contact`; CEX and `trillionnium/crates/legacy-game/trnm-world-bevy` are legacy/reference surfaces only.
 
 ## Component Status
 

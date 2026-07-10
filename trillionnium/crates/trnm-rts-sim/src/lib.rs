@@ -1,33 +1,39 @@
 //! Deterministic, Bevy-free First Contact battle simulation.
 //!
-//! The simulation consumes only a validated campaign seed and emits only a
-//! campaign result. It never mutates RPG progression directly.
+//! The simulation consumes validated [`RtsFrameOrder`] values as its only
+//! player input. The authored map projection embedded in [`BattleSeedV1`]
+//! drives two-dimensional pathfinding, combat, resources and objectives.
 
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::{
+    collections::{BTreeMap, BTreeSet, VecDeque},
     fmt, fs,
     io::Write,
     path::{Path, PathBuf},
 };
 use trnm_campaign_core::{
-    BattleOutcome, BattleResultV1, BattleSeedV1, CampaignError, LootStack, UnitBattleReportV1,
-    UnitBattleStatus, BATTLE_RESULT_CONTRACT,
+    BattleGridPoint, BattleOutcome, BattleResultV1, BattleSeedV1, CampaignError, LootStack,
+    UnitBattleReportV1, UnitBattleStatus, BATTLE_RESULT_CONTRACT,
 };
+use trnm_rts_core::{RtsFrameOrder, RtsOrderKind};
 
-pub const RTS_SIM_CONTRACT: &str = "trnm_rts_sim_v1";
-pub const RTS_SIM_CHECKPOINT_CONTRACT: &str = "trnm_rts_sim_checkpoint_v1";
+pub const RTS_SIM_CONTRACT: &str = "trnm_rts_sim_v2";
+pub const RTS_SIM_CHECKPOINT_CONTRACT: &str = "trnm_rts_sim_checkpoint_v2";
 pub const TICKS_PER_SECOND: u64 = 10;
+pub const THREE_MINUTE_TICKS: u64 = 3 * 60 * TICKS_PER_SECOND;
+pub const FIVE_MINUTE_TICKS: u64 = 5 * 60 * TICKS_PER_SECOND;
 pub const TEN_MINUTE_TICKS: u64 = 10 * 60 * TICKS_PER_SECOND;
 pub const FIFTEEN_MINUTE_TICKS: u64 = 15 * 60 * TICKS_PER_SECOND;
-const RELAY_POSITION_MILLI: i32 = 100_000;
-const ENGAGEMENT_RANGE_MILLI: i32 = 5_000;
-const RELAY_GUARD_HP: i64 = 26_000;
-const CAPTURE_TICKS_REQUIRED: u32 = 1_800;
+const MOVEMENT_TILE_COST: i32 = 10_000;
+const CAPTURE_TICKS_REQUIRED: u32 = 1_300;
+const RELAY_GUARD_HP: i64 = 5_000;
+const WITHDRAWAL_MIN_TICKS: u64 = 30;
 
 #[derive(Debug)]
 pub enum SimError {
     Campaign(CampaignError),
+    Order(String),
     InvalidState(String),
     Integrity(String),
     Io(std::io::Error),
@@ -38,6 +44,7 @@ impl fmt::Display for SimError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Campaign(error) => write!(formatter, "campaign contract rejected: {error}"),
+            Self::Order(message) => write!(formatter, "RTS order rejected: {message}"),
             Self::InvalidState(message) => write!(formatter, "invalid RTS state: {message}"),
             Self::Integrity(message) => write!(formatter, "RTS integrity error: {message}"),
             Self::Io(error) => write!(formatter, "RTS checkpoint storage error: {error}"),
@@ -68,33 +75,48 @@ impl From<serde_json::Error> for SimError {
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub enum SimCommand {
-    Advance,
-    Assault,
-    Harvest,
+pub enum BattlePhase {
     #[default]
-    Hold,
-    Retreat,
+    Approach,
+    Contact,
+    Relay,
+    Complete,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SimUnit {
     pub unit_id: String,
+    pub role: String,
     pub persistent: bool,
+    pub skill_ids: Vec<String>,
     pub max_hp: i64,
     pub hp: i64,
     pub damage: i64,
     pub armor: i64,
     pub move_speed_milli: i32,
+    pub movement_budget_milli: i32,
     pub attack_interval_ticks: u32,
     pub evasion_permille: u16,
-    pub position_milli: i32,
+    pub energy: i64,
+    pub max_energy: i64,
+    pub ability_range: i16,
+    pub ability_cooldown_ticks: u32,
+    pub guard_ticks: u32,
+    pub position: BattleGridPoint,
     pub attacks_made: u64,
 }
 
 impl SimUnit {
     pub fn alive(&self) -> bool {
         self.hp > 0
+    }
+
+    fn attack_range(&self) -> i16 {
+        match self.role.as_str() {
+            "scout" | "engineer" | "mystic" => 3,
+            "medic" => 2,
+            _ => 1,
+        }
     }
 }
 
@@ -103,7 +125,11 @@ pub struct MissionSimV1 {
     pub contract_version: String,
     pub seed: BattleSeedV1,
     pub tick: u64,
-    pub command: SimCommand,
+    pub phase: BattlePhase,
+    pub active_order: Option<RtsFrameOrder>,
+    pub last_order_frame: Option<u32>,
+    pub order_count: u32,
+    pub distinct_order_kinds: BTreeSet<String>,
     pub party: Vec<SimUnit>,
     pub enemies: Vec<SimUnit>,
     pub relay_guard_hp: i64,
@@ -116,53 +142,80 @@ pub struct MissionSimV1 {
 impl MissionSimV1 {
     pub fn from_seed(seed: BattleSeedV1) -> Result<Self, SimError> {
         seed.validate()?;
+        let party_positions = formation_positions(seed.map.party_start, &seed);
         let party = seed
             .party
             .iter()
-            .map(|unit| SimUnit {
+            .enumerate()
+            .map(|(index, unit)| SimUnit {
                 unit_id: unit.unit_id.clone(),
+                role: unit.role.clone(),
                 persistent: unit.persistent,
+                skill_ids: unit.skill_ids.clone(),
                 max_hp: unit.stats.max_hp as i64,
                 hp: unit.stats.max_hp as i64,
                 damage: (unit.stats.damage as i64 * unit.stats.skill_power_permille as i64 / 1000)
                     .max(1),
                 armor: unit.stats.armor as i64,
                 move_speed_milli: unit.stats.move_speed_milli as i32,
+                movement_budget_milli: 0,
                 attack_interval_ticks: unit.stats.attack_interval_ticks.max(1),
                 evasion_permille: unit.stats.evasion_permille,
-                position_milli: 0,
+                energy: unit.stats.energy as i64,
+                max_energy: unit.stats.energy as i64,
+                ability_range: unit.stats.ability_range.max(1) as i16,
+                ability_cooldown_ticks: 0,
+                guard_ticks: 0,
+                position: party_positions[index],
                 attacks_made: 0,
             })
             .collect();
-        let enemies = [
-            ("contact_scout", 820, 13, 4, 980, 18),
-            ("contact_warden", 1_300, 16, 8, 720, 22),
-            ("contact_striker", 960, 19, 5, 840, 17),
-            ("relay_guard", 1_550, 17, 9, 620, 24),
-        ]
-        .into_iter()
-        .enumerate()
-        .map(
-            |(index, (unit_id, hp, damage, armor, speed, interval))| SimUnit {
-                unit_id: unit_id.to_string(),
-                persistent: false,
-                max_hp: hp,
-                hp,
-                damage,
-                armor,
-                move_speed_milli: speed,
-                attack_interval_ticks: interval,
-                evasion_permille: 30 + index as u16 * 10,
-                position_milli: 72_000 + index as i32 * 3_000,
-                attacks_made: 0,
-            },
-        )
-        .collect();
-        Ok(Self {
+        let enemy_profiles = [
+            ("scout", 800, 8, 3, 1_050, 18),
+            ("warden", 1_200, 10, 7, 760, 24),
+            ("striker", 900, 12, 4, 900, 20),
+            ("relay_guard", 1_400, 11, 8, 680, 26),
+        ];
+        let enemies = seed
+            .map
+            .enemy_spawns
+            .iter()
+            .enumerate()
+            .map(|(index, spawn)| {
+                let (role, hp, damage, armor, speed, interval) =
+                    enemy_profiles[index.min(enemy_profiles.len() - 1)];
+                SimUnit {
+                    unit_id: spawn.id.clone(),
+                    role: role.to_string(),
+                    persistent: false,
+                    skill_ids: Vec::new(),
+                    max_hp: hp,
+                    hp,
+                    damage,
+                    armor,
+                    move_speed_milli: speed,
+                    movement_budget_milli: 0,
+                    attack_interval_ticks: interval,
+                    evasion_permille: 25 + index as u16 * 10,
+                    energy: 0,
+                    max_energy: 0,
+                    ability_range: 1,
+                    ability_cooldown_ticks: 0,
+                    guard_ticks: 0,
+                    position: spawn.position,
+                    attacks_made: 0,
+                }
+            })
+            .collect();
+        let sim = Self {
             contract_version: RTS_SIM_CONTRACT.to_string(),
             seed,
             tick: 0,
-            command: SimCommand::Hold,
+            phase: BattlePhase::Approach,
+            active_order: None,
+            last_order_frame: None,
+            order_count: 0,
+            distinct_order_kinds: BTreeSet::new(),
             party,
             enemies,
             relay_guard_hp: RELAY_GUARD_HP,
@@ -170,7 +223,9 @@ impl MissionSimV1 {
             resources_gathered: 0,
             outcome: None,
             event_count: 0,
-        })
+        };
+        sim.validate()?;
+        Ok(sim)
     }
 
     pub fn validate(&self) -> Result<(), SimError> {
@@ -186,16 +241,27 @@ impl MissionSimV1 {
             .party
             .iter()
             .map(|unit| unit.unit_id.as_str())
-            .collect::<std::collections::BTreeSet<_>>();
+            .collect::<BTreeSet<_>>();
         let actual_ids = self
             .party
             .iter()
             .map(|unit| unit.unit_id.as_str())
-            .collect::<std::collections::BTreeSet<_>>();
+            .collect::<BTreeSet<_>>();
         if expected_ids != actual_ids || self.party.len() != self.seed.party.len() {
             return Err(SimError::Integrity(
                 "simulation party does not match BattleSeed".to_string(),
             ));
+        }
+        for unit in self.party.iter().chain(&self.enemies) {
+            if !self.seed.map.in_bounds(unit.position) || !self.seed.map.passable(unit.position) {
+                return Err(SimError::Integrity(format!(
+                    "unit {} occupies an invalid map tile",
+                    unit.unit_id
+                )));
+            }
+        }
+        if let Some(order) = &self.active_order {
+            order.validate().map_err(SimError::Order)?;
         }
         Ok(())
     }
@@ -204,35 +270,77 @@ impl MissionSimV1 {
         self.outcome.is_some()
     }
 
-    pub fn party_hp_percent(&self) -> u8 {
-        let current = self.party.iter().map(|unit| unit.hp.max(0)).sum::<i64>();
-        let maximum = self.party.iter().map(|unit| unit.max_hp).sum::<i64>();
-        if maximum == 0 {
-            0
-        } else {
-            (current * 100 / maximum).clamp(0, 100) as u8
+    pub fn current_order_kind(&self) -> RtsOrderKind {
+        self.active_order
+            .as_ref()
+            .map(|order| order.kind)
+            .unwrap_or(RtsOrderKind::Hold)
+    }
+
+    pub fn issue_order(&mut self, order: RtsFrameOrder) -> Result<(), SimError> {
+        self.validate()?;
+        if self.terminal() {
+            return Err(SimError::InvalidState(
+                "cannot issue an order to a terminal battle".to_string(),
+            ));
         }
-    }
-
-    pub fn enemy_hp_percent(&self) -> u8 {
-        let current = self.enemies.iter().map(|unit| unit.hp.max(0)).sum::<i64>();
-        let maximum = self.enemies.iter().map(|unit| unit.max_hp).sum::<i64>();
-        if maximum == 0 {
-            0
-        } else {
-            (current * 100 / maximum).clamp(0, 100) as u8
+        order.validate().map_err(SimError::Order)?;
+        if order.player_id != "player" {
+            return Err(SimError::Order(
+                "only the local player may command the party".to_string(),
+            ));
         }
+        if self
+            .last_order_frame
+            .is_some_and(|previous| order.frame < previous)
+        {
+            return Err(SimError::Order("order frame regression".to_string()));
+        }
+        let living_party = self
+            .party
+            .iter()
+            .filter(|unit| unit.alive())
+            .map(|unit| unit.unit_id.as_str())
+            .collect::<BTreeSet<_>>();
+        let subjects = order
+            .subject_actor_ids
+            .iter()
+            .map(String::as_str)
+            .collect::<BTreeSet<_>>();
+        if subjects.is_empty() || !subjects.is_subset(&living_party) {
+            return Err(SimError::Order(
+                "order subjects must be living seeded party units".to_string(),
+            ));
+        }
+        if let Some(tile) = order.target_tile {
+            let target = BattleGridPoint::new(tile.x as i16, tile.y as i16);
+            if !self.seed.map.in_bounds(target) || !self.seed.map.passable(target) {
+                return Err(SimError::Order(
+                    "order target tile is blocked or outside the map".to_string(),
+                ));
+            }
+        }
+        if matches!(order.kind, RtsOrderKind::Extract) {
+            if self.tick < WITHDRAWAL_MIN_TICKS {
+                return Err(SimError::Order(
+                    "withdrawal requires thirty committed simulation ticks".to_string(),
+                ));
+            }
+            self.outcome = Some(BattleOutcome::Withdrawal);
+            self.phase = BattlePhase::Complete;
+        } else if order.kind == RtsOrderKind::Ability {
+            self.resolve_party_ability(&order)?;
+        }
+        self.last_order_frame = Some(order.frame);
+        self.order_count = self.order_count.saturating_add(1);
+        self.distinct_order_kinds
+            .insert(order.kind.as_str().to_string());
+        self.active_order = Some(order);
+        self.event_count += 1;
+        Ok(())
     }
 
-    pub fn relay_guard_percent(&self) -> u8 {
-        (self.relay_guard_hp.max(0) * 100 / RELAY_GUARD_HP).clamp(0, 100) as u8
-    }
-
-    pub fn capture_percent(&self) -> u8 {
-        (self.relay_capture_ticks as u64 * 100 / CAPTURE_TICKS_REQUIRED as u64).min(100) as u8
-    }
-
-    pub fn step(&mut self, command: SimCommand) -> Result<(), SimError> {
+    pub fn step(&mut self) -> Result<(), SimError> {
         self.validate()?;
         if self.terminal() {
             return Err(SimError::InvalidState(
@@ -240,137 +348,420 @@ impl MissionSimV1 {
             ));
         }
         self.tick += 1;
-        self.command = command;
-        if command == SimCommand::Retreat {
-            self.outcome = Some(BattleOutcome::Withdrawal);
-            self.event_count += 1;
-            return Ok(());
+        for unit in &mut self.party {
+            unit.ability_cooldown_ticks = unit.ability_cooldown_ticks.saturating_sub(1);
+            unit.guard_ticks = unit.guard_ticks.saturating_sub(1);
+            if self.tick.is_multiple_of(50) {
+                unit.energy = (unit.energy + 1).min(unit.max_energy);
+            }
         }
-
-        self.move_units();
-        self.resolve_party_attacks();
-        self.resolve_enemy_attacks();
-        if command == SimCommand::Harvest && self.tick.is_multiple_of(50) {
-            self.resources_gathered = self.resources_gathered.saturating_add(3);
-            self.event_count += 1;
-        }
-        if self.party.iter().all(|unit| !unit.alive()) {
+        self.resolve_player_order();
+        self.update_phase();
+        self.resolve_enemy_ai();
+        self.resolve_relay_pressure();
+        self.update_phase();
+        if self.party.iter().all(|unit| !unit.alive()) || self.tick >= FIVE_MINUTE_TICKS {
             self.outcome = Some(BattleOutcome::Defeat);
+            self.phase = BattlePhase::Complete;
             self.event_count += 1;
         } else if self.relay_capture_ticks >= CAPTURE_TICKS_REQUIRED {
             self.outcome = Some(BattleOutcome::Victory);
+            self.phase = BattlePhase::Complete;
             self.event_count += 1;
         }
         Ok(())
     }
 
-    fn move_units(&mut self) {
-        for unit in self.party.iter_mut().filter(|unit| unit.alive()) {
-            let advance = match self.command {
-                SimCommand::Advance | SimCommand::Assault => unit.move_speed_milli / 10,
-                SimCommand::Harvest => unit.move_speed_milli / 25,
-                SimCommand::Hold | SimCommand::Retreat => 0,
-            };
-            if let Some(nearest) = self
-                .enemies
-                .iter()
-                .filter(|enemy| enemy.alive())
-                .map(|enemy| enemy.position_milli)
-                .min()
-            {
-                if nearest - unit.position_milli > ENGAGEMENT_RANGE_MILLI {
-                    unit.position_milli = (unit.position_milli + advance).min(RELAY_POSITION_MILLI);
+    fn resolve_player_order(&mut self) {
+        let Some(order) = self.active_order.clone() else {
+            return;
+        };
+        let selected = order
+            .subject_actor_ids
+            .iter()
+            .cloned()
+            .collect::<BTreeSet<_>>();
+        match order.kind {
+            RtsOrderKind::Move | RtsOrderKind::AttackMove => {
+                if let Some(tile) = order.target_tile {
+                    self.move_selected_toward(
+                        &selected,
+                        BattleGridPoint::new(tile.x as i16, tile.y as i16),
+                        0,
+                    );
                 }
-            } else {
-                unit.position_milli = (unit.position_milli + advance).min(RELAY_POSITION_MILLI);
+                if order.kind == RtsOrderKind::AttackMove {
+                    self.party_attack(&selected, order.target_actor_id.as_deref());
+                }
             }
+            RtsOrderKind::Attack | RtsOrderKind::FocusFire => {
+                let target = self.attack_target_position(order.target_actor_id.as_deref());
+                if let Some(target) = target {
+                    self.move_selected_toward(&selected, target, 1);
+                }
+                self.party_attack(&selected, order.target_actor_id.as_deref());
+            }
+            RtsOrderKind::Harvest => self.resolve_harvest(&selected, &order),
+            RtsOrderKind::Hold | RtsOrderKind::Capture => self.resolve_capture(&selected),
+            RtsOrderKind::Ability | RtsOrderKind::Extract => {}
+            _ => {}
         }
-        let living_party_front = self
+    }
+
+    fn update_phase(&mut self) {
+        if self.phase == BattlePhase::Approach
+            && self
+                .party
+                .iter()
+                .filter(|unit| unit.alive())
+                .any(|unit| distance(unit.position, self.seed.map.approach_point) <= 2)
+        {
+            self.phase = BattlePhase::Contact;
+            self.event_count += 1;
+        }
+        if self.phase == BattlePhase::Contact && self.enemies.iter().all(|unit| !unit.alive()) {
+            self.phase = BattlePhase::Relay;
+            self.event_count += 1;
+        }
+    }
+
+    fn move_selected_toward(
+        &mut self,
+        selected: &BTreeSet<String>,
+        target: BattleGridPoint,
+        stop_range: i16,
+    ) {
+        let mut occupied = self
             .party
             .iter()
+            .chain(&self.enemies)
             .filter(|unit| unit.alive())
-            .map(|unit| unit.position_milli)
-            .max()
-            .unwrap_or(0);
-        for enemy in self.enemies.iter_mut().filter(|enemy| enemy.alive()) {
-            if enemy.position_milli - living_party_front > ENGAGEMENT_RANGE_MILLI {
-                enemy.position_milli = (enemy.position_milli - enemy.move_speed_milli / 28).max(0);
+            .map(|unit| unit.position)
+            .collect::<BTreeSet<_>>();
+        for index in 0..self.party.len() {
+            if !self.party[index].alive() || !selected.contains(&self.party[index].unit_id) {
+                continue;
+            }
+            self.party[index].movement_budget_milli += self.party[index].move_speed_milli;
+            if self.party[index].movement_budget_milli < MOVEMENT_TILE_COST {
+                continue;
+            }
+            occupied.remove(&self.party[index].position);
+            if let Some(next) = next_step_toward(
+                &self.seed,
+                self.party[index].position,
+                target,
+                stop_range,
+                &occupied,
+            ) {
+                self.party[index].position = next;
+                self.party[index].movement_budget_milli -= MOVEMENT_TILE_COST;
+                occupied.insert(next);
+            } else {
+                occupied.insert(self.party[index].position);
             }
         }
     }
 
-    fn resolve_party_attacks(&mut self) {
-        if self.command != SimCommand::Assault {
-            return;
+    fn attack_target_position(&self, requested: Option<&str>) -> Option<BattleGridPoint> {
+        if let Some(target_id) = requested {
+            if let Some(enemy) = self
+                .enemies
+                .iter()
+                .find(|enemy| enemy.unit_id == target_id && enemy.alive())
+            {
+                return Some(enemy.position);
+            }
         }
+        self.enemies
+            .iter()
+            .find(|enemy| enemy.alive())
+            .map(|enemy| enemy.position)
+            .or(Some(self.seed.map.objective))
+    }
+
+    fn party_attack(&mut self, selected: &BTreeSet<String>, requested: Option<&str>) {
         for attacker_index in 0..self.party.len() {
             if !self.party[attacker_index].alive()
+                || !selected.contains(&self.party[attacker_index].unit_id)
                 || !self
                     .tick
                     .is_multiple_of(self.party[attacker_index].attack_interval_ticks as u64)
             {
                 continue;
             }
-            let attacker_position = self.party[attacker_index].position_milli;
-            if let Some(target_index) = self.enemies.iter().position(|enemy| {
-                enemy.alive()
-                    && (enemy.position_milli - attacker_position).abs() <= ENGAGEMENT_RANGE_MILLI
-            }) {
-                let damage =
-                    (self.party[attacker_index].damage - self.enemies[target_index].armor).max(1);
-                if !deterministic_evade(
-                    self.tick,
-                    target_index,
-                    self.enemies[target_index].evasion_permille,
-                ) {
-                    self.enemies[target_index].hp -= damage;
+            let attacker = &self.party[attacker_index];
+            let target_index = requested
+                .and_then(|id| {
+                    self.enemies
+                        .iter()
+                        .position(|enemy| enemy.unit_id == id && enemy.alive())
+                })
+                .or_else(|| {
+                    self.enemies
+                        .iter()
+                        .enumerate()
+                        .filter(|(_, enemy)| enemy.alive())
+                        .min_by_key(|(_, enemy)| distance(attacker.position, enemy.position))
+                        .map(|(index, _)| index)
+                });
+            if let Some(target_index) = target_index {
+                if distance(
+                    self.party[attacker_index].position,
+                    self.enemies[target_index].position,
+                ) <= self.party[attacker_index].attack_range()
+                {
+                    let damage = (self.party[attacker_index].damage
+                        - self.enemies[target_index].armor)
+                        .max(1);
+                    if !deterministic_evade(
+                        self.tick,
+                        target_index,
+                        self.enemies[target_index].evasion_permille,
+                    ) {
+                        self.enemies[target_index].hp -= damage;
+                    }
+                    self.party[attacker_index].attacks_made += 1;
+                    self.event_count += 1;
                 }
-                self.party[attacker_index].attacks_made += 1;
-                self.event_count += 1;
-            } else if self.enemies.iter().all(|enemy| !enemy.alive())
-                && RELAY_POSITION_MILLI - attacker_position <= ENGAGEMENT_RANGE_MILLI
+            } else if self.phase == BattlePhase::Relay
+                && distance(self.party[attacker_index].position, self.seed.map.objective)
+                    <= self.party[attacker_index].attack_range() + 1
+                && self.relay_guard_hp > 0
             {
-                if self.relay_guard_hp > 0 {
-                    self.relay_guard_hp -= self.party[attacker_index].damage.max(1);
-                }
+                let resource_bonus = i64::from((self.resources_gathered / 40).min(3));
+                self.relay_guard_hp -= (self.party[attacker_index].damage + resource_bonus).max(1);
                 self.party[attacker_index].attacks_made += 1;
                 self.event_count += 1;
             }
-        }
-        if self.enemies.iter().all(|enemy| !enemy.alive())
-            && self.relay_guard_hp <= 0
-            && self
-                .party
-                .iter()
-                .filter(|unit| unit.alive())
-                .any(|unit| RELAY_POSITION_MILLI - unit.position_milli <= ENGAGEMENT_RANGE_MILLI)
-        {
-            self.relay_capture_ticks = self.relay_capture_ticks.saturating_add(1);
         }
     }
 
-    fn resolve_enemy_attacks(&mut self) {
-        for attacker_index in 0..self.enemies.len() {
-            if !self.enemies[attacker_index].alive()
-                || !self
-                    .tick
-                    .is_multiple_of(self.enemies[attacker_index].attack_interval_ticks as u64)
+    fn resolve_harvest(&mut self, selected: &BTreeSet<String>, order: &RtsFrameOrder) {
+        let Some(node) = order
+            .target_actor_id
+            .as_deref()
+            .and_then(|id| {
+                self.seed
+                    .map
+                    .resource_nodes
+                    .iter()
+                    .find(|node| node.id == id)
+            })
+            .or_else(|| self.seed.map.resource_nodes.first())
+            .cloned()
+        else {
+            return;
+        };
+        self.move_selected_toward(selected, node.position, 1);
+        let workers = self
+            .party
+            .iter()
+            .filter(|unit| {
+                unit.alive()
+                    && selected.contains(&unit.unit_id)
+                    && distance(unit.position, node.position) <= 1
+            })
+            .count() as u32;
+        if workers > 0 && self.tick.is_multiple_of(10) {
+            self.resources_gathered = self
+                .resources_gathered
+                .saturating_add(workers.saturating_mul(4));
+            for unit in &mut self.party {
+                unit.energy = (unit.energy + i64::from(workers)).min(unit.max_energy);
+            }
+            self.event_count += 1;
+        }
+    }
+
+    fn resolve_capture(&mut self, selected: &BTreeSet<String>) {
+        if self.phase != BattlePhase::Relay || self.relay_guard_hp > 0 {
+            return;
+        }
+        let holders = self
+            .party
+            .iter()
+            .filter(|unit| {
+                unit.alive()
+                    && selected.contains(&unit.unit_id)
+                    && distance(unit.position, self.seed.map.objective) <= 2
+            })
+            .count() as u32;
+        if holders > 0 {
+            self.relay_capture_ticks = self.relay_capture_ticks.saturating_add(holders.min(2));
+        }
+    }
+
+    fn resolve_party_ability(&mut self, order: &RtsFrameOrder) -> Result<(), SimError> {
+        let selected = order
+            .subject_actor_ids
+            .iter()
+            .cloned()
+            .collect::<BTreeSet<_>>();
+        let mut activated = 0;
+        for index in 0..self.party.len() {
+            if !self.party[index].alive()
+                || !selected.contains(&self.party[index].unit_id)
+                || self.party[index].ability_cooldown_ticks > 0
             {
                 continue;
             }
-            let attacker_position = self.enemies[attacker_index].position_milli;
-            if let Some(target_index) = self.party.iter().position(|unit| {
-                unit.alive()
-                    && (unit.position_milli - attacker_position).abs() <= ENGAGEMENT_RANGE_MILLI
-            }) {
-                let hold_bonus = if self.command == SimCommand::Hold {
+            let skill = signature_skill(&self.party[index]);
+            let cost = match skill {
+                "iron_guard" => 18,
+                "wind_step" => 22,
+                "inner_flame" => 28,
+                "relay_overcharge" => 24,
+                "field_mend" => 26,
+                _ => 20,
+            };
+            if self.party[index].energy < cost {
+                continue;
+            }
+            self.party[index].energy -= cost;
+            self.party[index].ability_cooldown_ticks = 120;
+            match skill {
+                "iron_guard" => self.party[index].guard_ticks = 100,
+                "wind_step" => {
+                    let target = order
+                        .target_tile
+                        .map(|tile| BattleGridPoint::new(tile.x as i16, tile.y as i16))
+                        .unwrap_or(self.seed.map.approach_point);
+                    let occupied = self
+                        .party
+                        .iter()
+                        .chain(&self.enemies)
+                        .filter(|unit| unit.alive() && unit.unit_id != self.party[index].unit_id)
+                        .map(|unit| unit.position)
+                        .collect::<BTreeSet<_>>();
+                    for _ in 0..4 {
+                        let Some(next) = next_step_toward(
+                            &self.seed,
+                            self.party[index].position,
+                            target,
+                            0,
+                            &occupied,
+                        ) else {
+                            break;
+                        };
+                        self.party[index].position = next;
+                    }
+                }
+                "inner_flame" => {
+                    if let Some(target_index) = self
+                        .enemies
+                        .iter()
+                        .enumerate()
+                        .filter(|(_, enemy)| enemy.alive())
+                        .filter(|(_, enemy)| {
+                            distance(self.party[index].position, enemy.position)
+                                <= self.party[index].ability_range * 2
+                        })
+                        .min_by_key(|(_, enemy)| {
+                            distance(self.party[index].position, enemy.position)
+                        })
+                        .map(|(index, _)| index)
+                    {
+                        self.enemies[target_index].hp -= 110 + self.party[index].damage * 2;
+                    } else if self.phase == BattlePhase::Relay
+                        && distance(self.party[index].position, self.seed.map.objective)
+                            <= self.party[index].ability_range * 2
+                    {
+                        self.relay_guard_hp -= 150 + self.party[index].damage * 2;
+                    }
+                }
+                "relay_overcharge" => {
+                    self.resources_gathered = self.resources_gathered.saturating_add(20);
+                    if self.phase == BattlePhase::Relay {
+                        self.relay_guard_hp -= 120;
+                    }
+                }
+                "field_mend" => {
+                    for unit in &mut self.party {
+                        if unit.alive() {
+                            unit.hp = (unit.hp + 90).min(unit.max_hp);
+                        }
+                    }
+                }
+                _ => self.party[index].guard_ticks = 60,
+            }
+            activated += 1;
+            self.event_count += 1;
+        }
+        if activated == 0 {
+            return Err(SimError::Order(
+                "selected units have no ready signature ability or energy".to_string(),
+            ));
+        }
+        Ok(())
+    }
+
+    fn resolve_enemy_ai(&mut self) {
+        if self.phase == BattlePhase::Approach && self.tick < 300 {
+            return;
+        }
+        let mut occupied = self
+            .party
+            .iter()
+            .chain(&self.enemies)
+            .filter(|unit| unit.alive())
+            .map(|unit| unit.position)
+            .collect::<BTreeSet<_>>();
+        for attacker_index in 0..self.enemies.len() {
+            if !self.enemies[attacker_index].alive() {
+                continue;
+            }
+            let Some(target_index) = self
+                .party
+                .iter()
+                .enumerate()
+                .filter(|(_, unit)| unit.alive())
+                .min_by_key(|(_, unit)| {
+                    let wounded_bias = unit.hp * 100 / unit.max_hp.max(1);
+                    distance(self.enemies[attacker_index].position, unit.position) as i64 * 10
+                        + wounded_bias
+                })
+                .map(|(index, _)| index)
+            else {
+                return;
+            };
+            let range = self.enemies[attacker_index].attack_range();
+            let target = self.party[target_index].position;
+            if distance(self.enemies[attacker_index].position, target) > range {
+                self.enemies[attacker_index].movement_budget_milli +=
+                    self.enemies[attacker_index].move_speed_milli;
+                if self.enemies[attacker_index].movement_budget_milli >= MOVEMENT_TILE_COST {
+                    occupied.remove(&self.enemies[attacker_index].position);
+                    if let Some(next) = next_step_toward(
+                        &self.seed,
+                        self.enemies[attacker_index].position,
+                        target,
+                        range,
+                        &occupied,
+                    ) {
+                        self.enemies[attacker_index].position = next;
+                        self.enemies[attacker_index].movement_budget_milli -= MOVEMENT_TILE_COST;
+                    }
+                    occupied.insert(self.enemies[attacker_index].position);
+                }
+            } else if self
+                .tick
+                .is_multiple_of(self.enemies[attacker_index].attack_interval_ticks as u64)
+            {
+                let hold_bonus = if self.current_order_kind() == RtsOrderKind::Hold {
                     3
+                } else {
+                    0
+                };
+                let guard_bonus = if self.party[target_index].guard_ticks > 0 {
+                    7
                 } else {
                     0
                 };
                 let damage = (self.enemies[attacker_index].damage
                     - self.party[target_index].armor
-                    - hold_bonus)
+                    - hold_bonus
+                    - guard_bonus)
                     .max(1);
                 if !deterministic_evade(
                     self.tick,
@@ -385,6 +776,54 @@ impl MissionSimV1 {
         }
     }
 
+    fn resolve_relay_pressure(&mut self) {
+        if self.phase != BattlePhase::Relay
+            || self.relay_guard_hp <= 0
+            || !self.tick.is_multiple_of(24)
+        {
+            return;
+        }
+        if let Some(target_index) = self
+            .party
+            .iter()
+            .enumerate()
+            .filter(|(_, unit)| unit.alive())
+            .min_by_key(|(_, unit)| distance(unit.position, self.seed.map.objective))
+            .map(|(index, _)| index)
+        {
+            let guard_bonus = if self.party[target_index].guard_ticks > 0 {
+                8
+            } else {
+                0
+            };
+            self.party[target_index].hp -=
+                (14 - self.party[target_index].armor - guard_bonus).max(1);
+            self.event_count += 1;
+        }
+    }
+
+    pub fn party_hp_percent(&self) -> u8 {
+        percent(
+            self.party.iter().map(|unit| unit.hp.max(0)).sum(),
+            self.party.iter().map(|unit| unit.max_hp).sum(),
+        )
+    }
+
+    pub fn enemy_hp_percent(&self) -> u8 {
+        percent(
+            self.enemies.iter().map(|unit| unit.hp.max(0)).sum(),
+            self.enemies.iter().map(|unit| unit.max_hp).sum(),
+        )
+    }
+
+    pub fn relay_guard_percent(&self) -> u8 {
+        percent(self.relay_guard_hp.max(0), RELAY_GUARD_HP)
+    }
+
+    pub fn capture_percent(&self) -> u8 {
+        (self.relay_capture_ticks as u64 * 100 / CAPTURE_TICKS_REQUIRED as u64).min(100) as u8
+    }
+
     pub fn snapshot_hash(&self) -> Result<String, SimError> {
         json_hash(self)
     }
@@ -396,9 +835,9 @@ impl MissionSimV1 {
         })?;
         let final_snapshot_hash = self.snapshot_hash()?;
         let experience = match outcome {
-            BattleOutcome::Victory => 50,
-            BattleOutcome::Defeat => 20,
-            BattleOutcome::Withdrawal => 10,
+            BattleOutcome::Victory => 40,
+            BattleOutcome::Defeat if self.tick >= 60 * TICKS_PER_SECOND => 3,
+            BattleOutcome::Defeat | BattleOutcome::Withdrawal => 0,
         };
         let units = self
             .party
@@ -440,7 +879,7 @@ impl MissionSimV1 {
             ),
             BattleOutcome::Defeat => (Vec::new(), -2, vec!["first_contact_repulsed".to_string()]),
             BattleOutcome::Withdrawal => {
-                (Vec::new(), -1, vec!["first_contact_withdrawn".to_string()])
+                (Vec::new(), 0, vec!["first_contact_withdrawn".to_string()])
             }
         };
         Ok(BattleResultV1 {
@@ -450,13 +889,112 @@ impl MissionSimV1 {
             outcome,
             units,
             loot,
-            resource_delta: self.resources_gathered as i64,
+            resource_delta: if outcome == BattleOutcome::Victory {
+                self.resources_gathered as i64
+            } else {
+                0
+            },
             reputation_delta,
             world_flags,
             elapsed_ticks: self.tick,
             final_snapshot_hash,
         })
     }
+}
+
+fn signature_skill(unit: &SimUnit) -> &'static str {
+    for skill in [
+        "field_mend",
+        "relay_overcharge",
+        "inner_flame",
+        "wind_step",
+        "iron_guard",
+    ] {
+        if unit.skill_ids.iter().any(|candidate| candidate == skill) {
+            return skill;
+        }
+    }
+    "iron_guard"
+}
+
+fn formation_positions(start: BattleGridPoint, seed: &BattleSeedV1) -> Vec<BattleGridPoint> {
+    let candidates = [
+        start,
+        BattleGridPoint::new(start.x + 1, start.y),
+        BattleGridPoint::new(start.x, start.y - 1),
+        BattleGridPoint::new(start.x + 1, start.y - 1),
+    ];
+    candidates
+        .into_iter()
+        .map(|candidate| {
+            if seed.map.passable(candidate) {
+                candidate
+            } else {
+                start
+            }
+        })
+        .collect()
+}
+
+fn percent(current: i64, maximum: i64) -> u8 {
+    if maximum <= 0 {
+        0
+    } else {
+        (current * 100 / maximum).clamp(0, 100) as u8
+    }
+}
+
+fn distance(left: BattleGridPoint, right: BattleGridPoint) -> i16 {
+    (left.x - right.x).abs() + (left.y - right.y).abs()
+}
+
+fn neighbors(point: BattleGridPoint) -> [BattleGridPoint; 4] {
+    [
+        BattleGridPoint::new(point.x + 1, point.y),
+        BattleGridPoint::new(point.x - 1, point.y),
+        BattleGridPoint::new(point.x, point.y + 1),
+        BattleGridPoint::new(point.x, point.y - 1),
+    ]
+}
+
+fn next_step_toward(
+    seed: &BattleSeedV1,
+    start: BattleGridPoint,
+    target: BattleGridPoint,
+    stop_range: i16,
+    occupied: &BTreeSet<BattleGridPoint>,
+) -> Option<BattleGridPoint> {
+    if distance(start, target) <= stop_range {
+        return None;
+    }
+    let mut queue = VecDeque::from([start]);
+    let mut previous = BTreeMap::<BattleGridPoint, BattleGridPoint>::new();
+    let mut visited = BTreeSet::from([start]);
+    let mut reached = None;
+    while let Some(current) = queue.pop_front() {
+        if distance(current, target) <= stop_range {
+            reached = Some(current);
+            break;
+        }
+        for next in neighbors(current) {
+            if !seed.map.passable(next)
+                || (occupied.contains(&next) && next != target)
+                || !visited.insert(next)
+            {
+                continue;
+            }
+            previous.insert(next, current);
+            queue.push_back(next);
+        }
+    }
+    let mut current = reached?;
+    while let Some(parent) = previous.get(&current).copied() {
+        if parent == start {
+            return Some(current);
+        }
+        current = parent;
+    }
+    None
 }
 
 fn deterministic_evade(tick: u64, unit_index: usize, evasion_permille: u16) -> bool {
@@ -541,18 +1079,19 @@ impl SimCheckpointStore {
         Ok(())
     }
 
-    pub fn load(&self) -> Result<MissionSimV1, SimError> {
+    pub fn load(&self) -> Result<SimCheckpointV1, SimError> {
         let checkpoint: SimCheckpointV1 = serde_json::from_slice(&fs::read(&self.path)?)?;
         checkpoint.validate()?;
-        Ok(checkpoint.sim)
+        Ok(checkpoint)
     }
 
     pub fn load_for_seed(&self, seed: &BattleSeedV1) -> Result<Option<MissionSimV1>, SimError> {
         match self.load() {
-            Ok(sim)
-                if sim.seed.battle_id == seed.battle_id && sim.seed.seed_hash == seed.seed_hash =>
+            Ok(checkpoint)
+                if checkpoint.sim.seed.battle_id == seed.battle_id
+                    && checkpoint.sim.seed.seed_hash == seed.seed_hash =>
             {
-                Ok(Some(sim))
+                Ok(Some(checkpoint.sim))
             }
             Ok(_) => Ok(None),
             Err(SimError::Io(error)) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
@@ -565,7 +1104,41 @@ impl SimCheckpointStore {
 mod tests {
     use super::*;
     use tempfile::tempdir;
-    use trnm_campaign_core::{CampaignRoom, CampaignSaveV1};
+    use trnm_campaign_core::{BattleMapNodeV1, BattleMapSeedV1, CampaignRoom, CampaignSaveV1};
+    use trnm_rts_core::{RtsOrderSource, RtsTile};
+
+    fn map() -> BattleMapSeedV1 {
+        BattleMapSeedV1 {
+            width: 20,
+            height: 10,
+            terrain_rows: vec!["gggggggggggggggggggg".to_string(); 10],
+            party_start: BattleGridPoint::new(1, 8),
+            approach_point: BattleGridPoint::new(7, 6),
+            objective: BattleGridPoint::new(18, 1),
+            resource_nodes: vec![BattleMapNodeV1 {
+                id: "amber_mid".to_string(),
+                position: BattleGridPoint::new(8, 7),
+            }],
+            enemy_spawns: vec![
+                BattleMapNodeV1 {
+                    id: "contact_scout".to_string(),
+                    position: BattleGridPoint::new(10, 5),
+                },
+                BattleMapNodeV1 {
+                    id: "contact_warden".to_string(),
+                    position: BattleGridPoint::new(12, 4),
+                },
+                BattleMapNodeV1 {
+                    id: "contact_striker".to_string(),
+                    position: BattleGridPoint::new(14, 3),
+                },
+                BattleMapNodeV1 {
+                    id: "relay_guard".to_string(),
+                    position: BattleGridPoint::new(16, 2),
+                },
+            ],
+        }
+    }
 
     fn seed() -> BattleSeedV1 {
         let mut campaign = CampaignSaveV1::default();
@@ -575,82 +1148,165 @@ mod tests {
         campaign.equip_starter_weapon().unwrap();
         campaign.move_to(CampaignRoom::ExpeditionGate).unwrap();
         campaign.accept_first_contact_quest().unwrap();
-        campaign.start_first_contact_battle().unwrap()
+        campaign.start_first_contact_battle(map()).unwrap()
     }
 
-    fn run_to_terminal(sim: &mut MissionSimV1, command: SimCommand, limit: u64) {
-        while !sim.terminal() && sim.tick < limit {
-            sim.step(command).unwrap();
-        }
-        assert!(
-            sim.terminal(),
-            "battle did not terminate by tick {limit}: relay_hp={} capture={} party_hp={} enemy_hp={} party_pos={:?} enemy_pos={:?}",
-            sim.relay_guard_hp,
-            sim.relay_capture_ticks,
-            sim.party_hp_percent(),
-            sim.enemy_hp_percent(),
-            sim.party.iter().map(|unit| unit.position_milli).collect::<Vec<_>>(),
-            sim.enemies.iter().map(|unit| unit.position_milli).collect::<Vec<_>>()
+    fn order(sim: &MissionSimV1, kind: RtsOrderKind, target: BattleGridPoint) -> RtsFrameOrder {
+        let mut order = RtsFrameOrder::new(
+            sim.tick as u32,
+            "player",
+            sim.party
+                .iter()
+                .filter(|unit| unit.alive())
+                .map(|unit| unit.unit_id.clone())
+                .collect::<Vec<_>>(),
+            kind,
+            RtsOrderSource::LocalInput,
         );
+        order.target_tile = Some(RtsTile::new(target.x as i32, target.y as i32));
+        if kind == RtsOrderKind::Harvest {
+            order.target_actor_id = Some("amber_mid".to_string());
+        } else if kind == RtsOrderKind::Attack {
+            order.target_actor_id = Some("relay_beacon".to_string());
+        } else if kind == RtsOrderKind::Ability {
+            order.target_rule_id = Some("party_signature".to_string());
+        }
+        order
+    }
+
+    fn step_until(sim: &mut MissionSimV1, predicate: impl Fn(&MissionSimV1) -> bool, limit: u64) {
+        while !sim.terminal() && !predicate(sim) && sim.tick < limit {
+            sim.step().unwrap();
+        }
+        assert!(predicate(sim), "condition not reached by tick {}", sim.tick);
+    }
+
+    fn run_three_phase_victory(mut sim: MissionSimV1, harvest: bool) -> MissionSimV1 {
+        let approach = sim.seed.map.approach_point;
+        sim.issue_order(order(&sim, RtsOrderKind::Move, approach))
+            .unwrap();
+        step_until(&mut sim, |sim| sim.phase == BattlePhase::Contact, 900);
+        if harvest {
+            let resource = sim.seed.map.resource_nodes[0].position;
+            sim.issue_order(order(&sim, RtsOrderKind::Harvest, resource))
+                .unwrap();
+            step_until(&mut sim, |sim| sim.resources_gathered >= 40, 1_300);
+        } else {
+            let objective = sim.seed.map.objective;
+            sim.issue_order(order(&sim, RtsOrderKind::Ability, objective))
+                .unwrap();
+        }
+        let objective = sim.seed.map.objective;
+        sim.issue_order(order(&sim, RtsOrderKind::Attack, objective))
+            .unwrap();
+        step_until(
+            &mut sim,
+            |sim| sim.phase == BattlePhase::Relay && sim.relay_guard_hp <= 0,
+            2_700,
+        );
+        sim.issue_order(order(&sim, RtsOrderKind::Hold, objective))
+            .unwrap();
+        while !sim.terminal() && sim.tick < FIVE_MINUTE_TICKS {
+            sim.step().unwrap();
+        }
+        sim
     }
 
     #[test]
-    fn assault_produces_a_real_ten_to_fifteen_minute_victory() {
-        let mut sim = MissionSimV1::from_seed(seed()).unwrap();
-        run_to_terminal(&mut sim, SimCommand::Assault, FIFTEEN_MINUTE_TICKS);
+    fn three_phase_orders_produce_a_real_three_to_five_minute_victory() {
+        let sim = run_three_phase_victory(MissionSimV1::from_seed(seed()).unwrap(), true);
         assert_eq!(sim.outcome, Some(BattleOutcome::Victory));
         assert!(
-            sim.tick >= TEN_MINUTE_TICKS,
-            "victory was too short: {}",
+            (THREE_MINUTE_TICKS..=FIVE_MINUTE_TICKS).contains(&sim.tick),
+            "victory tick {} is outside the 3-5 minute target",
             sim.tick
         );
-        assert!(sim.tick <= FIFTEEN_MINUTE_TICKS);
+        assert!(sim.distinct_order_kinds.len() >= 4);
         let result = sim.into_result().unwrap();
-        assert_eq!(result.outcome, BattleOutcome::Victory);
         assert!(!result.loot.is_empty());
+        assert!(result.resource_delta > 0);
     }
 
     #[test]
-    fn passive_party_can_be_defeated_by_active_enemy_ai() {
-        let mut sim = MissionSimV1::from_seed(seed()).unwrap();
-        run_to_terminal(&mut sim, SimCommand::Hold, FIFTEEN_MINUTE_TICKS);
-        assert_eq!(sim.outcome, Some(BattleOutcome::Defeat));
-        assert!(sim.enemies.iter().any(|enemy| enemy.attacks_made > 0));
-    }
-
-    #[test]
-    fn retreat_emits_withdrawal_and_preserves_party_reports() {
-        let mut sim = MissionSimV1::from_seed(seed()).unwrap();
-        for _ in 0..50 {
-            sim.step(SimCommand::Advance).unwrap();
+    fn one_order_cannot_win_the_mission() {
+        for kind in [
+            RtsOrderKind::Move,
+            RtsOrderKind::Attack,
+            RtsOrderKind::Harvest,
+            RtsOrderKind::Hold,
+        ] {
+            let mut sim = MissionSimV1::from_seed(seed()).unwrap();
+            let target = match kind {
+                RtsOrderKind::Harvest => sim.seed.map.resource_nodes[0].position,
+                RtsOrderKind::Move => sim.seed.map.approach_point,
+                _ => sim.seed.map.objective,
+            };
+            sim.issue_order(order(&sim, kind, target)).unwrap();
+            while !sim.terminal() {
+                sim.step().unwrap();
+            }
+            assert_ne!(
+                sim.outcome,
+                Some(BattleOutcome::Victory),
+                "{kind:?} won alone"
+            );
         }
-        sim.step(SimCommand::Retreat).unwrap();
+    }
+
+    #[test]
+    fn ability_rush_is_a_second_viable_route_without_resource_payout() {
+        let sim = run_three_phase_victory(MissionSimV1::from_seed(seed()).unwrap(), false);
+        assert_eq!(sim.outcome, Some(BattleOutcome::Victory));
+        assert_eq!(sim.resources_gathered, 0);
+        assert!(sim.distinct_order_kinds.contains("ability"));
+        assert!((THREE_MINUTE_TICKS..=FIVE_MINUTE_TICKS).contains(&sim.tick));
+    }
+
+    #[test]
+    fn withdrawal_has_zero_progression_reward() {
+        let mut sim = MissionSimV1::from_seed(seed()).unwrap();
+        sim.issue_order(order(&sim, RtsOrderKind::Move, sim.seed.map.approach_point))
+            .unwrap();
+        for _ in 0..WITHDRAWAL_MIN_TICKS {
+            sim.step().unwrap();
+        }
+        let mut retreat = order(&sim, RtsOrderKind::Extract, sim.seed.map.party_start);
+        retreat.target_actor_id = Some("expedition_gate".to_string());
+        sim.issue_order(retreat).unwrap();
         let result = sim.into_result().unwrap();
         assert_eq!(result.outcome, BattleOutcome::Withdrawal);
-        assert_eq!(result.units.len(), 4);
+        assert_eq!(
+            result
+                .units
+                .iter()
+                .map(|unit| unit.experience_gained)
+                .sum::<u64>(),
+            0
+        );
+        assert_eq!(result.resource_delta, 0);
     }
 
     #[test]
-    fn mid_battle_checkpoint_resume_is_bit_deterministic() {
-        let seed = seed();
-        let mut uninterrupted = MissionSimV1::from_seed(seed.clone()).unwrap();
-        for _ in 0..2_500 {
-            uninterrupted.step(SimCommand::Assault).unwrap();
-        }
+    fn checkpoint_resume_is_bit_deterministic() {
         let directory = tempdir().unwrap();
         let store = SimCheckpointStore::new(directory.path().join("battle.json"));
-        store.save_atomic(&uninterrupted).unwrap();
-        let mut resumed = store.load_for_seed(&seed).unwrap().unwrap();
-        while !uninterrupted.terminal() {
-            uninterrupted.step(SimCommand::Assault).unwrap();
+        let mut baseline = MissionSimV1::from_seed(seed()).unwrap();
+        baseline
+            .issue_order(order(
+                &baseline,
+                RtsOrderKind::Move,
+                baseline.seed.map.approach_point,
+            ))
+            .unwrap();
+        for _ in 0..200 {
+            baseline.step().unwrap();
         }
-        while !resumed.terminal() {
-            resumed.step(SimCommand::Assault).unwrap();
-        }
-        assert_eq!(resumed, uninterrupted);
+        store.save_atomic(&baseline).unwrap();
+        let resumed = store.load_for_seed(&baseline.seed).unwrap().unwrap();
+        assert_eq!(resumed, baseline);
         assert_eq!(
             resumed.snapshot_hash().unwrap(),
-            uninterrupted.snapshot_hash().unwrap()
+            baseline.snapshot_hash().unwrap()
         );
     }
 
@@ -658,7 +1314,7 @@ mod tests {
     fn tampered_checkpoint_is_rejected() {
         let mut checkpoint =
             SimCheckpointV1::capture(&MissionSimV1::from_seed(seed()).unwrap()).unwrap();
-        checkpoint.sim.party[0].hp += 10_000;
+        checkpoint.sim.resources_gathered += 1;
         assert!(matches!(checkpoint.validate(), Err(SimError::Integrity(_))));
     }
 }

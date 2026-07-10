@@ -107,12 +107,14 @@ fn town_body(flow: &CampaignFlow) -> String {
     let save = &flow.save;
     match save.room {
         CampaignRoom::MirrorSquare => format!(
-            "{}\n\n{}  |  LEVEL {}  |  XP {}  |  REPUTATION {}\n\nThis is the campaign hub. Visit the mentor, prepare a four-person party, then deploy through the expedition gate.\n\nFIRST CONTACT: {}  |  SAVE REVISION {}",
+            "{}\n\n{}  |  LEVEL {}  |  XP {}  |  CREDITS {}  |  REPUTATION {}\n\nChoose a mentor path, equipment loadout and four-person party. H treats one injury level using a Field Tonic or {} credits; G equips recovered Relay Core loot.\n\nFIRST CONTACT: {}  |  SAVE REVISION {}",
             room_label(save.room),
             "MIRROR RANGER",
             save.progression.level,
             save.progression.experience,
+            save.progression.credits,
             save.character.attributes.reputation,
+            trnm_campaign_core::FIELD_CLINIC_CREDIT_COST,
             quest_label(save.quest_state),
             save.revision,
         ),
@@ -120,15 +122,19 @@ fn town_body(flow: &CampaignFlow) -> String {
             let rank = save
                 .progression
                 .skill_progress
-                .get("basic_unarmed")
+                .get(save.selected_training_path.skill_id())
                 .map(|progress| progress.rank)
                 .unwrap_or(0);
             format!(
-                "{}\n\nMENTOR MET: {}  |  TRAINING COMPLETE: {}\nBASIC UNARMED RANK: {}\n\nTalk to Street Compass Sifu, train a clean-room original skill, and equip the Route Guard Staff before deployment.",
+                "{}\n\nMENTOR MET: {}  |  TRAINING COMPLETE: {}\nSELECTED PATH: {}  |  PATH RANK: {}\nSESSIONS: {}/{}  |  CREDITS: {}\n\nL cycles Iron Guard / Wind Step / Inner Flame. K buys the selected training session; the cap and cost prevent free grinding.",
                 room_label(save.room),
                 save.mentor_met,
                 save.trained_with_mentor,
+                save.selected_training_path.display_name(),
                 rank,
+                save.progression.mentor_training_sessions,
+                trnm_campaign_core::MAX_MENTOR_TRAINING_SESSIONS,
+                save.progression.credits,
             )
         }
         CampaignRoom::ExpeditionGate => {
@@ -149,9 +155,10 @@ fn town_body(flow: &CampaignFlow) -> String {
                 .collect::<Vec<_>>()
                 .join("\n");
             format!(
-                "{}\n\nMISSION: {}\nPARTY (persistent RPG units -> RTS spawn slots):\n{}\n\nThe battle seed binds character attributes, skills, typed equipment modifiers, injuries, map and rules version.",
+                "{}\n\nMISSION: {}  |  LOADOUT: {}\nPARTY (7 candidates, selected 4 -> RTS spawn slots):\n{}\n\nP cycles Balanced / Mobile / Vanguard parties. E cycles Guard / Raider / Mystic equipment. The BattleSeed binds the authored 2D map, skills, equipment and injuries.",
                 room_label(save.room),
                 quest_label(save.quest_state),
+                save.selected_loadout.display_name(),
                 roster,
             )
         }
@@ -173,10 +180,11 @@ fn debrief_body(flow: &CampaignFlow) -> String {
             .join(", ")
     };
     format!(
-        "BATTLE SETTLEMENT\n\nOUTCOME: {:?}\nBATTLE ID: {}\nXP: +{}  |  REPUTATION: {:+}\nLOOT: {}\nINJURIES: {:?}\n\nCampaign revision {} is atomically saved. This battle id cannot award progression twice.",
+        "BATTLE SETTLEMENT\n\nOUTCOME: {:?}\nBATTLE ID: {}\nXP: +{}  |  CREDITS: {:+}  |  REPUTATION: {:+}\nLOOT: {}\nINJURIES: {:?}\n\nCampaign revision {} is atomically saved. Withdrawal pays zero XP/resources; this battle id cannot award progression twice.",
         receipt.outcome,
         receipt.battle_id,
         receipt.experience_delta,
+        receipt.credit_delta,
         receipt.reputation_delta,
         loot,
         receipt.injury_delta_by_unit,
@@ -285,13 +293,14 @@ pub(super) fn update_campaign_ui(
         } else {
             match flow.save.room {
                 CampaignRoom::MirrorSquare => {
-                    "1 SQUARE  |  2 MENTOR  |  3 GATE  |  E EQUIP  |  P PARTY".to_string()
+                    "1 SQUARE | 2 MENTOR | 3 GATE | E LOADOUT | P PARTY | H HEAL | G RELIC".to_string()
                 }
                 CampaignRoom::MentorHall => {
-                    "T TALK  |  K TRAIN  |  E EQUIP  |  1 SQUARE  |  3 GATE".to_string()
+                    "T TALK | L PATH | K TRAIN | E LOADOUT | H HEAL | G RELIC | 1 SQUARE | 3 GATE".to_string()
                 }
                 CampaignRoom::ExpeditionGate => {
-                    "P PARTY  |  F ACCEPT / DEPLOY  |  1 SQUARE  |  2 MENTOR".to_string()
+                    "P PARTY | E LOADOUT | H HEAL | G RELIC | F ACCEPT / DEPLOY | 1 SQUARE | 2 MENTOR"
+                        .to_string()
                 }
             }
         };

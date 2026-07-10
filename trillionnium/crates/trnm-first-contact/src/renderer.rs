@@ -17,7 +17,6 @@ pub(super) struct FirstContactUnitSprite {
     pub id: String,
     pub family: String,
     pub owner: String,
-    pub selected: bool,
 }
 
 #[derive(Component)]
@@ -333,7 +332,6 @@ pub(super) fn spawn_first_contact_live_scene(
                 id: unit.id.clone(),
                 family: unit.family.clone(),
                 owner: unit.owner.clone(),
-                selected: unit.selected,
             },
         ));
     }

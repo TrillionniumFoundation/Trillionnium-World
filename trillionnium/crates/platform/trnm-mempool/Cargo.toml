@@ -1,0 +1,8 @@
+[package]
+name = "trnm-mempool"
+version = "0.1.0"
+edition = "2021"
+license = "LicenseRef-Trillionnium-Internal"
+authors = ["Trillionnium Contributors"]
+
+[dependencies]

@@ -1,3 +1,4 @@
+use super::map_loader::FirstContactMap;
 use super::simulation_adapter::{
     FirstContactCommand, FirstContactRuntime, FirstContactSimulationAdapter,
 };
@@ -98,10 +99,11 @@ impl CampaignFlow {
         Ok(())
     }
 
-    pub fn start_battle(&mut self) -> Result<(), String> {
+    pub fn start_battle(&mut self, map: &FirstContactMap) -> Result<(), String> {
         let mut candidate = self.save.clone();
+        let battle_map = map.battle_seed_map()?;
         let seed = candidate
-            .start_first_contact_battle()
+            .start_first_contact_battle(battle_map)
             .map_err(|error| error.to_string())?;
         let mission = MissionSimV1::from_seed(seed).map_err(|error| error.to_string())?;
         self.store
@@ -177,6 +179,7 @@ fn set_status(flow: &mut CampaignFlow, result: Result<(), CampaignError>, succes
 
 pub(super) fn handle_campaign_input(
     input: Res<ButtonInput<KeyCode>>,
+    map: Res<FirstContactMap>,
     mut flow: ResMut<CampaignFlow>,
     mut runtime: ResMut<FirstContactRuntime>,
     mut adapter: ResMut<FirstContactSimulationAdapter>,
@@ -211,24 +214,26 @@ pub(super) fn handle_campaign_input(
         );
     } else if input.just_pressed(KeyCode::KeyK) {
         let result = flow.mutate_town(CampaignSaveV1::train_with_mentor);
-        set_status(&mut flow, result, "Learned and practiced Basic Unarmed");
+        set_status(&mut flow, result, "Completed paid mentor training");
+    } else if input.just_pressed(KeyCode::KeyL) {
+        let result = flow.mutate_town(CampaignSaveV1::cycle_training_path);
+        set_status(&mut flow, result, "Changed mentor training path");
     } else if input.just_pressed(KeyCode::KeyE) {
-        let result = flow.mutate_town(CampaignSaveV1::equip_starter_weapon);
-        set_status(&mut flow, result, "Equipped Route Guard Staff");
+        let result = flow.mutate_town(CampaignSaveV1::cycle_loadout);
+        set_status(&mut flow, result, "Changed typed equipment loadout");
     } else if input.just_pressed(KeyCode::KeyP) {
-        let result = flow.mutate_town(|save| {
-            save.select_party(vec![
-                "hero".to_string(),
-                "aya".to_string(),
-                "mako".to_string(),
-                "tess".to_string(),
-            ])
-        });
+        let result = flow.mutate_town(CampaignSaveV1::cycle_party_preset);
+        set_status(&mut flow, result, "Changed four-person persistent party");
+    } else if input.just_pressed(KeyCode::KeyH) {
+        let result = flow.mutate_town(CampaignSaveV1::heal_party);
         set_status(
             &mut flow,
             result,
-            "Selected hero plus three persistent companions",
+            "Treated one injury level across the roster",
         );
+    } else if input.just_pressed(KeyCode::KeyG) {
+        let result = flow.mutate_town(CampaignSaveV1::equip_relay_core);
+        set_status(&mut flow, result, "Equipped the recovered Relay Core relic");
     } else if input.just_pressed(KeyCode::KeyF) {
         if matches!(
             flow.save.quest_state,
@@ -241,9 +246,9 @@ pub(super) fn handle_campaign_input(
                 "Accepted First Contact mission; press F to deploy",
             );
         } else if flow.save.quest_state == QuestState::Accepted {
-            match flow.start_battle() {
+            match flow.start_battle(&map) {
                 Ok(()) => {
-                    runtime.reset_for_battle();
+                    runtime.reset_for_battle(&map);
                     adapter.accepted_orders.clear();
                 }
                 Err(error) => flow.status = error,

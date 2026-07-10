@@ -2821,6 +2821,15 @@ pub fn trillionnium_item_equipment_catalog_items() -> Vec<TrillionniumItemEquipm
             "reduces party downtime",
         ),
         item_equipment_catalog_item(
+            "relay-core-fragment",
+            "relic",
+            "relay_salvage",
+            "Relay Core Fragment / 中继芯片",
+            "a recovered First Contact relay component",
+            "raises ability energy, protection and reach",
+            "records that the relay was secured and salvaged",
+        ),
+        item_equipment_catalog_item(
             "evidence-wrap-case",
             "pack",
             "evidence",
