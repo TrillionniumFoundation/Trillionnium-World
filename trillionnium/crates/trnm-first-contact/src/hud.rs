@@ -30,7 +30,7 @@ pub(super) struct FirstContactRadarPlayerMarker;
 fn command_card(command: FirstContactCommand, key: &str, label: &str) -> impl Bundle {
     (
         Node {
-            width: px(112),
+            width: px(86),
             height: px(70),
             border: UiRect::all(px(2)),
             padding: UiRect::all(px(8)),
@@ -49,7 +49,7 @@ fn command_card(command: FirstContactCommand, key: &str, label: &str) -> impl Bu
             ),
             (
                 Text::new(label.to_string()),
-                TextFont::from_font_size(16.0),
+                TextFont::from_font_size(13.0),
                 TextColor(Color::srgb(0.94, 0.94, 0.80)),
             ),
         ],
@@ -238,7 +238,7 @@ pub(super) fn spawn_first_contact_hud(mut commands: Commands, map: Res<FirstCont
                     ),
                     (
                         Node {
-                            width: px(640),
+                            width: px(760),
                             height: percent(100),
                             flex_direction: FlexDirection::Column,
                             row_gap: px(8),
@@ -253,7 +253,7 @@ pub(super) fn spawn_first_contact_hud(mut commands: Commands, map: Res<FirstCont
                             (
                                 Node {
                                     flex_direction: FlexDirection::Row,
-                                    column_gap: px(10),
+                                    column_gap: px(6),
                                     ..default()
                                 },
                                 children![
@@ -262,6 +262,8 @@ pub(super) fn spawn_first_contact_hud(mut commands: Commands, map: Res<FirstCont
                                     command_card(FirstContactCommand::Harvest, "E", "HARVEST"),
                                     command_card(FirstContactCommand::Hold, "R", "HOLD"),
                                     command_card(FirstContactCommand::Ability, "A", "ABILITY"),
+                                    command_card(FirstContactCommand::FieldAid, "S", "AID"),
+                                    command_card(FirstContactCommand::Fortify, "D", "FORTIFY"),
                                     command_card(FirstContactCommand::Retreat, "X", "RETREAT"),
                                 ],
                             ),
@@ -359,7 +361,7 @@ pub(super) fn update_first_contact_hud(
 ) {
     for mut text in &mut resources {
         text.0 = format!(
-            "CREDITS {}  |  PARTY {}%  |  POWER {}%  |  SUPPLY {}/{}",
+            "FIELD {}  |  PARTY {}%  |  POWER {}%  |  SUPPLY {}/{}",
             runtime.credits,
             runtime.party_hp_percent,
             runtime.power_percent,
@@ -369,7 +371,7 @@ pub(super) fn update_first_contact_hud(
     }
     for mut text in &mut objectives {
         text.0 = if runtime.victory {
-            "FIRST CONTACT SECURED".to_string()
+            "MISSION SECURED  |  RETURN TO MIRROR SQUARE FOR SETTLEMENT".to_string()
         } else if runtime.defeat {
             "MISSION FAILED  |  RETURNING TO MIRROR SQUARE".to_string()
         } else if runtime.withdrawal {
@@ -401,6 +403,8 @@ pub(super) fn update_first_contact_hud(
                 FirstContactCommand::Harvest => "E",
                 FirstContactCommand::Hold => "R",
                 FirstContactCommand::Ability => "A",
+                FirstContactCommand::FieldAid => "S",
+                FirstContactCommand::Fortify => "D",
                 FirstContactCommand::Retreat => "X",
             },
             next.label()

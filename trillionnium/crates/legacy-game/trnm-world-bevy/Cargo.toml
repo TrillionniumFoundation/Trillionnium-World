@@ -55,11 +55,11 @@ sha2 = { version = "0.10", optional = true }
 trnm-first-contact = { path = "../../trnm-first-contact" }
 trnm-world-api = { path = "../trnm-world-api", optional = true }
 trnm-world-command = { path = "../trnm-world-command", optional = true }
-trnm-world-domain = { path = "../../trnm-world-domain", optional = true }
+trnm-world-domain = { path = "../trnm-world-domain", optional = true }
 trnm-world-map-provider = { path = "../trnm-world-map-provider", optional = true }
 trnm-world-projection = { path = "../trnm-world-projection", optional = true }
 trnm-rts-bevy-runtime = { path = "../trnm-rts-bevy-runtime", optional = true }
-trnm-rts-core = { path = "../../trnm-rts-core", optional = true }
+trnm-rts-core = { path = "../trnm-rts-core", optional = true }
 trnm-rts-data = { path = "../trnm-rts-data", optional = true }
 trnm-rts-evidence = { path = "../trnm-rts-evidence", optional = true }
 trnm-rts-online = { path = "../trnm-rts-online", optional = true }

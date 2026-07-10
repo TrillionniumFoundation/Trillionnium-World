@@ -21,20 +21,23 @@ Mirror Square
   -> idempotent settlement
   -> return to Mirror Square
   -> persist XP / skill XP / loot / reputation / injuries / quest state
+  -> unlock repeatable Aftershock Patrol
+  -> consume the persisted growth in a stronger BattleSeed
+  -> fight, settle and continue the campaign loop
 ```
 
 ## Authority Boundaries
 
 | Surface | Owner | Rule |
 | --- | --- | --- |
-| RPG/world primitives | `trnm-world-domain` | Reusable attributes, character and inventory vocabulary. |
+| RPG/world primitives | `trnm-rpg-core` | Lightweight attributes, character and inventory vocabulary used by the product. |
 | Campaign/save/progression | `trnm-campaign-core` | Sole authority for RPG mutation and settlement. |
-| Frame-order contract | `trnm-rts-core` | Validates player command ordering. |
+| Frame-order contract | `trnm-rts-protocol` | Lightweight player-order validation and deterministic stream contract. |
 | Battle simulation | `trnm-rts-sim` | Bevy-free, two-dimensional, map-aware simulation consuming `RtsFrameOrder` as its only player input. |
 | Native presentation/input | `trnm-first-contact` | Consumes `BattleSeedV1`; may only emit `BattleResultV1`. |
 | Authored map/art | `assets/first_contact` | Canonical original 40x24 map and PNG atlases. |
 | Legacy implementation | `trillionnium/crates/legacy-game/trnm-world-bevy/src/legacy.rs` | Feature-gated frozen behavior/test reference; not reconnected wholesale. |
-| Older RTS data/evidence/online | `trnm-rts-data`, `trnm-rts-evidence`, `trnm-rts-online` | Frozen outside this closure. GPL-derived internal map data is not a product dependency. |
+| Older World/RTS cores and data/evidence/online | `legacy-game/trnm-world-domain`, `legacy-game/trnm-rts-core`, `trnm-rts-data`, `trnm-rts-evidence`, `trnm-rts-online` | Frozen outside this closure. GPL-derived internal map data is not a product dependency. |
 
 ## Stable Contracts
 
@@ -42,8 +45,8 @@ Mirror Square
 - `trnm_battle_seed_v2`
 - `trnm_battle_result_v1`
 - `trnm_settlement_receipt_v1`
-- `trnm_rts_sim_v2`
-- `trnm_rts_sim_checkpoint_v2`
+- `trnm_rts_sim_v3`
+- `trnm_rts_sim_checkpoint_v3`
 
 `BattleSeedV1` binds campaign revision, battle id, map/rules version, four
 persistent party members, spawn slots, skills, typed equipment modifiers,
@@ -98,6 +101,8 @@ Battle:
 - `E`: harvest
 - `R`: hold
 - `A`: activate selected units' energy/cooldown/range-bound signature abilities
+- `S`: spend 20 field resources on Field Aid for selected units
+- `D`: spend 30 field resources to fortify the relay counterattack phase
 - `X`: withdraw
 - `0`: select all party units; `1..4`: select one party slot
 - `Tab`: cycle unit/resource/objective targets
@@ -121,8 +126,10 @@ Debrief:
 - M3: complete. Battle result staging, crash recovery, idempotent settlement,
   debrief/return UI, XP, skill XP, loot, reputation, injuries, quest state and
   durable reload are connected.
-- M4 software gates: complete. Six closed-loop E2E cases cover victory, defeat,
-  withdrawal, mid-battle crash, mid-settlement crash and duplicate result.
+- M4 software gates: complete. Seven closed-loop E2E cases cover victory,
+  defeat, withdrawal, mid-battle crash, mid-settlement crash, duplicate result,
+  and two consecutive victories with reload between First Contact and the
+  repeatable Aftershock Patrol.
 - Gameplay P0: complete. Training is paid and capped; withdrawal pays zero XP
   and resources; defeat rewards are bounded; harvested resources settle only
   on victory; loot can be consumed for healing or equipped as a typed relic;
@@ -130,11 +137,25 @@ Debrief:
 - Gameplay P1: complete. Seven candidates provide three party compositions,
   three mentor paths and three equipment loadouts; signature skills consume
   energy/range/cooldown; harvest and ability-rush routes are both viable. The
-  first mission requires approach, contact, relay assault and hold/capture and
-  is constrained to 3-5 simulated minutes.
+  first mission requires approach, contact, relay assault, two deterministic
+  counterattack waves and hold/capture. Field resources can be spent on aid or
+  fortification. Tested routes require 8-12 consequential orders and complete
+  in 3-5 simulated minutes; four-order idle play cannot win.
 - Gameplay P2: complete. The root workspace contains only five product crates;
-  platform and frozen legacy game crates live in separate 12-crate workspaces.
+  platform has 12 crates and the frozen legacy game has 14 crates. The old
+  broad World/RTS cores live only in legacy; the product uses the lightweight
+  RPG and order-protocol cores.
   The canonical player, map, save and order authorities are singular.
+
+## Repeatable Campaign Loop
+
+- A First Contact victory sets `first_contact_secured` and unlocks Aftershock
+  Patrol rather than terminating progression.
+- Aftershock is repeatable, scales the relay guard and reinforcement waves,
+  and records its own completion count.
+- Character level, companion experience, reputation, relic modifiers and
+  injuries all alter the next mission seed.
+- Campaign load/restart preserves the unlock, growth and next seed mapping.
 
 Human gates remain evidence-bound and must not be fabricated:
 
@@ -157,14 +178,14 @@ cargo clippy --manifest-path trillionnium/Cargo.toml \
 cargo build --manifest-path trillionnium/Cargo.toml --release -p trnm-first-contact
 ```
 
-The six M4 cases and gameplay exploit/resource regressions live in
+The seven M4 cases and gameplay exploit/resource regressions live in
 `trillionnium/crates/trnm-rts-sim/tests/campaign_closed_loop.rs`.
 
 ## Workspace Boundaries
 
 - game product: `trillionnium/Cargo.toml` (5 members);
 - platform: `trillionnium/crates/platform/Cargo.toml` (12 members);
-- frozen legacy game: `trillionnium/crates/legacy-game/Cargo.toml` (12 members);
+- frozen legacy game: `trillionnium/crates/legacy-game/Cargo.toml` (14 members);
 - legacy monolith compilation requires explicit `--features legacy`;
 - `scripts/run_trnm_first_contact.sh` is the only player runner. The old
   `run_trillionnium_world_bevy_client.sh` name is a compatibility delegator.

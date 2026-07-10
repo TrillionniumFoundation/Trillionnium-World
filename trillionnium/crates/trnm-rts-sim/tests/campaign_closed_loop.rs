@@ -3,7 +3,7 @@ use trnm_campaign_core::{
     BattleGridPoint, BattleMapNodeV1, BattleMapSeedV1, BattleOutcome, CampaignPhase, CampaignRoom,
     CampaignSaveV1, CampaignStore, QuestState,
 };
-use trnm_rts_core::{RtsFrameOrder, RtsOrderKind, RtsOrderSource, RtsTile};
+use trnm_rts_protocol::{RtsFrameOrder, RtsOrderKind, RtsOrderSource, RtsTile};
 use trnm_rts_sim::{
     BattlePhase, MissionSimV1, SimCheckpointStore, FIVE_MINUTE_TICKS, THREE_MINUTE_TICKS,
 };
@@ -70,6 +70,9 @@ fn order(sim: &MissionSimV1, kind: RtsOrderKind, target: BattleGridPoint) -> Rts
         RtsOrderKind::Harvest => order.target_actor_id = Some("amber_mid".to_string()),
         RtsOrderKind::Attack => order.target_actor_id = Some("relay_beacon".to_string()),
         RtsOrderKind::Extract => order.target_actor_id = Some("expedition_gate".to_string()),
+        RtsOrderKind::Ability => order.target_rule_id = Some("party_signature".to_string()),
+        RtsOrderKind::Repair => order.target_actor_id = Some("party_field_aid".to_string()),
+        RtsOrderKind::Build => order.target_rule_id = Some("field_barricade".to_string()),
         _ => {}
     }
     order
@@ -79,10 +82,22 @@ fn step_until(sim: &mut MissionSimV1, predicate: impl Fn(&MissionSimV1) -> bool,
     while !sim.terminal() && !predicate(sim) && sim.tick < limit {
         sim.step().unwrap();
     }
-    assert!(predicate(sim), "condition not reached by tick {}", sim.tick);
+    assert!(
+        predicate(sim),
+        "condition not reached by tick {} phase {:?} outcome {:?} guard {} capture {} wave {} alive {} order {:?}",
+        sim.tick,
+        sim.phase,
+        sim.outcome,
+        sim.relay_guard_hp,
+        sim.relay_capture_ticks,
+        sim.reinforcement_wave,
+        sim.enemies.iter().filter(|enemy| enemy.alive()).count(),
+        sim.current_order_kind(),
+    );
 }
 
 fn run_victory(mut sim: MissionSimV1) -> MissionSimV1 {
+    let reinforcement_waves = 2;
     let approach = sim.seed.map.approach_point;
     sim.issue_order(order(&sim, RtsOrderKind::Move, approach))
         .unwrap();
@@ -90,7 +105,7 @@ fn run_victory(mut sim: MissionSimV1) -> MissionSimV1 {
     let resource = sim.seed.map.resource_nodes[0].position;
     sim.issue_order(order(&sim, RtsOrderKind::Harvest, resource))
         .unwrap();
-    step_until(&mut sim, |sim| sim.resources_gathered >= 40, 1_300);
+    step_until(&mut sim, |sim| sim.resources_available >= 100, 1_300);
     let objective = sim.seed.map.objective;
     sim.issue_order(order(&sim, RtsOrderKind::Attack, objective))
         .unwrap();
@@ -101,12 +116,96 @@ fn run_victory(mut sim: MissionSimV1) -> MissionSimV1 {
     );
     sim.issue_order(order(&sim, RtsOrderKind::Hold, objective))
         .unwrap();
-    while !sim.terminal() && sim.tick <= FIVE_MINUTE_TICKS {
+    for wave in 1..=reinforcement_waves {
+        step_until(
+            &mut sim,
+            |sim| sim.reinforcement_wave >= wave,
+            FIVE_MINUTE_TICKS,
+        );
+        if wave == 1 {
+            sim.issue_order(order(&sim, RtsOrderKind::Repair, objective))
+                .unwrap();
+        } else if wave == 2 {
+            sim.issue_order(order(&sim, RtsOrderKind::Build, objective))
+                .unwrap();
+        } else {
+            sim.issue_order(order(&sim, RtsOrderKind::Ability, objective))
+                .unwrap();
+        }
+        sim.issue_order(order(&sim, RtsOrderKind::Attack, objective))
+            .unwrap();
+        step_until(
+            &mut sim,
+            |sim| sim.enemies.iter().all(|enemy| !enemy.alive()),
+            FIVE_MINUTE_TICKS,
+        );
+        sim.issue_order(order(&sim, RtsOrderKind::Move, objective))
+            .unwrap();
+        step_until(
+            &mut sim,
+            |sim| {
+                sim.party.iter().any(|unit| {
+                    unit.alive()
+                        && (unit.position.x - sim.seed.map.objective.x).abs()
+                            + (unit.position.y - sim.seed.map.objective.y).abs()
+                            <= 2
+                })
+            },
+            FIVE_MINUTE_TICKS,
+        );
+        sim.issue_order(order(&sim, RtsOrderKind::Hold, objective))
+            .unwrap();
+    }
+    while !sim.terminal() {
         sim.step().unwrap();
     }
     assert_eq!(sim.outcome, Some(BattleOutcome::Victory));
     assert!((THREE_MINUTE_TICKS..=FIVE_MINUTE_TICKS).contains(&sim.tick));
     sim
+}
+
+#[test]
+fn e2e_first_victory_unlocks_repeatable_aftershock_and_growth_changes_next_seed() {
+    let directory = tempdir().unwrap();
+    let store = CampaignStore::new(directory.path().join("campaign.json"));
+    let mut campaign = ready_campaign();
+    let first_seed = campaign.start_first_contact_battle(map()).unwrap();
+    let first_hero = first_seed
+        .party
+        .iter()
+        .find(|unit| unit.unit_id == "hero")
+        .unwrap()
+        .stats
+        .clone();
+    let first_result = run_victory(MissionSimV1::from_seed(first_seed).unwrap())
+        .into_result()
+        .unwrap();
+    campaign.submit_battle_result(first_result).unwrap();
+    campaign.equip_relay_core().unwrap();
+    campaign.move_to(CampaignRoom::ExpeditionGate).unwrap();
+    campaign.accept_first_contact_quest().unwrap();
+    let aftershock_seed = campaign.start_first_contact_battle(map()).unwrap();
+    assert_eq!(aftershock_seed.map_id, "first_contact_aftershock");
+    let aftershock_hero = aftershock_seed
+        .party
+        .iter()
+        .find(|unit| unit.unit_id == "hero")
+        .unwrap();
+    assert!(aftershock_hero.stats.max_hp > first_hero.max_hp);
+    assert!(aftershock_hero.stats.energy > first_hero.energy);
+    let aftershock_result = run_victory(MissionSimV1::from_seed(aftershock_seed).unwrap())
+        .into_result()
+        .unwrap();
+    campaign.submit_battle_result(aftershock_result).unwrap();
+    assert_eq!(campaign.progression.aftershock_completions, 1);
+    store.save_atomic(&campaign).unwrap();
+    let mut restarted = store.load().unwrap();
+    restarted.move_to(CampaignRoom::ExpeditionGate).unwrap();
+    restarted.accept_first_contact_quest().unwrap();
+    assert_eq!(
+        restarted.active_mission.map_id(),
+        "first_contact_aftershock"
+    );
 }
 
 #[test]

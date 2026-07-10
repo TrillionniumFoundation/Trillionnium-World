@@ -9,6 +9,7 @@ software:
     - mid_battle_crash_resume
     - mid_settlement_crash_recovery
     - duplicate_result_zero_delta
+    - two_victories_reload_growth_applies_to_aftershock
   deterministic_victory_minutes: { min: 3, max: 5 }
   gameplay_gates:
     - no_single_order_victory
@@ -18,6 +19,12 @@ software:
     - victory_loot_is_consumable_or_equippable
     - ability_rush_route_is_viable
     - authored_2d_map_drives_pathfinding
+    - repeatable_aftershock_unlocks_after_first_victory
+    - persisted_growth_changes_next_battle_seed
+    - two_counterattack_waves_interrupt_capture
+    - field_resources_buy_aid_or_fortification
+    - consequential_order_count_between_8_and_12
+    - four_order_idle_route_cannot_win
 human:
   status: pending_real_observers
   five_second_observers_required: 3
@@ -28,3 +35,9 @@ boundaries:
   public_launch_claimed: false
   android_s5_claimed: false
   online_authority_claimed: false
+workspaces:
+  game_product_crates: 5
+  platform_crates: 12
+  frozen_legacy_crates: 14
+  product_rpg_core: trnm-rpg-core
+  product_order_protocol: trnm-rts-protocol

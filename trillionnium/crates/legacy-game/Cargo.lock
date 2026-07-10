@@ -4299,7 +4299,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2",
- "trnm-world-domain",
+ "trnm-rpg-core",
 ]
 
 [[package]]
@@ -4310,8 +4310,16 @@ dependencies = [
  "serde",
  "serde_yaml",
  "trnm-campaign-core",
- "trnm-rts-core",
+ "trnm-rts-protocol",
  "trnm-rts-sim",
+]
+
+[[package]]
+name = "trnm-rpg-core"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "sha2",
 ]
 
 [[package]]
@@ -4366,6 +4374,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "trnm-rts-protocol"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "sha2",
+]
+
+[[package]]
 name = "trnm-rts-sim"
 version = "0.1.0"
 dependencies = [
@@ -4373,7 +4390,7 @@ dependencies = [
  "serde_json",
  "sha2",
  "trnm-campaign-core",
- "trnm-rts-core",
+ "trnm-rts-protocol",
 ]
 
 [[package]]

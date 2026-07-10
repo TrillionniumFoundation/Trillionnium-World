@@ -16,19 +16,21 @@ use trnm_campaign_core::{
     BattleGridPoint, BattleOutcome, BattleResultV1, BattleSeedV1, CampaignError, LootStack,
     UnitBattleReportV1, UnitBattleStatus, BATTLE_RESULT_CONTRACT,
 };
-use trnm_rts_core::{RtsFrameOrder, RtsOrderKind};
+use trnm_rts_protocol::{RtsFrameOrder, RtsOrderKind};
 
-pub const RTS_SIM_CONTRACT: &str = "trnm_rts_sim_v2";
-pub const RTS_SIM_CHECKPOINT_CONTRACT: &str = "trnm_rts_sim_checkpoint_v2";
+pub const RTS_SIM_CONTRACT: &str = "trnm_rts_sim_v3";
+pub const RTS_SIM_CHECKPOINT_CONTRACT: &str = "trnm_rts_sim_checkpoint_v3";
 pub const TICKS_PER_SECOND: u64 = 10;
 pub const THREE_MINUTE_TICKS: u64 = 3 * 60 * TICKS_PER_SECOND;
 pub const FIVE_MINUTE_TICKS: u64 = 5 * 60 * TICKS_PER_SECOND;
 pub const TEN_MINUTE_TICKS: u64 = 10 * 60 * TICKS_PER_SECOND;
 pub const FIFTEEN_MINUTE_TICKS: u64 = 15 * 60 * TICKS_PER_SECOND;
 const MOVEMENT_TILE_COST: i32 = 10_000;
-const CAPTURE_TICKS_REQUIRED: u32 = 1_300;
-const RELAY_GUARD_HP: i64 = 5_000;
+const CAPTURE_TICKS_REQUIRED: u32 = 600;
+const RELAY_GUARD_HP: i64 = 5_400;
 const WITHDRAWAL_MIN_TICKS: u64 = 30;
+const FIELD_AID_COST: u32 = 20;
+const FORTIFY_COST: u32 = 30;
 
 #[derive(Debug)]
 pub enum SimError {
@@ -133,8 +135,12 @@ pub struct MissionSimV1 {
     pub party: Vec<SimUnit>,
     pub enemies: Vec<SimUnit>,
     pub relay_guard_hp: i64,
+    pub relay_guard_max_hp: i64,
     pub relay_capture_ticks: u32,
     pub resources_gathered: u32,
+    pub resources_available: u32,
+    pub resources_spent: u32,
+    pub reinforcement_wave: u8,
     pub outcome: Option<BattleOutcome>,
     pub event_count: u64,
 }
@@ -176,6 +182,8 @@ impl MissionSimV1 {
             ("striker", 900, 12, 4, 900, 20),
             ("relay_guard", 1_400, 11, 8, 680, 26),
         ];
+        let aftershock = seed.map_id == "first_contact_aftershock";
+        let enemy_scale = if aftershock { 112 } else { 100 };
         let enemies = seed
             .map
             .enemy_spawns
@@ -189,10 +197,10 @@ impl MissionSimV1 {
                     role: role.to_string(),
                     persistent: false,
                     skill_ids: Vec::new(),
-                    max_hp: hp,
-                    hp,
-                    damage,
-                    armor,
+                    max_hp: hp * enemy_scale / 100,
+                    hp: hp * enemy_scale / 100,
+                    damage: damage * enemy_scale / 100,
+                    armor: armor + if aftershock { 1 } else { 0 },
                     move_speed_milli: speed,
                     movement_budget_milli: 0,
                     attack_interval_ticks: interval,
@@ -207,6 +215,11 @@ impl MissionSimV1 {
                 }
             })
             .collect();
+        let relay_guard_max_hp = if aftershock {
+            RELAY_GUARD_HP + 600
+        } else {
+            RELAY_GUARD_HP
+        };
         let sim = Self {
             contract_version: RTS_SIM_CONTRACT.to_string(),
             seed,
@@ -218,9 +231,13 @@ impl MissionSimV1 {
             distinct_order_kinds: BTreeSet::new(),
             party,
             enemies,
-            relay_guard_hp: RELAY_GUARD_HP,
+            relay_guard_hp: relay_guard_max_hp,
+            relay_guard_max_hp,
             relay_capture_ticks: 0,
             resources_gathered: 0,
+            resources_available: 0,
+            resources_spent: 0,
+            reinforcement_wave: 0,
             outcome: None,
             event_count: 0,
         };
@@ -259,6 +276,17 @@ impl MissionSimV1 {
                     unit.unit_id
                 )));
             }
+        }
+        if self
+            .resources_available
+            .saturating_add(self.resources_spent)
+            != self.resources_gathered
+            || self.relay_guard_max_hp < RELAY_GUARD_HP
+            || self.relay_guard_hp > self.relay_guard_max_hp
+        {
+            return Err(SimError::Integrity(
+                "resource or relay accounting is inconsistent".to_string(),
+            ));
         }
         if let Some(order) = &self.active_order {
             order.validate().map_err(SimError::Order)?;
@@ -328,8 +356,13 @@ impl MissionSimV1 {
             }
             self.outcome = Some(BattleOutcome::Withdrawal);
             self.phase = BattlePhase::Complete;
-        } else if order.kind == RtsOrderKind::Ability {
-            self.resolve_party_ability(&order)?;
+        } else {
+            match order.kind {
+                RtsOrderKind::Ability => self.resolve_party_ability(&order)?,
+                RtsOrderKind::Repair => self.resolve_field_aid(&order)?,
+                RtsOrderKind::Build => self.resolve_fortify(&order)?,
+                _ => {}
+            }
         }
         self.last_order_frame = Some(order.frame);
         self.order_count = self.order_count.saturating_add(1);
@@ -364,7 +397,9 @@ impl MissionSimV1 {
             self.outcome = Some(BattleOutcome::Defeat);
             self.phase = BattlePhase::Complete;
             self.event_count += 1;
-        } else if self.relay_capture_ticks >= CAPTURE_TICKS_REQUIRED {
+        } else if self.relay_capture_ticks >= CAPTURE_TICKS_REQUIRED
+            && self.enemies.iter().all(|enemy| !enemy.alive())
+        {
             self.outcome = Some(BattleOutcome::Victory);
             self.phase = BattlePhase::Complete;
             self.event_count += 1;
@@ -403,8 +438,10 @@ impl MissionSimV1 {
             }
             RtsOrderKind::Harvest => self.resolve_harvest(&selected, &order),
             RtsOrderKind::Hold | RtsOrderKind::Capture => self.resolve_capture(&selected),
-            RtsOrderKind::Ability | RtsOrderKind::Extract => {}
-            _ => {}
+            RtsOrderKind::Ability
+            | RtsOrderKind::Repair
+            | RtsOrderKind::Build
+            | RtsOrderKind::Extract => {}
         }
     }
 
@@ -564,18 +601,23 @@ impl MissionSimV1 {
             })
             .count() as u32;
         if workers > 0 && self.tick.is_multiple_of(10) {
-            self.resources_gathered = self
-                .resources_gathered
-                .saturating_add(workers.saturating_mul(4));
+            let harvested = workers.saturating_mul(4);
+            self.resources_gathered = self.resources_gathered.saturating_add(harvested);
+            self.resources_available = self.resources_available.saturating_add(harvested);
             for unit in &mut self.party {
-                unit.energy = (unit.energy + i64::from(workers)).min(unit.max_energy);
+                if selected.contains(&unit.unit_id) && distance(unit.position, node.position) <= 1 {
+                    unit.energy = (unit.energy + 4).min(unit.max_energy);
+                }
             }
             self.event_count += 1;
         }
     }
 
     fn resolve_capture(&mut self, selected: &BTreeSet<String>) {
-        if self.phase != BattlePhase::Relay || self.relay_guard_hp > 0 {
+        if self.phase != BattlePhase::Relay
+            || self.relay_guard_hp > 0
+            || self.enemies.iter().any(SimUnit::alive)
+        {
             return;
         }
         let holders = self
@@ -589,7 +631,91 @@ impl MissionSimV1 {
             .count() as u32;
         if holders > 0 {
             self.relay_capture_ticks = self.relay_capture_ticks.saturating_add(holders.min(2));
+            let aftershock = self.seed.map_id == "first_contact_aftershock";
+            let thresholds: &[u32] = &[200, 400];
+            if let Some(threshold) = thresholds.get(self.reinforcement_wave as usize) {
+                if self.relay_capture_ticks >= *threshold {
+                    self.spawn_reinforcement_wave(aftershock);
+                }
+            }
         }
+    }
+
+    fn resolve_field_aid(&mut self, order: &RtsFrameOrder) -> Result<(), SimError> {
+        self.spend_resources(FIELD_AID_COST, "field aid")?;
+        let selected = order
+            .subject_actor_ids
+            .iter()
+            .map(String::as_str)
+            .collect::<BTreeSet<_>>();
+        for unit in &mut self.party {
+            if unit.alive() && selected.contains(unit.unit_id.as_str()) {
+                unit.hp = (unit.hp + 110).min(unit.max_hp);
+            }
+        }
+        self.event_count += 1;
+        Ok(())
+    }
+
+    fn resolve_fortify(&mut self, order: &RtsFrameOrder) -> Result<(), SimError> {
+        self.spend_resources(FORTIFY_COST, "fortification")?;
+        let selected = order
+            .subject_actor_ids
+            .iter()
+            .map(String::as_str)
+            .collect::<BTreeSet<_>>();
+        for unit in &mut self.party {
+            if unit.alive() && selected.contains(unit.unit_id.as_str()) {
+                unit.guard_ticks = unit.guard_ticks.max(240);
+            }
+        }
+        self.event_count += 1;
+        Ok(())
+    }
+
+    fn spend_resources(&mut self, cost: u32, label: &str) -> Result<(), SimError> {
+        if self.resources_available < cost {
+            return Err(SimError::Order(format!(
+                "{label} requires {cost} field resources"
+            )));
+        }
+        self.resources_available -= cost;
+        self.resources_spent = self.resources_spent.saturating_add(cost);
+        Ok(())
+    }
+
+    fn spawn_reinforcement_wave(&mut self, aftershock: bool) {
+        self.reinforcement_wave = self.reinforcement_wave.saturating_add(1);
+        let count = if aftershock { 3 } else { 2 };
+        let scale = 100 + i64::from(self.reinforcement_wave) * 8 + if aftershock { 18 } else { 0 };
+        for index in 0..count {
+            let spawn = &self.seed.map.enemy_spawns
+                [(index + self.reinforcement_wave as usize) % self.seed.map.enemy_spawns.len()];
+            let role = if index % 2 == 0 { "striker" } else { "warden" };
+            let hp = 420 * scale / 100;
+            self.enemies.push(SimUnit {
+                unit_id: format!("aftershock_wave{}_{}", self.reinforcement_wave, index),
+                role: role.to_string(),
+                persistent: false,
+                skill_ids: Vec::new(),
+                max_hp: hp,
+                hp,
+                damage: (10 + i64::from(self.reinforcement_wave) * 2) * scale / 100,
+                armor: 4 + i64::from(self.reinforcement_wave),
+                move_speed_milli: 920,
+                movement_budget_milli: 0,
+                attack_interval_ticks: 20,
+                evasion_permille: 35,
+                energy: 0,
+                max_energy: 0,
+                ability_range: 1,
+                ability_cooldown_ticks: 0,
+                guard_ticks: 0,
+                position: spawn.position,
+                attacks_made: 0,
+            });
+        }
+        self.event_count += 1;
     }
 
     fn resolve_party_ability(&mut self, order: &RtsFrameOrder) -> Result<(), SimError> {
@@ -672,6 +798,7 @@ impl MissionSimV1 {
                 }
                 "relay_overcharge" => {
                     self.resources_gathered = self.resources_gathered.saturating_add(20);
+                    self.resources_available = self.resources_available.saturating_add(20);
                     if self.phase == BattlePhase::Relay {
                         self.relay_guard_hp -= 120;
                     }
@@ -817,7 +944,7 @@ impl MissionSimV1 {
     }
 
     pub fn relay_guard_percent(&self) -> u8 {
-        percent(self.relay_guard_hp.max(0), RELAY_GUARD_HP)
+        percent(self.relay_guard_hp.max(0), self.relay_guard_max_hp)
     }
 
     pub fn capture_percent(&self) -> u8 {
@@ -835,6 +962,7 @@ impl MissionSimV1 {
         })?;
         let final_snapshot_hash = self.snapshot_hash()?;
         let experience = match outcome {
+            BattleOutcome::Victory if self.seed.map_id == "first_contact_aftershock" => 55,
             BattleOutcome::Victory => 40,
             BattleOutcome::Defeat if self.tick >= 60 * TICKS_PER_SECOND => 3,
             BattleOutcome::Defeat | BattleOutcome::Withdrawal => 0,
@@ -862,7 +990,16 @@ impl MissionSimV1 {
                 }
             })
             .collect();
+        let aftershock = self.seed.map_id == "first_contact_aftershock";
         let (loot, reputation_delta, world_flags) = match outcome {
+            BattleOutcome::Victory if aftershock => (
+                vec![LootStack {
+                    item_id: "field-tonic-kit".to_string(),
+                    quantity: 1,
+                }],
+                3,
+                vec!["aftershock_patrol_secured".to_string()],
+            ),
             BattleOutcome::Victory => (
                 vec![
                     LootStack {
@@ -877,10 +1014,24 @@ impl MissionSimV1 {
                 5,
                 vec!["first_contact_secured".to_string()],
             ),
-            BattleOutcome::Defeat => (Vec::new(), -2, vec!["first_contact_repulsed".to_string()]),
-            BattleOutcome::Withdrawal => {
-                (Vec::new(), 0, vec!["first_contact_withdrawn".to_string()])
-            }
+            BattleOutcome::Defeat => (
+                Vec::new(),
+                -2,
+                vec![if aftershock {
+                    "aftershock_patrol_repulsed".to_string()
+                } else {
+                    "first_contact_repulsed".to_string()
+                }],
+            ),
+            BattleOutcome::Withdrawal => (
+                Vec::new(),
+                0,
+                vec![if aftershock {
+                    "aftershock_patrol_withdrawn".to_string()
+                } else {
+                    "first_contact_withdrawn".to_string()
+                }],
+            ),
         };
         Ok(BattleResultV1 {
             contract_version: BATTLE_RESULT_CONTRACT.to_string(),
@@ -890,7 +1041,7 @@ impl MissionSimV1 {
             units,
             loot,
             resource_delta: if outcome == BattleOutcome::Victory {
-                self.resources_gathered as i64
+                self.resources_available as i64
             } else {
                 0
             },
@@ -1105,7 +1256,7 @@ mod tests {
     use super::*;
     use tempfile::tempdir;
     use trnm_campaign_core::{BattleMapNodeV1, BattleMapSeedV1, CampaignRoom, CampaignSaveV1};
-    use trnm_rts_core::{RtsOrderSource, RtsTile};
+    use trnm_rts_protocol::{RtsOrderSource, RtsTile};
 
     fn map() -> BattleMapSeedV1 {
         BattleMapSeedV1 {
@@ -1170,6 +1321,10 @@ mod tests {
             order.target_actor_id = Some("relay_beacon".to_string());
         } else if kind == RtsOrderKind::Ability {
             order.target_rule_id = Some("party_signature".to_string());
+        } else if kind == RtsOrderKind::Repair {
+            order.target_actor_id = Some("party_field_aid".to_string());
+        } else if kind == RtsOrderKind::Build {
+            order.target_rule_id = Some("field_barricade".to_string());
         }
         order
     }
@@ -1178,10 +1333,21 @@ mod tests {
         while !sim.terminal() && !predicate(sim) && sim.tick < limit {
             sim.step().unwrap();
         }
-        assert!(predicate(sim), "condition not reached by tick {}", sim.tick);
+        assert!(
+            predicate(sim),
+            "condition not reached by tick {} phase {:?} outcome {:?} guard {} capture {} wave {} alive_enemies {} order {:?}",
+            sim.tick,
+            sim.phase,
+            sim.outcome,
+            sim.relay_guard_hp,
+            sim.relay_capture_ticks,
+            sim.reinforcement_wave,
+            sim.enemies.iter().filter(|enemy| enemy.alive()).count(),
+            sim.current_order_kind(),
+        );
     }
 
-    fn run_three_phase_victory(mut sim: MissionSimV1, harvest: bool) -> MissionSimV1 {
+    fn run_decision_dense_victory(mut sim: MissionSimV1, harvest: bool) -> MissionSimV1 {
         let approach = sim.seed.map.approach_point;
         sim.issue_order(order(&sim, RtsOrderKind::Move, approach))
             .unwrap();
@@ -1190,7 +1356,7 @@ mod tests {
             let resource = sim.seed.map.resource_nodes[0].position;
             sim.issue_order(order(&sim, RtsOrderKind::Harvest, resource))
                 .unwrap();
-            step_until(&mut sim, |sim| sim.resources_gathered >= 40, 1_300);
+            step_until(&mut sim, |sim| sim.resources_available >= 100, 1_300);
         } else {
             let objective = sim.seed.map.objective;
             sim.issue_order(order(&sim, RtsOrderKind::Ability, objective))
@@ -1206,7 +1372,46 @@ mod tests {
         );
         sim.issue_order(order(&sim, RtsOrderKind::Hold, objective))
             .unwrap();
-        while !sim.terminal() && sim.tick < FIVE_MINUTE_TICKS {
+        for wave in 1..=2 {
+            step_until(
+                &mut sim,
+                |sim| sim.reinforcement_wave >= wave,
+                FIVE_MINUTE_TICKS,
+            );
+            if harvest {
+                let resource_order = if wave == 1 {
+                    RtsOrderKind::Repair
+                } else {
+                    RtsOrderKind::Build
+                };
+                sim.issue_order(order(&sim, resource_order, objective))
+                    .unwrap();
+            } else {
+                sim.issue_order(order(&sim, RtsOrderKind::Ability, objective))
+                    .unwrap();
+            }
+            sim.issue_order(order(&sim, RtsOrderKind::Attack, objective))
+                .unwrap();
+            step_until(
+                &mut sim,
+                |sim| sim.enemies.iter().all(|enemy| !enemy.alive()),
+                FIVE_MINUTE_TICKS,
+            );
+            sim.issue_order(order(&sim, RtsOrderKind::Move, objective))
+                .unwrap();
+            step_until(
+                &mut sim,
+                |sim| {
+                    sim.party.iter().any(|unit| {
+                        unit.alive() && distance(unit.position, sim.seed.map.objective) <= 2
+                    })
+                },
+                FIVE_MINUTE_TICKS,
+            );
+            sim.issue_order(order(&sim, RtsOrderKind::Hold, objective))
+                .unwrap();
+        }
+        while !sim.terminal() {
             sim.step().unwrap();
         }
         sim
@@ -1214,14 +1419,15 @@ mod tests {
 
     #[test]
     fn three_phase_orders_produce_a_real_three_to_five_minute_victory() {
-        let sim = run_three_phase_victory(MissionSimV1::from_seed(seed()).unwrap(), true);
+        let sim = run_decision_dense_victory(MissionSimV1::from_seed(seed()).unwrap(), true);
         assert_eq!(sim.outcome, Some(BattleOutcome::Victory));
         assert!(
             (THREE_MINUTE_TICKS..=FIVE_MINUTE_TICKS).contains(&sim.tick),
             "victory tick {} is outside the 3-5 minute target",
             sim.tick
         );
-        assert!(sim.distinct_order_kinds.len() >= 4);
+        assert!((8..=12).contains(&sim.order_count));
+        assert!(sim.resources_spent >= FIELD_AID_COST + FORTIFY_COST);
         let result = sim.into_result().unwrap();
         assert!(!result.loot.is_empty());
         assert!(result.resource_delta > 0);
@@ -1255,9 +1461,10 @@ mod tests {
 
     #[test]
     fn ability_rush_is_a_second_viable_route_without_resource_payout() {
-        let sim = run_three_phase_victory(MissionSimV1::from_seed(seed()).unwrap(), false);
+        let sim = run_decision_dense_victory(MissionSimV1::from_seed(seed()).unwrap(), false);
         assert_eq!(sim.outcome, Some(BattleOutcome::Victory));
         assert_eq!(sim.resources_gathered, 0);
+        assert!((8..=12).contains(&sim.order_count));
         assert!(sim.distinct_order_kinds.contains("ability"));
         assert!((THREE_MINUTE_TICKS..=FIVE_MINUTE_TICKS).contains(&sim.tick));
     }

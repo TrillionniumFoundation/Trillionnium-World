@@ -1,5 +1,7 @@
 [workspace]
 members = [
+  "trnm-world-domain",
+  "trnm-rts-core",
   "trnm-world-command",
   "trnm-rts-data",
   "trnm-rts-bevy-runtime",

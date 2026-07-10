@@ -117,7 +117,10 @@ impl CampaignFlow {
         self.last_receipt = None;
         self.last_checkpoint_tick = 0;
         self.mode = CampaignMode::Battle;
-        self.status = "BattleSeed accepted: First Contact deployed".to_string();
+        self.status = format!(
+            "BattleSeed accepted: {} deployed",
+            self.save.active_mission.display_name()
+        );
         Ok(())
     }
 
@@ -235,15 +238,22 @@ pub(super) fn handle_campaign_input(
         let result = flow.mutate_town(CampaignSaveV1::equip_relay_core);
         set_status(&mut flow, result, "Equipped the recovered Relay Core relic");
     } else if input.just_pressed(KeyCode::KeyF) {
+        let repeatable_aftershock = flow.save.quest_state == QuestState::Completed
+            && flow
+                .save
+                .progression
+                .world_flags
+                .contains("first_contact_secured");
         if matches!(
             flow.save.quest_state,
             QuestState::Available | QuestState::Failed | QuestState::Withdrawn
-        ) {
+        ) || repeatable_aftershock
+        {
             let result = flow.mutate_town(CampaignSaveV1::accept_first_contact_quest);
             set_status(
                 &mut flow,
                 result,
-                "Accepted First Contact mission; press F to deploy",
+                "Accepted campaign mission; press F to deploy",
             );
         } else if flow.save.quest_state == QuestState::Accepted {
             match flow.start_battle(&map) {

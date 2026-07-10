@@ -1,8 +1,8 @@
 [workspace]
 members = [
-  "crates/trnm-world-domain",
+  "crates/trnm-rpg-core",
   "crates/trnm-campaign-core",
-  "crates/trnm-rts-core",
+  "crates/trnm-rts-protocol",
   "crates/trnm-rts-sim",
   "crates/trnm-first-contact",
 ]

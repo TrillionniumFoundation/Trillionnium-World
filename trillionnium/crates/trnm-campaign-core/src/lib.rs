@@ -12,8 +12,9 @@ use std::{
     io::Write,
     path::{Path, PathBuf},
 };
-use trnm_world_domain::{
-    trillionnium_inventory_item_for, TrillionniumAttributes, WorldTrillionniumCharacter,
+use trnm_rpg_core::{
+    inventory_item_for as trillionnium_inventory_item_for, Character as WorldTrillionniumCharacter,
+    TrillionniumAttributes,
 };
 
 pub const CAMPAIGN_SAVE_CONTRACT: &str = "trnm_campaign_save_v1";
@@ -170,6 +171,30 @@ pub enum QuestState {
     Withdrawn,
 }
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CampaignMission {
+    #[default]
+    FirstContact,
+    AftershockPatrol,
+}
+
+impl CampaignMission {
+    pub fn map_id(self) -> &'static str {
+        match self {
+            Self::FirstContact => "first_contact",
+            Self::AftershockPatrol => "first_contact_aftershock",
+        }
+    }
+
+    pub fn display_name(self) -> &'static str {
+        match self {
+            Self::FirstContact => "First Contact",
+            Self::AftershockPatrol => "Aftershock Patrol",
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum BattleOutcome {
@@ -207,6 +232,8 @@ pub struct PartyMember {
     pub attributes: TrillionniumAttributes,
     pub skill_ids: Vec<String>,
     pub persistent: bool,
+    #[serde(default)]
+    pub experience: u64,
     pub injury_level: u8,
     pub available: bool,
 }
@@ -219,6 +246,8 @@ pub struct CampaignProgression {
     pub credits: i64,
     #[serde(default)]
     pub mentor_training_sessions: u8,
+    #[serde(default)]
+    pub aftershock_completions: u32,
     pub skill_progress: BTreeMap<String, SkillProgress>,
     pub inventory: Vec<LootStack>,
     pub world_flags: BTreeSet<String>,
@@ -370,7 +399,11 @@ impl BattleSeedV1 {
                 self.contract_version.clone(),
             ));
         }
-        if self.map_id != "first_contact" || self.rules_version != FIRST_CONTACT_RULES_VERSION {
+        if !matches!(
+            self.map_id.as_str(),
+            "first_contact" | "first_contact_aftershock"
+        ) || self.rules_version != FIRST_CONTACT_RULES_VERSION
+        {
             return Err(CampaignError::InvalidContract(
                 "unknown map or rules version".to_string(),
             ));
@@ -534,6 +567,8 @@ pub struct CampaignSaveV1 {
     pub selected_training_path: TrainingPath,
     #[serde(default)]
     pub selected_loadout: LoadoutPreset,
+    #[serde(default)]
+    pub active_mission: CampaignMission,
     pub mentor_met: bool,
     pub trained_with_mentor: bool,
     pub quest_state: QuestState,
@@ -597,6 +632,7 @@ impl Default for CampaignSaveV1 {
                 experience: 0,
                 credits: default_campaign_credits(),
                 mentor_training_sessions: 0,
+                aftershock_completions: 0,
                 skill_progress,
                 inventory: Vec::new(),
                 world_flags: BTreeSet::new(),
@@ -609,6 +645,7 @@ impl Default for CampaignSaveV1 {
                     attributes: base,
                     skill_ids: vec!["basic_inner_power".to_string()],
                     persistent: true,
+                    experience: 0,
                     injury_level: 0,
                     available: true,
                 },
@@ -623,6 +660,7 @@ impl Default for CampaignSaveV1 {
                         "wind_step".to_string(),
                     ],
                     persistent: true,
+                    experience: 0,
                     injury_level: 0,
                     available: true,
                 },
@@ -633,6 +671,7 @@ impl Default for CampaignSaveV1 {
                     attributes: warden,
                     skill_ids: vec!["basic_unarmed".to_string(), "iron_guard".to_string()],
                     persistent: true,
+                    experience: 0,
                     injury_level: 0,
                     available: true,
                 },
@@ -643,6 +682,7 @@ impl Default for CampaignSaveV1 {
                     attributes: striker,
                     skill_ids: vec!["basic_blade".to_string(), "inner_flame".to_string()],
                     persistent: true,
+                    experience: 0,
                     injury_level: 0,
                     available: true,
                 },
@@ -658,6 +698,7 @@ impl Default for CampaignSaveV1 {
                     },
                     skill_ids: vec!["field_mend".to_string()],
                     persistent: true,
+                    experience: 0,
                     injury_level: 0,
                     available: true,
                 },
@@ -673,6 +714,7 @@ impl Default for CampaignSaveV1 {
                     },
                     skill_ids: vec!["relay_overcharge".to_string()],
                     persistent: true,
+                    experience: 0,
                     injury_level: 0,
                     available: true,
                 },
@@ -688,6 +730,7 @@ impl Default for CampaignSaveV1 {
                     },
                     skill_ids: vec!["inner_flame".to_string()],
                     persistent: true,
+                    experience: 0,
                     injury_level: 0,
                     available: true,
                 },
@@ -700,6 +743,7 @@ impl Default for CampaignSaveV1 {
             ],
             selected_training_path: TrainingPath::default(),
             selected_loadout: LoadoutPreset::default(),
+            active_mission: CampaignMission::default(),
             mentor_met: false,
             trained_with_mentor: false,
             quest_state: QuestState::Locked,
@@ -1038,12 +1082,17 @@ impl CampaignSaveV1 {
                 "equip a weapon before deployment".to_string(),
             ));
         }
-        if !matches!(
-            self.quest_state,
-            QuestState::Available | QuestState::Failed | QuestState::Withdrawn
-        ) {
+        let aftershock_unlocked = self
+            .progression
+            .world_flags
+            .contains("first_contact_secured");
+        if self.quest_state == QuestState::Completed && aftershock_unlocked {
+            self.active_mission = CampaignMission::AftershockPatrol;
+        } else if self.quest_state == QuestState::Available {
+            self.active_mission = CampaignMission::FirstContact;
+        } else if !matches!(self.quest_state, QuestState::Failed | QuestState::Withdrawn) {
             return Err(CampaignError::InvalidState(
-                "First Contact quest is not available".to_string(),
+                "no campaign mission is currently available".to_string(),
             ));
         }
         self.quest_state = QuestState::Accepted;
@@ -1063,8 +1112,9 @@ impl CampaignSaveV1 {
         }
         map.validate()?;
         let next_revision = self.revision + 1;
-        let battle_id = format!("first-contact-{next_revision:08}");
         let equipment_ids = equipped_item_ids(&self.character);
+        let campaign_level = self.progression.level;
+        let reputation = self.character.attributes.reputation;
         let party = self
             .active_party_ids
             .iter()
@@ -1091,6 +1141,23 @@ impl CampaignSaveV1 {
                     .map(|progress| progress.rank)
                     .max()
                     .unwrap_or(1);
+                let attributes = if member.unit_id == "hero" {
+                    &self.character.attributes
+                } else {
+                    &member.attributes
+                };
+                let unit_level = if member.unit_id == "hero" {
+                    campaign_level
+                } else {
+                    1 + (member.experience / 120) as u32
+                };
+                let mut stats = map_rpg_to_rts_stats(
+                    attributes,
+                    skill_rank,
+                    &member_equipment,
+                    member.injury_level,
+                );
+                apply_campaign_growth(&mut stats, unit_level, reputation);
                 BattleUnitSeedV1 {
                     unit_id: member.unit_id.clone(),
                     display_name: member.display_name.clone(),
@@ -1100,20 +1167,16 @@ impl CampaignSaveV1 {
                     injury_level: member.injury_level,
                     skill_ids: skills,
                     equipment_ids: member_equipment.clone(),
-                    stats: map_rpg_to_rts_stats(
-                        &member.attributes,
-                        skill_rank,
-                        &member_equipment,
-                        member.injury_level,
-                    ),
+                    stats,
                 }
             })
             .collect();
+        let map_id = self.active_mission.map_id();
         let mut seed = BattleSeedV1 {
             contract_version: BATTLE_SEED_CONTRACT.to_string(),
-            battle_id,
+            battle_id: format!("{map_id}-{next_revision:08}"),
             campaign_revision: next_revision,
-            map_id: "first_contact".to_string(),
+            map_id: map_id.to_string(),
             rules_version: FIRST_CONTACT_RULES_VERSION.to_string(),
             map,
             party,
@@ -1176,6 +1239,7 @@ impl CampaignSaveV1 {
         let pending = self.pending_battle.as_ref().ok_or_else(|| {
             CampaignError::InvalidState("pending settlement payload is missing".to_string())
         })?;
+        let mission_id = pending.seed.map_id.clone();
         let result = pending.result.as_ref().ok_or_else(|| {
             CampaignError::InvalidState("pending settlement result is missing".to_string())
         })?;
@@ -1225,6 +1289,7 @@ impl CampaignSaveV1 {
                 .iter_mut()
                 .find(|member| member.unit_id == report.unit_id)
             {
+                member.experience = member.experience.saturating_add(report.experience_gained);
                 member.injury_level = member.injury_level.saturating_add(delta).min(4);
                 if report.status == UnitBattleStatus::Lost && !member.persistent {
                     member.available = false;
@@ -1248,6 +1313,10 @@ impl CampaignSaveV1 {
             BattleOutcome::Defeat => QuestState::Failed,
             BattleOutcome::Withdrawal => QuestState::Withdrawn,
         };
+        if result.outcome == BattleOutcome::Victory && mission_id == "first_contact_aftershock" {
+            self.progression.aftershock_completions =
+                self.progression.aftershock_completions.saturating_add(1);
+        }
         self.phase = CampaignPhase::Town;
         self.room = CampaignRoom::MirrorSquare;
         self.revision += 1;
@@ -1385,6 +1454,21 @@ pub fn map_rpg_to_rts_stats(
         stats.move_speed_milli = (stats.move_speed_milli * penalty / 100).max(100);
     }
     stats
+}
+
+fn apply_campaign_growth(stats: &mut RtsUnitStats, level: u32, reputation: i32) {
+    let growth = level.saturating_sub(1).min(12);
+    let morale = reputation.clamp(0, 40) as u32;
+    stats.max_hp = stats
+        .max_hp
+        .saturating_add(growth.saturating_mul(14))
+        .saturating_add(morale / 2);
+    stats.damage = stats.damage.saturating_add(growth.saturating_mul(2));
+    stats.armor = stats.armor.saturating_add(growth / 2);
+    stats.energy = stats
+        .energy
+        .saturating_add(growth.saturating_mul(4))
+        .saturating_add(morale / 2);
 }
 
 fn add_signed(value: u32, delta: i32, minimum: u32) -> u32 {

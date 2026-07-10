@@ -10,8 +10,8 @@
 
 ## Rust L1 quick links
 
-- Trillionnium World unified development doc: `development/trillionnium-world-unified-development-doc-v1.md`
-  - Current source-of-evidence/incubator: CEX at `/home/qian/.openclaw/workspace/CEX`, synced through CEX head `53687d7 test: gate trillionnium world adapter readiness`, plus Trillionnium-main S3-S6 acceptance evidence for standalone browser/repository/map-pack/Native-Bevy/release-review gates. CEX production adapter JSON is consumed by `scripts/check_trillionnium_world_cex_adapter_readiness.sh`.
+- Current RPG/RTS game truth: `development/trillionnium-rpg-rts-closed-loop-v1.md`
+- Frozen World/Bevy plans and reviews: `archive/world-bevy/README.md`
 - Term Exchange Kernel: `development/trillionnium-term-exchange-kernel-v1.md`
 - CEX runtime plugin split for Trillionnium World: `development/trillionnium-cex-runtime-plugin-split-v1.md`
 - Repo layout: `architecture/rust-l1-repo-layout.md`
@@ -23,6 +23,3 @@
 - PR-6 nightly security summary runbook: `runbooks/pr6-nightly-security-summary.md`
 - PR-7 alert delivery runbook: `runbooks/pr7-alert-delivery.md`
 - PR-9 weekly alert governance runbook: `runbooks/pr9-weekly-alert-governance.md`
-
-- Trillionnium World dev environment: `development/trillionnium-world-dev-environment-v1.md`
-- Trillionnium World CEX full split plan: `development/trillionnium-world-cex-full-split-plan-v1.md`

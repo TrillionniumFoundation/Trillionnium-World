@@ -7,7 +7,7 @@ authors = ["Trillionnium Contributors"]
 
 [dependencies]
 trnm-world-command = { path = "../trnm-world-command" }
-trnm-world-domain = { path = "../../trnm-world-domain" }
+trnm-world-domain = { path = "../trnm-world-domain" }
 trnm-world-projection = { path = "../trnm-world-projection" }
 
 [dev-dependencies]

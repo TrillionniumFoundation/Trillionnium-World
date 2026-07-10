@@ -1,5 +1,5 @@
 [package]
-name = "trnm-campaign-core"
+name = "trnm-rpg-core"
 version = "0.1.0"
 edition.workspace = true
 license.workspace = true
@@ -7,9 +7,4 @@ authors.workspace = true
 
 [dependencies]
 serde = { version = "1", features = ["derive"] }
-serde_json = "1"
 sha2 = "0.10"
-trnm-rpg-core = { path = "../trnm-rpg-core" }
-
-[dev-dependencies]
-tempfile = "3"

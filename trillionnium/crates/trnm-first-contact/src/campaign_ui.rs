@@ -107,7 +107,7 @@ fn town_body(flow: &CampaignFlow) -> String {
     let save = &flow.save;
     match save.room {
         CampaignRoom::MirrorSquare => format!(
-            "{}\n\n{}  |  LV {}  |  XP {}  |  CR {}  |  REP {}\n\nChoose a mentor path, equipment loadout and four-person party. H treats one injury level using a Field Tonic or {} credits; G equips recovered Relay Core loot.\n\nFIRST CONTACT: {}  |  SAVE REVISION {}",
+            "{}\n\n{}  |  LV {}  |  XP {}  |  CR {}  |  REP {}\n\nChoose a mentor path, equipment loadout and four-person party. H treats one injury level using a Field Tonic or {} credits; G equips recovered Relay Core loot.\n\nMISSION: {}  |  AFTERSHOCK WINS {}  |  SAVE REVISION {}",
             room_label(save.room),
             "MIRROR RANGER",
             save.progression.level,
@@ -116,6 +116,7 @@ fn town_body(flow: &CampaignFlow) -> String {
             save.character.attributes.reputation,
             trnm_campaign_core::FIELD_CLINIC_CREDIT_COST,
             quest_label(save.quest_state),
+            save.progression.aftershock_completions,
             save.revision,
         ),
         CampaignRoom::MentorHall => {
@@ -155,9 +156,10 @@ fn town_body(flow: &CampaignFlow) -> String {
                 .collect::<Vec<_>>()
                 .join("\n");
             format!(
-                "{}\n\nMISSION: {}  |  LOADOUT: {}\nPARTY (7 candidates, selected 4 -> RTS spawn slots):\n{}\n\nP cycles Balanced / Mobile / Vanguard parties. E cycles Guard / Raider / Mystic equipment. The BattleSeed binds the authored 2D map, skills, equipment and injuries.",
+                "{}\n\nMISSION: {} / {}  |  LOADOUT: {}\nPARTY (7 candidates, selected 4 -> RTS spawn slots):\n{}\n\nP cycles Balanced / Mobile / Vanguard parties. E cycles Guard / Raider / Mystic equipment. First victory unlocks repeatable Aftershock Patrols whose BattleSeed consumes growth, reputation, relics and injuries.",
                 room_label(save.room),
                 quest_label(save.quest_state),
+                save.active_mission.display_name(),
                 save.selected_loadout.display_name(),
                 roster,
             )

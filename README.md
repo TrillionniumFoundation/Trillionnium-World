@@ -44,10 +44,10 @@ TrillionniumChain/
 │   │   ├── trnm-first-contact       # canonical player
 │   │   ├── trnm-campaign-core       # save/progression authority
 │   │   ├── trnm-rts-sim             # 2D order-driven battle authority
-│   │   ├── trnm-rts-core            # frame-order contract
-│   │   ├── trnm-world-domain        # reusable RPG vocabulary
+│   │   ├── trnm-rts-protocol        # lightweight frame-order contract
+│   │   ├── trnm-rpg-core            # lightweight RPG vocabulary
 │   │   ├── platform/                 # separate 12-crate chain/platform workspace
-│   │   └── legacy-game/              # separate frozen 12-crate reference workspace
+│   │   └── legacy-game/              # separate frozen 14-crate reference workspace
 │   ├── configs/
 │   ├── scripts/
 │   └── run/
@@ -165,7 +165,17 @@ TRNM_TX_CLI=./trillionnium/target/debug/trnm-cli \
 ./scripts/v2/run_tokenomics_r1_r14_regression_gate.sh
 ```
 
-### 5.4 Trillionnium World release review quickcheck
+### 5.4 Historical Trillionnium World release-review surface
+
+The former World/Bevy, OpenRA, Android, S5/S6 and public-launch evidence
+scripts are frozen under `scripts/archive/world-bevy/`. They are not product
+gates. The current game gate is:
+
+```bash
+./scripts/check_trnm_game_product.sh
+```
+
+The commands and notes below are retained as historical reference only.
 
 ```bash
 # Refresh public-launch readiness + release signoff summary, then emit one review JSON.
@@ -390,9 +400,8 @@ Operator handoff note: scripts/check_trillionnium_world_public_launch_operator_h
 - Historical roadmap: [docs/archive/root-history/ROADMAP.md](docs/archive/root-history/ROADMAP.md)
 - Historical backlog snapshots: [docs/archive/root-history/BACKLOG.md](docs/archive/root-history/BACKLOG.md)
 - Unified development scheduling: historical planning boards have existed under archived docs, but if a referenced planning-board file is absent in this checkout, use repository docs under `docs/`, `trillionnium/docs/`, and the subproject READMEs as the live execution entrypoints instead.
-- Trillionnium World standalone dev environment: [docs/development/trillionnium-world-dev-environment-v1.md](docs/development/trillionnium-world-dev-environment-v1.md)
-- Trillionnium World CEX full split plan: [docs/development/trillionnium-world-cex-full-split-plan-v1.md](docs/development/trillionnium-world-cex-full-split-plan-v1.md)
-- Trillionnium World current development baseline: [docs/development/trillionnium-world-unified-development-doc-v1.md](docs/development/trillionnium-world-unified-development-doc-v1.md). Its source-of-evidence starts with the CEX incubator at `/home/qian/.openclaw/workspace/CEX`, synced through CEX head `53687d7 test: gate trillionnium world adapter readiness`, and now also includes Trillionnium-main S3-S6 acceptance evidence for standalone browser/repository/map-pack/Native-Bevy/release-review gates plus CEX production adapter JSON consumed by `scripts/check_trillionnium_world_cex_adapter_readiness.sh`.
+- Current RPG/RTS game truth: [docs/development/trillionnium-rpg-rts-closed-loop-v1.md](docs/development/trillionnium-rpg-rts-closed-loop-v1.md)
+- Frozen World/Bevy development documents: [docs/archive/world-bevy/README.md](docs/archive/world-bevy/README.md)
 - External benchmark comparison: [docs/reports/TRNM_CONCURRENCY_COMPARISON_2026-03-05.md](docs/reports/TRNM_CONCURRENCY_COMPARISON_2026-03-05.md)
 - Concurrency bottleneck map + 8-week roadmap: if an older report is referenced from `RELEASE_READINESS.md` but not present in this checkout, treat it as historical only and do not cite it as current local truth.
 - Web4 platform overview: if an older master-planning file is absent in this checkout, treat `RELEASE_READINESS.md`, `docs/reports/TRNM_WEB4_PLATFORM_SCORECARD_2026-03-31.md`, `web4-frontend/docs/README.md`, and `web4-frontend/README.md` as the current Web4 truth-source entrypoints.

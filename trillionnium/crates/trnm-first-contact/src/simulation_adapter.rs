@@ -9,7 +9,9 @@ use super::{
 };
 use bevy::prelude::*;
 use trnm_campaign_core::{BattleGridPoint, BattleOutcome};
-use trnm_rts_core::{RtsFrameOrder, RtsFrameOrderStream, RtsOrderKind, RtsOrderSource, RtsTile};
+use trnm_rts_protocol::{
+    RtsFrameOrder, RtsFrameOrderStream, RtsOrderKind, RtsOrderSource, RtsTile,
+};
 use trnm_rts_sim::{BattlePhase, TICKS_PER_SECOND};
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -18,6 +20,8 @@ pub enum FirstContactCommand {
     Attack,
     Harvest,
     Ability,
+    FieldAid,
+    Fortify,
     Retreat,
     #[default]
     Hold,
@@ -30,6 +34,8 @@ impl FirstContactCommand {
             Self::Attack => "ATTACK",
             Self::Harvest => "HARVEST",
             Self::Ability => "ABILITY",
+            Self::FieldAid => "FIELD_AID",
+            Self::Fortify => "FORTIFY",
             Self::Retreat => "RETREAT",
             Self::Hold => "HOLD",
         }
@@ -54,6 +60,8 @@ fn frame_order_for_command(
         FirstContactCommand::Attack => RtsOrderKind::Attack,
         FirstContactCommand::Harvest => RtsOrderKind::Harvest,
         FirstContactCommand::Ability => RtsOrderKind::Ability,
+        FirstContactCommand::FieldAid => RtsOrderKind::Repair,
+        FirstContactCommand::Fortify => RtsOrderKind::Build,
         FirstContactCommand::Retreat => RtsOrderKind::Extract,
         FirstContactCommand::Hold => RtsOrderKind::Hold,
     };
@@ -81,6 +89,14 @@ fn frame_order_for_command(
         FirstContactCommand::Ability => {
             order.target_rule_id = Some("party_signature".to_string());
             order.target_actor_id = target_actor_id;
+            order.target_tile = Some(RtsTile::new(target_tile.x, target_tile.y));
+        }
+        FirstContactCommand::FieldAid => {
+            order.target_actor_id = Some("party_field_aid".to_string());
+            order.target_tile = Some(RtsTile::new(target_tile.x, target_tile.y));
+        }
+        FirstContactCommand::Fortify => {
+            order.target_rule_id = Some("field_barricade".to_string());
             order.target_tile = Some(RtsTile::new(target_tile.x, target_tile.y));
         }
         FirstContactCommand::Retreat => {
@@ -171,6 +187,12 @@ impl FirstContactRuntime {
     pub fn recommended_command(&self) -> FirstContactCommand {
         if self.victory || self.defeat || self.withdrawal {
             return FirstContactCommand::Hold;
+        }
+        if self.party_hp_percent < 60 && self.credits >= 20 {
+            return FirstContactCommand::FieldAid;
+        }
+        if self.phase == BattlePhase::Relay && self.enemy_hp_percent > 0 && self.credits >= 30 {
+            return FirstContactCommand::Fortify;
         }
         match self.phase {
             BattlePhase::Approach => FirstContactCommand::Move,
@@ -291,6 +313,10 @@ pub(super) fn handle_first_contact_commands(
         Some(FirstContactCommand::Hold)
     } else if input.just_pressed(KeyCode::KeyA) {
         Some(FirstContactCommand::Ability)
+    } else if input.just_pressed(KeyCode::KeyS) {
+        Some(FirstContactCommand::FieldAid)
+    } else if input.just_pressed(KeyCode::KeyD) {
+        Some(FirstContactCommand::Fortify)
     } else if input.just_pressed(KeyCode::KeyX) {
         Some(FirstContactCommand::Retreat)
     } else {
@@ -332,8 +358,8 @@ pub(super) fn handle_first_contact_commands(
     let mut candidate = adapter.accepted_orders.clone();
     candidate.push(order.clone());
     if let Err(error) = RtsFrameOrderStream::new(
-        map.id.clone(),
-        "first_contact_campaign_rules_v2",
+        mission.seed.map_id.clone(),
+        mission.seed.rules_version.clone(),
         candidate.clone(),
     )
     .validate()
@@ -362,6 +388,12 @@ pub(super) fn handle_first_contact_commands(
             "Harvest route accepted; resources power abilities and return credits".to_string()
         }
         FirstContactCommand::Ability => "Signature abilities activated".to_string(),
+        FirstContactCommand::FieldAid => {
+            "Spent 20 field resources to heal selected units".to_string()
+        }
+        FirstContactCommand::Fortify => {
+            "Spent 30 field resources to fortify selected units".to_string()
+        }
         FirstContactCommand::Hold => {
             "Guarding position; HOLD captures an exposed relay".to_string()
         }
@@ -457,10 +489,15 @@ pub(super) fn advance_first_contact_simulation(
         runtime.victory = mission.outcome == Some(BattleOutcome::Victory);
         runtime.defeat = mission.outcome == Some(BattleOutcome::Defeat);
         runtime.withdrawal = mission.outcome == Some(BattleOutcome::Withdrawal);
-        runtime.credits = mission.resources_gathered;
+        runtime.credits = mission.resources_available;
         runtime.phase = mission.phase;
         runtime.command_feedback = if runtime.victory {
-            "FIRST CONTACT SECURED: rewards and resources will return to town".to_string()
+            let mission_name = if mission.seed.map_id == "first_contact_aftershock" {
+                "AFTERSHOCK PATROL"
+            } else {
+                "FIRST CONTACT"
+            };
+            format!("{mission_name} SECURED: rewards and resources will return to town")
         } else if runtime.defeat {
             "PARTY DEFEATED: injuries applied, no harvested credits retained".to_string()
         } else if runtime.withdrawal {
@@ -693,6 +730,8 @@ mod tests {
             FirstContactCommand::Harvest,
             FirstContactCommand::Hold,
             FirstContactCommand::Ability,
+            FirstContactCommand::FieldAid,
+            FirstContactCommand::Fortify,
             FirstContactCommand::Retreat,
         ];
         let orders = commands
@@ -753,7 +792,7 @@ mod tests {
             Some(resource.id.clone()),
         );
         sim.issue_order(harvest_order).unwrap();
-        while sim.resources_gathered < 40 && !sim.terminal() {
+        while sim.resources_available < 100 && !sim.terminal() {
             sim.step().unwrap();
         }
         let attack_order = frame_order_for_command(
@@ -781,6 +820,64 @@ mod tests {
             Some(map.objective.id.clone()),
         );
         sim.issue_order(hold_order).unwrap();
+        for wave in 1..=2 {
+            while sim.reinforcement_wave < wave && !sim.terminal() {
+                sim.step().unwrap();
+            }
+            let resource_command = if wave == 1 {
+                FirstContactCommand::FieldAid
+            } else {
+                FirstContactCommand::Fortify
+            };
+            let resource_order = frame_order_for_command(
+                &map,
+                sim.tick as u32,
+                resource_command,
+                living_subjects(&sim),
+                IVec2::new(map.objective.x, map.objective.y),
+                Some(map.objective.id.clone()),
+            );
+            sim.issue_order(resource_order).unwrap();
+            let attack_order = frame_order_for_command(
+                &map,
+                sim.tick as u32,
+                FirstContactCommand::Attack,
+                living_subjects(&sim),
+                IVec2::new(map.objective.x, map.objective.y),
+                Some(map.objective.id.clone()),
+            );
+            sim.issue_order(attack_order).unwrap();
+            while sim.enemies.iter().any(|enemy| enemy.alive()) && !sim.terminal() {
+                sim.step().unwrap();
+            }
+            let move_order = frame_order_for_command(
+                &map,
+                sim.tick as u32,
+                FirstContactCommand::Move,
+                living_subjects(&sim),
+                IVec2::new(map.objective.x, map.objective.y),
+                None,
+            );
+            sim.issue_order(move_order).unwrap();
+            while !sim.party.iter().any(|unit| {
+                unit.alive()
+                    && (unit.position.x - sim.seed.map.objective.x).abs()
+                        + (unit.position.y - sim.seed.map.objective.y).abs()
+                        <= 2
+            }) && !sim.terminal()
+            {
+                sim.step().unwrap();
+            }
+            let hold_order = frame_order_for_command(
+                &map,
+                sim.tick as u32,
+                FirstContactCommand::Hold,
+                living_subjects(&sim),
+                IVec2::new(map.objective.x, map.objective.y),
+                Some(map.objective.id.clone()),
+            );
+            sim.issue_order(hold_order).unwrap();
+        }
         while !sim.terminal() && sim.tick <= FIVE_MINUTE_TICKS {
             sim.step().unwrap();
         }
@@ -790,5 +887,6 @@ mod tests {
             "authored-map victory tick {} is outside 3-5 minutes",
             sim.tick
         );
+        assert!((8..=12).contains(&sim.order_count));
     }
 }
