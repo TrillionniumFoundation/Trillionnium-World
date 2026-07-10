@@ -88,11 +88,14 @@ Town:
 - `2`: mentor hall
 - `3`: expedition gate
 - `4`: Relay Quarter after the two-mission Signal Road chain
-- `T`: talk to mentor
+- `T`: talk to mentor, or build Brann trust in Relay Quarter
 - `L`: cycle Iron Guard / Wind Step / Inner Flame training path
 - `K`: buy one capped mentor training session
 - `E`: cycle Guard / Raider / Mystic typed loadouts
-- `P`: cycle three four-person parties drawn from hero + six companions
+- `Z/X/C`: independently cycle companion slots one/two/three
+- `P`: cycle currently valid four-person presets
+- `Y`: run the deterministic mentor sparring bout after training
+- `U`: recruit Brann in Relay Quarter after reaching eight trust
 - `H`: consume a Field Tonic or pay the field clinic to reduce injuries
 - `G`: equip the recovered Relay Core relic after a victory
 - `F`: accept mission / deploy
@@ -106,12 +109,17 @@ Battle:
 - `A`: activate selected units' energy/cooldown/range-bound signature abilities
 - `S`: spend 20 field resources on Field Aid for selected units
 - `D`: spend 30 field resources to fortify the relay counterattack phase
-- `C`: spend 10 field resources on a recon sweep and timed intel bonus
-- `V`: spend 40 field resources to queue a support unit
-- `B`: spend 35 field resources to research Field Logistics
-- `N`: after research, spend 45 field resources to upgrade Relay Arms
+- `C`: spend 10 field resources on a recon sweep that reveals authoritative fog
+- `Z`: switch support-drone / field-medic production; `V`: queue the selection
+- `B`: research Field Logistics, then Signal Optics
+- `N`: upgrade Relay Arms, then Field Armor
 - `X`: withdraw
-- `0`: select all party units; `1..4`: select one party slot
+- `0`: select all; `Ctrl+1..9`: assign a control group; `1..9`: recall it;
+  double-tap the group number to focus the camera on living members
+- hold `Shift` while issuing move/attack/harvest/hold to append a queued order
+- `Delete`: cancel the newest queued tactical order
+- `U`: cancel the first production job with one-time half refund
+- `Y`: pause/resume the first job; `O`: promote the last job; `M`: set its rally point
 - mouse drag: select one or more party units; click the minimap to retarget and center the camera
 - `F`: cycle wedge / line / column formation during battle
 - `Tab`: cycle unit/resource/objective targets
@@ -166,10 +174,15 @@ Debrief:
   parameterized by map/viewport size; mouse drag selection, minimap targeting
   and wedge/line/column orders are wired to the live client. Human five-second
   evidence remains pending and is not claimed by these software tests.
-- Legacy extraction P3: complete for the first playable rules. Recon,
-  production, research and upgrade orders are typed protocol commands consumed
-  by the deterministic sim. They spend authoritative field resources, use
-  deterministic queues, survive checkpoints and alter combat state.
+- Legacy extraction P3: complete for the expanded playable rules. The protocol
+  and deterministic sim own assign/append/remove/recall control groups, Shift
+  order queues, exact cancellation, production pause/resume/promote/refund and
+  validated rally points. Current/explored fog is authoritative: hidden enemy
+  ids are rejected and recon reveals deterministic map regions without leaking
+  them through the client. Production now has support/medic branches, logistics
+  and optics research, arms and armor upgrades, plus escalating enemy targeting.
+  RPG preparation now includes free companion-slot selection, typed NPC trust,
+  faction rank, Relay Smith recruitment and deterministic mentor sparring.
 
 ## Repeatable Campaign Loop
 

@@ -213,12 +213,17 @@ pub(super) fn handle_campaign_input(
         let result = flow.mutate_town(|save| save.move_to(CampaignRoom::RelayQuarter));
         set_status(&mut flow, result, "Entered Relay Quarter");
     } else if input.just_pressed(KeyCode::KeyT) {
-        let result = flow.mutate_town(CampaignSaveV1::talk_to_mentor);
-        set_status(
-            &mut flow,
-            result,
-            "Street Compass Sifu offered the First Contact task",
-        );
+        if flow.save.room == CampaignRoom::RelayQuarter {
+            let result = flow.mutate_town(CampaignSaveV1::talk_to_relay_smith);
+            set_status(&mut flow, result, "Built trust with Relay Smith Brann");
+        } else {
+            let result = flow.mutate_town(CampaignSaveV1::talk_to_mentor);
+            set_status(
+                &mut flow,
+                result,
+                "Street Compass Sifu offered the First Contact task",
+            );
+        }
     } else if input.just_pressed(KeyCode::KeyK) {
         let result = flow.mutate_town(CampaignSaveV1::train_with_mentor);
         set_status(&mut flow, result, "Completed paid mentor training");
@@ -231,6 +236,25 @@ pub(super) fn handle_campaign_input(
     } else if input.just_pressed(KeyCode::KeyP) {
         let result = flow.mutate_town(CampaignSaveV1::cycle_party_preset);
         set_status(&mut flow, result, "Changed four-person persistent party");
+    } else if input.just_pressed(KeyCode::KeyZ) {
+        let result = flow.mutate_town(|save| save.cycle_party_member(1));
+        set_status(&mut flow, result, "Changed companion slot one");
+    } else if input.just_pressed(KeyCode::KeyX) {
+        let result = flow.mutate_town(|save| save.cycle_party_member(2));
+        set_status(&mut flow, result, "Changed companion slot two");
+    } else if input.just_pressed(KeyCode::KeyC) {
+        let result = flow.mutate_town(|save| save.cycle_party_member(3));
+        set_status(&mut flow, result, "Changed companion slot three");
+    } else if input.just_pressed(KeyCode::KeyY) {
+        let result = flow.mutate_town(|save| save.spar_with_mentor().map(|_| ()));
+        set_status(
+            &mut flow,
+            result,
+            "Completed a deterministic mentor sparring bout",
+        );
+    } else if input.just_pressed(KeyCode::KeyU) {
+        let result = flow.mutate_town(CampaignSaveV1::recruit_relay_smith);
+        set_status(&mut flow, result, "Recruited Relay Smith Brann");
     } else if input.just_pressed(KeyCode::KeyH) {
         let result = flow.mutate_town(CampaignSaveV1::heal_party);
         set_status(

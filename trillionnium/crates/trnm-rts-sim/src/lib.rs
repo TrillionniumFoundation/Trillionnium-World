@@ -18,8 +18,8 @@ use trnm_campaign_core::{
 };
 use trnm_rts_protocol::{RtsFrameOrder, RtsOrderKind};
 
-pub const RTS_SIM_CONTRACT: &str = "trnm_rts_sim_v3";
-pub const RTS_SIM_CHECKPOINT_CONTRACT: &str = "trnm_rts_sim_checkpoint_v3";
+pub const RTS_SIM_CONTRACT: &str = "trnm_rts_sim_v4";
+pub const RTS_SIM_CHECKPOINT_CONTRACT: &str = "trnm_rts_sim_checkpoint_v4";
 pub const TICKS_PER_SECOND: u64 = 10;
 pub const THREE_MINUTE_TICKS: u64 = 3 * 60 * TICKS_PER_SECOND;
 pub const FIVE_MINUTE_TICKS: u64 = 5 * 60 * TICKS_PER_SECOND;
@@ -130,8 +130,11 @@ impl SimUnit {
 #[serde(rename_all = "snake_case")]
 pub enum SimJobKind {
     TrainSupport,
+    TrainMedic,
     ResearchLogistics,
+    ResearchOptics,
     UpgradeRelayArms,
+    UpgradeFieldArmor,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -141,11 +144,15 @@ pub struct SimJob {
     pub rule_id: String,
     pub remaining_ticks: u32,
     pub target: BattleGridPoint,
+    pub cost: u32,
+    pub paused: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SupportUnit {
     pub unit_id: String,
+    #[serde(default = "default_support_role")]
+    pub role: String,
     pub position: BattleGridPoint,
     pub hp: i64,
     pub damage: i64,
@@ -159,6 +166,10 @@ pub struct MissionSimV1 {
     pub tick: u64,
     pub phase: BattlePhase,
     pub active_order: Option<RtsFrameOrder>,
+    #[serde(default)]
+    pub queued_orders: VecDeque<RtsFrameOrder>,
+    #[serde(default)]
+    pub control_groups: BTreeMap<String, BTreeSet<String>>,
     pub last_order_frame: Option<u32>,
     pub order_count: u32,
     pub distinct_order_kinds: BTreeSet<String>,
@@ -176,6 +187,12 @@ pub struct MissionSimV1 {
     #[serde(default)]
     pub recon_bonus_ticks: u32,
     #[serde(default)]
+    pub recon_focus: Option<BattleGridPoint>,
+    #[serde(default)]
+    pub visible_tiles: BTreeSet<BattleGridPoint>,
+    #[serde(default)]
+    pub explored_tiles: BTreeSet<BattleGridPoint>,
+    #[serde(default)]
     pub jobs: Vec<SimJob>,
     #[serde(default)]
     pub support_units: Vec<SupportUnit>,
@@ -183,6 +200,10 @@ pub struct MissionSimV1 {
     pub researched_techs: BTreeSet<String>,
     #[serde(default)]
     pub upgrade_level: u8,
+    #[serde(default)]
+    pub armor_upgrade_level: u8,
+    #[serde(default)]
+    pub enemy_tactics_level: u8,
     pub outcome: Option<BattleOutcome>,
     pub event_count: u64,
 }
@@ -262,12 +283,14 @@ impl MissionSimV1 {
         } else {
             RELAY_GUARD_HP
         };
-        let sim = Self {
+        let mut sim = Self {
             contract_version: RTS_SIM_CONTRACT.to_string(),
             seed,
             tick: 0,
             phase: BattlePhase::Approach,
             active_order: None,
+            queued_orders: VecDeque::new(),
+            control_groups: BTreeMap::new(),
             last_order_frame: None,
             order_count: 0,
             distinct_order_kinds: BTreeSet::new(),
@@ -282,13 +305,23 @@ impl MissionSimV1 {
             reinforcement_wave: 0,
             intel_level: 0,
             recon_bonus_ticks: 0,
+            recon_focus: None,
+            visible_tiles: BTreeSet::new(),
+            explored_tiles: BTreeSet::new(),
             jobs: Vec::new(),
             support_units: Vec::new(),
             researched_techs: BTreeSet::new(),
             upgrade_level: 0,
+            armor_upgrade_level: 0,
+            enemy_tactics_level: 0,
             outcome: None,
             event_count: 0,
         };
+        sim.assign_control_group(
+            "1",
+            sim.party.iter().map(|unit| unit.unit_id.clone()).collect(),
+        );
+        sim.refresh_visibility();
         sim.validate()?;
         Ok(sim)
     }
@@ -337,7 +370,11 @@ impl MissionSimV1 {
             }
         }
         for job in &self.jobs {
-            if job.remaining_ticks == 0 || !self.seed.map.in_bounds(job.target) {
+            if job.remaining_ticks == 0
+                || !self.seed.map.in_bounds(job.target)
+                || !self.seed.map.passable(job.target)
+                || job.cost == 0
+            {
                 return Err(SimError::Integrity(format!(
                     "queued job {} is invalid",
                     job.job_id
@@ -357,6 +394,34 @@ impl MissionSimV1 {
         }
         if let Some(order) = &self.active_order {
             order.validate().map_err(SimError::Order)?;
+        }
+        for order in &self.queued_orders {
+            order.validate().map_err(SimError::Order)?;
+            if !order.queued {
+                return Err(SimError::Integrity(
+                    "queued order storage contains a non-queued order".to_string(),
+                ));
+            }
+        }
+        for members in self.control_groups.values() {
+            if !members
+                .iter()
+                .all(|member| actual_ids.contains(member.as_str()))
+            {
+                return Err(SimError::Integrity(
+                    "control group references an unknown party unit".to_string(),
+                ));
+            }
+        }
+        if self
+            .visible_tiles
+            .iter()
+            .chain(&self.explored_tiles)
+            .any(|tile| !self.seed.map.in_bounds(*tile))
+        {
+            return Err(SimError::Integrity(
+                "fog state contains an out-of-bounds tile".to_string(),
+            ));
         }
         Ok(())
     }
@@ -415,6 +480,18 @@ impl MissionSimV1 {
                 ));
             }
         }
+        if matches!(order.kind, RtsOrderKind::Attack | RtsOrderKind::FocusFire)
+            && order.target_actor_id.as_deref().is_some_and(|target| {
+                self.enemies
+                    .iter()
+                    .any(|enemy| enemy.unit_id == target && enemy.alive())
+                    && !self.is_enemy_visible(target)
+            })
+        {
+            return Err(SimError::Order(
+                "target enemy is outside current line of sight".to_string(),
+            ));
+        }
         if matches!(order.kind, RtsOrderKind::Extract) {
             if self.tick < WITHDRAWAL_MIN_TICKS {
                 return Err(SimError::Order(
@@ -423,25 +500,164 @@ impl MissionSimV1 {
             }
             self.outcome = Some(BattleOutcome::Withdrawal);
             self.phase = BattlePhase::Complete;
+        } else if order.queued {
+            if !is_continuous_order(order.kind) {
+                return Err(SimError::Order(
+                    "only movement, combat, harvest and hold orders may be shift-queued"
+                        .to_string(),
+                ));
+            }
+            self.queued_orders.push_back(order.clone());
+            if self.active_order.is_none() {
+                self.activate_next_queued_order();
+            }
         } else {
             match order.kind {
                 RtsOrderKind::Ability => self.resolve_party_ability(&order)?,
                 RtsOrderKind::Repair => self.resolve_field_aid(&order)?,
                 RtsOrderKind::Build => self.resolve_fortify(&order)?,
                 RtsOrderKind::Recon => self.resolve_recon(&order)?,
-                RtsOrderKind::Train => self.queue_job(&order, SimJobKind::TrainSupport)?,
-                RtsOrderKind::Research => self.queue_job(&order, SimJobKind::ResearchLogistics)?,
-                RtsOrderKind::Upgrade => self.queue_job(&order, SimJobKind::UpgradeRelayArms)?,
-                _ => {}
+                RtsOrderKind::Train | RtsOrderKind::Research | RtsOrderKind::Upgrade => {
+                    self.queue_job_from_order(&order)?
+                }
+                RtsOrderKind::AssignGroup => self.assign_control_group_order(&order, false),
+                RtsOrderKind::AppendGroup => self.assign_control_group_order(&order, true),
+                RtsOrderKind::RemoveGroup => self.remove_control_group_order(&order),
+                RtsOrderKind::RecallGroup => {
+                    let group = order.target_rule_id.as_deref().unwrap_or_default();
+                    if self.control_group_members(group).is_empty() {
+                        return Err(SimError::Order("control group is empty".to_string()));
+                    }
+                }
+                RtsOrderKind::CancelQueuedOrder => self.cancel_queued_order(&order)?,
+                RtsOrderKind::CancelJob => self.cancel_job(&order)?,
+                RtsOrderKind::PauseJob => self.set_job_paused(&order, true)?,
+                RtsOrderKind::ResumeJob => self.set_job_paused(&order, false)?,
+                RtsOrderKind::PromoteJob => self.promote_job(&order)?,
+                RtsOrderKind::SetRally => self.set_rally(&order)?,
+                RtsOrderKind::Move
+                | RtsOrderKind::AttackMove
+                | RtsOrderKind::Harvest
+                | RtsOrderKind::Capture
+                | RtsOrderKind::Attack
+                | RtsOrderKind::FocusFire
+                | RtsOrderKind::Hold => {
+                    self.queued_orders.clear();
+                    self.active_order = Some(order.clone());
+                }
+                RtsOrderKind::Extract => unreachable!("withdrawal handled above"),
             }
         }
         self.last_order_frame = Some(order.frame);
         self.order_count = self.order_count.saturating_add(1);
         self.distinct_order_kinds
             .insert(order.kind.as_str().to_string());
-        self.active_order = Some(order);
         self.event_count += 1;
         Ok(())
+    }
+
+    pub fn control_group_members(&self, group_id: &str) -> Vec<String> {
+        self.control_groups
+            .get(group_id)
+            .into_iter()
+            .flatten()
+            .filter(|member| {
+                self.party
+                    .iter()
+                    .any(|unit| unit.unit_id == **member && unit.alive())
+            })
+            .cloned()
+            .collect()
+    }
+
+    fn assign_control_group(&mut self, group_id: &str, members: BTreeSet<String>) {
+        self.control_groups.insert(group_id.to_string(), members);
+    }
+
+    fn assign_control_group_order(&mut self, order: &RtsFrameOrder, append: bool) {
+        let group = order.target_rule_id.as_deref().unwrap_or_default();
+        let members = order
+            .subject_actor_ids
+            .iter()
+            .cloned()
+            .collect::<BTreeSet<_>>();
+        if append {
+            self.control_groups
+                .entry(group.to_string())
+                .or_default()
+                .extend(members);
+        } else {
+            self.assign_control_group(group, members);
+        }
+    }
+
+    fn remove_control_group_order(&mut self, order: &RtsFrameOrder) {
+        let group = order.target_rule_id.as_deref().unwrap_or_default();
+        if let Some(members) = self.control_groups.get_mut(group) {
+            for member in &order.subject_actor_ids {
+                members.remove(member);
+            }
+        }
+    }
+
+    fn prune_control_groups(&mut self) {
+        let living = self
+            .party
+            .iter()
+            .filter(|unit| unit.alive())
+            .map(|unit| unit.unit_id.clone())
+            .collect::<BTreeSet<_>>();
+        for members in self.control_groups.values_mut() {
+            members.retain(|member| living.contains(member));
+        }
+    }
+
+    fn cancel_queued_order(&mut self, order: &RtsFrameOrder) -> Result<(), SimError> {
+        let queue_id = order.queue_id.as_deref().unwrap_or_default();
+        let before = self.queued_orders.len();
+        self.queued_orders
+            .retain(|queued| queued.queue_id.as_deref() != Some(queue_id));
+        if before == self.queued_orders.len() {
+            return Err(SimError::Order("queued order was not found".to_string()));
+        }
+        Ok(())
+    }
+
+    fn activate_next_queued_order(&mut self) {
+        self.active_order = self.queued_orders.pop_front().map(|mut order| {
+            order.queued = false;
+            order
+        });
+    }
+
+    fn active_order_complete(&self) -> bool {
+        let Some(order) = &self.active_order else {
+            return true;
+        };
+        match order.kind {
+            RtsOrderKind::Move | RtsOrderKind::AttackMove => {
+                order.target_tile.is_some_and(|tile| {
+                    let target = BattleGridPoint::new(tile.x as i16, tile.y as i16);
+                    self.party.iter().filter(|unit| unit.alive()).all(|unit| {
+                        !order.subject_actor_ids.contains(&unit.unit_id)
+                            || distance(unit.position, target) <= 1
+                    })
+                })
+            }
+            RtsOrderKind::Attack | RtsOrderKind::FocusFire => order
+                .target_actor_id
+                .as_deref()
+                .and_then(|id| self.enemies.iter().find(|enemy| enemy.unit_id == id))
+                .map_or(
+                    self.phase == BattlePhase::Relay
+                        && self.relay_guard_hp <= 0
+                        && self.enemies.iter().all(|enemy| !enemy.alive()),
+                    |enemy| !enemy.alive(),
+                ),
+            RtsOrderKind::Harvest => self.resources_available >= 100,
+            RtsOrderKind::Capture | RtsOrderKind::Hold => self.terminal(),
+            _ => true,
+        }
     }
 
     pub fn step(&mut self) -> Result<(), SimError> {
@@ -467,6 +683,12 @@ impl MissionSimV1 {
         self.resolve_support_fire();
         self.resolve_relay_pressure();
         self.update_phase();
+        self.prune_control_groups();
+        self.refresh_visibility();
+        if self.active_order_complete() && !self.terminal() {
+            self.active_order = None;
+            self.activate_next_queued_order();
+        }
         if self.party.iter().all(|unit| !unit.alive()) || self.tick >= FIVE_MINUTE_TICKS {
             self.outcome = Some(BattleOutcome::Defeat);
             self.phase = BattlePhase::Complete;
@@ -520,6 +742,16 @@ impl MissionSimV1 {
             | RtsOrderKind::Train
             | RtsOrderKind::Research
             | RtsOrderKind::Upgrade
+            | RtsOrderKind::AssignGroup
+            | RtsOrderKind::AppendGroup
+            | RtsOrderKind::RemoveGroup
+            | RtsOrderKind::RecallGroup
+            | RtsOrderKind::CancelQueuedOrder
+            | RtsOrderKind::CancelJob
+            | RtsOrderKind::PauseJob
+            | RtsOrderKind::ResumeJob
+            | RtsOrderKind::PromoteJob
+            | RtsOrderKind::SetRally
             | RtsOrderKind::Extract => {}
         }
     }
@@ -760,12 +992,30 @@ impl MissionSimV1 {
         Ok(())
     }
 
-    fn resolve_recon(&mut self, _order: &RtsFrameOrder) -> Result<(), SimError> {
+    fn resolve_recon(&mut self, order: &RtsFrameOrder) -> Result<(), SimError> {
         self.spend_resources(RECON_COST, "recon sweep")?;
         self.intel_level = self.intel_level.saturating_add(1).min(3);
         self.recon_bonus_ticks = 300;
+        self.recon_focus = order
+            .target_tile
+            .map(|tile| BattleGridPoint::new(tile.x as i16, tile.y as i16));
+        self.refresh_visibility();
         self.event_count += 1;
         Ok(())
+    }
+
+    fn queue_job_from_order(&mut self, order: &RtsFrameOrder) -> Result<(), SimError> {
+        let rule = order.target_rule_id.as_deref().unwrap_or_default();
+        let kind = match (order.kind, rule) {
+            (RtsOrderKind::Train, "field_medic") => SimJobKind::TrainMedic,
+            (RtsOrderKind::Train, _) => SimJobKind::TrainSupport,
+            (RtsOrderKind::Research, "signal_optics") => SimJobKind::ResearchOptics,
+            (RtsOrderKind::Research, _) => SimJobKind::ResearchLogistics,
+            (RtsOrderKind::Upgrade, "field_armor") => SimJobKind::UpgradeFieldArmor,
+            (RtsOrderKind::Upgrade, _) => SimJobKind::UpgradeRelayArms,
+            _ => return Err(SimError::Order("unsupported job order".to_string())),
+        };
+        self.queue_job(order, kind)
     }
 
     fn queue_job(&mut self, order: &RtsFrameOrder, kind: SimJobKind) -> Result<(), SimError> {
@@ -780,6 +1030,7 @@ impl MissionSimV1 {
         }
         let (cost, duration, label) = match kind {
             SimJobKind::TrainSupport => (TRAIN_SUPPORT_COST, 80, "support production"),
+            SimJobKind::TrainMedic => (TRAIN_SUPPORT_COST + 10, 95, "field medic production"),
             SimJobKind::ResearchLogistics => {
                 if self.researched_techs.contains("field_logistics") {
                     return Err(SimError::Order(
@@ -788,13 +1039,44 @@ impl MissionSimV1 {
                 }
                 (RESEARCH_COST, 70, "field logistics research")
             }
+            SimJobKind::ResearchOptics => {
+                if !self.researched_techs.contains("field_logistics") {
+                    return Err(SimError::Order(
+                        "research field logistics before signal optics".to_string(),
+                    ));
+                }
+                if self.researched_techs.contains("signal_optics") {
+                    return Err(SimError::Order(
+                        "signal optics is already researched".to_string(),
+                    ));
+                }
+                (RESEARCH_COST + 15, 90, "signal optics research")
+            }
             SimJobKind::UpgradeRelayArms => {
                 if !self.researched_techs.contains("field_logistics") {
                     return Err(SimError::Order(
                         "research field logistics before upgrading relay arms".to_string(),
                     ));
                 }
+                if self.upgrade_level >= 3 {
+                    return Err(SimError::Order(
+                        "relay arms upgrade cap reached".to_string(),
+                    ));
+                }
                 (UPGRADE_COST, 60, "relay arms upgrade")
+            }
+            SimJobKind::UpgradeFieldArmor => {
+                if !self.researched_techs.contains("field_logistics") {
+                    return Err(SimError::Order(
+                        "research field logistics before upgrading field armor".to_string(),
+                    ));
+                }
+                if self.armor_upgrade_level >= 3 {
+                    return Err(SimError::Order(
+                        "field armor upgrade cap reached".to_string(),
+                    ));
+                }
+                (UPGRADE_COST + 10, 75, "field armor upgrade")
             }
         };
         self.spend_resources(cost, label)?;
@@ -812,13 +1094,62 @@ impl MissionSimV1 {
             rule_id,
             remaining_ticks: duration,
             target,
+            cost,
+            paused: false,
         });
         self.event_count += 1;
         Ok(())
     }
 
+    fn job_index(&self, order: &RtsFrameOrder) -> Result<usize, SimError> {
+        let job_id = order.queue_id.as_deref().unwrap_or_default();
+        self.jobs
+            .iter()
+            .position(|job| job.job_id == job_id)
+            .ok_or_else(|| SimError::Order(format!("job {job_id} was not found")))
+    }
+
+    fn cancel_job(&mut self, order: &RtsFrameOrder) -> Result<(), SimError> {
+        let index = self.job_index(order)?;
+        let job = self.jobs.remove(index);
+        let refund = job.cost / 2;
+        self.resources_spent = self.resources_spent.saturating_sub(refund);
+        self.resources_available = self.resources_available.saturating_add(refund);
+        Ok(())
+    }
+
+    fn set_job_paused(&mut self, order: &RtsFrameOrder, paused: bool) -> Result<(), SimError> {
+        let index = self.job_index(order)?;
+        if self.jobs[index].paused == paused {
+            return Err(SimError::Order("job pause state is unchanged".to_string()));
+        }
+        self.jobs[index].paused = paused;
+        Ok(())
+    }
+
+    fn promote_job(&mut self, order: &RtsFrameOrder) -> Result<(), SimError> {
+        let index = self.job_index(order)?;
+        if index == 0 {
+            return Err(SimError::Order("job is already first in queue".to_string()));
+        }
+        let job = self.jobs.remove(index);
+        self.jobs.insert(0, job);
+        Ok(())
+    }
+
+    fn set_rally(&mut self, order: &RtsFrameOrder) -> Result<(), SimError> {
+        let index = self.job_index(order)?;
+        let tile = order.target_tile.expect("validated rally tile");
+        let target = BattleGridPoint::new(tile.x as i16, tile.y as i16);
+        if !self.seed.map.passable(target) {
+            return Err(SimError::Order("rally point is blocked".to_string()));
+        }
+        self.jobs[index].target = target;
+        Ok(())
+    }
+
     fn process_jobs(&mut self) {
-        for job in &mut self.jobs {
+        if let Some(job) = self.jobs.first_mut().filter(|job| !job.paused) {
             job.remaining_ticks = job.remaining_ticks.saturating_sub(1);
         }
         let completed = self
@@ -835,14 +1166,31 @@ impl MissionSimV1 {
                         .unwrap_or(self.seed.map.party_start);
                     self.support_units.push(SupportUnit {
                         unit_id: format!("field_support_{}", self.support_units.len() + 1),
+                        role: "support".to_string(),
                         position,
                         hp: 240,
                         damage: 18 + i64::from(self.upgrade_level) * 5,
                         attack_interval_ticks: 18,
                     });
                 }
+                SimJobKind::TrainMedic => {
+                    let position = nearest_passable(&self.seed, job.target)
+                        .unwrap_or(self.seed.map.party_start);
+                    self.support_units.push(SupportUnit {
+                        unit_id: format!("field_medic_{}", self.support_units.len() + 1),
+                        role: "medic".to_string(),
+                        position,
+                        hp: 210,
+                        damage: 6,
+                        attack_interval_ticks: 20,
+                    });
+                }
                 SimJobKind::ResearchLogistics => {
                     self.researched_techs.insert("field_logistics".to_string());
+                }
+                SimJobKind::ResearchOptics => {
+                    self.researched_techs.insert("signal_optics".to_string());
+                    self.intel_level = self.intel_level.saturating_add(1).min(3);
                 }
                 SimJobKind::UpgradeRelayArms => {
                     self.upgrade_level = self.upgrade_level.saturating_add(1).min(3);
@@ -852,6 +1200,14 @@ impl MissionSimV1 {
                     }
                     for support in &mut self.support_units {
                         support.damage += 5;
+                    }
+                }
+                SimJobKind::UpgradeFieldArmor => {
+                    self.armor_upgrade_level = self.armor_upgrade_level.saturating_add(1).min(3);
+                    for unit in &mut self.party {
+                        unit.armor += 2;
+                        unit.max_hp += 25;
+                        unit.hp += 25;
                     }
                 }
             }
@@ -865,6 +1221,18 @@ impl MissionSimV1 {
                 .tick
                 .is_multiple_of(self.support_units[support_index].attack_interval_ticks as u64)
             {
+                continue;
+            }
+            if self.support_units[support_index].role == "medic" {
+                if let Some(target) = self
+                    .party
+                    .iter_mut()
+                    .filter(|unit| unit.alive() && unit.hp < unit.max_hp)
+                    .min_by_key(|unit| unit.hp * 100 / unit.max_hp.max(1))
+                {
+                    target.hp = (target.hp + 24).min(target.max_hp);
+                    self.event_count += 1;
+                }
                 continue;
             }
             let target = self
@@ -908,6 +1276,7 @@ impl MissionSimV1 {
 
     fn spawn_reinforcement_wave(&mut self, aftershock: bool) {
         self.reinforcement_wave = self.reinforcement_wave.saturating_add(1);
+        self.enemy_tactics_level = self.enemy_tactics_level.saturating_add(1).min(3);
         let count = if aftershock { 3 } else { 2 };
         let scale = 100 + i64::from(self.reinforcement_wave) * 8 + if aftershock { 18 } else { 0 };
         for index in 0..count {
@@ -1067,8 +1436,14 @@ impl MissionSimV1 {
                 .filter(|(_, unit)| unit.alive())
                 .min_by_key(|(_, unit)| {
                     let wounded_bias = unit.hp * 100 / unit.max_hp.max(1);
+                    let role_bias = if self.enemy_tactics_level >= 2 && unit.role == "engineer" {
+                        -3
+                    } else {
+                        0
+                    };
                     distance(self.enemies[attacker_index].position, unit.position) as i64 * 10
                         + wounded_bias
+                        + role_bias
                 })
                 .map(|(index, _)| index)
             else {
@@ -1156,6 +1531,64 @@ impl MissionSimV1 {
             self.party.iter().map(|unit| unit.hp.max(0)).sum(),
             self.party.iter().map(|unit| unit.max_hp).sum(),
         )
+    }
+
+    pub fn is_enemy_visible(&self, enemy_id: &str) -> bool {
+        self.enemies
+            .iter()
+            .find(|enemy| enemy.unit_id == enemy_id && enemy.alive())
+            .is_some_and(|enemy| self.visible_tiles.contains(&enemy.position))
+    }
+
+    pub fn visible_percent(&self) -> u8 {
+        let total = u32::from(self.seed.map.width) * u32::from(self.seed.map.height);
+        (self.visible_tiles.len() as u32 * 100)
+            .checked_div(total)
+            .unwrap_or(0)
+            .min(100) as u8
+    }
+
+    pub fn visible_enemy_count(&self) -> usize {
+        self.enemies
+            .iter()
+            .filter(|enemy| enemy.alive() && self.visible_tiles.contains(&enemy.position))
+            .count()
+    }
+
+    pub fn visible_enemy_hp_percent(&self) -> u8 {
+        let visible = self
+            .enemies
+            .iter()
+            .filter(|enemy| enemy.alive() && self.visible_tiles.contains(&enemy.position))
+            .collect::<Vec<_>>();
+        percent(
+            visible.iter().map(|enemy| enemy.hp.max(0)).sum(),
+            visible.iter().map(|enemy| enemy.max_hp).sum(),
+        )
+    }
+
+    fn refresh_visibility(&mut self) {
+        let mut visible = BTreeSet::new();
+        let base_radius = 4 + i16::from(self.intel_level.min(2));
+        for unit in self.party.iter().filter(|unit| unit.alive()) {
+            reveal_from(&self.seed, unit.position, base_radius, &mut visible);
+        }
+        for support in &self.support_units {
+            reveal_from(&self.seed, support.position, 3, &mut visible);
+        }
+        if self.recon_bonus_ticks > 0 {
+            if let Some(focus) = self.recon_focus {
+                let radius = if self.researched_techs.contains("signal_optics") {
+                    8
+                } else {
+                    6
+                };
+                reveal_from(&self.seed, focus, radius, &mut visible);
+            }
+        }
+        self.visible_tiles = visible;
+        self.explored_tiles
+            .extend(self.visible_tiles.iter().copied());
     }
 
     pub fn enemy_hp_percent(&self) -> u8 {
@@ -1277,6 +1710,49 @@ impl MissionSimV1 {
 
 fn is_aftershock_map(map_id: &str) -> bool {
     matches!(map_id, "aftershock_patrol" | "first_contact_aftershock")
+}
+
+fn default_support_role() -> String {
+    "support".to_string()
+}
+
+fn is_continuous_order(kind: RtsOrderKind) -> bool {
+    matches!(
+        kind,
+        RtsOrderKind::Move
+            | RtsOrderKind::AttackMove
+            | RtsOrderKind::Harvest
+            | RtsOrderKind::Capture
+            | RtsOrderKind::Attack
+            | RtsOrderKind::FocusFire
+            | RtsOrderKind::Hold
+    )
+}
+
+fn reveal_from(
+    seed: &BattleSeedV1,
+    origin: BattleGridPoint,
+    radius: i16,
+    visible: &mut BTreeSet<BattleGridPoint>,
+) {
+    let mut frontier = VecDeque::from([(origin, 0_i16)]);
+    let mut visited = BTreeSet::from([origin]);
+    while let Some((tile, steps)) = frontier.pop_front() {
+        visible.insert(tile);
+        if steps >= radius {
+            continue;
+        }
+        for next in neighbors(tile) {
+            if !seed.map.in_bounds(next) || !visited.insert(next) {
+                continue;
+            }
+            if seed.map.passable(next) {
+                frontier.push_back((next, steps + 1));
+            } else {
+                visible.insert(next);
+            }
+        }
+    }
 }
 
 fn formation_target_for(
@@ -1696,6 +2172,7 @@ mod tests {
         );
         assert!((8..=12).contains(&sim.order_count));
         assert!(sim.resources_spent >= FIELD_AID_COST + FORTIFY_COST);
+        assert_eq!(sim.enemy_tactics_level, 2);
         let result = sim.into_result().unwrap();
         assert!(!result.loot.is_empty());
         assert!(result.resource_delta > 0);
@@ -1818,7 +2295,7 @@ mod tests {
             target,
         ))
         .unwrap();
-        for _ in 0..80 {
+        for _ in 0..150 {
             sim.step().unwrap();
         }
         assert_eq!(sim.support_units.len(), 1);
@@ -1856,5 +2333,199 @@ mod tests {
                 .map(|unit| unit.position)
                 .collect::<Vec<_>>()
         );
+    }
+
+    #[test]
+    fn control_groups_and_shift_queue_are_authoritative_and_cancelable() {
+        let mut sim = MissionSimV1::from_seed(seed()).unwrap();
+        let subjects = sim.party[0..2]
+            .iter()
+            .map(|unit| unit.unit_id.clone())
+            .collect::<Vec<_>>();
+        let mut assign = RtsFrameOrder::new(
+            1,
+            "player",
+            subjects.clone(),
+            RtsOrderKind::AssignGroup,
+            RtsOrderSource::LocalInput,
+        );
+        assign.target_rule_id = Some("2".to_string());
+        sim.issue_order(assign).unwrap();
+        assert_eq!(
+            sim.control_group_members("2")
+                .into_iter()
+                .collect::<BTreeSet<_>>(),
+            subjects.into_iter().collect::<BTreeSet<_>>()
+        );
+
+        let mut first = order(&sim, RtsOrderKind::Move, sim.seed.map.approach_point);
+        first.frame = 2;
+        first.queued = true;
+        first.queue_id = Some("route-1".to_string());
+        sim.issue_order(first).unwrap();
+        let mut second = order(&sim, RtsOrderKind::Attack, sim.seed.map.objective);
+        second.frame = 2;
+        second.queued = true;
+        second.queue_id = Some("route-2".to_string());
+        sim.issue_order(second).unwrap();
+        assert_eq!(sim.queued_orders.len(), 1);
+
+        let mut cancel = RtsFrameOrder::new(
+            2,
+            "player",
+            sim.party
+                .iter()
+                .map(|unit| unit.unit_id.clone())
+                .collect::<Vec<_>>(),
+            RtsOrderKind::CancelQueuedOrder,
+            RtsOrderSource::LocalInput,
+        );
+        cancel.queue_id = Some("route-2".to_string());
+        sim.issue_order(cancel).unwrap();
+        assert!(sim.queued_orders.is_empty());
+        sim.party[0].hp = 0;
+        let dead_id = sim.party[0].unit_id.clone();
+        sim.step().unwrap();
+        assert!(!sim.control_group_members("2").contains(&dead_id));
+        assert!(sim.validate().is_ok());
+    }
+
+    #[test]
+    fn production_jobs_pause_promote_rally_cancel_and_refund_once() {
+        let mut sim = MissionSimV1::from_seed(seed()).unwrap();
+        sim.resources_gathered = 300;
+        sim.resources_available = 300;
+        let target = sim.seed.map.approach_point;
+        sim.issue_order(job_order(
+            &sim,
+            RtsOrderKind::Train,
+            "field_support_drone",
+            target,
+        ))
+        .unwrap();
+        let support_id = sim.jobs[0].job_id.clone();
+
+        let lifecycle = |sim: &MissionSimV1, kind: RtsOrderKind, job_id: &str| {
+            let mut order = RtsFrameOrder::new(
+                sim.tick as u32,
+                "player",
+                sim.party
+                    .iter()
+                    .map(|unit| unit.unit_id.clone())
+                    .collect::<Vec<_>>(),
+                kind,
+                RtsOrderSource::LocalInput,
+            );
+            order.queue_id = Some(job_id.to_string());
+            order
+        };
+        sim.issue_order(lifecycle(&sim, RtsOrderKind::PauseJob, &support_id))
+            .unwrap();
+        let remaining = sim.jobs[0].remaining_ticks;
+        for _ in 0..10 {
+            sim.step().unwrap();
+        }
+        assert_eq!(sim.jobs[0].remaining_ticks, remaining);
+        sim.issue_order(lifecycle(&sim, RtsOrderKind::ResumeJob, &support_id))
+            .unwrap();
+
+        let mut blocked_rally = lifecycle(&sim, RtsOrderKind::SetRally, &support_id);
+        blocked_rally.target_tile = Some(RtsTile::new(999, 999));
+        assert!(sim.issue_order(blocked_rally).is_err());
+        let mut rally = lifecycle(&sim, RtsOrderKind::SetRally, &support_id);
+        rally.target_tile = Some(RtsTile::new(target.x as i32, target.y as i32));
+        sim.issue_order(rally).unwrap();
+        assert_eq!(sim.jobs[0].target, target);
+
+        sim.issue_order(job_order(&sim, RtsOrderKind::Train, "field_medic", target))
+            .unwrap();
+        let medic_id = sim.jobs[1].job_id.clone();
+        sim.issue_order(lifecycle(&sim, RtsOrderKind::PromoteJob, &medic_id))
+            .unwrap();
+        assert_eq!(sim.jobs[0].kind, SimJobKind::TrainMedic);
+        let before_cancel = sim.resources_available;
+        sim.issue_order(lifecycle(&sim, RtsOrderKind::CancelJob, &medic_id))
+            .unwrap();
+        assert_eq!(sim.resources_available, before_cancel + 25);
+        assert!(sim
+            .issue_order(lifecycle(&sim, RtsOrderKind::CancelJob, &medic_id))
+            .is_err());
+        assert_eq!(sim.resources_available + sim.resources_spent, 300);
+    }
+
+    #[test]
+    fn fog_hides_targets_until_deterministic_recon_reveals_them() {
+        let mut sim = MissionSimV1::from_seed(seed()).unwrap();
+        let enemy_id = sim.enemies[0].unit_id.clone();
+        let enemy_position = sim.enemies[0].position;
+        assert!(!sim.is_enemy_visible(&enemy_id));
+        let mut hidden_attack = order(&sim, RtsOrderKind::Attack, enemy_position);
+        hidden_attack.target_actor_id = Some(enemy_id.clone());
+        assert!(sim.issue_order(hidden_attack).is_err());
+
+        sim.resources_gathered = 20;
+        sim.resources_available = 20;
+        sim.issue_order(order(&sim, RtsOrderKind::Recon, enemy_position))
+            .unwrap();
+        assert!(sim.is_enemy_visible(&enemy_id));
+        assert!(sim.explored_tiles.is_superset(&sim.visible_tiles));
+        assert!(sim.visible_percent() > 0);
+        sim.issue_order({
+            let mut attack = order(&sim, RtsOrderKind::Attack, enemy_position);
+            attack.target_actor_id = Some(enemy_id);
+            attack
+        })
+        .unwrap();
+    }
+
+    #[test]
+    fn expanded_medic_optics_armor_tree_changes_authoritative_combat_state() {
+        let mut sim = MissionSimV1::from_seed(seed()).unwrap();
+        sim.resources_gathered = 600;
+        sim.resources_available = 600;
+        let target = sim.seed.map.party_start;
+        sim.issue_order(job_order(
+            &sim,
+            RtsOrderKind::Research,
+            "field_logistics",
+            target,
+        ))
+        .unwrap();
+        for _ in 0..70 {
+            sim.step().unwrap();
+        }
+        sim.issue_order(job_order(
+            &sim,
+            RtsOrderKind::Research,
+            "signal_optics",
+            target,
+        ))
+        .unwrap();
+        for _ in 0..90 {
+            sim.step().unwrap();
+        }
+        assert!(sim.researched_techs.contains("signal_optics"));
+
+        let armor_before = sim.party[0].armor;
+        sim.issue_order(job_order(
+            &sim,
+            RtsOrderKind::Upgrade,
+            "field_armor",
+            target,
+        ))
+        .unwrap();
+        for _ in 0..75 {
+            sim.step().unwrap();
+        }
+        assert_eq!(sim.armor_upgrade_level, 1);
+        assert!(sim.party[0].armor > armor_before);
+
+        sim.issue_order(job_order(&sim, RtsOrderKind::Train, "field_medic", target))
+            .unwrap();
+        for _ in 0..95 {
+            sim.step().unwrap();
+        }
+        assert!(sim.support_units.iter().any(|unit| unit.role == "medic"));
+        assert_eq!(sim.resources_available + sim.resources_spent, 600);
     }
 }

@@ -191,10 +191,17 @@ pub struct FirstContactRuntime {
     pub withdrawal: bool,
     pub party_hp_percent: u8,
     pub enemy_hp_percent: u8,
+    pub visible_enemy_count: usize,
     pub intel_level: u8,
+    pub visible_percent: u8,
     pub queued_jobs: usize,
+    pub queued_orders: usize,
     pub support_units: usize,
     pub tech_level: u8,
+    pub production_variant: u8,
+    pub active_control_group: Option<u8>,
+    pub last_group_recall: Option<(u8, f32)>,
+    pub camera_focus_request: Option<Vec2>,
     pub group_world_position: Vec2,
     pub phase: BattlePhase,
     pub selected_slots: BTreeSet<usize>,
@@ -226,10 +233,17 @@ impl Default for FirstContactRuntime {
             withdrawal: false,
             party_hp_percent: 100,
             enemy_hp_percent: 100,
+            visible_enemy_count: 0,
             intel_level: 0,
+            visible_percent: 0,
             queued_jobs: 0,
+            queued_orders: 0,
             support_units: 0,
             tech_level: 0,
+            production_variant: 0,
+            active_control_group: Some(1),
+            last_group_recall: None,
+            camera_focus_request: None,
             group_world_position: Vec2::ZERO,
             phase: BattlePhase::Approach,
             selected_slots: BTreeSet::new(),
@@ -264,6 +278,12 @@ impl FirstContactRuntime {
         if self.party_hp_percent < 60 && self.credits >= 20 {
             return FirstContactCommand::FieldAid;
         }
+        if matches!(self.phase, BattlePhase::Contact | BattlePhase::Relay)
+            && self.visible_enemy_count == 0
+            && self.credits >= 10
+        {
+            return FirstContactCommand::Recon;
+        }
         if self.phase == BattlePhase::Relay && self.enemy_hp_percent > 0 && self.credits >= 30 {
             return FirstContactCommand::Fortify;
         }
@@ -293,6 +313,11 @@ fn target_cycle(
         .into_iter()
         .flat_map(|mission| mission.enemies.iter())
         .filter(|unit| unit.alive())
+        .filter(|unit| {
+            flow.mission
+                .as_ref()
+                .is_some_and(|mission| mission.is_enemy_visible(&unit.unit_id))
+        })
         .map(|unit| {
             (
                 unit.unit_id.clone(),
@@ -437,18 +462,100 @@ pub(super) fn handle_first_contact_commands(
     }
     if input.just_pressed(KeyCode::Digit0) {
         runtime.selected_slots.clear();
+        runtime.active_control_group = None;
         runtime.command_feedback = "Selected the full four-person party".to_string();
     }
-    for (key, slot) in [
-        (KeyCode::Digit1, 0),
-        (KeyCode::Digit2, 1),
-        (KeyCode::Digit3, 2),
-        (KeyCode::Digit4, 3),
+    let control = input.pressed(KeyCode::ControlLeft) || input.pressed(KeyCode::ControlRight);
+    for (key, group) in [
+        (KeyCode::Digit1, 1_u8),
+        (KeyCode::Digit2, 2),
+        (KeyCode::Digit3, 3),
+        (KeyCode::Digit4, 4),
+        (KeyCode::Digit5, 5),
+        (KeyCode::Digit6, 6),
+        (KeyCode::Digit7, 7),
+        (KeyCode::Digit8, 8),
+        (KeyCode::Digit9, 9),
     ] {
         if input.just_pressed(key) {
-            runtime.selected_slots.clear();
-            runtime.selected_slots.insert(slot);
-            runtime.command_feedback = format!("Selected party slot {}", slot + 1);
+            let Some(mission) = flow.mission.as_mut() else {
+                return;
+            };
+            let selected_ids = mission
+                .party
+                .iter()
+                .enumerate()
+                .filter(|(index, unit)| {
+                    unit.alive()
+                        && (runtime.selected_slots.is_empty()
+                            || runtime.selected_slots.contains(index))
+                })
+                .map(|(_, unit)| unit.unit_id.clone())
+                .collect::<Vec<_>>();
+            let mut order = RtsFrameOrder::new(
+                mission.tick as u32,
+                "player",
+                selected_ids,
+                if control {
+                    RtsOrderKind::AssignGroup
+                } else {
+                    RtsOrderKind::RecallGroup
+                },
+                RtsOrderSource::LocalInput,
+            );
+            order.target_rule_id = Some(group.to_string());
+            order.raw_command_label = Some(if control {
+                format!("CONTROL_GROUP_ASSIGN:{group}")
+            } else {
+                format!("CONTROL_GROUP_RECALL:{group}")
+            });
+            if let Err(error) = mission.issue_order(order.clone()) {
+                runtime.command_feedback = error.to_string();
+                continue;
+            }
+            if control {
+                runtime.active_control_group = Some(group);
+                runtime.command_feedback = format!("Assigned selection to control group {group}");
+            } else {
+                let members = mission.control_group_members(&group.to_string());
+                runtime.selected_slots = mission
+                    .party
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, unit)| members.contains(&unit.unit_id))
+                    .map(|(index, _)| index)
+                    .collect();
+                runtime.active_control_group = Some(group);
+                let double_tap = runtime.last_group_recall.is_some_and(|(previous, at)| {
+                    previous == group && runtime.elapsed_seconds - at <= 0.65
+                });
+                if double_tap {
+                    let positions = mission
+                        .party
+                        .iter()
+                        .filter(|unit| members.contains(&unit.unit_id) && unit.alive())
+                        .map(|unit| {
+                            map_world_position(
+                                &map,
+                                unit.position.x as i32,
+                                unit.position.y as i32,
+                                0.0,
+                            )
+                            .truncate()
+                        })
+                        .collect::<Vec<_>>();
+                    if !positions.is_empty() {
+                        runtime.camera_focus_request =
+                            Some(positions.iter().copied().sum::<Vec2>() / positions.len() as f32);
+                    }
+                    runtime.command_feedback =
+                        format!("Recalled and focused control group {group}");
+                } else {
+                    runtime.command_feedback = format!("Recalled control group {group}");
+                }
+                runtime.last_group_recall = Some((group, runtime.elapsed_seconds));
+            }
+            adapter.accepted_orders.push(order);
         }
     }
     if input.just_pressed(KeyCode::KeyF) {
@@ -487,6 +594,86 @@ pub(super) fn handle_first_contact_commands(
             runtime.target_actor_id = None;
             runtime.command_feedback = format!("Free target: {},{}", candidate.x, candidate.y);
         }
+    }
+
+    if input.just_pressed(KeyCode::KeyZ) {
+        runtime.production_variant = (runtime.production_variant + 1) % 2;
+        runtime.command_feedback = if runtime.production_variant == 0 {
+            "Production selected: support drone".to_string()
+        } else {
+            "Production selected: field medic".to_string()
+        };
+        return;
+    }
+    let lifecycle = flow.mission.as_ref().and_then(|mission| {
+        if input.just_pressed(KeyCode::Delete) {
+            mission
+                .queued_orders
+                .back()
+                .and_then(|queued| queued.queue_id.clone())
+                .map(|id| (RtsOrderKind::CancelQueuedOrder, id))
+        } else if input.just_pressed(KeyCode::KeyU) {
+            mission
+                .jobs
+                .first()
+                .map(|job| (RtsOrderKind::CancelJob, job.job_id.clone()))
+        } else if input.just_pressed(KeyCode::KeyY) {
+            mission.jobs.first().map(|job| {
+                (
+                    if job.paused {
+                        RtsOrderKind::ResumeJob
+                    } else {
+                        RtsOrderKind::PauseJob
+                    },
+                    job.job_id.clone(),
+                )
+            })
+        } else if input.just_pressed(KeyCode::KeyO) {
+            mission
+                .jobs
+                .last()
+                .map(|job| (RtsOrderKind::PromoteJob, job.job_id.clone()))
+        } else if input.just_pressed(KeyCode::KeyM) {
+            mission
+                .jobs
+                .first()
+                .map(|job| (RtsOrderKind::SetRally, job.job_id.clone()))
+        } else {
+            None
+        }
+    });
+    if let Some((kind, queue_id)) = lifecycle {
+        let mission = flow.mission.as_ref().expect("lifecycle mission exists");
+        let subjects = mission
+            .party
+            .iter()
+            .filter(|unit| unit.alive())
+            .map(|unit| unit.unit_id.clone())
+            .collect::<Vec<_>>();
+        let mut order = RtsFrameOrder::new(
+            mission.tick as u32,
+            "player",
+            subjects,
+            kind,
+            RtsOrderSource::LocalInput,
+        );
+        order.queue_id = Some(queue_id);
+        if kind == RtsOrderKind::SetRally {
+            order.target_tile = Some(RtsTile::new(runtime.target_tile.x, runtime.target_tile.y));
+        }
+        match flow
+            .mission
+            .as_mut()
+            .expect("lifecycle mission exists")
+            .issue_order(order.clone())
+        {
+            Ok(()) => {
+                adapter.accepted_orders.push(order);
+                runtime.command_feedback = format!("{} accepted", kind.as_str());
+            }
+            Err(error) => runtime.command_feedback = error.to_string(),
+        }
+        return;
     }
 
     let command = if input.just_pressed(KeyCode::KeyQ) {
@@ -550,6 +737,30 @@ pub(super) fn handle_first_contact_commands(
         runtime.target_tile,
         runtime.target_actor_id.clone(),
     );
+    let shift = input.pressed(KeyCode::ShiftLeft) || input.pressed(KeyCode::ShiftRight);
+    if shift
+        && matches!(
+            command,
+            FirstContactCommand::Move
+                | FirstContactCommand::Attack
+                | FirstContactCommand::Harvest
+                | FirstContactCommand::Hold
+        )
+    {
+        order.queued = true;
+        order.queue_id = Some(format!("player-order-{}", mission.tick));
+    }
+    if command == FirstContactCommand::Train && runtime.production_variant == 1 {
+        order.target_rule_id = Some("field_medic".to_string());
+    }
+    if command == FirstContactCommand::Research
+        && mission.researched_techs.contains("field_logistics")
+    {
+        order.target_rule_id = Some("signal_optics".to_string());
+    }
+    if command == FirstContactCommand::Upgrade && mission.upgrade_level > 0 {
+        order.target_rule_id = Some("field_armor".to_string());
+    }
     if matches!(
         command,
         FirstContactCommand::Move | FirstContactCommand::Attack | FirstContactCommand::Hold
@@ -626,7 +837,12 @@ pub(super) fn advance_first_contact_simulation(
     mut runtime: ResMut<FirstContactRuntime>,
     mut flow: ResMut<CampaignFlow>,
     mut units: Query<
-        (&mut Sprite, &mut Transform, &FirstContactUnitSprite),
+        (
+            &mut Sprite,
+            &mut Transform,
+            &mut Visibility,
+            &FirstContactUnitSprite,
+        ),
         (
             Without<FirstContactSelectionRing>,
             Without<FirstContactStructureSprite>,
@@ -696,7 +912,8 @@ pub(super) fn advance_first_contact_simulation(
     }
     if let Some(mission) = flow.mission.as_ref() {
         runtime.party_hp_percent = mission.party_hp_percent();
-        runtime.enemy_hp_percent = mission.enemy_hp_percent();
+        runtime.enemy_hp_percent = mission.visible_enemy_hp_percent();
+        runtime.visible_enemy_count = mission.visible_enemy_count();
         runtime.contact_hp = mission.relay_guard_percent() as f32;
         runtime.objective_progress = mission.capture_percent() as f32;
         runtime.victory = mission.outcome == Some(BattleOutcome::Victory);
@@ -704,7 +921,9 @@ pub(super) fn advance_first_contact_simulation(
         runtime.withdrawal = mission.outcome == Some(BattleOutcome::Withdrawal);
         runtime.credits = mission.resources_available;
         runtime.intel_level = mission.intel_level;
+        runtime.visible_percent = mission.visible_percent();
         runtime.queued_jobs = mission.jobs.len();
+        runtime.queued_orders = mission.queued_orders.len();
         runtime.support_units = mission.support_units.len();
         runtime.tech_level = mission.upgrade_level;
         runtime.supply_used =
@@ -725,6 +944,9 @@ pub(super) fn advance_first_contact_simulation(
         } else {
             match mission.phase {
                 BattlePhase::Approach => "APPROACH: move through the south pass".to_string(),
+                BattlePhase::Contact if mission.visible_enemy_count() == 0 => {
+                    "CONTACT: no hostile is currently visible; move or use C recon".to_string()
+                }
                 BattlePhase::Contact if mission.resources_gathered < 40 => format!(
                     "CONTACT: Party {}% | Enemy {}% | harvest for ability energy",
                     mission.party_hp_percent(),
@@ -762,34 +984,42 @@ pub(super) fn advance_first_contact_simulation(
                     runtime.selected_slots.is_empty() || runtime.selected_slots.contains(&index);
                 simulated_visuals.insert(
                     seeded.spawn_slot.clone(),
-                    (unit.position, unit.alive(), true, selected),
+                    (unit.position, unit.alive(), true, selected, true),
                 );
             }
         }
         for unit in &mission.enemies {
             simulated_visuals.insert(
                 unit.unit_id.clone(),
-                (unit.position, unit.alive(), false, false),
+                (
+                    unit.position,
+                    unit.alive(),
+                    false,
+                    false,
+                    mission.is_enemy_visible(&unit.unit_id),
+                ),
             );
         }
         for support in &mission.support_units {
             simulated_visuals.insert(
                 support.unit_id.clone(),
-                (support.position, support.hp > 0, true, false),
+                (support.position, support.hp > 0, true, false, true),
             );
         }
     }
 
     let existing_visual_ids = units
         .iter()
-        .map(|(_, _, unit)| unit.id.clone())
+        .map(|(_, _, _, unit)| unit.id.clone())
         .collect::<BTreeSet<_>>();
     if let Some(handles) = handles.as_deref() {
         let family = manifest
             .unit("sentinel")
             .expect("support sentinel family is authored");
-        for (id, (position, alive, player, _)) in &simulated_visuals {
-            if !id.starts_with("field_support_") || existing_visual_ids.contains(id) {
+        for (id, (position, alive, player, _, _)) in &simulated_visuals {
+            if (!id.starts_with("field_support_") && !id.starts_with("field_medic_"))
+                || existing_visual_ids.contains(id)
+            {
                 continue;
             }
             commands.spawn((
@@ -821,13 +1051,19 @@ pub(super) fn advance_first_contact_simulation(
     let mut selected_position_sum = Vec2::ZERO;
     let mut selected_position_count = 0usize;
     let mut unit_positions = std::collections::HashMap::new();
-    for (mut sprite, mut transform, unit) in &mut units {
+    for (mut sprite, mut transform, mut visibility, unit) in &mut units {
         let family = manifest
             .unit(&unit.family)
             .expect("rendered unit family remains in atlas");
-        let Some((position, alive, player, selected)) = simulated_visuals.get(&unit.id).copied()
+        let Some((position, alive, player, selected, visible)) =
+            simulated_visuals.get(&unit.id).copied()
         else {
             continue;
+        };
+        *visibility = if visible {
+            Visibility::Visible
+        } else {
+            Visibility::Hidden
         };
         let world = map_world_position(&map, position.x as i32, position.y as i32, 8.0);
         let old = transform.translation.truncate();
@@ -853,7 +1089,9 @@ pub(super) fn advance_first_contact_simulation(
         if let Some(atlas) = sprite.texture_atlas.as_mut() {
             atlas.index = family.atlas_index(column);
         }
-        unit_positions.insert(unit.id.clone(), (transform.translation, selected));
+        if visible {
+            unit_positions.insert(unit.id.clone(), (transform.translation, selected));
+        }
     }
     if selected_position_count > 0 {
         runtime.group_world_position = selected_position_sum / selected_position_count as f32;
@@ -935,6 +1173,7 @@ pub(super) fn pan_first_contact_camera(
     map: Res<FirstContactMap>,
     windows: Query<&Window, With<PrimaryWindow>>,
     flow: Res<CampaignFlow>,
+    mut runtime: ResMut<FirstContactRuntime>,
     mut cameras: Query<&mut Transform, With<FirstContactCamera>>,
 ) {
     if !flow.in_battle() {
@@ -943,6 +1182,10 @@ pub(super) fn pan_first_contact_camera(
     let Ok(mut camera) = cameras.single_mut() else {
         return;
     };
+    if let Some(request) = runtime.camera_focus_request.take() {
+        camera.translation.x = request.x;
+        camera.translation.y = request.y;
+    }
     let mut direction = Vec2::ZERO;
     if input.pressed(KeyCode::ArrowLeft) {
         direction.x -= 1.0;

@@ -129,7 +129,7 @@ fn town_body(flow: &CampaignFlow) -> String {
                 .map(|progress| progress.rank)
                 .unwrap_or(0);
             format!(
-                "{}\n\nMENTOR MET: {}  |  TRAINING COMPLETE: {}\nSELECTED PATH: {}  |  PATH RANK: {}\nSESSIONS: {}/{}  |  CREDITS: {}\n\nL cycles Iron Guard / Wind Step / Inner Flame. K buys the selected training session; the cap and cost prevent free grinding.",
+                "{}\n\nMENTOR MET: {}  |  TRAINING COMPLETE: {}\nSELECTED PATH: {}  |  PATH RANK: {}\nSESSIONS: {}/{}  |  CREDITS: {}  |  FACTION: {:?}\n\nL cycles paths; K trains; Y runs the deterministic guard/inner-power/strike sparring bout. Sparring raises trust and can grant Disciple rank once.",
                 room_label(save.room),
                 save.mentor_met,
                 save.trained_with_mentor,
@@ -138,6 +138,7 @@ fn town_body(flow: &CampaignFlow) -> String {
                 save.progression.mentor_training_sessions,
                 trnm_campaign_core::MAX_MENTOR_TRAINING_SESSIONS,
                 save.progression.credits,
+                save.faction_rank,
             )
         }
         CampaignRoom::ExpeditionGate => {
@@ -158,7 +159,7 @@ fn town_body(flow: &CampaignFlow) -> String {
                 .collect::<Vec<_>>()
                 .join("\n");
             format!(
-                "{}\n\nMISSION: {} / {}  |  LOADOUT: {}\nPARTY (7 candidates, selected 4 -> RTS spawn slots):\n{}\n\nP cycles Balanced / Mobile / Vanguard parties. E cycles Guard / Raider / Mystic equipment. First victory unlocks repeatable Aftershock Patrols whose BattleSeed consumes growth, reputation, relics and injuries.",
+                "{}\n\nMISSION: {} / {}  |  LOADOUT: {}\nPARTY (hero + freely chosen companions):\n{}\n\nZ/X/C independently cycle companion slots 1/2/3; P still cycles valid presets. E cycles equipment. Brann is locked until Relay Quarter trust recruitment.",
                 room_label(save.room),
                 quest_label(save.quest_state),
                 save.active_mission.display_name(),
@@ -167,8 +168,16 @@ fn town_body(flow: &CampaignFlow) -> String {
             )
         }
         CampaignRoom::RelayQuarter => format!(
-            "{}\n\nThe route opened only after First Contact and Aftershock were both secured.\n\nGrowth is now a visible world consequence: the new district, its patrol board and future story exits are available after restart.\n\nSIGNAL ROAD FLAGS: {:?}",
+            "{}\n\nThe route opened only after First Contact and Aftershock were both secured. T speaks with Relay Smith Brann; U recruits him once trust reaches 8.\n\nBRANN TRUST: {}  |  RECRUITED: {}  |  FACTION: {:?}\n\nSIGNAL ROAD FLAGS: {:?}",
             room_label(save.room),
+            save.npc_relationships
+                .get("relay-smith-brann")
+                .map(|relation| relation.trust)
+                .unwrap_or(0),
+            save.npc_relationships
+                .get("relay-smith-brann")
+                .is_some_and(|relation| relation.recruited),
+            save.faction_rank,
             save.progression
                 .world_flags
                 .iter()
@@ -309,14 +318,14 @@ pub(super) fn update_campaign_ui(
                     "1 SQUARE | 2 MENTOR | 3 GATE | 4 RELAY | E LOADOUT | P PARTY | H HEAL | G RELIC".to_string()
                 }
                 CampaignRoom::MentorHall => {
-                    "T TALK | L PATH | K TRAIN | E LOADOUT | H HEAL | G RELIC | 1 SQUARE | 3 GATE".to_string()
+                    "T TALK | L PATH | K TRAIN | Y SPAR | E LOADOUT | H HEAL | 1 SQUARE | 3 GATE".to_string()
                 }
                 CampaignRoom::ExpeditionGate => {
-                    "P PARTY | E LOADOUT | H HEAL | G RELIC | F ACCEPT / DEPLOY | 1 SQUARE | 2 MENTOR | 4 RELAY"
+                    "Z/X/C FREE PARTY | P PRESET | E LOADOUT | F ACCEPT/DEPLOY | 1 SQUARE | 2 MENTOR | 4 RELAY"
                         .to_string()
                 }
                 CampaignRoom::RelayQuarter => {
-                    "1 SQUARE | 2 MENTOR | 3 GATE | SIGNAL ROAD STORY UNLOCKED".to_string()
+                    "T TALK BRANN | U RECRUIT | Z/X/C FREE PARTY | 1 SQUARE | 2 MENTOR | 3 GATE".to_string()
                 }
             }
         };

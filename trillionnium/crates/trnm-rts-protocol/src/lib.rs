@@ -22,6 +22,16 @@ pub enum RtsOrderKind {
     Train,
     Research,
     Upgrade,
+    AssignGroup,
+    AppendGroup,
+    RemoveGroup,
+    RecallGroup,
+    CancelQueuedOrder,
+    CancelJob,
+    PauseJob,
+    ResumeJob,
+    PromoteJob,
+    SetRally,
     Hold,
 }
 
@@ -42,6 +52,16 @@ impl RtsOrderKind {
             Self::Train => "train",
             Self::Research => "research",
             Self::Upgrade => "upgrade",
+            Self::AssignGroup => "assign_group",
+            Self::AppendGroup => "append_group",
+            Self::RemoveGroup => "remove_group",
+            Self::RecallGroup => "recall_group",
+            Self::CancelQueuedOrder => "cancel_queued_order",
+            Self::CancelJob => "cancel_job",
+            Self::PauseJob => "pause_job",
+            Self::ResumeJob => "resume_job",
+            Self::PromoteJob => "promote_job",
+            Self::SetRally => "set_rally",
             Self::Hold => "hold",
         }
     }
@@ -122,6 +142,9 @@ impl RtsFrameOrder {
         if self.player_id.is_empty() || self.subject_actor_ids.is_empty() {
             return Err("order_player_or_subject_missing".to_string());
         }
+        if self.queued && self.queue_id.as_deref().is_none_or(str::is_empty) {
+            return Err("queued_order_id_missing".to_string());
+        }
         match self.kind {
             RtsOrderKind::Move | RtsOrderKind::AttackMove => {
                 if self.target_tile.is_none() {
@@ -159,6 +182,28 @@ impl RtsFrameOrder {
             RtsOrderKind::Train | RtsOrderKind::Research | RtsOrderKind::Upgrade => {
                 if self.target_rule_id.is_none() || self.queue_id.is_none() {
                     return Err(format!("{}_rule_or_queue_missing", self.kind.as_str()));
+                }
+            }
+            RtsOrderKind::AssignGroup
+            | RtsOrderKind::AppendGroup
+            | RtsOrderKind::RemoveGroup
+            | RtsOrderKind::RecallGroup => {
+                if self.target_rule_id.is_none() {
+                    return Err("control_group_id_missing".to_string());
+                }
+            }
+            RtsOrderKind::CancelQueuedOrder
+            | RtsOrderKind::CancelJob
+            | RtsOrderKind::PauseJob
+            | RtsOrderKind::ResumeJob
+            | RtsOrderKind::PromoteJob => {
+                if self.queue_id.is_none() {
+                    return Err(format!("{}_queue_id_missing", self.kind.as_str()));
+                }
+            }
+            RtsOrderKind::SetRally => {
+                if self.queue_id.is_none() || self.target_tile.is_none() {
+                    return Err("set_rally_queue_or_tile_missing".to_string());
                 }
             }
             RtsOrderKind::Hold => {}
@@ -256,5 +301,32 @@ mod tests {
             order.queue_id = Some("expedition_queue".to_string());
             assert!(order.validate().is_ok());
         }
+    }
+
+    #[test]
+    fn control_group_queue_and_job_lifecycle_orders_are_typed() {
+        let mut group = RtsFrameOrder::new(
+            1,
+            "player",
+            vec!["hero".to_string()],
+            RtsOrderKind::AssignGroup,
+            RtsOrderSource::LocalInput,
+        );
+        assert!(group.validate().is_err());
+        group.target_rule_id = Some("1".to_string());
+        assert!(group.validate().is_ok());
+
+        let mut cancel = group.clone();
+        cancel.kind = RtsOrderKind::CancelJob;
+        cancel.target_rule_id = None;
+        assert!(cancel.validate().is_err());
+        cancel.queue_id = Some("expedition_production-42".to_string());
+        assert!(cancel.validate().is_ok());
+
+        let mut rally = cancel;
+        rally.kind = RtsOrderKind::SetRally;
+        assert!(rally.validate().is_err());
+        rally.target_tile = Some(RtsTile::new(4, 5));
+        assert!(rally.validate().is_ok());
     }
 }

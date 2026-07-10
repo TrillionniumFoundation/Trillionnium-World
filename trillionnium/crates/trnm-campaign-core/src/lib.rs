@@ -14,8 +14,9 @@ use std::{
 };
 use trnm_rpg_core::{
     inventory_item_for as trillionnium_inventory_item_for, mirror_city_world_graph,
-    Character as WorldTrillionniumCharacter, TrillionniumAttributes, EXPEDITION_GATE_ROOM,
-    MENTOR_HALL_ROOM, MIRROR_SQUARE_ROOM, RELAY_QUARTER_ROOM,
+    resolve_mentor_sparring, Character as WorldTrillionniumCharacter, FactionRank, NpcRelationship,
+    RelationshipAction, SparringAction, SparringOutcome, SparringReport, TrillionniumAttributes,
+    EXPEDITION_GATE_ROOM, MENTOR_HALL_ROOM, MIRROR_SQUARE_ROOM, RELAY_QUARTER_ROOM,
 };
 
 pub const CAMPAIGN_SAVE_CONTRACT: &str = "trnm_campaign_save_v1";
@@ -705,6 +706,12 @@ pub struct CampaignSaveV1 {
     pub active_mission: CampaignMission,
     #[serde(default)]
     pub story: StoryProgress,
+    #[serde(default)]
+    pub npc_relationships: BTreeMap<String, NpcRelationship>,
+    #[serde(default)]
+    pub faction_rank: FactionRank,
+    #[serde(default)]
+    pub last_sparring: Option<SparringReport>,
     pub mentor_met: bool,
     pub trained_with_mentor: bool,
     pub quest_state: QuestState,
@@ -852,7 +859,7 @@ impl Default for CampaignSaveV1 {
                     persistent: true,
                     experience: 0,
                     injury_level: 0,
-                    available: true,
+                    available: false,
                 },
                 PartyMember {
                     unit_id: "sol".to_string(),
@@ -881,6 +888,18 @@ impl Default for CampaignSaveV1 {
             selected_loadout: LoadoutPreset::default(),
             active_mission: CampaignMission::default(),
             story: StoryProgress::default(),
+            npc_relationships: BTreeMap::from([
+                (
+                    "street-compass-sifu".to_string(),
+                    NpcRelationship::new("street-compass-sifu", "signal-road-school"),
+                ),
+                (
+                    "relay-smith-brann".to_string(),
+                    NpcRelationship::new("relay-smith-brann", "relay-quarter"),
+                ),
+            ]),
+            faction_rank: FactionRank::Outsider,
+            last_sparring: None,
             mentor_met: false,
             trained_with_mentor: false,
             quest_state: QuestState::Locked,
@@ -909,6 +928,12 @@ impl CampaignSaveV1 {
                 self.party.push(member);
             }
         }
+        self.npc_relationships
+            .entry("street-compass-sifu".to_string())
+            .or_insert_with(|| NpcRelationship::new("street-compass-sifu", "signal-road-school"));
+        self.npc_relationships
+            .entry("relay-smith-brann".to_string())
+            .or_insert_with(|| NpcRelationship::new("relay-smith-brann", "relay-quarter"));
         for item in defaults.character.inventory_items {
             if !self
                 .character
@@ -972,9 +997,16 @@ impl CampaignSaveV1 {
             .iter()
             .map(String::as_str)
             .collect::<BTreeSet<_>>();
+        let available = self
+            .party
+            .iter()
+            .filter(|member| member.available)
+            .map(|member| member.unit_id.as_str())
+            .collect::<BTreeSet<_>>();
         if party_ids.len() != self.party.len()
             || active.len() != self.active_party_ids.len()
             || !active.is_subset(&party_ids)
+            || !active.is_subset(&available)
         {
             return Err(CampaignError::InvalidState(
                 "party ids must be unique and active ids must exist".to_string(),
@@ -1015,6 +1047,11 @@ impl CampaignSaveV1 {
     pub fn talk_to_mentor(&mut self) -> Result<(), CampaignError> {
         self.require_room(CampaignRoom::MentorHall)?;
         self.mentor_met = true;
+        self.faction_rank = self.faction_rank.max(FactionRank::Initiate);
+        self.npc_relationships
+            .entry("street-compass-sifu".to_string())
+            .or_insert_with(|| NpcRelationship::new("street-compass-sifu", "signal-road-school"))
+            .apply(RelationshipAction::Talk);
         if self.quest_state == QuestState::Locked {
             self.quest_state = QuestState::Available;
         }
@@ -1045,6 +1082,10 @@ impl CampaignSaveV1 {
         self.progression.credits -= cost;
         self.progression.mentor_training_sessions += 1;
         self.trained_with_mentor = true;
+        self.npc_relationships
+            .get_mut("street-compass-sifu")
+            .expect("mentor relationship exists")
+            .apply(RelationshipAction::Train);
         let skill_id = self.selected_training_path.skill_id().to_string();
         if !self.character.skill_ids.contains(&skill_id) {
             self.character.skill_ids.push(skill_id.clone());
@@ -1148,7 +1189,134 @@ impl CampaignSaveV1 {
             .position(|preset| preset.as_slice() == current.as_slice())
             .map(|index| (index + 1) % presets.len())
             .unwrap_or(0);
-        self.select_party(presets[index].iter().map(|id| (*id).to_string()).collect())
+        for offset in 0..presets.len() {
+            let candidate = presets[(index + offset) % presets.len()]
+                .iter()
+                .map(|id| (*id).to_string())
+                .collect();
+            if self.select_party(candidate).is_ok() {
+                return Ok(());
+            }
+        }
+        Err(CampaignError::InvalidState(
+            "no complete party preset is currently available".to_string(),
+        ))
+    }
+
+    pub fn cycle_party_member(&mut self, companion_slot: usize) -> Result<(), CampaignError> {
+        self.require_town()?;
+        if !(1..=3).contains(&companion_slot) {
+            return Err(CampaignError::InvalidState(
+                "companion slot must be 1, 2 or 3".to_string(),
+            ));
+        }
+        let candidates = self
+            .party
+            .iter()
+            .filter(|member| member.available && member.unit_id != "hero")
+            .map(|member| member.unit_id.clone())
+            .collect::<Vec<_>>();
+        let current = &self.active_party_ids[companion_slot];
+        let start = candidates
+            .iter()
+            .position(|candidate| candidate == current)
+            .unwrap_or(0);
+        for offset in 1..=candidates.len() {
+            let candidate = &candidates[(start + offset) % candidates.len()];
+            if !self
+                .active_party_ids
+                .iter()
+                .any(|active| active == candidate)
+            {
+                self.active_party_ids[companion_slot] = candidate.clone();
+                self.revision += 1;
+                return Ok(());
+            }
+        }
+        Err(CampaignError::InvalidState(
+            "no unselected companion is available".to_string(),
+        ))
+    }
+
+    pub fn spar_with_mentor(&mut self) -> Result<SparringReport, CampaignError> {
+        self.require_room(CampaignRoom::MentorHall)?;
+        if !self.trained_with_mentor {
+            return Err(CampaignError::InvalidState(
+                "complete one training session before sparring".to_string(),
+            ));
+        }
+        let report = resolve_mentor_sparring(
+            &self.character.attributes,
+            &[
+                SparringAction::Guard,
+                SparringAction::InnerPower,
+                SparringAction::Strike,
+                SparringAction::InnerPower,
+            ],
+        );
+        if !self
+            .progression
+            .world_flags
+            .contains("mentor_sparring_completed")
+        {
+            self.progression
+                .world_flags
+                .insert("mentor_sparring_completed".to_string());
+            self.progression.experience += 20;
+            self.npc_relationships
+                .get_mut("street-compass-sifu")
+                .expect("mentor relationship exists")
+                .apply(RelationshipAction::Spar);
+            if report.outcome == SparringOutcome::Victory {
+                self.faction_rank = FactionRank::Disciple;
+                self.character.sect_id = Some("signal-road-school".to_string());
+                self.character.title = "Signal Road Disciple".to_string();
+            }
+        }
+        self.last_sparring = Some(report.clone());
+        self.revision += 1;
+        Ok(report)
+    }
+
+    pub fn talk_to_relay_smith(&mut self) -> Result<(), CampaignError> {
+        self.require_room(CampaignRoom::RelayQuarter)?;
+        let relation = self
+            .npc_relationships
+            .get_mut("relay-smith-brann")
+            .expect("relay smith relationship exists");
+        if relation.interactions == 0 {
+            relation.apply(RelationshipAction::Talk);
+            relation.apply(RelationshipAction::CompleteMission);
+        } else {
+            relation.apply(RelationshipAction::Talk);
+        }
+        self.faction_rank = self.faction_rank.max(FactionRank::Envoy);
+        self.revision += 1;
+        Ok(())
+    }
+
+    pub fn recruit_relay_smith(&mut self) -> Result<(), CampaignError> {
+        self.require_room(CampaignRoom::RelayQuarter)?;
+        let relation = self
+            .npc_relationships
+            .get_mut("relay-smith-brann")
+            .expect("relay smith relationship exists");
+        if !relation.can_recruit(8) {
+            return Err(CampaignError::InvalidState(
+                "Brann requires 8 trust before recruitment".to_string(),
+            ));
+        }
+        relation.recruited = true;
+        self.party
+            .iter_mut()
+            .find(|member| member.unit_id == "brann")
+            .expect("Brann roster entry exists")
+            .available = true;
+        self.progression
+            .world_flags
+            .insert("brann_recruited".to_string());
+        self.revision += 1;
+        Ok(())
     }
 
     pub fn heal_party(&mut self) -> Result<(), CampaignError> {
@@ -1439,6 +1607,14 @@ impl CampaignSaveV1 {
         self.progression
             .world_flags
             .extend(result.world_flags.iter().cloned());
+        if result.outcome == BattleOutcome::Victory {
+            self.npc_relationships
+                .entry("street-compass-sifu".to_string())
+                .or_insert_with(|| {
+                    NpcRelationship::new("street-compass-sifu", "signal-road-school")
+                })
+                .apply(RelationshipAction::CompleteMission);
+        }
 
         let mut injury_delta_by_unit = BTreeMap::new();
         for report in &result.units {
@@ -2066,5 +2242,54 @@ mod tests {
         assert!(campaign.character.equipment_slots.contains_key("relic"));
         let modifier = typed_equipment_modifier("relay-core-fragment");
         assert!(modifier.energy > 0 && modifier.ability_range > 0);
+    }
+
+    #[test]
+    fn free_party_relationship_recruitment_and_sparring_are_persistent() {
+        let mut campaign = CampaignSaveV1::default();
+        assert!(
+            !campaign
+                .party
+                .iter()
+                .find(|member| member.unit_id == "brann")
+                .unwrap()
+                .available
+        );
+        campaign.move_to(CampaignRoom::MentorHall).unwrap();
+        campaign.talk_to_mentor().unwrap();
+        campaign.train_with_mentor().unwrap();
+        let report = campaign.spar_with_mentor().unwrap();
+        assert_eq!(report.outcome, SparringOutcome::Victory);
+        assert_eq!(campaign.faction_rank, FactionRank::Disciple);
+        assert_eq!(
+            campaign.character.sect_id.as_deref(),
+            Some("signal-road-school")
+        );
+
+        campaign
+            .progression
+            .world_flags
+            .insert("signal_road_secured".to_string());
+        campaign.move_to(CampaignRoom::MirrorSquare).unwrap();
+        campaign.move_to(CampaignRoom::RelayQuarter).unwrap();
+        campaign.talk_to_relay_smith().unwrap();
+        campaign.recruit_relay_smith().unwrap();
+        assert!(
+            campaign
+                .party
+                .iter()
+                .find(|member| member.unit_id == "brann")
+                .unwrap()
+                .available
+        );
+        campaign
+            .select_party(vec![
+                "hero".to_string(),
+                "aya".to_string(),
+                "mako".to_string(),
+                "brann".to_string(),
+            ])
+            .unwrap();
+        assert!(campaign.validate().is_ok());
     }
 }

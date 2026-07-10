@@ -375,11 +375,13 @@ pub(super) fn update_first_contact_hud(
 ) {
     for mut text in &mut resources {
         text.0 = format!(
-            "FIELD {} | PARTY {}% | INTEL {} | JOBS {} | SUPPORT {} | TECH {} | SUPPLY {}/{}",
+            "FIELD {} | PARTY {}% | VIS {}% | INTEL {} | JOBS {} | ORDERS {} | SUPPORT {} | TECH {} | SUPPLY {}/{}",
             runtime.credits,
             runtime.party_hp_percent,
+            runtime.visible_percent,
             runtime.intel_level,
             runtime.queued_jobs,
+            runtime.queued_orders,
             runtime.support_units,
             runtime.tech_level,
             runtime.supply_used,
@@ -398,6 +400,10 @@ pub(super) fn update_first_contact_hud(
                 "APPROACH SOUTH PASS  |  TARGET {},{}",
                 runtime.target_tile.x, runtime.target_tile.y
             )
+        } else if runtime.phase == trnm_rts_sim::BattlePhase::Contact
+            && runtime.visible_enemy_count == 0
+        {
+            "CONTACT UNKNOWN  |  MOVE OR USE C RECON".to_string()
         } else if runtime.enemy_hp_percent > 0 {
             format!(
                 "BREAK CONTACT FORCE  |  ENEMY {}%",
@@ -444,9 +450,18 @@ pub(super) fn update_first_contact_hud(
         };
         text.0 =
             format!(
-            "SELECTED {selection} | {}\nDRAG SELECT | F FORMATION | TAB TARGET\nPARTY HEALTH {}%",
+            "SEL {selection} | {} | G{}\nDRAG | CTRL+1-9 SET | 1-9 GET\nSHIFT QUEUE | HP {}% | {}",
             runtime.formation.id().trim_start_matches("party_").to_uppercase(),
+            runtime
+                .active_control_group
+                .map(|group| group.to_string())
+                .unwrap_or_else(|| "-".to_string()),
             runtime.party_hp_percent,
+            if runtime.production_variant == 0 {
+                "DRONE"
+            } else {
+                "MEDIC"
+            },
         );
     }
     let minutes = runtime.elapsed_seconds as u32 / 60;

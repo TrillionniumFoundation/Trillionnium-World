@@ -12,6 +12,139 @@ pub const MENTOR_HALL_ROOM: &str = "mentor_hall";
 pub const EXPEDITION_GATE_ROOM: &str = "expedition_gate";
 pub const RELAY_QUARTER_ROOM: &str = "relay_quarter";
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum FactionRank {
+    #[default]
+    Outsider,
+    Initiate,
+    Disciple,
+    Envoy,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RelationshipAction {
+    Talk,
+    Train,
+    Spar,
+    CompleteMission,
+    Betray,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct NpcRelationship {
+    pub npc_id: String,
+    pub faction_id: String,
+    pub trust: i16,
+    pub interactions: u16,
+    pub recruited: bool,
+}
+
+impl NpcRelationship {
+    pub fn new(npc_id: impl Into<String>, faction_id: impl Into<String>) -> Self {
+        Self {
+            npc_id: npc_id.into(),
+            faction_id: faction_id.into(),
+            trust: 0,
+            interactions: 0,
+            recruited: false,
+        }
+    }
+
+    pub fn apply(&mut self, action: RelationshipAction) -> i16 {
+        let delta = match action {
+            RelationshipAction::Talk => 3,
+            RelationshipAction::Train => 4,
+            RelationshipAction::Spar => 5,
+            RelationshipAction::CompleteMission => 7,
+            RelationshipAction::Betray => -20,
+        };
+        self.trust = self.trust.saturating_add(delta).clamp(-100, 100);
+        self.interactions = self.interactions.saturating_add(1);
+        delta
+    }
+
+    pub fn can_recruit(&self, required_trust: i16) -> bool {
+        !self.recruited && self.trust >= required_trust
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SparringAction {
+    Strike,
+    Guard,
+    InnerPower,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SparringOutcome {
+    Victory,
+    Defeat,
+    Draw,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SparringReport {
+    pub outcome: SparringOutcome,
+    pub rounds: u8,
+    pub player_hp: i64,
+    pub mentor_hp: i64,
+    pub inner_energy: i64,
+}
+
+pub fn resolve_mentor_sparring(
+    attributes: &TrillionniumAttributes,
+    actions: &[SparringAction],
+) -> SparringReport {
+    let stats = attributes.derived_stats();
+    let mut player_hp = stats.max_hp;
+    let mut mentor_hp = 150_i64;
+    let mut inner_energy = stats.inner_energy;
+    let mut rounds = 0_u8;
+    for action in actions.iter().copied().take(8) {
+        if player_hp <= 0 || mentor_hp <= 0 {
+            break;
+        }
+        rounds = rounds.saturating_add(1);
+        let guarding = action == SparringAction::Guard;
+        let damage = match action {
+            SparringAction::Strike => 18 + i64::from(attributes.force),
+            SparringAction::Guard => 7 + i64::from(attributes.insight / 2),
+            SparringAction::InnerPower if inner_energy >= 24 => {
+                inner_energy -= 24;
+                30 + i64::from(attributes.resolve + attributes.insight)
+            }
+            SparringAction::InnerPower => 5,
+        };
+        mentor_hp -= damage;
+        if mentor_hp > 0 {
+            let mentor_damage = 24 + i64::from(rounds % 3) * 3;
+            let mitigation = if guarding {
+                15 + i64::from(attributes.resolve / 2)
+            } else {
+                i64::from(attributes.physique / 6)
+            };
+            player_hp -= (mentor_damage - mitigation).max(1);
+        }
+    }
+    let outcome = if mentor_hp <= 0 && player_hp > 0 {
+        SparringOutcome::Victory
+    } else if player_hp <= 0 {
+        SparringOutcome::Defeat
+    } else {
+        SparringOutcome::Draw
+    };
+    SparringReport {
+        outcome,
+        rounds,
+        player_hp: player_hp.max(0),
+        mentor_hp: mentor_hp.max(0),
+        inner_energy,
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct WorldRoom {
     pub id: String,
@@ -427,5 +560,26 @@ mod tests {
             .transition(MIRROR_SQUARE_ROOM, RELAY_QUARTER_ROOM, &flags)
             .unwrap_err()
             .contains("signal_road_secured"));
+    }
+
+    #[test]
+    fn relationships_and_sparring_are_typed_and_deterministic() {
+        let mut relation = NpcRelationship::new("street-compass-sifu", "signal-road-school");
+        relation.apply(RelationshipAction::Talk);
+        relation.apply(RelationshipAction::Train);
+        assert_eq!(relation.trust, 7);
+        assert!(relation.can_recruit(7));
+
+        let actions = [
+            SparringAction::Guard,
+            SparringAction::InnerPower,
+            SparringAction::Strike,
+            SparringAction::InnerPower,
+        ];
+        let first = resolve_mentor_sparring(&TrillionniumAttributes::default(), &actions);
+        let second = resolve_mentor_sparring(&TrillionniumAttributes::default(), &actions);
+        assert_eq!(first, second);
+        assert!(first.rounds >= 3);
+        assert!(first.mentor_hp < 150);
     }
 }
