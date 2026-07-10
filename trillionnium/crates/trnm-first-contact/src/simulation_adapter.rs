@@ -219,7 +219,9 @@ fn formation_offset(unit_id: &str) -> Vec2 {
     }
 }
 
-#[allow(clippy::too_many_arguments)]
+// Explicit disjoint query filters let Bevy validate the mutable component
+// access while keeping this frame update as one ordered simulation system.
+#[allow(clippy::too_many_arguments, clippy::type_complexity)]
 pub(super) fn advance_first_contact_simulation(
     mut commands: Commands,
     time: Res<Time>,
@@ -359,7 +361,7 @@ pub(super) fn advance_first_contact_simulation(
         }
         if runtime.feedback_timer.just_finished() {
             if let Some(handles) = handles.as_deref() {
-                let hit = manifest.effect_frames[if runtime.animation_phase % 2 == 0 {
+                let hit = manifest.effect_frames[if runtime.animation_phase.is_multiple_of(2) {
                     "hit_a"
                 } else {
                     "hit_b"

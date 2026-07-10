@@ -294,6 +294,9 @@ pub(super) fn spawn_first_contact_hud(mut commands: Commands, map: Res<FirstCont
     ));
 }
 
+// Bevy injects each disjoint ECS query as a system parameter; keeping the
+// filters explicit here prevents overlapping mutable `Text` access at runtime.
+#[allow(clippy::too_many_arguments, clippy::type_complexity)]
 pub(super) fn update_first_contact_hud(
     runtime: Res<FirstContactRuntime>,
     map: Res<FirstContactMap>,
