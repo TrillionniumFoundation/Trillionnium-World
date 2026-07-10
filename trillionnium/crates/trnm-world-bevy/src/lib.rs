@@ -997,7 +997,7 @@ const CLASSIC_FIRST_CONTACT_PRODUCTION_UNIT_READABILITY_CREST_COLOR: u32 = 0xeaf
 const CLASSIC_FIRST_CONTACT_PRODUCTION_STRUCTURE_VOLUME_SHADOW_COLOR: u32 = 0x4f4634;
 const CLASSIC_FIRST_CONTACT_PRODUCTION_ACTION_INTENT_ARROW_COLOR: u32 = 0xf3f19a;
 const CLASSIC_FIRST_CONTACT_PRODUCTION_HUD_FOCUS_STRIP_COLOR: u32 = 0x4a725f;
-const CLASSIC_FIRST_CONTACT_PRODUCTION_TERRAIN_MICRO_DETAIL_COLOR: u32 = 0x9ab879;
+const CLASSIC_FIRST_CONTACT_PRODUCTION_TERRAIN_MICRO_DETAIL_COLOR: u32 = 0x78936c;
 const CLASSIC_FIRST_CONTACT_PRODUCTION_EDGE_BEVEL_COLOR: u32 = 0xcbd58d;
 const CLASSIC_FIRST_CONTACT_PRODUCTION_UNIT_STANCE_SHADOW_COLOR: u32 = 0x2e554a;
 const CLASSIC_FIRST_CONTACT_PRODUCTION_STRUCTURE_LIGHT_RIM_COLOR: u32 = 0xfff4c2;
@@ -25583,6 +25583,7 @@ pub fn native_classic_rts_full_game_visual_ui_replication_evidence_json(
             && player_first_production_hud_focus_strip_pixel_count > 600;
     let player_first_production_art_pack_v5_gate =
         player_first_production_terrain_micro_detail_pixel_count > 1_000
+            && player_first_production_terrain_micro_detail_pixel_count < 5_000
             && player_first_production_edge_bevel_pixel_count > 300
             && player_first_production_unit_stance_shadow_pixel_count > 80
             && player_first_production_structure_light_rim_pixel_count > 100
@@ -94748,7 +94749,7 @@ fn classic_draw_first_contact_player_production_terrain_pack(
                 );
             }
         }
-        if seed.rem_euclid(3) != 1 || terrain.resource_zone || terrain.base_pad {
+        if seed.rem_euclid(3) == 0 || terrain.resource_zone || terrain.base_pad {
             let detail_x = tile_x + 6 + seed.rem_euclid(5) as i32;
             let detail_y = tile_y + 6 + seed.rem_euclid(4) as i32;
             classic_draw_rect(
@@ -94761,16 +94762,18 @@ fn classic_draw_first_contact_player_production_terrain_pack(
                 2,
                 CLASSIC_FIRST_CONTACT_PRODUCTION_TERRAIN_MICRO_DETAIL_COLOR,
             );
-            classic_draw_rect(
-                buffer,
-                width,
-                height,
-                tile_x + cell_w - 11 - seed.rem_euclid(3) as i32,
-                tile_y + cell_h - 8,
-                5,
-                2,
-                CLASSIC_FIRST_CONTACT_PRODUCTION_TERRAIN_MICRO_DETAIL_COLOR,
-            );
+            if terrain.resource_zone || terrain.base_pad || terrain.height >= 2 {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    tile_x + cell_w - 11 - seed.rem_euclid(3) as i32,
+                    tile_y + cell_h - 8,
+                    5,
+                    2,
+                    CLASSIC_FIRST_CONTACT_PRODUCTION_TERRAIN_MICRO_DETAIL_COLOR,
+                );
+            }
         }
 
         let region_id = classic_first_contact_player_terrain_region_id(*terrain);
@@ -159042,6 +159045,11 @@ mod tests {
                 .unwrap_or(0);
             assert!(actual > minimum, "{pointer} {actual}");
         }
+        let terrain_micro_detail = evidence
+            .pointer("/first_contact_production_art_pack_v5_pixel_counts/terrain_micro_detail")
+            .and_then(Value::as_u64)
+            .unwrap_or(u64::MAX);
+        assert!(terrain_micro_detail < 5_000, "{terrain_micro_detail}");
     }
 
     #[cfg(not(target_os = "android"))]
