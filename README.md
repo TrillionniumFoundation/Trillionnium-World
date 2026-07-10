@@ -7,10 +7,14 @@
 
 ## Trillionnium World Client Boundary
 
-- Native playable client: `trillionnium/crates/trnm-world-bevy`
+- Canonical RPG/RTS product contract: `docs/development/trillionnium-rpg-rts-closed-loop-v1.md`
+- Native playable client: `trillionnium/crates/trnm-first-contact`
+- Authoritative campaign aggregate: `trillionnium/crates/trnm-campaign-core`
+- Authoritative Bevy-free battle simulation: `trillionnium/crates/trnm-rts-sim`
+- `trnm-world-bevy` is frozen legacy/reference code and is not the default player path.
 - Manual playtest entry: `scripts/run_trillionnium_world_bevy_client.sh`
 - CEX is a legacy incubator/evidence adapter only. Do not use CEX web runtime as the Trillionnium World client.
-- Account/auth work for the game must land behind Trillionnium-owned APIs consumed by `trnm-world-bevy`; CEX account code may be used as migration reference, not as the product entry.
+- Account/auth work for the game must land behind Trillionnium-owned APIs consumed by the current native client; CEX account code may be used as migration reference, not as the product entry.
 - Boundary gate: `scripts/check_trillionnium_world_client_boundary.sh`
 
 The cohort/commercial collection command writes `acceptance/S6_public_launch/latest/cohort-commercial-evidence-collection.json` plus `.md`, listing first-beta participant/session/feedback/signoff evidence and payment/refund/support/legal/operator/traffic drill evidence with privacy boundaries before the strict validator is run.

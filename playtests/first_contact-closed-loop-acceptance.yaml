@@ -1,0 +1,22 @@
+contract_version: trnm_first_contact_closed_loop_acceptance_v1
+canonical_doc: docs/development/trillionnium-rpg-rts-closed-loop-v1.md
+software:
+  status: green
+  e2e:
+    - victory_rpg_rts_rpg
+    - defeat_rpg_rts_rpg
+    - withdrawal_rpg_rts_rpg
+    - mid_battle_crash_resume
+    - mid_settlement_crash_recovery
+    - duplicate_result_zero_delta
+  deterministic_victory_minutes: { min: 10, max: 15 }
+human:
+  status: pending_real_observers
+  five_second_observers_required: 3
+  real_play_session_minutes: { min: 10, max: 15 }
+  observation_file: playtests/first_contact-visual-review.yaml
+boundaries:
+  fabricated_human_observation: false
+  public_launch_claimed: false
+  android_s5_claimed: false
+  online_authority_claimed: false

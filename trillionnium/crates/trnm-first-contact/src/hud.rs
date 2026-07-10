@@ -14,6 +14,9 @@ pub(super) struct FirstContactObjectiveText;
 pub(super) struct FirstContactFeedbackText;
 
 #[derive(Component)]
+pub(super) struct FirstContactRosterText;
+
+#[derive(Component)]
 pub(super) struct FirstContactMatchClockText;
 
 #[derive(Component)]
@@ -221,7 +224,8 @@ pub(super) fn spawn_first_contact_hud(mut commands: Commands, map: Res<FirstCont
                                 TextColor(Color::srgb(0.60, 0.92, 0.62)),
                             ),
                             (
-                                Text::new("WORKER   SCOUT\nWARDEN   STRIKER"),
+                                Text::new("HERO   SCOUT\nWARDEN   STRIKER"),
+                                FirstContactRosterText,
                                 TextFont::from_font_size(16.0),
                                 TextColor(Color::srgb(0.92, 0.92, 0.78)),
                             ),
@@ -234,7 +238,7 @@ pub(super) fn spawn_first_contact_hud(mut commands: Commands, map: Res<FirstCont
                     ),
                     (
                         Node {
-                            width: px(520),
+                            width: px(640),
                             height: percent(100),
                             flex_direction: FlexDirection::Column,
                             row_gap: px(8),
@@ -257,6 +261,7 @@ pub(super) fn spawn_first_contact_hud(mut commands: Commands, map: Res<FirstCont
                                     command_card(FirstContactCommand::Attack, "W", "ATTACK"),
                                     command_card(FirstContactCommand::Harvest, "E", "HARVEST"),
                                     command_card(FirstContactCommand::Hold, "R", "HOLD"),
+                                    command_card(FirstContactCommand::Retreat, "X", "RETREAT"),
                                 ],
                             ),
                         ],
@@ -300,12 +305,19 @@ pub(super) fn spawn_first_contact_hud(mut commands: Commands, map: Res<FirstCont
 pub(super) fn update_first_contact_hud(
     runtime: Res<FirstContactRuntime>,
     map: Res<FirstContactMap>,
-    mut resources: Query<&mut Text, With<FirstContactResourceText>>,
+    mut resources: Query<
+        &mut Text,
+        (
+            With<FirstContactResourceText>,
+            Without<FirstContactRosterText>,
+        ),
+    >,
     mut objectives: Query<
         &mut Text,
         (
             With<FirstContactObjectiveText>,
             Without<FirstContactResourceText>,
+            Without<FirstContactRosterText>,
         ),
     >,
     mut feedback: Query<
@@ -314,6 +326,17 @@ pub(super) fn update_first_contact_hud(
             With<FirstContactFeedbackText>,
             Without<FirstContactResourceText>,
             Without<FirstContactObjectiveText>,
+            Without<FirstContactRosterText>,
+        ),
+    >,
+    mut rosters: Query<
+        &mut Text,
+        (
+            With<FirstContactRosterText>,
+            Without<FirstContactResourceText>,
+            Without<FirstContactObjectiveText>,
+            Without<FirstContactFeedbackText>,
+            Without<FirstContactMatchClockText>,
         ),
     >,
     mut clocks: Query<
@@ -323,6 +346,7 @@ pub(super) fn update_first_contact_hud(
             Without<FirstContactResourceText>,
             Without<FirstContactObjectiveText>,
             Without<FirstContactFeedbackText>,
+            Without<FirstContactRosterText>,
         ),
     >,
     mut cards: Query<(
@@ -334,13 +358,26 @@ pub(super) fn update_first_contact_hud(
 ) {
     for mut text in &mut resources {
         text.0 = format!(
-            "CREDITS {}  |  POWER {}%  |  SUPPLY {}/{}",
-            runtime.credits, runtime.power_percent, runtime.supply_used, runtime.supply_cap
+            "CREDITS {}  |  PARTY {}%  |  POWER {}%  |  SUPPLY {}/{}",
+            runtime.credits,
+            runtime.party_hp_percent,
+            runtime.power_percent,
+            runtime.supply_used,
+            runtime.supply_cap
         );
     }
     for mut text in &mut objectives {
         text.0 = if runtime.victory {
             "FIRST CONTACT SECURED".to_string()
+        } else if runtime.defeat {
+            "MISSION FAILED  |  RETURNING TO MIRROR SQUARE".to_string()
+        } else if runtime.withdrawal {
+            "WITHDRAWAL COMPLETE".to_string()
+        } else if runtime.enemy_hp_percent > 0 {
+            format!(
+                "BREAK CONTACT FORCE  |  ENEMY {}%",
+                runtime.enemy_hp_percent
+            )
         } else if runtime.contact_hp > 0.0 {
             format!("SECURE RELAY BEACON  |  GUARD {:.0}%", runtime.contact_hp)
         } else {
@@ -357,8 +394,15 @@ pub(super) fn update_first_contact_hud(
                 FirstContactCommand::Attack => "W",
                 FirstContactCommand::Harvest => "E",
                 FirstContactCommand::Hold => "R",
+                FirstContactCommand::Retreat => "X",
             },
             next.label()
+        );
+    }
+    for mut text in &mut rosters {
+        text.0 = format!(
+            "HERO   SCOUT\nWARDEN   STRIKER\nPARTY HEALTH {}%",
+            runtime.party_hp_percent
         );
     }
     let minutes = runtime.elapsed_seconds as u32 / 60;

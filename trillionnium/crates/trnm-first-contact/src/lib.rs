@@ -1,4 +1,6 @@
 mod asset_loader;
+mod campaign_flow;
+mod campaign_ui;
 mod evidence_adapter;
 mod hud;
 mod map_loader;
@@ -7,6 +9,8 @@ mod simulation_adapter;
 
 use asset_loader::{load_first_contact_atlas, FirstContactAtlasManifest};
 use bevy::prelude::*;
+use campaign_flow::{handle_campaign_input, settle_finished_battle, CampaignFlow};
+use campaign_ui::{spawn_campaign_ui, update_campaign_ui};
 use evidence_adapter::FirstContactVisualAcceptance;
 use hud::{spawn_first_contact_hud, update_first_contact_hud};
 use map_loader::{load_first_contact_map, FirstContactMap};
@@ -22,6 +26,7 @@ pub use evidence_adapter::{FirstContactVisualAcceptance as VisualAcceptance, Obs
 pub struct FirstContactLivePlugin {
     map: FirstContactMap,
     atlas: FirstContactAtlasManifest,
+    campaign: CampaignFlow,
 }
 
 impl FirstContactLivePlugin {
@@ -29,7 +34,12 @@ impl FirstContactLivePlugin {
         let map =
             load_first_contact_map(&asset_root.join("first_contact/maps/first_contact.yaml"))?;
         let atlas = load_first_contact_atlas(&asset_root.join("first_contact/atlas.yaml"))?;
-        Ok(Self { map, atlas })
+        let campaign = CampaignFlow::load()?;
+        Ok(Self {
+            map,
+            atlas,
+            campaign,
+        })
     }
 }
 
@@ -37,22 +47,32 @@ impl Plugin for FirstContactLivePlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(self.map.clone())
             .insert_resource(self.atlas.clone())
+            .insert_resource(self.campaign.clone())
             .init_resource::<FirstContactRuntime>()
             .init_resource::<FirstContactSimulationAdapter>()
             .init_resource::<FirstContactVisualAcceptance>()
             .add_systems(
                 Startup,
-                (spawn_first_contact_live_scene, spawn_first_contact_hud).chain(),
+                (
+                    spawn_first_contact_live_scene,
+                    spawn_first_contact_hud,
+                    spawn_campaign_ui,
+                )
+                    .chain(),
             )
             .add_systems(
                 Update,
                 (
+                    handle_campaign_input,
                     handle_first_contact_commands,
                     advance_first_contact_simulation,
+                    settle_finished_battle,
                     expire_first_contact_feedback,
                     pan_first_contact_camera,
                     update_first_contact_hud,
-                ),
+                    update_campaign_ui,
+                )
+                    .chain(),
             );
     }
 }

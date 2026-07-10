@@ -5085,6 +5085,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "trnm-campaign-core"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "sha2",
+ "tempfile",
+ "trnm-world-domain",
+]
+
+[[package]]
 name = "trnm-cli"
 version = "0.1.0"
 dependencies = [
@@ -5112,7 +5123,9 @@ dependencies = [
  "bevy",
  "serde",
  "serde_yaml",
+ "trnm-campaign-core",
  "trnm-rts-core",
+ "trnm-rts-sim",
 ]
 
 [[package]]
@@ -5234,6 +5247,17 @@ dependencies = [
  "sha2",
  "trnm-rts-bevy-runtime",
  "trnm-rts-core",
+]
+
+[[package]]
+name = "trnm-rts-sim"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "sha2",
+ "tempfile",
+ "trnm-campaign-core",
 ]
 
 [[package]]

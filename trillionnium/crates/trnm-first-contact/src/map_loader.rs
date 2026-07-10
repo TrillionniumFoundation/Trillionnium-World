@@ -69,6 +69,8 @@ pub struct MapStructure {
 #[derive(Debug, Clone, Deserialize)]
 pub struct MapUnit {
     pub id: String,
+    #[serde(default)]
+    pub spawn_slot: Option<String>,
     pub family: String,
     pub owner: String,
     pub x: i32,
@@ -227,6 +229,21 @@ impl FirstContactMap {
             .collect::<std::collections::BTreeSet<_>>();
         if unit_families.len() < 6 {
             return Err("First Contact requires six visually distinct unit families".into());
+        }
+        let player_spawn_slots = self
+            .units
+            .iter()
+            .filter(|unit| unit.owner == "player" && unit.selected)
+            .filter_map(|unit| unit.spawn_slot.as_deref())
+            .collect::<std::collections::BTreeSet<_>>();
+        if player_spawn_slots.len() != 4
+            || !["party_0", "party_1", "party_2", "party_3"]
+                .iter()
+                .all(|slot| player_spawn_slots.contains(slot))
+        {
+            return Err(
+                "selected player units must expose four unique campaign spawn slots".into(),
+            );
         }
         for (label, point) in [
             ("player_start", self.player_start),

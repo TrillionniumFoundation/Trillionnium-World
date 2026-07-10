@@ -99,10 +99,10 @@ structures:
   - { id: contact_relay, family: shield_relay, owner: contact, x: 35, y: 7, active: true }
 
 units:
-  - { id: group1_worker, family: worker, owner: player, x: 7, y: 17, selected: true }
-  - { id: group1_scout, family: scout, owner: player, x: 8, y: 17, selected: true }
-  - { id: group1_warden, family: warden, owner: player, x: 7, y: 16, selected: true }
-  - { id: group1_striker, family: striker, owner: player, x: 8, y: 16, selected: true }
+  - { id: party_0, spawn_slot: party_0, family: worker, owner: player, x: 7, y: 17, selected: true }
+  - { id: party_1, spawn_slot: party_1, family: scout, owner: player, x: 8, y: 17, selected: true }
+  - { id: party_2, spawn_slot: party_2, family: warden, owner: player, x: 7, y: 16, selected: true }
+  - { id: party_3, spawn_slot: party_3, family: striker, owner: player, x: 8, y: 16, selected: true }
   - { id: relay_engineer, family: relay_engineer, owner: player, x: 5, y: 17, selected: false }
   - { id: home_sentinel, family: sentinel, owner: player, x: 11, y: 19, selected: false }
   - { id: contact_scout, family: scout, owner: contact, x: 26, y: 12, selected: false }

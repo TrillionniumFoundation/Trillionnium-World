@@ -1,5 +1,11 @@
 # Trillionnium World 统一开发文档 v1
 
+> 2026-07-10 status: this May migration document is historical context, not the
+> current product truth source. The canonical playable RPG -> RTS -> RPG path is
+> now `trillionnium-rpg-rts-closed-loop-v1.md`, with `trnm-first-contact` as the
+> client, `trnm-campaign-core` as campaign authority, and `trnm-rts-sim` as the
+> Bevy-free battle authority.
+
 **项目**：Trillionnium World
 **目标仓库**：<https://github.com/TrillionniumFoundation/Trillionnium>
 **当前 Native 客户端主线**：`/home/qian/.openclaw/workspace/Trillionnium/trillionnium/crates/trnm-world-bevy`

@@ -1,12 +1,19 @@
 # Trillionnium World Next Execution Plan v1
 
+> 2026-07-10 status: superseded for product implementation by
+> `trillionnium-rpg-rts-closed-loop-v1.md`. This July 9 review/evidence queue is
+> retained as audit history; it must not route the default client back to
+> `trnm-world-bevy` or treat pre-reset packet counts as closure evidence.
+
 Purpose: keep the post-audit execution stream focused on the highest-return
 work after the local release-review packet became green with public-launch
 blockers.
 
 ## Current Truth
 
-- Native playable client: `trillionnium/crates/trnm-world-bevy`.
+- Native playable client: `trillionnium/crates/trnm-first-contact`.
+- Campaign authority: `trillionnium/crates/trnm-campaign-core`.
+- Battle authority: `trillionnium/crates/trnm-rts-sim`.
 - CEX role: legacy adapter/evidence reference, not the product client.
 - Local review state: green with public-launch blockers.
 - Public launch state: blocked until real external evidence exists.
