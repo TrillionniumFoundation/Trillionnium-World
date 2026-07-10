@@ -4,6 +4,8 @@ use super::{
 };
 use bevy::prelude::*;
 
+const FIRST_CONTACT_CAMERA_SCALE: f32 = 0.74;
+
 #[derive(Component)]
 pub(super) struct FirstContactCamera;
 
@@ -41,6 +43,21 @@ pub(super) fn map_world_position(map: &FirstContactMap, x: i32, y: i32, z: f32) 
         left + x as f32 * tile,
         top - y as f32 * tile + height * 4.0,
         z,
+    )
+}
+
+fn authored_camera_translation(map: &FirstContactMap, viewport_size: Vec2) -> Vec3 {
+    let authored = map_world_position(map, map.camera_start.x, map.camera_start.y, 0.0);
+    let map_half_size = Vec2::new(
+        map.width as f32 * map.tile_size as f32 * 0.5,
+        map.height as f32 * map.tile_size as f32 * 0.5,
+    );
+    let viewport_half_size = viewport_size * FIRST_CONTACT_CAMERA_SCALE * 0.5;
+    let max_offset = (map_half_size - viewport_half_size).max(Vec2::ZERO);
+    Vec3::new(
+        authored.x.clamp(-max_offset.x, max_offset.x),
+        authored.y.clamp(-max_offset.y, max_offset.y),
+        authored.z,
     )
 }
 
@@ -113,19 +130,25 @@ pub(super) fn spawn_first_contact_live_scene(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     mut layouts: ResMut<Assets<TextureAtlasLayout>>,
+    windows: Query<&Window>,
     map: Res<FirstContactMap>,
     manifest: Res<FirstContactAtlasManifest>,
 ) {
     let handles = register_first_contact_atlases(&asset_server, &mut layouts, &manifest);
     commands.insert_resource(handles.clone());
 
+    let viewport_size = windows
+        .single()
+        .map(|window| Vec2::new(window.width(), window.height()))
+        .unwrap_or(Vec2::new(1280.0, 720.0));
+
     commands.spawn((
         Camera2d,
         Projection::Orthographic(OrthographicProjection {
-            scale: 1.20,
+            scale: FIRST_CONTACT_CAMERA_SCALE,
             ..OrthographicProjection::default_2d()
         }),
-        Transform::from_xyz(0.0, -55.0, 0.0),
+        Transform::from_translation(authored_camera_translation(&map, viewport_size)),
         FirstContactCamera,
     ));
 
@@ -331,4 +354,31 @@ pub(super) fn spawn_first_contact_live_scene(
         )),
         FirstContactObjectivePulse,
     ));
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::map_loader::load_first_contact_map;
+    use std::path::Path;
+
+    #[test]
+    fn initial_camera_consumes_the_authored_map_start() {
+        let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../../assets/first_contact/maps/first_contact.yaml");
+        let map = load_first_contact_map(&path).expect("authored map loads");
+        let viewport = Vec2::new(1280.0, 699.0);
+        let translation = authored_camera_translation(&map, viewport);
+        let map_half_size = Vec2::new(
+            map.width as f32 * map.tile_size as f32 * 0.5,
+            map.height as f32 * map.tile_size as f32 * 0.5,
+        );
+        let viewport_half_size = viewport * FIRST_CONTACT_CAMERA_SCALE * 0.5;
+
+        assert!(translation.x < 0.0 && translation.y < 0.0);
+        assert!(translation.x - viewport_half_size.x >= -map_half_size.x - f32::EPSILON);
+        assert!(translation.x + viewport_half_size.x <= map_half_size.x + f32::EPSILON);
+        assert!(translation.y - viewport_half_size.y >= -map_half_size.y - f32::EPSILON);
+        assert!(translation.y + viewport_half_size.y <= map_half_size.y + f32::EPSILON);
+    }
 }
