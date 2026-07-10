@@ -1,0 +1,110 @@
+contract_version: trnm_first_contact_map_v1
+id: first_contact
+title: First Contact
+width: 40
+height: 24
+tile_size: 32
+player_start: { x: 6, y: 18 }
+camera_start: { x: 11, y: 16 }
+objective:
+  id: relay_beacon
+  label: Secure the Relay Beacon
+  x: 33
+  y: 5
+
+terrain_legend:
+  g: moss_a
+  r: route_a
+  b: basalt_a
+  w: water_a
+
+terrain_rows:
+  - wwwwwwwgggggggggggbbbbgggggggggggggggggg
+  - wwwwwwggggggggggggbbbbgggggbbbbbbbbbbbbg
+  - wwwwwgggggggggggggbbbbgggggbggggggggggbg
+  - wwwwggggggggggggggbbbbgggggbggggggggggbg
+  - wwwgggggggggggggggbbbbgggggbggggggggggbg
+  - ggggggggggggggggggbbbbgggggbggrrrrggggbg
+  - ggggggggggggggggggggggggrrrrrrgggggggggg
+  - ggggggggggggggggggggrrrrgggbgggggggggggg
+  - gggggggggggggggggggggrgggggbggggggggggbg
+  - ggggggggggggggggggbbbrgggggbggggggggggbg
+  - ggggggggggggggggggbbbbrggggbbbbbbbbbbbbg
+  - gggggggggggrggggggbbbbgrgggggggggggggggg
+  - gggggggggggrggggggbbbbgrgggggggggggggggg
+  - gggggggggggrggggggbbbbggrggggggggggggggg
+  - ggbbbbbbbbbbrbggggbbbbrrrggggggggggggggg
+  - ggbgggggggggrbgggggggrgggrgggggggggggggg
+  - ggbgggggggggrbgggrrrrggggrgggggggggggggg
+  - ggbgggggggrrrrrrrgggggggggrggggggggggggg
+  - ggbgggrrrrggggggggbbbbggggrggggggggggggg
+  - ggbgggggggggggggggbbbbgggggggggggggggggg
+  - ggbggggggggggbggggbbbbggggggggggggwwwwww
+  - ggbggggggggggbggggbbbbgggggggggggggwwwww
+  - ggbbbbbbbbbbbbggggbbbbggggggggggggggwwww
+  - ggggggggggggggggggbbbbgggggggggggggggwww
+
+height_rows:
+  - '0000000000000000002222000000000000000000'
+  - '0000000000000000002222000002222222222220'
+  - '0000000000000000002222000002000000000020'
+  - '0000000000000000002222000002000000000020'
+  - '0000000000000000002222000002000000000020'
+  - '0000000000000000002222000002001111000020'
+  - '0000000000000000000000001111110000000000'
+  - '0000000000000000000011110002000000000000'
+  - '0000000000000000000001000002000000000020'
+  - '0000000000000000002221000002000000000020'
+  - '0000000000000000002222100002222222222220'
+  - '0000000000010000002222010000000000000000'
+  - '0000000000010000002222010000000000000000'
+  - '0000000000010000002222001000000000000000'
+  - '0022222222221200002222111000000000000000'
+  - '0020000000001200000001000100000000000000'
+  - '0020000000001200011110000100000000000000'
+  - '0020000000111111100000000010000000000000'
+  - '0020001111000000002222000010000000000000'
+  - '0020000000000000002222000000000000000000'
+  - '0020000000000200002222000000000000000000'
+  - '0020000000000200002222000000000000000000'
+  - '0022222222222200002222000000000000000000'
+  - '0000000000000000002222000000000000000000'
+
+bases:
+  - { id: player_base, owner: player, x: 2, y: 14, width: 12, height: 9, entrance_x: 13, entrance_y: 18 }
+  - { id: contact_base, owner: contact, x: 27, y: 1, width: 12, height: 10, entrance_x: 38, entrance_y: 6 }
+
+chokepoints:
+  - { id: north_pass, x: 18, y: 6, width: 4, height: 3, approach: front }
+  - { id: south_pass, x: 18, y: 15, width: 4, height: 3, approach: mid }
+
+resources:
+  - { id: cyan_home, kind: cyan_crystal, x: 11, y: 11, route: home_to_south_pass }
+  - { id: amber_mid, kind: amber_salvage, x: 26, y: 18, route: south_pass_to_mid }
+  - { id: cyan_front, kind: cyan_crystal, x: 30, y: 8, route: north_pass_to_contact }
+
+landmarks:
+  - { id: south_pylon, role: front, x: 15, y: 17, frame: front }
+  - { id: fracture_spire, role: mid, x: 24, y: 13, frame: mid }
+  - { id: relay_beacon, role: rear, x: 33, y: 5, frame: rear }
+
+structures:
+  - { id: player_core, family: command_core, owner: player, x: 6, y: 19, active: true }
+  - { id: player_foundry, family: foundry, owner: player, x: 9, y: 20, active: true }
+  - { id: player_refinery, family: refinery, owner: player, x: 4, y: 20, active: true }
+  - { id: player_relay, family: shield_relay, owner: player, x: 10, y: 16, active: true }
+  - { id: player_turret, family: defense_turret, owner: player, x: 12, y: 18, active: true }
+  - { id: contact_core, family: command_core, owner: contact, x: 33, y: 4, active: true }
+  - { id: contact_foundry, family: foundry, owner: contact, x: 30, y: 3, active: true }
+  - { id: contact_relay, family: shield_relay, owner: contact, x: 35, y: 7, active: true }
+
+units:
+  - { id: group1_worker, family: worker, owner: player, x: 7, y: 17, selected: true }
+  - { id: group1_scout, family: scout, owner: player, x: 8, y: 17, selected: true }
+  - { id: group1_warden, family: warden, owner: player, x: 7, y: 16, selected: true }
+  - { id: group1_striker, family: striker, owner: player, x: 8, y: 16, selected: true }
+  - { id: relay_engineer, family: relay_engineer, owner: player, x: 5, y: 17, selected: false }
+  - { id: home_sentinel, family: sentinel, owner: player, x: 11, y: 19, selected: false }
+  - { id: contact_scout, family: scout, owner: contact, x: 26, y: 12, selected: false }
+  - { id: contact_warden, family: warden, owner: contact, x: 29, y: 8, selected: false }
+  - { id: contact_striker, family: striker, owner: contact, x: 31, y: 7, selected: false }

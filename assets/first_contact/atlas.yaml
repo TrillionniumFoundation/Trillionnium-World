@@ -1,0 +1,70 @@
+contract_version: trnm_first_contact_atlas_v1
+art_direction: top_down_pixel_rts
+cell_size: 128
+atlases:
+  units:
+    image: first_contact/atlases/units-v1.png
+    columns: 8
+    rows: 6
+  world:
+    image: first_contact/atlases/world-v1.png
+    columns: 8
+    rows: 6
+
+unit_families:
+  - { id: worker, row: 0, idle: [0, 1], move: [2, 3], attack: [4, 5], hit: 6, disabled: 7, fps: 6 }
+  - { id: scout, row: 1, idle: [0, 1], move: [2, 3], attack: [4, 5], hit: 6, disabled: 7, fps: 8 }
+  - { id: warden, row: 2, idle: [0, 1], move: [2, 3], attack: [4, 5], hit: 6, disabled: 7, fps: 6 }
+  - { id: striker, row: 3, idle: [0, 1], move: [2, 3], attack: [4, 5], hit: 6, disabled: 7, fps: 7 }
+  - { id: relay_engineer, row: 4, idle: [0, 1], move: [2, 3], attack: [4, 5], hit: 6, disabled: 7, fps: 6 }
+  - { id: sentinel, row: 5, idle: [0, 1], move: [2, 3], attack: [4, 5], hit: 6, disabled: 7, fps: 5 }
+
+terrain_frames:
+  moss_a: 0
+  moss_b: 1
+  route_a: 2
+  route_b: 3
+  basalt_a: 4
+  basalt_b: 5
+  water_a: 6
+  water_b: 7
+  moss_basalt_west: 8
+  moss_basalt_east: 9
+  moss_basalt_north: 10
+  moss_basalt_south: 11
+  moss_basalt_nw: 12
+  moss_basalt_ne: 13
+  moss_basalt_sw: 14
+  moss_basalt_se: 15
+
+detail_frames:
+  cliff_high_a: 16
+  cliff_high_b: 17
+  cliff_high_c: 18
+  cliff_high_d: 19
+  choke_gate_a: 20
+  choke_gate_b: 21
+  cyan_crystal: 22
+  amber_salvage: 23
+
+structure_families:
+  - { id: command_core, idle: 24, active: 25 }
+  - { id: foundry, idle: 26, active: 27 }
+  - { id: refinery, idle: 28, active: 29 }
+  - { id: shield_relay, idle: 30, active: 31 }
+  - { id: defense_turret, idle: 32, active: 33 }
+
+landmark_frames:
+  front: [34, 35]
+  mid: [36, 37]
+  rear: [38, 39]
+
+effect_frames:
+  contact_shadow: 40
+  selection_ring: 41
+  hit_a: 42
+  hit_b: 43
+  muzzle_a: 44
+  muzzle_b: 45
+  construction_dust: 46
+  capture_pulse: 47

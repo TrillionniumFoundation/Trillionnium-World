@@ -1,0 +1,28 @@
+[package]
+name = "trnm-first-contact"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+bevy = { version = "0.19.0-rc.1", default-features = false, features = [
+  "default_app",
+  "bevy_log",
+  "bevy_window",
+  "bevy_winit",
+  "bevy_ui",
+  "bevy_ui_render",
+  "bevy_text",
+  "default_font",
+  "bevy_sprite",
+  "bevy_sprite_render",
+  "bevy_render",
+  "bevy_core_pipeline",
+  "png",
+  "x11",
+  "wayland",
+] }
+serde = { version = "1", features = ["derive"] }
+serde_yaml = "0.9"
+trnm-rts-core = { path = "../trnm-rts-core" }

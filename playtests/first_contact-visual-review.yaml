@@ -1,0 +1,13 @@
+contract_version: trnm_first_contact_human_visual_review_v1
+screen: artifacts/first_contact/live-screen-latest.png
+time_limit_seconds: 5
+questions:
+  - Who am I?
+  - What is selected?
+  - Where is the objective?
+  - What command should I press next?
+observers:
+  - { observer: null, elapsed_millis: null, player: null, selection: null, objective: null, next_command: null }
+  - { observer: null, elapsed_millis: null, player: null, selection: null, objective: null, next_command: null }
+  - { observer: null, elapsed_millis: null, player: null, selection: null, objective: null, next_command: null }
+status: pending_real_observers

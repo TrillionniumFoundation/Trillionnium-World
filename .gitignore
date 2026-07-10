@@ -22,6 +22,9 @@ target/
 # Generated release-review / public-launch evidence
 /acceptance/
 
+# Local live-screen captures (product source stays under assets/first_contact)
+/artifacts/
+
 # Local runtime data
 /data/
 
