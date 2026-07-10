@@ -107,7 +107,7 @@ fn town_body(flow: &CampaignFlow) -> String {
     let save = &flow.save;
     match save.room {
         CampaignRoom::MirrorSquare => format!(
-            "{}\n\n{}  |  LEVEL {}  |  XP {}  |  CREDITS {}  |  REPUTATION {}\n\nChoose a mentor path, equipment loadout and four-person party. H treats one injury level using a Field Tonic or {} credits; G equips recovered Relay Core loot.\n\nFIRST CONTACT: {}  |  SAVE REVISION {}",
+            "{}\n\n{}  |  LV {}  |  XP {}  |  CR {}  |  REP {}\n\nChoose a mentor path, equipment loadout and four-person party. H treats one injury level using a Field Tonic or {} credits; G equips recovered Relay Core loot.\n\nFIRST CONTACT: {}  |  SAVE REVISION {}",
             room_label(save.room),
             "MIRROR RANGER",
             save.progression.level,
