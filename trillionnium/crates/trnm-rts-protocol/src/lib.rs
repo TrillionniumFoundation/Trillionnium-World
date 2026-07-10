@@ -32,6 +32,9 @@ pub enum RtsOrderKind {
     ResumeJob,
     PromoteJob,
     SetRally,
+    Patrol,
+    Stop,
+    SetStance,
     Hold,
 }
 
@@ -62,7 +65,38 @@ impl RtsOrderKind {
             Self::ResumeJob => "resume_job",
             Self::PromoteJob => "promote_job",
             Self::SetRally => "set_rally",
+            Self::Patrol => "patrol",
+            Self::Stop => "stop",
+            Self::SetStance => "set_stance",
             Self::Hold => "hold",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RtsUnitStance {
+    HoldFire,
+    #[default]
+    Guard,
+    Aggressive,
+}
+
+impl RtsUnitStance {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::HoldFire => "hold_fire",
+            Self::Guard => "guard",
+            Self::Aggressive => "aggressive",
+        }
+    }
+
+    pub fn from_rule_id(rule_id: &str) -> Option<Self> {
+        match rule_id {
+            "hold_fire" => Some(Self::HoldFire),
+            "guard" => Some(Self::Guard),
+            "aggressive" => Some(Self::Aggressive),
+            _ => None,
         }
     }
 }
@@ -146,7 +180,7 @@ impl RtsFrameOrder {
             return Err("queued_order_id_missing".to_string());
         }
         match self.kind {
-            RtsOrderKind::Move | RtsOrderKind::AttackMove => {
+            RtsOrderKind::Move | RtsOrderKind::AttackMove | RtsOrderKind::Patrol => {
                 if self.target_tile.is_none() {
                     return Err("move_target_missing".to_string());
                 }
@@ -206,7 +240,17 @@ impl RtsFrameOrder {
                     return Err("set_rally_queue_or_tile_missing".to_string());
                 }
             }
-            RtsOrderKind::Hold => {}
+            RtsOrderKind::SetStance => {
+                if self
+                    .target_rule_id
+                    .as_deref()
+                    .and_then(RtsUnitStance::from_rule_id)
+                    .is_none()
+                {
+                    return Err("unit_stance_missing_or_invalid".to_string());
+                }
+            }
+            RtsOrderKind::Stop | RtsOrderKind::Hold => {}
         }
         Ok(())
     }
@@ -328,5 +372,38 @@ mod tests {
         assert!(rally.validate().is_err());
         rally.target_tile = Some(RtsTile::new(4, 5));
         assert!(rally.validate().is_ok());
+    }
+
+    #[test]
+    fn patrol_stop_and_stance_are_typed() {
+        let mut patrol = RtsFrameOrder::new(
+            1,
+            "player",
+            vec!["hero".to_string()],
+            RtsOrderKind::Patrol,
+            RtsOrderSource::LocalInput,
+        );
+        assert!(patrol.validate().is_err());
+        patrol.target_tile = Some(RtsTile::new(4, 5));
+        patrol.validate().unwrap();
+
+        let stop = RtsFrameOrder::new(
+            2,
+            "player",
+            vec!["hero".to_string()],
+            RtsOrderKind::Stop,
+            RtsOrderSource::LocalInput,
+        );
+        stop.validate().unwrap();
+
+        let mut stance = RtsFrameOrder::new(
+            3,
+            "player",
+            vec!["hero".to_string()],
+            RtsOrderKind::SetStance,
+            RtsOrderSource::LocalInput,
+        );
+        stance.target_rule_id = Some(RtsUnitStance::Aggressive.as_str().to_string());
+        stance.validate().unwrap();
     }
 }

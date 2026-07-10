@@ -375,8 +375,9 @@ pub(super) fn update_first_contact_hud(
 ) {
     for mut text in &mut resources {
         text.0 = format!(
-            "FIELD {} | PARTY {}% | VIS {}% | INTEL {} | JOBS {} | ORDERS {} | SUPPORT {} | TECH {} | SUPPLY {}/{}",
+            "FIELD {} | PWR {}% | PARTY {}% | VIS {}% | INTEL {} | JOBS {} | ORDERS {} | SUPPORT {} | TECH {} | VET {} | SUPPLY {}/{}",
             runtime.credits,
+            runtime.power_percent,
             runtime.party_hp_percent,
             runtime.visible_percent,
             runtime.intel_level,
@@ -384,6 +385,7 @@ pub(super) fn update_first_contact_hud(
             runtime.queued_orders,
             runtime.support_units,
             runtime.tech_level,
+            runtime.veteran_rank,
             runtime.supply_used,
             runtime.supply_cap
         );
@@ -432,6 +434,8 @@ pub(super) fn update_first_contact_hud(
                 FirstContactCommand::Train => "V",
                 FirstContactCommand::Research => "B",
                 FirstContactCommand::Upgrade => "N",
+                FirstContactCommand::Patrol => "P",
+                FirstContactCommand::Stop => "SPACE",
                 FirstContactCommand::Retreat => "X",
             },
             next.label()
@@ -450,17 +454,24 @@ pub(super) fn update_first_contact_hud(
         };
         text.0 =
             format!(
-            "SEL {selection} | {} | G{}\nDRAG | CTRL+1-9 SET | 1-9 GET\nSHIFT QUEUE | HP {}% | {}",
+            "SEL {selection} | {} | G{} | {}\nDRAG | CTRL+1-9 SET | 1-9 GET\nP PATROL | SPACE STOP | HP {}% | {} / {}",
             runtime.formation.id().trim_start_matches("party_").to_uppercase(),
             runtime
                 .active_control_group
                 .map(|group| group.to_string())
                 .unwrap_or_else(|| "-".to_string()),
+            runtime.selected_stance.as_str().to_uppercase(),
             runtime.party_hp_percent,
             if runtime.production_variant == 0 {
                 "DRONE"
             } else {
                 "MEDIC"
+            },
+            match runtime.structure_variant {
+                0 => "BARRICADE",
+                1 => "GENERATOR",
+                2 => "WORKSHOP",
+                _ => "SUPPLY",
             },
         );
     }

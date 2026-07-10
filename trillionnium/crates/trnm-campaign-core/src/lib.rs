@@ -12,18 +12,20 @@ use std::{
     io::Write,
     path::{Path, PathBuf},
 };
+pub use trnm_rpg_core::EncounterAction;
 use trnm_rpg_core::{
     inventory_item_for as trillionnium_inventory_item_for, mirror_city_world_graph,
-    resolve_mentor_sparring, Character as WorldTrillionniumCharacter, FactionRank, NpcRelationship,
-    RelationshipAction, SparringAction, SparringOutcome, SparringReport, TrillionniumAttributes,
+    resolve_mentor_sparring, BuildPath, BuildTitle, Character as WorldTrillionniumCharacter,
+    EncounterOutcome, FactionRank, GrowthStat, NpcRelationship, RelationshipAction,
+    RpgEncounterState, SparringAction, SparringOutcome, SparringReport, TrillionniumAttributes,
     EXPEDITION_GATE_ROOM, MENTOR_HALL_ROOM, MIRROR_SQUARE_ROOM, RELAY_QUARTER_ROOM,
 };
 
 pub const CAMPAIGN_SAVE_CONTRACT: &str = "trnm_campaign_save_v1";
-pub const BATTLE_SEED_CONTRACT: &str = "trnm_battle_seed_v2";
-pub const BATTLE_RESULT_CONTRACT: &str = "trnm_battle_result_v1";
+pub const BATTLE_SEED_CONTRACT: &str = "trnm_battle_seed_v3";
+pub const BATTLE_RESULT_CONTRACT: &str = "trnm_battle_result_v2";
 pub const SETTLEMENT_RECEIPT_CONTRACT: &str = "trnm_settlement_receipt_v1";
-pub const FIRST_CONTACT_RULES_VERSION: &str = "first_contact_campaign_rules_v2";
+pub const FIRST_CONTACT_RULES_VERSION: &str = "first_contact_campaign_rules_v3";
 pub const MAX_MENTOR_TRAINING_SESSIONS: u8 = 2;
 pub const FIELD_CLINIC_CREDIT_COST: i64 = 40;
 
@@ -369,6 +371,10 @@ pub struct PartyMember {
     pub persistent: bool,
     #[serde(default)]
     pub experience: u64,
+    #[serde(default)]
+    pub veteran_rank: u8,
+    #[serde(default)]
+    pub confirmed_kills: u32,
     pub injury_level: u8,
     pub available: bool,
 }
@@ -383,6 +389,12 @@ pub struct CampaignProgression {
     pub mentor_training_sessions: u8,
     #[serde(default)]
     pub aftershock_completions: u32,
+    #[serde(default)]
+    pub growth_points_available: u16,
+    #[serde(default)]
+    pub growth_points_awarded: u16,
+    #[serde(default)]
+    pub growth_allocations: BTreeMap<GrowthStat, u16>,
     pub skill_progress: BTreeMap<String, SkillProgress>,
     pub inventory: Vec<LootStack>,
     pub world_flags: BTreeSet<String>,
@@ -512,6 +524,8 @@ pub struct BattleUnitSeedV1 {
     pub injury_level: u8,
     pub skill_ids: Vec<String>,
     pub equipment_ids: Vec<String>,
+    #[serde(default)]
+    pub veteran_rank: u8,
     pub stats: RtsUnitStats,
 }
 
@@ -524,7 +538,17 @@ pub struct BattleSeedV1 {
     pub rules_version: String,
     pub map: BattleMapSeedV1,
     pub party: Vec<BattleUnitSeedV1>,
+    #[serde(default)]
+    pub build_path: BuildPath,
+    #[serde(default)]
+    pub active_title: Option<BuildTitle>,
+    #[serde(default = "default_field_build_cost_permille")]
+    pub field_build_cost_permille: u16,
     pub seed_hash: String,
+}
+
+fn default_field_build_cost_permille() -> u16 {
+    1000
 }
 
 impl BattleSeedV1 {
@@ -585,6 +609,10 @@ pub struct UnitBattleReportV1 {
     pub status: UnitBattleStatus,
     pub remaining_hp: u32,
     pub experience_gained: u64,
+    #[serde(default)]
+    pub veteran_rank: u8,
+    #[serde(default)]
+    pub confirmed_kills: u32,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -712,6 +740,18 @@ pub struct CampaignSaveV1 {
     pub faction_rank: FactionRank,
     #[serde(default)]
     pub last_sparring: Option<SparringReport>,
+    #[serde(default)]
+    pub pending_growth_stat: Option<GrowthStat>,
+    #[serde(default)]
+    pub build_path: BuildPath,
+    #[serde(default)]
+    pub unlocked_titles: BTreeSet<BuildTitle>,
+    #[serde(default)]
+    pub active_title: Option<BuildTitle>,
+    #[serde(default)]
+    pub active_encounter: Option<RpgEncounterState>,
+    #[serde(default)]
+    pub last_encounter_outcome: Option<EncounterOutcome>,
     pub mentor_met: bool,
     pub trained_with_mentor: bool,
     pub quest_state: QuestState,
@@ -776,6 +816,9 @@ impl Default for CampaignSaveV1 {
                 credits: default_campaign_credits(),
                 mentor_training_sessions: 0,
                 aftershock_completions: 0,
+                growth_points_available: 1,
+                growth_points_awarded: 1,
+                growth_allocations: BTreeMap::new(),
                 skill_progress,
                 inventory: Vec::new(),
                 world_flags: BTreeSet::new(),
@@ -789,6 +832,8 @@ impl Default for CampaignSaveV1 {
                     skill_ids: vec!["basic_inner_power".to_string()],
                     persistent: true,
                     experience: 0,
+                    veteran_rank: 0,
+                    confirmed_kills: 0,
                     injury_level: 0,
                     available: true,
                 },
@@ -804,6 +849,8 @@ impl Default for CampaignSaveV1 {
                     ],
                     persistent: true,
                     experience: 0,
+                    veteran_rank: 0,
+                    confirmed_kills: 0,
                     injury_level: 0,
                     available: true,
                 },
@@ -815,6 +862,8 @@ impl Default for CampaignSaveV1 {
                     skill_ids: vec!["basic_unarmed".to_string(), "iron_guard".to_string()],
                     persistent: true,
                     experience: 0,
+                    veteran_rank: 0,
+                    confirmed_kills: 0,
                     injury_level: 0,
                     available: true,
                 },
@@ -826,6 +875,8 @@ impl Default for CampaignSaveV1 {
                     skill_ids: vec!["basic_blade".to_string(), "inner_flame".to_string()],
                     persistent: true,
                     experience: 0,
+                    veteran_rank: 0,
+                    confirmed_kills: 0,
                     injury_level: 0,
                     available: true,
                 },
@@ -842,6 +893,8 @@ impl Default for CampaignSaveV1 {
                     skill_ids: vec!["field_mend".to_string()],
                     persistent: true,
                     experience: 0,
+                    veteran_rank: 0,
+                    confirmed_kills: 0,
                     injury_level: 0,
                     available: true,
                 },
@@ -858,6 +911,8 @@ impl Default for CampaignSaveV1 {
                     skill_ids: vec!["relay_overcharge".to_string()],
                     persistent: true,
                     experience: 0,
+                    veteran_rank: 0,
+                    confirmed_kills: 0,
                     injury_level: 0,
                     available: false,
                 },
@@ -874,6 +929,8 @@ impl Default for CampaignSaveV1 {
                     skill_ids: vec!["inner_flame".to_string()],
                     persistent: true,
                     experience: 0,
+                    veteran_rank: 0,
+                    confirmed_kills: 0,
                     injury_level: 0,
                     available: true,
                 },
@@ -900,6 +957,12 @@ impl Default for CampaignSaveV1 {
             ]),
             faction_rank: FactionRank::Outsider,
             last_sparring: None,
+            pending_growth_stat: None,
+            build_path: BuildPath::Unformed,
+            unlocked_titles: BTreeSet::new(),
+            active_title: None,
+            active_encounter: None,
+            last_encounter_outcome: None,
             mentor_met: false,
             trained_with_mentor: false,
             quest_state: QuestState::Locked,
@@ -934,6 +997,12 @@ impl CampaignSaveV1 {
         self.npc_relationships
             .entry("relay-smith-brann".to_string())
             .or_insert_with(|| NpcRelationship::new("relay-smith-brann", "relay-quarter"));
+        if self.progression.growth_points_awarded == 0
+            && self.progression.growth_allocations.is_empty()
+        {
+            self.progression.growth_points_available = 1;
+            self.progression.growth_points_awarded = 1;
+        }
         for item in defaults.character.inventory_items {
             if !self
                 .character
@@ -961,8 +1030,12 @@ impl CampaignSaveV1 {
                 .insert(RELAY_QUARTER_ROOM.to_string());
             self.story.current_step = StoryStepId::SignalRoadComplete;
         }
+        let mut effective_flags = self.progression.world_flags.clone();
+        if self.active_title == Some(BuildTitle::RelayRunner) {
+            effective_flags.insert("signal_road_secured".to_string());
+        }
         if mirror_city_world_graph()
-            .can_enter(self.room.id(), &self.progression.world_flags)
+            .can_enter(self.room.id(), &effective_flags)
             .is_err()
         {
             self.room = CampaignRoom::MirrorSquare;
@@ -985,6 +1058,20 @@ impl CampaignSaveV1 {
         {
             return Err(CampaignError::InvalidState(
                 "campaign credits or mentor training count is invalid".to_string(),
+            ));
+        }
+        let spent_growth = self
+            .progression
+            .growth_allocations
+            .values()
+            .copied()
+            .sum::<u16>();
+        if spent_growth.saturating_add(self.progression.growth_points_available)
+            != self.progression.growth_points_awarded
+            || (self.pending_growth_stat.is_some() && self.progression.growth_points_available == 0)
+        {
+            return Err(CampaignError::InvalidState(
+                "growth point accounting is inconsistent".to_string(),
             ));
         }
         let party_ids = self
@@ -1036,8 +1123,12 @@ impl CampaignSaveV1 {
 
     pub fn move_to(&mut self, room: CampaignRoom) -> Result<(), CampaignError> {
         self.require_town()?;
+        let mut effective_flags = self.progression.world_flags.clone();
+        if self.active_title == Some(BuildTitle::RelayRunner) {
+            effective_flags.insert("signal_road_secured".to_string());
+        }
         mirror_city_world_graph()
-            .transition(self.room.id(), room.id(), &self.progression.world_flags)
+            .transition(self.room.id(), room.id(), &effective_flags)
             .map_err(CampaignError::InvalidState)?;
         self.room = room;
         self.revision += 1;
@@ -1109,6 +1200,192 @@ impl CampaignSaveV1 {
         self.selected_training_path = self.selected_training_path.next();
         self.revision += 1;
         Ok(())
+    }
+
+    pub fn preview_growth_allocation(&mut self, stat: GrowthStat) -> Result<(), CampaignError> {
+        self.require_town()?;
+        if self.progression.growth_points_available == 0 {
+            return Err(CampaignError::InvalidState(
+                "no growth points are available".to_string(),
+            ));
+        }
+        self.pending_growth_stat = Some(stat);
+        self.revision += 1;
+        Ok(())
+    }
+
+    pub fn cycle_growth_preview(&mut self) -> Result<GrowthStat, CampaignError> {
+        let next = self.pending_growth_stat.unwrap_or_default().next();
+        self.preview_growth_allocation(next)?;
+        Ok(next)
+    }
+
+    pub fn cancel_growth_allocation(&mut self) -> Result<(), CampaignError> {
+        self.require_town()?;
+        if self.pending_growth_stat.take().is_none() {
+            return Err(CampaignError::InvalidState(
+                "no growth allocation is awaiting confirmation".to_string(),
+            ));
+        }
+        self.revision += 1;
+        Ok(())
+    }
+
+    pub fn confirm_growth_allocation(&mut self) -> Result<GrowthStat, CampaignError> {
+        self.require_town()?;
+        let stat = self.pending_growth_stat.take().ok_or_else(|| {
+            CampaignError::InvalidState(
+                "preview a growth allocation before confirming it".to_string(),
+            )
+        })?;
+        if self.progression.growth_points_available == 0 {
+            return Err(CampaignError::InvalidState(
+                "growth point was already consumed".to_string(),
+            ));
+        }
+        stat.apply(&mut self.character.attributes, 1);
+        if let Some(hero) = self
+            .party
+            .iter_mut()
+            .find(|member| member.unit_id == "hero")
+        {
+            hero.attributes = self.character.attributes.clone();
+        }
+        self.progression.growth_points_available -= 1;
+        *self.progression.growth_allocations.entry(stat).or_default() += 1;
+        let (path, title, flag) = match stat {
+            GrowthStat::Force | GrowthStat::Physique | GrowthStat::Resolve => (
+                BuildPath::Vanguard,
+                BuildTitle::GateWarden,
+                "gate_warden_route",
+            ),
+            GrowthStat::Agility | GrowthStat::Insight => (
+                BuildPath::Windrunner,
+                BuildTitle::RelayRunner,
+                "relay_runner_shortcut",
+            ),
+            GrowthStat::Craft | GrowthStat::Commerce => (
+                BuildPath::Artificer,
+                BuildTitle::ForgeMaster,
+                "forge_master_prices",
+            ),
+        };
+        self.build_path = path;
+        self.unlocked_titles.insert(title);
+        self.active_title = Some(title);
+        self.character.title = title.display_name().to_string();
+        self.progression.world_flags.insert(flag.to_string());
+        if title == BuildTitle::RelayRunner {
+            self.story
+                .unlocked_room_ids
+                .insert(RELAY_QUARTER_ROOM.to_string());
+        }
+        self.revision += 1;
+        self.validate()?;
+        Ok(stat)
+    }
+
+    pub fn cycle_active_title(&mut self) -> Result<BuildTitle, CampaignError> {
+        self.require_town()?;
+        if self.unlocked_titles.is_empty() {
+            return Err(CampaignError::InvalidState(
+                "allocate a growth point before choosing a title".to_string(),
+            ));
+        }
+        let titles = self.unlocked_titles.iter().copied().collect::<Vec<_>>();
+        let next = self
+            .active_title
+            .and_then(|current| titles.iter().position(|title| *title == current))
+            .map(|index| titles[(index + 1) % titles.len()])
+            .unwrap_or(titles[0]);
+        self.active_title = Some(next);
+        self.character.title = next.display_name().to_string();
+        self.revision += 1;
+        Ok(next)
+    }
+
+    pub fn begin_signal_road_encounter(&mut self) -> Result<(), CampaignError> {
+        self.require_town()?;
+        if self.room != CampaignRoom::RelayQuarter
+            && !(self.room == CampaignRoom::ExpeditionGate
+                && self.active_title == Some(BuildTitle::GateWarden))
+        {
+            return Err(CampaignError::InvalidState(
+                "the ambush is reachable from Relay Quarter or the Gate Warden route".to_string(),
+            ));
+        }
+        if self.active_encounter.is_some() {
+            return Err(CampaignError::InvalidState(
+                "an RPG encounter is already active".to_string(),
+            ));
+        }
+        self.active_encounter = Some(RpgEncounterState::signal_road_ambush(
+            &self.character.attributes,
+        ));
+        self.last_encounter_outcome = None;
+        self.revision += 1;
+        Ok(())
+    }
+
+    pub fn act_in_signal_road_encounter(
+        &mut self,
+        action: EncounterAction,
+    ) -> Result<Option<EncounterOutcome>, CampaignError> {
+        self.require_town()?;
+        let item_available = self
+            .progression
+            .inventory
+            .iter()
+            .any(|stack| stack.item_id == "field-tonic-kit" && stack.quantity > 0);
+        let turn = self
+            .active_encounter
+            .as_mut()
+            .ok_or_else(|| CampaignError::InvalidState("no RPG encounter is active".to_string()))?
+            .advance(&self.character.attributes, action, item_available)
+            .map_err(CampaignError::InvalidState)?;
+        if turn.item_consumed {
+            consume_loot(&mut self.progression.inventory, "field-tonic-kit", 1)?;
+        }
+        if let Some(outcome) = turn.outcome {
+            self.last_encounter_outcome = Some(outcome);
+            match outcome {
+                EncounterOutcome::Victory => {
+                    self.progression.experience = self.progression.experience.saturating_add(80);
+                    self.character.attributes.reputation =
+                        self.character.attributes.reputation.saturating_add(2);
+                    merge_loot(
+                        &mut self.progression.inventory,
+                        &[LootStack {
+                            item_id: "signal-road-emblem".to_string(),
+                            quantity: 1,
+                        }],
+                    );
+                    self.progression
+                        .world_flags
+                        .insert("signal_road_ambush_cleared".to_string());
+                }
+                EncounterOutcome::Defeat => {
+                    if let Some(hero) = self
+                        .party
+                        .iter_mut()
+                        .find(|member| member.unit_id == "hero")
+                    {
+                        hero.injury_level = hero.injury_level.saturating_add(1).min(4);
+                    }
+                    self.progression
+                        .world_flags
+                        .insert("signal_road_ambush_defeat".to_string());
+                }
+                EncounterOutcome::Withdrawn => {
+                    self.progression
+                        .world_flags
+                        .insert("signal_road_ambush_withdrawn".to_string());
+                }
+            }
+            self.active_encounter = None;
+        }
+        self.revision += 1;
+        Ok(turn.outcome)
     }
 
     pub fn equip_starter_weapon(&mut self) -> Result<(), CampaignError> {
@@ -1290,6 +1567,9 @@ impl CampaignSaveV1 {
         } else {
             relation.apply(RelationshipAction::Talk);
         }
+        if self.active_title == Some(BuildTitle::RelayRunner) {
+            relation.apply(RelationshipAction::CompleteMission);
+        }
         self.faction_rank = self.faction_rank.max(FactionRank::Envoy);
         self.revision += 1;
         Ok(())
@@ -1341,12 +1621,17 @@ impl CampaignSaveV1 {
             .inventory
             .retain(|stack| stack.quantity > 0);
         if !used_tonic {
-            if self.progression.credits < FIELD_CLINIC_CREDIT_COST {
+            let clinic_cost = if self.active_title == Some(BuildTitle::ForgeMaster) {
+                FIELD_CLINIC_CREDIT_COST - 15
+            } else {
+                FIELD_CLINIC_CREDIT_COST
+            };
+            if self.progression.credits < clinic_cost {
                 return Err(CampaignError::InvalidState(format!(
-                    "field clinic costs {FIELD_CLINIC_CREDIT_COST} credits"
+                    "field clinic costs {clinic_cost} credits"
                 )));
             }
-            self.progression.credits -= FIELD_CLINIC_CREDIT_COST;
+            self.progression.credits -= clinic_cost;
         }
         for member in &mut self.party {
             member.injury_level = member.injury_level.saturating_sub(1);
@@ -1499,6 +1784,7 @@ impl CampaignSaveV1 {
                     injury_level: member.injury_level,
                     skill_ids: skills,
                     equipment_ids: member_equipment.clone(),
+                    veteran_rank: member.veteran_rank,
                     stats,
                 }
             })
@@ -1512,6 +1798,13 @@ impl CampaignSaveV1 {
             rules_version: FIRST_CONTACT_RULES_VERSION.to_string(),
             map,
             party,
+            build_path: self.build_path,
+            active_title: self.active_title,
+            field_build_cost_permille: if self.active_title == Some(BuildTitle::ForgeMaster) {
+                800
+            } else {
+                1000
+            },
             seed_hash: String::new(),
         };
         seed.seed_hash = seed.computed_hash()?;
@@ -1590,8 +1883,18 @@ impl CampaignSaveV1 {
             .iter()
             .map(|unit| unit.experience_gained)
             .sum::<u64>();
+        let previous_level = self.progression.level;
         self.progression.experience += experience_delta;
         self.progression.level = 1 + (self.progression.experience / 500) as u32;
+        let levels_gained = self.progression.level.saturating_sub(previous_level) as u16;
+        self.progression.growth_points_available = self
+            .progression
+            .growth_points_available
+            .saturating_add(levels_gained);
+        self.progression.growth_points_awarded = self
+            .progression
+            .growth_points_awarded
+            .saturating_add(levels_gained);
         self.character.attributes.reputation = self
             .character
             .attributes
@@ -1632,6 +1935,10 @@ impl CampaignSaveV1 {
                 .find(|member| member.unit_id == report.unit_id)
             {
                 member.experience = member.experience.saturating_add(report.experience_gained);
+                member.veteran_rank = member.veteran_rank.max(report.veteran_rank);
+                member.confirmed_kills = member
+                    .confirmed_kills
+                    .saturating_add(report.confirmed_kills);
                 member.injury_level = member.injury_level.saturating_add(delta).min(4);
                 if report.status == UnitBattleStatus::Lost && !member.persistent {
                     member.available = false;
@@ -1916,6 +2223,20 @@ fn merge_loot(inventory: &mut Vec<LootStack>, loot: &[LootStack]) {
     inventory.sort_by(|left, right| left.item_id.cmp(&right.item_id));
 }
 
+fn consume_loot(
+    inventory: &mut Vec<LootStack>,
+    item_id: &str,
+    quantity: u16,
+) -> Result<(), CampaignError> {
+    let stack = inventory
+        .iter_mut()
+        .find(|stack| stack.item_id == item_id && stack.quantity >= quantity)
+        .ok_or_else(|| CampaignError::InvalidState(format!("missing loot item {item_id}")))?;
+    stack.quantity -= quantity;
+    inventory.retain(|stack| stack.quantity > 0);
+    Ok(())
+}
+
 fn canonical_json_hash<T: Serialize>(value: &T) -> Result<String, CampaignError> {
     let bytes = serde_json::to_vec(value)?;
     let digest = Sha256::digest(bytes);
@@ -2084,6 +2405,8 @@ mod tests {
                     status: UnitBattleStatus::Healthy,
                     remaining_hp: unit.stats.max_hp,
                     experience_gained: 30,
+                    veteran_rank: 0,
+                    confirmed_kills: 0,
                 })
                 .collect(),
             loot: vec![LootStack {
@@ -2136,7 +2459,9 @@ mod tests {
     fn result_is_staged_before_settlement_and_duplicate_is_zero_delta() {
         let mut campaign = ready_campaign();
         let seed = campaign.start_first_contact_battle(map()).unwrap();
-        let result = terminal_result(&seed, BattleOutcome::Victory);
+        let mut result = terminal_result(&seed, BattleOutcome::Victory);
+        result.units[0].veteran_rank = 1;
+        result.units[0].confirmed_kills = 2;
         campaign.stage_battle_result(result.clone()).unwrap();
         assert_eq!(campaign.phase, CampaignPhase::PostBattlePending);
         assert_eq!(campaign.progression.experience, 0);
@@ -2145,6 +2470,8 @@ mod tests {
         assert_eq!(receipt.experience_delta, 120);
         assert_eq!(receipt.credit_delta, 80);
         assert_eq!(campaign.quest_state, QuestState::Completed);
+        assert_eq!(campaign.party[0].veteran_rank, 1);
+        assert_eq!(campaign.party[0].confirmed_kills, 2);
         assert_eq!(campaign.room, CampaignRoom::MirrorSquare);
         let before = campaign.clone();
         let duplicate = campaign.submit_battle_result(result).unwrap();
@@ -2291,5 +2618,151 @@ mod tests {
             ])
             .unwrap();
         assert!(campaign.validate().is_ok());
+    }
+
+    #[test]
+    fn growth_preview_confirm_cancel_and_reload_are_atomic() {
+        let directory = tempdir().unwrap();
+        let store = CampaignStore::new(directory.path().join("growth.json"));
+        let mut campaign = CampaignSaveV1::default();
+        let force_before = campaign.character.attributes.force;
+        campaign
+            .preview_growth_allocation(GrowthStat::Force)
+            .unwrap();
+        assert_eq!(campaign.character.attributes.force, force_before);
+        assert_eq!(campaign.progression.growth_points_available, 1);
+        campaign.cancel_growth_allocation().unwrap();
+        assert_eq!(campaign.progression.growth_points_available, 1);
+
+        campaign
+            .preview_growth_allocation(GrowthStat::Force)
+            .unwrap();
+        campaign.confirm_growth_allocation().unwrap();
+        assert_eq!(campaign.character.attributes.force, force_before + 1);
+        assert_eq!(campaign.progression.growth_points_available, 0);
+        assert_eq!(campaign.build_path, BuildPath::Vanguard);
+        assert_eq!(campaign.active_title, Some(BuildTitle::GateWarden));
+        assert!(campaign.confirm_growth_allocation().is_err());
+        store.save_atomic(&campaign).unwrap();
+        assert_eq!(store.load().unwrap(), campaign);
+    }
+
+    #[test]
+    fn force_and_agility_builds_emit_observably_different_battle_seeds() {
+        let prepare = |stat| {
+            let mut campaign = CampaignSaveV1::default();
+            campaign.preview_growth_allocation(stat).unwrap();
+            campaign.confirm_growth_allocation().unwrap();
+            campaign.move_to(CampaignRoom::MentorHall).unwrap();
+            campaign.talk_to_mentor().unwrap();
+            campaign.train_with_mentor().unwrap();
+            campaign.equip_starter_weapon().unwrap();
+            campaign.move_to(CampaignRoom::ExpeditionGate).unwrap();
+            campaign.accept_first_contact_quest().unwrap();
+            campaign.start_first_contact_battle(map()).unwrap()
+        };
+        let force = prepare(GrowthStat::Force);
+        let agility = prepare(GrowthStat::Agility);
+        assert!(force.party[0].stats.damage > agility.party[0].stats.damage);
+        assert!(agility.party[0].stats.move_speed_milli > force.party[0].stats.move_speed_milli);
+        assert_ne!(force.seed_hash, agility.seed_hash);
+    }
+
+    #[test]
+    fn typed_rpg_encounter_applies_item_injury_loot_and_route_consequences() {
+        let mut campaign = CampaignSaveV1::default();
+        campaign
+            .progression
+            .world_flags
+            .insert("signal_road_secured".to_string());
+        campaign.move_to(CampaignRoom::RelayQuarter).unwrap();
+        campaign.progression.inventory.push(LootStack {
+            item_id: "field-tonic-kit".to_string(),
+            quantity: 1,
+        });
+        campaign.begin_signal_road_encounter().unwrap();
+        campaign
+            .act_in_signal_road_encounter(EncounterAction::Defend)
+            .unwrap();
+        campaign
+            .act_in_signal_road_encounter(EncounterAction::UseItem)
+            .unwrap();
+        while campaign.active_encounter.is_some() {
+            campaign
+                .act_in_signal_road_encounter(EncounterAction::Attack)
+                .unwrap();
+        }
+        assert_eq!(
+            campaign.last_encounter_outcome,
+            Some(EncounterOutcome::Victory)
+        );
+        assert!(campaign
+            .progression
+            .inventory
+            .iter()
+            .any(|stack| stack.item_id == "signal-road-emblem"));
+        assert!(campaign
+            .progression
+            .world_flags
+            .contains("signal_road_ambush_cleared"));
+        assert!(!campaign
+            .progression
+            .inventory
+            .iter()
+            .any(|stack| stack.item_id == "field-tonic-kit"));
+
+        campaign.begin_signal_road_encounter().unwrap();
+        campaign
+            .act_in_signal_road_encounter(EncounterAction::Withdraw)
+            .unwrap();
+        assert_eq!(
+            campaign.last_encounter_outcome,
+            Some(EncounterOutcome::Withdrawn)
+        );
+        assert!(campaign
+            .progression
+            .world_flags
+            .contains("signal_road_ambush_withdrawn"));
+
+        campaign.begin_signal_road_encounter().unwrap();
+        campaign.active_encounter.as_mut().unwrap().player_hp = 1;
+        campaign
+            .act_in_signal_road_encounter(EncounterAction::Attack)
+            .unwrap();
+        assert_eq!(
+            campaign.last_encounter_outcome,
+            Some(EncounterOutcome::Defeat)
+        );
+        assert_eq!(campaign.party[0].injury_level, 1);
+    }
+
+    #[test]
+    fn build_titles_unlock_a_route_encounter_and_real_price() {
+        let mut runner = CampaignSaveV1::default();
+        runner
+            .preview_growth_allocation(GrowthStat::Agility)
+            .unwrap();
+        runner.confirm_growth_allocation().unwrap();
+        runner.move_to(CampaignRoom::RelayQuarter).unwrap();
+        assert_eq!(runner.active_title, Some(BuildTitle::RelayRunner));
+
+        let mut smith = CampaignSaveV1::default();
+        smith.preview_growth_allocation(GrowthStat::Craft).unwrap();
+        smith.confirm_growth_allocation().unwrap();
+        smith.party[0].injury_level = 1;
+        let credits = smith.progression.credits;
+        smith.heal_party().unwrap();
+        assert_eq!(smith.progression.credits, credits - 25);
+
+        let mut warden = CampaignSaveV1::default();
+        warden.preview_growth_allocation(GrowthStat::Force).unwrap();
+        warden.confirm_growth_allocation().unwrap();
+        warden
+            .progression
+            .world_flags
+            .insert("expedition_gate_open".to_string());
+        warden.move_to(CampaignRoom::ExpeditionGate).unwrap();
+        warden.begin_signal_road_encounter().unwrap();
+        assert!(warden.active_encounter.is_some());
     }
 }

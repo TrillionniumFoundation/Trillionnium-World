@@ -16,17 +16,17 @@ use trnm_campaign_core::{
     BattleGridPoint, BattleOutcome, BattleResultV1, BattleSeedV1, CampaignError, LootStack,
     UnitBattleReportV1, UnitBattleStatus, BATTLE_RESULT_CONTRACT,
 };
-use trnm_rts_protocol::{RtsFrameOrder, RtsOrderKind};
+use trnm_rts_protocol::{RtsFrameOrder, RtsOrderKind, RtsUnitStance};
 
-pub const RTS_SIM_CONTRACT: &str = "trnm_rts_sim_v4";
-pub const RTS_SIM_CHECKPOINT_CONTRACT: &str = "trnm_rts_sim_checkpoint_v4";
+pub const RTS_SIM_CONTRACT: &str = "trnm_rts_sim_v5";
+pub const RTS_SIM_CHECKPOINT_CONTRACT: &str = "trnm_rts_sim_checkpoint_v5";
 pub const TICKS_PER_SECOND: u64 = 10;
 pub const THREE_MINUTE_TICKS: u64 = 3 * 60 * TICKS_PER_SECOND;
 pub const FIVE_MINUTE_TICKS: u64 = 5 * 60 * TICKS_PER_SECOND;
 pub const TEN_MINUTE_TICKS: u64 = 10 * 60 * TICKS_PER_SECOND;
 pub const FIFTEEN_MINUTE_TICKS: u64 = 15 * 60 * TICKS_PER_SECOND;
 const MOVEMENT_TILE_COST: i32 = 10_000;
-const CAPTURE_TICKS_REQUIRED: u32 = 600;
+const CAPTURE_TICKS_REQUIRED: u32 = 602;
 const RELAY_GUARD_HP: i64 = 5_400;
 const WITHDRAWAL_MIN_TICKS: u64 = 30;
 const FIELD_AID_COST: u32 = 20;
@@ -35,6 +35,8 @@ const RECON_COST: u32 = 10;
 const TRAIN_SUPPORT_COST: u32 = 40;
 const RESEARCH_COST: u32 = 35;
 const UPGRADE_COST: u32 = 45;
+const WORKER_CARGO_CAPACITY: u32 = 40;
+const RESOURCE_NODE_CAPACITY: u32 = 800;
 
 #[derive(Debug)]
 pub enum SimError {
@@ -110,6 +112,26 @@ pub struct SimUnit {
     pub guard_ticks: u32,
     pub position: BattleGridPoint,
     pub attacks_made: u64,
+    #[serde(default)]
+    pub stance: RtsUnitStance,
+    #[serde(default)]
+    pub patrol_anchor: Option<BattleGridPoint>,
+    #[serde(default)]
+    pub patrol_target: Option<BattleGridPoint>,
+    #[serde(default)]
+    pub patrol_returning: bool,
+    #[serde(default)]
+    pub cargo: u32,
+    #[serde(default = "default_worker_cargo_capacity")]
+    pub cargo_capacity: u32,
+    #[serde(default)]
+    pub confirmed_kills: u32,
+    #[serde(default)]
+    pub veteran_rank: u8,
+}
+
+fn default_worker_cargo_capacity() -> u32 {
+    WORKER_CARGO_CAPACITY
 }
 
 impl SimUnit {
@@ -148,6 +170,62 @@ pub struct SimJob {
     pub paused: bool,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SimStructureKind {
+    CommandPost,
+    FieldWorkshop,
+    RelayGenerator,
+    SupplyCache,
+    FieldBarricade,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SimStructure {
+    pub structure_id: String,
+    pub kind: SimStructureKind,
+    pub position: BattleGridPoint,
+    pub hp: i64,
+    pub max_hp: i64,
+}
+
+impl SimStructure {
+    fn alive(&self) -> bool {
+        self.hp > 0
+    }
+
+    fn supply_provided(&self) -> u8 {
+        match self.kind {
+            SimStructureKind::CommandPost => 8,
+            SimStructureKind::SupplyCache => 4,
+            _ => 0,
+        }
+    }
+
+    fn power_provided(&self) -> u16 {
+        match self.kind {
+            SimStructureKind::CommandPost => 50,
+            SimStructureKind::RelayGenerator => 50,
+            _ => 0,
+        }
+    }
+
+    fn power_draw(&self) -> u16 {
+        match self.kind {
+            SimStructureKind::FieldWorkshop => 30,
+            SimStructureKind::FieldBarricade => 4,
+            _ => 0,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ResourceNodeState {
+    pub node_id: String,
+    pub position: BattleGridPoint,
+    pub remaining: u32,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SupportUnit {
     pub unit_id: String,
@@ -181,6 +259,12 @@ pub struct MissionSimV1 {
     pub resources_gathered: u32,
     pub resources_available: u32,
     pub resources_spent: u32,
+    #[serde(default)]
+    pub resources_generated: u32,
+    #[serde(default)]
+    pub resource_nodes: Vec<ResourceNodeState>,
+    #[serde(default)]
+    pub structures: Vec<SimStructure>,
     pub reinforcement_wave: u8,
     #[serde(default)]
     pub intel_level: u8,
@@ -237,6 +321,14 @@ impl MissionSimV1 {
                 guard_ticks: 0,
                 position: party_positions[index],
                 attacks_made: 0,
+                stance: RtsUnitStance::Guard,
+                patrol_anchor: None,
+                patrol_target: None,
+                patrol_returning: false,
+                cargo: 0,
+                cargo_capacity: WORKER_CARGO_CAPACITY,
+                confirmed_kills: 0,
+                veteran_rank: unit.veteran_rank,
             })
             .collect();
         let enemy_profiles = [
@@ -275,6 +367,14 @@ impl MissionSimV1 {
                     guard_ticks: 0,
                     position: spawn.position,
                     attacks_made: 0,
+                    stance: RtsUnitStance::Aggressive,
+                    patrol_anchor: None,
+                    patrol_target: None,
+                    patrol_returning: false,
+                    cargo: 0,
+                    cargo_capacity: WORKER_CARGO_CAPACITY,
+                    confirmed_kills: 0,
+                    veteran_rank: 0,
                 }
             })
             .collect();
@@ -285,7 +385,7 @@ impl MissionSimV1 {
         };
         let mut sim = Self {
             contract_version: RTS_SIM_CONTRACT.to_string(),
-            seed,
+            seed: seed.clone(),
             tick: 0,
             phase: BattlePhase::Approach,
             active_order: None,
@@ -302,6 +402,37 @@ impl MissionSimV1 {
             resources_gathered: 0,
             resources_available: 0,
             resources_spent: 0,
+            resources_generated: 0,
+            resource_nodes: seed
+                .map
+                .resource_nodes
+                .iter()
+                .map(|node| ResourceNodeState {
+                    node_id: node.id.clone(),
+                    position: node.position,
+                    remaining: RESOURCE_NODE_CAPACITY,
+                })
+                .collect(),
+            structures: vec![
+                SimStructure {
+                    structure_id: "expedition_command_post".to_string(),
+                    kind: SimStructureKind::CommandPost,
+                    position: seed.map.party_start,
+                    hp: 900,
+                    max_hp: 900,
+                },
+                SimStructure {
+                    structure_id: "field_workshop".to_string(),
+                    kind: SimStructureKind::FieldWorkshop,
+                    position: nearest_passable(
+                        &seed,
+                        BattleGridPoint::new(seed.map.party_start.x + 2, seed.map.party_start.y),
+                    )
+                    .unwrap_or(seed.map.party_start),
+                    hp: 600,
+                    max_hp: 600,
+                },
+            ],
             reinforcement_wave: 0,
             intel_level: 0,
             recon_bonus_ticks: 0,
@@ -369,6 +500,29 @@ impl MissionSimV1 {
                 )));
             }
         }
+        for structure in &self.structures {
+            if !self.seed.map.in_bounds(structure.position)
+                || !self.seed.map.passable(structure.position)
+                || structure.max_hp <= 0
+                || structure.hp > structure.max_hp
+            {
+                return Err(SimError::Integrity(format!(
+                    "structure {} occupies an invalid state",
+                    structure.structure_id
+                )));
+            }
+        }
+        for node in &self.resource_nodes {
+            if !self.seed.map.in_bounds(node.position)
+                || node.remaining > RESOURCE_NODE_CAPACITY
+                || !self.seed.map.passable(node.position)
+            {
+                return Err(SimError::Integrity(format!(
+                    "resource node {} occupies an invalid state",
+                    node.node_id
+                )));
+            }
+        }
         for job in &self.jobs {
             if job.remaining_ticks == 0
                 || !self.seed.map.in_bounds(job.target)
@@ -424,6 +578,47 @@ impl MissionSimV1 {
             ));
         }
         Ok(())
+    }
+
+    pub fn supply_cap(&self) -> u8 {
+        self.structures
+            .iter()
+            .filter(|structure| structure.alive())
+            .map(SimStructure::supply_provided)
+            .fold(0_u8, u8::saturating_add)
+    }
+
+    pub fn supply_used(&self) -> u8 {
+        let active_party = self.party.iter().filter(|unit| unit.alive()).count() as u8;
+        let support = self.support_units.len() as u8;
+        let reserved = self
+            .jobs
+            .iter()
+            .filter(|job| matches!(job.kind, SimJobKind::TrainSupport | SimJobKind::TrainMedic))
+            .count() as u8;
+        active_party
+            .saturating_add(support)
+            .saturating_add(reserved)
+    }
+
+    pub fn power_provided(&self) -> u16 {
+        self.structures
+            .iter()
+            .filter(|structure| structure.alive())
+            .map(SimStructure::power_provided)
+            .sum()
+    }
+
+    pub fn power_draw(&self) -> u16 {
+        self.structures
+            .iter()
+            .filter(|structure| structure.alive())
+            .map(SimStructure::power_draw)
+            .sum()
+    }
+
+    pub fn low_power(&self) -> bool {
+        self.power_draw() > self.power_provided()
     }
 
     pub fn terminal(&self) -> bool {
@@ -514,7 +709,7 @@ impl MissionSimV1 {
         } else {
             match order.kind {
                 RtsOrderKind::Ability => self.resolve_party_ability(&order)?,
-                RtsOrderKind::Repair => self.resolve_field_aid(&order)?,
+                RtsOrderKind::Repair => self.resolve_repair(&order)?,
                 RtsOrderKind::Build => self.resolve_fortify(&order)?,
                 RtsOrderKind::Recon => self.resolve_recon(&order)?,
                 RtsOrderKind::Train | RtsOrderKind::Research | RtsOrderKind::Upgrade => {
@@ -535,14 +730,37 @@ impl MissionSimV1 {
                 RtsOrderKind::ResumeJob => self.set_job_paused(&order, false)?,
                 RtsOrderKind::PromoteJob => self.promote_job(&order)?,
                 RtsOrderKind::SetRally => self.set_rally(&order)?,
+                RtsOrderKind::SetStance => self.set_unit_stance(&order)?,
+                RtsOrderKind::Stop => {
+                    self.queued_orders.clear();
+                    self.active_order = None;
+                    for unit in &mut self.party {
+                        if order.subject_actor_ids.contains(&unit.unit_id) {
+                            unit.patrol_anchor = None;
+                            unit.patrol_target = None;
+                        }
+                    }
+                }
                 RtsOrderKind::Move
                 | RtsOrderKind::AttackMove
+                | RtsOrderKind::Patrol
                 | RtsOrderKind::Harvest
                 | RtsOrderKind::Capture
                 | RtsOrderKind::Attack
                 | RtsOrderKind::FocusFire
                 | RtsOrderKind::Hold => {
                     self.queued_orders.clear();
+                    if order.kind == RtsOrderKind::Patrol {
+                        let target = order.target_tile.expect("validated patrol tile");
+                        for unit in &mut self.party {
+                            if order.subject_actor_ids.contains(&unit.unit_id) {
+                                unit.patrol_anchor = Some(unit.position);
+                                unit.patrol_target =
+                                    Some(BattleGridPoint::new(target.x as i16, target.y as i16));
+                                unit.patrol_returning = false;
+                            }
+                        }
+                    }
                     self.active_order = Some(order.clone());
                 }
                 RtsOrderKind::Extract => unreachable!("withdrawal handled above"),
@@ -644,6 +862,7 @@ impl MissionSimV1 {
                     })
                 })
             }
+            RtsOrderKind::Patrol => false,
             RtsOrderKind::Attack | RtsOrderKind::FocusFire => order
                 .target_actor_id
                 .as_deref()
@@ -678,6 +897,7 @@ impl MissionSimV1 {
             }
         }
         self.resolve_player_order();
+        self.resolve_stance_fire();
         self.update_phase();
         self.resolve_enemy_ai();
         self.resolve_support_fire();
@@ -733,6 +953,7 @@ impl MissionSimV1 {
                 }
                 self.party_attack(&selected, order.target_actor_id.as_deref());
             }
+            RtsOrderKind::Patrol => self.resolve_patrol(&selected),
             RtsOrderKind::Harvest => self.resolve_harvest(&selected, &order),
             RtsOrderKind::Hold | RtsOrderKind::Capture => self.resolve_capture(&selected),
             RtsOrderKind::Ability
@@ -752,6 +973,8 @@ impl MissionSimV1 {
             | RtsOrderKind::ResumeJob
             | RtsOrderKind::PromoteJob
             | RtsOrderKind::SetRally
+            | RtsOrderKind::Stop
+            | RtsOrderKind::SetStance
             | RtsOrderKind::Extract => {}
         }
     }
@@ -831,6 +1054,111 @@ impl MissionSimV1 {
             .or(Some(self.seed.map.objective))
     }
 
+    fn set_unit_stance(&mut self, order: &RtsFrameOrder) -> Result<(), SimError> {
+        let stance = order
+            .target_rule_id
+            .as_deref()
+            .and_then(RtsUnitStance::from_rule_id)
+            .ok_or_else(|| SimError::Order("unit stance is invalid".to_string()))?;
+        for unit in &mut self.party {
+            if order.subject_actor_ids.contains(&unit.unit_id) {
+                unit.stance = stance;
+            }
+        }
+        Ok(())
+    }
+
+    fn resolve_patrol(&mut self, selected: &BTreeSet<String>) {
+        let outward = self
+            .party
+            .iter()
+            .filter(|unit| {
+                unit.alive() && selected.contains(&unit.unit_id) && !unit.patrol_returning
+            })
+            .map(|unit| unit.unit_id.clone())
+            .collect::<BTreeSet<_>>();
+        let returning = self
+            .party
+            .iter()
+            .filter(|unit| {
+                unit.alive() && selected.contains(&unit.unit_id) && unit.patrol_returning
+            })
+            .map(|unit| unit.unit_id.clone())
+            .collect::<BTreeSet<_>>();
+        let target = self
+            .party
+            .iter()
+            .find_map(|unit| unit.patrol_target)
+            .unwrap_or(self.seed.map.approach_point);
+        if !outward.is_empty() {
+            self.move_selected_toward(&outward, target, 0, None);
+        }
+        if !returning.is_empty() {
+            self.move_selected_toward(&returning, self.seed.map.party_start, 0, None);
+        }
+        for unit in &mut self.party {
+            if !selected.contains(&unit.unit_id) {
+                continue;
+            }
+            let destination = if unit.patrol_returning {
+                self.seed.map.party_start
+            } else {
+                unit.patrol_target.unwrap_or(target)
+            };
+            if distance(unit.position, destination) <= 1 {
+                unit.patrol_returning = !unit.patrol_returning;
+            }
+        }
+    }
+
+    fn resolve_stance_fire(&mut self) {
+        if matches!(
+            self.current_order_kind(),
+            RtsOrderKind::Attack | RtsOrderKind::FocusFire | RtsOrderKind::AttackMove
+        ) {
+            return;
+        }
+        let guard = self
+            .party
+            .iter()
+            .filter(|unit| unit.alive() && unit.stance == RtsUnitStance::Guard)
+            .filter(|unit| {
+                self.enemies.iter().any(|enemy| {
+                    enemy.alive()
+                        && self.visible_tiles.contains(&enemy.position)
+                        && distance(unit.position, enemy.position) <= unit.attack_range()
+                })
+            })
+            .map(|unit| unit.unit_id.clone())
+            .collect::<BTreeSet<_>>();
+        if !guard.is_empty() {
+            self.party_attack(&guard, None);
+        }
+        let aggressive = self
+            .party
+            .iter()
+            .filter(|unit| unit.alive() && unit.stance == RtsUnitStance::Aggressive)
+            .map(|unit| unit.unit_id.clone())
+            .collect::<BTreeSet<_>>();
+        let target = self
+            .enemies
+            .iter()
+            .filter(|enemy| enemy.alive() && self.visible_tiles.contains(&enemy.position))
+            .min_by_key(|enemy| {
+                self.party
+                    .iter()
+                    .filter(|unit| aggressive.contains(&unit.unit_id))
+                    .map(|unit| distance(unit.position, enemy.position))
+                    .min()
+                    .unwrap_or(i16::MAX)
+            })
+            .map(|enemy| (enemy.unit_id.clone(), enemy.position));
+        if let Some((target_id, position)) = target {
+            self.move_selected_toward(&aggressive, position, 1, None);
+            self.party_attack(&aggressive, Some(&target_id));
+        }
+    }
+
     fn party_attack(&mut self, selected: &BTreeSet<String>, requested: Option<&str>) {
         for attacker_index in 0..self.party.len() {
             if !self.party[attacker_index].alive()
@@ -867,9 +1195,11 @@ impl MissionSimV1 {
                     } else {
                         0
                     };
-                    let damage = (self.party[attacker_index].damage + intel_bonus
+                    let veteran_bonus = i64::from(self.party[attacker_index].veteran_rank) * 2;
+                    let damage = (self.party[attacker_index].damage + intel_bonus + veteran_bonus
                         - self.enemies[target_index].armor)
                         .max(1);
+                    let was_alive = self.enemies[target_index].alive();
                     if !deterministic_evade(
                         self.tick,
                         target_index,
@@ -878,6 +1208,17 @@ impl MissionSimV1 {
                         self.enemies[target_index].hp -= damage;
                     }
                     self.party[attacker_index].attacks_made += 1;
+                    if was_alive && !self.enemies[target_index].alive() {
+                        self.party[attacker_index].confirmed_kills =
+                            self.party[attacker_index].confirmed_kills.saturating_add(1);
+                        self.party[attacker_index].veteran_rank =
+                            match self.party[attacker_index].confirmed_kills {
+                                0..=1 => self.party[attacker_index].veteran_rank,
+                                2..=4 => self.party[attacker_index].veteran_rank.max(1),
+                                5..=8 => self.party[attacker_index].veteran_rank.max(2),
+                                _ => 3,
+                            };
+                    }
                     self.event_count += 1;
                 }
             } else if self.phase == BattlePhase::Relay
@@ -894,41 +1235,75 @@ impl MissionSimV1 {
     }
 
     fn resolve_harvest(&mut self, selected: &BTreeSet<String>, order: &RtsFrameOrder) {
-        let Some(node) = order
+        let Some(node_index) = order
             .target_actor_id
             .as_deref()
             .and_then(|id| {
-                self.seed
-                    .map
-                    .resource_nodes
+                self.resource_nodes
                     .iter()
-                    .find(|node| node.id == id)
+                    .position(|node| node.node_id == id)
             })
-            .or_else(|| self.seed.map.resource_nodes.first())
-            .cloned()
+            .or(if self.resource_nodes.is_empty() {
+                None
+            } else {
+                Some(0)
+            })
         else {
             return;
         };
-        self.move_selected_toward(selected, node.position, 1, None);
-        let workers = self
+        let node_position = self.resource_nodes[node_index].position;
+        let node_depleted = self.resource_nodes[node_index].remaining == 0;
+        let returning = self
             .party
             .iter()
             .filter(|unit| {
                 unit.alive()
                     && selected.contains(&unit.unit_id)
-                    && distance(unit.position, node.position) <= 1
+                    && (unit.cargo >= unit.cargo_capacity || (node_depleted && unit.cargo > 0))
             })
-            .count() as u32;
-        if workers > 0 && self.tick.is_multiple_of(10) {
-            let harvested = workers.saturating_mul(4);
-            self.resources_gathered = self.resources_gathered.saturating_add(harvested);
-            self.resources_available = self.resources_available.saturating_add(harvested);
-            for unit in &mut self.party {
-                if selected.contains(&unit.unit_id) && distance(unit.position, node.position) <= 1 {
-                    unit.energy = (unit.energy + 4).min(unit.max_energy);
+            .map(|unit| unit.unit_id.clone())
+            .collect::<BTreeSet<_>>();
+        let gathering = selected
+            .difference(&returning)
+            .cloned()
+            .collect::<BTreeSet<_>>();
+        if !gathering.is_empty() && !node_depleted {
+            self.move_selected_toward(&gathering, node_position, 1, None);
+        }
+        if !returning.is_empty() {
+            self.move_selected_toward(&returning, self.seed.map.party_start, 1, None);
+        }
+        if self.tick.is_multiple_of(10) {
+            for index in 0..self.party.len() {
+                if !gathering.contains(&self.party[index].unit_id)
+                    || distance(self.party[index].position, node_position) > 1
+                    || self.resource_nodes[node_index].remaining == 0
+                {
+                    continue;
                 }
+                let room = self.party[index]
+                    .cargo_capacity
+                    .saturating_sub(self.party[index].cargo);
+                let harvested = 4_u32
+                    .min(room)
+                    .min(self.resource_nodes[node_index].remaining);
+                self.party[index].cargo = self.party[index].cargo.saturating_add(harvested);
+                self.resource_nodes[node_index].remaining -= harvested;
+                self.party[index].energy =
+                    (self.party[index].energy + 4).min(self.party[index].max_energy);
+                self.event_count += u64::from(harvested > 0);
             }
-            self.event_count += 1;
+        }
+        for unit in &mut self.party {
+            if returning.contains(&unit.unit_id)
+                && distance(unit.position, self.seed.map.party_start) <= 1
+                && unit.cargo > 0
+            {
+                let deposited = std::mem::take(&mut unit.cargo);
+                self.resources_gathered = self.resources_gathered.saturating_add(deposited);
+                self.resources_available = self.resources_available.saturating_add(deposited);
+                self.event_count += 1;
+            }
         }
     }
 
@@ -976,8 +1351,77 @@ impl MissionSimV1 {
         Ok(())
     }
 
+    fn resolve_repair(&mut self, order: &RtsFrameOrder) -> Result<(), SimError> {
+        if let Some(index) = order.target_actor_id.as_deref().and_then(|target| {
+            self.structures
+                .iter()
+                .position(|structure| structure.structure_id == target && structure.alive())
+        }) {
+            if self.structures[index].hp >= self.structures[index].max_hp {
+                return Err(SimError::Order(
+                    "structure is already fully repaired".to_string(),
+                ));
+            }
+            self.spend_resources(10, "structure repair")?;
+            self.structures[index].hp =
+                (self.structures[index].hp + 180).min(self.structures[index].max_hp);
+            self.event_count += 1;
+            Ok(())
+        } else {
+            self.resolve_field_aid(order)
+        }
+    }
+
     fn resolve_fortify(&mut self, order: &RtsFrameOrder) -> Result<(), SimError> {
-        self.spend_resources(FORTIFY_COST, "fortification")?;
+        let rule = order.target_rule_id.as_deref().unwrap_or("field_barricade");
+        let (kind, base_cost, hp) = match rule {
+            "relay_generator" => (SimStructureKind::RelayGenerator, 35, 520),
+            "field_workshop" => (SimStructureKind::FieldWorkshop, 45, 600),
+            "supply_cache" => (SimStructureKind::SupplyCache, 25, 420),
+            "field_barricade" => (SimStructureKind::FieldBarricade, FORTIFY_COST, 480),
+            _ => return Err(SimError::Order(format!("unknown structure rule {rule}"))),
+        };
+        let target = order
+            .target_tile
+            .map(|tile| BattleGridPoint::new(tile.x as i16, tile.y as i16))
+            .ok_or_else(|| SimError::Order("structure target is missing".to_string()))?;
+        let in_build_radius = self
+            .structures
+            .iter()
+            .filter(|structure| structure.alive())
+            .any(|structure| distance(structure.position, target) <= 8)
+            || self.party.iter().any(|unit| {
+                unit.alive()
+                    && order.subject_actor_ids.contains(&unit.unit_id)
+                    && distance(unit.position, target) <= 6
+            });
+        if !in_build_radius {
+            return Err(SimError::Order(
+                "structure target is outside build radius".to_string(),
+            ));
+        }
+        if self
+            .structures
+            .iter()
+            .any(|structure| structure.alive() && structure.position == target)
+            || self
+                .enemies
+                .iter()
+                .any(|enemy| enemy.alive() && enemy.position == target)
+        {
+            return Err(SimError::Order(
+                "structure target tile is occupied".to_string(),
+            ));
+        }
+        let cost = ((base_cost * u32::from(self.seed.field_build_cost_permille)) / 1000).max(1);
+        self.spend_resources(cost, "structure construction")?;
+        self.structures.push(SimStructure {
+            structure_id: format!("{rule}-{}", self.event_count + 1),
+            kind,
+            position: target,
+            hp,
+            max_hp: hp,
+        });
         let selected = order
             .subject_actor_ids
             .iter()
@@ -1026,6 +1470,28 @@ impl MissionSimV1 {
         if self.jobs.iter().any(|job| job.kind == kind) {
             return Err(SimError::Order(
                 "that production or technology job is already queued".to_string(),
+            ));
+        }
+        if matches!(kind, SimJobKind::TrainSupport | SimJobKind::TrainMedic)
+            && self.supply_used() >= self.supply_cap()
+        {
+            return Err(SimError::Order(
+                "unit production is supply blocked".to_string(),
+            ));
+        }
+        let workshop_ready = self.structures.iter().any(|structure| {
+            structure.alive() && structure.kind == SimStructureKind::FieldWorkshop
+        });
+        if matches!(
+            kind,
+            SimJobKind::TrainMedic
+                | SimJobKind::ResearchOptics
+                | SimJobKind::UpgradeRelayArms
+                | SimJobKind::UpgradeFieldArmor
+        ) && !workshop_ready
+        {
+            return Err(SimError::Order(
+                "a powered field workshop prerequisite is missing".to_string(),
             ));
         }
         let (cost, duration, label) = match kind {
@@ -1149,7 +1615,8 @@ impl MissionSimV1 {
     }
 
     fn process_jobs(&mut self) {
-        if let Some(job) = self.jobs.first_mut().filter(|job| !job.paused) {
+        let powered = !self.low_power();
+        if let Some(job) = self.jobs.first_mut().filter(|job| !job.paused && powered) {
             job.remaining_ticks = job.remaining_ticks.saturating_sub(1);
         }
         let completed = self
@@ -1304,6 +1771,14 @@ impl MissionSimV1 {
                 guard_ticks: 0,
                 position: spawn.position,
                 attacks_made: 0,
+                stance: RtsUnitStance::Aggressive,
+                patrol_anchor: None,
+                patrol_target: None,
+                patrol_returning: false,
+                cargo: 0,
+                cargo_capacity: WORKER_CARGO_CAPACITY,
+                confirmed_kills: 0,
+                veteran_rank: 0,
             });
         }
         self.event_count += 1;
@@ -1388,6 +1863,7 @@ impl MissionSimV1 {
                     }
                 }
                 "relay_overcharge" => {
+                    self.resources_generated = self.resources_generated.saturating_add(20);
                     self.resources_gathered = self.resources_gathered.saturating_add(20);
                     self.resources_available = self.resources_available.saturating_add(20);
                     if self.phase == BattlePhase::Relay {
@@ -1642,6 +2118,8 @@ impl MissionSimV1 {
                     status,
                     remaining_hp: unit.hp.max(0) as u32,
                     experience_gained: experience,
+                    veteran_rank: unit.veteran_rank,
+                    confirmed_kills: unit.confirmed_kills,
                 }
             })
             .collect();
@@ -1721,6 +2199,7 @@ fn is_continuous_order(kind: RtsOrderKind) -> bool {
         kind,
         RtsOrderKind::Move
             | RtsOrderKind::AttackMove
+            | RtsOrderKind::Patrol
             | RtsOrderKind::Harvest
             | RtsOrderKind::Capture
             | RtsOrderKind::Attack
@@ -2527,5 +3006,168 @@ mod tests {
         }
         assert!(sim.support_units.iter().any(|unit| unit.role == "medic"));
         assert_eq!(sim.resources_available + sim.resources_spent, 600);
+    }
+
+    #[test]
+    fn workers_carry_depleting_resources_back_to_the_command_post() {
+        let mut sim = MissionSimV1::from_seed(seed()).unwrap();
+        let node = sim.resource_nodes[0].position;
+        sim.issue_order(order(&sim, RtsOrderKind::Harvest, node))
+            .unwrap();
+        step_until(
+            &mut sim,
+            |sim| sim.party.iter().any(|unit| unit.cargo > 0),
+            800,
+        );
+        assert_eq!(
+            sim.resources_gathered, 0,
+            "cargo must not teleport into storage"
+        );
+        step_until(&mut sim, |sim| sim.resources_gathered > 0, 1_400);
+        let carried = sim.party.iter().map(|unit| unit.cargo).sum::<u32>();
+        assert_eq!(
+            sim.resource_nodes[0].remaining + carried + sim.resources_gathered,
+            RESOURCE_NODE_CAPACITY
+        );
+        assert_eq!(
+            sim.resources_available + sim.resources_spent,
+            sim.resources_gathered
+        );
+    }
+
+    #[test]
+    fn structures_supply_power_prerequisites_repair_and_blocking_are_authoritative() {
+        let mut sim = MissionSimV1::from_seed(seed()).unwrap();
+        sim.resources_gathered = 400;
+        sim.resources_available = 400;
+        let start = sim.seed.map.party_start;
+        let workshop_tile = BattleGridPoint::new(start.x + 4, start.y);
+        let mut workshop = order(&sim, RtsOrderKind::Build, workshop_tile);
+        workshop.target_rule_id = Some("field_workshop".to_string());
+        sim.issue_order(workshop).unwrap();
+        assert!(sim.low_power());
+
+        let job = job_order(&sim, RtsOrderKind::Research, "field_logistics", start);
+        sim.issue_order(job).unwrap();
+        let remaining = sim.jobs[0].remaining_ticks;
+        for _ in 0..5 {
+            sim.step().unwrap();
+        }
+        assert_eq!(sim.jobs[0].remaining_ticks, remaining);
+
+        let generator_tile = BattleGridPoint::new(start.x + 5, start.y);
+        let mut generator = order(&sim, RtsOrderKind::Build, generator_tile);
+        generator.target_rule_id = Some("relay_generator".to_string());
+        sim.issue_order(generator.clone()).unwrap();
+        assert!(!sim.low_power());
+        sim.step().unwrap();
+        assert!(sim.jobs[0].remaining_ticks < remaining);
+        assert!(
+            sim.issue_order(generator).is_err(),
+            "occupied build must fail"
+        );
+
+        let generator_id = sim
+            .structures
+            .iter()
+            .find(|structure| structure.kind == SimStructureKind::RelayGenerator)
+            .unwrap()
+            .structure_id
+            .clone();
+        let generator_index = sim
+            .structures
+            .iter()
+            .position(|structure| structure.structure_id == generator_id)
+            .unwrap();
+        sim.structures[generator_index].hp -= 200;
+        let mut repair = order(&sim, RtsOrderKind::Repair, generator_tile);
+        repair.target_actor_id = Some(generator_id);
+        sim.issue_order(repair).unwrap();
+        assert!(sim.structures[generator_index].hp > sim.structures[generator_index].max_hp - 200);
+
+        let cap_before = sim.supply_cap();
+        let mut supply = order(
+            &sim,
+            RtsOrderKind::Build,
+            BattleGridPoint::new(start.x + 6, start.y),
+        );
+        supply.target_rule_id = Some("supply_cache".to_string());
+        sim.issue_order(supply).unwrap();
+        assert_eq!(sim.supply_cap(), cap_before + 4);
+        assert_eq!(sim.resources_available + sim.resources_spent, 400);
+        sim.validate().unwrap();
+        let directory = tempdir().unwrap();
+        let store = SimCheckpointStore::new(directory.path().join("economy.json"));
+        store.save_atomic(&sim).unwrap();
+        let resumed = store.load_for_seed(&sim.seed).unwrap().unwrap();
+        assert_eq!(resumed, sim);
+        assert_eq!(
+            resumed.snapshot_hash().unwrap(),
+            sim.snapshot_hash().unwrap()
+        );
+    }
+
+    #[test]
+    fn stance_patrol_stop_and_veterancy_survive_the_authoritative_result() {
+        let mut sim = MissionSimV1::from_seed(seed()).unwrap();
+        let hero = sim.party[0].unit_id.clone();
+        let subjects = vec![hero.clone()];
+        let mut stance = RtsFrameOrder::new(
+            0,
+            "player",
+            subjects.clone(),
+            RtsOrderKind::SetStance,
+            RtsOrderSource::LocalInput,
+        );
+        stance.target_rule_id = Some(RtsUnitStance::Aggressive.as_str().to_string());
+        sim.issue_order(stance).unwrap();
+        assert_eq!(sim.party[0].stance, RtsUnitStance::Aggressive);
+
+        let mut patrol = RtsFrameOrder::new(
+            1,
+            "player",
+            subjects.clone(),
+            RtsOrderKind::Patrol,
+            RtsOrderSource::LocalInput,
+        );
+        patrol.target_tile = Some(RtsTile::new(
+            sim.seed.map.approach_point.x as i32,
+            sim.seed.map.approach_point.y as i32,
+        ));
+        sim.issue_order(patrol).unwrap();
+        assert!(sim.party[0].patrol_target.is_some());
+        let stop = RtsFrameOrder::new(
+            2,
+            "player",
+            subjects.clone(),
+            RtsOrderKind::Stop,
+            RtsOrderSource::LocalInput,
+        );
+        sim.issue_order(stop).unwrap();
+        assert!(sim.active_order.is_none() && sim.party[0].patrol_target.is_none());
+
+        let selected = BTreeSet::from([hero]);
+        let interval = sim.party[0].attack_interval_ticks as u64;
+        for target_index in 0..2 {
+            sim.enemies[target_index].position = sim.party[0].position;
+            sim.enemies[target_index].hp = 1;
+            sim.enemies[target_index].evasion_permille = 0;
+            sim.tick = sim.tick.next_multiple_of(interval);
+            let target_id = sim.enemies[target_index].unit_id.clone();
+            sim.party_attack(&selected, Some(&target_id));
+            sim.tick += 1;
+        }
+        assert_eq!(sim.party[0].confirmed_kills, 2);
+        assert_eq!(sim.party[0].veteran_rank, 1);
+        sim.outcome = Some(BattleOutcome::Withdrawal);
+        sim.phase = BattlePhase::Complete;
+        let result = sim.into_result().unwrap();
+        let hero_report = result
+            .units
+            .iter()
+            .find(|unit| unit.unit_id == "hero")
+            .unwrap();
+        assert_eq!(hero_report.confirmed_kills, 2);
+        assert_eq!(hero_report.veteran_rank, 1);
     }
 }

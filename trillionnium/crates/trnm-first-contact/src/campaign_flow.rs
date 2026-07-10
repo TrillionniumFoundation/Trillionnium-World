@@ -5,8 +5,8 @@ use super::simulation_adapter::{
 use bevy::prelude::*;
 use std::path::{Path, PathBuf};
 use trnm_campaign_core::{
-    CampaignError, CampaignPhase, CampaignRoom, CampaignSaveV1, CampaignStore, QuestState,
-    SettlementReceiptV1,
+    CampaignError, CampaignPhase, CampaignRoom, CampaignSaveV1, CampaignStore, EncounterAction,
+    QuestState, SettlementReceiptV1,
 };
 use trnm_rts_sim::{MissionSimV1, SimCheckpointStore};
 
@@ -200,6 +200,35 @@ pub(super) fn handle_campaign_input(
         return;
     }
 
+    if flow.save.active_encounter.is_some() {
+        let (action, success) = if input.just_pressed(KeyCode::KeyJ) {
+            (Some(EncounterAction::Attack), "Struck in the RPG encounter")
+        } else if input.just_pressed(KeyCode::KeyR) {
+            (
+                Some(EncounterAction::Defend),
+                "Defended in the RPG encounter",
+            )
+        } else if input.just_pressed(KeyCode::KeyI) {
+            (
+                Some(EncounterAction::UseItem),
+                "Used a Field Tonic in the RPG encounter",
+            )
+        } else if input.just_pressed(KeyCode::Escape) {
+            (
+                Some(EncounterAction::Withdraw),
+                "Withdrew from the RPG encounter",
+            )
+        } else {
+            (None, "")
+        };
+        if let Some(action) = action {
+            let result =
+                flow.mutate_town(|save| save.act_in_signal_road_encounter(action).map(|_| ()));
+            set_status(&mut flow, result, success);
+        }
+        return;
+    }
+
     if input.just_pressed(KeyCode::Digit1) {
         let result = flow.mutate_town(|save| save.move_to(CampaignRoom::MirrorSquare));
         set_status(&mut flow, result, "Entered Mirror Square");
@@ -265,6 +294,36 @@ pub(super) fn handle_campaign_input(
     } else if input.just_pressed(KeyCode::KeyG) {
         let result = flow.mutate_town(CampaignSaveV1::equip_relay_core);
         set_status(&mut flow, result, "Equipped the recovered Relay Core relic");
+    } else if input.just_pressed(KeyCode::KeyA) {
+        let result = flow.mutate_town(|save| save.cycle_growth_preview().map(|_| ()));
+        set_status(
+            &mut flow,
+            result,
+            "Previewed the next permanent growth allocation",
+        );
+    } else if input.just_pressed(KeyCode::KeyS) {
+        let result = flow.mutate_town(|save| save.confirm_growth_allocation().map(|_| ()));
+        set_status(&mut flow, result, "Confirmed and consumed one growth point");
+    } else if input.just_pressed(KeyCode::KeyD) {
+        let result = flow.mutate_town(CampaignSaveV1::cancel_growth_allocation);
+        set_status(
+            &mut flow,
+            result,
+            "Canceled the growth preview without spending",
+        );
+    } else if input.just_pressed(KeyCode::KeyV) {
+        let result = flow.mutate_town(|save| save.cycle_active_title().map(|_| ()));
+        set_status(&mut flow, result, "Changed the active build title");
+    } else if input.just_pressed(KeyCode::KeyJ)
+        && (flow.save.room == CampaignRoom::RelayQuarter
+            || flow
+                .save
+                .progression
+                .world_flags
+                .contains("gate_warden_route"))
+    {
+        let result = flow.mutate_town(CampaignSaveV1::begin_signal_road_encounter);
+        set_status(&mut flow, result, "Signal Road ambush began");
     } else if input.just_pressed(KeyCode::KeyF) {
         let repeatable_aftershock = flow.save.quest_state == QuestState::Completed
             && flow

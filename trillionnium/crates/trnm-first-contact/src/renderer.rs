@@ -30,6 +30,7 @@ pub(super) struct FirstContactSelectionRing {
 
 #[derive(Component)]
 pub(super) struct FirstContactStructureSprite {
+    pub id: String,
     pub family: String,
     pub active: bool,
 }
@@ -292,6 +293,7 @@ pub(super) fn spawn_first_contact_live_scene(
             sprite,
             Transform::from_translation(map_world_position(&map, structure.x, structure.y, 5.0)),
             FirstContactStructureSprite {
+                id: structure.id.clone(),
                 family: structure.family.clone(),
                 active: structure.active,
             },

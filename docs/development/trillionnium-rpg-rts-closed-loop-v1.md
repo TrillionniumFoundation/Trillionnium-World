@@ -1,6 +1,6 @@
 # Trillionnium RPG -> RTS -> RPG Closed Loop v1
 
-Status: canonical local product truth source as of 2026-07-10, legacy-value extraction P0-P3 revision.
+Status: canonical local product truth source as of 2026-07-10, growth/economy/encounter P0-P3 revision.
 
 ## Product Definition
 
@@ -44,11 +44,11 @@ Mirror Square
 ## Stable Contracts
 
 - `trnm_campaign_save_v1`
-- `trnm_battle_seed_v2`
-- `trnm_battle_result_v1`
+- `trnm_battle_seed_v3`
+- `trnm_battle_result_v2`
 - `trnm_settlement_receipt_v1`
-- `trnm_rts_sim_v3`
-- `trnm_rts_sim_checkpoint_v3`
+- `trnm_rts_sim_v5`
+- `trnm_rts_sim_checkpoint_v5`
 
 `BattleSeedV1` binds campaign revision, battle id, map/rules version, four
 persistent party members, spawn slots, skills, typed equipment modifiers,
@@ -98,6 +98,10 @@ Town:
 - `U`: recruit Brann in Relay Quarter after reaching eight trust
 - `H`: consume a Field Tonic or pay the field clinic to reduce injuries
 - `G`: equip the recovered Relay Core relic after a victory
+- `A`: cycle a permanent stat-allocation preview; `S`: confirm and consume one
+  growth point; `D`: cancel without spending; `V`: cycle unlocked build titles
+- `J`: begin the Signal Road typed RPG encounter from Relay Quarter (or the
+  Gate Warden route); during it use `J/R/I/Esc` for attack/defend/item/withdraw
 - `F`: accept mission / deploy
 
 Battle:
@@ -108,7 +112,8 @@ Battle:
 - `R`: hold
 - `A`: activate selected units' energy/cooldown/range-bound signature abilities
 - `S`: spend 20 field resources on Field Aid for selected units
-- `D`: spend 30 field resources to fortify the relay counterattack phase
+- `H`: cycle barricade / generator / workshop / supply-cache construction;
+  `D`: build the selected structure inside an authoritative build radius
 - `C`: spend 10 field resources on a recon sweep that reveals authoritative fog
 - `Z`: switch support-drone / field-medic production; `V`: queue the selection
 - `B`: research Field Logistics, then Signal Optics
@@ -122,6 +127,8 @@ Battle:
 - `Y`: pause/resume the first job; `O`: promote the last job; `M`: set its rally point
 - mouse drag: select one or more party units; click the minimap to retarget and center the camera
 - `F`: cycle wedge / line / column formation during battle
+- `G`: cycle hold-fire / guard / aggressive stance; `P`: patrol between the
+  current position and target; `Space`: stop and clear the selected queue
 - `Tab`: cycle unit/resource/objective targets
 - `I/J/K/L`: move a free target across passable map tiles
 - arrow keys: camera
@@ -183,6 +190,20 @@ Debrief:
   and optics research, arms and armor upgrades, plus escalating enemy targeting.
   RPG preparation now includes free companion-slot selection, typed NPC trust,
   faction rank, Relay Smith recruitment and deterministic mentor sparring.
+- Growth/economy P0: complete. Growth-point preview/confirm/cancel is atomic,
+  one-time and reload-safe. Force and agility allocations produce observably
+  different hashed BattleSeeds. Vanguard/Windrunner/Artificer titles affect
+  combat, a shortcut/encounter route, NPC trust or clinic/build prices.
+- Growth/economy P1: complete. Resource nodes deplete, workers carry cargo back
+  to the command post, and only deposited resources are spendable. Structures
+  own supply, power, build radius, prerequisites and repair; low power pauses
+  jobs until generation recovers, all inside deterministic checkpoints.
+- Growth/economy P2: complete. Typed stance, patrol and Stop orders are live;
+  kills grant bounded veterancy which changes combat and returns through
+  `BattleResult` into each persistent party member.
+- Growth/economy P3: complete. The persistent Signal Road encounter supports
+  attack, defend, real item consumption and withdrawal. Victory/defeat writes
+  loot, injury, reputation and world flags to the campaign aggregate.
 
 ## Repeatable Campaign Loop
 

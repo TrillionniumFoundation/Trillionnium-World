@@ -14,6 +14,186 @@ pub const RELAY_QUARTER_ROOM: &str = "relay_quarter";
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
+pub enum GrowthStat {
+    #[default]
+    Physique,
+    Force,
+    Agility,
+    Insight,
+    Resolve,
+    Craft,
+    Commerce,
+}
+
+impl GrowthStat {
+    pub fn next(self) -> Self {
+        match self {
+            Self::Physique => Self::Force,
+            Self::Force => Self::Agility,
+            Self::Agility => Self::Insight,
+            Self::Insight => Self::Resolve,
+            Self::Resolve => Self::Craft,
+            Self::Craft => Self::Commerce,
+            Self::Commerce => Self::Physique,
+        }
+    }
+
+    pub fn display_name(self) -> &'static str {
+        match self {
+            Self::Physique => "Physique",
+            Self::Force => "Force",
+            Self::Agility => "Agility",
+            Self::Insight => "Insight",
+            Self::Resolve => "Resolve",
+            Self::Craft => "Craft",
+            Self::Commerce => "Commerce",
+        }
+    }
+
+    pub fn apply(self, attributes: &mut TrillionniumAttributes, points: u16) {
+        let target = match self {
+            Self::Physique => &mut attributes.physique,
+            Self::Force => &mut attributes.force,
+            Self::Agility => &mut attributes.agility,
+            Self::Insight => &mut attributes.insight,
+            Self::Resolve => &mut attributes.resolve,
+            Self::Craft => &mut attributes.craft,
+            Self::Commerce => &mut attributes.commerce,
+        };
+        *target = target.saturating_add(points);
+    }
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum BuildPath {
+    #[default]
+    Unformed,
+    Vanguard,
+    Windrunner,
+    Artificer,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum BuildTitle {
+    GateWarden,
+    RelayRunner,
+    ForgeMaster,
+}
+
+impl BuildTitle {
+    pub fn display_name(self) -> &'static str {
+        match self {
+            Self::GateWarden => "Gate Warden",
+            Self::RelayRunner => "Relay Runner",
+            Self::ForgeMaster => "Forge Master",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum EncounterAction {
+    Attack,
+    Defend,
+    UseItem,
+    Withdraw,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum EncounterOutcome {
+    Victory,
+    Defeat,
+    Withdrawn,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RpgEncounterState {
+    pub encounter_id: String,
+    pub round: u8,
+    pub player_hp: i64,
+    pub player_max_hp: i64,
+    pub enemy_hp: i64,
+    pub enemy_max_hp: i64,
+    pub outcome: Option<EncounterOutcome>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct EncounterTurn {
+    pub item_consumed: bool,
+    pub outcome: Option<EncounterOutcome>,
+}
+
+impl RpgEncounterState {
+    pub fn signal_road_ambush(attributes: &TrillionniumAttributes) -> Self {
+        let player_max_hp = attributes.derived_stats().max_hp;
+        Self {
+            encounter_id: "signal_road_ambush".to_string(),
+            round: 0,
+            player_hp: player_max_hp,
+            player_max_hp,
+            enemy_hp: 135,
+            enemy_max_hp: 135,
+            outcome: None,
+        }
+    }
+
+    pub fn advance(
+        &mut self,
+        attributes: &TrillionniumAttributes,
+        action: EncounterAction,
+        item_available: bool,
+    ) -> Result<EncounterTurn, String> {
+        if self.outcome.is_some() {
+            return Err("rpg_encounter_already_terminal".to_string());
+        }
+        if action == EncounterAction::UseItem && !item_available {
+            return Err("rpg_encounter_item_missing".to_string());
+        }
+        self.round = self.round.saturating_add(1);
+        let mut item_consumed = false;
+        let defending = action == EncounterAction::Defend;
+        match action {
+            EncounterAction::Attack => {
+                self.enemy_hp -= 12 + i64::from(attributes.force) * 2;
+            }
+            EncounterAction::Defend => {
+                self.enemy_hp -= 4 + i64::from(attributes.insight / 3);
+            }
+            EncounterAction::UseItem => {
+                item_consumed = true;
+                self.player_hp = (self.player_hp + 55).min(self.player_max_hp);
+            }
+            EncounterAction::Withdraw => {
+                self.outcome = Some(EncounterOutcome::Withdrawn);
+            }
+        }
+        if self.outcome.is_none() && self.enemy_hp <= 0 {
+            self.outcome = Some(EncounterOutcome::Victory);
+        }
+        if self.outcome.is_none() {
+            let mitigation = if defending {
+                10 + i64::from(attributes.resolve / 2)
+            } else {
+                i64::from(attributes.physique / 8)
+            };
+            let enemy_damage = 18 + i64::from(self.round % 3) * 4;
+            self.player_hp -= (enemy_damage - mitigation).max(1);
+            if self.player_hp <= 0 {
+                self.outcome = Some(EncounterOutcome::Defeat);
+            }
+        }
+        Ok(EncounterTurn {
+            item_consumed,
+            outcome: self.outcome,
+        })
+    }
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum FactionRank {
     #[default]
     Outsider,
@@ -581,5 +761,34 @@ mod tests {
         assert_eq!(first, second);
         assert!(first.rounds >= 3);
         assert!(first.mentor_hp < 150);
+    }
+
+    #[test]
+    fn growth_and_encounter_actions_are_typed_and_deterministic() {
+        let mut force = TrillionniumAttributes::default();
+        GrowthStat::Force.apply(&mut force, 2);
+        let mut agility = TrillionniumAttributes::default();
+        GrowthStat::Agility.apply(&mut agility, 2);
+        assert_eq!(force.force, 13);
+        assert_eq!(agility.agility, 14);
+
+        let actions = [
+            EncounterAction::Defend,
+            EncounterAction::Attack,
+            EncounterAction::UseItem,
+            EncounterAction::Attack,
+            EncounterAction::Attack,
+        ];
+        let run = |attributes: &TrillionniumAttributes| {
+            let mut encounter = RpgEncounterState::signal_road_ambush(attributes);
+            for action in actions {
+                if encounter.outcome.is_none() {
+                    encounter.advance(attributes, action, true).unwrap();
+                }
+            }
+            encounter
+        };
+        assert_eq!(run(&force), run(&force));
+        assert_ne!(run(&force).enemy_hp, run(&agility).enemy_hp);
     }
 }

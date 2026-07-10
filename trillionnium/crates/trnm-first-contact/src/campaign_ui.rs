@@ -106,16 +106,29 @@ fn quest_label(state: QuestState) -> &'static str {
 
 fn town_body(flow: &CampaignFlow) -> String {
     let save = &flow.save;
+    if let Some(encounter) = &save.active_encounter {
+        return format!(
+            "SIGNAL ROAD AMBUSH\n\nROUND {}  |  HERO HP {}/{}  |  ENEMY HP {}/{}\n\nThis is a persistent typed RPG encounter. Attack, defend, consume a real inventory item, or withdraw; its terminal result writes injury, loot and route flags to the same campaign save.",
+            encounter.round,
+            encounter.player_hp.max(0),
+            encounter.player_max_hp,
+            encounter.enemy_hp.max(0),
+            encounter.enemy_max_hp,
+        );
+    }
     match save.room {
         CampaignRoom::MirrorSquare => format!(
-            "{}\n\n{}  |  LV {}  |  XP {}  |  CR {}  |  REP {}\n\nChoose a mentor path, equipment loadout and four-person party. H treats one injury level using a Field Tonic or {} credits; G equips recovered Relay Core loot.\n\nSTORY: {:?}  |  MISSION: {}  |  AFTERSHOCK WINS {}  |  SAVE REVISION {}",
+            "{}\n\n{}  |  LV {}  |  XP {}  |  CR {}  |  REP {}\nGROWTH {}  |  PREVIEW {:?}  |  BUILD {:?}  |  TITLE {:?}\n\nA cycles a stat preview; S confirms one permanent point; D cancels without spending; V cycles unlocked titles. H treats injuries and Forge Master changes the real clinic price.\n\nSTORY: {:?}  |  MISSION: {}  |  AFTERSHOCK WINS {}  |  SAVE REVISION {}",
             room_label(save.room),
             "MIRROR RANGER",
             save.progression.level,
             save.progression.experience,
             save.progression.credits,
             save.character.attributes.reputation,
-            trnm_campaign_core::FIELD_CLINIC_CREDIT_COST,
+            save.progression.growth_points_available,
+            save.pending_growth_stat,
+            save.build_path,
+            save.active_title,
             save.story.current_step,
             quest_label(save.quest_state),
             save.progression.aftershock_completions,
@@ -152,8 +165,12 @@ fn town_body(flow: &CampaignFlow) -> String {
                 })
                 .map(|member| {
                     format!(
-                        "{} / {} / injury {}",
-                        member.display_name, member.role, member.injury_level
+                        "{} / {} / injury {} / veteran {} / kills {}",
+                        member.display_name,
+                        member.role,
+                        member.injury_level,
+                        member.veteran_rank,
+                        member.confirmed_kills,
                     )
                 })
                 .collect::<Vec<_>>()
@@ -168,7 +185,7 @@ fn town_body(flow: &CampaignFlow) -> String {
             )
         }
         CampaignRoom::RelayQuarter => format!(
-            "{}\n\nThe route opened only after First Contact and Aftershock were both secured. T speaks with Relay Smith Brann; U recruits him once trust reaches 8.\n\nBRANN TRUST: {}  |  RECRUITED: {}  |  FACTION: {:?}\n\nSIGNAL ROAD FLAGS: {:?}",
+            "{}\n\nThe route opened only after First Contact and Aftershock were both secured. T speaks with Relay Smith Brann; U recruits him once trust reaches 8; J begins the typed Signal Road ambush.\n\nBRANN TRUST: {}  |  RECRUITED: {}  |  FACTION: {:?}  |  LAST ENCOUNTER: {:?}\n\nSIGNAL ROAD FLAGS: {:?}",
             room_label(save.room),
             save.npc_relationships
                 .get("relay-smith-brann")
@@ -178,6 +195,7 @@ fn town_body(flow: &CampaignFlow) -> String {
                 .get("relay-smith-brann")
                 .is_some_and(|relation| relation.recruited),
             save.faction_rank,
+            save.last_encounter_outcome,
             save.progression
                 .world_flags
                 .iter()
@@ -312,10 +330,12 @@ pub(super) fn update_campaign_ui(
     for (mut action, mut color) in &mut actions {
         action.0 = if flow.mode == CampaignMode::Debrief {
             "ENTER  RETURN TO MIRROR SQUARE".to_string()
+        } else if flow.save.active_encounter.is_some() {
+            "J ATTACK | R DEFEND | I USE TONIC | ESC WITHDRAW".to_string()
         } else {
             match flow.save.room {
                 CampaignRoom::MirrorSquare => {
-                    "1 SQUARE | 2 MENTOR | 3 GATE | 4 RELAY | E LOADOUT | P PARTY | H HEAL | G RELIC".to_string()
+                    "A PREVIEW | S CONFIRM | D CANCEL | V TITLE | E LOADOUT | P PARTY | H HEAL | G RELIC | 1-4 TRAVEL".to_string()
                 }
                 CampaignRoom::MentorHall => {
                     "T TALK | L PATH | K TRAIN | Y SPAR | E LOADOUT | H HEAL | 1 SQUARE | 3 GATE".to_string()
@@ -325,7 +345,7 @@ pub(super) fn update_campaign_ui(
                         .to_string()
                 }
                 CampaignRoom::RelayQuarter => {
-                    "T TALK BRANN | U RECRUIT | Z/X/C FREE PARTY | 1 SQUARE | 2 MENTOR | 3 GATE".to_string()
+                    "T TALK BRANN | U RECRUIT | J RPG AMBUSH | Z/X/C FREE PARTY | 1 SQUARE | 2 MENTOR | 3 GATE".to_string()
                 }
             }
         };

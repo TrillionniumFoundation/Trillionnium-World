@@ -14,9 +14,9 @@ use bevy::window::PrimaryWindow;
 use std::collections::BTreeSet;
 use trnm_campaign_core::{BattleGridPoint, BattleOutcome};
 use trnm_rts_protocol::{
-    RtsFrameOrder, RtsFrameOrderStream, RtsOrderKind, RtsOrderSource, RtsTile,
+    RtsFrameOrder, RtsFrameOrderStream, RtsOrderKind, RtsOrderSource, RtsTile, RtsUnitStance,
 };
-use trnm_rts_sim::{BattlePhase, TICKS_PER_SECOND};
+use trnm_rts_sim::{BattlePhase, SimStructureKind, TICKS_PER_SECOND};
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub enum FirstContactCommand {
@@ -30,6 +30,8 @@ pub enum FirstContactCommand {
     Train,
     Research,
     Upgrade,
+    Patrol,
+    Stop,
     Retreat,
     #[default]
     Hold,
@@ -48,6 +50,8 @@ impl FirstContactCommand {
             Self::Train => "TRAIN",
             Self::Research => "RESEARCH",
             Self::Upgrade => "UPGRADE",
+            Self::Patrol => "PATROL",
+            Self::Stop => "STOP",
             Self::Retreat => "RETREAT",
             Self::Hold => "HOLD",
         }
@@ -78,6 +82,8 @@ fn frame_order_for_command(
         FirstContactCommand::Train => RtsOrderKind::Train,
         FirstContactCommand::Research => RtsOrderKind::Research,
         FirstContactCommand::Upgrade => RtsOrderKind::Upgrade,
+        FirstContactCommand::Patrol => RtsOrderKind::Patrol,
+        FirstContactCommand::Stop => RtsOrderKind::Stop,
         FirstContactCommand::Retreat => RtsOrderKind::Extract,
         FirstContactCommand::Hold => RtsOrderKind::Hold,
     };
@@ -108,7 +114,15 @@ fn frame_order_for_command(
             order.target_tile = Some(RtsTile::new(target_tile.x, target_tile.y));
         }
         FirstContactCommand::FieldAid => {
-            order.target_actor_id = Some("party_field_aid".to_string());
+            order.target_actor_id = target_actor_id
+                .filter(|target| {
+                    target.contains("workshop")
+                        || target.contains("post")
+                        || target.contains("generator")
+                        || target.contains("cache")
+                        || target.contains("barricade")
+                })
+                .or_else(|| Some("party_field_aid".to_string()));
             order.target_tile = Some(RtsTile::new(target_tile.x, target_tile.y));
         }
         FirstContactCommand::Fortify => {
@@ -131,6 +145,11 @@ fn frame_order_for_command(
             order.target_rule_id = Some("relay_arms".to_string());
             order.queue_id = Some("expedition_upgrade".to_string());
         }
+        FirstContactCommand::Patrol => {
+            order.target_tile = Some(RtsTile::new(target_tile.x, target_tile.y));
+            order.formation_id = Some("party_patrol".to_string());
+        }
+        FirstContactCommand::Stop => {}
         FirstContactCommand::Retreat => {
             order.target_actor_id = Some("expedition_gate".to_string());
             order.target_tile = Some(RtsTile::new(map.player_start.x, map.player_start.y));
@@ -198,7 +217,10 @@ pub struct FirstContactRuntime {
     pub queued_orders: usize,
     pub support_units: usize,
     pub tech_level: u8,
+    pub veteran_rank: u8,
     pub production_variant: u8,
+    pub structure_variant: u8,
+    pub selected_stance: RtsUnitStance,
     pub active_control_group: Option<u8>,
     pub last_group_recall: Option<(u8, f32)>,
     pub camera_focus_request: Option<Vec2>,
@@ -240,7 +262,10 @@ impl Default for FirstContactRuntime {
             queued_orders: 0,
             support_units: 0,
             tech_level: 0,
+            veteran_rank: 0,
             production_variant: 0,
+            structure_variant: 0,
+            selected_stance: RtsUnitStance::Guard,
             active_control_group: Some(1),
             last_group_recall: None,
             camera_focus_request: None,
@@ -325,6 +350,19 @@ fn target_cycle(
             )
         })
         .collect::<Vec<_>>();
+    targets.extend(
+        flow.mission
+            .as_ref()
+            .into_iter()
+            .flat_map(|mission| mission.structures.iter())
+            .filter(|structure| structure.hp > 0)
+            .map(|structure| {
+                (
+                    structure.structure_id.clone(),
+                    IVec2::new(structure.position.x as i32, structure.position.y as i32),
+                )
+            }),
+    );
     targets.extend(
         map.resources
             .iter()
@@ -605,6 +643,59 @@ pub(super) fn handle_first_contact_commands(
         };
         return;
     }
+    if input.just_pressed(KeyCode::KeyH) {
+        runtime.structure_variant = (runtime.structure_variant + 1) % 4;
+        let label = match runtime.structure_variant {
+            0 => "field barricade",
+            1 => "relay generator",
+            2 => "field workshop",
+            _ => "supply cache",
+        };
+        runtime.command_feedback = format!("Structure selected: {label}");
+        return;
+    }
+    if input.just_pressed(KeyCode::KeyG) {
+        runtime.selected_stance = match runtime.selected_stance {
+            RtsUnitStance::HoldFire => RtsUnitStance::Guard,
+            RtsUnitStance::Guard => RtsUnitStance::Aggressive,
+            RtsUnitStance::Aggressive => RtsUnitStance::HoldFire,
+        };
+        let Some(mission) = flow.mission.as_ref() else {
+            return;
+        };
+        let subjects = mission
+            .party
+            .iter()
+            .enumerate()
+            .filter(|(index, unit)| {
+                unit.alive()
+                    && (runtime.selected_slots.is_empty() || runtime.selected_slots.contains(index))
+            })
+            .map(|(_, unit)| unit.unit_id.clone())
+            .collect::<Vec<_>>();
+        let mut order = RtsFrameOrder::new(
+            mission.tick as u32,
+            "player",
+            subjects,
+            RtsOrderKind::SetStance,
+            RtsOrderSource::LocalInput,
+        );
+        order.target_rule_id = Some(runtime.selected_stance.as_str().to_string());
+        match flow
+            .mission
+            .as_mut()
+            .expect("stance mission exists")
+            .issue_order(order.clone())
+        {
+            Ok(()) => {
+                adapter.accepted_orders.push(order);
+                runtime.command_feedback =
+                    format!("Unit stance: {}", runtime.selected_stance.as_str());
+            }
+            Err(error) => runtime.command_feedback = error.to_string(),
+        }
+        return;
+    }
     let lifecycle = flow.mission.as_ref().and_then(|mission| {
         if input.just_pressed(KeyCode::Delete) {
             mission
@@ -698,6 +789,10 @@ pub(super) fn handle_first_contact_commands(
         Some(FirstContactCommand::Research)
     } else if input.just_pressed(KeyCode::KeyN) {
         Some(FirstContactCommand::Upgrade)
+    } else if input.just_pressed(KeyCode::KeyP) {
+        Some(FirstContactCommand::Patrol)
+    } else if input.just_pressed(KeyCode::Space) {
+        Some(FirstContactCommand::Stop)
     } else if input.just_pressed(KeyCode::KeyX) {
         Some(FirstContactCommand::Retreat)
     } else {
@@ -744,6 +839,7 @@ pub(super) fn handle_first_contact_commands(
             FirstContactCommand::Move
                 | FirstContactCommand::Attack
                 | FirstContactCommand::Harvest
+                | FirstContactCommand::Patrol
                 | FirstContactCommand::Hold
         )
     {
@@ -752,6 +848,17 @@ pub(super) fn handle_first_contact_commands(
     }
     if command == FirstContactCommand::Train && runtime.production_variant == 1 {
         order.target_rule_id = Some("field_medic".to_string());
+    }
+    if command == FirstContactCommand::Fortify {
+        order.target_rule_id = Some(
+            match runtime.structure_variant {
+                0 => "field_barricade",
+                1 => "relay_generator",
+                2 => "field_workshop",
+                _ => "supply_cache",
+            }
+            .to_string(),
+        );
     }
     if command == FirstContactCommand::Research
         && mission.researched_techs.contains("field_logistics")
@@ -763,7 +870,10 @@ pub(super) fn handle_first_contact_commands(
     }
     if matches!(
         command,
-        FirstContactCommand::Move | FirstContactCommand::Attack | FirstContactCommand::Hold
+        FirstContactCommand::Move
+            | FirstContactCommand::Attack
+            | FirstContactCommand::Patrol
+            | FirstContactCommand::Hold
     ) {
         order.formation_id = Some(runtime.formation.id().to_string());
     }
@@ -801,7 +911,7 @@ pub(super) fn handle_first_contact_commands(
         }
         FirstContactCommand::Ability => "Signature abilities activated".to_string(),
         FirstContactCommand::FieldAid => {
-            "Spent 20 field resources to heal selected units".to_string()
+            "Spent field resources to heal units or repair the targeted structure".to_string()
         }
         FirstContactCommand::Fortify => {
             "Spent 30 field resources to fortify selected units".to_string()
@@ -818,6 +928,10 @@ pub(super) fn handle_first_contact_commands(
         FirstContactCommand::Upgrade => {
             "Queued Relay Arms upgrade after research for 45 field resources".to_string()
         }
+        FirstContactCommand::Patrol => {
+            "Patrolling between the current position and free target".to_string()
+        }
+        FirstContactCommand::Stop => "Stopped selected units and cleared their queue".to_string(),
         FirstContactCommand::Hold => {
             "Guarding position; HOLD captures an exposed relay".to_string()
         }
@@ -858,7 +972,12 @@ pub(super) fn advance_first_contact_simulation(
         ),
     >,
     mut structures: Query<
-        (&mut Sprite, &FirstContactStructureSprite),
+        (
+            &mut Sprite,
+            &mut Transform,
+            &mut Visibility,
+            &FirstContactStructureSprite,
+        ),
         (
             Without<FirstContactUnitSprite>,
             Without<FirstContactSelectionRing>,
@@ -888,7 +1007,6 @@ pub(super) fn advance_first_contact_simulation(
         runtime.animation_phase = runtime.animation_phase.wrapping_add(1);
     }
     if runtime.pressure_timer.just_finished() && !runtime.victory {
-        runtime.power_percent = runtime.power_percent.saturating_sub(1).max(45);
         runtime.pressure_flash_seconds = 0.42;
     }
 
@@ -926,12 +1044,26 @@ pub(super) fn advance_first_contact_simulation(
         runtime.queued_orders = mission.queued_orders.len();
         runtime.support_units = mission.support_units.len();
         runtime.tech_level = mission.upgrade_level;
-        runtime.supply_used =
-            (mission.party.len() + mission.support_units.len()).min(u8::MAX as usize) as u8;
-        runtime.supply_cap = 8;
+        runtime.veteran_rank = mission
+            .party
+            .iter()
+            .map(|unit| unit.veteran_rank)
+            .max()
+            .unwrap_or(0);
+        runtime.supply_used = mission.supply_used();
+        runtime.supply_cap = mission.supply_cap();
+        runtime.power_percent = if mission.power_draw() == 0 {
+            100
+        } else {
+            (u32::from(mission.power_provided()) * 100 / u32::from(mission.power_draw())).min(100)
+                as u8
+        };
         runtime.phase = mission.phase;
         runtime.command_feedback = if runtime.victory {
-            let mission_name = if mission.seed.map_id == "first_contact_aftershock" {
+            let mission_name = if matches!(
+                mission.seed.map_id.as_str(),
+                "aftershock_patrol" | "first_contact_aftershock"
+            ) {
                 "AFTERSHOCK PATROL"
             } else {
                 "FIRST CONTACT"
@@ -1012,6 +1144,10 @@ pub(super) fn advance_first_contact_simulation(
         .iter()
         .map(|(_, _, _, unit)| unit.id.clone())
         .collect::<BTreeSet<_>>();
+    let existing_structure_ids = structures
+        .iter()
+        .map(|(_, _, _, structure)| structure.id.clone())
+        .collect::<BTreeSet<_>>();
     if let Some(handles) = handles.as_deref() {
         let family = manifest
             .unit("sentinel")
@@ -1045,6 +1181,42 @@ pub(super) fn advance_first_contact_simulation(
                     owner: if *player { "player" } else { "contact" }.to_string(),
                 },
             ));
+        }
+        if let Some(mission) = flow.mission.as_ref() {
+            for structure in &mission.structures {
+                if existing_structure_ids.contains(&structure.structure_id) {
+                    continue;
+                }
+                let family_id = match structure.kind {
+                    SimStructureKind::CommandPost => "command_core",
+                    SimStructureKind::FieldWorkshop => "foundry",
+                    SimStructureKind::RelayGenerator => "shield_relay",
+                    SimStructureKind::SupplyCache => "refinery",
+                    SimStructureKind::FieldBarricade => "defense_turret",
+                };
+                let family = manifest
+                    .structure(family_id)
+                    .expect("sim structure family is authored");
+                commands.spawn((
+                    atlas_sprite(
+                        handles.world_image.clone(),
+                        handles.world_layout.clone(),
+                        family.active,
+                        Vec2::splat(map.tile_size as f32 * 2.35),
+                    ),
+                    Transform::from_translation(map_world_position(
+                        &map,
+                        structure.position.x as i32,
+                        structure.position.y as i32,
+                        6.0,
+                    )),
+                    FirstContactStructureSprite {
+                        id: structure.structure_id.clone(),
+                        family: family_id.to_string(),
+                        active: true,
+                    },
+                ));
+            }
         }
     }
 
@@ -1136,7 +1308,25 @@ pub(super) fn advance_first_contact_simulation(
         }
     }
 
-    for (mut sprite, structure) in &mut structures {
+    for (mut sprite, mut transform, mut visibility, structure) in &mut structures {
+        if let Some(simulated) = flow.mission.as_ref().and_then(|mission| {
+            mission
+                .structures
+                .iter()
+                .find(|candidate| candidate.structure_id == structure.id)
+        }) {
+            transform.translation = map_world_position(
+                &map,
+                simulated.position.x as i32,
+                simulated.position.y as i32,
+                6.0,
+            );
+            *visibility = if simulated.hp > 0 {
+                Visibility::Visible
+            } else {
+                Visibility::Hidden
+            };
+        }
         let family = manifest
             .structure(&structure.family)
             .expect("rendered structure family remains in atlas");
@@ -1249,6 +1439,8 @@ mod tests {
             FirstContactCommand::Train,
             FirstContactCommand::Research,
             FirstContactCommand::Upgrade,
+            FirstContactCommand::Patrol,
+            FirstContactCommand::Stop,
             FirstContactCommand::Retreat,
         ];
         let orders = commands
@@ -1265,9 +1457,22 @@ mod tests {
                 )
             })
             .collect();
-        RtsFrameOrderStream::new(map.id.clone(), "first_contact_campaign_rules_v2", orders)
+        RtsFrameOrderStream::new(map.id.clone(), "first_contact_campaign_rules_v3", orders)
             .validate()
             .expect("frame orders validate");
+
+        let repair = frame_order_for_command(
+            &map,
+            20,
+            FirstContactCommand::FieldAid,
+            vec!["hero".to_string()],
+            IVec2::new(map.player_start.x, map.player_start.y),
+            Some("relay_generator-20".to_string()),
+        );
+        assert_eq!(
+            repair.target_actor_id.as_deref(),
+            Some("relay_generator-20")
+        );
     }
 
     #[test]
