@@ -13,13 +13,14 @@ use std::{
     path::{Path, PathBuf},
 };
 use trnm_campaign_core::{
-    BattleGridPoint, BattleOutcome, BattleResultV1, BattleSeedV1, CampaignError, LootStack,
-    ObjectiveKind, UnitBattleReportV1, UnitBattleStatus, BATTLE_RESULT_CONTRACT,
+    BattleGridPoint, BattleOutcome, BattleResultV1, BattleSeedV1, CampaignDifficulty,
+    CampaignError, LootStack, ObjectiveKind, UnitBattleReportV1, UnitBattleStatus,
+    BATTLE_RESULT_CONTRACT,
 };
 use trnm_rts_protocol::{RtsFrameOrder, RtsOrderKind, RtsUnitStance};
 
-pub const RTS_SIM_CONTRACT: &str = "trnm_rts_sim_v7";
-pub const RTS_SIM_CHECKPOINT_CONTRACT: &str = "trnm_rts_sim_checkpoint_v7";
+pub const RTS_SIM_CONTRACT: &str = "trnm_rts_sim_v8";
+pub const RTS_SIM_CHECKPOINT_CONTRACT: &str = "trnm_rts_sim_checkpoint_v8";
 pub const TICKS_PER_SECOND: u64 = 10;
 pub const THREE_MINUTE_TICKS: u64 = 3 * 60 * TICKS_PER_SECOND;
 pub const FIVE_MINUTE_TICKS: u64 = 5 * 60 * TICKS_PER_SECOND;
@@ -411,7 +412,20 @@ impl MissionSimV1 {
             ("relay_guard", 1_400, 11, 8, 680, 26),
         ];
         let aftershock = is_aftershock_map(&seed.map_id);
-        let enemy_scale = if aftershock { 112 } else { 100 };
+        let siege = seed.map_id == "mirror_siege";
+        let mission_scale = if siege {
+            110
+        } else if aftershock {
+            112
+        } else {
+            100
+        };
+        let difficulty_scale = match seed.difficulty {
+            CampaignDifficulty::Story => 90,
+            CampaignDifficulty::Standard => 100,
+            CampaignDifficulty::Veteran => 115,
+        };
+        let enemy_scale = mission_scale * difficulty_scale / 100;
         let enemies = seed
             .map
             .enemy_spawns
@@ -428,7 +442,13 @@ impl MissionSimV1 {
                     max_hp: hp * enemy_scale / 100,
                     hp: hp * enemy_scale / 100,
                     damage: damage * enemy_scale / 100,
-                    armor: armor + if aftershock { 1 } else { 0 },
+                    armor: armor
+                        + if aftershock || siege { 1 } else { 0 }
+                        + if seed.difficulty == CampaignDifficulty::Veteran {
+                            1
+                        } else {
+                            0
+                        },
                     move_speed_milli: speed,
                     movement_budget_milli: 0,
                     attack_interval_ticks: interval,
@@ -451,11 +471,14 @@ impl MissionSimV1 {
                 }
             })
             .collect();
-        let relay_guard_max_hp = if aftershock {
+        let relay_guard_base = if siege {
+            RELAY_GUARD_HP + 900
+        } else if aftershock {
             RELAY_GUARD_HP + 600
         } else {
             RELAY_GUARD_HP
         };
+        let relay_guard_max_hp = relay_guard_base * difficulty_scale / 100;
         let mut sim = Self {
             contract_version: RTS_SIM_CONTRACT.to_string(),
             seed: seed.clone(),
@@ -661,7 +684,7 @@ impl MissionSimV1 {
             .resources_available
             .saturating_add(self.resources_spent)
             != self.resources_gathered
-            || self.relay_guard_max_hp < RELAY_GUARD_HP
+            || self.relay_guard_max_hp <= 0
             || self.relay_guard_hp > self.relay_guard_max_hp
         {
             return Err(SimError::Integrity(
@@ -2247,11 +2270,16 @@ impl MissionSimV1 {
     }
 
     fn refresh_enemy_ai_plan(&mut self) {
-        if self.tick != 1 && !self.tick.is_multiple_of(50) {
+        let (interval, budget_gain) = match self.seed.difficulty {
+            CampaignDifficulty::Story => (70, 6),
+            CampaignDifficulty::Standard => (50, 8),
+            CampaignDifficulty::Veteran => (35, 10),
+        };
+        if self.tick != 1 && !self.tick.is_multiple_of(interval) {
             return;
         }
         let observation = self.observe_enemy_ai();
-        let budget_before = self.enemy_ai_budget.saturating_add(8).min(40);
+        let budget_before = self.enemy_ai_budget.saturating_add(budget_gain).min(40);
         let (requested_goal, cost, reason) = if observation.convoy_active {
             (AiGoal::InterdictConvoy, 8, "escort target is exposed")
         } else if observation.party_resources >= 120 || observation.party_structures >= 4 {
@@ -2520,7 +2548,9 @@ impl MissionSimV1 {
             SimError::InvalidState("cannot emit a BattleResult before terminal state".to_string())
         })?;
         let final_snapshot_hash = self.snapshot_hash()?;
+        let siege = self.seed.map_id == "mirror_siege";
         let experience = match outcome {
+            BattleOutcome::Victory if siege => 70,
             BattleOutcome::Victory if self.seed.map_id == "convoy_exodus" => 60,
             BattleOutcome::Victory if is_aftershock_map(&self.seed.map_id) => 55,
             BattleOutcome::Victory => 40,
@@ -2555,6 +2585,14 @@ impl MissionSimV1 {
         let aftershock = is_aftershock_map(&self.seed.map_id);
         let convoy = self.seed.map_id == "convoy_exodus";
         let (loot, reputation_delta, world_flags) = match outcome {
+            BattleOutcome::Victory if siege => (
+                vec![LootStack {
+                    item_id: "mirror-gate-insignia".to_string(),
+                    quantity: 1,
+                }],
+                8,
+                vec!["mirror_siege_secured".to_string()],
+            ),
             BattleOutcome::Victory if convoy => (
                 vec![LootStack {
                     item_id: "signal-convoy-seal".to_string(),
@@ -2588,7 +2626,9 @@ impl MissionSimV1 {
             BattleOutcome::Defeat => (
                 Vec::new(),
                 -2,
-                vec![if convoy {
+                vec![if siege {
+                    "mirror_siege_lost".to_string()
+                } else if convoy {
                     "convoy_exodus_lost".to_string()
                 } else if aftershock {
                     "aftershock_patrol_repulsed".to_string()
@@ -2599,7 +2639,9 @@ impl MissionSimV1 {
             BattleOutcome::Withdrawal => (
                 Vec::new(),
                 0,
-                vec![if convoy {
+                vec![if siege {
+                    "mirror_siege_withdrawn".to_string()
+                } else if convoy {
                     "convoy_exodus_withdrawn".to_string()
                 } else if aftershock {
                     "aftershock_patrol_withdrawn".to_string()
@@ -3795,5 +3837,45 @@ mod tests {
             sim.resources_gathered
         );
         sim.validate().unwrap();
+    }
+
+    #[test]
+    fn difficulty_scales_enemy_pressure_and_ai_cadence_deterministically() {
+        let base = seed();
+        let with_difficulty = |difficulty| {
+            let mut value = base.clone();
+            value.difficulty = difficulty;
+            value.seed_hash = value.computed_hash().unwrap();
+            value
+        };
+        let mut story =
+            MissionSimV1::from_seed(with_difficulty(CampaignDifficulty::Story)).unwrap();
+        let mut standard =
+            MissionSimV1::from_seed(with_difficulty(CampaignDifficulty::Standard)).unwrap();
+        let mut veteran =
+            MissionSimV1::from_seed(with_difficulty(CampaignDifficulty::Veteran)).unwrap();
+        assert!(story.enemies[0].max_hp < standard.enemies[0].max_hp);
+        assert!(standard.enemies[0].max_hp < veteran.enemies[0].max_hp);
+        assert!(story.relay_guard_max_hp < standard.relay_guard_max_hp);
+        assert!(standard.relay_guard_max_hp < veteran.relay_guard_max_hp);
+        for _ in 0..105 {
+            story.step().unwrap();
+            standard.step().unwrap();
+            veteran.step().unwrap();
+        }
+        assert!(story.enemy_ai_decision_index < standard.enemy_ai_decision_index);
+        assert!(standard.enemy_ai_decision_index < veteran.enemy_ai_decision_index);
+
+        let checkpoint = SimCheckpointV1::capture(&veteran).unwrap();
+        let mut first = checkpoint.sim.clone();
+        let mut second = checkpoint.sim;
+        for _ in 0..35 {
+            first.step().unwrap();
+            second.step().unwrap();
+        }
+        assert_eq!(
+            first.snapshot_hash().unwrap(),
+            second.snapshot_hash().unwrap()
+        );
     }
 }

@@ -106,6 +106,7 @@ pub struct MissionMapCatalog {
     pub first_contact: FirstContactMap,
     pub aftershock_patrol: FirstContactMap,
     pub convoy_exodus: FirstContactMap,
+    pub mirror_siege: FirstContactMap,
 }
 
 impl MissionMapCatalog {
@@ -120,6 +121,9 @@ impl MissionMapCatalog {
             convoy_exodus: load_first_contact_map(
                 &asset_root.join("first_contact/maps/convoy_exodus.yaml"),
             )?,
+            mirror_siege: load_first_contact_map(
+                &asset_root.join("first_contact/maps/mirror_siege.yaml"),
+            )?,
         })
     }
 
@@ -128,6 +132,7 @@ impl MissionMapCatalog {
             CampaignMission::FirstContact => &self.first_contact,
             CampaignMission::AftershockPatrol => &self.aftershock_patrol,
             CampaignMission::ConvoyExodus => &self.convoy_exodus,
+            CampaignMission::MirrorSiege => &self.mirror_siege,
         }
     }
 }
@@ -198,7 +203,7 @@ impl FirstContactMap {
         }
         if !matches!(
             self.id.as_str(),
-            "first_contact" | "aftershock_patrol" | "convoy_exodus"
+            "first_contact" | "aftershock_patrol" | "convoy_exodus" | "mirror_siege"
         ) || self.title.trim().is_empty()
         {
             return Err("campaign map identity/title is invalid".into());
@@ -386,7 +391,7 @@ mod tests {
     }
 
     #[test]
-    fn aftershock_is_a_distinct_authored_campaign_map() {
+    fn campaign_catalog_contains_four_distinct_authored_maps() {
         let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../assets");
         let catalog = MissionMapCatalog::load(&root).expect("both authored maps load");
         assert_eq!(catalog.aftershock_patrol.id, "aftershock_patrol");
@@ -402,6 +407,20 @@ mod tests {
         assert_ne!(
             catalog.convoy_exodus.terrain_rows,
             catalog.aftershock_patrol.terrain_rows
+        );
+        assert_eq!(catalog.mirror_siege.id, "mirror_siege");
+        assert_ne!(
+            catalog.mirror_siege.terrain_rows,
+            catalog.convoy_exodus.terrain_rows
+        );
+        assert_eq!(
+            catalog
+                .mirror_siege
+                .units
+                .iter()
+                .filter(|unit| unit.owner == "contact")
+                .count(),
+            5
         );
     }
 }

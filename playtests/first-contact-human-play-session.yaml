@@ -1,0 +1,22 @@
+contract_version: trnm_first_contact_human_play_session_v1
+required_duration_minutes: { min: 10, max: 15 }
+player: null
+facilitator: null
+started_at: null
+duration_minutes: null
+reached_rts: null
+returned_to_town: null
+missions_attempted: []
+outcome: null
+notes:
+  first_confusion: null
+  input_friction: null
+  readability_issue: null
+  progression_issue: null
+  strongest_moment: null
+status: pending_real_player
+rules:
+  real_human_required: true
+  automation_counts_as_human: false
+  facilitator_may_explain_controls_before_timer: true
+  facilitator_may_coach_during_timer: false

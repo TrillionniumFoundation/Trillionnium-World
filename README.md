@@ -15,6 +15,7 @@
 - Authoritative Bevy-free battle simulation: `trillionnium/crates/trnm-rts-sim`
 - `trnm-world-bevy` is feature-gated under the frozen legacy workspace and is not the player path.
 - Manual playtest entry: `scripts/run_trnm_first_contact.sh`
+- Human validation packet: `scripts/check_trnm_human_validation_packet.sh`
 - CEX is a legacy incubator/evidence adapter only. Do not use CEX web runtime as the Trillionnium World client.
 - Account/auth work for the game must land behind Trillionnium-owned APIs consumed by the current native client; CEX account code may be used as migration reference, not as the product entry.
 - Current game boundary gate: `scripts/check_trnm_game_product.sh`

@@ -21,6 +21,8 @@ pub(super) enum CampaignMode {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum ShellMode {
     Title,
+    CharacterCreate,
+    Journal,
     ResumeGuard,
     Playing,
     Paused,
@@ -214,7 +216,11 @@ impl CampaignFlow {
             .load(slot)
             .map_err(|error| error.to_string())?;
         self.activate_slot(slot, save)?;
-        self.shell_mode = ShellMode::ResumeGuard;
+        self.shell_mode = if self.save.character_identity.confirmed {
+            ShellMode::ResumeGuard
+        } else {
+            ShellMode::CharacterCreate
+        };
         Ok(())
     }
 
@@ -233,8 +239,11 @@ impl CampaignFlow {
             .create_new(slot, exists)
             .map_err(|error| error.to_string())?;
         self.activate_slot(slot, save)?;
-        self.shell_mode = ShellMode::Playing;
-        self.status = format!("New campaign created in slot {}", slot.label());
+        self.shell_mode = ShellMode::CharacterCreate;
+        self.status = format!(
+            "New campaign created in slot {}; confirm a persistent identity",
+            slot.label()
+        );
         Ok(())
     }
 
@@ -357,6 +366,16 @@ pub(super) fn handle_campaign_input(
         flow.status = "Title menu opened; active state remains atomically saved".to_string();
         return;
     }
+    if input.just_pressed(KeyCode::F4) {
+        if flow.shell_mode == ShellMode::Playing && !flow.in_battle() {
+            flow.shell_mode = ShellMode::Journal;
+            flow.status = "Campaign journal opened from authoritative state".to_string();
+        } else if flow.shell_mode == ShellMode::Journal {
+            flow.shell_mode = ShellMode::Playing;
+            flow.status = "Campaign journal closed".to_string();
+        }
+        return;
+    }
     match flow.shell_mode {
         ShellMode::Title => {
             for (key, slot) in [
@@ -388,6 +407,35 @@ pub(super) fn handle_campaign_input(
                     Ok(()) => flow.status = format!("Input mode: {:?}", flow.settings.input_mode),
                     Err(error) => flow.status = error,
                 }
+            }
+            return;
+        }
+        ShellMode::CharacterCreate => {
+            if input.just_pressed(KeyCode::KeyC) {
+                let result = flow.mutate_town(|save| save.cycle_character_identity().map(|_| ()));
+                set_status(&mut flow, result, "Changed the persistent character name");
+            } else if input.just_pressed(KeyCode::Enter) {
+                let result = flow.mutate_town(CampaignSaveV1::confirm_character_identity);
+                match result {
+                    Ok(()) => {
+                        flow.shell_mode = ShellMode::Playing;
+                        flow.status = format!(
+                            "Character identity confirmed: {}",
+                            flow.save.character.display_name
+                        );
+                    }
+                    Err(error) => flow.status = error.to_string(),
+                }
+            } else if input.just_pressed(KeyCode::Escape) {
+                flow.shell_mode = ShellMode::Title;
+                flow.status = "Character creation canceled; slot remains unconfirmed".to_string();
+            }
+            return;
+        }
+        ShellMode::Journal => {
+            if input.just_pressed(KeyCode::Escape) {
+                flow.shell_mode = ShellMode::Playing;
+                flow.status = "Campaign journal closed".to_string();
             }
             return;
         }
@@ -590,6 +638,9 @@ pub(super) fn handle_campaign_input(
     } else if input.just_pressed(KeyCode::KeyR) && flow.save.room == CampaignRoom::ExpeditionGate {
         let result = flow.mutate_town(|save| save.cycle_expedition_preparation().map(|_| ()));
         set_status(&mut flow, result, "Changed expedition preparation");
+    } else if input.just_pressed(KeyCode::F6) && flow.save.room == CampaignRoom::ExpeditionGate {
+        let result = flow.mutate_town(|save| save.cycle_difficulty().map(|_| ()));
+        set_status(&mut flow, result, "Changed campaign difficulty");
     } else if input.just_pressed(KeyCode::KeyJ)
         && (flow.save.room == CampaignRoom::RelayQuarter
             || flow

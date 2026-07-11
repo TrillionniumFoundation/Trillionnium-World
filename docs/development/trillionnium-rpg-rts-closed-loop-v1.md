@@ -1,6 +1,6 @@
 # Trillionnium RPG -> RTS -> RPG Closed Loop v1
 
-Status: canonical local product truth source as of 2026-07-11, product-shell/quest/readiness/adaptive-AI P0-P3 revision.
+Status: canonical local product truth source as of 2026-07-11, guided-campaign/identity/Mirror-Siege P0-P3 revision.
 
 ## Product Definition
 
@@ -28,6 +28,8 @@ Mirror Square
   -> unlock the persistent Relay Quarter world room
   -> escort a supply convoy, defend its generator and extract on a third original map
   -> unlock the outer Signal Road and retain the repeatable patrol loop
+  -> counterattack on the fourth original Mirror Siege map
+  -> break the siege, reclaim Mirror Gate and persist the result
 ```
 
 ## Authority Boundaries
@@ -39,18 +41,18 @@ Mirror Square
 | Frame-order contract | `trnm-rts-protocol` | Lightweight player-order validation and deterministic stream contract. |
 | Battle simulation | `trnm-rts-sim` | Bevy-free, two-dimensional, map-aware simulation consuming `RtsFrameOrder` as its only player input. |
 | Native presentation/input | `trnm-first-contact` | Consumes `BattleSeedV1`; may only emit `BattleResultV1`. |
-| Authored map/art | `assets/first_contact` | Three canonical original 40x24 mission maps and PNG atlases. |
+| Authored map/art | `assets/first_contact` | Four canonical original 40x24 mission maps and PNG atlases. |
 | Legacy implementation | `trillionnium/crates/legacy-game/trnm-world-bevy/src/legacy.rs` | Feature-gated frozen behavior/test reference; not reconnected wholesale. |
 | Older World/RTS cores and data/evidence/online | `legacy-game/trnm-world-domain`, `legacy-game/trnm-rts-core`, `trnm-rts-data`, `trnm-rts-evidence`, `trnm-rts-online` | Frozen outside this closure. GPL-derived internal map data is not a product dependency. |
 
 ## Stable Contracts
 
 - `trnm_campaign_save_v1`
-- `trnm_battle_seed_v5`
+- `trnm_battle_seed_v6`
 - `trnm_battle_result_v2`
 - `trnm_settlement_receipt_v1`
-- `trnm_rts_sim_v7`
-- `trnm_rts_sim_checkpoint_v7`
+- `trnm_rts_sim_v8`
+- `trnm_rts_sim_checkpoint_v8`
 
 `BattleSeedV1` binds campaign revision, battle id, map/rules version, four
 persistent party members, spawn slots, skills, typed equipment modifiers,
@@ -89,7 +91,8 @@ they are no longer hard-coded RPG character identities.
 
 Town:
 
-- `F1`: open the title/save-slot shell; `Esc`: pause gameplay
+- `F1`: open the title/save-slot shell; `F4`: open the campaign journal;
+  `Esc`: pause gameplay
 
 - `1`: Mirror Square
 - `2`: mentor hall
@@ -113,12 +116,14 @@ Town:
 - `B`: start/advance Cistern Relief; at its branch use `N` to reinforce or `M`
   to evacuate; its supply step is completed at the expedition gate
 - `R` at the expedition gate: cycle immediate/rested/supplied/shortcut preparation
+- `F6` at the expedition gate: cycle Story / Standard / Veteran before acceptance
 - `F`: accept mission / deploy
 
 Title/pause shell:
 
 - `1/2/3`: select independent campaign slot A/B/C
 - `N`: create a new campaign; press a second time to explicitly confirm overwrite
+- new character: `C` cycles the persistent display name; `Enter` confirms it
 - `Enter`: load/continue, then pass the resume guard before gameplay is revealed
 - `F2`: low-motion mode; `F3`: hybrid/keyboard-only/mouse-only input mode
 - `Esc`: resume from pause; settings are profile-scoped rather than character-scoped
@@ -254,6 +259,20 @@ Debrief:
   observations, budget and decisions. Scout, economy raid, tech counter,
   objective defense, convoy interdiction and assault goals change target scoring;
   invalid commands do not mutate the replay and checkpoints preserve it exactly.
+- Human-evidence P0: procedure-complete, observation-pending. A current runbook,
+  three-observer form, 10-15 minute session form and executable packet checker
+  are present. They deliberately remain pending until real people participate.
+- Guided campaign P1: complete. A typed journal derives Signal Road, Cistern
+  Relief and mastery entries from authoritative state; the town guide advances
+  through mentor, training, equipment, gate, acceptance and deployment steps.
+- Character identity P2: complete. New slots require explicit confirmation of
+  one typed display-name preset; the canonical character and party hero stay
+  synchronized across atomic reload. Existing `CharacterOrigin` remains the
+  sole gameplay origin system.
+- Original content P3: complete. Mirror Siege is a fourth original authored
+  map with a five-unit enemy deployment and breach/destroy/capture objectives.
+  Story, Standard and Veteran scale enemy pressure and deterministic AI cadence.
+  Its full convoy-to-siege RPG -> RTS -> RPG settlement survives reload.
 
 ## Repeatable Campaign Loop
 
@@ -263,6 +282,8 @@ Debrief:
   records its own completion count and uses a distinct authored terrain layout.
 - The first Aftershock unlocks Convoy Exodus; its escort/defend/extract victory
   sets `convoy_exodus_secured` and `outer_signal_road_open` before patrol repeats.
+- Convoy Exodus unlocks Mirror Siege; winning the counterattack sets
+  `mirror_siege_secured`, then the repeatable Aftershock loop resumes.
 - Character level, companion experience, reputation, relic modifiers and
   injuries all alter the next mission seed.
 - Campaign load/restart preserves the unlock, growth and next seed mapping.
@@ -275,6 +296,8 @@ Human gates remain evidence-bound and must not be fabricated:
   minute mission and record input/readability/flow notes;
 - `playtests/first_contact-visual-review.yaml` remains pending until those
   observations are actually recorded.
+- `playtests/first-contact-human-play-session.yaml` likewise remains pending;
+  `scripts/check_trnm_human_validation_packet.sh` verifies readiness, not people.
 
 ## Focused Verification
 

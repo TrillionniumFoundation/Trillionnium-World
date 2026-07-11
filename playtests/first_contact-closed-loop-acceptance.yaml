@@ -10,6 +10,8 @@ software:
     - mid_settlement_crash_recovery
     - duplicate_result_zero_delta
     - two_victories_reload_growth_applies_to_aftershock
+    - convoy_victory_unlocks_mirror_siege
+    - mirror_siege_victory_settles_and_survives_reload
   deterministic_victory_minutes: { min: 3, max: 5 }
   gameplay_gates:
     - no_single_order_victory
@@ -25,11 +27,16 @@ software:
     - field_resources_buy_aid_or_fortification
     - consequential_order_count_between_8_and_12
     - four_order_idle_route_cannot_win
+    - three_difficulty_profiles_change_enemy_pressure_and_ai_cadence
+    - mirror_siege_uses_a_distinct_map_and_five_enemy_deployment
 human:
-  status: pending_real_observers
+  status: pending_real_humans
   five_second_observers_required: 3
   real_play_session_minutes: { min: 10, max: 15 }
   observation_file: playtests/first_contact-visual-review.yaml
+  play_session_file: playtests/first-contact-human-play-session.yaml
+  runbook: docs/development/trnm-first-contact-human-validation-2026-07-11.md
+  packet_check: scripts/check_trnm_human_validation_packet.sh
 boundaries:
   fabricated_human_observation: false
   public_launch_claimed: false

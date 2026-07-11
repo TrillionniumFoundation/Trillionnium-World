@@ -106,6 +106,7 @@ fn quest_label(state: QuestState) -> &'static str {
 
 fn town_body(flow: &CampaignFlow) -> String {
     let save = &flow.save;
+    let guide = save.current_guide_step();
     let route = save.current_task_route_plan();
     let navigation = if let Some(exit) = route.next_exit.as_ref() {
         format!(
@@ -129,14 +130,15 @@ fn town_body(flow: &CampaignFlow) -> String {
     }
     match save.room {
         CampaignRoom::MirrorSquare => format!(
-            "{}\n\n{}  |  ORIGIN {}  |  LV {}  |  XP {}  |  CR {}  |  REP {}\nTIME {}  |  STAMINA {}  |  RATIONS {}  |  WATER {}\nGROWTH {}  |  PREVIEW {:?}  |  BUILD {:?}  |  TITLE {:?}\n{}\n\nO changes origin before mentor progress; A/S/D choose growth; Q earns the selected path title through its mastery challenge.\n\nSTORY: {:?}  |  MISSION: {}  |  AFTERSHOCK WINS {}  |  SAVE REVISION {}",
+            "{}\n\n{}  |  ORIGIN {}  |  LV {}  |  XP {}  |  CR {}  |  REP {}\nGUIDE: {}\nTIME {}  |  STAMINA {}  |  RATIONS {}  |  WATER {}\nGROWTH {}  |  PREVIEW {:?}  |  BUILD {:?}  |  TITLE {:?}\n{}\n\nO changes origin before mentor progress; A/S/D choose growth; Q earns the selected path title through its mastery challenge.\n\nSTORY: {:?}  |  MISSION: {}  |  AFTERSHOCK WINS {}  |  SAVE REVISION {}",
             room_label(save.room),
-            "MIRROR RANGER",
+            save.character.display_name.to_ascii_uppercase(),
             save.character_origin.display_name(),
             save.progression.level,
             save.progression.experience,
             save.progression.credits,
             save.character.attributes.reputation,
+            guide.prompt(),
             save.world_clock.label(),
             save.expedition_supplies.stamina,
             save.expedition_supplies.rations,
@@ -195,11 +197,13 @@ fn town_body(flow: &CampaignFlow) -> String {
                 .collect::<Vec<_>>()
                 .join("\n");
             format!(
-                "{}\n\nMISSION: {} / {}  |  LOADOUT: {}\nPREPARATION: {}  |  TIME: {}\nSTAMINA {}  |  RATIONS {}  |  WATER {}\nPARTY (hero + freely chosen companions):\n{}\n\nR cycles immediate/rested/supplied/shortcut preparation. Each choice consumes world resources and changes the authoritative BattleSeed.",
+                "{}\n\nMISSION: {} / {}  |  DIFFICULTY: {}  |  LOADOUT: {}\nGUIDE: {}\nPREPARATION: {}  |  TIME: {}\nSTAMINA {}  |  RATIONS {}  |  WATER {}\nPARTY (hero + freely chosen companions):\n{}\n\nR cycles preparation; F6 changes difficulty before mission acceptance. Each choice is bound into the authoritative BattleSeed.",
                 room_label(save.room),
                 quest_label(save.quest_state),
                 save.active_mission.display_name(),
+                save.difficulty.display_name(),
                 save.selected_loadout.display_name(),
+                guide.prompt(),
                 save.selected_expedition_preparation.display_name(),
                 save.world_clock.label(),
                 save.expedition_supplies.stamina,
@@ -228,6 +232,32 @@ fn town_body(flow: &CampaignFlow) -> String {
                 .collect::<Vec<_>>(),
         ),
     }
+}
+
+fn journal_body(flow: &CampaignFlow) -> String {
+    let rows = flow
+        .save
+        .campaign_journal()
+        .into_iter()
+        .map(|entry| {
+            format!(
+                "{:?}  [{:?}]\n  {}\n  NEXT: {}",
+                entry.id,
+                entry.state,
+                entry.objective,
+                entry
+                    .next_room
+                    .map(room_label)
+                    .unwrap_or("NO FURTHER ROUTE"),
+            )
+        })
+        .collect::<Vec<_>>()
+        .join("\n\n");
+    format!(
+        "CAMPAIGN JOURNAL\n\n{}\n\nCURRENT GUIDE\n{}",
+        rows,
+        flow.save.current_guide_step().prompt()
+    )
 }
 
 fn shell_body(flow: &CampaignFlow) -> String {
@@ -281,6 +311,12 @@ fn shell_body(flow: &CampaignFlow) -> String {
             flow.settings.low_motion,
             flow.settings.input_mode,
         ),
+        ShellMode::CharacterCreate => format!(
+            "CREATE CHARACTER IDENTITY\n\nNAME: {}\nORIGIN: selected later in Mirror Square\nSAVE SLOT: {}\n\nThe name is persisted on both the RPG character and party hero. Origin remains the existing independent gameplay choice.",
+            flow.save.character_identity.name.display_name(),
+            flow.active_slot.label(),
+        ),
+        ShellMode::Journal => journal_body(flow),
         ShellMode::Playing => String::new(),
     }
 }
@@ -387,6 +423,10 @@ pub(super) fn update_campaign_ui(
     for (mut title, mut color) in &mut titles {
         title.0 = if flow.shell_mode == ShellMode::Title {
             "TRILLIONNIUM".to_string()
+        } else if flow.shell_mode == ShellMode::CharacterCreate {
+            "NEW CHARACTER".to_string()
+        } else if flow.shell_mode == ShellMode::Journal {
+            "CAMPAIGN JOURNAL".to_string()
         } else if flow.shell_mode == ShellMode::Paused {
             "CAMPAIGN PAUSED".to_string()
         } else if flow.shell_mode == ShellMode::ResumeGuard {
@@ -419,6 +459,10 @@ pub(super) fn update_campaign_ui(
     for (mut action, mut color) in &mut actions {
         action.0 = if flow.shell_mode == ShellMode::Title {
             "1/2/3 SELECT SLOT | N NEW / CONFIRM OVERWRITE | ENTER LOAD/CONTINUE | F2 LOW MOTION | F3 INPUT MODE".to_string()
+        } else if flow.shell_mode == ShellMode::CharacterCreate {
+            "C CYCLE NAME | ENTER CONFIRM | ESC TITLE".to_string()
+        } else if flow.shell_mode == ShellMode::Journal {
+            "F4 / ESC CLOSE JOURNAL".to_string()
         } else if flow.shell_mode == ShellMode::ResumeGuard {
             "ENTER RESUME | F1 TITLE".to_string()
         } else if flow.shell_mode == ShellMode::Paused {
@@ -436,7 +480,7 @@ pub(super) fn update_campaign_ui(
                     "T TALK | L PATH | K TRAIN | Y SPAR | Q MASTERY | E LOADOUT | H HEAL | 1 SQUARE | 3 GATE".to_string()
                 }
                 CampaignRoom::ExpeditionGate => {
-                    "R PREPARATION | B RELIEF SUPPLIES | Z/X/C FREE PARTY | P PRESET | E LOADOUT | F ACCEPT/DEPLOY | F1 TITLE | ESC PAUSE"
+                    "R PREPARATION | F6 DIFFICULTY | F4 JOURNAL | B RELIEF SUPPLIES | Z/X/C PARTY | E LOADOUT | F ACCEPT/DEPLOY | F1 TITLE"
                         .to_string()
                 }
                 CampaignRoom::RelayQuarter => {

@@ -55,6 +55,18 @@ fn convoy_map() -> BattleMapSeedV1 {
     authored
 }
 
+fn mirror_siege_map() -> BattleMapSeedV1 {
+    let mut authored = map();
+    authored.approach_point = BattleGridPoint::new(8, 6);
+    authored.objective = BattleGridPoint::new(18, 2);
+    authored.terrain_rows[2] = "ggggbbbbggggrrrrrggg".to_string();
+    authored.enemy_spawns.push(BattleMapNodeV1 {
+        id: "siege_commander".to_string(),
+        position: BattleGridPoint::new(17, 3),
+    });
+    authored
+}
+
 fn ready_campaign() -> CampaignSaveV1 {
     let mut campaign = CampaignSaveV1::default();
     campaign.move_to(CampaignRoom::MentorHall).unwrap();
@@ -305,11 +317,34 @@ fn e2e_third_mission_escorts_defends_extracts_and_unlocks_outer_road() {
         trnm_campaign_core::StoryStepId::SignalRoadComplete
     );
     store.save_atomic(&campaign).unwrap();
-    let restarted = store.load().unwrap();
+    let mut restarted = store.load().unwrap();
     assert!(restarted
         .progression
         .world_flags
         .contains("convoy_exodus_secured"));
+    restarted.move_to(CampaignRoom::ExpeditionGate).unwrap();
+    restarted.accept_first_contact_quest().unwrap();
+    assert_eq!(restarted.active_mission.map_id(), "mirror_siege");
+    let siege = restarted
+        .start_first_contact_battle(mirror_siege_map())
+        .unwrap();
+    assert_eq!(siege.mission.objectives.len(), 3);
+    assert_eq!(siege.map.enemy_spawns.len(), 5);
+    let result = run_victory(MissionSimV1::from_seed(siege).unwrap())
+        .into_result()
+        .unwrap();
+    restarted.submit_battle_result(result).unwrap();
+    assert!(restarted
+        .progression
+        .world_flags
+        .contains("mirror_siege_secured"));
+    store.save_atomic(&restarted).unwrap();
+    assert!(store
+        .load()
+        .unwrap()
+        .progression
+        .world_flags
+        .contains("mirror_siege_secured"));
 }
 
 #[test]

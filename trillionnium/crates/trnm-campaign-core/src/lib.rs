@@ -23,10 +23,10 @@ use trnm_rpg_core::{
 pub use trnm_rpg_core::{EncounterAction, MasteryChallenge};
 
 pub const CAMPAIGN_SAVE_CONTRACT: &str = "trnm_campaign_save_v1";
-pub const BATTLE_SEED_CONTRACT: &str = "trnm_battle_seed_v5";
+pub const BATTLE_SEED_CONTRACT: &str = "trnm_battle_seed_v6";
 pub const BATTLE_RESULT_CONTRACT: &str = "trnm_battle_result_v2";
 pub const SETTLEMENT_RECEIPT_CONTRACT: &str = "trnm_settlement_receipt_v1";
-pub const FIRST_CONTACT_RULES_VERSION: &str = "first_contact_campaign_rules_v5";
+pub const FIRST_CONTACT_RULES_VERSION: &str = "first_contact_campaign_rules_v6";
 pub const MAX_MENTOR_TRAINING_SESSIONS: u8 = 2;
 pub const FIELD_CLINIC_CREDIT_COST: i64 = 40;
 
@@ -194,6 +194,7 @@ pub enum CampaignMission {
     FirstContact,
     AftershockPatrol,
     ConvoyExodus,
+    MirrorSiege,
 }
 
 impl CampaignMission {
@@ -202,6 +203,7 @@ impl CampaignMission {
             Self::FirstContact => "first_contact",
             Self::AftershockPatrol => "aftershock_patrol",
             Self::ConvoyExodus => "convoy_exodus",
+            Self::MirrorSiege => "mirror_siege",
         }
     }
 
@@ -210,6 +212,76 @@ impl CampaignMission {
             Self::FirstContact => "First Contact",
             Self::AftershockPatrol => "Aftershock Patrol",
             Self::ConvoyExodus => "Signal Convoy Exodus",
+            Self::MirrorSiege => "Mirror Siege Counterstrike",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CampaignDifficulty {
+    Story,
+    #[default]
+    Standard,
+    Veteran,
+}
+
+impl CampaignDifficulty {
+    pub fn next(self) -> Self {
+        match self {
+            Self::Story => Self::Standard,
+            Self::Standard => Self::Veteran,
+            Self::Veteran => Self::Story,
+        }
+    }
+
+    pub fn display_name(self) -> &'static str {
+        match self {
+            Self::Story => "Story",
+            Self::Standard => "Standard",
+            Self::Veteran => "Veteran",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CharacterNamePreset {
+    #[default]
+    MirrorRanger,
+    SignalRook,
+    EmberVale,
+}
+
+impl CharacterNamePreset {
+    pub fn next(self) -> Self {
+        match self {
+            Self::MirrorRanger => Self::SignalRook,
+            Self::SignalRook => Self::EmberVale,
+            Self::EmberVale => Self::MirrorRanger,
+        }
+    }
+
+    pub fn display_name(self) -> &'static str {
+        match self {
+            Self::MirrorRanger => "Mirror Ranger",
+            Self::SignalRook => "Signal Rook",
+            Self::EmberVale => "Ember Vale",
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CharacterIdentity {
+    pub name: CharacterNamePreset,
+    pub confirmed: bool,
+}
+
+impl Default for CharacterIdentity {
+    fn default() -> Self {
+        Self {
+            name: CharacterNamePreset::MirrorRanger,
+            confirmed: true,
         }
     }
 }
@@ -281,6 +353,26 @@ impl MissionDefinition {
                     kind: ObjectiveKind::Extract,
                     target: map.objective,
                     duration_ticks: 80,
+                },
+            ],
+            CampaignMission::MirrorSiege => vec![
+                MissionObjectiveDefinition {
+                    id: "breach_siege_perimeter".to_string(),
+                    kind: ObjectiveKind::Escort,
+                    target: map.approach_point,
+                    duration_ticks: 0,
+                },
+                MissionObjectiveDefinition {
+                    id: "destroy_signal_jammer".to_string(),
+                    kind: ObjectiveKind::Destroy,
+                    target: map.objective,
+                    duration_ticks: 0,
+                },
+                MissionObjectiveDefinition {
+                    id: "reclaim_mirror_gate".to_string(),
+                    kind: ObjectiveKind::Capture,
+                    target: map.objective,
+                    duration_ticks: 720,
                 },
             ],
         };
@@ -406,6 +498,59 @@ pub struct QuestChainProgress {
     pub completed_nodes: BTreeSet<QuestChainNodeId>,
     #[serde(default)]
     pub complete: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CampaignJournalId {
+    SignalRoad,
+    CisternRelief,
+    Mastery,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CampaignJournalState {
+    Locked,
+    Available,
+    Active,
+    Completed,
+    Failed,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CampaignJournalEntry {
+    pub id: CampaignJournalId,
+    pub title: String,
+    pub state: CampaignJournalState,
+    pub objective: String,
+    pub next_room: Option<CampaignRoom>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CampaignGuideStep {
+    MeetMentor,
+    TrainWithMentor,
+    EquipWeapon,
+    ReachExpeditionGate,
+    AcceptMission,
+    DeployMission,
+    ReadJournal,
+}
+
+impl CampaignGuideStep {
+    pub fn prompt(self) -> &'static str {
+        match self {
+            Self::MeetMentor => "Press 2, then T to meet Street Compass Sifu",
+            Self::TrainWithMentor => "Press K to complete mentor training",
+            Self::EquipWeapon => "Press E to equip a typed loadout",
+            Self::ReachExpeditionGate => "Press 3 to reach the expedition gate",
+            Self::AcceptMission => "Press F to accept the current campaign mission",
+            Self::DeployMission => "Review preparation, then press F to deploy",
+            Self::ReadJournal => "Press F4 to review active, completed and locked goals",
+        }
+    }
 }
 
 pub fn cistern_relief_quest_chain_definition() -> QuestChainDefinition {
@@ -888,6 +1033,8 @@ pub struct BattleSeedV1 {
     pub party: Vec<BattleUnitSeedV1>,
     pub mission: MissionDefinition,
     #[serde(default)]
+    pub difficulty: CampaignDifficulty,
+    #[serde(default)]
     pub character_origin: CharacterOrigin,
     #[serde(default)]
     pub build_path: BuildPath,
@@ -925,7 +1072,11 @@ impl BattleSeedV1 {
         }
         if !matches!(
             self.map_id.as_str(),
-            "first_contact" | "aftershock_patrol" | "first_contact_aftershock" | "convoy_exodus"
+            "first_contact"
+                | "aftershock_patrol"
+                | "first_contact_aftershock"
+                | "convoy_exodus"
+                | "mirror_siege"
         ) || self.rules_version != FIRST_CONTACT_RULES_VERSION
         {
             return Err(CampaignError::InvalidContract(
@@ -1104,7 +1255,11 @@ pub struct CampaignSaveV1 {
     pub phase: CampaignPhase,
     pub character: WorldTrillionniumCharacter,
     #[serde(default)]
+    pub character_identity: CharacterIdentity,
+    #[serde(default)]
     pub character_origin: CharacterOrigin,
+    #[serde(default)]
+    pub difficulty: CampaignDifficulty,
     pub progression: CampaignProgression,
     pub party: Vec<PartyMember>,
     pub active_party_ids: Vec<String>,
@@ -1204,7 +1359,9 @@ impl Default for CampaignSaveV1 {
             room: CampaignRoom::MirrorSquare,
             phase: CampaignPhase::Town,
             character,
+            character_identity: CharacterIdentity::default(),
             character_origin: CharacterOrigin::Balanced,
+            difficulty: CampaignDifficulty::Standard,
             progression: CampaignProgression {
                 level: 1,
                 experience: 0,
@@ -1412,6 +1569,9 @@ impl CampaignSaveV1 {
                 self.character.inventory_items.push(item);
             }
         }
+        if self.character.display_name.trim().is_empty() {
+            self.apply_character_identity_name();
+        }
         self.story
             .unlocked_room_ids
             .extend([MIRROR_SQUARE_ROOM.to_string(), MENTOR_HALL_ROOM.to_string()]);
@@ -1450,6 +1610,20 @@ impl CampaignSaveV1 {
         if self.active_party_ids.len() != 4 {
             return Err(CampaignError::InvalidState(
                 "exactly four active party members are required".to_string(),
+            ));
+        }
+        let hero_name = self
+            .party
+            .iter()
+            .find(|member| member.unit_id == "hero")
+            .map(|member| member.display_name.as_str());
+        if self.character.display_name.trim().is_empty()
+            || self.character.display_name.len() > 32
+            || hero_name != Some(self.character.display_name.as_str())
+            || self.character.display_name != self.character_identity.name.display_name()
+        {
+            return Err(CampaignError::InvalidState(
+                "character identity and persistent hero name disagree".to_string(),
             ));
         }
         if self.progression.credits < 0
@@ -1542,6 +1716,192 @@ impl CampaignSaveV1 {
             }
         }
         Ok(())
+    }
+
+    fn apply_character_identity_name(&mut self) {
+        let display_name = self.character_identity.name.display_name().to_string();
+        self.character.display_name = display_name.clone();
+        if let Some(hero) = self
+            .party
+            .iter_mut()
+            .find(|member| member.unit_id == "hero")
+        {
+            hero.display_name = display_name;
+        }
+    }
+
+    pub fn cycle_character_identity(&mut self) -> Result<CharacterNamePreset, CampaignError> {
+        self.require_town()?;
+        if self.character_identity.confirmed {
+            return Err(CampaignError::InvalidState(
+                "confirmed character identity cannot be changed".to_string(),
+            ));
+        }
+        self.character_identity.name = self.character_identity.name.next();
+        self.apply_character_identity_name();
+        self.revision += 1;
+        Ok(self.character_identity.name)
+    }
+
+    pub fn confirm_character_identity(&mut self) -> Result<(), CampaignError> {
+        self.require_town()?;
+        if self.character_identity.confirmed {
+            return Err(CampaignError::InvalidState(
+                "character identity is already confirmed".to_string(),
+            ));
+        }
+        self.apply_character_identity_name();
+        self.character_identity.confirmed = true;
+        self.revision += 1;
+        self.validate()
+    }
+
+    pub fn cycle_difficulty(&mut self) -> Result<CampaignDifficulty, CampaignError> {
+        self.require_town()?;
+        if self.quest_state == QuestState::Accepted {
+            return Err(CampaignError::InvalidState(
+                "difficulty is locked after accepting a mission".to_string(),
+            ));
+        }
+        self.difficulty = self.difficulty.next();
+        self.revision += 1;
+        Ok(self.difficulty)
+    }
+
+    pub fn current_guide_step(&self) -> CampaignGuideStep {
+        if !self.mentor_met {
+            CampaignGuideStep::MeetMentor
+        } else if !self.trained_with_mentor {
+            CampaignGuideStep::TrainWithMentor
+        } else if !self.character.equipment_slots.contains_key("weapon") {
+            CampaignGuideStep::EquipWeapon
+        } else if self.room != CampaignRoom::ExpeditionGate {
+            CampaignGuideStep::ReachExpeditionGate
+        } else if self.quest_state == QuestState::Accepted {
+            CampaignGuideStep::DeployMission
+        } else if self
+            .progression
+            .world_flags
+            .contains("mirror_siege_secured")
+        {
+            CampaignGuideStep::ReadJournal
+        } else {
+            CampaignGuideStep::AcceptMission
+        }
+    }
+
+    pub fn campaign_journal(&self) -> Vec<CampaignJournalEntry> {
+        let signal_state = if self
+            .progression
+            .world_flags
+            .contains("mirror_siege_secured")
+        {
+            CampaignJournalState::Completed
+        } else {
+            match self.quest_state {
+                QuestState::Locked => CampaignJournalState::Locked,
+                QuestState::Available => CampaignJournalState::Available,
+                QuestState::Accepted => CampaignJournalState::Active,
+                QuestState::Completed => CampaignJournalState::Active,
+                QuestState::Failed | QuestState::Withdrawn => CampaignJournalState::Failed,
+            }
+        };
+        let journal_mission = if self.quest_state == QuestState::Accepted {
+            self.active_mission
+        } else if !self
+            .progression
+            .world_flags
+            .contains("first_contact_secured")
+        {
+            CampaignMission::FirstContact
+        } else if self.progression.aftershock_completions == 0 {
+            CampaignMission::AftershockPatrol
+        } else if !self
+            .progression
+            .world_flags
+            .contains("convoy_exodus_secured")
+        {
+            CampaignMission::ConvoyExodus
+        } else if !self
+            .progression
+            .world_flags
+            .contains("mirror_siege_secured")
+        {
+            CampaignMission::MirrorSiege
+        } else {
+            CampaignMission::AftershockPatrol
+        };
+        let signal_objective = match journal_mission {
+            CampaignMission::FirstContact => "Secure the first relay contact",
+            CampaignMission::AftershockPatrol => "Break the repeatable aftershock patrol",
+            CampaignMission::ConvoyExodus => "Escort, defend and extract the signal convoy",
+            CampaignMission::MirrorSiege => "Break the siege and reclaim Mirror Gate",
+        };
+        let cistern = match self.quest_chain.as_ref() {
+            None => CampaignJournalEntry {
+                id: CampaignJournalId::CisternRelief,
+                title: "Signal Cistern Relief".to_string(),
+                state: if self
+                    .progression
+                    .world_flags
+                    .contains("outer_signal_road_open")
+                {
+                    CampaignJournalState::Available
+                } else {
+                    CampaignJournalState::Locked
+                },
+                objective: "Open the outer Signal Road".to_string(),
+                next_room: Some(CampaignRoom::RelayQuarter),
+            },
+            Some(progress) => CampaignJournalEntry {
+                id: CampaignJournalId::CisternRelief,
+                title: "Signal Cistern Relief".to_string(),
+                state: if progress.complete {
+                    CampaignJournalState::Completed
+                } else {
+                    CampaignJournalState::Active
+                },
+                objective: match progress.current_node {
+                    QuestChainNodeId::SurveyDamage => "Survey the damaged cistern",
+                    QuestChainNodeId::GatherSupplies => "Commit 40 credits of relief supplies",
+                    QuestChainNodeId::ChooseReliefPlan => "Choose reinforce or evacuate",
+                    QuestChainNodeId::ReliefComplete => "Relief plan completed",
+                }
+                .to_string(),
+                next_room: match progress.current_node {
+                    QuestChainNodeId::GatherSupplies => Some(CampaignRoom::ExpeditionGate),
+                    _ => Some(CampaignRoom::RelayQuarter),
+                },
+            },
+        };
+        let mastery_state = if self.active_title.is_some() {
+            CampaignJournalState::Completed
+        } else if self.build_path == BuildPath::Unformed {
+            CampaignJournalState::Locked
+        } else {
+            CampaignJournalState::Active
+        };
+        vec![
+            CampaignJournalEntry {
+                id: CampaignJournalId::SignalRoad,
+                title: "Signal Road Campaign".to_string(),
+                state: signal_state,
+                objective: signal_objective.to_string(),
+                next_room: Some(CampaignRoom::ExpeditionGate),
+            },
+            cistern,
+            CampaignJournalEntry {
+                id: CampaignJournalId::Mastery,
+                title: "Path Mastery".to_string(),
+                state: mastery_state,
+                objective: if self.active_title.is_some() {
+                    "Mastery title earned".to_string()
+                } else {
+                    "Choose growth, then complete the mentor challenge".to_string()
+                },
+                next_room: Some(CampaignRoom::MentorHall),
+            },
+        ]
     }
 
     pub fn move_to(&mut self, room: CampaignRoom) -> Result<(), CampaignError> {
@@ -2444,11 +2804,17 @@ impl CampaignSaveV1 {
             .progression
             .world_flags
             .contains("convoy_exodus_secured");
+        let mirror_siege_secured = self
+            .progression
+            .world_flags
+            .contains("mirror_siege_secured");
         if self.quest_state == QuestState::Completed && first_contact_secured {
             self.active_mission = if self.progression.aftershock_completions == 0 {
                 CampaignMission::AftershockPatrol
             } else if !convoy_secured {
                 CampaignMission::ConvoyExodus
+            } else if !mirror_siege_secured {
+                CampaignMission::MirrorSiege
             } else {
                 CampaignMission::AftershockPatrol
             };
@@ -2556,6 +2922,7 @@ impl CampaignSaveV1 {
             map,
             party,
             mission,
+            difficulty: self.difficulty,
             character_origin: self.character_origin,
             build_path: self.build_path,
             active_title: self.active_title,
@@ -2830,6 +3197,10 @@ impl CampaignSaveV1 {
                     .progression
                     .world_flags
                     .contains("convoy_exodus_secured"),
+                CampaignMission::MirrorSiege => self
+                    .progression
+                    .world_flags
+                    .contains("mirror_siege_secured"),
             },
         });
         if !conditions_met {
@@ -3230,10 +3601,12 @@ impl SaveSlotStore {
                 slot.label()
             )));
         }
-        let save = CampaignSaveV1 {
+        let mut save = CampaignSaveV1 {
             campaign_id: format!("local-campaign-slot-{}", slot.label().to_ascii_lowercase()),
             ..CampaignSaveV1::default()
         };
+        save.character_identity.confirmed = false;
+        save.apply_character_identity_name();
         self.save_atomic(slot, &save)?;
         let checkpoint = self.checkpoint_path(slot);
         if checkpoint.exists() {
@@ -4073,6 +4446,100 @@ mod tests {
         assert_ne!(
             supplied_campaign.expedition_supplies,
             immediate_campaign.expedition_supplies
+        );
+    }
+
+    #[test]
+    fn new_slot_requires_identity_confirmation_and_persists_one_canonical_name() {
+        let directory = tempdir().unwrap();
+        let slots = SaveSlotStore::new(directory.path());
+        let mut campaign = slots.create_new(SaveSlotId::A, false).unwrap();
+        assert!(!campaign.character_identity.confirmed);
+        assert_eq!(campaign.character.display_name, "Mirror Ranger");
+        assert_eq!(
+            campaign.cycle_character_identity().unwrap(),
+            CharacterNamePreset::SignalRook
+        );
+        campaign.confirm_character_identity().unwrap();
+        slots.save_atomic(SaveSlotId::A, &campaign).unwrap();
+        let loaded = slots.load(SaveSlotId::A).unwrap();
+        assert!(loaded.character_identity.confirmed);
+        assert_eq!(loaded.character.display_name, "Signal Rook");
+        assert_eq!(loaded.party[0].display_name, "Signal Rook");
+        assert!(loaded.validate().is_ok());
+        assert!(campaign.cycle_character_identity().is_err());
+    }
+
+    #[test]
+    fn progressive_guide_and_journal_follow_authoritative_campaign_state() {
+        let directory = tempdir().unwrap();
+        let store = CampaignStore::new(directory.path().join("guided.json"));
+        let mut campaign = CampaignSaveV1::default();
+        assert_eq!(campaign.current_guide_step(), CampaignGuideStep::MeetMentor);
+        campaign.move_to(CampaignRoom::MentorHall).unwrap();
+        campaign.talk_to_mentor().unwrap();
+        assert_eq!(
+            campaign.current_guide_step(),
+            CampaignGuideStep::TrainWithMentor
+        );
+        campaign.train_with_mentor().unwrap();
+        assert_eq!(
+            campaign.current_guide_step(),
+            CampaignGuideStep::EquipWeapon
+        );
+        campaign.equip_starter_weapon().unwrap();
+        assert_eq!(
+            campaign.current_guide_step(),
+            CampaignGuideStep::ReachExpeditionGate
+        );
+        campaign.move_to(CampaignRoom::ExpeditionGate).unwrap();
+        assert_eq!(
+            campaign.current_guide_step(),
+            CampaignGuideStep::AcceptMission
+        );
+        campaign.accept_first_contact_quest().unwrap();
+        assert_eq!(
+            campaign.current_guide_step(),
+            CampaignGuideStep::DeployMission
+        );
+        let journal = campaign.campaign_journal();
+        assert_eq!(journal.len(), 3);
+        assert_eq!(journal[0].state, CampaignJournalState::Active);
+        store.save_atomic(&campaign).unwrap();
+        assert_eq!(store.load().unwrap().campaign_journal(), journal);
+    }
+
+    #[test]
+    fn difficulty_changes_seed_and_mirror_siege_follows_the_convoy() {
+        let mut standard = ready_campaign();
+        let standard_seed = standard.start_first_contact_battle(map()).unwrap();
+        let mut veteran = CampaignSaveV1::default();
+        assert_eq!(
+            veteran.cycle_difficulty().unwrap(),
+            CampaignDifficulty::Veteran
+        );
+        veteran.move_to(CampaignRoom::MentorHall).unwrap();
+        veteran.talk_to_mentor().unwrap();
+        veteran.train_with_mentor().unwrap();
+        veteran.equip_starter_weapon().unwrap();
+        veteran.move_to(CampaignRoom::ExpeditionGate).unwrap();
+        veteran.accept_first_contact_quest().unwrap();
+        let veteran_seed = veteran.start_first_contact_battle(map()).unwrap();
+        assert_ne!(standard_seed.seed_hash, veteran_seed.seed_hash);
+        assert_eq!(veteran_seed.difficulty, CampaignDifficulty::Veteran);
+
+        let mut campaign = ready_campaign();
+        campaign.quest_state = QuestState::Completed;
+        campaign.progression.aftershock_completions = 1;
+        campaign
+            .progression
+            .world_flags
+            .extend(["first_contact_secured", "convoy_exodus_secured"].map(str::to_string));
+        campaign.accept_first_contact_quest().unwrap();
+        assert_eq!(campaign.active_mission, CampaignMission::MirrorSiege);
+        assert_eq!(
+            campaign.campaign_journal()[0].objective,
+            "Break the siege and reclaim Mirror Gate"
         );
     }
 }

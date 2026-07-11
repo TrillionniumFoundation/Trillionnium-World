@@ -29,6 +29,8 @@ map data or whole-world state was reconnected.
 | generic branching RPG quest chains | `trnm-campaign-core` | typed nodes/conditions/rewards/branches, multi-room Cistern Relief and durable distinct outcomes |
 | world time, stamina, supplies and expedition preparation | `trnm-campaign-core` + `trnm-rts-sim` | resource/time consumption, distinct hashed BattleSeeds, starting-resource conservation and settlement recovery |
 | observation-driven enemy tactical planning | `trnm-rts-sim` | typed goal/budget/action selection, invalid-command isolation and deterministic checkpoint replay |
+| title guidance, journal and character identity | `trnm-campaign-core` + `trnm-first-contact` | authoritative guide/journal state, explicit new-character confirmation and atomic name synchronization |
+| difficulty and additional original campaign content | `trnm-campaign-core` + `trnm-rts-sim` + `trnm-first-contact` | three pressure/AI profiles and distinct Mirror Siege map/enemy/settlement E2E |
 
 The legacy archive is now a sealed acceptance index, not a source-code mine.
 Anything not listed remains historical reference only. New gameplay work must

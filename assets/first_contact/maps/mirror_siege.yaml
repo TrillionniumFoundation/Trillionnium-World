@@ -1,0 +1,112 @@
+contract_version: trnm_first_contact_map_v1
+id: mirror_siege
+title: Mirror Siege Counterstrike
+width: 40
+height: 24
+tile_size: 32
+player_start: { x: 5, y: 20 }
+camera_start: { x: 14, y: 16 }
+objective:
+  id: mirror_gate_jammer
+  label: Break the siege and reclaim Mirror Gate
+  x: 34
+  y: 4
+
+terrain_legend:
+  g: moss_a
+  r: route_a
+  b: basalt_a
+  w: water_a
+
+terrain_rows:
+  - wwwwwwwgggggggggggbbbbgggggggggggggggggg
+  - wwwwwwggggggggggggbbbbgggggbbbbbbbbbbbbg
+  - wwwwwgggggggggggggbbbbgggggbgggrrrrrggbg
+  - wwwwggggggggggggggbbbbgggggbgggrgggrggbg
+  - wwwgggggggggggggggbbbbgggggbgggrgggrggbg
+  - ggggggggggggggggggbbbbgggggbggrrrrggggbg
+  - ggggggggggggggggggggggggrrrrrrrrrrgggggg
+  - ggggggggggggggggrrrrrrrrgggbgggggggggggg
+  - ggggggggggggrgggbbbbbrgggggbggggggggggbg
+  - ggggggggggggrgggggbbbrgggggbggggggggggbg
+  - ggggggggggggrgggggbbbbrggggbbbbbbbbbbbbg
+  - gggggggrrrrrrrrrggbbbbgrgggggggggggggggg
+  - gggggggrgggggggrggbbbbgrgggggggggggggggg
+  - gggggggrgggrggggggbbbbgrrrrrrggggggggggg
+  - ggbbbbbrrrbbbbggggbbbbgggggrgggggggggggg
+  - ggbggggrgggggbggggggggggggrggggggggggggg
+  - ggbggggrggggrbgggrrrrggggrgggggggggggggg
+  - ggbggggrggrrrrrrrgggggggggrggggggggggggg
+  - ggbgggrrrrggggggggbbbbggggrggggggggggggg
+  - ggbgggggggggggggggbbbbgggggggggggggggggg
+  - ggbggggggggggbggggbbbbggggggggggggwwwwww
+  - ggbggggggggggbggggbbbbgggggggggggggwwwww
+  - ggbbbbbbbbbbbbggggbbbbggggggggggggggwwww
+  - ggggggggggggggggggbbbbgggggggggggggggwww
+
+height_rows:
+  - '0000000000000000002222000000000000000000'
+  - '0000000000000000002222000002222222222220'
+  - '0000000000000000002222000002000111110020'
+  - '0000000000000000002222000002000100010020'
+  - '0000000000000000002222000002000100010020'
+  - '0000000000000000002222000002001111000020'
+  - '0000000000000000111111111112000000000000'
+  - '0000000000000000111111110002000000000000'
+  - '0000000000010000222222100002000000000020'
+  - '0000000000010000002221000002000000000020'
+  - '0000000000010000002222100002222222222220'
+  - '0000000111111111002222010000000000000000'
+  - '0000000100000011002222010000000000000000'
+  - '0000000100010000002222111111000000000000'
+  - '0022222111222200002222000010000000000000'
+  - '0020000100000200000000000010000000000000'
+  - '0020000100000200011111111110000000000000'
+  - '0020000100111111100000000010000000000000'
+  - '0020001111000000002222000010000000000000'
+  - '0020000000000000002222000000000000000000'
+  - '0020111111111200002222000000000000000000'
+  - '0020100000001200002222000000000000000000'
+  - '0022222222222200002222000000000000000000'
+  - '0000000000000000002222000000000000000000'
+
+bases:
+  - { id: mirror_relief_camp, owner: player, x: 2, y: 14, width: 12, height: 9, entrance_x: 13, entrance_y: 18 }
+  - { id: siege_command, owner: contact, x: 27, y: 1, width: 12, height: 10, entrance_x: 38, entrance_y: 6 }
+
+chokepoints:
+  - { id: north_pass, x: 27, y: 5, width: 6, height: 3, approach: jammer }
+  - { id: south_pass, x: 17, y: 14, width: 5, height: 4, approach: breach }
+
+resources:
+  - { id: mirror_cells, kind: cyan_crystal, x: 10, y: 20, route: relief_to_breach }
+  - { id: siege_salvage, kind: amber_salvage, x: 24, y: 13, route: breach_to_jammer }
+  - { id: gate_cells, kind: cyan_crystal, x: 31, y: 7, route: jammer_to_gate }
+
+landmarks:
+  - { id: relief_standard, role: front, x: 11, y: 19, frame: front }
+  - { id: shattered_span, role: mid, x: 23, y: 13, frame: mid }
+  - { id: mirror_gate_jammer, role: rear, x: 34, y: 4, frame: rear }
+
+structures:
+  - { id: relief_command, family: command_core, owner: player, x: 5, y: 21, active: true }
+  - { id: relief_foundry, family: foundry, owner: player, x: 9, y: 21, active: true }
+  - { id: relief_refinery, family: refinery, owner: player, x: 3, y: 20, active: true }
+  - { id: mirror_barrier, family: shield_relay, owner: player, x: 12, y: 18, active: true }
+  - { id: breach_turret, family: defense_turret, owner: contact, x: 22, y: 14, active: true }
+  - { id: siege_core, family: command_core, owner: contact, x: 34, y: 3, active: true }
+  - { id: siege_foundry, family: foundry, owner: contact, x: 30, y: 4, active: true }
+  - { id: siege_jammer, family: shield_relay, owner: contact, x: 35, y: 6, active: true }
+
+units:
+  - { id: party_0, spawn_slot: party_0, family: worker, owner: player, x: 6, y: 20, selected: true }
+  - { id: party_1, spawn_slot: party_1, family: scout, owner: player, x: 7, y: 20, selected: true }
+  - { id: party_2, spawn_slot: party_2, family: warden, owner: player, x: 6, y: 19, selected: true }
+  - { id: party_3, spawn_slot: party_3, family: striker, owner: player, x: 7, y: 19, selected: true }
+  - { id: relief_engineer, family: relay_engineer, owner: player, x: 5, y: 19, selected: false }
+  - { id: mirror_sentinel, family: sentinel, owner: player, x: 10, y: 20, selected: false }
+  - { id: siege_pathfinder, family: scout, owner: contact, x: 20, y: 15, selected: false }
+  - { id: siege_bulwark, family: warden, owner: contact, x: 25, y: 11, selected: false }
+  - { id: siege_raider, family: striker, owner: contact, x: 29, y: 8, selected: false }
+  - { id: siege_jammer_guard, family: warden, owner: contact, x: 32, y: 7, selected: false }
+  - { id: siege_commander, family: sentinel, owner: contact, x: 35, y: 5, selected: false }

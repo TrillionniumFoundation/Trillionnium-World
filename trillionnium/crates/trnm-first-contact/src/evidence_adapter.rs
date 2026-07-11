@@ -10,10 +10,21 @@ pub struct ObserverAnswer {
     pub elapsed_millis: u32,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HumanPlaySession {
+    pub player: String,
+    pub facilitator: String,
+    pub duration_minutes: u8,
+    pub reached_rts: bool,
+    pub returned_to_town: bool,
+    pub notes: String,
+}
+
 #[derive(Debug, Clone, Resource)]
 pub struct FirstContactVisualAcceptance {
     pub questions: [&'static str; 4],
     pub observers: Vec<ObserverAnswer>,
+    pub play_sessions: Vec<HumanPlaySession>,
     pub screenshot_baseline_reviewed: bool,
     pub occlusion_reviewed: bool,
     pub contrast_reviewed: bool,
@@ -29,6 +40,7 @@ impl Default for FirstContactVisualAcceptance {
                 "What command should I press next?",
             ],
             observers: Vec::new(),
+            play_sessions: Vec::new(),
             screenshot_baseline_reviewed: false,
             occlusion_reviewed: false,
             contrast_reviewed: false,
@@ -54,6 +66,21 @@ impl FirstContactVisualAcceptance {
             && self.occlusion_reviewed
             && self.contrast_reviewed
     }
+
+    pub fn human_playtest_gate(&self) -> bool {
+        self.play_sessions.iter().any(|session| {
+            (10..=15).contains(&session.duration_minutes)
+                && session.reached_rts
+                && session.returned_to_town
+                && !session.player.trim().is_empty()
+                && !session.facilitator.trim().is_empty()
+                && !session.notes.trim().is_empty()
+        })
+    }
+
+    pub fn complete_human_evidence_gate(&self) -> bool {
+        self.visual_review_gate() && self.human_playtest_gate()
+    }
 }
 
 #[cfg(test)]
@@ -65,6 +92,9 @@ mod tests {
         let acceptance = FirstContactVisualAcceptance::default();
         assert_eq!(acceptance.questions.len(), 4);
         assert!(acceptance.observers.is_empty());
+        assert!(acceptance.play_sessions.is_empty());
         assert!(!acceptance.human_five_second_gate());
+        assert!(!acceptance.human_playtest_gate());
+        assert!(!acceptance.complete_human_evidence_gate());
     }
 }
