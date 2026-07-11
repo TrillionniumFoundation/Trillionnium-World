@@ -128,12 +128,14 @@ fn town_body(flow: &CampaignFlow) -> String {
     };
     if let Some(encounter) = &save.active_encounter {
         return format!(
-            "SIGNAL ROAD AMBUSH\n\nROUND {}  |  HERO HP {}/{}  |  ENEMY HP {}/{}\n\nThis is a persistent typed RPG encounter. Attack, defend, consume a real inventory item, or withdraw; its terminal result writes injury, loot and route flags to the same campaign save.",
+            "REGIONAL RPG ENCOUNTER\n\nROUND {}  |  HERO HP {}/{}  |  ENEMY HP {}/{}\nMOMENTUM {}  |  TECHNIQUE COOLDOWN {}\n\nAttack builds momentum, defend builds it faster, and K releases a sect technique. Items, withdrawal, encounter-specific pressure, injury, loot and route flags all use the same campaign save.",
             encounter.round,
             encounter.player_hp.max(0),
             encounter.player_max_hp,
             encounter.enemy_hp.max(0),
             encounter.enemy_max_hp,
+            encounter.momentum,
+            encounter.technique_cooldown,
         );
     }
     let body = match save.room {
@@ -204,8 +206,20 @@ fn town_body(flow: &CampaignFlow) -> String {
                 })
                 .collect::<Vec<_>>()
                 .join("\n");
+            let skirmish = if save.skirmish_setup.enabled {
+                format!(
+                    "\nSKIRMISH: {} vs {} | START {} | {:?} / score {}",
+                    save.skirmish_setup.player_faction.display_name(),
+                    save.skirmish_setup.enemy_faction.display_name(),
+                    save.skirmish_setup.starting_resources,
+                    save.skirmish_setup.victory_mode,
+                    save.skirmish_setup.score_target,
+                )
+            } else {
+                String::new()
+            };
             format!(
-                "{}\n\nMISSION: {} / {}  |  DIFFICULTY: {}  |  LOADOUT: {}\nGUIDE: {}\nPREPARATION: {}  |  TIME: {}\nSTAMINA {}  |  RATIONS {}  |  WATER {}\nPARTY (hero + freely chosen companions):\n{}\n\nR cycles preparation; F6 changes difficulty before mission acceptance. Each choice is bound into the authoritative BattleSeed.",
+                "{}\n\nMISSION: {} / {}  |  DIFFICULTY: {}  |  LOADOUT: {}\nGUIDE: {}\nPREPARATION: {}  |  TIME: {}\nSTAMINA {}  |  RATIONS {}  |  WATER {}{}\nPARTY (hero + freely chosen companions):\n{}\n\nR cycles preparation; F6 changes difficulty; F10 selects campaign/skirmish. In skirmish T changes faction, Y resources and U victory mode. Every choice is bound into the authoritative BattleSeed.",
                 room_label(save.room),
                 quest_label(save.quest_state),
                 save.active_mission.display_name(),
@@ -217,6 +231,7 @@ fn town_body(flow: &CampaignFlow) -> String {
                 save.expedition_supplies.stamina,
                 save.expedition_supplies.rations,
                 save.expedition_supplies.water,
+                skirmish,
                 roster,
             )
         }
@@ -239,11 +254,28 @@ fn town_body(flow: &CampaignFlow) -> String {
                 .filter(|flag| flag.contains("contact") || flag.contains("aftershock") || flag.contains("signal_road"))
                 .collect::<Vec<_>>(),
         ),
-        room => format!(
-            "{}\n\nMIRROR CITY REGIONAL DISTRICT\n\nThis district belongs to the authored twelve-room RPG region. Its mentor, NPC and regional quest definitions are authoritative clean-room content; travel still follows adjacency, locks and the current journal route.\n\n{}\n\nNPC CATALOG: 10  |  REGIONAL QUESTS: 15  |  SECTS: 3\nUse the room travel keys to follow connected exits; F4 opens the authoritative journal.",
-            room_label(room),
-            navigation,
-        ),
+        room => {
+            let npc = save
+                .current_regional_npc_summary()
+                .unwrap_or_else(|| "No scheduled regional NPC in this room".to_string());
+            let dialogue = save
+                .last_npc_conversation
+                .as_ref()
+                .map(|record| format!("LAST WORD ({}): {}", record.npc_id, record.line))
+                .unwrap_or_else(|| "LAST WORD: talk with T to learn this NPC's current concern".to_string());
+            let quest = save
+                .active_regional_quest_objective()
+                .unwrap_or_else(|| "No regional quest active".to_string());
+            let commerce = match room {
+                CampaignRoom::MarketWindPavilion => format!("SHOP: {}", save.shop_selection_label()),
+                CampaignRoom::WorkshopGate => format!("RECIPE: {}", save.recipe_selection_label()),
+                _ => "F11 cycles equipped owned items outside shop/workshop rooms".to_string(),
+            };
+            format!(
+                "{}\n\nMIRROR CITY REGIONAL DISTRICT\n\nNPC: {}\n{}\n\nQUEST: {}\n{}\n\n{}\n\nT talks before F9 acceptance; F10 advances every authored waypoint in order. W waits two hours. F11 cycles catalog/equipment; Shift+F11 buys or crafts; F12 repairs.",
+                room_label(room), npc, dialogue, quest, navigation, commerce,
+            )
+        }
     };
     if flow.settings.subtitles && !save.combat_log.is_empty() {
         let captions = save
@@ -501,7 +533,7 @@ pub(super) fn update_campaign_ui(
         } else if flow.mode == CampaignMode::Debrief {
             "ENTER  RETURN TO MIRROR SQUARE".to_string()
         } else if flow.save.active_encounter.is_some() {
-            "J ATTACK | R DEFEND | I USE TONIC | ESC WITHDRAW".to_string()
+            "J ATTACK | R DEFEND | K TECHNIQUE | I USE TONIC | ESC WITHDRAW".to_string()
         } else {
             match flow.save.room {
                 CampaignRoom::MirrorSquare => {
@@ -511,13 +543,13 @@ pub(super) fn update_campaign_ui(
                     "T TALK | L PATH | K TRAIN | Y SPAR | Q MASTERY | E LOADOUT | H HEAL | 1 SQUARE | 3 GATE".to_string()
                 }
                 CampaignRoom::ExpeditionGate => {
-                    "R PREP | F6 DIFFICULTY | F10 ENDGAME MAP | F4 JOURNAL | Z/X/C PARTY | E LOADOUT | F ACCEPT/DEPLOY"
+                    "R PREP | F6 DIFFICULTY | F10 MAP/MODE | T FACTION | Y RESOURCES | U VICTORY | F4 JOURNAL | Z/X/C PARTY | E LOADOUT | F DEPLOY"
                         .to_string()
                 }
                 CampaignRoom::RelayQuarter => {
                     "B CISTERN RELIEF | N REINFORCE | M EVACUATE | T TALK BRANN | U RECRUIT | J RPG AMBUSH | F1 TITLE | ESC PAUSE".to_string()
                 }
-                _ => "1-0/-/= TRAVEL | T JOIN SECT | K TRAIN | F9 ACCEPT QUEST | F10 ADVANCE | F11 SHOP/CRAFT | F12 REPAIR".to_string(),
+                _ => "1-0/-/= TRAVEL | T TALK/JOIN | K TRAIN | W WAIT | F9 ACCEPT | F10 STEP | F11 CYCLE | SHIFT+F11 BUY/CRAFT | F12 REPAIR".to_string(),
             }
         };
         color.0 = if hidden {

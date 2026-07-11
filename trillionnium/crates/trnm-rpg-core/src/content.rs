@@ -171,6 +171,144 @@ pub const NPC_CATALOG: [NpcDefinition; 10] = [
 ];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct NpcSchedule {
+    pub start_minute: u16,
+    pub end_minute: u16,
+    pub activity: &'static str,
+}
+
+impl NpcSchedule {
+    pub fn present(self, minute_of_day: u16) -> bool {
+        if self.start_minute <= self.end_minute {
+            (self.start_minute..self.end_minute).contains(&minute_of_day)
+        } else {
+            minute_of_day >= self.start_minute || minute_of_day < self.end_minute
+        }
+    }
+}
+
+pub fn npc_schedule(npc_id: &str) -> Option<NpcSchedule> {
+    Some(match npc_id {
+        "street-compass-sifu" => NpcSchedule {
+            start_minute: 360,
+            end_minute: 1_200,
+            activity: "mapping safe routes with apprentices",
+        },
+        "master-orsen" => NpcSchedule {
+            start_minute: 420,
+            end_minute: 1_140,
+            activity: "working the relay forge",
+        },
+        "captain-veyra" => NpcSchedule {
+            start_minute: 960,
+            end_minute: 360,
+            activity: "commanding the night watch",
+        },
+        "relay-smith-brann" => NpcSchedule {
+            start_minute: 300,
+            end_minute: 1_380,
+            activity: "salvaging relay housings",
+        },
+        "healer-nima" => NpcSchedule {
+            start_minute: 360,
+            end_minute: 1_320,
+            activity: "tending the lantern ward",
+        },
+        "archivist-sol" => NpcSchedule {
+            start_minute: 480,
+            end_minute: 1_080,
+            activity: "cataloguing witness accounts",
+        },
+        "merchant-aya" => NpcSchedule {
+            start_minute: 480,
+            end_minute: 1_260,
+            activity: "opening the pavilion stalls",
+        },
+        "courier-tess" => NpcSchedule {
+            start_minute: 300,
+            end_minute: 1_200,
+            activity: "sorting sealed route bags",
+        },
+        "scout-mako" => NpcSchedule {
+            start_minute: 240,
+            end_minute: 720,
+            activity: "reading tracks beyond the wall",
+        },
+        "quartermaster-nia" => NpcSchedule {
+            start_minute: 360,
+            end_minute: 1_200,
+            activity: "auditing cistern stores",
+        },
+        _ => return None,
+    })
+}
+
+pub fn npc_dialogue(npc_id: &str, trust: i16, completed_tasks: usize) -> Option<&'static str> {
+    let trusted = trust >= 6 || completed_tasks >= 2;
+    Some(match (npc_id, trusted) {
+        ("street-compass-sifu", false) => {
+            "A road is a promise made twice: once on the map, once under your feet."
+        }
+        ("street-compass-sifu", true) => {
+            "You no longer follow my marks. You leave marks that bring others home."
+        }
+        ("master-orsen", false) => {
+            "Bring me metal with a history. New iron has not learned what failure costs."
+        }
+        ("master-orsen", true) => {
+            "Your repairs hold under fire. The forge now answers to your field judgment."
+        }
+        ("captain-veyra", false) => {
+            "Daylight hides carelessness. Night reveals every gap in a watch line."
+        }
+        ("captain-veyra", true) => {
+            "Take the outer lantern. My sentries will move when they see your signal."
+        }
+        ("relay-smith-brann", false) => {
+            "Every silent relay has one last useful piece. Help me find which one."
+        }
+        ("relay-smith-brann", true) => {
+            "I kept the best core aside. You have earned a machine that remembers you."
+        }
+        ("healer-nima", false) => "A clean bandage is cheaper than courage spent while fevered.",
+        ("healer-nima", true) => {
+            "Your party brings people back alive. My last tonic is yours at cost."
+        }
+        ("archivist-sol", false) => {
+            "Rumour becomes history only after someone risks signing their name."
+        }
+        ("archivist-sol", true) => {
+            "The archive lists you as a reliable witness. Doors open for reliable witnesses."
+        }
+        ("merchant-aya", false) => {
+            "Coin moves faster than caravans, but only caravans arrive with medicine."
+        }
+        ("merchant-aya", true) => {
+            "Your word survived the road. I can extend credit where ledgers usually refuse."
+        }
+        ("courier-tess", false) => {
+            "A sealed letter weighs nothing until the wrong person learns it exists."
+        }
+        ("courier-tess", true) => {
+            "Take the black route bag. Only senior couriers know its quiet crossings."
+        }
+        ("scout-mako", false) => {
+            "Tracks tell the truth, but never in the order you want to hear it."
+        }
+        ("scout-mako", true) => {
+            "The ash runners changed formation. They know someone has learned their habits."
+        }
+        ("quartermaster-nia", false) => {
+            "Water is the city's slowest clock. Waste a cup and the whole ward loses an hour."
+        }
+        ("quartermaster-nia", true) => {
+            "Your relief plan held. I can spare supplies without lying to the ration board."
+        }
+        _ => return None,
+    })
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum QuestArchetype {
     Courier,
@@ -250,7 +388,7 @@ pub const REGIONAL_QUEST_CATALOG: [RegionalQuestDefinition; 15] = [
         title: "Wanted: Ash Runner",
         archetype: QuestArchetype::Hunt,
         giver_npc_id: "captain-veyra",
-        waypoint_room_ids: &["outer_signal_road"],
+        waypoint_room_ids: &["night_watch_post", "outer_signal_road"],
         encounter_id: Some("ash_runner"),
         credit_reward: 70,
         reputation_reward: 7,
@@ -330,7 +468,7 @@ pub const REGIONAL_QUEST_CATALOG: [RegionalQuestDefinition; 15] = [
         title: "Tracks Beyond the Gate",
         archetype: QuestArchetype::Hunt,
         giver_npc_id: "scout-mako",
-        waypoint_room_ids: &["outer_signal_road"],
+        waypoint_room_ids: &["outer_signal_road", "caravan_yard"],
         encounter_id: Some("roadside_ambush"),
         credit_reward: 65,
         reputation_reward: 6,
@@ -588,14 +726,42 @@ pub fn original_combat_log(encounter_id: &str, round: u8, player_won: bool) -> V
         .find(|entry| entry.id == encounter_id)
         .map(|entry| entry.enemy_name)
         .unwrap_or("Unknown Rival");
+    let opening = match encounter_id {
+        "milestone_duel" => "A chalk route circle closes beneath both fighters' feet.",
+        "roadside_ambush" => "Loose gravel answers three hidden steps before steel appears.",
+        "scrap_stalker" => "The salvage beast drags sparks through the broken relay yard.",
+        "night_raiders" => "Lanterns shutter in sequence as raiders test the ward line.",
+        "ash_runner" => "The Ash Runner never stops moving long enough to cast one shadow.",
+        "dock_thieves" => "Wet ledger pages flutter between stacked crates and drawn knives.",
+        "signal_road_ambush" => "Signal wire hums once, then the roadside rises into an ambush.",
+        _ => "Lantern light narrows around the contested ground.",
+    };
+    let lesson = match encounter_id {
+        "milestone_duel" => "Measured footwork turns the trial from strength into geometry.",
+        "roadside_ambush" => "The party breaks the encirclement by holding one quiet exit.",
+        "scrap_stalker" => "A feint draws the plated head away from its exposed relay spine.",
+        "night_raiders" => "Guard and counter-signal keep the infirmary lane from collapsing.",
+        "ash_runner" => "Patience steals the runner's rhythm before the final exchange.",
+        "dock_thieves" => "A recovered seal exposes the thieves' false cargo order.",
+        "signal_road_ambush" => "The party follows the wire's vibration to the hidden caller.",
+        _ => "Breath, distance and timing decide the center line.",
+    };
     vec![
         CombatLogBeat {
-            kind: "stance".to_string(),
-            text: format!("Lantern light bends as you square your stance against {enemy}."),
+            kind: "opening".to_string(),
+            text: opening.to_string(),
+        },
+        CombatLogBeat {
+            kind: "opponent".to_string(),
+            text: format!("{enemy} commits first; the party answers without losing formation."),
         },
         CombatLogBeat {
             kind: "exchange".to_string(),
-            text: format!("Steel, breath and footwork trade measure for {round} rounds."),
+            text: format!("Steel, breath and footwork trade measure across {round} rounds."),
+        },
+        CombatLogBeat {
+            kind: "lesson".to_string(),
+            text: lesson.to_string(),
         },
         CombatLogBeat {
             kind: "outcome".to_string(),
@@ -826,6 +992,30 @@ mod tests {
         assert!(REGIONAL_QUEST_CATALOG
             .iter()
             .all(|quest| NPC_CATALOG.iter().any(|npc| npc.id == quest.giver_npc_id)));
+        assert!(REGIONAL_QUEST_CATALOG.iter().all(|quest| {
+            quest.waypoint_room_ids.len() >= 2
+                && quest
+                    .waypoint_room_ids
+                    .windows(2)
+                    .all(|rooms| rooms[0] != rooms[1])
+        }));
+    }
+
+    #[test]
+    fn every_relationship_npc_has_a_schedule_and_two_authored_dialogue_states() {
+        let mut opening_lines = BTreeSet::new();
+        let mut trusted_lines = BTreeSet::new();
+        for npc in NPC_CATALOG {
+            let schedule = npc_schedule(npc.id).expect("every NPC has a schedule");
+            assert!(!schedule.activity.trim().is_empty());
+            let opening = npc_dialogue(npc.id, 0, 0).expect("opening dialogue exists");
+            let trusted = npc_dialogue(npc.id, 8, 2).expect("trusted dialogue exists");
+            assert_ne!(opening, trusted);
+            opening_lines.insert(opening);
+            trusted_lines.insert(trusted);
+        }
+        assert_eq!(opening_lines.len(), NPC_CATALOG.len());
+        assert_eq!(trusted_lines.len(), NPC_CATALOG.len());
     }
 
     #[test]

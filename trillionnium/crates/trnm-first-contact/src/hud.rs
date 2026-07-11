@@ -1,7 +1,10 @@
 use super::{
     campaign_flow::CampaignFlow,
     map_loader::FirstContactMap,
-    simulation_adapter::{command_key_for_scheme, FirstContactCommand, FirstContactRuntime},
+    simulation_adapter::{
+        command_key_for_scheme, production_options, structure_options, technology_options,
+        FirstContactCommand, FirstContactRuntime,
+    },
     view_math::world_to_minimap,
 };
 use bevy::prelude::*;
@@ -401,8 +404,10 @@ pub(super) fn update_first_contact_hud(
     }
     for mut text in &mut resources {
         text.0 = format!(
-            "FIELD {} | PWR {}% | PARTY {}% | VIS {}% | INTEL {} | JOBS {} | ORDERS {} | SUPPORT {} | TECH {} | VET {} | SUPPLY {}/{}",
+            "FIELD {} | SCORE {}:{} | PWR {}% | PARTY {}% | VIS {}% | INTEL {} | JOBS {} | ORDERS {} | SUPPORT {} | TECH {} | VET {} | SUPPLY {}/{}",
             runtime.credits,
+            runtime.player_score,
+            runtime.enemy_score,
             runtime.power_percent,
             runtime.party_hp_percent,
             runtime.visible_percent,
@@ -478,9 +483,22 @@ pub(super) fn update_first_contact_hud(
                 .collect::<Vec<_>>()
                 .join(",")
         };
-        text.0 =
-            format!(
-            "SEL {selection} | {} | G{} | {}\nDRAG | CTRL+1-9 SET | 1-9 GET\nP PATROL | SPACE STOP | HP {}% | {} / {}",
+        let (production, structure, technology) = flow
+            .mission
+            .as_ref()
+            .map(|mission| {
+                let units = production_options(mission);
+                let structures = structure_options(mission);
+                let techs = technology_options(mission);
+                (
+                    units[runtime.production_variant as usize % units.len()].id,
+                    structures[runtime.structure_variant as usize % structures.len()].id,
+                    techs[runtime.tech_variant as usize % techs.len()].id,
+                )
+            })
+            .unwrap_or(("none", "none", "none"));
+        text.0 = format!(
+            "SEL {selection} | {} | G{} | {}\nDRAG | CTRL+1-9 SET | 1-9 GET\nP PATROL | SPACE STOP | HP {}%\nUNIT {} | BUILD {} | TECH {} (T CYCLE)",
             runtime.formation.id().trim_start_matches("party_").to_uppercase(),
             runtime
                 .active_control_group
@@ -488,17 +506,9 @@ pub(super) fn update_first_contact_hud(
                 .unwrap_or_else(|| "-".to_string()),
             runtime.selected_stance.as_str().to_uppercase(),
             runtime.party_hp_percent,
-            if runtime.production_variant == 0 {
-                "DRONE"
-            } else {
-                "MEDIC"
-            },
-            match runtime.structure_variant {
-                0 => "BARRICADE",
-                1 => "GENERATOR",
-                2 => "WORKSHOP",
-                _ => "SUPPLY",
-            },
+            production,
+            structure,
+            technology,
         );
     }
     let minutes = runtime.elapsed_seconds as u32 / 60;

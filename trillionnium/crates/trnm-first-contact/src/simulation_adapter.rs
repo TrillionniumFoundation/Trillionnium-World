@@ -16,7 +16,10 @@ use trnm_campaign_core::{BattleGridPoint, BattleOutcome, ControlScheme};
 use trnm_rts_protocol::{
     RtsFrameOrder, RtsFrameOrderStream, RtsOrderKind, RtsOrderSource, RtsTile, RtsUnitStance,
 };
-use trnm_rts_sim::{BattlePhase, SimStructureKind, TICKS_PER_SECOND};
+use trnm_rts_sim::{
+    BattlePhase, MissionSimV1, RtsFaction, SimStructureKind, STRUCTURE_ROSTER, TECH_TREE,
+    TICKS_PER_SECOND, UNIT_ROSTER,
+};
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub enum FirstContactCommand {
@@ -328,6 +331,9 @@ pub struct FirstContactRuntime {
     pub veteran_rank: u8,
     pub production_variant: u8,
     pub structure_variant: u8,
+    pub tech_variant: u8,
+    pub player_score: u32,
+    pub enemy_score: u32,
     pub selected_stance: RtsUnitStance,
     pub active_control_group: Option<u8>,
     pub last_group_recall: Option<(u8, f32)>,
@@ -373,6 +379,9 @@ impl Default for FirstContactRuntime {
             veteran_rank: 0,
             production_variant: 0,
             structure_variant: 0,
+            tech_variant: 0,
+            player_score: 0,
+            enemy_score: 0,
             selected_stance: RtsUnitStance::Guard,
             active_control_group: Some(1),
             last_group_recall: None,
@@ -491,6 +500,45 @@ fn target_cycle(
         .map(|index| (index + 1) % targets.len())
         .unwrap_or(0);
     targets[next].clone()
+}
+
+fn player_faction(mission: &MissionSimV1) -> RtsFaction {
+    mission.seed.skirmish.player_faction
+}
+
+pub(super) fn production_options(
+    mission: &MissionSimV1,
+) -> Vec<&'static trnm_rts_sim::UnitArchetype> {
+    UNIT_ROSTER
+        .iter()
+        .filter(|unit| unit.faction == player_faction(mission))
+        .collect()
+}
+
+pub(super) fn structure_options(
+    mission: &MissionSimV1,
+) -> Vec<&'static trnm_rts_sim::StructureArchetype> {
+    STRUCTURE_ROSTER
+        .iter()
+        .filter(|structure| structure.id != "command_post")
+        .filter(|structure| {
+            structure
+                .faction
+                .is_none_or(|faction| faction == player_faction(mission))
+        })
+        .collect()
+}
+
+pub(super) fn technology_options(
+    mission: &MissionSimV1,
+) -> Vec<&'static trnm_rts_sim::TechDefinition> {
+    TECH_TREE
+        .iter()
+        .filter(|tech| {
+            tech.faction
+                .is_none_or(|faction| faction == player_faction(mission))
+        })
+        .collect()
 }
 
 #[allow(clippy::too_many_arguments, clippy::type_complexity)]
@@ -749,23 +797,43 @@ pub(super) fn handle_first_contact_commands(
     }
 
     if input.just_pressed(KeyCode::KeyZ) {
-        runtime.production_variant = (runtime.production_variant + 1) % 2;
-        runtime.command_feedback = if runtime.production_variant == 0 {
-            "Production selected: support drone".to_string()
-        } else {
-            "Production selected: field medic".to_string()
+        let Some(mission) = flow.mission.as_ref() else {
+            return;
         };
+        let options = production_options(mission);
+        runtime.production_variant = (runtime.production_variant + 1) % options.len() as u8;
+        runtime.command_feedback = format!(
+            "Production selected: {} ({})",
+            options[runtime.production_variant as usize].id,
+            options[runtime.production_variant as usize].role
+        );
         return;
     }
     if input.just_pressed(KeyCode::KeyH) {
-        runtime.structure_variant = (runtime.structure_variant + 1) % 4;
-        let label = match runtime.structure_variant {
-            0 => "field barricade",
-            1 => "relay generator",
-            2 => "field workshop",
-            _ => "supply cache",
+        let Some(mission) = flow.mission.as_ref() else {
+            return;
         };
-        runtime.command_feedback = format!("Structure selected: {label}");
+        let options = structure_options(mission);
+        runtime.structure_variant = (runtime.structure_variant + 1) % options.len() as u8;
+        runtime.command_feedback = format!(
+            "Structure selected: {} ({} field resources)",
+            options[runtime.structure_variant as usize].id,
+            options[runtime.structure_variant as usize].cost
+        );
+        return;
+    }
+    if input.just_pressed(KeyCode::KeyT) {
+        let Some(mission) = flow.mission.as_ref() else {
+            return;
+        };
+        let options = technology_options(mission);
+        runtime.tech_variant = (runtime.tech_variant + 1) % options.len() as u8;
+        runtime.command_feedback = format!(
+            "Technology selected: {} ({:?}, {} field resources)",
+            options[runtime.tech_variant as usize].id,
+            options[runtime.tech_variant as usize].effect,
+            options[runtime.tech_variant as usize].cost
+        );
         return;
     }
     if input.just_pressed(KeyCode::KeyG) {
@@ -930,27 +998,41 @@ pub(super) fn handle_first_contact_commands(
         order.queued = true;
         order.queue_id = Some(format!("player-order-{}", mission.tick));
     }
-    if command == FirstContactCommand::Train && runtime.production_variant == 1 {
-        order.target_rule_id = Some("field_medic".to_string());
-    }
-    if command == FirstContactCommand::Fortify {
+    if command == FirstContactCommand::Train {
+        let options = production_options(mission);
         order.target_rule_id = Some(
-            match runtime.structure_variant {
-                0 => "field_barricade",
-                1 => "relay_generator",
-                2 => "field_workshop",
-                _ => "supply_cache",
-            }
-            .to_string(),
+            options[runtime.production_variant as usize % options.len()]
+                .id
+                .to_string(),
         );
     }
-    if command == FirstContactCommand::Research
-        && mission.researched_techs.contains("field_logistics")
-    {
-        order.target_rule_id = Some("signal_optics".to_string());
+    if command == FirstContactCommand::Fortify {
+        let options = structure_options(mission);
+        order.target_rule_id = Some(
+            options[runtime.structure_variant as usize % options.len()]
+                .id
+                .to_string(),
+        );
     }
-    if command == FirstContactCommand::Upgrade && mission.upgrade_level > 0 {
-        order.target_rule_id = Some("field_armor".to_string());
+    if matches!(
+        command,
+        FirstContactCommand::Research | FirstContactCommand::Upgrade
+    ) {
+        let options = technology_options(mission);
+        let selected = options[runtime.tech_variant as usize % options.len()];
+        let upgrade = matches!(
+            selected.id,
+            "relay_arms" | "field_armor" | "siege_drills" | "reactive_plating"
+        );
+        if (command == FirstContactCommand::Upgrade) != upgrade {
+            runtime.command_feedback = format!(
+                "{} requires the {} command",
+                selected.id,
+                if upgrade { "UPGRADE" } else { "RESEARCH" }
+            );
+            return;
+        }
+        order.target_rule_id = Some(selected.id.to_string());
     }
     if matches!(
         command,
@@ -1132,6 +1214,8 @@ pub(super) fn advance_first_contact_simulation(
         runtime.queued_orders = mission.queued_orders.len();
         runtime.support_units = mission.support_units.len();
         runtime.tech_level = mission.upgrade_level;
+        runtime.player_score = mission.player_score;
+        runtime.enemy_score = mission.enemy_score;
         runtime.veteran_rank = mission
             .party
             .iter()
@@ -1295,6 +1379,8 @@ pub(super) fn advance_first_contact_simulation(
                     SimStructureKind::SensorTower => "shield_relay",
                     SimStructureKind::FieldHospital => "refinery",
                     SimStructureKind::SiegeFoundry => "foundry",
+                    SimStructureKind::AshBeacon => "shield_relay",
+                    SimStructureKind::ForwardRally => "command_core",
                 };
                 let family = manifest
                     .structure(family_id)

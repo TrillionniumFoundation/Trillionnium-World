@@ -49,11 +49,11 @@ Mirror Square
 ## Stable Contracts
 
 - `trnm_campaign_save_v1`
-- `trnm_battle_seed_v7`
+- `trnm_battle_seed_v8`
 - `trnm_battle_result_v2`
 - `trnm_settlement_receipt_v1`
-- `trnm_rts_sim_v9`
-- `trnm_rts_sim_checkpoint_v9`
+- `trnm_rts_sim_v10`
+- `trnm_rts_sim_checkpoint_v10`
 
 `BattleSeedV1` binds campaign revision, battle id, map/rules version, four
 persistent party members, spawn slots, skills, typed equipment modifiers,

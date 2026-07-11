@@ -11,6 +11,7 @@
 ## Trillionnium World Client Boundary
 
 - Current game status and honest open gates: `GAME_STATUS.md`
+- Deep RPG + complete RTS v1 definition of done: `docs/development/trnm-deep-rpg-complete-rts-v1-dod.md`
 - Canonical RPG/RTS product contract: `docs/development/trillionnium-rpg-rts-closed-loop-v1.md`
 - Native playable client: `trillionnium/crates/trnm-first-contact`
 - Authoritative campaign aggregate: `trillionnium/crates/trnm-campaign-core`

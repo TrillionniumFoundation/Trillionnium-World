@@ -221,6 +221,7 @@ impl BuildTitle {
 pub enum EncounterAction {
     Attack,
     Defend,
+    Technique,
     UseItem,
     Withdraw,
 }
@@ -241,6 +242,10 @@ pub struct RpgEncounterState {
     pub player_max_hp: i64,
     pub enemy_hp: i64,
     pub enemy_max_hp: i64,
+    #[serde(default)]
+    pub technique_cooldown: u8,
+    #[serde(default)]
+    pub momentum: i8,
     pub outcome: Option<EncounterOutcome>,
 }
 
@@ -271,6 +276,8 @@ impl RpgEncounterState {
             player_max_hp,
             enemy_hp: definition.enemy_hp,
             enemy_max_hp: definition.enemy_hp,
+            technique_cooldown: 0,
+            momentum: 0,
             outcome: None,
         })
     }
@@ -287,19 +294,35 @@ impl RpgEncounterState {
         if action == EncounterAction::UseItem && !item_available {
             return Err("rpg_encounter_item_missing".to_string());
         }
+        if action == EncounterAction::Technique && self.technique_cooldown > 0 {
+            return Err("rpg_encounter_technique_cooling_down".to_string());
+        }
         self.round = self.round.saturating_add(1);
+        self.technique_cooldown = self.technique_cooldown.saturating_sub(1);
         let mut item_consumed = false;
         let defending = action == EncounterAction::Defend;
         match action {
             EncounterAction::Attack => {
-                self.enemy_hp -= 12 + i64::from(attributes.force) * 2;
+                self.enemy_hp -=
+                    12 + i64::from(attributes.force) * 2 + i64::from(self.momentum.max(0));
+                self.momentum = (self.momentum + 1).min(5);
             }
             EncounterAction::Defend => {
                 self.enemy_hp -= 4 + i64::from(attributes.insight / 3);
+                self.momentum = (self.momentum + 2).min(5);
+            }
+            EncounterAction::Technique => {
+                self.enemy_hp -= 18
+                    + i64::from(attributes.insight) * 2
+                    + i64::from(attributes.agility)
+                    + i64::from(self.momentum.max(0)) * 3;
+                self.technique_cooldown = 2;
+                self.momentum = 0;
             }
             EncounterAction::UseItem => {
                 item_consumed = true;
                 self.player_hp = (self.player_hp + 55).min(self.player_max_hp);
+                self.momentum = (self.momentum - 1).max(-3);
             }
             EncounterAction::Withdraw => {
                 self.outcome = Some(EncounterOutcome::Withdrawn);
@@ -314,7 +337,18 @@ impl RpgEncounterState {
             } else {
                 i64::from(attributes.physique / 8)
             };
-            let enemy_damage = 18 + i64::from(self.round % 3) * 4;
+            let encounter_pressure = ENCOUNTER_CATALOG
+                .iter()
+                .find(|definition| definition.id == self.encounter_id)
+                .map(|definition| match definition.kind {
+                    EncounterKind::Duel => 1,
+                    EncounterKind::Ambush => 4,
+                    EncounterKind::Hunt => 3,
+                    EncounterKind::Defense => 2,
+                    EncounterKind::Investigation => 0,
+                })
+                .unwrap_or(0);
+            let enemy_damage = 16 + encounter_pressure + i64::from(self.round % 3) * 4;
             self.player_hp -= (enemy_damage - mitigation).max(1);
             if self.player_hp <= 0 {
                 self.outcome = Some(EncounterOutcome::Defeat);
@@ -1306,5 +1340,34 @@ mod tests {
         };
         assert_eq!(run(&force), run(&force));
         assert_ne!(run(&force).enemy_hp, run(&agility).enemy_hp);
+    }
+
+    #[test]
+    fn encounter_technique_requires_momentum_timing_and_has_a_real_cooldown() {
+        let attributes = TrillionniumAttributes::default();
+        let mut encounter = RpgEncounterState::from_definition("milestone_duel", &attributes)
+            .expect("authored encounter exists");
+        encounter
+            .advance(&attributes, EncounterAction::Defend, false)
+            .unwrap();
+        assert_eq!(encounter.momentum, 2);
+        encounter
+            .advance(&attributes, EncounterAction::Technique, false)
+            .unwrap();
+        assert_eq!(encounter.technique_cooldown, 2);
+        assert_eq!(encounter.momentum, 0);
+        assert_eq!(
+            encounter
+                .advance(&attributes, EncounterAction::Technique, false)
+                .unwrap_err(),
+            "rpg_encounter_technique_cooling_down"
+        );
+        encounter
+            .advance(&attributes, EncounterAction::Attack, false)
+            .unwrap();
+        encounter
+            .advance(&attributes, EncounterAction::Defend, false)
+            .unwrap();
+        assert_eq!(encounter.technique_cooldown, 0);
     }
 }

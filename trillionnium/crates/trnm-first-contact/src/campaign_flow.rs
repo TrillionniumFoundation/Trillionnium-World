@@ -550,6 +550,11 @@ pub(super) fn handle_campaign_input(
                 Some(EncounterAction::Defend),
                 "Defended in the RPG encounter",
             )
+        } else if input.just_pressed(KeyCode::KeyK) {
+            (
+                Some(EncounterAction::Technique),
+                "Released a momentum-powered sect technique",
+            )
         } else if input.just_pressed(KeyCode::KeyI) {
             (
                 Some(EncounterAction::UseItem),
@@ -608,22 +613,39 @@ pub(super) fn handle_campaign_input(
         let result = flow.mutate_town(|save| save.move_to(CampaignRoom::OuterSignalRoad));
         set_status(&mut flow, result, "Entered Outer Signal Road");
     } else if input.just_pressed(KeyCode::KeyT) {
-        if flow.save.room == CampaignRoom::RelayQuarter {
-            let result = flow.mutate_town(CampaignSaveV1::talk_to_relay_smith);
-            set_status(&mut flow, result, "Built trust with Relay Smith Brann");
-        } else if flow.save.room == CampaignRoom::WorkshopGate {
+        if flow.save.room == CampaignRoom::ExpeditionGate && flow.save.skirmish_setup.enabled {
+            let result = flow.mutate_town(|save| save.cycle_skirmish_faction().map(|_| ()));
+            set_status(&mut flow, result, "Changed skirmish faction matchup");
+            return;
+        }
+        let regional_interactions = flow.save.current_regional_npc_interactions();
+        if flow.save.room == CampaignRoom::WorkshopGate && regional_interactions > 0 {
             let result = flow.mutate_town(|save| save.join_regional_sect(SectId::IronWorkshop));
             set_status(&mut flow, result, "Committed to Iron Workshop Gate");
-        } else if flow.save.room == CampaignRoom::NightWatchPost {
+        } else if flow.save.room == CampaignRoom::NightWatchPost && regional_interactions > 0 {
             let result = flow.mutate_town(|save| save.join_regional_sect(SectId::NightWatch));
             set_status(&mut flow, result, "Committed to the Night Watch Alliance");
-        } else {
+        } else if flow.save.room == CampaignRoom::MentorHall && !flow.save.mentor_met {
             let result = flow.mutate_town(CampaignSaveV1::talk_to_mentor);
             set_status(
                 &mut flow,
                 result,
                 "Street Compass Sifu offered the First Contact task",
             );
+        } else if flow.save.has_current_regional_npc() {
+            let result = flow.mutate_town(|save| save.talk_to_regional_npc().map(|_| ()));
+            if result.is_ok() {
+                flow.status = flow
+                    .save
+                    .last_npc_conversation
+                    .as_ref()
+                    .map(|record| format!("{}: {}", record.npc_id, record.line))
+                    .unwrap_or_else(|| "Regional conversation completed".to_string());
+            } else {
+                set_status(&mut flow, result, "Regional conversation completed");
+            }
+        } else {
+            flow.status = "No one here is available for conversation".to_string();
         }
     } else if input.just_pressed(KeyCode::KeyK) {
         let result = if flow.save.room == CampaignRoom::MentorHall {
@@ -651,15 +673,25 @@ pub(super) fn handle_campaign_input(
         let result = flow.mutate_town(|save| save.cycle_party_member(3));
         set_status(&mut flow, result, "Changed companion slot three");
     } else if input.just_pressed(KeyCode::KeyY) {
-        let result = flow.mutate_town(|save| save.spar_with_mentor().map(|_| ()));
-        set_status(
-            &mut flow,
-            result,
-            "Completed a deterministic mentor sparring bout",
-        );
+        if flow.save.room == CampaignRoom::ExpeditionGate && flow.save.skirmish_setup.enabled {
+            let result = flow.mutate_town(|save| save.cycle_skirmish_resources().map(|_| ()));
+            set_status(&mut flow, result, "Changed skirmish starting resources");
+        } else {
+            let result = flow.mutate_town(|save| save.spar_with_mentor().map(|_| ()));
+            set_status(
+                &mut flow,
+                result,
+                "Completed a deterministic mentor sparring bout",
+            );
+        }
     } else if input.just_pressed(KeyCode::KeyU) {
-        let result = flow.mutate_town(CampaignSaveV1::recruit_relay_smith);
-        set_status(&mut flow, result, "Recruited Relay Smith Brann");
+        if flow.save.room == CampaignRoom::ExpeditionGate && flow.save.skirmish_setup.enabled {
+            let result = flow.mutate_town(|save| save.cycle_skirmish_victory_mode().map(|_| ()));
+            set_status(&mut flow, result, "Changed skirmish victory mode");
+        } else {
+            let result = flow.mutate_town(CampaignSaveV1::recruit_relay_smith);
+            set_status(&mut flow, result, "Recruited Relay Smith Brann");
+        }
     } else if input.just_pressed(KeyCode::KeyH) {
         let result = flow.mutate_town(CampaignSaveV1::heal_party);
         set_status(
@@ -758,16 +790,38 @@ pub(super) fn handle_campaign_input(
                 "Advanced the active regional quest"
             },
         );
+    } else if input.just_pressed(KeyCode::KeyW) {
+        let result = flow.mutate_town(|save| save.wait_in_town(120));
+        set_status(
+            &mut flow,
+            result,
+            "Waited two hours; NPC schedules advanced",
+        );
     } else if input.just_pressed(KeyCode::F11) {
+        let shift = input.pressed(KeyCode::ShiftLeft) || input.pressed(KeyCode::ShiftRight);
         let result = if flow.save.room == CampaignRoom::MarketWindPavilion {
-            flow.mutate_town(|save| save.buy_regional_item("watcher-boots"))
+            if shift {
+                flow.mutate_town(|save| save.buy_selected_shop_item().map(|_| ()))
+            } else {
+                flow.mutate_town(|save| save.cycle_shop_item().map(|_| ()))
+            }
+        } else if flow.save.room == CampaignRoom::WorkshopGate {
+            if shift {
+                flow.mutate_town(|save| save.craft_selected_recipe().map(|_| ()))
+            } else {
+                flow.mutate_town(|save| save.cycle_recipe().map(|_| ()))
+            }
         } else {
-            flow.mutate_town(|save| save.craft_regional_item("reinforced_staff"))
+            flow.mutate_town(|save| save.cycle_and_equip_owned_item().map(|_| ()))
         };
         set_status(
             &mut flow,
             result,
-            "Completed a regional shop/crafting action",
+            if shift {
+                "Purchased or crafted the selected catalog entry"
+            } else {
+                "Changed the shop, recipe or equipped-item selection"
+            },
         );
     } else if input.just_pressed(KeyCode::F12) {
         let result = flow.mutate_town(|save| save.repair_all_equipment().map(|_| ()));

@@ -14,16 +14,16 @@ use std::{
 };
 use trnm_campaign_core::{
     BattleGridPoint, BattleOutcome, BattleResultV1, BattleSeedV1, CampaignDifficulty,
-    CampaignError, LootStack, ObjectiveKind, UnitBattleReportV1, UnitBattleStatus,
-    BATTLE_RESULT_CONTRACT,
+    CampaignError, LootStack, ObjectiveKind, SkirmishVictoryMode, UnitBattleReportV1,
+    UnitBattleStatus, BATTLE_RESULT_CONTRACT,
 };
 use trnm_rts_protocol::{RtsFrameOrder, RtsOrderKind, RtsUnitStance};
 
 mod content;
 pub use content::*;
 
-pub const RTS_SIM_CONTRACT: &str = "trnm_rts_sim_v9";
-pub const RTS_SIM_CHECKPOINT_CONTRACT: &str = "trnm_rts_sim_checkpoint_v9";
+pub const RTS_SIM_CONTRACT: &str = "trnm_rts_sim_v10";
+pub const RTS_SIM_CHECKPOINT_CONTRACT: &str = "trnm_rts_sim_checkpoint_v10";
 pub const TICKS_PER_SECOND: u64 = 10;
 pub const THREE_MINUTE_TICKS: u64 = 3 * 60 * TICKS_PER_SECOND;
 pub const FIVE_MINUTE_TICKS: u64 = 5 * 60 * TICKS_PER_SECOND;
@@ -34,11 +34,8 @@ const CAPTURE_TICKS_REQUIRED: u32 = 602;
 const RELAY_GUARD_HP: i64 = 5_400;
 const WITHDRAWAL_MIN_TICKS: u64 = 30;
 const FIELD_AID_COST: u32 = 20;
-const FORTIFY_COST: u32 = 30;
 const RECON_COST: u32 = 10;
 const TRAIN_SUPPORT_COST: u32 = 40;
-const RESEARCH_COST: u32 = 35;
-const UPGRADE_COST: u32 = 45;
 const WORKER_CARGO_CAPACITY: u32 = 40;
 const RESOURCE_NODE_CAPACITY: u32 = 800;
 
@@ -160,6 +157,7 @@ impl SimUnit {
 pub enum SimJobKind {
     TrainSupport,
     TrainMedic,
+    TrainRosterUnit,
     ResearchLogistics,
     ResearchOptics,
     UpgradeRelayArms,
@@ -168,6 +166,8 @@ pub enum SimJobKind {
     ResearchFieldMedicine,
     UpgradeSiegeDrills,
     UpgradeReactivePlating,
+    ResearchWayfinderDrills,
+    ResearchRapidMustering,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -192,6 +192,48 @@ pub enum SimStructureKind {
     SensorTower,
     FieldHospital,
     SiegeFoundry,
+    AshBeacon,
+    ForwardRally,
+}
+
+impl SimStructureKind {
+    fn from_rule_id(rule: &str) -> Option<Self> {
+        Some(match rule {
+            "command_post" => Self::CommandPost,
+            "field_workshop" => Self::FieldWorkshop,
+            "relay_generator" => Self::RelayGenerator,
+            "supply_cache" => Self::SupplyCache,
+            "field_barricade" => Self::FieldBarricade,
+            "sensor_tower" => Self::SensorTower,
+            "field_hospital" => Self::FieldHospital,
+            "siege_foundry" => Self::SiegeFoundry,
+            "ash_beacon" => Self::AshBeacon,
+            "forward_rally" => Self::ForwardRally,
+            _ => return None,
+        })
+    }
+
+    fn rule_id(self) -> &'static str {
+        match self {
+            Self::CommandPost => "command_post",
+            Self::FieldWorkshop => "field_workshop",
+            Self::RelayGenerator => "relay_generator",
+            Self::SupplyCache => "supply_cache",
+            Self::FieldBarricade => "field_barricade",
+            Self::SensorTower => "sensor_tower",
+            Self::FieldHospital => "field_hospital",
+            Self::SiegeFoundry => "siege_foundry",
+            Self::AshBeacon => "ash_beacon",
+            Self::ForwardRally => "forward_rally",
+        }
+    }
+
+    fn definition(self) -> &'static StructureArchetype {
+        STRUCTURE_ROSTER
+            .iter()
+            .find(|definition| definition.id == self.rule_id())
+            .expect("every authoritative structure kind is catalogued")
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -209,31 +251,15 @@ impl SimStructure {
     }
 
     fn supply_provided(&self) -> u8 {
-        match self.kind {
-            SimStructureKind::CommandPost => 8,
-            SimStructureKind::SupplyCache => 4,
-            SimStructureKind::FieldHospital => 2,
-            _ => 0,
-        }
+        self.kind.definition().supply_delta.max(0) as u8
     }
 
     fn power_provided(&self) -> u16 {
-        match self.kind {
-            SimStructureKind::CommandPost => 50,
-            SimStructureKind::RelayGenerator => 50,
-            _ => 0,
-        }
+        self.kind.definition().power_delta.max(0) as u16
     }
 
     fn power_draw(&self) -> u16 {
-        match self.kind {
-            SimStructureKind::FieldWorkshop => 30,
-            SimStructureKind::FieldBarricade => 4,
-            SimStructureKind::SensorTower => 12,
-            SimStructureKind::FieldHospital => 20,
-            SimStructureKind::SiegeFoundry => 25,
-            _ => 0,
-        }
+        self.kind.definition().power_delta.min(0).unsigned_abs()
     }
 }
 
@@ -253,6 +279,12 @@ pub struct SupportUnit {
     pub hp: i64,
     pub damage: i64,
     pub attack_interval_ticks: u32,
+    #[serde(default = "default_support_supply")]
+    pub supply: u8,
+}
+
+fn default_support_supply() -> u8 {
+    1
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -341,6 +373,10 @@ pub struct MissionSimV1 {
     pub resources_spent: u32,
     #[serde(default)]
     pub resources_generated: u32,
+    #[serde(default)]
+    pub player_score: u32,
+    #[serde(default)]
+    pub enemy_score: u32,
     #[serde(default)]
     pub resource_nodes: Vec<ResourceNodeState>,
     #[serde(default)]
@@ -443,6 +479,11 @@ impl MissionSimV1 {
             CampaignDifficulty::Veteran => 115,
         };
         let enemy_scale = mission_scale * difficulty_scale / 100;
+        let enemy_faction = if seed.skirmish.enabled {
+            seed.skirmish.enemy_faction
+        } else {
+            RtsFaction::AshenCompact
+        };
         let enemies = seed
             .map
             .enemy_spawns
@@ -451,7 +492,15 @@ impl MissionSimV1 {
             .map(|(index, spawn)| {
                 let (role, hp, damage, armor, speed, interval) = UNIT_ROSTER
                     .iter()
-                    .find(|unit| unit.faction == RtsFaction::AshenCompact && unit.id == spawn.id)
+                    .find(|unit| unit.faction == enemy_faction && unit.id == spawn.id)
+                    .or_else(|| {
+                        seed.skirmish.enabled.then_some(()).and_then(|_| {
+                            UNIT_ROSTER
+                                .iter()
+                                .filter(|unit| unit.faction == enemy_faction)
+                                .nth(index % 6)
+                        })
+                    })
                     .map(|unit| {
                         let speed = match unit.visual_family {
                             "scout" => 1_080,
@@ -515,6 +564,14 @@ impl MissionSimV1 {
             RELAY_GUARD_HP
         };
         let relay_guard_max_hp = relay_guard_base * difficulty_scale / 100;
+        let starting_resources =
+            seed.expedition_readiness
+                .starting_resources
+                .saturating_add(if seed.skirmish.enabled {
+                    seed.skirmish.starting_resources
+                } else {
+                    0
+                });
         let mut sim = Self {
             contract_version: RTS_SIM_CONTRACT.to_string(),
             seed: seed.clone(),
@@ -554,10 +611,12 @@ impl MissionSimV1 {
             relay_guard_hp: relay_guard_max_hp,
             relay_guard_max_hp,
             relay_capture_ticks: 0,
-            resources_gathered: seed.expedition_readiness.starting_resources,
-            resources_available: seed.expedition_readiness.starting_resources,
+            resources_gathered: starting_resources,
+            resources_available: starting_resources,
             resources_spent: 0,
-            resources_generated: seed.expedition_readiness.starting_resources,
+            resources_generated: starting_resources,
+            player_score: 0,
+            enemy_score: 0,
             resource_nodes: seed
                 .map
                 .resource_nodes
@@ -781,12 +840,24 @@ impl MissionSimV1 {
 
     pub fn supply_used(&self) -> u8 {
         let active_party = self.party.iter().filter(|unit| unit.alive()).count() as u8;
-        let support = self.support_units.len() as u8;
+        let support = self
+            .support_units
+            .iter()
+            .map(|unit| unit.supply)
+            .fold(0_u8, u8::saturating_add);
         let reserved = self
             .jobs
             .iter()
-            .filter(|job| matches!(job.kind, SimJobKind::TrainSupport | SimJobKind::TrainMedic))
-            .count() as u8;
+            .map(|job| match job.kind {
+                SimJobKind::TrainSupport | SimJobKind::TrainMedic => 1,
+                SimJobKind::TrainRosterUnit => UNIT_ROSTER
+                    .iter()
+                    .find(|unit| unit.id == job.rule_id)
+                    .map(|unit| unit.supply)
+                    .unwrap_or(1),
+                _ => 0,
+            })
+            .fold(0_u8, u8::saturating_add);
         active_party
             .saturating_add(support)
             .saturating_add(reserved)
@@ -1106,6 +1177,31 @@ impl MissionSimV1 {
             self.outcome = Some(BattleOutcome::Defeat);
             self.phase = BattlePhase::Complete;
             self.event_count += 1;
+        } else if self.seed.skirmish.enabled {
+            let terminal = match self.seed.skirmish.victory_mode {
+                SkirmishVictoryMode::Objective => (self.objective_index
+                    >= self.seed.mission.objectives.len())
+                .then_some(BattleOutcome::Victory),
+                SkirmishVictoryMode::Score => {
+                    if self.player_score >= self.seed.skirmish.score_target {
+                        Some(BattleOutcome::Victory)
+                    } else if self.enemy_score >= self.seed.skirmish.score_target {
+                        Some(BattleOutcome::Defeat)
+                    } else {
+                        None
+                    }
+                }
+                SkirmishVictoryMode::Annihilation => self
+                    .enemies
+                    .iter()
+                    .all(|enemy| !enemy.alive())
+                    .then_some(BattleOutcome::Victory),
+            };
+            if let Some(outcome) = terminal {
+                self.outcome = Some(outcome);
+                self.phase = BattlePhase::Complete;
+                self.event_count += 1;
+            }
         } else if self.objective_index >= self.seed.mission.objectives.len() {
             self.outcome = Some(BattleOutcome::Victory);
             self.phase = BattlePhase::Complete;
@@ -1577,6 +1673,7 @@ impl MissionSimV1 {
                     }
                     self.party[attacker_index].attacks_made += 1;
                     if was_alive && !self.enemies[target_index].alive() {
+                        self.player_score = self.player_score.saturating_add(100);
                         self.party[attacker_index].confirmed_kills =
                             self.party[attacker_index].confirmed_kills.saturating_add(1);
                         self.party[attacker_index].veteran_rank =
@@ -1670,6 +1767,7 @@ impl MissionSimV1 {
                 let deposited = std::mem::take(&mut unit.cargo);
                 self.resources_gathered = self.resources_gathered.saturating_add(deposited);
                 self.resources_available = self.resources_available.saturating_add(deposited);
+                self.player_score = self.player_score.saturating_add(deposited);
                 self.event_count += 1;
             }
         }
@@ -1742,16 +1840,25 @@ impl MissionSimV1 {
 
     fn resolve_fortify(&mut self, order: &RtsFrameOrder) -> Result<(), SimError> {
         let rule = order.target_rule_id.as_deref().unwrap_or("field_barricade");
-        let (kind, base_cost, hp) = match rule {
-            "relay_generator" => (SimStructureKind::RelayGenerator, 35, 520),
-            "field_workshop" => (SimStructureKind::FieldWorkshop, 45, 600),
-            "supply_cache" => (SimStructureKind::SupplyCache, 25, 420),
-            "field_barricade" => (SimStructureKind::FieldBarricade, FORTIFY_COST, 480),
-            "sensor_tower" => (SimStructureKind::SensorTower, 40, 430),
-            "field_hospital" => (SimStructureKind::FieldHospital, 55, 500),
-            "siege_foundry" => (SimStructureKind::SiegeFoundry, 60, 650),
-            _ => return Err(SimError::Order(format!("unknown structure rule {rule}"))),
-        };
+        let kind = SimStructureKind::from_rule_id(rule)
+            .ok_or_else(|| SimError::Order(format!("unknown structure rule {rule}")))?;
+        if kind == SimStructureKind::CommandPost {
+            return Err(SimError::Order(
+                "additional command posts cannot be field-built".to_string(),
+            ));
+        }
+        let definition = kind.definition();
+        if definition
+            .faction
+            .is_some_and(|faction| faction != self.seed.skirmish.player_faction)
+        {
+            return Err(SimError::Order(format!(
+                "{} belongs to the opposing faction",
+                definition.id
+            )));
+        }
+        let base_cost = definition.cost;
+        let hp = i64::from(definition.hp);
         let target = order
             .target_tile
             .map(|tile| BattleGridPoint::new(tile.x as i16, tile.y as i16))
@@ -1823,15 +1930,20 @@ impl MissionSimV1 {
         let rule = order.target_rule_id.as_deref().unwrap_or_default();
         let kind = match (order.kind, rule) {
             (RtsOrderKind::Train, "field_medic") => SimJobKind::TrainMedic,
-            (RtsOrderKind::Train, _) => SimJobKind::TrainSupport,
+            (RtsOrderKind::Train, "field_support_drone") => SimJobKind::TrainSupport,
+            (RtsOrderKind::Train, rule) if UNIT_ROSTER.iter().any(|unit| unit.id == rule) => {
+                SimJobKind::TrainRosterUnit
+            }
             (RtsOrderKind::Research, "signal_optics") => SimJobKind::ResearchOptics,
             (RtsOrderKind::Research, "sensor_net") => SimJobKind::ResearchSensorNet,
             (RtsOrderKind::Research, "field_medicine") => SimJobKind::ResearchFieldMedicine,
-            (RtsOrderKind::Research, _) => SimJobKind::ResearchLogistics,
+            (RtsOrderKind::Research, "field_logistics") => SimJobKind::ResearchLogistics,
+            (RtsOrderKind::Research, "wayfinder_drills") => SimJobKind::ResearchWayfinderDrills,
+            (RtsOrderKind::Research, "rapid_mustering") => SimJobKind::ResearchRapidMustering,
             (RtsOrderKind::Upgrade, "field_armor") => SimJobKind::UpgradeFieldArmor,
             (RtsOrderKind::Upgrade, "siege_drills") => SimJobKind::UpgradeSiegeDrills,
             (RtsOrderKind::Upgrade, "reactive_plating") => SimJobKind::UpgradeReactivePlating,
-            (RtsOrderKind::Upgrade, _) => SimJobKind::UpgradeRelayArms,
+            (RtsOrderKind::Upgrade, "relay_arms") => SimJobKind::UpgradeRelayArms,
             _ => return Err(SimError::Order("unsupported job order".to_string())),
         };
         self.queue_job(order, kind)
@@ -1842,13 +1954,26 @@ impl MissionSimV1 {
             .target_rule_id
             .clone()
             .ok_or_else(|| SimError::Order("job rule is required".to_string()))?;
-        if self.jobs.iter().any(|job| job.kind == kind) {
+        if !matches!(
+            kind,
+            SimJobKind::TrainSupport | SimJobKind::TrainMedic | SimJobKind::TrainRosterUnit
+        ) && self.jobs.iter().any(|job| job.kind == kind)
+        {
             return Err(SimError::Order(
                 "that production or technology job is already queued".to_string(),
             ));
         }
-        if matches!(kind, SimJobKind::TrainSupport | SimJobKind::TrainMedic)
-            && self.supply_used() >= self.supply_cap()
+        let requested_supply = match kind {
+            SimJobKind::TrainSupport | SimJobKind::TrainMedic => 1,
+            SimJobKind::TrainRosterUnit => UNIT_ROSTER
+                .iter()
+                .find(|unit| unit.id == rule_id)
+                .map(|unit| unit.supply)
+                .unwrap_or(1),
+            _ => 0,
+        };
+        if requested_supply > 0
+            && self.supply_used().saturating_add(requested_supply) > self.supply_cap()
         {
             return Err(SimError::Order(
                 "unit production is supply blocked".to_string(),
@@ -1860,6 +1985,7 @@ impl MissionSimV1 {
         if matches!(
             kind,
             SimJobKind::TrainMedic
+                | SimJobKind::TrainRosterUnit
                 | SimJobKind::ResearchOptics
                 | SimJobKind::UpgradeRelayArms
                 | SimJobKind::UpgradeFieldArmor
@@ -1867,103 +1993,140 @@ impl MissionSimV1 {
                 | SimJobKind::ResearchFieldMedicine
                 | SimJobKind::UpgradeSiegeDrills
                 | SimJobKind::UpgradeReactivePlating
+                | SimJobKind::ResearchWayfinderDrills
+                | SimJobKind::ResearchRapidMustering
         ) && !workshop_ready
         {
             return Err(SimError::Order(
                 "a powered field workshop prerequisite is missing".to_string(),
             ));
         }
+        let tech_definition = match kind {
+            SimJobKind::ResearchLogistics
+            | SimJobKind::ResearchOptics
+            | SimJobKind::UpgradeRelayArms
+            | SimJobKind::UpgradeFieldArmor
+            | SimJobKind::ResearchSensorNet
+            | SimJobKind::ResearchFieldMedicine
+            | SimJobKind::UpgradeSiegeDrills
+            | SimJobKind::UpgradeReactivePlating
+            | SimJobKind::ResearchWayfinderDrills
+            | SimJobKind::ResearchRapidMustering => Some(
+                TECH_TREE
+                    .iter()
+                    .find(|tech| tech.id == rule_id)
+                    .ok_or_else(|| SimError::Order(format!("unknown technology {rule_id}")))?,
+            ),
+            _ => None,
+        };
+        if let Some(tech) = tech_definition {
+            if tech
+                .faction
+                .is_some_and(|faction| faction != self.seed.skirmish.player_faction)
+            {
+                return Err(SimError::Order(format!(
+                    "{} belongs to the opposing faction",
+                    tech.id
+                )));
+            }
+            if tech
+                .prerequisite
+                .is_some_and(|required| !self.researched_techs.contains(required))
+            {
+                return Err(SimError::Order(format!(
+                    "research {} before {}",
+                    tech.prerequisite.unwrap_or_default(),
+                    tech.id
+                )));
+            }
+        }
+        let tech_cost = tech_definition.map(|tech| tech.cost).unwrap_or_default();
         let (cost, duration, label) = match kind {
             SimJobKind::TrainSupport => (TRAIN_SUPPORT_COST, 80, "support production"),
             SimJobKind::TrainMedic => (TRAIN_SUPPORT_COST + 10, 95, "field medic production"),
+            SimJobKind::TrainRosterUnit => {
+                let unit = UNIT_ROSTER
+                    .iter()
+                    .find(|unit| unit.id == rule_id)
+                    .ok_or_else(|| SimError::Order("unknown faction unit".to_string()))?;
+                if unit.faction != self.seed.skirmish.player_faction {
+                    return Err(SimError::Order(format!(
+                        "{} belongs to the opposing faction",
+                        unit.id
+                    )));
+                }
+                let duration = if self.researched_techs.contains("rapid_mustering") {
+                    60
+                } else {
+                    90
+                };
+                (unit.cost, duration, "faction roster production")
+            }
             SimJobKind::ResearchLogistics => {
                 if self.researched_techs.contains("field_logistics") {
                     return Err(SimError::Order(
                         "field logistics is already researched".to_string(),
                     ));
                 }
-                (RESEARCH_COST, 70, "field logistics research")
+                (tech_cost, 70, "field logistics research")
             }
             SimJobKind::ResearchOptics => {
-                if !self.researched_techs.contains("field_logistics") {
-                    return Err(SimError::Order(
-                        "research field logistics before signal optics".to_string(),
-                    ));
-                }
                 if self.researched_techs.contains("signal_optics") {
                     return Err(SimError::Order(
                         "signal optics is already researched".to_string(),
                     ));
                 }
-                (RESEARCH_COST + 15, 90, "signal optics research")
+                (tech_cost, 90, "signal optics research")
             }
             SimJobKind::UpgradeRelayArms => {
-                if !self.researched_techs.contains("field_logistics") {
-                    return Err(SimError::Order(
-                        "research field logistics before upgrading relay arms".to_string(),
-                    ));
-                }
                 if self.upgrade_level >= 3 {
                     return Err(SimError::Order(
                         "relay arms upgrade cap reached".to_string(),
                     ));
                 }
-                (UPGRADE_COST, 60, "relay arms upgrade")
+                (tech_cost, 60, "relay arms upgrade")
             }
             SimJobKind::UpgradeFieldArmor => {
-                if !self.researched_techs.contains("field_logistics") {
-                    return Err(SimError::Order(
-                        "research field logistics before upgrading field armor".to_string(),
-                    ));
-                }
                 if self.armor_upgrade_level >= 3 {
                     return Err(SimError::Order(
                         "field armor upgrade cap reached".to_string(),
                     ));
                 }
-                (UPGRADE_COST + 10, 75, "field armor upgrade")
+                (tech_cost, 75, "field armor upgrade")
             }
             SimJobKind::ResearchSensorNet => {
-                if !self.researched_techs.contains("signal_optics") {
-                    return Err(SimError::Order(
-                        "research signal optics before sensor net".to_string(),
-                    ));
-                }
                 if self.researched_techs.contains("sensor_net") {
                     return Err(SimError::Order(
                         "sensor net is already researched".to_string(),
                     ));
                 }
-                (RESEARCH_COST + 20, 100, "sensor net research")
+                (tech_cost, 100, "sensor net research")
             }
             SimJobKind::ResearchFieldMedicine => {
-                if !self.researched_techs.contains("field_logistics") {
-                    return Err(SimError::Order(
-                        "research field logistics before field medicine".to_string(),
-                    ));
-                }
                 if self.researched_techs.contains("field_medicine") {
                     return Err(SimError::Order(
                         "field medicine is already researched".to_string(),
                     ));
                 }
-                (RESEARCH_COST + 20, 100, "field medicine research")
+                (tech_cost, 100, "field medicine research")
             }
-            SimJobKind::UpgradeSiegeDrills => {
-                if !self.researched_techs.contains("field_logistics") {
+            SimJobKind::UpgradeSiegeDrills => (tech_cost, 90, "siege drills upgrade"),
+            SimJobKind::UpgradeReactivePlating => (tech_cost, 90, "reactive plating upgrade"),
+            SimJobKind::ResearchWayfinderDrills => {
+                if self.researched_techs.contains("wayfinder_drills") {
                     return Err(SimError::Order(
-                        "research field logistics before siege drills".to_string(),
+                        "wayfinder drills are already researched".to_string(),
                     ));
                 }
-                (UPGRADE_COST + 15, 90, "siege drills upgrade")
+                (tech_cost, 80, "wayfinder drills research")
             }
-            SimJobKind::UpgradeReactivePlating => {
-                if !self.researched_techs.contains("field_logistics") {
+            SimJobKind::ResearchRapidMustering => {
+                if self.researched_techs.contains("rapid_mustering") {
                     return Err(SimError::Order(
-                        "research field logistics before reactive plating".to_string(),
+                        "rapid mustering is already researched".to_string(),
                     ));
                 }
-                (UPGRADE_COST + 15, 90, "reactive plating upgrade")
+                (tech_cost, 80, "rapid mustering research")
             }
         };
         self.spend_resources(cost, label)?;
@@ -2058,6 +2221,7 @@ impl MissionSimV1 {
                         hp: 240,
                         damage: 18 + i64::from(self.upgrade_level) * 5,
                         attack_interval_ticks: 18,
+                        supply: 1,
                     });
                 }
                 SimJobKind::TrainMedic => {
@@ -2069,6 +2233,23 @@ impl MissionSimV1 {
                         hp: 210,
                         damage: 6,
                         attack_interval_ticks: 20,
+                        supply: 1,
+                    });
+                }
+                SimJobKind::TrainRosterUnit => {
+                    let unit = UNIT_ROSTER
+                        .iter()
+                        .find(|unit| unit.id == job.rule_id)
+                        .expect("queued faction unit remains catalogued");
+                    let position = self.unoccupied_spawn_tile(job.target);
+                    self.support_units.push(SupportUnit {
+                        unit_id: format!("{}_{}", unit.id, self.support_units.len() + 1),
+                        role: unit.role.to_string(),
+                        position,
+                        hp: i64::from(unit.hp),
+                        damage: i64::from(unit.damage) + i64::from(self.upgrade_level) * 3,
+                        attack_interval_ticks: 16 + u32::from(unit.supply) * 3,
+                        supply: unit.supply,
                     });
                 }
                 SimJobKind::ResearchLogistics => {
@@ -2079,6 +2260,7 @@ impl MissionSimV1 {
                     self.intel_level = self.intel_level.saturating_add(1).min(3);
                 }
                 SimJobKind::UpgradeRelayArms => {
+                    self.researched_techs.insert("relay_arms".to_string());
                     self.upgrade_level = self.upgrade_level.saturating_add(1).min(3);
                     for unit in &mut self.party {
                         unit.damage += 3;
@@ -2089,6 +2271,7 @@ impl MissionSimV1 {
                     }
                 }
                 SimJobKind::UpgradeFieldArmor => {
+                    self.researched_techs.insert("field_armor".to_string());
                     self.armor_upgrade_level = self.armor_upgrade_level.saturating_add(1).min(3);
                     for unit in &mut self.party {
                         unit.armor += 2;
@@ -2119,6 +2302,16 @@ impl MissionSimV1 {
                     for unit in &mut self.party {
                         unit.armor += 3;
                     }
+                }
+                SimJobKind::ResearchWayfinderDrills => {
+                    self.researched_techs.insert("wayfinder_drills".to_string());
+                    for unit in &mut self.party {
+                        unit.move_speed_milli += 120;
+                        unit.evasion_permille = unit.evasion_permille.saturating_add(25).min(400);
+                    }
+                }
+                SimJobKind::ResearchRapidMustering => {
+                    self.researched_techs.insert("rapid_mustering".to_string());
                 }
             }
             self.event_count += 1;
@@ -2532,12 +2725,16 @@ impl MissionSimV1 {
                     - hold_bonus
                     - guard_bonus)
                     .max(1);
+                let target_was_alive = self.party[target_index].alive();
                 if !deterministic_evade(
                     self.tick,
                     target_index + 31,
                     self.party[target_index].evasion_permille,
                 ) {
                     self.party[target_index].hp -= damage;
+                }
+                if target_was_alive && !self.party[target_index].alive() {
+                    self.enemy_score = self.enemy_score.saturating_add(150);
                 }
                 self.enemies[attacker_index].attacks_made += 1;
                 self.event_count += 1;
@@ -3162,6 +3359,7 @@ mod tests {
         campaign.equip_starter_weapon().unwrap();
         campaign.move_to(CampaignRoom::ExpeditionGate).unwrap();
         campaign.quest_state = QuestState::Completed;
+        campaign.progression.aftershock_completions = 1;
         campaign.active_mission = CampaignMission::AftershockPatrol;
         for flag in [
             "first_contact_secured",
@@ -3210,6 +3408,94 @@ mod tests {
         assert_eq!(commander.role, "heavy");
         assert!(commander.max_hp > runner.max_hp);
         assert!(commander.damage > runner.damage);
+    }
+
+    #[test]
+    fn configurable_skirmish_drives_faction_roster_structures_tech_and_terminal_rules() {
+        let mut seed = iron_delta_seed();
+        seed.skirmish.player_faction = RtsFaction::AshenCompact;
+        seed.skirmish.enemy_faction = RtsFaction::MirrorCoalition;
+        seed.skirmish.starting_resources = 1_000;
+        seed.skirmish.victory_mode = SkirmishVictoryMode::Score;
+        seed.skirmish.score_target = 500;
+        seed.seed_hash = seed.computed_hash().unwrap();
+        seed.validate().unwrap();
+
+        let mut sim = MissionSimV1::from_seed(seed.clone()).unwrap();
+        assert!(
+            sim.resources_available >= 1_000,
+            "skirmish resources {} readiness {} configured {}",
+            sim.resources_available,
+            sim.seed.expedition_readiness.starting_resources,
+            sim.seed.skirmish.starting_resources
+        );
+        assert!(sim.enemies.iter().all(|enemy| {
+            UNIT_ROSTER
+                .iter()
+                .any(|unit| unit.faction == RtsFaction::MirrorCoalition && unit.role == enemy.role)
+        }));
+        let start = sim.seed.map.party_start;
+        let mut workshop = order(
+            &sim,
+            RtsOrderKind::Build,
+            BattleGridPoint::new(start.x + 4, start.y),
+        );
+        workshop.target_rule_id = Some("field_workshop".to_string());
+        sim.issue_order(workshop).unwrap();
+        let mut beacon = order(
+            &sim,
+            RtsOrderKind::Build,
+            BattleGridPoint::new(start.x + 5, start.y),
+        );
+        beacon.target_rule_id = Some("ash_beacon".to_string());
+        sim.issue_order(beacon).unwrap();
+        let mut opposing_tower = order(
+            &sim,
+            RtsOrderKind::Build,
+            BattleGridPoint::new(start.x + 6, start.y),
+        );
+        opposing_tower.target_rule_id = Some("sensor_tower".to_string());
+        assert!(sim.issue_order(opposing_tower).is_err());
+
+        sim.issue_order(job_order(
+            &sim,
+            RtsOrderKind::Research,
+            "rapid_mustering",
+            start,
+        ))
+        .unwrap();
+        for _ in 0..80 {
+            sim.process_jobs();
+        }
+        assert!(sim.researched_techs.contains("rapid_mustering"));
+        sim.issue_order(job_order(&sim, RtsOrderKind::Train, "ash_runner", start))
+            .unwrap();
+        for _ in 0..60 {
+            sim.process_jobs();
+        }
+        assert!(sim.support_units.iter().any(|unit| unit.role == "raider"));
+        assert!(sim
+            .issue_order(job_order(
+                &sim,
+                RtsOrderKind::Train,
+                "mirror_wayfinder",
+                start,
+            ))
+            .is_err());
+
+        let mut score_sim = MissionSimV1::from_seed(seed.clone()).unwrap();
+        score_sim.player_score = 500;
+        score_sim.step().unwrap();
+        assert_eq!(score_sim.outcome, Some(BattleOutcome::Victory));
+
+        seed.skirmish.victory_mode = SkirmishVictoryMode::Annihilation;
+        seed.seed_hash = seed.computed_hash().unwrap();
+        let mut annihilation = MissionSimV1::from_seed(seed).unwrap();
+        for enemy in &mut annihilation.enemies {
+            enemy.hp = 0;
+        }
+        annihilation.step().unwrap();
+        assert_eq!(annihilation.outcome, Some(BattleOutcome::Victory));
     }
 
     fn order(sim: &MissionSimV1, kind: RtsOrderKind, target: BattleGridPoint) -> RtsFrameOrder {
@@ -3349,7 +3635,8 @@ mod tests {
             sim.tick
         );
         assert!((8..=12).contains(&sim.order_count));
-        assert!(sim.resources_spent >= FIELD_AID_COST + FORTIFY_COST);
+        let barricade_cost = SimStructureKind::FieldBarricade.definition().cost;
+        assert!(sim.resources_spent >= FIELD_AID_COST + barricade_cost);
         assert_eq!(sim.enemy_tactics_level, 3);
         assert!(!sim.enemy_ai_history.is_empty());
         let result = sim.into_result().unwrap();
@@ -3896,6 +4183,7 @@ mod tests {
             hp: 100,
             damage: 1,
             attack_interval_ticks: 20,
+            supply: 1,
         })
         .collect();
         let hero = BTreeSet::from([baseline.party[0].unit_id.clone()]);

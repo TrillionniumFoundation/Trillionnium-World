@@ -1,11 +1,5 @@
 use serde::{Deserialize, Serialize};
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum RtsFaction {
-    MirrorCoalition,
-    AshenCompact,
-}
+pub use trnm_campaign_core::CampaignFaction as RtsFaction;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct UnitArchetype {
