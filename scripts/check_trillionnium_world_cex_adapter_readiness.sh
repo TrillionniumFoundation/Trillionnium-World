@@ -46,10 +46,6 @@ elif [[ -n "$INPUT_URL" ]]; then
     FETCH_STATUS="url_fetch_failed"
     FETCH_DETAIL="$INPUT_URL"
   fi
-elif [[ -f "$RAW_EVIDENCE" ]]; then
-  FETCH_STATUS="cached_raw_evidence"
-  FETCH_DETAIL="$RAW_EVIDENCE"
-  EVIDENCE_AVAILABLE=true
 fi
 
 json_field() {
@@ -96,25 +92,9 @@ METRIC_OK="$(json_check '.metric.source_of_truth == "cex_consumer_entry_metrics_
 COUNTS_OK="$(json_check '(.standalone_world_counts.nodes // 0) > 0 and (.route_records.total // 0) > 0')"
 
 GREEN=false
-STATUS="blocked_missing_cex_adapter_readiness_evidence"
+STATUS="retired_legacy_cex_adapter_not_current_product"
 if [[ "$EVIDENCE_AVAILABLE" == "true" && -f "$RAW_EVIDENCE" ]]; then
-  STATUS="cex_adapter_readiness_failed_contract_validation"
-  if [[ "$CONTRACT_OK" == "true" \
-    && "$PROTOCOL_OK" == "true" \
-    && "$DOMAIN_OK" == "true" \
-    && "$STATUS_OK" == "true" \
-    && "$CUTOVER_OK" == "true" \
-    && "$DEPENDENCY_OK" == "true" \
-    && "$ADAPTERS_OK" == "true" \
-    && "$ROLES_OK" == "true" \
-    && "$REPOSITORY_OK" == "true" \
-    && "$LEDGER_OK" == "true" \
-    && "$EVIDENCE_OK" == "true" \
-    && "$METRIC_OK" == "true" \
-    && "$COUNTS_OK" == "true" ]]; then
-    GREEN=true
-    STATUS="cex_adapter_readiness_green"
-  fi
+  STATUS="retired_legacy_cex_adapter_evidence_has_no_current_product_credit"
 fi
 
 jq -n \
@@ -158,7 +138,7 @@ jq -n \
     green: $green,
     generated_at: $generated_at,
     source_of_truth: "trillionnium_world_cex_adapter_readiness_gate",
-    cex_import_rule: "trillionnium_world_crates_do_not_import_cex_service_internals; cex_runtime_exports_json_evidence_for_trillionnium_release_review",
+    cex_import_rule: "historical_cex_world_adapter_is_retired; current_game_crates_do_not_import_cex_or_removed_world_traits; future_integration_requires_a_new_live_build_contract",
     raw_evidence_path: $raw_evidence,
     input: {
       evidence_path: $input_evidence,
@@ -196,11 +176,6 @@ jq -n \
       counts_ok: $counts_ok
     }
   }' >"$SUMMARY_FILE"
-
-if [[ "$GREEN" == "true" ]]; then
-  printf 'TRILLIONNIUM_WORLD_CEX_ADAPTER_READINESS_GREEN %s\n' "$SUMMARY_FILE"
-  exit 0
-fi
 
 printf 'TRILLIONNIUM_WORLD_CEX_ADAPTER_READINESS_BLOCKED %s %s\n' "$STATUS" "$SUMMARY_FILE"
 if [[ "$REQUIRE_READY" -eq 1 ]]; then

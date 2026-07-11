@@ -42,8 +42,7 @@ Mirror Square
 | Battle simulation | `trnm-rts-sim` | Bevy-free, two-dimensional, map-aware simulation consuming `RtsFrameOrder` as its only player input. |
 | Native presentation/input | `trnm-first-contact` | Consumes `BattleSeedV1`; may only emit `BattleResultV1`. |
 | Authored map/art | `assets/first_contact` | Four canonical original 40x24 mission maps and PNG atlases. |
-| Legacy implementation | `trillionnium/crates/legacy-game/trnm-world-bevy/src/legacy.rs` | Feature-gated frozen behavior/test reference; not reconnected wholesale. |
-| Older World/RTS cores and data/evidence/online | `legacy-game/trnm-world-domain`, `legacy-game/trnm-rts-core`, `trnm-rts-data`, `trnm-rts-evidence`, `trnm-rts-online` | Frozen outside this closure. GPL-derived internal map data is not a product dependency. |
+| Historical implementation | `docs/archive/frozen-legacy-final-index-2026-07-11.md` | Removed from the current checkout; recoverable by an explicit historical Git worktree only. |
 
 ## Stable Contracts
 
@@ -190,9 +189,9 @@ Debrief:
   fortification. Tested routes require 8-12 consequential orders and complete
   in 3-5 simulated minutes; four-order idle play cannot win.
 - Gameplay P2: complete. The root workspace contains only five product crates;
-  platform has 12 crates and the frozen legacy game has 14 crates. The old
-  broad World/RTS cores live only in legacy; the product uses the lightweight
-  RPG and order-protocol cores.
+  platform has 12 crates and the removed 14-crate legacy workspace is absent
+  from the current checkout. The product uses only the lightweight RPG and
+  order-protocol cores; historical sources require an explicit Git worktree.
   The canonical player, map, save and order authorities are singular.
 - Legacy extraction P0: complete. The three-room town now uses a validated
   data-driven world graph. The expedition gate is mentor-locked, non-adjacent
@@ -318,8 +317,8 @@ The eight closed-loop cases and gameplay exploit/resource regressions live in
 
 - game product: `trillionnium/Cargo.toml` (5 members);
 - platform: `trillionnium/crates/platform/Cargo.toml` (12 members);
-- frozen legacy game: `trillionnium/crates/legacy-game/Cargo.toml` (14 members);
-- legacy monolith compilation requires explicit `--features legacy`;
+- removed legacy game: absent from the working tree; final inventory and recovery
+  anchors are in `docs/archive/frozen-legacy-final-index-2026-07-11.md`;
 - `scripts/run_trnm_first_contact.sh` is the only player runner. The old
   `run_trillionnium_world_bevy_client.sh` name is a compatibility delegator.
 
@@ -327,5 +326,6 @@ The eight closed-loop cases and gameplay exploit/resource regressions live in
 
 This closure does not authorize networking, hosted/public service, Android S5,
 beta/commercial launch, CEX reconnection, OpenRA compatibility, old GPL-derived
-map promotion, blockchain settlement, or a new large acceptance packet. Those
-remain separate future decisions.
+map restoration, blockchain settlement, or a new large acceptance packet.
+Those remain separate future decisions; removed code must not be reconnected
+from Git history as a shortcut.

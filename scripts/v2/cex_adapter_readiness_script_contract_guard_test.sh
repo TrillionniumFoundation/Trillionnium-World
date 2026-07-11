@@ -16,7 +16,8 @@ required_lines=(
   'cex_league_repository_normalized_world_tables'
   'TRILLIONNIUM_WORLD_CEX_ADAPTER_READINESS_EVIDENCE'
   'TRILLIONNIUM_WORLD_CEX_ADAPTER_READINESS_URL'
-  'TRILLIONNIUM_WORLD_CEX_ADAPTER_READINESS_GREEN'
+  'retired_legacy_cex_adapter_not_current_product'
+  'retired_legacy_cex_adapter_evidence_has_no_current_product_credit'
 )
 
 for line in "${required_lines[@]}"; do
@@ -26,4 +27,4 @@ for line in "${required_lines[@]}"; do
   fi
 done
 
-echo "[PASS] CEX adapter readiness script validates CEX production adapter evidence without importing CEX internals"
+echo "[PASS] CEX adapter readiness script retires stale World evidence without granting current product credit"

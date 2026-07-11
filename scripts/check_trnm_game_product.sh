@@ -12,14 +12,15 @@ done
 count="$(cargo metadata --no-deps --format-version 1 | jq '.workspace_members | length')"
 [[ "$count" == "5" ]]
 [[ "$(cargo metadata --manifest-path crates/platform/Cargo.toml --no-deps --format-version 1 | jq '.workspace_members | length')" == "12" ]]
-[[ "$(cargo metadata --manifest-path crates/legacy-game/Cargo.toml --no-deps --format-version 1 | jq '.workspace_members | length')" == "14" ]]
+[[ ! -e crates/legacy-game ]]
 
 tree="$(cargo tree -p trnm-first-contact --depth 2)"
 ! grep -q 'legacy-game' <<<"$tree"
 ! grep -q 'crates/platform' <<<"$tree"
+! grep -Eq 'trnm-world-(bevy|domain|api|server|projection)|trnm-rts-(core|data|evidence|online|bevy-runtime)' <<<"$tree"
 grep -q 'trnm-campaign-core' <<<"$tree"
 grep -q 'trnm-rts-sim' <<<"$tree"
 grep -q 'trnm-rpg-core' <<<"$tree"
 grep -q 'trnm-rts-protocol' <<<"$tree"
 
-echo "TRNM game product boundary: green (5 game / 12 platform / 14 frozen legacy)"
+echo "TRNM game product boundary: green (5 game / 12 platform / legacy working tree absent)"

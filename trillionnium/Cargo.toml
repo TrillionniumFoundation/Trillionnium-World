@@ -8,7 +8,6 @@ members = [
 ]
 exclude = [
   "crates/platform",
-  "crates/legacy-game",
 ]
 resolver = "2"
 
@@ -22,4 +21,3 @@ lane = "game-product"
 canonical_binary = "trnm-first-contact"
 canonical_map = "../assets/first_contact/maps/first_contact.yaml"
 platform_workspace = "crates/platform/Cargo.toml"
-legacy_game_workspace = "crates/legacy-game/Cargo.toml"
