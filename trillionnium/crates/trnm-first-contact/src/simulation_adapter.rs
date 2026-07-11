@@ -403,6 +403,7 @@ pub(super) fn handle_first_contact_mouse_selection(
     mut runtime: ResMut<FirstContactRuntime>,
 ) {
     if !flow.in_battle()
+        || !flow.mouse_gameplay_enabled()
         || (!buttons.just_pressed(MouseButton::Left) && !buttons.just_released(MouseButton::Left))
     {
         return;
@@ -500,7 +501,7 @@ pub(super) fn handle_first_contact_commands(
     mut adapter: ResMut<FirstContactSimulationAdapter>,
     mut flow: ResMut<CampaignFlow>,
 ) {
-    if !flow.in_battle() {
+    if !flow.in_battle() || !flow.keyboard_gameplay_enabled() {
         return;
     }
     if input.just_pressed(KeyCode::Digit0) {
@@ -998,21 +999,25 @@ pub(super) fn advance_first_contact_simulation(
         ),
     >,
 ) {
-    if !flow.in_battle() {
+    if !flow.in_battle() || !flow.gameplay_running() {
         return;
     }
     let delta = time.delta_secs();
     runtime.elapsed_seconds += delta;
     runtime.sim_tick_accumulator += delta;
-    runtime.animation_timer.tick(time.delta());
     runtime.feedback_timer.tick(time.delta());
-    runtime.pressure_timer.tick(time.delta());
-    runtime.pressure_flash_seconds = (runtime.pressure_flash_seconds - delta).max(0.0);
-    if runtime.animation_timer.just_finished() {
-        runtime.animation_phase = runtime.animation_phase.wrapping_add(1);
-    }
-    if runtime.pressure_timer.just_finished() && !runtime.victory {
-        runtime.pressure_flash_seconds = 0.42;
+    if flow.settings.low_motion {
+        runtime.pressure_flash_seconds = 0.0;
+    } else {
+        runtime.animation_timer.tick(time.delta());
+        runtime.pressure_timer.tick(time.delta());
+        runtime.pressure_flash_seconds = (runtime.pressure_flash_seconds - delta).max(0.0);
+        if runtime.animation_timer.just_finished() {
+            runtime.animation_phase = runtime.animation_phase.wrapping_add(1);
+        }
+        if runtime.pressure_timer.just_finished() && !runtime.victory {
+            runtime.pressure_flash_seconds = 0.42;
+        }
     }
 
     let tick_seconds = 1.0 / TICKS_PER_SECOND as f32;
@@ -1382,7 +1387,7 @@ pub(super) fn pan_first_contact_camera(
     mut runtime: ResMut<FirstContactRuntime>,
     mut cameras: Query<&mut Transform, With<FirstContactCamera>>,
 ) {
-    if !flow.in_battle() {
+    if !flow.in_battle() || !flow.keyboard_gameplay_enabled() {
         return;
     }
     let Ok(mut camera) = cameras.single_mut() else {

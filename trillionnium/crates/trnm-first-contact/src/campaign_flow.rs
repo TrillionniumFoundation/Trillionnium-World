@@ -6,7 +6,8 @@ use bevy::prelude::*;
 use std::path::{Path, PathBuf};
 use trnm_campaign_core::{
     CampaignError, CampaignPhase, CampaignRoom, CampaignSaveV1, CampaignStore, EncounterAction,
-    QuestState, SettlementReceiptV1,
+    InputMode, PlayerSettings, PlayerSettingsStore, QuestBranch, QuestState, SaveSlotId,
+    SaveSlotMeta, SaveSlotStore, SettlementReceiptV1,
 };
 use trnm_rts_sim::{MissionSimV1, SimCheckpointStore};
 
@@ -17,6 +18,14 @@ pub(super) enum CampaignMode {
     Debrief,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum ShellMode {
+    Title,
+    ResumeGuard,
+    Playing,
+    Paused,
+}
+
 #[derive(Resource, Debug, Clone)]
 pub(super) struct CampaignFlow {
     pub save: CampaignSaveV1,
@@ -25,6 +34,13 @@ pub(super) struct CampaignFlow {
     pub last_receipt: Option<SettlementReceiptV1>,
     pub status: String,
     pub last_checkpoint_tick: u64,
+    pub shell_mode: ShellMode,
+    pub active_slot: SaveSlotId,
+    pub selected_slot: SaveSlotId,
+    pub overwrite_pending: Option<SaveSlotId>,
+    pub settings: PlayerSettings,
+    slot_store: SaveSlotStore,
+    settings_store: PlayerSettingsStore,
     store: CampaignStore,
     checkpoint_store: SimCheckpointStore,
 }
@@ -32,18 +48,41 @@ pub(super) struct CampaignFlow {
 impl CampaignFlow {
     pub fn load() -> Result<Self, String> {
         let save_path = campaign_save_path();
+        let slot_root = save_path
+            .parent()
+            .ok_or_else(|| "campaign save path has no parent".to_string())?
+            .to_path_buf();
+        let slot_store = SaveSlotStore::new(&slot_root);
+        let settings_store = PlayerSettingsStore::new(slot_root.join("player-settings.json"));
+        let mut startup_warnings = Vec::new();
+        let settings = settings_store.load_or_default().unwrap_or_else(|error| {
+            startup_warnings.push(format!("Settings reset after validation failure: {error}"));
+            PlayerSettings::default()
+        });
         let store = CampaignStore::new(&save_path);
         let checkpoint_store = SimCheckpointStore::new(checkpoint_path_for(&save_path));
-        let mut save = store.load_or_default().map_err(|error| error.to_string())?;
+        let (mut save, slot_a_valid) = match store.load_or_default() {
+            Ok(save) => (save, true),
+            Err(error) => {
+                startup_warnings.push(format!(
+                    "Slot A is isolated after validation failure: {error}"
+                ));
+                (CampaignSaveV1::default(), false)
+            }
+        };
         let mut last_receipt = None;
-        let mut status = "Campaign ready".to_string();
-        if save.phase == CampaignPhase::PostBattlePending {
+        let mut status = if startup_warnings.is_empty() {
+            "Campaign ready".to_string()
+        } else {
+            startup_warnings.join(" | ")
+        };
+        if slot_a_valid && save.phase == CampaignPhase::PostBattlePending {
             last_receipt = store
                 .recover_pending_settlement(&mut save)
                 .map_err(|error| error.to_string())?;
             status = "Recovered pending battle settlement after restart".to_string();
         }
-        let mission = if save.phase == CampaignPhase::BattlePending {
+        let mission = if slot_a_valid && save.phase == CampaignPhase::BattlePending {
             let seed = &save
                 .pending_battle
                 .as_ref()
@@ -79,6 +118,13 @@ impl CampaignFlow {
             last_receipt,
             status,
             last_checkpoint_tick: 0,
+            shell_mode: ShellMode::Title,
+            active_slot: SaveSlotId::A,
+            selected_slot: SaveSlotId::A,
+            overwrite_pending: None,
+            settings,
+            slot_store,
+            settings_store,
             store,
             checkpoint_store,
         })
@@ -86,6 +132,124 @@ impl CampaignFlow {
 
     pub fn in_battle(&self) -> bool {
         self.mode == CampaignMode::Battle
+    }
+
+    pub fn gameplay_running(&self) -> bool {
+        self.shell_mode == ShellMode::Playing
+    }
+
+    pub fn keyboard_gameplay_enabled(&self) -> bool {
+        self.gameplay_running() && self.settings.input_mode != InputMode::MouseOnly
+    }
+
+    pub fn mouse_gameplay_enabled(&self) -> bool {
+        self.gameplay_running() && self.settings.input_mode != InputMode::KeyboardOnly
+    }
+
+    pub fn slot_metadata(&self) -> Vec<SaveSlotMeta> {
+        self.slot_store.list()
+    }
+
+    fn activate_slot(&mut self, slot: SaveSlotId, save: CampaignSaveV1) -> Result<(), String> {
+        let store = CampaignStore::new(self.slot_store.path(slot));
+        let checkpoint_store = SimCheckpointStore::new(self.slot_store.checkpoint_path(slot));
+        let mut save = save;
+        let mut last_receipt = None;
+        let mut status = format!("Loaded slot {}", slot.label());
+        if save.phase == CampaignPhase::PostBattlePending {
+            last_receipt = store
+                .recover_pending_settlement(&mut save)
+                .map_err(|error| error.to_string())?;
+            status = format!("Recovered slot {} settlement", slot.label());
+        }
+        let mission = if save.phase == CampaignPhase::BattlePending {
+            let seed = &save
+                .pending_battle
+                .as_ref()
+                .ok_or_else(|| "battle phase is missing its seed".to_string())?
+                .seed;
+            match checkpoint_store
+                .load_for_seed(seed)
+                .map_err(|error| error.to_string())?
+            {
+                Some(sim) => {
+                    status = format!(
+                        "Slot {} checkpoint restored at tick {}",
+                        slot.label(),
+                        sim.tick
+                    );
+                    Some(sim)
+                }
+                None => {
+                    Some(MissionSimV1::from_seed(seed.clone()).map_err(|error| error.to_string())?)
+                }
+            }
+        } else {
+            None
+        };
+        self.mode = if mission.is_some() {
+            CampaignMode::Battle
+        } else if last_receipt.is_some() {
+            CampaignMode::Debrief
+        } else {
+            CampaignMode::Town
+        };
+        self.active_slot = slot;
+        self.selected_slot = slot;
+        self.store = store;
+        self.checkpoint_store = checkpoint_store;
+        self.save = save;
+        self.mission = mission;
+        self.last_receipt = last_receipt;
+        self.last_checkpoint_tick = 0;
+        self.status = status;
+        self.overwrite_pending = None;
+        Ok(())
+    }
+
+    pub fn load_selected_slot(&mut self) -> Result<(), String> {
+        let slot = self.selected_slot;
+        let save = self
+            .slot_store
+            .load(slot)
+            .map_err(|error| error.to_string())?;
+        self.activate_slot(slot, save)?;
+        self.shell_mode = ShellMode::ResumeGuard;
+        Ok(())
+    }
+
+    pub fn create_selected_slot(&mut self) -> Result<(), String> {
+        let slot = self.selected_slot;
+        let exists = self.slot_store.metadata(slot).exists;
+        if exists && self.overwrite_pending != Some(slot) {
+            self.overwrite_pending = Some(slot);
+            return Err(format!(
+                "Slot {} exists. Press N again to confirm overwrite.",
+                slot.label()
+            ));
+        }
+        let save = self
+            .slot_store
+            .create_new(slot, exists)
+            .map_err(|error| error.to_string())?;
+        self.activate_slot(slot, save)?;
+        self.shell_mode = ShellMode::Playing;
+        self.status = format!("New campaign created in slot {}", slot.label());
+        Ok(())
+    }
+
+    pub fn toggle_low_motion(&mut self) -> Result<(), String> {
+        self.settings.low_motion = !self.settings.low_motion;
+        self.settings_store
+            .save_atomic(&self.settings)
+            .map_err(|error| error.to_string())
+    }
+
+    pub fn cycle_input_mode(&mut self) -> Result<(), String> {
+        self.settings.input_mode = self.settings.input_mode.next();
+        self.settings_store
+            .save_atomic(&self.settings)
+            .map_err(|error| error.to_string())
     }
 
     pub fn mutate_town<F>(&mut self, mutation: F) -> Result<(), CampaignError>
@@ -188,6 +352,78 @@ pub(super) fn handle_campaign_input(
     mut runtime: ResMut<FirstContactRuntime>,
     mut adapter: ResMut<FirstContactSimulationAdapter>,
 ) {
+    if input.just_pressed(KeyCode::F1) {
+        flow.shell_mode = ShellMode::Title;
+        flow.status = "Title menu opened; active state remains atomically saved".to_string();
+        return;
+    }
+    match flow.shell_mode {
+        ShellMode::Title => {
+            for (key, slot) in [
+                (KeyCode::Digit1, SaveSlotId::A),
+                (KeyCode::Digit2, SaveSlotId::B),
+                (KeyCode::Digit3, SaveSlotId::C),
+            ] {
+                if input.just_pressed(key) {
+                    flow.selected_slot = slot;
+                    flow.overwrite_pending = None;
+                    flow.status = format!("Selected save slot {}", slot.label());
+                }
+            }
+            if input.just_pressed(KeyCode::KeyN) {
+                if let Err(error) = flow.create_selected_slot() {
+                    flow.status = error;
+                }
+            } else if input.just_pressed(KeyCode::Enter) {
+                if let Err(error) = flow.load_selected_slot() {
+                    flow.status = error;
+                }
+            } else if input.just_pressed(KeyCode::F2) {
+                match flow.toggle_low_motion() {
+                    Ok(()) => flow.status = format!("Low motion: {}", flow.settings.low_motion),
+                    Err(error) => flow.status = error,
+                }
+            } else if input.just_pressed(KeyCode::F3) {
+                match flow.cycle_input_mode() {
+                    Ok(()) => flow.status = format!("Input mode: {:?}", flow.settings.input_mode),
+                    Err(error) => flow.status = error,
+                }
+            }
+            return;
+        }
+        ShellMode::ResumeGuard => {
+            if input.just_pressed(KeyCode::Enter) {
+                flow.shell_mode = ShellMode::Playing;
+                flow.status = format!("Slot {} resumed", flow.active_slot.label());
+            }
+            return;
+        }
+        ShellMode::Paused => {
+            if input.just_pressed(KeyCode::Escape) {
+                flow.shell_mode = ShellMode::Playing;
+                flow.status = "Simulation resumed".to_string();
+            } else if input.just_pressed(KeyCode::F2) {
+                match flow.toggle_low_motion() {
+                    Ok(()) => flow.status = format!("Low motion: {}", flow.settings.low_motion),
+                    Err(error) => flow.status = error,
+                }
+            } else if input.just_pressed(KeyCode::F3) {
+                match flow.cycle_input_mode() {
+                    Ok(()) => flow.status = format!("Input mode: {:?}", flow.settings.input_mode),
+                    Err(error) => flow.status = error,
+                }
+            }
+            return;
+        }
+        ShellMode::Playing => {}
+    }
+    if input.just_pressed(KeyCode::Escape)
+        && (flow.in_battle() || flow.save.active_encounter.is_none())
+    {
+        flow.shell_mode = ShellMode::Paused;
+        flow.status = "Paused: authoritative RTS ticks and gameplay input are stopped".to_string();
+        return;
+    }
     if flow.mode == CampaignMode::Debrief {
         if input.just_pressed(KeyCode::Enter) {
             flow.mode = CampaignMode::Town;
@@ -328,6 +564,32 @@ pub(super) fn handle_campaign_input(
             result,
             "Completed the selected path mastery challenge",
         );
+    } else if input.just_pressed(KeyCode::KeyB) {
+        let result = if flow.save.quest_chain.is_none() {
+            flow.mutate_town(CampaignSaveV1::start_cistern_relief)
+        } else {
+            flow.mutate_town(|save| save.advance_cistern_relief().map(|_| ()))
+        };
+        set_status(&mut flow, result, "Advanced the Cistern Relief quest chain");
+    } else if input.just_pressed(KeyCode::KeyN) {
+        let result = flow
+            .mutate_town(|save| save.choose_cistern_relief_branch(QuestBranch::ReinforceCistern));
+        set_status(
+            &mut flow,
+            result,
+            "Reinforced the cistern and earned Brann's trust",
+        );
+    } else if input.just_pressed(KeyCode::KeyM) {
+        let result = flow
+            .mutate_town(|save| save.choose_cistern_relief_branch(QuestBranch::EvacuateFamilies));
+        set_status(
+            &mut flow,
+            result,
+            "Evacuated the families and secured relief credits",
+        );
+    } else if input.just_pressed(KeyCode::KeyR) && flow.save.room == CampaignRoom::ExpeditionGate {
+        let result = flow.mutate_town(|save| save.cycle_expedition_preparation().map(|_| ()));
+        set_status(&mut flow, result, "Changed expedition preparation");
     } else if input.just_pressed(KeyCode::KeyJ)
         && (flow.save.room == CampaignRoom::RelayQuarter
             || flow
@@ -400,5 +662,40 @@ mod tests {
             checkpoint_path_for(Path::new("/tmp/trnm/campaign.json")),
             PathBuf::from("/tmp/trnm/first-contact-battle.json")
         );
+    }
+
+    #[test]
+    fn shell_modes_gate_authoritative_gameplay_and_input_modes() {
+        let save_path = PathBuf::from("/tmp/trnm-shell-gate-campaign.json");
+        let slot_store = SaveSlotStore::new("/tmp/trnm-shell-gate");
+        let mut flow = CampaignFlow {
+            save: CampaignSaveV1::default(),
+            mode: CampaignMode::Battle,
+            mission: None,
+            last_receipt: None,
+            status: String::new(),
+            last_checkpoint_tick: 0,
+            shell_mode: ShellMode::Paused,
+            active_slot: SaveSlotId::A,
+            selected_slot: SaveSlotId::A,
+            overwrite_pending: None,
+            settings: PlayerSettings::default(),
+            slot_store,
+            settings_store: PlayerSettingsStore::new("/tmp/trnm-shell-gate-settings.json"),
+            store: CampaignStore::new(&save_path),
+            checkpoint_store: SimCheckpointStore::new(checkpoint_path_for(&save_path)),
+        };
+        assert!(!flow.gameplay_running());
+        assert!(!flow.keyboard_gameplay_enabled());
+        assert!(!flow.mouse_gameplay_enabled());
+        flow.shell_mode = ShellMode::Playing;
+        assert!(flow.keyboard_gameplay_enabled());
+        assert!(flow.mouse_gameplay_enabled());
+        flow.settings.input_mode = InputMode::KeyboardOnly;
+        assert!(flow.keyboard_gameplay_enabled());
+        assert!(!flow.mouse_gameplay_enabled());
+        flow.settings.input_mode = InputMode::MouseOnly;
+        assert!(!flow.keyboard_gameplay_enabled());
+        assert!(flow.mouse_gameplay_enabled());
     }
 }

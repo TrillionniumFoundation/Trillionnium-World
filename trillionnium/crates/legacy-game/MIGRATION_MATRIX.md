@@ -25,7 +25,12 @@ map data or whole-world state was reconnected.
 | mission objectives beyond relay capture | `trnm-campaign-core` + `trnm-rts-sim` | typed destroy/capture/defend/escort/extract definitions and Convoy Exodus E2E |
 | origins, mastery challenges and conditional equipment affixes | `trnm-rpg-core` + `trnm-campaign-core` | three origins x three paths produce nine distinct seeds/stats; title requires mastery |
 | reservation, opposing traffic yield and stuck recovery | `trnm-rts-sim` | typed intent/reservation, bounded replan, eight-actor uniqueness and checkpoint hash test |
+| title, independent save slots, resume guard and real pause | `trnm-campaign-core` + `trnm-first-contact` | atomic three-slot isolation, explicit overwrite, corrupt-slot containment, profile settings and stopped RTS ticks/input |
+| generic branching RPG quest chains | `trnm-campaign-core` | typed nodes/conditions/rewards/branches, multi-room Cistern Relief and durable distinct outcomes |
+| world time, stamina, supplies and expedition preparation | `trnm-campaign-core` + `trnm-rts-sim` | resource/time consumption, distinct hashed BattleSeeds, starting-resource conservation and settlement recovery |
+| observation-driven enemy tactical planning | `trnm-rts-sim` | typed goal/budget/action selection, invalid-command isolation and deterministic checkpoint replay |
 
+The legacy archive is now a sealed acceptance index, not a source-code mine.
 Anything not listed remains historical reference only. New gameplay work must
 land in the five-crate game workspace with a focused test before the matching
 legacy surface can be removed from long-term storage.

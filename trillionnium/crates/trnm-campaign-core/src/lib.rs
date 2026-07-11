@@ -23,10 +23,10 @@ use trnm_rpg_core::{
 pub use trnm_rpg_core::{EncounterAction, MasteryChallenge};
 
 pub const CAMPAIGN_SAVE_CONTRACT: &str = "trnm_campaign_save_v1";
-pub const BATTLE_SEED_CONTRACT: &str = "trnm_battle_seed_v4";
+pub const BATTLE_SEED_CONTRACT: &str = "trnm_battle_seed_v5";
 pub const BATTLE_RESULT_CONTRACT: &str = "trnm_battle_result_v2";
 pub const SETTLEMENT_RECEIPT_CONTRACT: &str = "trnm_settlement_receipt_v1";
-pub const FIRST_CONTACT_RULES_VERSION: &str = "first_contact_campaign_rules_v4";
+pub const FIRST_CONTACT_RULES_VERSION: &str = "first_contact_campaign_rules_v5";
 pub const MAX_MENTOR_TRAINING_SESSIONS: u8 = 2;
 pub const FIELD_CLINIC_CREDIT_COST: i64 = 40;
 
@@ -338,6 +338,231 @@ pub enum StoryStepId {
     BreakAftershock,
     EvacuateConvoy,
     SignalRoadComplete,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum QuestChainId {
+    CisternRelief,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum QuestChainNodeId {
+    SurveyDamage,
+    GatherSupplies,
+    ChooseReliefPlan,
+    ReliefComplete,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum QuestBranch {
+    ReinforceCistern,
+    EvacuateFamilies,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case", tag = "kind")]
+pub enum QuestChainCondition {
+    WorldFlag { flag: String },
+    MinimumCredits { credits: i64 },
+    AtRoom { room_id: String },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case", tag = "kind")]
+pub enum QuestChainReward {
+    Credits { amount: i64 },
+    Reputation { amount: i32 },
+    WorldFlag { flag: String },
+    RelationshipTrust { npc_id: String, amount: i16 },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct QuestChainNodeDefinition {
+    pub id: QuestChainNodeId,
+    pub room_id: String,
+    pub conditions: Vec<QuestChainCondition>,
+    pub next: Vec<QuestChainNodeId>,
+    pub branch: Option<QuestBranch>,
+    pub rewards: Vec<QuestChainReward>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct QuestChainDefinition {
+    pub id: QuestChainId,
+    pub title: String,
+    pub nodes: Vec<QuestChainNodeDefinition>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct QuestChainProgress {
+    pub id: QuestChainId,
+    pub current_node: QuestChainNodeId,
+    #[serde(default)]
+    pub chosen_branch: Option<QuestBranch>,
+    #[serde(default)]
+    pub completed_nodes: BTreeSet<QuestChainNodeId>,
+    #[serde(default)]
+    pub complete: bool,
+}
+
+pub fn cistern_relief_quest_chain_definition() -> QuestChainDefinition {
+    QuestChainDefinition {
+        id: QuestChainId::CisternRelief,
+        title: "Signal Cistern Relief".to_string(),
+        nodes: vec![
+            QuestChainNodeDefinition {
+                id: QuestChainNodeId::SurveyDamage,
+                room_id: RELAY_QUARTER_ROOM.to_string(),
+                conditions: vec![QuestChainCondition::WorldFlag {
+                    flag: "outer_signal_road_open".to_string(),
+                }],
+                next: vec![QuestChainNodeId::GatherSupplies],
+                branch: None,
+                rewards: Vec::new(),
+            },
+            QuestChainNodeDefinition {
+                id: QuestChainNodeId::GatherSupplies,
+                room_id: EXPEDITION_GATE_ROOM.to_string(),
+                conditions: vec![QuestChainCondition::MinimumCredits { credits: 40 }],
+                next: vec![QuestChainNodeId::ChooseReliefPlan],
+                branch: None,
+                rewards: Vec::new(),
+            },
+            QuestChainNodeDefinition {
+                id: QuestChainNodeId::ChooseReliefPlan,
+                room_id: RELAY_QUARTER_ROOM.to_string(),
+                conditions: vec![QuestChainCondition::AtRoom {
+                    room_id: RELAY_QUARTER_ROOM.to_string(),
+                }],
+                next: vec![QuestChainNodeId::ReliefComplete],
+                branch: None,
+                rewards: Vec::new(),
+            },
+            QuestChainNodeDefinition {
+                id: QuestChainNodeId::ReliefComplete,
+                room_id: RELAY_QUARTER_ROOM.to_string(),
+                conditions: Vec::new(),
+                next: Vec::new(),
+                branch: Some(QuestBranch::ReinforceCistern),
+                rewards: vec![
+                    QuestChainReward::Reputation { amount: 4 },
+                    QuestChainReward::RelationshipTrust {
+                        npc_id: "relay-smith-brann".to_string(),
+                        amount: 3,
+                    },
+                    QuestChainReward::WorldFlag {
+                        flag: "cistern_reinforced".to_string(),
+                    },
+                ],
+            },
+            QuestChainNodeDefinition {
+                id: QuestChainNodeId::ReliefComplete,
+                room_id: RELAY_QUARTER_ROOM.to_string(),
+                conditions: Vec::new(),
+                next: Vec::new(),
+                branch: Some(QuestBranch::EvacuateFamilies),
+                rewards: vec![
+                    QuestChainReward::Credits { amount: 35 },
+                    QuestChainReward::Reputation { amount: 2 },
+                    QuestChainReward::WorldFlag {
+                        flag: "cistern_families_evacuated".to_string(),
+                    },
+                ],
+            },
+        ],
+    }
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ExpeditionPreparation {
+    #[default]
+    Immediate,
+    Rested,
+    Supplied,
+    Shortcut,
+}
+
+impl ExpeditionPreparation {
+    pub fn next(self) -> Self {
+        match self {
+            Self::Immediate => Self::Rested,
+            Self::Rested => Self::Supplied,
+            Self::Supplied => Self::Shortcut,
+            Self::Shortcut => Self::Immediate,
+        }
+    }
+
+    pub fn display_name(self) -> &'static str {
+        match self {
+            Self::Immediate => "Immediate March",
+            Self::Rested => "Rest Before Departure",
+            Self::Supplied => "Stocked Expedition",
+            Self::Shortcut => "Signal-road Shortcut",
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct WorldClock {
+    pub day: u32,
+    pub minute_of_day: u16,
+}
+
+impl Default for WorldClock {
+    fn default() -> Self {
+        Self {
+            day: 1,
+            minute_of_day: 8 * 60,
+        }
+    }
+}
+
+impl WorldClock {
+    pub fn advance(&mut self, minutes: u32) {
+        let absolute = u32::from(self.minute_of_day).saturating_add(minutes);
+        self.day = self.day.saturating_add(absolute / (24 * 60));
+        self.minute_of_day = (absolute % (24 * 60)) as u16;
+    }
+
+    pub fn label(&self) -> String {
+        format!(
+            "Day {} {:02}:{:02}",
+            self.day,
+            self.minute_of_day / 60,
+            self.minute_of_day % 60
+        )
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ExpeditionSupplyState {
+    pub stamina: u8,
+    pub rations: u8,
+    pub water: u8,
+}
+
+impl Default for ExpeditionSupplyState {
+    fn default() -> Self {
+        Self {
+            stamina: 100,
+            rations: 4,
+            water: 6,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ExpeditionReadiness {
+    pub preparation: ExpeditionPreparation,
+    pub stamina: u8,
+    pub rations: u8,
+    pub water: u8,
+    pub starting_resources: u32,
+    pub travel_minutes: u32,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -670,11 +895,25 @@ pub struct BattleSeedV1 {
     pub active_title: Option<BuildTitle>,
     #[serde(default = "default_field_build_cost_permille")]
     pub field_build_cost_permille: u16,
+    #[serde(default = "default_expedition_readiness")]
+    pub expedition_readiness: ExpeditionReadiness,
     pub seed_hash: String,
 }
 
 fn default_field_build_cost_permille() -> u16 {
     1000
+}
+
+fn default_expedition_readiness() -> ExpeditionReadiness {
+    let supplies = ExpeditionSupplyState::default();
+    ExpeditionReadiness {
+        preparation: ExpeditionPreparation::Immediate,
+        stamina: supplies.stamina,
+        rations: supplies.rations,
+        water: supplies.water,
+        starting_resources: 0,
+        travel_minutes: 20,
+    }
 }
 
 impl BattleSeedV1 {
@@ -703,6 +942,15 @@ impl BattleSeedV1 {
         if self.party.len() != 4 {
             return Err(CampaignError::InvalidContract(
                 "First Contact requires exactly four party units".to_string(),
+            ));
+        }
+        if self.expedition_readiness.stamina > 100
+            || self.expedition_readiness.rations > 12
+            || self.expedition_readiness.water > 16
+            || self.expedition_readiness.travel_minutes == 0
+        {
+            return Err(CampaignError::InvalidContract(
+                "expedition readiness is outside authoritative bounds".to_string(),
             ));
         }
         let ids = self
@@ -886,6 +1134,14 @@ pub struct CampaignSaveV1 {
     pub active_encounter: Option<RpgEncounterState>,
     #[serde(default)]
     pub last_encounter_outcome: Option<EncounterOutcome>,
+    #[serde(default)]
+    pub quest_chain: Option<QuestChainProgress>,
+    #[serde(default)]
+    pub world_clock: WorldClock,
+    #[serde(default)]
+    pub expedition_supplies: ExpeditionSupplyState,
+    #[serde(default)]
+    pub selected_expedition_preparation: ExpeditionPreparation,
     pub mentor_met: bool,
     pub trained_with_mentor: bool,
     pub quest_state: QuestState,
@@ -1102,6 +1358,10 @@ impl Default for CampaignSaveV1 {
             active_title: None,
             active_encounter: None,
             last_encounter_outcome: None,
+            quest_chain: None,
+            world_clock: WorldClock::default(),
+            expedition_supplies: ExpeditionSupplyState::default(),
+            selected_expedition_preparation: ExpeditionPreparation::Immediate,
             mentor_met: false,
             trained_with_mentor: false,
             quest_state: QuestState::Locked,
@@ -1199,6 +1459,30 @@ impl CampaignSaveV1 {
                 "campaign credits or mentor training count is invalid".to_string(),
             ));
         }
+        if self.world_clock.day == 0
+            || self.world_clock.minute_of_day >= 24 * 60
+            || self.expedition_supplies.stamina > 100
+            || self.expedition_supplies.rations > 12
+            || self.expedition_supplies.water > 16
+        {
+            return Err(CampaignError::InvalidState(
+                "world clock or expedition supplies are invalid".to_string(),
+            ));
+        }
+        if let Some(chain) = &self.quest_chain {
+            if chain.complete && chain.current_node != QuestChainNodeId::ReliefComplete {
+                return Err(CampaignError::InvalidState(
+                    "completed quest chain is not at its terminal node".to_string(),
+                ));
+            }
+            if chain.chosen_branch.is_some()
+                && chain.current_node != QuestChainNodeId::ReliefComplete
+            {
+                return Err(CampaignError::InvalidState(
+                    "quest branch is set before the terminal decision".to_string(),
+                ));
+            }
+        }
         let spent_growth = self
             .progression
             .growth_allocations
@@ -1275,18 +1559,251 @@ impl CampaignSaveV1 {
     }
 
     pub fn current_task_route_plan(&self) -> WorldRoutePlan {
-        let destination = match self.story.current_step {
-            StoryStepId::MeetMentor => MENTOR_HALL_ROOM,
-            StoryStepId::SecureFirstContact
-            | StoryStepId::BreakAftershock
-            | StoryStepId::EvacuateConvoy => EXPEDITION_GATE_ROOM,
-            StoryStepId::SignalRoadComplete => RELAY_QUARTER_ROOM,
-        };
+        let destination = self
+            .quest_chain
+            .as_ref()
+            .filter(|chain| !chain.complete)
+            .map(|chain| match chain.current_node {
+                QuestChainNodeId::SurveyDamage | QuestChainNodeId::ChooseReliefPlan => {
+                    RELAY_QUARTER_ROOM
+                }
+                QuestChainNodeId::GatherSupplies => EXPEDITION_GATE_ROOM,
+                QuestChainNodeId::ReliefComplete => RELAY_QUARTER_ROOM,
+            })
+            .unwrap_or_else(|| match self.story.current_step {
+                StoryStepId::MeetMentor => MENTOR_HALL_ROOM,
+                StoryStepId::SecureFirstContact
+                | StoryStepId::BreakAftershock
+                | StoryStepId::EvacuateConvoy => EXPEDITION_GATE_ROOM,
+                StoryStepId::SignalRoadComplete => RELAY_QUARTER_ROOM,
+            });
         let mut flags = self.progression.world_flags.clone();
         if self.active_title == Some(BuildTitle::RelayRunner) {
             flags.insert("signal_road_secured".to_string());
         }
         mirror_city_world_graph().shortest_route(self.room.id(), destination, &flags)
+    }
+
+    pub fn start_cistern_relief(&mut self) -> Result<(), CampaignError> {
+        self.require_room(CampaignRoom::RelayQuarter)?;
+        if !self
+            .progression
+            .world_flags
+            .contains("outer_signal_road_open")
+        {
+            return Err(CampaignError::InvalidState(
+                "the outer signal road must be open before cistern relief".to_string(),
+            ));
+        }
+        if self
+            .quest_chain
+            .as_ref()
+            .is_some_and(|chain| !chain.complete)
+        {
+            return Err(CampaignError::InvalidState(
+                "another quest-chain step is already active".to_string(),
+            ));
+        }
+        self.quest_chain = Some(QuestChainProgress {
+            id: QuestChainId::CisternRelief,
+            current_node: QuestChainNodeId::SurveyDamage,
+            chosen_branch: None,
+            completed_nodes: BTreeSet::new(),
+            complete: false,
+        });
+        self.revision += 1;
+        Ok(())
+    }
+
+    pub fn advance_cistern_relief(&mut self) -> Result<QuestChainNodeId, CampaignError> {
+        self.require_town()?;
+        let current = self
+            .quest_chain
+            .as_ref()
+            .filter(|chain| !chain.complete)
+            .map(|chain| chain.current_node)
+            .ok_or_else(|| {
+                CampaignError::InvalidState("cistern relief is not active".to_string())
+            })?;
+        let required_room = match current {
+            QuestChainNodeId::SurveyDamage | QuestChainNodeId::ChooseReliefPlan => {
+                CampaignRoom::RelayQuarter
+            }
+            QuestChainNodeId::GatherSupplies => CampaignRoom::ExpeditionGate,
+            QuestChainNodeId::ReliefComplete => CampaignRoom::RelayQuarter,
+        };
+        if self.room != required_room {
+            return Err(CampaignError::InvalidState(format!(
+                "cistern relief step requires {}",
+                required_room.title()
+            )));
+        }
+        let next = match current {
+            QuestChainNodeId::SurveyDamage => QuestChainNodeId::GatherSupplies,
+            QuestChainNodeId::GatherSupplies => {
+                if self.progression.credits < 40 {
+                    return Err(CampaignError::InvalidState(
+                        "gathering cistern supplies costs 40 credits".to_string(),
+                    ));
+                }
+                self.progression.credits -= 40;
+                QuestChainNodeId::ChooseReliefPlan
+            }
+            QuestChainNodeId::ChooseReliefPlan => {
+                return Err(CampaignError::InvalidState(
+                    "choose reinforce or evacuate to complete cistern relief".to_string(),
+                ));
+            }
+            QuestChainNodeId::ReliefComplete => {
+                return Err(CampaignError::InvalidState(
+                    "cistern relief is already complete".to_string(),
+                ));
+            }
+        };
+        let chain = self.quest_chain.as_mut().expect("active chain was checked");
+        chain.completed_nodes.insert(current);
+        chain.current_node = next;
+        self.revision += 1;
+        Ok(next)
+    }
+
+    pub fn choose_cistern_relief_branch(
+        &mut self,
+        branch: QuestBranch,
+    ) -> Result<(), CampaignError> {
+        self.require_room(CampaignRoom::RelayQuarter)?;
+        let chain = self
+            .quest_chain
+            .as_ref()
+            .filter(|chain| {
+                !chain.complete && chain.current_node == QuestChainNodeId::ChooseReliefPlan
+            })
+            .ok_or_else(|| {
+                CampaignError::InvalidState("cistern relief is not awaiting a branch".to_string())
+            })?;
+        if chain.chosen_branch.is_some() {
+            return Err(CampaignError::InvalidState(
+                "cistern relief branch has already been chosen".to_string(),
+            ));
+        }
+        let definition = cistern_relief_quest_chain_definition();
+        let rewards = definition
+            .nodes
+            .iter()
+            .find(|node| node.id == QuestChainNodeId::ReliefComplete && node.branch == Some(branch))
+            .map(|node| node.rewards.clone())
+            .ok_or_else(|| {
+                CampaignError::InvalidState("missing quest branch rewards".to_string())
+            })?;
+        for reward in rewards {
+            match reward {
+                QuestChainReward::Credits { amount } => {
+                    self.progression.credits = self.progression.credits.saturating_add(amount);
+                }
+                QuestChainReward::Reputation { amount } => {
+                    self.character.attributes.reputation =
+                        self.character.attributes.reputation.saturating_add(amount);
+                }
+                QuestChainReward::WorldFlag { flag } => {
+                    self.progression.world_flags.insert(flag);
+                }
+                QuestChainReward::RelationshipTrust { npc_id, amount } => {
+                    let relationship = self
+                        .npc_relationships
+                        .entry(npc_id.clone())
+                        .or_insert_with(|| NpcRelationship::new(npc_id, "relay-quarter"));
+                    relationship.trust = relationship.trust.saturating_add(amount);
+                }
+            }
+        }
+        let chain = self.quest_chain.as_mut().expect("active chain was checked");
+        chain
+            .completed_nodes
+            .insert(QuestChainNodeId::ChooseReliefPlan);
+        chain
+            .completed_nodes
+            .insert(QuestChainNodeId::ReliefComplete);
+        chain.current_node = QuestChainNodeId::ReliefComplete;
+        chain.chosen_branch = Some(branch);
+        chain.complete = true;
+        self.revision += 1;
+        Ok(())
+    }
+
+    pub fn cycle_expedition_preparation(&mut self) -> Result<ExpeditionPreparation, CampaignError> {
+        self.require_room(CampaignRoom::ExpeditionGate)?;
+        self.selected_expedition_preparation = self.selected_expedition_preparation.next();
+        self.revision += 1;
+        Ok(self.selected_expedition_preparation)
+    }
+
+    fn commit_expedition_preparation(&mut self) -> Result<ExpeditionReadiness, CampaignError> {
+        let preparation = self.selected_expedition_preparation;
+        let mut starting_resources = 0;
+        let travel_minutes = match preparation {
+            ExpeditionPreparation::Immediate => {
+                require_supplies(&self.expedition_supplies, 1, 2)?;
+                self.expedition_supplies.stamina =
+                    self.expedition_supplies.stamina.saturating_sub(20);
+                self.expedition_supplies.rations -= 1;
+                self.expedition_supplies.water -= 2;
+                20
+            }
+            ExpeditionPreparation::Rested => {
+                if self.progression.credits < 10 {
+                    return Err(CampaignError::InvalidState(
+                        "resting before departure costs 10 credits".to_string(),
+                    ));
+                }
+                require_supplies(&self.expedition_supplies, 1, 1)?;
+                self.progression.credits -= 10;
+                self.expedition_supplies.stamina = 100;
+                self.expedition_supplies.rations -= 1;
+                self.expedition_supplies.water -= 1;
+                180
+            }
+            ExpeditionPreparation::Supplied => {
+                if self.progression.credits < 25 {
+                    return Err(CampaignError::InvalidState(
+                        "stocking the expedition costs 25 credits".to_string(),
+                    ));
+                }
+                self.progression.credits -= 25;
+                self.expedition_supplies.rations =
+                    self.expedition_supplies.rations.saturating_add(3).min(12);
+                self.expedition_supplies.water =
+                    self.expedition_supplies.water.saturating_add(4).min(16);
+                self.expedition_supplies.stamina =
+                    self.expedition_supplies.stamina.saturating_sub(5);
+                starting_resources = 50;
+                35
+            }
+            ExpeditionPreparation::Shortcut => {
+                if self.character_origin != CharacterOrigin::Scout
+                    && self.active_title != Some(BuildTitle::RelayRunner)
+                {
+                    return Err(CampaignError::InvalidState(
+                        "the shortcut requires Scout origin or Relay Runner title".to_string(),
+                    ));
+                }
+                require_supplies(&self.expedition_supplies, 1, 2)?;
+                self.expedition_supplies.stamina =
+                    self.expedition_supplies.stamina.saturating_sub(10);
+                self.expedition_supplies.rations -= 1;
+                self.expedition_supplies.water -= 2;
+                starting_resources = 20;
+                10
+            }
+        };
+        self.world_clock.advance(travel_minutes);
+        Ok(ExpeditionReadiness {
+            preparation,
+            stamina: self.expedition_supplies.stamina,
+            rations: self.expedition_supplies.rations,
+            water: self.expedition_supplies.water,
+            starting_resources,
+            travel_minutes,
+        })
     }
 
     pub fn cycle_character_origin(&mut self) -> Result<CharacterOrigin, CampaignError> {
@@ -1958,6 +2475,7 @@ impl CampaignSaveV1 {
             ));
         }
         map.validate()?;
+        let expedition_readiness = self.commit_expedition_preparation()?;
         let next_revision = self.revision + 1;
         let equipment_ids = equipped_item_ids(&self.character);
         let campaign_level = self.progression.level;
@@ -2012,6 +2530,7 @@ impl CampaignSaveV1 {
                     self.active_title,
                 );
                 apply_campaign_growth(&mut stats, unit_level, reputation);
+                apply_expedition_readiness(&mut stats, &expedition_readiness);
                 BattleUnitSeedV1 {
                     unit_id: member.unit_id.clone(),
                     display_name: member.display_name.clone(),
@@ -2045,6 +2564,7 @@ impl CampaignSaveV1 {
             } else {
                 1000
             },
+            expedition_readiness,
             seed_hash: String::new(),
         };
         seed.seed_hash = seed.computed_hash()?;
@@ -2150,7 +2670,20 @@ impl CampaignSaveV1 {
         self.progression
             .world_flags
             .extend(result.world_flags.iter().cloned());
+        self.world_clock.advance(
+            result
+                .elapsed_ticks
+                .div_ceil(600)
+                .max(1)
+                .min(u64::from(u32::MAX)) as u32,
+        );
         if result.outcome == BattleOutcome::Victory {
+            self.expedition_supplies.stamina =
+                self.expedition_supplies.stamina.saturating_add(25).min(100);
+            self.expedition_supplies.rations =
+                self.expedition_supplies.rations.saturating_add(1).min(12);
+            self.expedition_supplies.water =
+                self.expedition_supplies.water.saturating_add(2).min(16);
             self.npc_relationships
                 .entry("street-compass-sifu".to_string())
                 .or_insert_with(|| {
@@ -2512,6 +3045,37 @@ fn apply_campaign_growth(stats: &mut RtsUnitStats, level: u32, reputation: i32) 
         .saturating_add(morale / 2);
 }
 
+fn apply_expedition_readiness(stats: &mut RtsUnitStats, readiness: &ExpeditionReadiness) {
+    let stamina_permille = 700_u32.saturating_add(u32::from(readiness.stamina) * 3);
+    stats.max_hp = (stats.max_hp.saturating_mul(stamina_permille) / 1000).max(1);
+    stats.move_speed_milli =
+        (stats.move_speed_milli.saturating_mul(stamina_permille) / 1000).max(100);
+    match readiness.preparation {
+        ExpeditionPreparation::Supplied => {
+            stats.energy = stats.energy.saturating_add(30);
+        }
+        ExpeditionPreparation::Shortcut => {
+            stats.move_speed_milli = stats.move_speed_milli.saturating_add(120);
+            stats.evasion_permille = stats.evasion_permille.saturating_add(25).min(500);
+        }
+        ExpeditionPreparation::Immediate | ExpeditionPreparation::Rested => {}
+    }
+}
+
+fn require_supplies(
+    supplies: &ExpeditionSupplyState,
+    rations: u8,
+    water: u8,
+) -> Result<(), CampaignError> {
+    if supplies.rations < rations || supplies.water < water {
+        Err(CampaignError::InvalidState(format!(
+            "expedition requires {rations} ration(s) and {water} water"
+        )))
+    } else {
+        Ok(())
+    }
+}
+
 fn add_signed(value: u32, delta: i32, minimum: u32) -> u32 {
     (value as i64 + delta as i64).max(minimum as i64) as u32
 }
@@ -2566,6 +3130,249 @@ fn canonical_json_hash<T: Serialize>(value: &T) -> Result<String, CampaignError>
     Ok(digest.iter().map(|byte| format!("{byte:02x}")).collect())
 }
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SaveSlotId {
+    #[default]
+    A,
+    B,
+    C,
+}
+
+impl SaveSlotId {
+    pub const ALL: [Self; 3] = [Self::A, Self::B, Self::C];
+
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::A => "A",
+            Self::B => "B",
+            Self::C => "C",
+        }
+    }
+
+    pub fn from_digit(digit: u8) -> Option<Self> {
+        match digit {
+            1 => Some(Self::A),
+            2 => Some(Self::B),
+            3 => Some(Self::C),
+            _ => None,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SaveSlotMeta {
+    pub slot: SaveSlotId,
+    pub exists: bool,
+    pub valid: bool,
+    pub campaign_id: Option<String>,
+    pub revision: Option<u64>,
+    pub phase: Option<CampaignPhase>,
+    pub mission: Option<CampaignMission>,
+    pub error: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct SaveSlotStore {
+    root: PathBuf,
+}
+
+impl SaveSlotStore {
+    pub fn new(root: impl Into<PathBuf>) -> Self {
+        Self { root: root.into() }
+    }
+
+    pub fn root(&self) -> &Path {
+        &self.root
+    }
+
+    pub fn path(&self, slot: SaveSlotId) -> PathBuf {
+        match slot {
+            SaveSlotId::A => self.root.join("campaign.json"),
+            SaveSlotId::B => self.root.join("campaign-b.json"),
+            SaveSlotId::C => self.root.join("campaign-c.json"),
+        }
+    }
+
+    pub fn checkpoint_path(&self, slot: SaveSlotId) -> PathBuf {
+        match slot {
+            SaveSlotId::A => self.root.join("first-contact-battle.json"),
+            SaveSlotId::B => self.root.join("campaign-b-battle.json"),
+            SaveSlotId::C => self.root.join("campaign-c-battle.json"),
+        }
+    }
+
+    pub fn load(&self, slot: SaveSlotId) -> Result<CampaignSaveV1, CampaignError> {
+        CampaignStore::new(self.path(slot)).load()
+    }
+
+    pub fn load_or_default(&self, slot: SaveSlotId) -> Result<CampaignSaveV1, CampaignError> {
+        CampaignStore::new(self.path(slot)).load_or_default()
+    }
+
+    pub fn save_atomic(
+        &self,
+        slot: SaveSlotId,
+        save: &CampaignSaveV1,
+    ) -> Result<(), CampaignError> {
+        CampaignStore::new(self.path(slot)).save_atomic(save)
+    }
+
+    pub fn create_new(
+        &self,
+        slot: SaveSlotId,
+        overwrite: bool,
+    ) -> Result<CampaignSaveV1, CampaignError> {
+        let path = self.path(slot);
+        if path.exists() && !overwrite {
+            return Err(CampaignError::InvalidState(format!(
+                "slot {} requires explicit overwrite confirmation",
+                slot.label()
+            )));
+        }
+        let save = CampaignSaveV1 {
+            campaign_id: format!("local-campaign-slot-{}", slot.label().to_ascii_lowercase()),
+            ..CampaignSaveV1::default()
+        };
+        self.save_atomic(slot, &save)?;
+        let checkpoint = self.checkpoint_path(slot);
+        if checkpoint.exists() {
+            fs::remove_file(checkpoint)?;
+        }
+        Ok(save)
+    }
+
+    pub fn metadata(&self, slot: SaveSlotId) -> SaveSlotMeta {
+        let path = self.path(slot);
+        if !path.exists() {
+            return SaveSlotMeta {
+                slot,
+                exists: false,
+                valid: false,
+                campaign_id: None,
+                revision: None,
+                phase: None,
+                mission: None,
+                error: None,
+            };
+        }
+        match self.load(slot) {
+            Ok(save) => SaveSlotMeta {
+                slot,
+                exists: true,
+                valid: true,
+                campaign_id: Some(save.campaign_id),
+                revision: Some(save.revision),
+                phase: Some(save.phase),
+                mission: Some(save.active_mission),
+                error: None,
+            },
+            Err(error) => SaveSlotMeta {
+                slot,
+                exists: true,
+                valid: false,
+                campaign_id: None,
+                revision: None,
+                phase: None,
+                mission: None,
+                error: Some(error.to_string()),
+            },
+        }
+    }
+
+    pub fn list(&self) -> Vec<SaveSlotMeta> {
+        SaveSlotId::ALL
+            .into_iter()
+            .map(|slot| self.metadata(slot))
+            .collect()
+    }
+}
+
+pub const PLAYER_SETTINGS_CONTRACT: &str = "trnm_player_settings_v1";
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum InputMode {
+    #[default]
+    Hybrid,
+    KeyboardOnly,
+    MouseOnly,
+}
+
+impl InputMode {
+    pub fn next(self) -> Self {
+        match self {
+            Self::Hybrid => Self::KeyboardOnly,
+            Self::KeyboardOnly => Self::MouseOnly,
+            Self::MouseOnly => Self::Hybrid,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PlayerSettings {
+    pub contract_version: String,
+    pub low_motion: bool,
+    pub input_mode: InputMode,
+}
+
+impl Default for PlayerSettings {
+    fn default() -> Self {
+        Self {
+            contract_version: PLAYER_SETTINGS_CONTRACT.to_string(),
+            low_motion: false,
+            input_mode: InputMode::Hybrid,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct PlayerSettingsStore {
+    path: PathBuf,
+}
+
+impl PlayerSettingsStore {
+    pub fn new(path: impl Into<PathBuf>) -> Self {
+        Self { path: path.into() }
+    }
+
+    pub fn load_or_default(&self) -> Result<PlayerSettings, CampaignError> {
+        if !self.path.exists() {
+            return Ok(PlayerSettings::default());
+        }
+        let settings: PlayerSettings = serde_json::from_slice(&fs::read(&self.path)?)?;
+        if settings.contract_version != PLAYER_SETTINGS_CONTRACT {
+            return Err(CampaignError::InvalidContract(settings.contract_version));
+        }
+        Ok(settings)
+    }
+
+    pub fn save_atomic(&self, settings: &PlayerSettings) -> Result<(), CampaignError> {
+        if settings.contract_version != PLAYER_SETTINGS_CONTRACT {
+            return Err(CampaignError::InvalidContract(
+                settings.contract_version.clone(),
+            ));
+        }
+        atomic_write_json(&self.path, settings)
+    }
+}
+
+fn atomic_write_json<T: Serialize>(path: &Path, value: &T) -> Result<(), CampaignError> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    let temp_path = path.with_extension("json.tmp");
+    let payload = serde_json::to_vec_pretty(value)?;
+    let mut file = fs::File::create(&temp_path)?;
+    file.write_all(&payload)?;
+    file.sync_all()?;
+    fs::rename(&temp_path, path)?;
+    if let Some(parent) = path.parent() {
+        fs::File::open(parent)?.sync_all()?;
+    }
+    Ok(())
+}
+
 #[derive(Debug, Clone)]
 pub struct CampaignStore {
     path: PathBuf,
@@ -2600,19 +3407,7 @@ impl CampaignStore {
 
     pub fn save_atomic(&self, save: &CampaignSaveV1) -> Result<(), CampaignError> {
         save.validate()?;
-        if let Some(parent) = self.path.parent() {
-            fs::create_dir_all(parent)?;
-        }
-        let temp_path = self.path.with_extension("json.tmp");
-        let payload = serde_json::to_vec_pretty(save)?;
-        let mut file = fs::File::create(&temp_path)?;
-        file.write_all(&payload)?;
-        file.sync_all()?;
-        fs::rename(&temp_path, &self.path)?;
-        if let Some(parent) = self.path.parent() {
-            fs::File::open(parent)?.sync_all()?;
-        }
-        Ok(())
+        atomic_write_json(&self.path, save)
     }
 
     pub fn stage_result_atomic(
@@ -3160,5 +3955,124 @@ mod tests {
         warden.move_to(CampaignRoom::ExpeditionGate).unwrap();
         warden.begin_signal_road_encounter().unwrap();
         assert!(warden.active_encounter.is_some());
+    }
+
+    #[test]
+    fn three_save_slots_are_isolated_and_settings_are_profile_scoped() {
+        let directory = tempdir().unwrap();
+        let slots = SaveSlotStore::new(directory.path());
+        let mut first = slots.create_new(SaveSlotId::A, false).unwrap();
+        first.progression.credits = 777;
+        slots.save_atomic(SaveSlotId::A, &first).unwrap();
+        let second = slots.create_new(SaveSlotId::B, false).unwrap();
+        assert_ne!(first.campaign_id, second.campaign_id);
+        assert_eq!(slots.load(SaveSlotId::A).unwrap().progression.credits, 777);
+        assert_ne!(slots.load(SaveSlotId::B).unwrap().progression.credits, 777);
+        assert!(slots.create_new(SaveSlotId::A, false).is_err());
+
+        fs::write(slots.path(SaveSlotId::C), b"not-json").unwrap();
+        assert!(!slots.metadata(SaveSlotId::C).valid);
+        assert!(slots.metadata(SaveSlotId::A).valid);
+
+        let settings_store =
+            PlayerSettingsStore::new(directory.path().join("player-settings.json"));
+        let settings = PlayerSettings {
+            low_motion: true,
+            input_mode: InputMode::KeyboardOnly,
+            ..PlayerSettings::default()
+        };
+        settings_store.save_atomic(&settings).unwrap();
+        slots.create_new(SaveSlotId::A, true).unwrap();
+        assert_eq!(settings_store.load_or_default().unwrap(), settings);
+    }
+
+    #[test]
+    fn cistern_relief_is_a_typed_branching_persistent_quest_chain() {
+        let mut campaign = CampaignSaveV1::default();
+        campaign
+            .progression
+            .world_flags
+            .insert("outer_signal_road_open".to_string());
+        campaign
+            .progression
+            .world_flags
+            .insert("signal_road_secured".to_string());
+        campaign
+            .progression
+            .world_flags
+            .insert("expedition_gate_open".to_string());
+        campaign.move_to(CampaignRoom::RelayQuarter).unwrap();
+        campaign.start_cistern_relief().unwrap();
+        assert_eq!(
+            campaign.quest_chain.as_ref().unwrap().current_node,
+            QuestChainNodeId::SurveyDamage
+        );
+        campaign.advance_cistern_relief().unwrap();
+        campaign.move_to(CampaignRoom::MirrorSquare).unwrap();
+        campaign.move_to(CampaignRoom::ExpeditionGate).unwrap();
+        let credits_before = campaign.progression.credits;
+        campaign.advance_cistern_relief().unwrap();
+        assert_eq!(campaign.progression.credits, credits_before - 40);
+        campaign.move_to(CampaignRoom::MirrorSquare).unwrap();
+        campaign.move_to(CampaignRoom::RelayQuarter).unwrap();
+        campaign.advance_cistern_relief().unwrap_err();
+
+        let mut reinforce = campaign.clone();
+        let mut evacuate = campaign;
+        reinforce
+            .choose_cistern_relief_branch(QuestBranch::ReinforceCistern)
+            .unwrap();
+        evacuate
+            .choose_cistern_relief_branch(QuestBranch::EvacuateFamilies)
+            .unwrap();
+        assert!(reinforce
+            .progression
+            .world_flags
+            .contains("cistern_reinforced"));
+        assert!(evacuate
+            .progression
+            .world_flags
+            .contains("cistern_families_evacuated"));
+        assert!(evacuate.progression.credits > reinforce.progression.credits);
+        assert!(
+            reinforce.character.attributes.reputation > evacuate.character.attributes.reputation
+        );
+
+        let directory = tempdir().unwrap();
+        let store = CampaignStore::new(directory.path().join("quest.json"));
+        store.save_atomic(&reinforce).unwrap();
+        assert_eq!(store.load().unwrap().quest_chain, reinforce.quest_chain);
+    }
+
+    #[test]
+    fn expedition_preparation_changes_seed_time_supplies_and_battle_stats() {
+        let immediate_campaign = ready_campaign();
+        let mut supplied_campaign = immediate_campaign.clone();
+        supplied_campaign.cycle_expedition_preparation().unwrap();
+        supplied_campaign.cycle_expedition_preparation().unwrap();
+        let mut immediate_campaign = immediate_campaign;
+        let immediate = immediate_campaign
+            .start_first_contact_battle(map())
+            .unwrap();
+        let supplied = supplied_campaign.start_first_contact_battle(map()).unwrap();
+        assert_eq!(
+            immediate.expedition_readiness.preparation,
+            ExpeditionPreparation::Immediate
+        );
+        assert_eq!(
+            supplied.expedition_readiness.preparation,
+            ExpeditionPreparation::Supplied
+        );
+        assert_eq!(supplied.expedition_readiness.starting_resources, 50);
+        assert!(supplied.party[0].stats.energy > immediate.party[0].stats.energy);
+        assert_ne!(supplied.seed_hash, immediate.seed_hash);
+        assert_ne!(
+            supplied_campaign.world_clock,
+            immediate_campaign.world_clock
+        );
+        assert_ne!(
+            supplied_campaign.expedition_supplies,
+            immediate_campaign.expedition_supplies
+        );
     }
 }

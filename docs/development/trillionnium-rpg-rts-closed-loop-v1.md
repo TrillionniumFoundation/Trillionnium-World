@@ -1,6 +1,6 @@
 # Trillionnium RPG -> RTS -> RPG Closed Loop v1
 
-Status: canonical local product truth source as of 2026-07-11, route/mission/origin/traffic P0-P3 revision.
+Status: canonical local product truth source as of 2026-07-11, product-shell/quest/readiness/adaptive-AI P0-P3 revision.
 
 ## Product Definition
 
@@ -46,16 +46,17 @@ Mirror Square
 ## Stable Contracts
 
 - `trnm_campaign_save_v1`
-- `trnm_battle_seed_v4`
+- `trnm_battle_seed_v5`
 - `trnm_battle_result_v2`
 - `trnm_settlement_receipt_v1`
-- `trnm_rts_sim_v6`
-- `trnm_rts_sim_checkpoint_v6`
+- `trnm_rts_sim_v7`
+- `trnm_rts_sim_checkpoint_v7`
 
 `BattleSeedV1` binds campaign revision, battle id, map/rules version, four
 persistent party members, spawn slots, skills, typed equipment modifiers,
 injuries, character origin, earned mastery title, a typed mission/objective
-sequence, mapped RTS stats, and a SHA-256 payload hash.
+sequence, expedition preparation/readiness, mapped RTS stats, and a SHA-256
+payload hash.
 
 `BattleResultV1` binds the seed hash, terminal outcome, every party member's
 HP/status/XP, loot, resource and reputation deltas, world flags, elapsed ticks,
@@ -88,6 +89,8 @@ they are no longer hard-coded RPG character identities.
 
 Town:
 
+- `F1`: open the title/save-slot shell; `Esc`: pause gameplay
+
 - `1`: Mirror Square
 - `2`: mentor hall
 - `3`: expedition gate
@@ -107,7 +110,18 @@ Town:
   commitment; `Q`: complete the selected path mastery; `V`: cycle earned titles
 - `J`: begin the Signal Road typed RPG encounter from Relay Quarter (or the
   Gate Warden route); during it use `J/R/I/Esc` for attack/defend/item/withdraw
+- `B`: start/advance Cistern Relief; at its branch use `N` to reinforce or `M`
+  to evacuate; its supply step is completed at the expedition gate
+- `R` at the expedition gate: cycle immediate/rested/supplied/shortcut preparation
 - `F`: accept mission / deploy
+
+Title/pause shell:
+
+- `1/2/3`: select independent campaign slot A/B/C
+- `N`: create a new campaign; press a second time to explicitly confirm overwrite
+- `Enter`: load/continue, then pass the resume guard before gameplay is revealed
+- `F2`: low-motion mode; `F3`: hybrid/keyboard-only/mouse-only input mode
+- `Esc`: resume from pause; settings are profile-scoped rather than character-scoped
 
 Battle:
 
@@ -223,6 +237,23 @@ Debrief:
   reservations, stable blocked priority, bounded yield/replanning and checkpoint
   hashes. The eight-actor congestion regression proves no overlap and recovery
   after a blocked chokepoint opens.
+- Product shell P0: complete. Three atomic save slots have independent campaign
+  and battle-checkpoint paths, metadata, explicit overwrite confirmation,
+  corrupt-slot isolation and a title NEW/LOAD/CONTINUE flow. A resume guard
+  masks restored state. Pause stops authoritative ticks, orders, selection and
+  camera input. Low-motion and real input-mode settings persist outside slots.
+- Quest-chain P1: complete. Generic typed chain/node/condition/reward/branch
+  definitions drive the original Cistern Relief task. Survey, supply and
+  branch steps use world rooms and produce distinct credit/reputation/trust/flag
+  outcomes which survive reload.
+- Readiness P2: complete. World time, stamina, rations and water are campaign
+  state. Immediate, rested, supplied and shortcut expeditions consume different
+  resources/time and bind observable HP/energy/movement/starting-resource
+  differences into the BattleSeed. Battle time and victory recovery settle back.
+- Adaptive AI P3: complete. The deterministic sim records bounded typed
+  observations, budget and decisions. Scout, economy raid, tech counter,
+  objective defense, convoy interdiction and assault goals change target scoring;
+  invalid commands do not mutate the replay and checkpoints preserve it exactly.
 
 ## Repeatable Campaign Loop
 

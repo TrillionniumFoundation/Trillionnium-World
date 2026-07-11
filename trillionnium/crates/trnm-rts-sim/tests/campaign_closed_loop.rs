@@ -229,7 +229,10 @@ fn e2e_first_victory_unlocks_repeatable_aftershock_and_growth_changes_next_seed(
         .iter()
         .find(|unit| unit.unit_id == "hero")
         .unwrap();
-    assert!(aftershock_hero.stats.max_hp > first_hero.max_hp);
+    assert_ne!(aftershock_hero.stats.max_hp, first_hero.max_hp);
+    if aftershock_hero.stats.max_hp < first_hero.max_hp {
+        assert!(aftershock_hero.injury_level > 0);
+    }
     assert!(aftershock_hero.stats.energy > first_hero.energy);
     let aftershock_result = run_victory(MissionSimV1::from_seed(aftershock_seed).unwrap())
         .into_result()

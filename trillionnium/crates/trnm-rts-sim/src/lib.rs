@@ -18,8 +18,8 @@ use trnm_campaign_core::{
 };
 use trnm_rts_protocol::{RtsFrameOrder, RtsOrderKind, RtsUnitStance};
 
-pub const RTS_SIM_CONTRACT: &str = "trnm_rts_sim_v6";
-pub const RTS_SIM_CHECKPOINT_CONTRACT: &str = "trnm_rts_sim_checkpoint_v6";
+pub const RTS_SIM_CONTRACT: &str = "trnm_rts_sim_v7";
+pub const RTS_SIM_CHECKPOINT_CONTRACT: &str = "trnm_rts_sim_checkpoint_v7";
 pub const TICKS_PER_SECOND: u64 = 10;
 pub const THREE_MINUTE_TICKS: u64 = 3 * 60 * TICKS_PER_SECOND;
 pub const FIVE_MINUTE_TICKS: u64 = 5 * 60 * TICKS_PER_SECOND;
@@ -255,6 +255,41 @@ pub struct TileReservation {
     pub unit_id: String,
 }
 
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AiGoal {
+    #[default]
+    Scout,
+    RaidEconomy,
+    CounterTech,
+    DefendObjective,
+    InterdictConvoy,
+    Assault,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AiObservation {
+    pub tick: u64,
+    pub phase: BattlePhase,
+    pub living_party: u8,
+    pub living_enemies: u8,
+    pub wounded_party: u8,
+    pub party_resources: u32,
+    pub party_structures: u8,
+    pub researched_tech_count: u8,
+    pub convoy_active: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AiDecision {
+    pub index: u32,
+    pub goal: AiGoal,
+    pub budget_before: u16,
+    pub budget_after: u16,
+    pub reason: String,
+    pub observation: AiObservation,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MissionSimV1 {
     pub contract_version: String,
@@ -318,6 +353,14 @@ pub struct MissionSimV1 {
     pub armor_upgrade_level: u8,
     #[serde(default)]
     pub enemy_tactics_level: u8,
+    #[serde(default)]
+    pub enemy_ai_goal: AiGoal,
+    #[serde(default)]
+    pub enemy_ai_budget: u16,
+    #[serde(default)]
+    pub enemy_ai_decision_index: u32,
+    #[serde(default)]
+    pub enemy_ai_history: Vec<AiDecision>,
     pub outcome: Option<BattleOutcome>,
     pub event_count: u64,
 }
@@ -452,10 +495,10 @@ impl MissionSimV1 {
             relay_guard_hp: relay_guard_max_hp,
             relay_guard_max_hp,
             relay_capture_ticks: 0,
-            resources_gathered: 0,
-            resources_available: 0,
+            resources_gathered: seed.expedition_readiness.starting_resources,
+            resources_available: seed.expedition_readiness.starting_resources,
             resources_spent: 0,
-            resources_generated: 0,
+            resources_generated: seed.expedition_readiness.starting_resources,
             resource_nodes: seed
                 .map
                 .resource_nodes
@@ -498,6 +541,10 @@ impl MissionSimV1 {
             upgrade_level: 0,
             armor_upgrade_level: 0,
             enemy_tactics_level: 0,
+            enemy_ai_goal: AiGoal::Scout,
+            enemy_ai_budget: 0,
+            enemy_ai_decision_index: 0,
+            enemy_ai_history: Vec::new(),
             outcome: None,
             event_count: 0,
         };
@@ -650,6 +697,16 @@ impl MissionSimV1 {
         {
             return Err(SimError::Integrity(
                 "fog state contains an out-of-bounds tile".to_string(),
+            ));
+        }
+        if self.enemy_ai_history.len() > 16
+            || self
+                .enemy_ai_history
+                .windows(2)
+                .any(|pair| pair[0].index >= pair[1].index)
+        {
+            return Err(SimError::Integrity(
+                "enemy AI decision history is not a bounded ordered replay".to_string(),
             ));
         }
         Ok(())
@@ -974,6 +1031,7 @@ impl MissionSimV1 {
         self.resolve_player_order();
         self.resolve_stance_fire();
         self.update_phase();
+        self.refresh_enemy_ai_plan();
         self.resolve_enemy_ai();
         self.resolve_support_fire();
         self.resolve_relay_pressure();
@@ -2164,10 +2222,90 @@ impl MissionSimV1 {
         Ok(())
     }
 
+    fn observe_enemy_ai(&self) -> AiObservation {
+        AiObservation {
+            tick: self.tick,
+            phase: self.phase,
+            living_party: self.party.iter().filter(|unit| unit.alive()).count() as u8,
+            living_enemies: self.enemies.iter().filter(|unit| unit.alive()).count() as u8,
+            wounded_party: self
+                .party
+                .iter()
+                .filter(|unit| unit.alive() && unit.hp * 2 < unit.max_hp)
+                .count() as u8,
+            party_resources: self.resources_available,
+            party_structures: self
+                .structures
+                .iter()
+                .filter(|structure| structure.alive())
+                .count() as u8,
+            researched_tech_count: self.researched_techs.len() as u8
+                + self.upgrade_level
+                + self.armor_upgrade_level,
+            convoy_active: self.convoy_position.is_some() && self.convoy_hp > 0,
+        }
+    }
+
+    fn refresh_enemy_ai_plan(&mut self) {
+        if self.tick != 1 && !self.tick.is_multiple_of(50) {
+            return;
+        }
+        let observation = self.observe_enemy_ai();
+        let budget_before = self.enemy_ai_budget.saturating_add(8).min(40);
+        let (requested_goal, cost, reason) = if observation.convoy_active {
+            (AiGoal::InterdictConvoy, 8, "escort target is exposed")
+        } else if observation.party_resources >= 120 || observation.party_structures >= 4 {
+            (AiGoal::RaidEconomy, 7, "player economy is accelerating")
+        } else if observation.researched_tech_count > 0 {
+            (AiGoal::CounterTech, 6, "player technology is visible")
+        } else if observation.living_enemies.saturating_mul(2) <= observation.living_party
+            || self.relay_guard_hp * 2 < self.relay_guard_max_hp
+        {
+            (
+                AiGoal::DefendObjective,
+                5,
+                "enemy force or objective integrity is low",
+            )
+        } else if self.tick < 300 {
+            (AiGoal::Scout, 2, "contact picture is incomplete")
+        } else {
+            (AiGoal::Assault, 4, "battle line is stable enough to commit")
+        };
+        let (goal, spent, reason) = if budget_before >= cost {
+            (requested_goal, cost, reason.to_string())
+        } else {
+            (
+                AiGoal::Scout,
+                2.min(budget_before),
+                "budget is insufficient; gathering information".to_string(),
+            )
+        };
+        self.enemy_ai_goal = goal;
+        self.enemy_ai_budget = budget_before.saturating_sub(spent);
+        self.enemy_ai_decision_index = self.enemy_ai_decision_index.saturating_add(1);
+        self.enemy_tactics_level = (self.enemy_ai_decision_index / 2).min(3) as u8;
+        self.enemy_ai_history.push(AiDecision {
+            index: self.enemy_ai_decision_index,
+            goal,
+            budget_before,
+            budget_after: self.enemy_ai_budget,
+            reason,
+            observation,
+        });
+        if self.enemy_ai_history.len() > 16 {
+            self.enemy_ai_history.remove(0);
+        }
+        self.event_count = self.event_count.saturating_add(1);
+    }
+
     fn resolve_enemy_ai(&mut self) {
         if self.phase == BattlePhase::Approach && self.tick < 300 {
             return;
         }
+        let goal = self.enemy_ai_goal;
+        let tactics_level = self.enemy_tactics_level;
+        let objective = self.seed.map.objective;
+        let convoy = self.convoy_position;
         let mut occupied = self
             .party
             .iter()
@@ -2186,14 +2324,30 @@ impl MissionSimV1 {
                 .filter(|(_, unit)| unit.alive())
                 .min_by_key(|(_, unit)| {
                     let wounded_bias = unit.hp * 100 / unit.max_hp.max(1);
-                    let role_bias = if self.enemy_tactics_level >= 2 && unit.role == "engineer" {
-                        -3
-                    } else {
-                        0
+                    let role_bias = match goal {
+                        AiGoal::RaidEconomy
+                            if matches!(unit.role.as_str(), "worker" | "engineer") =>
+                        {
+                            -50
+                        }
+                        AiGoal::CounterTech if matches!(unit.role.as_str(), "mystic" | "medic") => {
+                            -45
+                        }
+                        AiGoal::Scout if unit.role == "scout" => -25,
+                        _ if tactics_level >= 2 && unit.role == "engineer" => -3,
+                        _ => 0,
+                    };
+                    let position_bias = match goal {
+                        AiGoal::DefendObjective => distance(unit.position, objective) as i64 * 4,
+                        AiGoal::InterdictConvoy => convoy
+                            .map(|position| distance(unit.position, position) as i64)
+                            .unwrap_or_default(),
+                        _ => 0,
                     };
                     distance(self.enemies[attacker_index].position, unit.position) as i64 * 10
                         + wounded_bias
                         + role_bias
+                        + position_bias
                 })
                 .map(|(index, _)| index)
             else {
@@ -2960,7 +3114,8 @@ mod tests {
         );
         assert!((8..=12).contains(&sim.order_count));
         assert!(sim.resources_spent >= FIELD_AID_COST + FORTIFY_COST);
-        assert_eq!(sim.enemy_tactics_level, 2);
+        assert_eq!(sim.enemy_tactics_level, 3);
+        assert!(!sim.enemy_ai_history.is_empty());
         let result = sim.into_result().unwrap();
         assert!(!result.loot.is_empty());
         assert!(result.resource_delta > 0);
@@ -3575,5 +3730,70 @@ mod tests {
         .expect("right actor must yield without entering the reserved side step");
         assert_ne!(second, left);
         assert_ne!(second, first);
+    }
+
+    #[test]
+    fn adaptive_ai_observes_budget_selects_goals_and_replays_deterministically() {
+        let mut sim = MissionSimV1::from_seed(seed()).unwrap();
+        sim.step().unwrap();
+        assert_eq!(sim.enemy_ai_goal, AiGoal::Scout);
+        let history_before_invalid = sim.enemy_ai_history.clone();
+        let mut invalid = order(&sim, RtsOrderKind::Move, sim.seed.map.approach_point);
+        invalid.player_id = "intruder".to_string();
+        assert!(sim.issue_order(invalid).is_err());
+        assert_eq!(sim.enemy_ai_history, history_before_invalid);
+
+        sim.resources_gathered = 200;
+        sim.resources_available = 200;
+        while sim.tick < 50 {
+            sim.step().unwrap();
+        }
+        assert_eq!(sim.enemy_ai_goal, AiGoal::RaidEconomy);
+        sim.resources_spent = 200;
+        sim.resources_available = 0;
+        sim.researched_techs.insert("signal_optics".to_string());
+        while sim.tick < 100 {
+            sim.step().unwrap();
+        }
+        assert_eq!(sim.enemy_ai_goal, AiGoal::CounterTech);
+        assert!(sim
+            .enemy_ai_history
+            .iter()
+            .any(|decision| decision.goal == AiGoal::RaidEconomy));
+
+        let checkpoint = SimCheckpointV1::capture(&sim).unwrap();
+        let mut first = checkpoint.sim.clone();
+        let mut second = checkpoint.sim;
+        for _ in 0..25 {
+            first.step().unwrap();
+            second.step().unwrap();
+        }
+        assert_eq!(first.enemy_ai_history, second.enemy_ai_history);
+        assert_eq!(
+            first.snapshot_hash().unwrap(),
+            second.snapshot_hash().unwrap()
+        );
+    }
+
+    #[test]
+    fn supplied_expedition_resources_enter_authoritative_conservation() {
+        let mut campaign = CampaignSaveV1::default();
+        campaign.move_to(CampaignRoom::MentorHall).unwrap();
+        campaign.talk_to_mentor().unwrap();
+        campaign.train_with_mentor().unwrap();
+        campaign.equip_starter_weapon().unwrap();
+        campaign.move_to(CampaignRoom::ExpeditionGate).unwrap();
+        campaign.accept_first_contact_quest().unwrap();
+        campaign.cycle_expedition_preparation().unwrap();
+        campaign.cycle_expedition_preparation().unwrap();
+        let supplied_seed = campaign.start_first_contact_battle(map()).unwrap();
+        let sim = MissionSimV1::from_seed(supplied_seed).unwrap();
+        assert_eq!(sim.resources_available, 50);
+        assert_eq!(sim.resources_generated, 50);
+        assert_eq!(
+            sim.resources_available + sim.resources_spent,
+            sim.resources_gathered
+        );
+        sim.validate().unwrap();
     }
 }

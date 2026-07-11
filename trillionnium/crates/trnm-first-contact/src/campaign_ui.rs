@@ -1,4 +1,4 @@
-use super::campaign_flow::{CampaignFlow, CampaignMode};
+use super::campaign_flow::{CampaignFlow, CampaignMode, ShellMode};
 use bevy::prelude::*;
 use bevy::window::RequestRedraw;
 use trnm_campaign_core::{CampaignRoom, MasteryChallenge, QuestState};
@@ -129,7 +129,7 @@ fn town_body(flow: &CampaignFlow) -> String {
     }
     match save.room {
         CampaignRoom::MirrorSquare => format!(
-            "{}\n\n{}  |  ORIGIN {}  |  LV {}  |  XP {}  |  CR {}  |  REP {}\nGROWTH {}  |  PREVIEW {:?}  |  BUILD {:?}  |  TITLE {:?}\n{}\n\nO changes origin before mentor progress; A/S/D choose growth; Q earns the selected path title through its mastery challenge.\n\nSTORY: {:?}  |  MISSION: {}  |  AFTERSHOCK WINS {}  |  SAVE REVISION {}",
+            "{}\n\n{}  |  ORIGIN {}  |  LV {}  |  XP {}  |  CR {}  |  REP {}\nTIME {}  |  STAMINA {}  |  RATIONS {}  |  WATER {}\nGROWTH {}  |  PREVIEW {:?}  |  BUILD {:?}  |  TITLE {:?}\n{}\n\nO changes origin before mentor progress; A/S/D choose growth; Q earns the selected path title through its mastery challenge.\n\nSTORY: {:?}  |  MISSION: {}  |  AFTERSHOCK WINS {}  |  SAVE REVISION {}",
             room_label(save.room),
             "MIRROR RANGER",
             save.character_origin.display_name(),
@@ -137,6 +137,10 @@ fn town_body(flow: &CampaignFlow) -> String {
             save.progression.experience,
             save.progression.credits,
             save.character.attributes.reputation,
+            save.world_clock.label(),
+            save.expedition_supplies.stamina,
+            save.expedition_supplies.rations,
+            save.expedition_supplies.water,
             save.progression.growth_points_available,
             save.pending_growth_stat,
             save.build_path,
@@ -191,17 +195,23 @@ fn town_body(flow: &CampaignFlow) -> String {
                 .collect::<Vec<_>>()
                 .join("\n");
             format!(
-                "{}\n\nMISSION: {} / {}  |  LOADOUT: {}\nPARTY (hero + freely chosen companions):\n{}\n\nZ/X/C independently cycle companion slots 1/2/3; P still cycles valid presets. E cycles equipment. Brann is locked until Relay Quarter trust recruitment.",
+                "{}\n\nMISSION: {} / {}  |  LOADOUT: {}\nPREPARATION: {}  |  TIME: {}\nSTAMINA {}  |  RATIONS {}  |  WATER {}\nPARTY (hero + freely chosen companions):\n{}\n\nR cycles immediate/rested/supplied/shortcut preparation. Each choice consumes world resources and changes the authoritative BattleSeed.",
                 room_label(save.room),
                 quest_label(save.quest_state),
                 save.active_mission.display_name(),
                 save.selected_loadout.display_name(),
+                save.selected_expedition_preparation.display_name(),
+                save.world_clock.label(),
+                save.expedition_supplies.stamina,
+                save.expedition_supplies.rations,
+                save.expedition_supplies.water,
                 roster,
             )
         }
         CampaignRoom::RelayQuarter => format!(
-            "{}\n\nThe route opened only after First Contact and Aftershock were both secured. T speaks with Relay Smith Brann; U recruits him once trust reaches 8; J begins the typed Signal Road ambush.\n\nBRANN TRUST: {}  |  RECRUITED: {}  |  FACTION: {:?}  |  LAST ENCOUNTER: {:?}\n\nSIGNAL ROAD FLAGS: {:?}",
+            "{}\n\nThe route opened only after First Contact and Aftershock were both secured. T speaks with Relay Smith Brann; U recruits him once trust reaches 8; J begins the typed Signal Road ambush.\n\nCISTERN RELIEF: {:?}\nB advances its typed nodes; at the final choice N reinforces the cistern, M evacuates families.\n\nBRANN TRUST: {}  |  RECRUITED: {}  |  FACTION: {:?}  |  LAST ENCOUNTER: {:?}\n\nSIGNAL ROAD FLAGS: {:?}",
             room_label(save.room),
+            save.quest_chain,
             save.npc_relationships
                 .get("relay-smith-brann")
                 .map(|relation| relation.trust)
@@ -217,6 +227,61 @@ fn town_body(flow: &CampaignFlow) -> String {
                 .filter(|flag| flag.contains("contact") || flag.contains("aftershock") || flag.contains("signal_road"))
                 .collect::<Vec<_>>(),
         ),
+    }
+}
+
+fn shell_body(flow: &CampaignFlow) -> String {
+    match flow.shell_mode {
+        ShellMode::Title => {
+            let slots = flow
+                .slot_metadata()
+                .into_iter()
+                .map(|meta| {
+                    let marker = if meta.slot == flow.selected_slot { ">" } else { " " };
+                    if !meta.exists {
+                        format!("{marker} SLOT {}  EMPTY", meta.slot.label())
+                    } else if meta.valid {
+                        let phase = meta
+                            .phase
+                            .map(|phase| format!("{phase:?}"))
+                            .unwrap_or_else(|| "UNKNOWN".to_string());
+                        let mission = meta
+                            .mission
+                            .map(|mission| format!("{mission:?}"))
+                            .unwrap_or_else(|| "UNKNOWN".to_string());
+                        format!(
+                            "{marker} SLOT {}  REV {}  {}  {}",
+                            meta.slot.label(),
+                            meta.revision.unwrap_or_default(),
+                            phase,
+                            mission,
+                        )
+                    } else {
+                        format!("{marker} SLOT {}  CORRUPT: {}", meta.slot.label(), meta.error.unwrap_or_default())
+                    }
+                })
+                .collect::<Vec<_>>()
+                .join("\n");
+            format!(
+                "THREE INDEPENDENT CAMPAIGN SLOTS\n\n{}\n\nSelected: {}  |  Low motion: {}  |  Input: {:?}\n\nA corrupt slot is isolated and cannot poison another slot. NEW requires a second explicit N before overwriting an occupied slot.",
+                slots,
+                flow.selected_slot.label(),
+                flow.settings.low_motion,
+                flow.settings.input_mode,
+            )
+        }
+        ShellMode::ResumeGuard => format!(
+            "SAVE STATE RESTORED\n\nSlot {} passed validation. Campaign phase: {:?}. Battle checkpoints, when present, were matched against the authoritative seed before loading.\n\nPress ENTER to reveal and resume gameplay.",
+            flow.active_slot.label(), flow.save.phase,
+        ),
+        ShellMode::Paused => format!(
+            "PAUSED\n\nSlot {}  |  Tick {}\nLow motion: {}  |  Input: {:?}\n\nAuthoritative RTS ticks, commands, mouse selection and camera input are stopped. Settings are stored in player-settings.json, outside every character slot.",
+            flow.active_slot.label(),
+            flow.mission.as_ref().map(|mission| mission.tick).unwrap_or_default(),
+            flow.settings.low_motion,
+            flow.settings.input_mode,
+        ),
+        ShellMode::Playing => String::new(),
     }
 }
 
@@ -298,7 +363,8 @@ pub(super) fn update_campaign_ui(
     // a campaign -> battle or battle -> debrief transition can remain one
     // presentation frame behind its already-persisted authoritative state.
     redraw.write(RequestRedraw);
-    let hidden = flow.mode == CampaignMode::Battle;
+    let shell_visible = flow.shell_mode != ShellMode::Playing;
+    let hidden = flow.mode == CampaignMode::Battle && !shell_visible;
     for mut background in &mut roots {
         background.0 = if hidden {
             Color::NONE
@@ -319,7 +385,13 @@ pub(super) fn update_campaign_ui(
         });
     }
     for (mut title, mut color) in &mut titles {
-        title.0 = if flow.mode == CampaignMode::Debrief {
+        title.0 = if flow.shell_mode == ShellMode::Title {
+            "TRILLIONNIUM".to_string()
+        } else if flow.shell_mode == ShellMode::Paused {
+            "CAMPAIGN PAUSED".to_string()
+        } else if flow.shell_mode == ShellMode::ResumeGuard {
+            "RESUME CHECK".to_string()
+        } else if flow.mode == CampaignMode::Debrief {
             "RETURN TO THE OPEN WORLD".to_string()
         } else {
             room_label(flow.save.room).to_string()
@@ -331,7 +403,9 @@ pub(super) fn update_campaign_ui(
         };
     }
     for (mut body, mut color) in &mut bodies {
-        body.0 = if flow.mode == CampaignMode::Debrief {
+        body.0 = if shell_visible {
+            shell_body(&flow)
+        } else if flow.mode == CampaignMode::Debrief {
             debrief_body(&flow)
         } else {
             town_body(&flow)
@@ -343,7 +417,13 @@ pub(super) fn update_campaign_ui(
         };
     }
     for (mut action, mut color) in &mut actions {
-        action.0 = if flow.mode == CampaignMode::Debrief {
+        action.0 = if flow.shell_mode == ShellMode::Title {
+            "1/2/3 SELECT SLOT | N NEW / CONFIRM OVERWRITE | ENTER LOAD/CONTINUE | F2 LOW MOTION | F3 INPUT MODE".to_string()
+        } else if flow.shell_mode == ShellMode::ResumeGuard {
+            "ENTER RESUME | F1 TITLE".to_string()
+        } else if flow.shell_mode == ShellMode::Paused {
+            "ESC RESUME | F1 TITLE | F2 LOW MOTION | F3 INPUT MODE".to_string()
+        } else if flow.mode == CampaignMode::Debrief {
             "ENTER  RETURN TO MIRROR SQUARE".to_string()
         } else if flow.save.active_encounter.is_some() {
             "J ATTACK | R DEFEND | I USE TONIC | ESC WITHDRAW".to_string()
@@ -356,11 +436,11 @@ pub(super) fn update_campaign_ui(
                     "T TALK | L PATH | K TRAIN | Y SPAR | Q MASTERY | E LOADOUT | H HEAL | 1 SQUARE | 3 GATE".to_string()
                 }
                 CampaignRoom::ExpeditionGate => {
-                    "Z/X/C FREE PARTY | P PRESET | E LOADOUT | F ACCEPT/DEPLOY | 1 SQUARE | 2 MENTOR | 4 RELAY"
+                    "R PREPARATION | B RELIEF SUPPLIES | Z/X/C FREE PARTY | P PRESET | E LOADOUT | F ACCEPT/DEPLOY | F1 TITLE | ESC PAUSE"
                         .to_string()
                 }
                 CampaignRoom::RelayQuarter => {
-                    "T TALK BRANN | U RECRUIT | J RPG AMBUSH | Z/X/C FREE PARTY | 1 SQUARE | 2 MENTOR | 3 GATE".to_string()
+                    "B CISTERN RELIEF | N REINFORCE | M EVACUATE | T TALK BRANN | U RECRUIT | J RPG AMBUSH | F1 TITLE | ESC PAUSE".to_string()
                 }
             }
         };
