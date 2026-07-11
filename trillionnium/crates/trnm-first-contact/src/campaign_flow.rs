@@ -503,6 +503,10 @@ pub(super) fn handle_campaign_input(
                 let result =
                     flow.mutate_town(|save| save.cycle_skirmish_victory_mode().map(|_| ()));
                 set_status(&mut flow, result, "Changed standalone victory rule");
+            } else if input.just_pressed(KeyCode::KeyI) {
+                let result =
+                    flow.mutate_town(|save| save.cycle_skirmish_simulation_seed().map(|_| ()));
+                set_status(&mut flow, result, "Changed standalone deterministic seed");
             } else if input.just_pressed(KeyCode::Enter) {
                 *map = maps.for_mission(flow.save.active_mission).clone();
                 match flow.start_battle(&map) {
@@ -995,6 +999,8 @@ pub(super) fn settle_finished_battle(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use trnm_campaign_core::{BattleOutcome, CampaignDifficulty, SkirmishVictoryMode};
+    use trnm_rts_protocol::{RtsFrameOrder, RtsOrderKind, RtsOrderSource, RtsTile};
 
     #[test]
     fn checkpoint_path_is_sibling_of_campaign_save() {
@@ -1106,6 +1112,101 @@ mod tests {
         flow.start_battle(&authored).unwrap();
         assert_eq!(flow.mode, CampaignMode::Battle);
         assert_eq!(flow.mission.as_ref().unwrap().seed.map_id, "ember_orchard");
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn authored_map_score_skirmish_wins_replays_and_settles_through_real_orders() {
+        let root = std::env::temp_dir().join(format!(
+            "trnm-authored-skirmish-victory-{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(&root).unwrap();
+        let slot_store = SaveSlotStore::new(&root);
+        slot_store.create_new(SaveSlotId::A, false).unwrap();
+        let save_path = slot_store.path(SaveSlotId::A);
+        let mut flow = CampaignFlow {
+            save: CampaignSaveV1::default(),
+            mode: CampaignMode::Town,
+            mission: None,
+            last_receipt: None,
+            status: String::new(),
+            last_checkpoint_tick: 0,
+            shell_mode: ShellMode::Title,
+            active_slot: SaveSlotId::A,
+            selected_slot: SaveSlotId::A,
+            overwrite_pending: None,
+            settings: PlayerSettings::default(),
+            settings_store: PlayerSettingsStore::new(root.join("settings.json")),
+            store: CampaignStore::new(&save_path),
+            checkpoint_store: SimCheckpointStore::new(checkpoint_path_for(&save_path)),
+            slot_store,
+        };
+        flow.open_selected_slot_skirmish().unwrap();
+        flow.save.difficulty = CampaignDifficulty::Story;
+        flow.save.skirmish_setup.starting_resources = 500;
+        flow.save.skirmish_setup.score_target = 40;
+        flow.save.skirmish_setup.victory_mode = SkirmishVictoryMode::Score;
+        flow.save.active_mission = trnm_campaign_core::CampaignMission::GlassBasinSkirmish;
+        flow.save.character.attributes.force = 50;
+        flow.save.character.attributes.agility = 50;
+        flow.save.character.attributes.insight = 50;
+        for member in &mut flow.save.party {
+            member.attributes.force = 50;
+            member.attributes.agility = 50;
+            member.attributes.insight = 50;
+        }
+        let maps =
+            MissionMapCatalog::load(&Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../assets"))
+                .unwrap();
+        flow.start_battle(&maps.glass_basin).unwrap();
+        let sim = flow.mission.as_mut().unwrap();
+        while !sim.terminal() && sim.tick < 1_200 {
+            if sim.tick.is_multiple_of(20) || sim.active_order.is_none() {
+                let subjects = sim
+                    .party
+                    .iter()
+                    .filter(|unit| unit.hp > 0)
+                    .map(|unit| unit.unit_id.clone())
+                    .collect::<Vec<_>>();
+                let target = sim
+                    .enemies
+                    .iter()
+                    .filter(|unit| unit.hp > 0)
+                    .min_by_key(|unit| {
+                        (unit.position.x - sim.seed.map.party_start.x).abs()
+                            + (unit.position.y - sim.seed.map.party_start.y).abs()
+                    })
+                    .unwrap()
+                    .position;
+                let mut order = RtsFrameOrder::new(
+                    sim.tick as u32,
+                    "player",
+                    subjects,
+                    RtsOrderKind::AttackMove,
+                    RtsOrderSource::LocalInput,
+                );
+                order.target_tile = Some(RtsTile::new(i32::from(target.x), i32::from(target.y)));
+                sim.issue_order(order).unwrap();
+            }
+            sim.step().unwrap();
+        }
+        assert_eq!(
+            sim.outcome,
+            Some(BattleOutcome::Victory),
+            "authored score match ended at tick {} with player score {} and enemy score {}",
+            sim.tick,
+            sim.player_score,
+            sim.enemy_score
+        );
+        let replay = sim.export_replay().unwrap();
+        replay.replay_and_verify().unwrap();
+        let result = sim.clone().into_result().unwrap();
+        let receipt = flow.save.submit_battle_result(result.clone()).unwrap();
+        assert_eq!(receipt.outcome, BattleOutcome::Victory);
+        assert!(!receipt.duplicate);
+        assert!(flow.save.submit_battle_result(result).unwrap().duplicate);
         std::fs::remove_dir_all(root).unwrap();
     }
 }

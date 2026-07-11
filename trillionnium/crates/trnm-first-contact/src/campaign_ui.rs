@@ -220,12 +220,13 @@ fn town_body(flow: &CampaignFlow) -> String {
                 .join("\n");
             let skirmish = if save.skirmish_setup.enabled {
                 format!(
-                    "\nSKIRMISH: {} vs {} | START {} | {:?} / score {}",
+                    "\nSKIRMISH: {} vs {} | START {} | {:?} / score {} | seed {}",
                     save.skirmish_setup.player_faction.display_name(),
                     save.skirmish_setup.enemy_faction.display_name(),
                     save.skirmish_setup.starting_resources,
                     save.skirmish_setup.victory_mode,
                     save.skirmish_setup.score_target,
+                    save.skirmish_setup.simulation_seed,
                 )
             } else {
                 String::new()
@@ -392,13 +393,14 @@ fn shell_body(flow: &CampaignFlow) -> String {
             flow.active_slot.label(),
         ),
         ShellMode::SkirmishSetup => format!(
-            "STANDALONE SKIRMISH\n\nMAP: {}\nPLAYER: {:?}  |  OPPONENT: {:?}\nSTARTING RESOURCES: {}\nVICTORY: {:?}  |  SCORE TARGET: {}\n\nThis lane is available from the title slot selector. It grants no campaign-completion flags, but its BattleSeed, deterministic simulation and one-time RPG settlement use the same authority as campaign battles.",
+            "STANDALONE SKIRMISH\n\nMAP: {}\nPLAYER: {:?}  |  OPPONENT: {:?}\nSTARTING RESOURCES: {}\nVICTORY: {:?}  |  SCORE TARGET: {}\nSIMULATION SEED: {}\n\nM map | T factions | Y resources | U victory | I seed | Enter deploy\n\nThis lane is available from the title slot selector. It grants no campaign-completion flags, but its BattleSeed, deterministic simulation and one-time RPG settlement use the same authority as campaign battles.",
             flow.save.active_mission.display_name(),
             flow.save.skirmish_setup.player_faction,
             flow.save.skirmish_setup.enemy_faction,
             flow.save.skirmish_setup.starting_resources,
             flow.save.skirmish_setup.victory_mode,
             flow.save.skirmish_setup.score_target,
+            flow.save.skirmish_setup.simulation_seed,
         ),
         ShellMode::Journal => journal_body(flow),
         ShellMode::Playing => String::new(),

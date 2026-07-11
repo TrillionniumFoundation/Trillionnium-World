@@ -48,7 +48,7 @@ fn legacy_campaign_schema_revision() -> u16 {
     1
 }
 
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum TrainingPath {
     #[default]
@@ -369,6 +369,12 @@ pub struct SkirmishSetup {
     pub starting_resources: u32,
     pub victory_mode: SkirmishVictoryMode,
     pub score_target: u32,
+    #[serde(default = "default_skirmish_simulation_seed")]
+    pub simulation_seed: u64,
+}
+
+fn default_skirmish_simulation_seed() -> u64 {
+    1
 }
 
 impl Default for SkirmishSetup {
@@ -380,6 +386,7 @@ impl Default for SkirmishSetup {
             starting_resources: 300,
             victory_mode: SkirmishVictoryMode::Objective,
             score_target: 800,
+            simulation_seed: default_skirmish_simulation_seed(),
         }
     }
 }
@@ -399,7 +406,7 @@ impl SkirmishSetup {
         }
         if self.player_faction == self.enemy_faction
             || !(100..=1_000).contains(&self.starting_resources)
-            || !(300..=5_000).contains(&self.score_target)
+            || !(40..=5_000).contains(&self.score_target)
         {
             return Err(CampaignError::InvalidContract(
                 "skirmish factions, resources or score target are invalid".to_string(),
@@ -1537,7 +1544,7 @@ impl MainStoryChoice {
     }
 }
 
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum MainStoryChapter {
     #[default]
@@ -1548,6 +1555,14 @@ pub enum MainStoryChapter {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MainStoryDecisionRecord {
+    pub chapter: MainStoryChapter,
+    pub choice: MainStoryChoice,
+    pub outcome_flag: String,
+    pub day: u32,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RegionalQuestRuntime {
     pub quest_id: String,
     pub accepted_day: u32,
@@ -1555,10 +1570,13 @@ pub struct RegionalQuestRuntime {
     pub approach: QuestApproach,
     pub evidence_count: u8,
     pub failure_count: u8,
+    #[serde(default)]
+    pub completed_condition_node_ids: BTreeSet<String>,
 }
 
 impl RegionalQuestRuntime {
     fn new(quest_id: &str, accepted_day: u32, deadline_days: u32, failures: u8) -> Self {
+        let completed_condition_node_ids = BTreeSet::from([format!("{quest_id}_giver")]);
         Self {
             quest_id: quest_id.to_string(),
             accepted_day,
@@ -1566,8 +1584,21 @@ impl RegionalQuestRuntime {
             approach: QuestApproach::Direct,
             evidence_count: 0,
             failure_count: failures,
+            completed_condition_node_ids,
         }
     }
+}
+
+fn quest_graph_node_ready(
+    graph: &trnm_rpg_core::QuestConditionGraph,
+    node_id: &str,
+    completed: &BTreeSet<String>,
+) -> bool {
+    graph
+        .edges
+        .iter()
+        .filter(|edge| edge.to == node_id)
+        .all(|edge| completed.contains(&edge.from))
 }
 
 impl SettlementReceiptV1 {
@@ -1654,9 +1685,13 @@ pub struct CampaignSaveV1 {
     #[serde(default)]
     pub equipped_technique_slot: u8,
     #[serde(default)]
+    pub technique_mastery: BTreeMap<String, u16>,
+    #[serde(default)]
     pub main_story_chapter: MainStoryChapter,
     #[serde(default)]
     pub main_story_choice: MainStoryChoice,
+    #[serde(default)]
+    pub main_story_decisions: Vec<MainStoryDecisionRecord>,
     #[serde(default)]
     pub last_npc_conversation: Option<NpcConversationRecord>,
     #[serde(default)]
@@ -1665,6 +1700,10 @@ pub struct CampaignSaveV1 {
     pub social_event_history: Vec<NpcSocialEventRecord>,
     #[serde(default)]
     pub npc_memory: BTreeMap<String, Vec<String>>,
+    #[serde(default)]
+    pub npc_bonds: BTreeMap<String, i16>,
+    #[serde(default)]
+    pub npc_work_output: BTreeMap<String, u32>,
     #[serde(default)]
     pub selected_shop_item_index: usize,
     #[serde(default)]
@@ -1743,7 +1782,7 @@ impl Default for CampaignSaveV1 {
         let item_conditions = character_item_conditions(&character);
         Self {
             contract_version: CAMPAIGN_SAVE_CONTRACT.to_string(),
-            schema_revision: 5,
+            schema_revision: 6,
             campaign_id: "local-campaign".to_string(),
             revision: 0,
             room: CampaignRoom::MirrorSquare,
@@ -1916,12 +1955,16 @@ impl Default for CampaignSaveV1 {
             regional_quest_failure_counts: BTreeMap::new(),
             dialogue_choice: DialogueChoice::AskForWork,
             equipped_technique_slot: 0,
+            technique_mastery: BTreeMap::new(),
             main_story_chapter: MainStoryChapter::MirrorCityOaths,
             main_story_choice: MainStoryChoice::ProtectWayhouses,
+            main_story_decisions: Vec::new(),
             last_npc_conversation: None,
             conversation_history: Vec::new(),
             social_event_history: Vec::new(),
             npc_memory: BTreeMap::new(),
+            npc_bonds: BTreeMap::new(),
+            npc_work_output: BTreeMap::new(),
             selected_shop_item_index: 0,
             selected_recipe_index: 0,
             selected_inventory_index: 0,
@@ -1950,7 +1993,7 @@ impl Default for CampaignSaveV1 {
 
 impl CampaignSaveV1 {
     pub fn ensure_gameplay_defaults(&mut self) {
-        self.schema_revision = 5;
+        self.schema_revision = 6;
         if self.active_regional_quest_id.is_none() {
             self.active_regional_quest_step = 0;
             self.active_regional_quest_runtime = None;
@@ -2092,7 +2135,7 @@ impl CampaignSaveV1 {
                 self.contract_version.clone(),
             ));
         }
-        if self.schema_revision != 5 {
+        if self.schema_revision != 6 {
             return Err(CampaignError::InvalidContract(format!(
                 "unsupported campaign schema revision {}",
                 self.schema_revision
@@ -2120,9 +2163,23 @@ impl CampaignSaveV1 {
         }
         if self.social_event_history.len() > 16
             || self.npc_memory.values().any(|memory| memory.len() > 8)
+            || self
+                .npc_bonds
+                .values()
+                .any(|bond| bond.unsigned_abs() > 100)
+            || self.main_story_decisions.len() > 3
         {
             return Err(CampaignError::InvalidState(
                 "NPC social history exceeds its bounded save budget".to_string(),
+            ));
+        }
+        if self
+            .technique_mastery
+            .values()
+            .any(|mastery| *mastery > 100)
+        {
+            return Err(CampaignError::InvalidState(
+                "sect technique mastery exceeds its persistent cap".to_string(),
             ));
         }
         if ECONOMY_ITEM_CATALOG.iter().any(|item| {
@@ -2973,8 +3030,16 @@ impl CampaignSaveV1 {
         self.active_encounter =
             RpgEncounterState::from_definition("signal_road_ambush", &self.character.attributes);
         let style = self.active_technique_style();
+        let rank = self
+            .technique_mastery
+            .get(style.rule_id())
+            .copied()
+            .unwrap_or_default()
+            .saturating_div(10)
+            .min(10) as u8;
         if let Some(encounter) = &mut self.active_encounter {
             encounter.set_technique_style(style);
+            encounter.set_technique_rank(rank);
         }
         self.last_encounter_outcome = None;
         self.revision += 1;
@@ -2996,8 +3061,16 @@ impl CampaignSaveV1 {
             )));
         }
         let style = self.active_technique_style();
+        let rank = self
+            .technique_mastery
+            .get(style.rule_id())
+            .copied()
+            .unwrap_or_default()
+            .saturating_div(10)
+            .min(10) as u8;
         if let Some(encounter) = &mut self.active_encounter {
             encounter.set_technique_style(style);
+            encounter.set_technique_rank(rank);
         }
         self.last_encounter_outcome = None;
         self.revision += 1;
@@ -3037,6 +3110,7 @@ impl CampaignSaveV1 {
         action: EncounterAction,
     ) -> Result<Option<EncounterOutcome>, CampaignError> {
         self.require_town()?;
+        let technique_style = self.active_technique_style();
         let item_available = self
             .progression
             .inventory
@@ -3051,6 +3125,13 @@ impl CampaignSaveV1 {
             .map_err(CampaignError::InvalidState)?;
         let encounter_id = encounter.encounter_id.clone();
         let encounter_round = encounter.round;
+        if action == EncounterAction::Technique {
+            let mastery = self
+                .technique_mastery
+                .entry(technique_style.rule_id().to_string())
+                .or_default();
+            *mastery = mastery.saturating_add(1).min(100);
+        }
         if turn.item_consumed {
             consume_loot(&mut self.progression.inventory, "field-tonic-kit", 1)?;
         }
@@ -3239,7 +3320,14 @@ impl CampaignSaveV1 {
             if memory.len() > 8 {
                 memory.remove(0);
             }
+            let work_output = self.npc_work_output.entry(npc_id.to_string()).or_default();
+            *work_output = work_output.saturating_add(1);
         }
+        let mut pair = [event.first_npc_id, event.second_npc_id];
+        pair.sort_unstable();
+        let bond_key = format!("{}::{}", pair[0], pair[1]);
+        let bond = self.npc_bonds.entry(bond_key).or_default();
+        *bond = bond.saturating_add(2).clamp(-100, 100);
         let current_stock = self
             .market_stock
             .get(event.market_item_id)
@@ -3531,10 +3619,28 @@ impl CampaignSaveV1 {
                     self.room.id()
                 )));
             }
-            self.active_regional_quest_step += 1;
-            if let Some(runtime) = &mut self.active_regional_quest_runtime {
-                runtime.evidence_count = runtime.evidence_count.saturating_add(1);
+            let runtime = self.active_regional_quest_runtime.as_mut().ok_or_else(|| {
+                CampaignError::InvalidState("regional quest runtime is missing".to_string())
+            })?;
+            let condition_graph = quest_condition_graph(definition, runtime.approach);
+            let node_id = format!(
+                "{}_waypoint_{}",
+                definition.id,
+                self.active_regional_quest_step + 1
+            );
+            if !quest_graph_node_ready(
+                &condition_graph,
+                &node_id,
+                &runtime.completed_condition_node_ids,
+            ) {
+                return Err(CampaignError::InvalidState(format!(
+                    "{} condition node {} is blocked by its authored prerequisites",
+                    definition.title, node_id
+                )));
             }
+            runtime.completed_condition_node_ids.insert(node_id);
+            self.active_regional_quest_step += 1;
+            runtime.evidence_count = runtime.evidence_count.saturating_add(1);
             self.revision += 1;
             return Ok(());
         }
@@ -3580,6 +3686,7 @@ impl CampaignSaveV1 {
         })?;
         let condition_graph = quest_condition_graph(definition, runtime.approach);
         let visited_waypoints = condition_graph
+            .nodes
             .iter()
             .filter(|node| node.kind == trnm_rpg_core::QuestConditionKind::VisitWaypoint)
             .count();
@@ -3621,6 +3728,39 @@ impl CampaignSaveV1 {
                 }
             }
         }
+        let mut completed_condition_node_ids = runtime.completed_condition_node_ids.clone();
+        let branch_node_id = match runtime.approach {
+            QuestApproach::Direct => definition
+                .encounter_id
+                .map(|_| format!("{}_encounter", definition.id)),
+            QuestApproach::Diplomatic => Some(format!("{}_trust", definition.id)),
+            QuestApproach::Resourceful => Some(format!("{}_resource", definition.id)),
+        };
+        if let Some(branch_node_id) = branch_node_id {
+            if !quest_graph_node_ready(
+                &condition_graph,
+                &branch_node_id,
+                &completed_condition_node_ids,
+            ) {
+                return Err(CampaignError::InvalidState(format!(
+                    "{} branch condition {} is blocked by its authored prerequisites",
+                    definition.title, branch_node_id
+                )));
+            }
+            completed_condition_node_ids.insert(branch_node_id);
+        }
+        let settlement_node_id = format!("{}_settlement", definition.id);
+        if !quest_graph_node_ready(
+            &condition_graph,
+            &settlement_node_id,
+            &completed_condition_node_ids,
+        ) {
+            return Err(CampaignError::InvalidState(format!(
+                "{} settlement is blocked by unfinished authored graph branches",
+                definition.title
+            )));
+        }
+        completed_condition_node_ids.insert(settlement_node_id);
         let (credit_bonus, reputation_bonus) = match runtime.approach {
             QuestApproach::Direct => (0, 0),
             QuestApproach::Diplomatic => (-definition.credit_reward / 5, 2),
@@ -3697,6 +3837,20 @@ impl CampaignSaveV1 {
             _ => MainStoryChapter::ChapterComplete,
         };
         if matches!(completed, 5 | 10 | 15) {
+            let decided_chapter = match completed {
+                5 => MainStoryChapter::MirrorCityOaths,
+                10 => MainStoryChapter::SignalRoadReckoning,
+                _ => MainStoryChapter::AshenFringeCountermarch,
+            };
+            if self
+                .main_story_decisions
+                .iter()
+                .any(|decision| decision.chapter == decided_chapter)
+            {
+                return Err(CampaignError::InvalidState(
+                    "main story chapter already has a terminal decision".to_string(),
+                ));
+            }
             let (flag, credits, reputation, text) = match self.main_story_choice {
                 MainStoryChoice::ProtectWayhouses => (
                     "main_story_wayhouses_protected",
@@ -3727,6 +3881,12 @@ impl CampaignSaveV1 {
             self.combat_log.push(CombatLogBeat {
                 kind: "main_story_choice".to_string(),
                 text: text.to_string(),
+            });
+            self.main_story_decisions.push(MainStoryDecisionRecord {
+                chapter: decided_chapter,
+                choice: self.main_story_choice,
+                outcome_flag: flag.to_string(),
+                day: self.world_clock.day,
             });
         }
         if completed >= 5 {
@@ -4547,6 +4707,22 @@ impl CampaignSaveV1 {
         Ok(self.skirmish_setup.victory_mode)
     }
 
+    pub fn cycle_skirmish_simulation_seed(&mut self) -> Result<u64, CampaignError> {
+        self.require_room(CampaignRoom::ExpeditionGate)?;
+        if !self.skirmish_setup.enabled {
+            return Err(CampaignError::InvalidState(
+                "select an endgame skirmish map before configuring the seed".to_string(),
+            ));
+        }
+        self.skirmish_setup.simulation_seed = match self.skirmish_setup.simulation_seed {
+            1 => 2,
+            2 => 3,
+            _ => 1,
+        };
+        self.revision += 1;
+        Ok(self.skirmish_setup.simulation_seed)
+    }
+
     pub fn start_first_contact_battle(
         &mut self,
         map: BattleMapSeedV1,
@@ -4828,6 +5004,20 @@ impl CampaignSaveV1 {
                 if report.status == UnitBattleStatus::Lost && !member.persistent {
                     member.available = false;
                 }
+            }
+        }
+        if result.outcome == BattleOutcome::Defeat && injury_delta_by_unit.is_empty() {
+            // Losing an objective without a recorded combat wound still has a
+            // persistent expedition cost. This prevents a player from farming
+            // consequence-free defeats by holding safely while the objective
+            // collapses.
+            if let Some(member) = self
+                .party
+                .iter_mut()
+                .find(|member| member.persistent && member.available)
+            {
+                member.injury_level = member.injury_level.saturating_add(1).min(4);
+                injury_delta_by_unit.insert(member.unit_id.clone(), 1);
             }
         }
         for skill_id in &self.character.skill_ids {
@@ -6686,6 +6876,153 @@ mod tests {
             .any(|flag| flag.starts_with("market_sale_salvaged-alloy")));
     }
 
+    fn test_room(room_id: &str) -> CampaignRoom {
+        [
+            CampaignRoom::MirrorSquare,
+            CampaignRoom::MentorHall,
+            CampaignRoom::ExpeditionGate,
+            CampaignRoom::RelayQuarter,
+            CampaignRoom::CisternWard,
+            CampaignRoom::NightWatchPost,
+            CampaignRoom::WorkshopGate,
+            CampaignRoom::MarketWindPavilion,
+            CampaignRoom::LanternInfirmary,
+            CampaignRoom::ArchiveSteps,
+            CampaignRoom::CaravanYard,
+            CampaignRoom::OuterSignalRoad,
+            CampaignRoom::GlassBasinWayhouse,
+            CampaignRoom::DeepRelay,
+            CampaignRoom::GlassReedMarsh,
+            CampaignRoom::BasinObservatory,
+            CampaignRoom::MoonBridge,
+            CampaignRoom::EmberOrchardEdge,
+            CampaignRoom::AshBeaconField,
+            CampaignRoom::CinderRefuge,
+        ]
+        .into_iter()
+        .find(|room| room.id() == room_id)
+        .unwrap_or_else(|| panic!("unknown test room {room_id}"))
+    }
+
+    fn finish_authored_quest_on(
+        campaign: &mut CampaignSaveV1,
+        quest_id: &str,
+        approach: QuestApproach,
+    ) {
+        let definition = REGIONAL_QUEST_CATALOG
+            .iter()
+            .find(|quest| quest.id == quest_id)
+            .unwrap();
+        let giver = NPC_CATALOG
+            .iter()
+            .find(|npc| npc.id == definition.giver_npc_id)
+            .unwrap();
+        campaign.room = test_room(giver.room_id);
+        let relationship = campaign.npc_relationships.get_mut(giver.id).unwrap();
+        relationship.interactions = 1;
+        relationship.trust = 100;
+        campaign.start_regional_quest(quest_id).unwrap();
+        while campaign
+            .active_regional_quest_runtime
+            .as_ref()
+            .is_some_and(|runtime| runtime.approach != approach)
+        {
+            campaign.cycle_regional_quest_approach().unwrap();
+        }
+        let rule = quest_runtime_rule(definition.archetype);
+        if approach == QuestApproach::Resourceful {
+            campaign.progression.inventory.push(LootStack {
+                item_id: rule.resource_item_id.to_string(),
+                quantity: rule.resource_quantity,
+            });
+        }
+        for waypoint in definition.waypoint_room_ids {
+            campaign.room = test_room(waypoint);
+            campaign.advance_active_regional_quest().unwrap();
+        }
+        if let Some(encounter) = definition.encounter_id {
+            campaign
+                .progression
+                .world_flags
+                .insert(format!("{encounter}_cleared"));
+        }
+        campaign.complete_regional_quest().unwrap();
+    }
+
+    fn finish_authored_quest(quest_id: &str, approach: QuestApproach) -> CampaignSaveV1 {
+        let mut campaign = CampaignSaveV1::default();
+        finish_authored_quest_on(&mut campaign, quest_id, approach);
+        campaign
+    }
+
+    #[test]
+    fn all_fifteen_authored_quests_complete_through_all_three_branches() {
+        for quest in REGIONAL_QUEST_CATALOG {
+            for approach in [
+                QuestApproach::Direct,
+                QuestApproach::Diplomatic,
+                QuestApproach::Resourceful,
+            ] {
+                let campaign = finish_authored_quest(quest.id, approach);
+                assert_eq!(
+                    campaign.regional_quest_states.get(quest.id),
+                    Some(&QuestState::Completed),
+                    "{} {approach:?} did not reach its terminal branch",
+                    quest.id
+                );
+                assert!(campaign.progression.world_flags.contains(
+                    &format!("regional_quest_{}_{approach:?}", quest.id).to_ascii_lowercase()
+                ));
+            }
+        }
+    }
+
+    #[test]
+    fn each_main_story_chapter_records_an_independent_irreversible_choice() {
+        let mut campaign = CampaignSaveV1::default();
+        let choices = [
+            MainStoryChoice::ProtectWayhouses,
+            MainStoryChoice::ExposeConspiracy,
+            MainStoryChoice::ForgeAccord,
+        ];
+        for (chapter_index, choice) in choices.into_iter().enumerate() {
+            let threshold = (chapter_index + 1) * 5;
+            campaign.main_story_choice = choice;
+            let start = chapter_index * 5;
+            for quest in REGIONAL_QUEST_CATALOG.iter().skip(start).take(5) {
+                finish_authored_quest_on(&mut campaign, quest.id, QuestApproach::Direct);
+            }
+            assert_eq!(campaign.main_story_decisions.len(), chapter_index + 1);
+            assert_eq!(campaign.main_story_decisions.last().unwrap().choice, choice);
+            assert_eq!(
+                campaign
+                    .regional_quest_states
+                    .values()
+                    .filter(|state| **state == QuestState::Completed)
+                    .count(),
+                threshold
+            );
+        }
+        assert_eq!(campaign.main_story_decisions.len(), 3);
+        assert_eq!(
+            campaign
+                .main_story_decisions
+                .iter()
+                .map(|decision| decision.choice)
+                .collect::<Vec<_>>(),
+            choices
+        );
+        assert_eq!(
+            campaign
+                .main_story_decisions
+                .iter()
+                .map(|decision| decision.chapter)
+                .collect::<BTreeSet<_>>()
+                .len(),
+            3
+        );
+    }
+
     #[test]
     fn sect_skill_tree_changes_battle_seed_and_crafting_consumes_materials() {
         let mut baseline = ready_campaign();
@@ -6716,6 +7053,31 @@ mod tests {
         assert_ne!(baseline_seed.seed_hash, artisan_seed.seed_hash);
         assert_eq!(artisan_seed.sect_id.as_deref(), Some("iron_workshop_gate"));
         assert!(artisan_seed.party[0].stats.armor > baseline_seed.party[0].stats.armor);
+    }
+
+    #[test]
+    fn sect_technique_mastery_persists_and_changes_later_encounter_authority() {
+        let mut campaign = CampaignSaveV1::default();
+        campaign.character.sect_id = Some("iron_workshop_gate".to_string());
+        campaign.equipped_technique_slot = 1;
+        campaign
+            .technique_mastery
+            .insert("relay_hammer".to_string(), 50);
+        campaign.room = CampaignRoom::RelayQuarter;
+        campaign.begin_signal_road_encounter().unwrap();
+        assert_eq!(
+            campaign.active_encounter.as_ref().unwrap().technique_rank,
+            5
+        );
+        campaign.active_encounter.as_mut().unwrap().momentum = 3;
+        campaign
+            .act_in_signal_road_encounter(EncounterAction::Technique)
+            .unwrap();
+        assert_eq!(campaign.technique_mastery["relay_hammer"], 51);
+        let directory = tempdir().unwrap();
+        let store = CampaignStore::new(directory.path().join("mastery.json"));
+        store.save_atomic(&campaign).unwrap();
+        assert_eq!(store.load().unwrap().technique_mastery["relay_hammer"], 51);
     }
 
     #[test]

@@ -52,13 +52,13 @@ Mirror Square
 - `trnm_battle_seed_v8`
 - `trnm_battle_result_v2`
 - `trnm_settlement_receipt_v1`
-- `trnm_rts_sim_v12`
-- `trnm_rts_sim_checkpoint_v12`
+- `trnm_rts_sim_v13`
+- `trnm_rts_sim_checkpoint_v13`
 
-Campaign persistence remains `trnm_campaign_save_v1` with schema revision 5.
-Revision 5 adds authored quest condition evidence, NPC social memory, main-story
-choice, selected sect technique, and market stock/demand while preserving the
-existing migration path.
+Campaign persistence remains `trnm_campaign_save_v1` with schema revision 6.
+Revision 6 adds executed quest-graph node evidence, independent chapter decisions,
+NPC bonds/work output and persistent technique mastery while preserving the
+revision-5 social-memory, market-state and migration paths.
 
 `BattleSeedV1` binds campaign revision, battle id, map/rules version, four
 persistent party members, spawn slots, skills, typed equipment modifiers,
@@ -129,7 +129,7 @@ Town:
 - `4`: Relay Quarter after the two-mission Signal Road chain
 - `5/6/7/8/9/0/-/=`: Cistern Ward, Night Watch Post, Iron Workshop Gate,
   Market Wind Pavilion, Lantern Infirmary, Archive Steps, Caravan Yard and Outer Signal Road
-- `Shift+1/2/3/4`: Glass Basin Wayhouse, Deep Relay, Moon Bridge and Ember Orchard Edge after their story locks open
+- `Shift+1/2/3/4/5/6/7/8`: Glass Basin Wayhouse, Deep Relay, Moon Bridge, Ember Orchard Edge, Glass Reed Marsh, Basin Observatory, Ash Beacon Field and Cinder Refuge after their story locks open
 - `T`: talk to the scheduled NPC; `Shift+T`: cycle ask-for-work / offer-help / share-news dialogue intent
 - `L`: cycle Iron Guard / Wind Step / Inner Flame training path
 - `K`: buy one capped mentor training session
@@ -160,7 +160,7 @@ Title/pause shell:
 - `N`: create a new campaign; press a second time to explicitly confirm overwrite
 - new character: `C` cycles the persistent display name; `Enter` confirms it
 - `Enter`: load/continue, then pass the resume guard before gameplay is revealed
-- `K`: open independent skirmish setup for the selected existing slot; then `M/T/Y/U` select map/factions/resources/victory and `Enter` deploys
+- `K`: open independent skirmish setup for the selected existing slot; then `M/T/Y/U/I` select map/factions/resources/victory/deterministic seed and `Enter` deploys
 - `F2`: low-motion mode; `F3`: hybrid/keyboard-only/mouse-only input mode
 - `F5`: subtitles/high contrast; `F7`: control-scheme profile; `F8`: live master volume for the town/battle Bevy audio sinks
 - `Esc`: resume from pause; settings are profile-scoped rather than character-scoped
@@ -198,7 +198,7 @@ Debrief:
 
 Current authored content expansion:
 
-- sixteen-room four-region world, three exclusive sects, three mentors and ten moving NPC definitions;
+- twenty-room four-region world, three exclusive sects, three mentors and ten moving NPC definitions;
 - fifteen regional quests, seven encounter definitions and original combat captions;
 - fifteen skills, twenty-two economy items, eight recipes, durability and repair;
 - two factions, twelve unit archetypes, ten structures and ten technologies;
@@ -208,7 +208,7 @@ Current authored content expansion:
 
 - M0: complete. Versioned contracts, payload hashes, validation failures and
   atomic save tests are in `trnm-campaign-core`.
-- M1: complete. Sixteen-room RPG, mentor dialogue/training, equipment, party,
+- M1: complete. Twenty-room RPG, mentor dialogue/training, equipment, party,
   quest acceptance, campaign UI and atomic save are in the default client.
 - M2: complete. `BattleSeedV1` embeds the authored 40x24 navigation projection;
   `RtsFrameOrder` directly drives deterministic 2D pathfinding, occupancy,
@@ -238,7 +238,7 @@ Current authored content expansion:
   from the current checkout. The product uses only the lightweight RPG and
   order-protocol cores; historical sources require an explicit Git worktree.
   The canonical player, map, save and order authorities are singular.
-- Legacy extraction P0: complete. The sixteen-room, four-region world uses a
+- Legacy extraction P0: complete. The twenty-room, four-region world uses a
   validated data-driven graph. The expedition gate is mentor-locked,
   non-adjacent travel is rejected and frontier regions are story-locked.
 - Legacy extraction P1: complete. Typed `QuestDefinition`, conditions, rewards

@@ -27,6 +27,10 @@ pub struct UnitFamily {
     pub fps: u8,
     #[serde(default = "white_tint")]
     pub tint: [f32; 3],
+    #[serde(default = "identity_scale")]
+    pub silhouette_scale: [f32; 2],
+    #[serde(default)]
+    pub silhouette_rotation_degrees: f32,
 }
 
 impl UnitFamily {
@@ -42,10 +46,18 @@ pub struct StructureFamily {
     pub active: usize,
     #[serde(default = "white_tint")]
     pub tint: [f32; 3],
+    #[serde(default = "identity_scale")]
+    pub silhouette_scale: [f32; 2],
+    #[serde(default)]
+    pub silhouette_rotation_degrees: f32,
 }
 
 fn white_tint() -> [f32; 3] {
     [1.0, 1.0, 1.0]
+}
+
+fn identity_scale() -> [f32; 2] {
+    [1.0, 1.0]
 }
 
 #[derive(Debug, Clone, Deserialize, Resource)]
@@ -90,6 +102,40 @@ impl FirstContactAtlasManifest {
             family.fps < 4 || family.idle.len() + family.r#move.len() + family.attack.len() + 2 < 8
         }) {
             return Err("every unit family requires a complete 8-frame base animation set".into());
+        }
+        let unit_identities = self
+            .unit_families
+            .iter()
+            .filter(|family| {
+                family.id.starts_with("mirror_")
+                    || family.id.starts_with("ash_")
+                    || matches!(family.id.as_str(), "relay_engineer_variant" | "field_medic")
+            })
+            .map(|family| {
+                (
+                    (family.silhouette_scale[0] * 100.0).round() as i16,
+                    (family.silhouette_scale[1] * 100.0).round() as i16,
+                    (family.silhouette_rotation_degrees * 10.0).round() as i16,
+                )
+            })
+            .collect::<std::collections::BTreeSet<_>>();
+        if unit_identities.len() < 12 {
+            return Err("the twelve roster identities require distinct runtime silhouettes".into());
+        }
+        let structure_identities = self
+            .structure_families
+            .iter()
+            .skip(5)
+            .map(|family| {
+                (
+                    (family.silhouette_scale[0] * 100.0).round() as i16,
+                    (family.silhouette_scale[1] * 100.0).round() as i16,
+                    (family.silhouette_rotation_degrees * 10.0).round() as i16,
+                )
+            })
+            .collect::<std::collections::BTreeSet<_>>();
+        if structure_identities.len() < 10 {
+            return Err("the ten structure identities require distinct runtime silhouettes".into());
         }
         for required in [
             "moss_basalt_west",

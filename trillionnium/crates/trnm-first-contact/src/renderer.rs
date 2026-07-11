@@ -284,7 +284,10 @@ pub(super) fn spawn_first_contact_live_scene(
             handles.world_image.clone(),
             handles.world_layout.clone(),
             frame,
-            Vec2::splat(tile_size * 2.75),
+            Vec2::new(
+                tile_size * 2.75 * family.silhouette_scale[0],
+                tile_size * 2.75 * family.silhouette_scale[1],
+            ),
         );
         sprite.color = Color::srgb(family.tint[0], family.tint[1], family.tint[2]);
         if structure.owner == "contact" && family.tint == [1.0, 1.0, 1.0] {
@@ -292,7 +295,10 @@ pub(super) fn spawn_first_contact_live_scene(
         }
         commands.spawn((
             sprite,
-            Transform::from_translation(map_world_position(&map, structure.x, structure.y, 5.0)),
+            Transform::from_translation(map_world_position(&map, structure.x, structure.y, 5.0))
+                .with_rotation(Quat::from_rotation_z(
+                    family.silhouette_rotation_degrees.to_radians(),
+                )),
             FirstContactStructureSprite {
                 id: structure.id.clone(),
                 family: structure.family.clone(),
@@ -325,7 +331,10 @@ pub(super) fn spawn_first_contact_live_scene(
             handles.units_image.clone(),
             handles.units_layout.clone(),
             family.atlas_index(family.idle[0]),
-            Vec2::splat(tile_size * 2.1),
+            Vec2::new(
+                tile_size * 2.1 * family.silhouette_scale[0],
+                tile_size * 2.1 * family.silhouette_scale[1],
+            ),
         );
         sprite.color = Color::srgb(family.tint[0], family.tint[1], family.tint[2]);
         if unit.owner == "contact" && family.tint == [1.0, 1.0, 1.0] {
@@ -333,7 +342,9 @@ pub(super) fn spawn_first_contact_live_scene(
         }
         commands.spawn((
             sprite,
-            Transform::from_translation(position),
+            Transform::from_translation(position).with_rotation(Quat::from_rotation_z(
+                family.silhouette_rotation_degrees.to_radians(),
+            )),
             FirstContactUnitSprite {
                 id: unit.id.clone(),
                 family: unit.family.clone(),

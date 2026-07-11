@@ -242,7 +242,7 @@ pub enum EncounterOutcome {
     Withdrawn,
 }
 
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum TechniqueStyle {
     #[default]
@@ -256,6 +256,23 @@ pub enum TechniqueStyle {
     NightVeil,
     ShadowNeedle,
     LanternCut,
+}
+
+impl TechniqueStyle {
+    pub fn rule_id(self) -> &'static str {
+        match self {
+            Self::CenterlineBreak => "centerline_break",
+            Self::CompassFeint => "compass_feint",
+            Self::CompassSpiral => "compass_spiral",
+            Self::WayfinderSlip => "wayfinder_slip",
+            Self::ForgeCounter => "forge_counter",
+            Self::RelayHammer => "relay_hammer",
+            Self::IronReversal => "iron_reversal",
+            Self::NightVeil => "night_veil",
+            Self::ShadowNeedle => "shadow_needle",
+            Self::LanternCut => "lantern_cut",
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -280,6 +297,8 @@ pub struct RpgEncounterState {
     pub momentum: i8,
     #[serde(default)]
     pub technique_style: TechniqueStyle,
+    #[serde(default)]
+    pub technique_rank: u8,
     #[serde(default)]
     pub player_status: EncounterStatus,
     #[serde(default)]
@@ -319,6 +338,7 @@ impl RpgEncounterState {
             technique_cooldown: 0,
             momentum: 0,
             technique_style: TechniqueStyle::CenterlineBreak,
+            technique_rank: 0,
             player_status: EncounterStatus::default(),
             enemy_status: EncounterStatus::default(),
             enemy_intent: enemy_intent_for(definition.kind, 1).to_string(),
@@ -328,6 +348,10 @@ impl RpgEncounterState {
 
     pub fn set_technique_style(&mut self, style: TechniqueStyle) {
         self.technique_style = style;
+    }
+
+    pub fn set_technique_rank(&mut self, rank: u8) {
+        self.technique_rank = rank.min(10);
     }
 
     pub fn advance(
@@ -378,7 +402,8 @@ impl RpgEncounterState {
                 let base = 18
                     + i64::from(attributes.insight) * 2
                     + i64::from(attributes.agility)
-                    + i64::from(self.momentum.max(0)) * 3;
+                    + i64::from(self.momentum.max(0)) * 3
+                    + i64::from(self.technique_rank) * 2;
                 match self.technique_style {
                     TechniqueStyle::CenterlineBreak => {
                         self.enemy_hp -= base + i64::from(attributes.force)

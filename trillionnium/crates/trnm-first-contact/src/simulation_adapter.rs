@@ -1383,7 +1383,10 @@ pub(super) fn advance_first_contact_simulation(
                 } else {
                     family.disabled
                 }),
-                Vec2::splat(map.tile_size as f32 * 1.55),
+                Vec2::new(
+                    map.tile_size as f32 * 1.55 * family.silhouette_scale[0],
+                    map.tile_size as f32 * 1.55 * family.silhouette_scale[1],
+                ),
             );
             sprite.color = Color::srgb(family.tint[0], family.tint[1], family.tint[2]);
             commands.spawn((
@@ -1393,6 +1396,9 @@ pub(super) fn advance_first_contact_simulation(
                     position.x as i32,
                     position.y as i32,
                     8.0,
+                ))
+                .with_rotation(Quat::from_rotation_z(
+                    family.silhouette_rotation_degrees.to_radians(),
                 )),
                 FirstContactUnitSprite {
                     id: id.clone(),
@@ -1425,7 +1431,10 @@ pub(super) fn advance_first_contact_simulation(
                     handles.world_image.clone(),
                     handles.world_layout.clone(),
                     family.active,
-                    Vec2::splat(map.tile_size as f32 * 2.35),
+                    Vec2::new(
+                        map.tile_size as f32 * 2.35 * family.silhouette_scale[0],
+                        map.tile_size as f32 * 2.35 * family.silhouette_scale[1],
+                    ),
                 );
                 sprite.color = if structure.structure_id.starts_with("enemy_") {
                     Color::srgb(1.0, family.tint[1] * 0.55, family.tint[2] * 0.55)
@@ -1439,6 +1448,9 @@ pub(super) fn advance_first_contact_simulation(
                         structure.position.x as i32,
                         structure.position.y as i32,
                         6.0,
+                    ))
+                    .with_rotation(Quat::from_rotation_z(
+                        family.silhouette_rotation_degrees.to_radians(),
                     )),
                     FirstContactStructureSprite {
                         id: structure.structure_id.clone(),

@@ -18,18 +18,18 @@ unit_families:
   - { id: striker, row: 3, idle: [0, 1], move: [2, 3], attack: [4, 5], hit: 6, disabled: 7, fps: 7 }
   - { id: relay_engineer, row: 4, idle: [0, 1], move: [2, 3], attack: [4, 5], hit: 6, disabled: 7, fps: 6 }
   - { id: sentinel, row: 5, idle: [0, 1], move: [2, 3], attack: [4, 5], hit: 6, disabled: 7, fps: 5 }
-  - { id: mirror_wayfinder, row: 1, idle: [0, 1], move: [2, 3], attack: [4, 5], hit: 6, disabled: 7, fps: 8, tint: [0.48, 0.95, 0.86] }
-  - { id: mirror_warden, row: 2, idle: [0, 1], move: [2, 3], attack: [4, 5], hit: 6, disabled: 7, fps: 6, tint: [0.56, 0.82, 1.0] }
-  - { id: mirror_striker, row: 3, idle: [0, 1], move: [2, 3], attack: [4, 5], hit: 6, disabled: 7, fps: 7, tint: [0.78, 1.0, 0.42] }
-  - { id: relay_engineer_variant, row: 4, idle: [0, 1], move: [2, 3], attack: [4, 5], hit: 6, disabled: 7, fps: 6, tint: [0.45, 0.88, 1.0] }
-  - { id: field_medic, row: 0, idle: [0, 1], move: [2, 3], attack: [4, 5], hit: 6, disabled: 7, fps: 6, tint: [0.90, 1.0, 0.82] }
-  - { id: mirror_sentinel, row: 5, idle: [0, 1], move: [2, 3], attack: [4, 5], hit: 6, disabled: 7, fps: 5, tint: [0.34, 0.70, 1.0] }
-  - { id: ash_runner, row: 1, idle: [0, 1], move: [2, 3], attack: [4, 5], hit: 6, disabled: 7, fps: 8, tint: [1.0, 0.45, 0.28] }
-  - { id: ash_bulwark, row: 2, idle: [0, 1], move: [2, 3], attack: [4, 5], hit: 6, disabled: 7, fps: 6, tint: [0.78, 0.28, 0.20] }
-  - { id: ash_lancer, row: 3, idle: [0, 1], move: [2, 3], attack: [4, 5], hit: 6, disabled: 7, fps: 7, tint: [1.0, 0.72, 0.24] }
-  - { id: ash_sapper, row: 4, idle: [0, 1], move: [2, 3], attack: [4, 5], hit: 6, disabled: 7, fps: 6, tint: [0.95, 0.34, 0.18] }
-  - { id: ash_whisper, row: 0, idle: [0, 1], move: [2, 3], attack: [4, 5], hit: 6, disabled: 7, fps: 6, tint: [0.72, 0.36, 0.84] }
-  - { id: ash_commander, row: 5, idle: [0, 1], move: [2, 3], attack: [4, 5], hit: 6, disabled: 7, fps: 5, tint: [1.0, 0.28, 0.18] }
+  - { id: mirror_wayfinder, row: 1, idle: [0, 1], move: [2, 3], attack: [4, 5], hit: 6, disabled: 7, fps: 8, tint: [0.48, 0.95, 0.86], silhouette_scale: [0.78, 1.18], silhouette_rotation_degrees: -4.0 }
+  - { id: mirror_warden, row: 2, idle: [0, 1], move: [2, 3], attack: [4, 5], hit: 6, disabled: 7, fps: 6, tint: [0.56, 0.82, 1.0], silhouette_scale: [1.18, 1.06], silhouette_rotation_degrees: 0.0 }
+  - { id: mirror_striker, row: 3, idle: [0, 1], move: [2, 3], attack: [4, 5], hit: 6, disabled: 7, fps: 7, tint: [0.78, 1.0, 0.42], silhouette_scale: [0.88, 1.24], silhouette_rotation_degrees: 5.0 }
+  - { id: relay_engineer_variant, row: 4, idle: [0, 1], move: [2, 3], attack: [4, 5], hit: 6, disabled: 7, fps: 6, tint: [0.45, 0.88, 1.0], silhouette_scale: [1.12, 0.92], silhouette_rotation_degrees: -7.0 }
+  - { id: field_medic, row: 0, idle: [0, 1], move: [2, 3], attack: [4, 5], hit: 6, disabled: 7, fps: 6, tint: [0.90, 1.0, 0.82], silhouette_scale: [0.92, 1.08], silhouette_rotation_degrees: 2.0 }
+  - { id: mirror_sentinel, row: 5, idle: [0, 1], move: [2, 3], attack: [4, 5], hit: 6, disabled: 7, fps: 5, tint: [0.34, 0.70, 1.0], silhouette_scale: [1.24, 1.18], silhouette_rotation_degrees: 0.0 }
+  - { id: ash_runner, row: 1, idle: [0, 1], move: [2, 3], attack: [4, 5], hit: 6, disabled: 7, fps: 8, tint: [1.0, 0.45, 0.28], silhouette_scale: [0.72, 1.22], silhouette_rotation_degrees: 7.0 }
+  - { id: ash_bulwark, row: 2, idle: [0, 1], move: [2, 3], attack: [4, 5], hit: 6, disabled: 7, fps: 6, tint: [0.78, 0.28, 0.20], silhouette_scale: [1.28, 1.02], silhouette_rotation_degrees: -2.0 }
+  - { id: ash_lancer, row: 3, idle: [0, 1], move: [2, 3], attack: [4, 5], hit: 6, disabled: 7, fps: 7, tint: [1.0, 0.72, 0.24], silhouette_scale: [0.82, 1.30], silhouette_rotation_degrees: -6.0 }
+  - { id: ash_sapper, row: 4, idle: [0, 1], move: [2, 3], attack: [4, 5], hit: 6, disabled: 7, fps: 6, tint: [0.95, 0.34, 0.18], silhouette_scale: [1.16, 0.86], silhouette_rotation_degrees: 8.0 }
+  - { id: ash_whisper, row: 0, idle: [0, 1], move: [2, 3], attack: [4, 5], hit: 6, disabled: 7, fps: 6, tint: [0.72, 0.36, 0.84], silhouette_scale: [0.86, 1.12], silhouette_rotation_degrees: 10.0 }
+  - { id: ash_commander, row: 5, idle: [0, 1], move: [2, 3], attack: [4, 5], hit: 6, disabled: 7, fps: 5, tint: [1.0, 0.28, 0.18], silhouette_scale: [1.30, 1.14], silhouette_rotation_degrees: 3.0 }
 
 terrain_frames:
   moss_a: 0
@@ -65,16 +65,16 @@ structure_families:
   - { id: refinery, idle: 28, active: 29 }
   - { id: shield_relay, idle: 30, active: 31 }
   - { id: defense_turret, idle: 32, active: 33 }
-  - { id: command_post, idle: 24, active: 25, tint: [0.72, 0.96, 0.84] }
-  - { id: field_workshop_variant, idle: 26, active: 27, tint: [0.58, 0.78, 0.96] }
-  - { id: relay_generator, idle: 30, active: 31, tint: [0.42, 0.95, 1.0] }
-  - { id: supply_cache, idle: 28, active: 29, tint: [0.88, 0.84, 0.46] }
-  - { id: field_barricade, idle: 32, active: 33, tint: [0.72, 0.72, 0.68] }
-  - { id: sensor_tower, idle: 30, active: 31, tint: [0.42, 0.80, 1.0] }
-  - { id: field_hospital, idle: 28, active: 29, tint: [0.82, 1.0, 0.78] }
-  - { id: siege_foundry, idle: 26, active: 27, tint: [1.0, 0.44, 0.22] }
-  - { id: ash_beacon, idle: 30, active: 31, tint: [0.96, 0.24, 0.20] }
-  - { id: forward_rally, idle: 24, active: 25, tint: [0.92, 0.68, 0.34] }
+  - { id: command_post, idle: 24, active: 25, tint: [0.72, 0.96, 0.84], silhouette_scale: [1.18, 1.08], silhouette_rotation_degrees: 0.0 }
+  - { id: field_workshop_variant, idle: 26, active: 27, tint: [0.58, 0.78, 0.96], silhouette_scale: [1.26, 0.92], silhouette_rotation_degrees: -2.0 }
+  - { id: relay_generator, idle: 30, active: 31, tint: [0.42, 0.95, 1.0], silhouette_scale: [0.88, 1.28], silhouette_rotation_degrees: 0.0 }
+  - { id: supply_cache, idle: 28, active: 29, tint: [0.88, 0.84, 0.46], silhouette_scale: [1.22, 0.78], silhouette_rotation_degrees: 3.0 }
+  - { id: field_barricade, idle: 32, active: 33, tint: [0.72, 0.72, 0.68], silhouette_scale: [1.34, 0.66], silhouette_rotation_degrees: -5.0 }
+  - { id: sensor_tower, idle: 30, active: 31, tint: [0.42, 0.80, 1.0], silhouette_scale: [0.70, 1.36], silhouette_rotation_degrees: 1.0 }
+  - { id: field_hospital, idle: 28, active: 29, tint: [0.82, 1.0, 0.78], silhouette_scale: [1.08, 0.96], silhouette_rotation_degrees: 5.0 }
+  - { id: siege_foundry, idle: 26, active: 27, tint: [1.0, 0.44, 0.22], silhouette_scale: [1.32, 1.04], silhouette_rotation_degrees: 2.0 }
+  - { id: ash_beacon, idle: 30, active: 31, tint: [0.96, 0.24, 0.20], silhouette_scale: [0.76, 1.42], silhouette_rotation_degrees: -3.0 }
+  - { id: forward_rally, idle: 24, active: 25, tint: [0.92, 0.68, 0.34], silhouette_scale: [1.14, 0.84], silhouette_rotation_degrees: 7.0 }
 
 landmark_frames:
   front: [34, 35]

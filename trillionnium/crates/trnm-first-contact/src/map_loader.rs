@@ -483,6 +483,8 @@ fn merge_yaml(base: &mut serde_yaml::Value, overlay: serde_yaml::Value) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use trnm_campaign_core::{CampaignFaction, CampaignMission, CampaignSaveV1};
+    use trnm_rts_sim::run_skirmish_balance_matrix;
 
     #[test]
     fn authored_first_contact_map_loads_and_meets_vertical_slice_shape() {
@@ -585,5 +587,80 @@ mod tests {
         .map(|map| map.objective.id.as_str())
         .collect::<std::collections::BTreeSet<_>>();
         assert_eq!(skirmish_objectives.len(), 4);
+    }
+
+    #[test]
+    fn real_authored_maps_faction_swaps_and_seed_salts_drive_balance_matrix() {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../assets");
+        let catalog = MissionMapCatalog::load(&root).unwrap();
+        let cases = [
+            (CampaignMission::IronDeltaSkirmish, &catalog.iron_delta),
+            (
+                CampaignMission::NightWatchCrossingSkirmish,
+                &catalog.night_watch_crossing,
+            ),
+            (CampaignMission::GlassBasinSkirmish, &catalog.glass_basin),
+            (
+                CampaignMission::EmberOrchardSkirmish,
+                &catalog.ember_orchard,
+            ),
+        ];
+        let mut seeds = Vec::new();
+        for (mission, map) in cases {
+            for player_faction in [
+                CampaignFaction::MirrorCoalition,
+                CampaignFaction::AshenCompact,
+            ] {
+                for seed_index in 0..3 {
+                    let mut campaign = CampaignSaveV1 {
+                        campaign_id: format!(
+                            "real-balance-{}-{player_faction:?}-{seed_index}",
+                            map.id
+                        ),
+                        ..CampaignSaveV1::default()
+                    };
+                    campaign.prepare_standalone_skirmish().unwrap();
+                    campaign.active_mission = mission;
+                    campaign.skirmish_setup.player_faction = player_faction;
+                    campaign.skirmish_setup.enemy_faction = player_faction.opponent();
+                    campaign.skirmish_setup.simulation_seed = seed_index + 1;
+                    seeds.push(
+                        campaign
+                            .start_first_contact_battle(map.battle_seed_map().unwrap())
+                            .unwrap(),
+                    );
+                }
+            }
+        }
+        let matrix = run_skirmish_balance_matrix(&seeds, 600).unwrap();
+        assert_eq!(matrix.samples.len(), 24);
+        assert_eq!(
+            matrix
+                .samples
+                .iter()
+                .map(|sample| sample.map_fingerprint.as_str())
+                .collect::<std::collections::BTreeSet<_>>()
+                .len(),
+            4
+        );
+        for map_id in [
+            "iron_delta",
+            "night_watch_crossing",
+            "glass_basin",
+            "ember_orchard",
+        ] {
+            assert_eq!(
+                matrix
+                    .samples
+                    .iter()
+                    .filter(|sample| sample.map_id == map_id)
+                    .map(|sample| sample.simulation_salt)
+                    .collect::<std::collections::BTreeSet<_>>()
+                    .len(),
+                3,
+                "battle identity must produce real deterministic variation for {map_id}"
+            );
+        }
+        assert!(matrix.faction_pressure_delta_permille <= 450);
     }
 }

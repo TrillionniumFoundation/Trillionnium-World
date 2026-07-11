@@ -629,6 +629,63 @@ pub struct QuestConditionNode {
     pub quantity: u16,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum QuestGraphTopology {
+    OathCircuit,
+    SplitInvestigation,
+    CommissionDependency,
+    RecoverySpoke,
+    EscortRelay,
+    HuntPincer,
+    SalvageClaim,
+    TonicChain,
+    WitnessCorroboration,
+    DebtMediation,
+    ManifestTrace,
+    CurfewRelay,
+    ConvoyAssembly,
+    TrackEncirclement,
+    AuditReconciliation,
+}
+
+impl QuestGraphTopology {
+    pub fn for_quest(quest_id: &str) -> Option<Self> {
+        Some(match quest_id {
+            "wayfinder_oath" => Self::OathCircuit,
+            "broken_milestone" => Self::SplitInvestigation,
+            "forge_commission" => Self::CommissionDependency,
+            "lost_tooling" => Self::RecoverySpoke,
+            "lantern_watch" => Self::EscortRelay,
+            "wanted_raider" => Self::HuntPincer,
+            "relay_salvage" => Self::SalvageClaim,
+            "fever_tonic" => Self::TonicChain,
+            "archive_witness" => Self::WitnessCorroboration,
+            "market_debt" => Self::DebtMediation,
+            "missing_crate" => Self::ManifestTrace,
+            "night_letter" => Self::CurfewRelay,
+            "escort_manifest" => Self::ConvoyAssembly,
+            "bandit_tracks" => Self::TrackEncirclement,
+            "ration_audit" => Self::AuditReconciliation,
+            _ => return None,
+        })
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct QuestConditionEdge {
+    pub from: String,
+    pub to: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct QuestConditionGraph {
+    pub quest_id: String,
+    pub topology: QuestGraphTopology,
+    pub nodes: Vec<QuestConditionNode>,
+    pub edges: Vec<QuestConditionEdge>,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct QuestNarrativeDefinition {
     pub quest_id: &'static str,
@@ -779,7 +836,7 @@ pub struct RegionalQuestDefinition {
 pub fn quest_condition_graph(
     definition: &RegionalQuestDefinition,
     approach: QuestApproach,
-) -> Vec<QuestConditionNode> {
+) -> QuestConditionGraph {
     let mut nodes = vec![QuestConditionNode {
         id: format!("{}_giver", definition.id),
         kind: QuestConditionKind::SpeakToGiver,
@@ -834,7 +891,87 @@ pub fn quest_condition_graph(
             .to_string(),
         quantity: 1,
     });
-    nodes
+    let topology = QuestGraphTopology::for_quest(definition.id)
+        .expect("every authored regional quest has a bespoke topology");
+    let node_ids = nodes.iter().map(|node| node.id.clone()).collect::<Vec<_>>();
+    let giver = node_ids[0].clone();
+    let settlement = node_ids.last().expect("settlement node exists").clone();
+    let middle = &node_ids[1..node_ids.len() - 1];
+    let mut edges = Vec::new();
+    let mut connect = |from: &str, to: &str| {
+        edges.push(QuestConditionEdge {
+            from: from.to_string(),
+            to: to.to_string(),
+        });
+    };
+    match topology {
+        QuestGraphTopology::OathCircuit | QuestGraphTopology::TonicChain => {
+            for pair in node_ids.windows(2) {
+                connect(&pair[0], &pair[1]);
+            }
+        }
+        QuestGraphTopology::SplitInvestigation
+        | QuestGraphTopology::WitnessCorroboration
+        | QuestGraphTopology::AuditReconciliation => {
+            for node in middle {
+                connect(&giver, node);
+                connect(node, &settlement);
+            }
+        }
+        QuestGraphTopology::CommissionDependency
+        | QuestGraphTopology::DebtMediation
+        | QuestGraphTopology::ManifestTrace => {
+            if let Some(first) = middle.first() {
+                connect(&giver, first);
+                for node in middle.iter().skip(1) {
+                    connect(first, node);
+                    connect(node, &settlement);
+                }
+            } else {
+                connect(&giver, &settlement);
+            }
+        }
+        QuestGraphTopology::RecoverySpoke
+        | QuestGraphTopology::SalvageClaim
+        | QuestGraphTopology::ConvoyAssembly => {
+            for node in middle {
+                connect(&giver, node);
+            }
+            if let Some(last) = middle.last() {
+                for node in middle.iter().take(middle.len().saturating_sub(1)) {
+                    connect(node, last);
+                }
+                connect(last, &settlement);
+            }
+        }
+        QuestGraphTopology::EscortRelay | QuestGraphTopology::CurfewRelay => {
+            if let Some(first) = middle.first() {
+                connect(&giver, first);
+                for pair in middle.windows(2) {
+                    connect(&pair[0], &pair[1]);
+                }
+                connect(middle.last().unwrap_or(first), &settlement);
+                connect(&giver, &settlement);
+            }
+        }
+        QuestGraphTopology::HuntPincer | QuestGraphTopology::TrackEncirclement => {
+            if let Some(last) = middle.last() {
+                for node in middle.iter().take(middle.len().saturating_sub(1)) {
+                    connect(&giver, node);
+                    connect(node, last);
+                }
+                connect(last, &settlement);
+            } else {
+                connect(&giver, &settlement);
+            }
+        }
+    }
+    QuestConditionGraph {
+        quest_id: definition.id.to_string(),
+        topology,
+        nodes,
+        edges,
+    }
 }
 
 pub const REGIONAL_QUEST_CATALOG: [RegionalQuestDefinition; 15] = [
@@ -1595,17 +1732,28 @@ mod tests {
                 let graph = quest_condition_graph(quest, approach);
                 assert_eq!(
                     graph
+                        .nodes
                         .iter()
                         .filter(|node| node.kind == QuestConditionKind::VisitWaypoint)
                         .count(),
                     quest.waypoint_room_ids.len()
                 );
                 assert_eq!(
-                    graph.last().map(|node| node.kind),
+                    graph.nodes.last().map(|node| node.kind),
                     Some(QuestConditionKind::ReturnForSettlement)
                 );
+                assert!(!graph.edges.is_empty());
             }
         }
+        assert_eq!(
+            REGIONAL_QUEST_CATALOG
+                .iter()
+                .map(|quest| quest_condition_graph(quest, QuestApproach::Direct).topology)
+                .collect::<std::collections::BTreeSet<_>>()
+                .len(),
+            REGIONAL_QUEST_CATALOG.len(),
+            "every regional quest must retain a distinct authored topology"
+        );
     }
 
     #[test]

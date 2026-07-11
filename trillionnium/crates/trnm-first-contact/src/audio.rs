@@ -12,6 +12,10 @@ const AUDIO_ASSETS: [(&str, usize); 2] = [
     ("first_contact/audio/mirror_city_loop.wav", 600_000),
     ("first_contact/audio/signal_battle_loop.wav", 300_000),
 ];
+// The supported X230 service runs the renderer and audio under a shared 50%
+// CPU quota. A long ambient-loop buffer is preferable to startup underruns;
+// this audio baseline has no latency-sensitive voice or rhythm input.
+const AUDIO_STABILITY_BUFFER_FRAMES: u32 = 32_768;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 struct AudioState {
@@ -83,7 +87,7 @@ fn run_audio_thread(
     let mut last_stream_warning = Instant::now() - Duration::from_secs(30);
     let stream = DeviceSinkBuilder::from_default_device()
         .map_err(|error| error.to_string())?
-        .with_buffer_size(BufferSize::Fixed(8192))
+        .with_buffer_size(BufferSize::Fixed(AUDIO_STABILITY_BUFFER_FRAMES))
         .with_error_callback(move |error| {
             if last_stream_warning.elapsed() >= Duration::from_secs(10) {
                 eprintln!("TRNM audio stream warning: {error}");

@@ -8,7 +8,7 @@ does not redefine the open-ended historical product vision as a percentage.
 ## RPG acceptance
 
 - every equippable catalog entry has an explicit typed BattleSeed modifier;
-- all fifteen quests expose authored condition graphs, resolution/failure text,
+- all fifteen quests expose distinct named graph topologies with explicit edges, resolution/failure text,
   item/trust/encounter/route gates, retries and approach consequences;
 - the world contains twenty connected rooms, including four-room Glass Basin
   and Ashen Fringe regions;
@@ -24,14 +24,16 @@ does not redefine the open-ended historical product vision as a percentage.
 - four standalone skirmish maps validate and deploy from the title setup;
 - both sides use map-resident workers, shared finite resource nodes, cargo
   return, destructible buildings, supply, power, production and research;
+- an enemy construction job binds a real builder and site and cannot advance
+  until that worker reaches the site;
 - enemy jobs require a surviving worker and sufficient power/supply;
 - enemy buildings take damage only from explicit attack authority;
 - all twelve unit abilities have unique typed runtime effects;
 - dynamic trained enemy units and both sides' structures render with twelve
   unit and ten structure identities backed by project-owned atlas rows;
 - a replay export reconstructs and hash-verifies the final simulation snapshot;
-- the balance regression executes 24 real-authority samples: four maps × both
-  faction assignments × three deterministic seeds, with a bounded pressure
+- the balance regression executes 24 real-authority samples by loading all four
+  authored YAML maps × both faction assignments × three selectable deterministic seeds, with a bounded pressure
   delta;
 - the standalone skirmish E2E issues real commands until a terminal result,
   exports/verifies replay, settles once and rejects duplicate progression.
