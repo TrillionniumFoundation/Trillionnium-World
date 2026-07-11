@@ -100,8 +100,12 @@ fn room_label(room: CampaignRoom) -> &'static str {
         CampaignRoom::OuterSignalRoad => "OUTER SIGNAL ROAD",
         CampaignRoom::GlassBasinWayhouse => "GLASS BASIN WAYHOUSE",
         CampaignRoom::DeepRelay => "DEEP RELAY",
+        CampaignRoom::GlassReedMarsh => "GLASS REED MARSH",
+        CampaignRoom::BasinObservatory => "BASIN OBSERVATORY",
         CampaignRoom::MoonBridge => "MOON BRIDGE",
         CampaignRoom::EmberOrchardEdge => "EMBER ORCHARD EDGE",
+        CampaignRoom::AshBeaconField => "ASH BEACON FIELD",
+        CampaignRoom::CinderRefuge => "CINDER REFUGE",
     }
 }
 

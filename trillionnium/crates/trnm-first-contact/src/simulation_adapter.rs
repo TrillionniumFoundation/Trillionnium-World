@@ -1351,26 +1351,43 @@ pub(super) fn advance_first_contact_simulation(
         .map(|(_, _, _, structure)| structure.id.clone())
         .collect::<BTreeSet<_>>();
     if let Some(handles) = handles.as_deref() {
-        let family = manifest
-            .unit("sentinel")
-            .expect("support sentinel family is authored");
         for (id, (position, alive, player, _, _)) in &simulated_visuals {
-            if (!id.starts_with("field_support_") && !id.starts_with("field_medic_"))
-                || existing_visual_ids.contains(id)
-            {
+            if existing_visual_ids.contains(id) {
                 continue;
             }
+            let family_id = flow
+                .mission
+                .as_ref()
+                .and_then(|mission| mission.enemies.iter().find(|unit| unit.unit_id == *id))
+                .and_then(|unit| {
+                    unit.skill_ids.iter().find_map(|skill| {
+                        UNIT_ROSTER
+                            .iter()
+                            .find(|entry| entry.ability().rule_id() == skill)
+                            .map(|entry| entry.visual_family)
+                    })
+                })
+                .unwrap_or(if id.starts_with("enemy_worker_") {
+                    "worker"
+                } else {
+                    "sentinel"
+                });
+            let family = manifest
+                .unit(family_id)
+                .expect("dynamic unit visual family is authored");
+            let mut sprite = atlas_sprite(
+                handles.units_image.clone(),
+                handles.units_layout.clone(),
+                family.atlas_index(if *alive {
+                    family.idle[0]
+                } else {
+                    family.disabled
+                }),
+                Vec2::splat(map.tile_size as f32 * 1.55),
+            );
+            sprite.color = Color::srgb(family.tint[0], family.tint[1], family.tint[2]);
             commands.spawn((
-                atlas_sprite(
-                    handles.world_image.clone(),
-                    handles.world_layout.clone(),
-                    if *alive {
-                        family.idle[0]
-                    } else {
-                        family.disabled
-                    },
-                    Vec2::splat(map.tile_size as f32 * 1.55),
-                ),
+                sprite,
                 Transform::from_translation(map_world_position(
                     &map,
                     position.x as i32,
@@ -1379,38 +1396,44 @@ pub(super) fn advance_first_contact_simulation(
                 )),
                 FirstContactUnitSprite {
                     id: id.clone(),
-                    family: "sentinel".to_string(),
+                    family: family_id.to_string(),
                     owner: if *player { "player" } else { "contact" }.to_string(),
                 },
             ));
         }
         if let Some(mission) = flow.mission.as_ref() {
-            for structure in &mission.structures {
+            for structure in mission.structures.iter().chain(&mission.enemy_structures) {
                 if existing_structure_ids.contains(&structure.structure_id) {
                     continue;
                 }
                 let family_id = match structure.kind {
-                    SimStructureKind::CommandPost => "command_core",
-                    SimStructureKind::FieldWorkshop => "foundry",
-                    SimStructureKind::RelayGenerator => "shield_relay",
-                    SimStructureKind::SupplyCache => "refinery",
-                    SimStructureKind::FieldBarricade => "defense_turret",
-                    SimStructureKind::SensorTower => "shield_relay",
-                    SimStructureKind::FieldHospital => "refinery",
-                    SimStructureKind::SiegeFoundry => "foundry",
-                    SimStructureKind::AshBeacon => "shield_relay",
-                    SimStructureKind::ForwardRally => "command_core",
+                    SimStructureKind::CommandPost => "command_post",
+                    SimStructureKind::FieldWorkshop => "field_workshop_variant",
+                    SimStructureKind::RelayGenerator => "relay_generator",
+                    SimStructureKind::SupplyCache => "supply_cache",
+                    SimStructureKind::FieldBarricade => "field_barricade",
+                    SimStructureKind::SensorTower => "sensor_tower",
+                    SimStructureKind::FieldHospital => "field_hospital",
+                    SimStructureKind::SiegeFoundry => "siege_foundry",
+                    SimStructureKind::AshBeacon => "ash_beacon",
+                    SimStructureKind::ForwardRally => "forward_rally",
                 };
                 let family = manifest
                     .structure(family_id)
                     .expect("sim structure family is authored");
+                let mut sprite = atlas_sprite(
+                    handles.world_image.clone(),
+                    handles.world_layout.clone(),
+                    family.active,
+                    Vec2::splat(map.tile_size as f32 * 2.35),
+                );
+                sprite.color = if structure.structure_id.starts_with("enemy_") {
+                    Color::srgb(1.0, family.tint[1] * 0.55, family.tint[2] * 0.55)
+                } else {
+                    Color::srgb(family.tint[0], family.tint[1], family.tint[2])
+                };
                 commands.spawn((
-                    atlas_sprite(
-                        handles.world_image.clone(),
-                        handles.world_layout.clone(),
-                        family.active,
-                        Vec2::splat(map.tile_size as f32 * 2.35),
-                    ),
+                    sprite,
                     Transform::from_translation(map_world_position(
                         &map,
                         structure.position.x as i32,
@@ -1520,6 +1543,7 @@ pub(super) fn advance_first_contact_simulation(
             mission
                 .structures
                 .iter()
+                .chain(&mission.enemy_structures)
                 .find(|candidate| candidate.structure_id == structure.id)
         }) {
             transform.translation = map_world_position(

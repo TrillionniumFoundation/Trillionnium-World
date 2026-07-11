@@ -25,6 +25,8 @@ pub struct UnitFamily {
     pub hit: usize,
     pub disabled: usize,
     pub fps: u8,
+    #[serde(default = "white_tint")]
+    pub tint: [f32; 3],
 }
 
 impl UnitFamily {
@@ -38,6 +40,12 @@ pub struct StructureFamily {
     pub id: String,
     pub idle: usize,
     pub active: usize,
+    #[serde(default = "white_tint")]
+    pub tint: [f32; 3],
+}
+
+fn white_tint() -> [f32; 3] {
+    [1.0, 1.0, 1.0]
 }
 
 #[derive(Debug, Clone, Deserialize, Resource)]
@@ -73,8 +81,10 @@ impl FirstContactAtlasManifest {
         {
             return Err("First Contact atlas must be a normalized 8x6 128px grid".into());
         }
-        if self.unit_families.len() != 6 || self.structure_families.len() < 5 {
-            return Err("First Contact atlas requires six unit and five structure families".into());
+        if self.unit_families.len() < 18 || self.structure_families.len() < 15 {
+            return Err(
+                "First Contact atlas requires base and unique roster visual families".into(),
+            );
         }
         if self.unit_families.iter().any(|family| {
             family.fps < 4 || family.idle.len() + family.r#move.len() + family.attack.len() + 2 < 8
@@ -181,12 +191,16 @@ mod tests {
     use super::*;
 
     #[test]
-    fn authored_atlas_manifest_has_six_units_five_structures_and_feedback() {
+    fn authored_atlas_manifest_has_unique_roster_visuals_and_feedback() {
         let path =
             Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../assets/first_contact/atlas.yaml");
         let atlas = load_first_contact_atlas(&path).expect("authored atlas loads");
-        assert_eq!(atlas.unit_families.len(), 6);
-        assert_eq!(atlas.structure_families.len(), 5);
+        assert_eq!(atlas.unit_families.len(), 18);
+        assert_eq!(atlas.structure_families.len(), 15);
+        assert_ne!(
+            atlas.unit("mirror_wayfinder").unwrap().tint,
+            atlas.unit("ash_runner").unwrap().tint
+        );
         assert!(atlas.effect_frames.contains_key("selection_ring"));
         assert!(atlas.terrain_frames.contains_key("moss_basalt_ne"));
     }

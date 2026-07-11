@@ -52,8 +52,13 @@ Mirror Square
 - `trnm_battle_seed_v8`
 - `trnm_battle_result_v2`
 - `trnm_settlement_receipt_v1`
-- `trnm_rts_sim_v11`
-- `trnm_rts_sim_checkpoint_v11`
+- `trnm_rts_sim_v12`
+- `trnm_rts_sim_checkpoint_v12`
+
+Campaign persistence remains `trnm_campaign_save_v1` with schema revision 5.
+Revision 5 adds authored quest condition evidence, NPC social memory, main-story
+choice, selected sect technique, and market stock/demand while preserving the
+existing migration path.
 
 `BattleSeedV1` binds campaign revision, battle id, map/rules version, four
 persistent party members, spawn slots, skills, typed equipment modifiers,
@@ -84,6 +89,29 @@ Settlement is two-phase and crash safe:
 - origin + build path + earned mastery -> conditional equipment affixes;
 - injury -> bounded HP and movement penalties;
 - party member -> named persistent unit bound to `party_0..party_3` spawn slots.
+
+Every non-material equipment catalog entry has an explicit typed modifier.
+The invariant is exhaustive, so a crafted/catalog ID cannot silently miss its
+BattleSeed effect.
+
+## Deeper RPG and symmetric skirmish authority
+
+- all fifteen regional quests own a typed condition graph, authored approach
+  prose, failure recovery, and approach-specific relationship/economy effects;
+- the twenty-room world includes four-room Glass Basin and Ashen Fringe
+  regions plus a persisted three-chapter main-story choice;
+- NPC schedules produce bounded pairwise social-event memories that alter
+  relationships and market stock/demand;
+- each sect exposes three selectable techniques, while encounters retain
+  telegraphed enemy moves and typed combat statuses;
+- both RTS sides use `SimUnit` workers, shared resource nodes, cargo return,
+  `SimStructure` buildings, power, supply, production and research jobs;
+- enemy buildings are explicit selectable attack targets; proximity cannot
+  damage a base;
+- all twelve roster abilities have individual authoritative effects;
+- `trnm_battle_replay_v1` replays frame orders and verifies the final snapshot
+  hash; the balance gate runs four maps, both faction assignments and three
+  deterministic seeds per assignment through live simulation authority.
 
 The authored map's four selected player records are presentation spawn slots;
 they are no longer hard-coded RPG character identities.

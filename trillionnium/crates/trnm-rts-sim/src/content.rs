@@ -30,6 +30,43 @@ pub enum UnitAbility {
     CommandSurge,
 }
 
+impl UnitAbility {
+    pub fn rule_id(self) -> &'static str {
+        match self {
+            Self::RevealPulse => "reveal_pulse",
+            Self::GuardWall => "guard_wall",
+            Self::ArcVolley => "arc_volley",
+            Self::FieldRepair => "field_repair",
+            Self::TriageAura => "triage_aura",
+            Self::SuppressionBlast => "suppression_blast",
+            Self::SmokeDash => "smoke_dash",
+            Self::RetaliationPlate => "retaliation_plate",
+            Self::PiercingCharge => "piercing_charge",
+            Self::DemolitionCharge => "demolition_charge",
+            Self::SignalJam => "signal_jam",
+            Self::CommandSurge => "command_surge",
+        }
+    }
+
+    pub fn from_rule_id(rule_id: &str) -> Option<Self> {
+        Some(match rule_id {
+            "reveal_pulse" => Self::RevealPulse,
+            "guard_wall" => Self::GuardWall,
+            "arc_volley" => Self::ArcVolley,
+            "field_repair" => Self::FieldRepair,
+            "triage_aura" => Self::TriageAura,
+            "suppression_blast" => Self::SuppressionBlast,
+            "smoke_dash" => Self::SmokeDash,
+            "retaliation_plate" => Self::RetaliationPlate,
+            "piercing_charge" => Self::PiercingCharge,
+            "demolition_charge" => Self::DemolitionCharge,
+            "signal_jam" => Self::SignalJam,
+            "command_surge" => Self::CommandSurge,
+            _ => return None,
+        })
+    }
+}
+
 impl UnitArchetype {
     pub fn ability(&self) -> UnitAbility {
         match self.id {
@@ -54,7 +91,7 @@ pub const UNIT_ROSTER: [UnitArchetype; 12] = [
     UnitArchetype {
         id: "mirror_wayfinder",
         faction: RtsFaction::MirrorCoalition,
-        visual_family: "scout",
+        visual_family: "mirror_wayfinder",
         role: "recon",
         cost: 45,
         hp: 110,
@@ -64,7 +101,7 @@ pub const UNIT_ROSTER: [UnitArchetype; 12] = [
     UnitArchetype {
         id: "mirror_warden",
         faction: RtsFaction::MirrorCoalition,
-        visual_family: "warden",
+        visual_family: "mirror_warden",
         role: "frontline",
         cost: 65,
         hp: 210,
@@ -74,7 +111,7 @@ pub const UNIT_ROSTER: [UnitArchetype; 12] = [
     UnitArchetype {
         id: "mirror_striker",
         faction: RtsFaction::MirrorCoalition,
-        visual_family: "striker",
+        visual_family: "mirror_striker",
         role: "assault",
         cost: 70,
         hp: 145,
@@ -84,7 +121,7 @@ pub const UNIT_ROSTER: [UnitArchetype; 12] = [
     UnitArchetype {
         id: "relay_engineer",
         faction: RtsFaction::MirrorCoalition,
-        visual_family: "relay_engineer",
+        visual_family: "relay_engineer_variant",
         role: "builder",
         cost: 50,
         hp: 130,
@@ -94,7 +131,7 @@ pub const UNIT_ROSTER: [UnitArchetype; 12] = [
     UnitArchetype {
         id: "field_medic",
         faction: RtsFaction::MirrorCoalition,
-        visual_family: "worker",
+        visual_family: "field_medic",
         role: "support",
         cost: 55,
         hp: 105,
@@ -104,7 +141,7 @@ pub const UNIT_ROSTER: [UnitArchetype; 12] = [
     UnitArchetype {
         id: "mirror_sentinel",
         faction: RtsFaction::MirrorCoalition,
-        visual_family: "sentinel",
+        visual_family: "mirror_sentinel",
         role: "heavy",
         cost: 90,
         hp: 260,
@@ -114,7 +151,7 @@ pub const UNIT_ROSTER: [UnitArchetype; 12] = [
     UnitArchetype {
         id: "ash_runner",
         faction: RtsFaction::AshenCompact,
-        visual_family: "scout",
+        visual_family: "ash_runner",
         role: "raider",
         cost: 45,
         hp: 100,
@@ -124,7 +161,7 @@ pub const UNIT_ROSTER: [UnitArchetype; 12] = [
     UnitArchetype {
         id: "ash_bulwark",
         faction: RtsFaction::AshenCompact,
-        visual_family: "warden",
+        visual_family: "ash_bulwark",
         role: "frontline",
         cost: 65,
         hp: 225,
@@ -134,7 +171,7 @@ pub const UNIT_ROSTER: [UnitArchetype; 12] = [
     UnitArchetype {
         id: "ash_lancer",
         faction: RtsFaction::AshenCompact,
-        visual_family: "striker",
+        visual_family: "ash_lancer",
         role: "assault",
         cost: 70,
         hp: 135,
@@ -144,7 +181,7 @@ pub const UNIT_ROSTER: [UnitArchetype; 12] = [
     UnitArchetype {
         id: "ash_sapper",
         faction: RtsFaction::AshenCompact,
-        visual_family: "relay_engineer",
+        visual_family: "ash_sapper",
         role: "siege",
         cost: 60,
         hp: 120,
@@ -154,7 +191,7 @@ pub const UNIT_ROSTER: [UnitArchetype; 12] = [
     UnitArchetype {
         id: "ash_whisper",
         faction: RtsFaction::AshenCompact,
-        visual_family: "worker",
+        visual_family: "ash_whisper",
         role: "disruptor",
         cost: 60,
         hp: 95,
@@ -164,7 +201,7 @@ pub const UNIT_ROSTER: [UnitArchetype; 12] = [
     UnitArchetype {
         id: "ash_commander",
         faction: RtsFaction::AshenCompact,
-        visual_family: "sentinel",
+        visual_family: "ash_commander",
         role: "heavy",
         cost: 95,
         hp: 245,

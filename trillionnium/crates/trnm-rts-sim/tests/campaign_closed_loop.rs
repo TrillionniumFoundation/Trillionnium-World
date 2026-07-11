@@ -215,16 +215,51 @@ fn standalone_skirmish_configuration_runs_and_settles_back_into_rpg_once() {
     let directory = tempdir().unwrap();
     let store = CampaignStore::new(directory.path().join("standalone-skirmish.json"));
     let mut campaign = CampaignSaveV1::default();
+    campaign.cycle_difficulty().unwrap();
+    campaign.cycle_difficulty().unwrap();
+    campaign.move_to(CampaignRoom::MentorHall).unwrap();
+    campaign.talk_to_mentor().unwrap();
+    campaign.train_with_mentor().unwrap();
+    campaign.equip_starter_weapon().unwrap();
+    campaign.cycle_party_preset().unwrap();
     campaign.prepare_standalone_skirmish().unwrap();
     assert_eq!(campaign.active_mission, CampaignMission::IronDeltaSkirmish);
     campaign.cycle_skirmish_faction().unwrap();
     campaign.cycle_skirmish_resources().unwrap();
+    campaign.cycle_skirmish_victory_mode().unwrap();
+    campaign.cycle_skirmish_victory_mode().unwrap();
     let seed = campaign.start_first_contact_battle(map()).unwrap();
     assert!(seed.skirmish.enabled);
     let mut sim = MissionSimV1::from_seed(seed).unwrap();
-    sim.objective_index = sim.seed.mission.objectives.len();
-    sim.step().unwrap();
-    assert_eq!(sim.outcome, Some(BattleOutcome::Victory));
+    while !sim.terminal() {
+        if sim.tick.is_multiple_of(20) || sim.active_order.is_none() {
+            let visible_enemy = sim
+                .enemies
+                .iter()
+                .find(|enemy| enemy.alive() && sim.is_enemy_visible(&enemy.unit_id))
+                .map(|enemy| (enemy.unit_id.clone(), enemy.position));
+            let visible_structure = sim
+                .enemy_structures
+                .iter()
+                .find(|structure| {
+                    structure.hp > 0 && sim.visible_tiles.contains(&structure.position)
+                })
+                .map(|structure| (structure.structure_id.clone(), structure.position));
+            let (kind, actor, target) = visible_enemy
+                .or(visible_structure)
+                .map(|(actor, target)| (RtsOrderKind::Attack, Some(actor), target))
+                .unwrap_or((RtsOrderKind::AttackMove, None, sim.seed.map.objective));
+            let mut command = order(&sim, kind, target);
+            command.target_actor_id = actor;
+            sim.issue_order(command).unwrap();
+        }
+        sim.step().unwrap();
+    }
+    assert_eq!(sim.outcome, Some(BattleOutcome::Defeat));
+    assert!(sim.order_count >= 3);
+    assert!(!sim.replay_orders.is_empty());
+    let replay = sim.export_replay().unwrap();
+    replay.replay_and_verify().unwrap();
     let result = sim.into_result().unwrap();
     store
         .stage_result_atomic(&mut campaign, result.clone())
@@ -232,7 +267,7 @@ fn standalone_skirmish_configuration_runs_and_settles_back_into_rpg_once() {
     let receipt = store.settle_atomic(&mut campaign).unwrap();
     assert!(!receipt.duplicate);
     assert_eq!(campaign.phase, CampaignPhase::Town);
-    assert!(campaign.progression.world_flags.contains("iron_delta_won"));
+    assert!(!campaign.progression.world_flags.contains("iron_delta_won"));
     let duplicate = campaign.submit_battle_result(result).unwrap();
     assert!(duplicate.duplicate);
     assert_eq!(duplicate.experience_delta, 0);

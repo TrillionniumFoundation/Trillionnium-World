@@ -13,19 +13,22 @@ use std::{
     path::{Path, PathBuf},
 };
 use trnm_rpg_core::{
-    inventory_item_for as trillionnium_inventory_item_for, market_price, mirror_city_world_graph,
-    npc_choice_dialogue, npc_dialogue, npc_room_at, npc_schedule, original_combat_log,
-    quest_runtime_rule, quest_step_verb, resolve_mentor_sparring, skill_unlockable, BuildPath,
-    BuildTitle, Character as WorldTrillionniumCharacter, CharacterOrigin, CombatLogBeat,
-    DialogueChoice, EncounterOutcome, EquipmentAffixCondition, FactionRank, GrowthStat,
-    ItemCondition, NpcRelationship, QuestApproach, RelationshipAction, RelationshipStage,
-    RpgEncounterState, SparringAction, SparringOutcome, SparringReport, TechniqueStyle,
-    TrillionniumAttributes, WorldRoutePlan, ARCHIVE_STEPS_ROOM, CARAVAN_YARD_ROOM,
+    inventory_item_for as trillionnium_inventory_item_for, market_price_with_state,
+    mirror_city_world_graph, npc_choice_dialogue, npc_dialogue, npc_room_at, npc_schedule,
+    npc_social_event, original_combat_log, quest_condition_graph, quest_narrative,
+    quest_resolution_text, quest_runtime_rule, quest_step_verb, resolve_mentor_sparring,
+    skill_unlockable, BuildPath, BuildTitle, Character as WorldTrillionniumCharacter,
+    CharacterOrigin, CombatLogBeat, DialogueChoice, EncounterOutcome, EquipmentAffixCondition,
+    FactionRank, GrowthStat, ItemCondition, NpcRelationship, QuestApproach, RelationshipAction,
+    RelationshipStage, RpgEncounterState, SparringAction, SparringOutcome, SparringReport,
+    TechniqueStyle, TrillionniumAttributes, WorldRoutePlan, ARCHIVE_STEPS_ROOM,
+    ASH_BEACON_FIELD_ROOM, BASIN_OBSERVATORY_ROOM, CARAVAN_YARD_ROOM, CINDER_REFUGE_ROOM,
     CISTERN_WARD_ROOM, CRAFTING_RECIPES, DEEP_RELAY_ROOM, ECONOMY_ITEM_CATALOG,
     EMBER_ORCHARD_EDGE_ROOM, ENCOUNTER_CATALOG, EXPEDITION_GATE_ROOM, GLASS_BASIN_WAYHOUSE_ROOM,
-    LANTERN_INFIRMARY_ROOM, MARKET_WIND_PAVILION_ROOM, MENTOR_HALL_ROOM, MIRROR_SQUARE_ROOM,
-    MOON_BRIDGE_ROOM, NIGHT_WATCH_POST_ROOM, NPC_CATALOG, OUTER_SIGNAL_ROAD_ROOM,
-    REGIONAL_QUEST_CATALOG, RELAY_QUARTER_ROOM, SECT_CATALOG, SKILL_CATALOG, WORKSHOP_GATE_ROOM,
+    GLASS_REED_MARSH_ROOM, LANTERN_INFIRMARY_ROOM, MARKET_WIND_PAVILION_ROOM, MENTOR_HALL_ROOM,
+    MIRROR_SQUARE_ROOM, MOON_BRIDGE_ROOM, NIGHT_WATCH_POST_ROOM, NPC_CATALOG,
+    OUTER_SIGNAL_ROAD_ROOM, REGIONAL_QUEST_CATALOG, RELAY_QUARTER_ROOM, SECT_CATALOG,
+    SKILL_CATALOG, WORKSHOP_GATE_ROOM,
 };
 pub use trnm_rpg_core::{EncounterAction, MasteryChallenge, SectId};
 
@@ -167,8 +170,12 @@ pub enum CampaignRoom {
     OuterSignalRoad,
     GlassBasinWayhouse,
     DeepRelay,
+    GlassReedMarsh,
+    BasinObservatory,
     MoonBridge,
     EmberOrchardEdge,
+    AshBeaconField,
+    CinderRefuge,
 }
 
 impl CampaignRoom {
@@ -188,8 +195,12 @@ impl CampaignRoom {
             Self::OuterSignalRoad => OUTER_SIGNAL_ROAD_ROOM,
             Self::GlassBasinWayhouse => GLASS_BASIN_WAYHOUSE_ROOM,
             Self::DeepRelay => DEEP_RELAY_ROOM,
+            Self::GlassReedMarsh => GLASS_REED_MARSH_ROOM,
+            Self::BasinObservatory => BASIN_OBSERVATORY_ROOM,
             Self::MoonBridge => MOON_BRIDGE_ROOM,
             Self::EmberOrchardEdge => EMBER_ORCHARD_EDGE_ROOM,
+            Self::AshBeaconField => ASH_BEACON_FIELD_ROOM,
+            Self::CinderRefuge => CINDER_REFUGE_ROOM,
         }
     }
 
@@ -209,8 +220,12 @@ impl CampaignRoom {
             Self::OuterSignalRoad => "外信号道",
             Self::GlassBasinWayhouse => "琉璃盆地驿",
             Self::DeepRelay => "深层中继站",
+            Self::GlassReedMarsh => "琉璃苇泽",
+            Self::BasinObservatory => "盆地观象台",
             Self::MoonBridge => "月镜桥",
             Self::EmberOrchardEdge => "烬果园边地",
+            Self::AshBeaconField => "灰烬烽野",
+            Self::CinderRefuge => "余烬避难所",
         }
     }
 }
@@ -374,7 +389,10 @@ impl SkirmishSetup {
         if !self.enabled {
             return Ok(());
         }
-        if !matches!(map_id, "iron_delta" | "night_watch_crossing") {
+        if !matches!(
+            map_id,
+            "iron_delta" | "night_watch_crossing" | "glass_basin" | "ember_orchard"
+        ) {
             return Err(CampaignError::InvalidContract(
                 "skirmish setup requires an authored skirmish map".to_string(),
             ));
@@ -1319,6 +1337,8 @@ impl BattleSeedV1 {
                 | "mirror_siege"
                 | "iron_delta"
                 | "night_watch_crossing"
+                | "glass_basin"
+                | "ember_orchard"
         ) || self.rules_version != FIRST_CONTACT_RULES_VERSION
         {
             return Err(CampaignError::InvalidContract(
@@ -1328,7 +1348,10 @@ impl BattleSeedV1 {
         self.map.validate()?;
         self.mission.validate(&self.map)?;
         self.skirmish.validate(&self.map_id)?;
-        let skirmish_map = matches!(self.map_id.as_str(), "iron_delta" | "night_watch_crossing");
+        let skirmish_map = matches!(
+            self.map_id.as_str(),
+            "iron_delta" | "night_watch_crossing" | "glass_basin" | "ember_orchard"
+        );
         if self.skirmish.enabled != skirmish_map {
             return Err(CampaignError::InvalidContract(
                 "skirmish setup and selected map disagree".to_string(),
@@ -1484,6 +1507,36 @@ pub struct NpcConversationRecord {
     pub minute_of_day: u16,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct NpcSocialEventRecord {
+    pub event_id: String,
+    pub first_npc_id: String,
+    pub second_npc_id: String,
+    pub room_id: String,
+    pub text: String,
+    pub day: u32,
+    pub minute_of_day: u16,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum MainStoryChoice {
+    #[default]
+    ProtectWayhouses,
+    ExposeConspiracy,
+    ForgeAccord,
+}
+
+impl MainStoryChoice {
+    pub fn next(self) -> Self {
+        match self {
+            Self::ProtectWayhouses => Self::ExposeConspiracy,
+            Self::ExposeConspiracy => Self::ForgeAccord,
+            Self::ForgeAccord => Self::ProtectWayhouses,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum MainStoryChapter {
@@ -1599,11 +1652,19 @@ pub struct CampaignSaveV1 {
     #[serde(default)]
     pub dialogue_choice: DialogueChoice,
     #[serde(default)]
+    pub equipped_technique_slot: u8,
+    #[serde(default)]
     pub main_story_chapter: MainStoryChapter,
+    #[serde(default)]
+    pub main_story_choice: MainStoryChoice,
     #[serde(default)]
     pub last_npc_conversation: Option<NpcConversationRecord>,
     #[serde(default)]
     pub conversation_history: Vec<NpcConversationRecord>,
+    #[serde(default)]
+    pub social_event_history: Vec<NpcSocialEventRecord>,
+    #[serde(default)]
+    pub npc_memory: BTreeMap<String, Vec<String>>,
     #[serde(default)]
     pub selected_shop_item_index: usize,
     #[serde(default)]
@@ -1612,6 +1673,10 @@ pub struct CampaignSaveV1 {
     pub selected_inventory_index: usize,
     #[serde(default)]
     pub item_conditions: BTreeMap<String, ItemCondition>,
+    #[serde(default)]
+    pub market_stock: BTreeMap<String, u16>,
+    #[serde(default)]
+    pub market_demand: BTreeMap<String, i16>,
     #[serde(default)]
     pub quest_chain: Option<QuestChainProgress>,
     #[serde(default)]
@@ -1678,7 +1743,7 @@ impl Default for CampaignSaveV1 {
         let item_conditions = character_item_conditions(&character);
         Self {
             contract_version: CAMPAIGN_SAVE_CONTRACT.to_string(),
-            schema_revision: 4,
+            schema_revision: 5,
             campaign_id: "local-campaign".to_string(),
             revision: 0,
             room: CampaignRoom::MirrorSquare,
@@ -1850,13 +1915,25 @@ impl Default for CampaignSaveV1 {
             active_regional_quest_runtime: None,
             regional_quest_failure_counts: BTreeMap::new(),
             dialogue_choice: DialogueChoice::AskForWork,
+            equipped_technique_slot: 0,
             main_story_chapter: MainStoryChapter::MirrorCityOaths,
+            main_story_choice: MainStoryChoice::ProtectWayhouses,
             last_npc_conversation: None,
             conversation_history: Vec::new(),
+            social_event_history: Vec::new(),
+            npc_memory: BTreeMap::new(),
             selected_shop_item_index: 0,
             selected_recipe_index: 0,
             selected_inventory_index: 0,
             item_conditions,
+            market_stock: ECONOMY_ITEM_CATALOG
+                .iter()
+                .map(|item| (item.id.to_string(), if item.material { 12 } else { 4 }))
+                .collect(),
+            market_demand: ECONOMY_ITEM_CATALOG
+                .iter()
+                .map(|item| (item.id.to_string(), 0))
+                .collect(),
             quest_chain: None,
             world_clock: WorldClock::default(),
             expedition_supplies: ExpeditionSupplyState::default(),
@@ -1873,7 +1950,7 @@ impl Default for CampaignSaveV1 {
 
 impl CampaignSaveV1 {
     pub fn ensure_gameplay_defaults(&mut self) {
-        self.schema_revision = 4;
+        self.schema_revision = 5;
         if self.active_regional_quest_id.is_none() {
             self.active_regional_quest_step = 0;
             self.active_regional_quest_runtime = None;
@@ -1882,6 +1959,16 @@ impl CampaignSaveV1 {
             self.conversation_history = self
                 .conversation_history
                 .split_off(self.conversation_history.len() - 24);
+        }
+        if self.social_event_history.len() > 16 {
+            self.social_event_history = self
+                .social_event_history
+                .split_off(self.social_event_history.len() - 16);
+        }
+        for memory in self.npc_memory.values_mut() {
+            if memory.len() > 8 {
+                *memory = memory.split_off(memory.len() - 8);
+            }
         }
         self.selected_shop_item_index %= ECONOMY_ITEM_CATALOG.len();
         self.selected_recipe_index %= CRAFTING_RECIPES.len();
@@ -1933,6 +2020,12 @@ impl CampaignSaveV1 {
         for (instance_id, condition) in character_item_conditions(&self.character) {
             self.item_conditions.entry(instance_id).or_insert(condition);
         }
+        for item in ECONOMY_ITEM_CATALOG {
+            self.market_stock
+                .entry(item.id.to_string())
+                .or_insert(if item.material { 12 } else { 4 });
+            self.market_demand.entry(item.id.to_string()).or_insert(0);
+        }
         if self.character.display_name.trim().is_empty() {
             self.apply_character_identity_name();
         }
@@ -1969,12 +2062,16 @@ impl CampaignSaveV1 {
             self.story.unlocked_room_ids.extend([
                 GLASS_BASIN_WAYHOUSE_ROOM.to_string(),
                 DEEP_RELAY_ROOM.to_string(),
+                GLASS_REED_MARSH_ROOM.to_string(),
+                BASIN_OBSERVATORY_ROOM.to_string(),
             ]);
         }
         if self.progression.world_flags.contains("ashen_fringe_open") {
             self.story.unlocked_room_ids.extend([
                 MOON_BRIDGE_ROOM.to_string(),
                 EMBER_ORCHARD_EDGE_ROOM.to_string(),
+                ASH_BEACON_FIELD_ROOM.to_string(),
+                CINDER_REFUGE_ROOM.to_string(),
             ]);
         }
         let mut effective_flags = self.progression.world_flags.clone();
@@ -1995,7 +2092,7 @@ impl CampaignSaveV1 {
                 self.contract_version.clone(),
             ));
         }
-        if self.schema_revision != 4 {
+        if self.schema_revision != 5 {
             return Err(CampaignError::InvalidContract(format!(
                 "unsupported campaign schema revision {}",
                 self.schema_revision
@@ -2019,6 +2116,22 @@ impl CampaignSaveV1 {
         if self.conversation_history.len() > 24 {
             return Err(CampaignError::InvalidState(
                 "NPC conversation history exceeds its bounded save budget".to_string(),
+            ));
+        }
+        if self.social_event_history.len() > 16
+            || self.npc_memory.values().any(|memory| memory.len() > 8)
+        {
+            return Err(CampaignError::InvalidState(
+                "NPC social history exceeds its bounded save budget".to_string(),
+            ));
+        }
+        if ECONOMY_ITEM_CATALOG.iter().any(|item| {
+            !self.market_stock.contains_key(item.id)
+                || !self.market_demand.contains_key(item.id)
+                || self.market_demand[item.id].unsigned_abs() > 20
+        }) {
+            return Err(CampaignError::InvalidState(
+                "market stock/demand state is incomplete or out of bounds".to_string(),
             ));
         }
         if self.active_party_ids.len() != 4 {
@@ -2892,12 +3005,31 @@ impl CampaignSaveV1 {
     }
 
     fn active_technique_style(&self) -> TechniqueStyle {
-        match current_sect(&self.character) {
-            Some(SectId::StreetCompass) => TechniqueStyle::CompassFeint,
-            Some(SectId::IronWorkshop) => TechniqueStyle::ForgeCounter,
-            Some(SectId::NightWatch) => TechniqueStyle::NightVeil,
-            None => TechniqueStyle::CenterlineBreak,
+        let slot = self.equipped_technique_slot % 3;
+        match (current_sect(&self.character), slot) {
+            (Some(SectId::StreetCompass), 0) => TechniqueStyle::CompassFeint,
+            (Some(SectId::StreetCompass), 1) => TechniqueStyle::CompassSpiral,
+            (Some(SectId::StreetCompass), _) => TechniqueStyle::WayfinderSlip,
+            (Some(SectId::IronWorkshop), 0) => TechniqueStyle::ForgeCounter,
+            (Some(SectId::IronWorkshop), 1) => TechniqueStyle::RelayHammer,
+            (Some(SectId::IronWorkshop), _) => TechniqueStyle::IronReversal,
+            (Some(SectId::NightWatch), 0) => TechniqueStyle::NightVeil,
+            (Some(SectId::NightWatch), 1) => TechniqueStyle::ShadowNeedle,
+            (Some(SectId::NightWatch), _) => TechniqueStyle::LanternCut,
+            (None, _) => TechniqueStyle::CenterlineBreak,
         }
+    }
+
+    pub fn cycle_equipped_technique(&mut self) -> Result<TechniqueStyle, CampaignError> {
+        self.require_town()?;
+        if current_sect(&self.character).is_none() {
+            return Err(CampaignError::InvalidState(
+                "join a regional sect before configuring techniques".to_string(),
+            ));
+        }
+        self.equipped_technique_slot = (self.equipped_technique_slot + 1) % 3;
+        self.revision += 1;
+        Ok(self.active_technique_style())
     }
 
     pub fn act_in_signal_road_encounter(
@@ -3084,8 +3216,78 @@ impl CampaignSaveV1 {
             .stamina
             .saturating_add((minutes / 30) as u8)
             .min(100);
+        self.apply_current_social_event();
         self.revision += 1;
         Ok(())
+    }
+
+    fn apply_current_social_event(&mut self) {
+        let event = npc_social_event(self.world_clock.day, self.world_clock.minute_of_day);
+        if self
+            .social_event_history
+            .last()
+            .is_some_and(|record| record.event_id == event.id && record.day == self.world_clock.day)
+        {
+            return;
+        }
+        for npc_id in [event.first_npc_id, event.second_npc_id] {
+            if let Some(relationship) = self.npc_relationships.get_mut(npc_id) {
+                relationship.apply(RelationshipAction::Talk);
+            }
+            let memory = self.npc_memory.entry(npc_id.to_string()).or_default();
+            memory.push(event.text.to_string());
+            if memory.len() > 8 {
+                memory.remove(0);
+            }
+        }
+        let current_stock = self
+            .market_stock
+            .get(event.market_item_id)
+            .copied()
+            .unwrap_or_default();
+        let next_stock = if event.stock_delta >= 0 {
+            current_stock
+                .saturating_add(event.stock_delta as u16)
+                .min(99)
+        } else {
+            current_stock.saturating_sub(event.stock_delta.unsigned_abs())
+        };
+        self.market_stock
+            .insert(event.market_item_id.to_string(), next_stock);
+        let demand = self
+            .market_demand
+            .get(event.market_item_id)
+            .copied()
+            .unwrap_or_default();
+        self.market_demand.insert(
+            event.market_item_id.to_string(),
+            (demand + event.demand_delta).clamp(-20, 20),
+        );
+        self.social_event_history.push(NpcSocialEventRecord {
+            event_id: event.id.to_string(),
+            first_npc_id: event.first_npc_id.to_string(),
+            second_npc_id: event.second_npc_id.to_string(),
+            room_id: event.room_id.to_string(),
+            text: event.text.to_string(),
+            day: self.world_clock.day,
+            minute_of_day: self.world_clock.minute_of_day,
+        });
+        if self.social_event_history.len() > 16 {
+            self.social_event_history.remove(0);
+        }
+    }
+
+    pub fn cycle_main_story_choice(&mut self) -> Result<MainStoryChoice, CampaignError> {
+        self.require_town()?;
+        self.main_story_choice = self.main_story_choice.next();
+        self.progression
+            .world_flags
+            .retain(|flag| !flag.starts_with("main_story_choice_"));
+        self.progression
+            .world_flags
+            .insert(format!("main_story_choice_{:?}", self.main_story_choice).to_ascii_lowercase());
+        self.revision += 1;
+        Ok(self.main_story_choice)
     }
 
     pub fn current_regional_npc(&self) -> Option<&'static trnm_rpg_core::NpcDefinition> {
@@ -3165,8 +3367,14 @@ impl CampaignSaveV1 {
             }
             DialogueChoice::ShareNews => {}
         }
+        let remembered = self
+            .npc_memory
+            .get(npc.id)
+            .and_then(|memory| memory.last())
+            .map(|memory| format!(" I remember: {memory}"))
+            .unwrap_or_default();
         let line = format!(
-            "[{stage:?} / {:?}] {baseline} {response}",
+            "[{stage:?} / {:?}] {baseline} {response}{remembered}",
             self.dialogue_choice
         );
         let record = NpcConversationRecord {
@@ -3370,6 +3578,17 @@ impl CampaignSaveV1 {
         let runtime = self.active_regional_quest_runtime.clone().ok_or_else(|| {
             CampaignError::InvalidState("regional quest runtime is missing".to_string())
         })?;
+        let condition_graph = quest_condition_graph(definition, runtime.approach);
+        let visited_waypoints = condition_graph
+            .iter()
+            .filter(|node| node.kind == trnm_rpg_core::QuestConditionKind::VisitWaypoint)
+            .count();
+        if usize::from(runtime.evidence_count) < visited_waypoints {
+            return Err(CampaignError::InvalidState(format!(
+                "{} lacks authored route evidence {}/{}",
+                definition.title, runtime.evidence_count, visited_waypoints
+            )));
+        }
         let rule = quest_runtime_rule(definition.archetype);
         if runtime.approach == QuestApproach::Diplomatic {
             let trust = self
@@ -3418,6 +3637,36 @@ impl CampaignSaveV1 {
         self.progression
             .world_flags
             .insert(format!("regional_quest_{quest_id}_complete"));
+        self.progression.world_flags.insert(
+            format!("regional_quest_{quest_id}_{:?}", runtime.approach).to_ascii_lowercase(),
+        );
+        let stock = self
+            .market_stock
+            .entry(rule.resource_item_id.to_string())
+            .or_default();
+        let demand = self
+            .market_demand
+            .entry(rule.resource_item_id.to_string())
+            .or_default();
+        match runtime.approach {
+            QuestApproach::Direct => {
+                *stock = stock.saturating_add(1);
+                *demand = demand.saturating_sub(1).max(-20);
+            }
+            QuestApproach::Diplomatic => {
+                *stock = stock.saturating_add(2);
+                *demand = demand.saturating_sub(2).max(-20);
+            }
+            QuestApproach::Resourceful => {
+                *demand = demand.saturating_add(3).min(20);
+            }
+        }
+        if let Some(text) = quest_resolution_text(&quest_id, runtime.approach) {
+            self.combat_log.push(CombatLogBeat {
+                kind: "quest_resolution".to_string(),
+                text: text.to_string(),
+            });
+        }
         if let Some(giver) = NPC_CATALOG
             .iter()
             .find(|npc| npc.id == definition.giver_npc_id)
@@ -3447,6 +3696,39 @@ impl CampaignSaveV1 {
             10..=14 => MainStoryChapter::AshenFringeCountermarch,
             _ => MainStoryChapter::ChapterComplete,
         };
+        if matches!(completed, 5 | 10 | 15) {
+            let (flag, credits, reputation, text) = match self.main_story_choice {
+                MainStoryChoice::ProtectWayhouses => (
+                    "main_story_wayhouses_protected",
+                    35,
+                    2,
+                    "The frontier wayhouses become neutral shelters under your guarantee.",
+                ),
+                MainStoryChoice::ExposeConspiracy => (
+                    "main_story_conspiracy_exposed",
+                    15,
+                    5,
+                    "The archive publishes the hidden supply chain and forces public resignations.",
+                ),
+                MainStoryChoice::ForgeAccord => (
+                    "main_story_frontier_accord",
+                    25,
+                    3,
+                    "Mirror City and the Ashen Fringe sign a guarded trade accord.",
+                ),
+            };
+            self.progression.world_flags.insert(flag.to_string());
+            self.progression.credits += credits;
+            self.character.attributes.reputation = self
+                .character
+                .attributes
+                .reputation
+                .saturating_add(reputation);
+            self.combat_log.push(CombatLogBeat {
+                kind: "main_story_choice".to_string(),
+                text: text.to_string(),
+            });
+        }
         if completed >= 5 {
             self.progression
                 .world_flags
@@ -3502,12 +3784,12 @@ impl CampaignSaveV1 {
         self.progression
             .world_flags
             .insert(format!("regional_quest_{quest_id}_failed_{}", *failures));
+        let authored_failure = quest_narrative(&quest_id)
+            .map(|narrative| narrative.failure)
+            .unwrap_or(reason);
         self.combat_log.push(CombatLogBeat {
             kind: "quest_failure".to_string(),
-            text: format!(
-                "{} failed: {reason}. The giver will allow a revised attempt.",
-                definition.title
-            ),
+            text: format!("{} failed: {reason}. {authored_failure}", definition.title,),
         });
         self.active_regional_quest_id = None;
         self.active_regional_quest_step = 0;
@@ -3522,7 +3804,15 @@ impl CampaignSaveV1 {
             .iter()
             .find(|definition| definition.id == item_id)
             .ok_or_else(|| CampaignError::InvalidState(format!("unknown shop item: {item_id}")))?;
-        let price = market_price(item_id, self.world_clock.day, true)
+        let stock = self.market_stock.get(item_id).copied().unwrap_or_default();
+        if stock == 0 {
+            return Err(CampaignError::InvalidState(format!(
+                "{} is out of stock until local production recovers",
+                definition.display_name
+            )));
+        }
+        let demand = self.market_demand.get(item_id).copied().unwrap_or_default();
+        let price = market_price_with_state(item_id, self.world_clock.day, stock, demand, true)
             .expect("catalog item has a market price");
         if self.progression.credits < price {
             return Err(CampaignError::InvalidState(format!(
@@ -3531,6 +3821,9 @@ impl CampaignSaveV1 {
             )));
         }
         self.progression.credits -= price;
+        self.market_stock.insert(item_id.to_string(), stock - 1);
+        self.market_demand
+            .insert(item_id.to_string(), (demand + 2).min(20));
         if definition.material {
             merge_loot(
                 &mut self.progression.inventory,
@@ -3570,11 +3863,17 @@ impl CampaignSaveV1 {
 
     pub fn shop_selection_label(&self) -> String {
         let item = self.selected_shop_item();
+        let stock = self.market_stock.get(item.id).copied().unwrap_or_default();
+        let demand = self.market_demand.get(item.id).copied().unwrap_or_default();
         format!(
-            "{} | buy {} / sell {} credits | durability {}{} | day {} demand",
+            "{} | buy {} / sell {} credits | stock {} demand {:+} | durability {}{} | day {}",
             item.display_name,
-            market_price(item.id, self.world_clock.day, true).unwrap_or(item.buy_price),
-            market_price(item.id, self.world_clock.day, false).unwrap_or(item.buy_price / 2),
+            market_price_with_state(item.id, self.world_clock.day, stock, demand, true)
+                .unwrap_or(item.buy_price),
+            market_price_with_state(item.id, self.world_clock.day, stock, demand, false)
+                .unwrap_or(item.buy_price / 2),
+            stock,
+            demand,
             item.max_durability,
             if item.material { " | material" } else { "" },
             self.world_clock.day,
@@ -3615,9 +3914,15 @@ impl CampaignSaveV1 {
                 .equipment_slots
                 .retain(|_, instance_id| instance_id != &removed.item_instance_id);
         }
-        let price = market_price(item.id, self.world_clock.day, false)
+        let stock = self.market_stock.get(item.id).copied().unwrap_or_default();
+        let demand = self.market_demand.get(item.id).copied().unwrap_or_default();
+        let price = market_price_with_state(item.id, self.world_clock.day, stock, demand, false)
             .expect("catalog item has a market price");
         self.progression.credits += price;
+        self.market_stock
+            .insert(item.id.to_string(), stock.saturating_add(1).min(99));
+        self.market_demand
+            .insert(item.id.to_string(), (demand - 2).max(-20));
         self.progression.world_flags.insert(format!(
             "market_sale_{}_day_{}",
             item.id, self.world_clock.day
@@ -3657,6 +3962,13 @@ impl CampaignSaveV1 {
         }
         for (item_id, quantity) in recipe.ingredients {
             consume_loot(&mut self.progression.inventory, item_id, *quantity)?;
+            let demand = self
+                .market_demand
+                .entry((*item_id).to_string())
+                .or_default();
+            *demand = demand
+                .saturating_add(i16::try_from(*quantity).unwrap_or(i16::MAX))
+                .min(20);
         }
         let item = trillionnium_inventory_item_for(
             &self.character.matrix_user_id,
@@ -4732,6 +5044,10 @@ pub fn typed_equipment_modifier(item_id: &str) -> TypedEquipmentModifier {
             modifier.energy = 25;
             modifier.ability_range = 2;
         }
+        "evidence-wrap-case" => {
+            modifier.energy = 10;
+            modifier.ability_range = 1;
+        }
         "reinforced-staff" => {
             modifier.damage = 10;
             modifier.armor = 2;
@@ -4750,7 +5066,7 @@ pub fn typed_equipment_modifier(item_id: &str) -> TypedEquipmentModifier {
             modifier.energy = 35;
             modifier.ability_range = 1;
         }
-        "compass-storm-coat" => {
+        "compass-thread-coat" => {
             modifier.armor = 2;
             modifier.move_speed_milli = 140;
             modifier.evasion_permille = 50;
@@ -4759,7 +5075,7 @@ pub fn typed_equipment_modifier(item_id: &str) -> TypedEquipmentModifier {
             modifier.energy = 30;
             modifier.ability_range = 3;
         }
-        "cistern-repair-kit" => {
+        "cistern-seal-kit" => {
             modifier.max_hp = 25;
             modifier.armor = 3;
         }
@@ -5697,10 +6013,25 @@ mod tests {
         assert!(campaign.character.equipment_slots.contains_key("relic"));
         let modifier = typed_equipment_modifier("relay-core-fragment");
         assert!(modifier.energy > 0 && modifier.ability_range > 0);
-        let coat = typed_equipment_modifier("compass-storm-coat");
+        let coat = typed_equipment_modifier("compass-thread-coat");
         assert!(coat.armor > 0 && coat.move_speed_milli > 0 && coat.evasion_permille > 0);
         let lens = typed_equipment_modifier("emberglass-lens");
         assert!(lens.energy > 0 && lens.ability_range > 0);
+        for item in ECONOMY_ITEM_CATALOG.iter().filter(|item| !item.material) {
+            let modifier = typed_equipment_modifier(item.id);
+            assert!(
+                modifier.max_hp != 0
+                    || modifier.damage != 0
+                    || modifier.armor != 0
+                    || modifier.move_speed_milli != 0
+                    || modifier.attack_interval_ticks != 0
+                    || modifier.evasion_permille != 0
+                    || modifier.energy != 0
+                    || modifier.ability_range != 0,
+                "non-material catalog item {} has no explicit BattleSeed modifier",
+                item.id
+            );
+        }
     }
 
     #[test]
@@ -6185,9 +6516,9 @@ mod tests {
     }
 
     #[test]
-    fn sixteen_room_four_region_three_sect_world_and_regional_quest_route_are_live() {
+    fn twenty_room_four_region_three_sect_world_and_regional_quest_route_are_live() {
         let graph = mirror_city_world_graph();
-        assert_eq!(graph.rooms.len(), 16);
+        assert_eq!(graph.rooms.len(), 20);
         assert_eq!(
             graph
                 .rooms

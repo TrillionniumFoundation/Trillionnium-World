@@ -434,6 +434,34 @@ pub fn npc_choice_dialogue(
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct NpcSocialEventDefinition {
+    pub id: &'static str,
+    pub first_npc_id: &'static str,
+    pub second_npc_id: &'static str,
+    pub room_id: &'static str,
+    pub market_item_id: &'static str,
+    pub stock_delta: i16,
+    pub demand_delta: i16,
+    pub text: &'static str,
+}
+
+pub const NPC_SOCIAL_EVENTS: [NpcSocialEventDefinition; 8] = [
+    NpcSocialEventDefinition { id: "forge_clinic_exchange", first_npc_id: "master-orsen", second_npc_id: "healer-nima", room_id: "lantern_infirmary", market_item_id: "salvaged-alloy", stock_delta: -1, demand_delta: 3, text: "Orsen trades clean alloy splints for Nima's burn treatment, tightening the metal market." },
+    NpcSocialEventDefinition { id: "watch_courier_argument", first_npc_id: "captain-veyra", second_npc_id: "courier-tess", room_id: "night_watch_post", market_item_id: "route-token", stock_delta: 2, demand_delta: -2, text: "Veyra and Tess publish a shared curfew route after a loud argument at the watch desk." },
+    NpcSocialEventDefinition { id: "archive_market_audit", first_npc_id: "archivist-sol", second_npc_id: "merchant-aya", room_id: "archive_steps", market_item_id: "market-ledger", stock_delta: 1, demand_delta: -3, text: "Sol audits Aya's caravan books and releases a disputed ledger back into trade." },
+    NpcSocialEventDefinition { id: "scout_wayfinder_chart", first_npc_id: "scout-mako", second_npc_id: "street-compass-sifu", room_id: "basin_observatory", market_item_id: "route-token", stock_delta: -2, demand_delta: 4, text: "Mako and the Sifu mark a safe basin crossing, consuming the city's reserve route tokens." },
+    NpcSocialEventDefinition { id: "brann_quartermaster_repairs", first_npc_id: "relay-smith-brann", second_npc_id: "quartermaster-nia", room_id: "cistern_ward", market_item_id: "cistern-seal-kit", stock_delta: 2, demand_delta: -2, text: "Brann and Nia finish a public cistern repair and return spare seal kits to the stalls." },
+    NpcSocialEventDefinition { id: "healer_watch_requisition", first_npc_id: "healer-nima", second_npc_id: "captain-veyra", room_id: "lantern_infirmary", market_item_id: "field-tonic-kit", stock_delta: -2, demand_delta: 4, text: "The night watch requisitions fever tonics after a patrol returns injured." },
+    NpcSocialEventDefinition { id: "courier_caravan_fair", first_npc_id: "courier-tess", second_npc_id: "merchant-aya", room_id: "caravan_yard", market_item_id: "watch-cloth", stock_delta: 3, demand_delta: -2, text: "Tess delivers an early cloth caravan and Aya opens a one-day yard fair." },
+    NpcSocialEventDefinition { id: "ash_refuge_relief", first_npc_id: "quartermaster-nia", second_npc_id: "scout-mako", room_id: "cinder_refuge", market_item_id: "ashward-tonic", stock_delta: -1, demand_delta: 5, text: "Nia and Mako divert ashward tonics to families arriving at Cinder Refuge." },
+];
+
+pub fn npc_social_event(day: u32, minute_of_day: u16) -> &'static NpcSocialEventDefinition {
+    let period = usize::from(minute_of_day / 360);
+    &NPC_SOCIAL_EVENTS[(day as usize + period) % NPC_SOCIAL_EVENTS.len()]
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum QuestArchetype {
@@ -582,6 +610,160 @@ pub fn quest_step_verb(archetype: QuestArchetype, step: usize) -> &'static str {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum QuestConditionKind {
+    SpeakToGiver,
+    VisitWaypoint,
+    WinEncounter,
+    ReachTrust,
+    ConsumeItem,
+    ReturnForSettlement,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct QuestConditionNode {
+    pub id: String,
+    pub kind: QuestConditionKind,
+    pub subject_id: String,
+    pub quantity: u16,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct QuestNarrativeDefinition {
+    pub quest_id: &'static str,
+    pub direct: &'static str,
+    pub diplomatic: &'static str,
+    pub resourceful: &'static str,
+    pub failure: &'static str,
+}
+
+pub const QUEST_NARRATIVES: [QuestNarrativeDefinition; 15] = [
+    QuestNarrativeDefinition {
+        quest_id: "wayfinder_oath",
+        direct: "You cross the broken span under the mentor's measured blows.",
+        diplomatic: "The apprentices testify that your route kept every traveller together.",
+        resourceful: "Fresh route tokens turn the trial into a safe public crossing.",
+        failure:
+            "The oath is postponed until the route can be attempted without abandoning a companion.",
+    },
+    QuestNarrativeDefinition {
+        quest_id: "broken_milestone",
+        direct: "The ambushers yield the milestone and the hidden survey marks.",
+        diplomatic: "Two rival witnesses agree once their maps are compared in public.",
+        resourceful: "Recovered alloy exposes the tampered hinge without a fight.",
+        failure:
+            "Rain erases the exposed tracks; the investigation must restart from signed testimony.",
+    },
+    QuestNarrativeDefinition {
+        quest_id: "forge_commission",
+        direct: "The missing mould is recovered from the relay floor by hand.",
+        diplomatic: "Orsen accepts the caravan ledger as proof of lawful ownership.",
+        resourceful: "Replacement alloy lets the forge finish without the disputed mould.",
+        failure: "The commission cools unfinished and the client withdraws the first payment.",
+    },
+    QuestNarrativeDefinition {
+        quest_id: "lost_tooling",
+        direct: "The scrap stalker is driven off and every maker's mark is recovered.",
+        diplomatic: "The yard crews reveal which broker moved the stolen tools.",
+        resourceful: "A matched alloy set replaces the tools before the next shift.",
+        failure:
+            "The trail reaches the ash road too late and must be rebuilt from caravan records.",
+    },
+    QuestNarrativeDefinition {
+        quest_id: "lantern_watch",
+        direct: "The escort holds formation through the moving lantern gap.",
+        diplomatic: "Veyra's sentries open a protected corridor after hearing your witnesses.",
+        resourceful: "Route tokens buy spare lanterns and remove the blind interval.",
+        failure: "The protected group scatters and the watch records a failed escort.",
+    },
+    QuestNarrativeDefinition {
+        quest_id: "wanted_raider",
+        direct: "The Ash Runner is cornered before the outer switchback.",
+        diplomatic: "Local scouts trade the runner's safehouse for amnesty.",
+        resourceful: "Watch cloth marks a false trail that draws the runner into custody.",
+        failure: "The quarry crosses the ridge and the warrant returns to the night watch.",
+    },
+    QuestNarrativeDefinition {
+        quest_id: "relay_salvage",
+        direct: "Brann recovers the live core while you hold the scrap line.",
+        diplomatic: "The salvagers divide the relay by witnessed claim instead of force.",
+        resourceful: "Replacement alloy preserves the core and the rival claim together.",
+        failure: "The unstable housing collapses and the salvage claim must be surveyed again.",
+    },
+    QuestNarrativeDefinition {
+        quest_id: "fever_tonic",
+        direct: "The tonic reaches the ward through the crowded market lane.",
+        diplomatic: "Nima persuades both stalls to release their reserved herbs.",
+        resourceful: "Clean alloy vessels preserve enough medicine for the full ward.",
+        failure: "The fever cycle advances before the delivery and the recipe must be remade.",
+    },
+    QuestNarrativeDefinition {
+        quest_id: "archive_witness",
+        direct: "The witness signs after you reconstruct the night watch route.",
+        diplomatic: "Sol seals two corroborating statements into the public archive.",
+        resourceful: "A recovered ledger supplies the missing time and seal.",
+        failure: "The unsigned account is challenged and removed from the archive.",
+    },
+    QuestNarrativeDefinition {
+        quest_id: "market_debt",
+        direct: "The sealed account reaches the forge before collection begins.",
+        diplomatic: "Aya and Orsen agree to a public repayment schedule.",
+        resourceful: "A route token carries the debt through a bonded courier channel.",
+        failure: "The account arrives after collection and must be renegotiated.",
+    },
+    QuestNarrativeDefinition {
+        quest_id: "missing_crate",
+        direct: "The dock thieves surrender the marked crate intact.",
+        diplomatic: "The yard workers identify the false manifest without reprisals.",
+        resourceful: "A ledger comparison proves which crate was relabelled.",
+        failure: "The false manifest is burned and the search returns to the cistern tally.",
+    },
+    QuestNarrativeDefinition {
+        quest_id: "night_letter",
+        direct: "The letter crosses curfew under pursuit and keeps its seal.",
+        diplomatic: "The watch records a lawful exception for the courier route.",
+        resourceful: "A route token transfers the letter through a trusted relay.",
+        failure: "Curfew closes the route and the sender must write a new dated letter.",
+    },
+    QuestNarrativeDefinition {
+        quest_id: "escort_manifest",
+        direct: "The manifest and its bearers reach the expedition gate together.",
+        diplomatic: "Both caravan captains sign one shared escort order.",
+        resourceful: "A route token secures a guarded freight slot.",
+        failure: "The convoy departs without the disputed manifest.",
+    },
+    QuestNarrativeDefinition {
+        quest_id: "bandit_tracks",
+        direct: "The ambush line breaks when you turn its own tracks against it.",
+        diplomatic: "Mako's informants identify the bandit quartermaster.",
+        resourceful: "Watch cloth decoys split the raiders from their supply trail.",
+        failure: "Wind fills the last prints and the hunt returns to the gate.",
+    },
+    QuestNarrativeDefinition {
+        quest_id: "ration_audit",
+        direct: "The missing ration lots are counted in front of every ward.",
+        diplomatic: "Nia wins agreement on a fair shortage schedule.",
+        resourceful: "Replacement alloy repairs the sealed bins before spoilage.",
+        failure: "The books and physical stores diverge beyond a defensible count.",
+    },
+];
+
+pub fn quest_narrative(quest_id: &str) -> Option<&'static QuestNarrativeDefinition> {
+    QUEST_NARRATIVES
+        .iter()
+        .find(|narrative| narrative.quest_id == quest_id)
+}
+
+pub fn quest_resolution_text(quest_id: &str, approach: QuestApproach) -> Option<&'static str> {
+    let narrative = quest_narrative(quest_id)?;
+    Some(match approach {
+        QuestApproach::Direct => narrative.direct,
+        QuestApproach::Diplomatic => narrative.diplomatic,
+        QuestApproach::Resourceful => narrative.resourceful,
+    })
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct RegionalQuestDefinition {
     pub id: &'static str,
@@ -592,6 +774,67 @@ pub struct RegionalQuestDefinition {
     pub encounter_id: Option<&'static str>,
     pub credit_reward: i64,
     pub reputation_reward: i32,
+}
+
+pub fn quest_condition_graph(
+    definition: &RegionalQuestDefinition,
+    approach: QuestApproach,
+) -> Vec<QuestConditionNode> {
+    let mut nodes = vec![QuestConditionNode {
+        id: format!("{}_giver", definition.id),
+        kind: QuestConditionKind::SpeakToGiver,
+        subject_id: definition.giver_npc_id.to_string(),
+        quantity: 1,
+    }];
+    nodes.extend(
+        definition
+            .waypoint_room_ids
+            .iter()
+            .enumerate()
+            .map(|(index, room)| QuestConditionNode {
+                id: format!("{}_waypoint_{}", definition.id, index + 1),
+                kind: QuestConditionKind::VisitWaypoint,
+                subject_id: (*room).to_string(),
+                quantity: 1,
+            }),
+    );
+    let rule = quest_runtime_rule(definition.archetype);
+    match approach {
+        QuestApproach::Direct => {
+            if let Some(encounter) = definition.encounter_id {
+                nodes.push(QuestConditionNode {
+                    id: format!("{}_encounter", definition.id),
+                    kind: QuestConditionKind::WinEncounter,
+                    subject_id: encounter.to_string(),
+                    quantity: 1,
+                });
+            }
+        }
+        QuestApproach::Diplomatic => nodes.push(QuestConditionNode {
+            id: format!("{}_trust", definition.id),
+            kind: QuestConditionKind::ReachTrust,
+            subject_id: definition.giver_npc_id.to_string(),
+            quantity: rule.minimum_trust_for_diplomacy.max(0) as u16,
+        }),
+        QuestApproach::Resourceful => nodes.push(QuestConditionNode {
+            id: format!("{}_resource", definition.id),
+            kind: QuestConditionKind::ConsumeItem,
+            subject_id: rule.resource_item_id.to_string(),
+            quantity: rule.resource_quantity,
+        }),
+    }
+    nodes.push(QuestConditionNode {
+        id: format!("{}_settlement", definition.id),
+        kind: QuestConditionKind::ReturnForSettlement,
+        subject_id: definition
+            .waypoint_room_ids
+            .last()
+            .copied()
+            .unwrap_or(definition.giver_npc_id)
+            .to_string(),
+        quantity: 1,
+    });
+    nodes
 }
 
 pub const REGIONAL_QUEST_CATALOG: [RegionalQuestDefinition; 15] = [
@@ -1262,11 +1505,23 @@ pub const CRAFTING_RECIPES: [CraftingRecipe; 8] = [
 ];
 
 pub fn market_price(item_id: &str, day: u32, buying: bool) -> Option<i64> {
+    market_price_with_state(item_id, day, 8, 0, buying)
+}
+
+pub fn market_price_with_state(
+    item_id: &str,
+    day: u32,
+    stock: u16,
+    demand: i16,
+    buying: bool,
+) -> Option<i64> {
     let item = ECONOMY_ITEM_CATALOG
         .iter()
         .find(|item| item.id == item_id)?;
     let cycle = ((day as i64 + item.id.bytes().map(i64::from).sum::<i64>()) % 5) - 2;
-    let demand_permille = 1_000 + cycle * 70;
+    let scarcity = (8_i64 - i64::from(stock.min(16))) * 35;
+    let demand_pressure = i64::from(demand.clamp(-20, 20)) * 18;
+    let demand_permille = (1_000 + cycle * 70 + scarcity + demand_pressure).clamp(550, 1_650);
     let market = item.buy_price * demand_permille / 1_000;
     Some(if buying {
         market.max(1)
@@ -1327,6 +1582,30 @@ mod tests {
                     .windows(2)
                     .all(|rooms| rooms[0] != rooms[1])
         }));
+        assert_eq!(QUEST_NARRATIVES.len(), REGIONAL_QUEST_CATALOG.len());
+        for quest in &REGIONAL_QUEST_CATALOG {
+            let narrative = quest_narrative(quest.id).expect("every quest has authored prose");
+            assert_ne!(narrative.direct, narrative.diplomatic);
+            assert_ne!(narrative.direct, narrative.resourceful);
+            for approach in [
+                QuestApproach::Direct,
+                QuestApproach::Diplomatic,
+                QuestApproach::Resourceful,
+            ] {
+                let graph = quest_condition_graph(quest, approach);
+                assert_eq!(
+                    graph
+                        .iter()
+                        .filter(|node| node.kind == QuestConditionKind::VisitWaypoint)
+                        .count(),
+                    quest.waypoint_room_ids.len()
+                );
+                assert_eq!(
+                    graph.last().map(|node| node.kind),
+                    Some(QuestConditionKind::ReturnForSettlement)
+                );
+            }
+        }
     }
 
     #[test]

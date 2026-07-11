@@ -286,7 +286,8 @@ pub(super) fn spawn_first_contact_live_scene(
             frame,
             Vec2::splat(tile_size * 2.75),
         );
-        if structure.owner == "contact" {
+        sprite.color = Color::srgb(family.tint[0], family.tint[1], family.tint[2]);
+        if structure.owner == "contact" && family.tint == [1.0, 1.0, 1.0] {
             sprite.color = Color::srgb(1.0, 0.76, 0.72);
         }
         commands.spawn((
@@ -326,7 +327,8 @@ pub(super) fn spawn_first_contact_live_scene(
             family.atlas_index(family.idle[0]),
             Vec2::splat(tile_size * 2.1),
         );
-        if unit.owner == "contact" {
+        sprite.color = Color::srgb(family.tint[0], family.tint[1], family.tint[2]);
+        if unit.owner == "contact" && family.tint == [1.0, 1.0, 1.0] {
             sprite.color = Color::srgb(1.0, 0.74, 0.70);
         }
         commands.spawn((

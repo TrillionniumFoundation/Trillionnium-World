@@ -640,6 +640,18 @@ pub(super) fn handle_campaign_input(
     } else if shift && input.just_pressed(KeyCode::Digit4) {
         let result = flow.mutate_town(|save| save.move_to(CampaignRoom::EmberOrchardEdge));
         set_status(&mut flow, result, "Entered Ember Orchard Edge");
+    } else if shift && input.just_pressed(KeyCode::Digit5) {
+        let result = flow.mutate_town(|save| save.move_to(CampaignRoom::GlassReedMarsh));
+        set_status(&mut flow, result, "Entered Glass Reed Marsh");
+    } else if shift && input.just_pressed(KeyCode::Digit6) {
+        let result = flow.mutate_town(|save| save.move_to(CampaignRoom::BasinObservatory));
+        set_status(&mut flow, result, "Entered Basin Observatory");
+    } else if shift && input.just_pressed(KeyCode::Digit7) {
+        let result = flow.mutate_town(|save| save.move_to(CampaignRoom::AshBeaconField));
+        set_status(&mut flow, result, "Entered Ash Beacon Field");
+    } else if shift && input.just_pressed(KeyCode::Digit8) {
+        let result = flow.mutate_town(|save| save.move_to(CampaignRoom::CinderRefuge));
+        set_status(&mut flow, result, "Entered Cinder Refuge");
     } else if input.just_pressed(KeyCode::Digit1) {
         let result = flow.mutate_town(|save| save.move_to(CampaignRoom::MirrorSquare));
         set_status(&mut flow, result, "Entered Mirror Square");
@@ -717,6 +729,9 @@ pub(super) fn handle_campaign_input(
         } else {
             flow.status = "No one here is available for conversation".to_string();
         }
+    } else if shift && input.just_pressed(KeyCode::KeyK) {
+        let result = flow.mutate_town(|save| save.cycle_equipped_technique().map(|_| ()));
+        set_status(&mut flow, result, "Changed the equipped sect technique");
     } else if input.just_pressed(KeyCode::KeyK) {
         let result = if flow.save.room == CampaignRoom::MentorHall {
             flow.mutate_town(CampaignSaveV1::train_with_mentor)
@@ -805,6 +820,13 @@ pub(super) fn handle_campaign_input(
             &mut flow,
             result,
             "Completed the selected path mastery challenge",
+        );
+    } else if shift && input.just_pressed(KeyCode::KeyB) {
+        let result = flow.mutate_town(|save| save.cycle_main_story_choice().map(|_| ()));
+        set_status(
+            &mut flow,
+            result,
+            "Changed the next main-story chapter resolution",
         );
     } else if input.just_pressed(KeyCode::KeyB) {
         let result = if flow.save.quest_chain.is_none() {
@@ -1058,6 +1080,32 @@ mod tests {
             .progression
             .world_flags
             .contains("mirror_siege_secured"));
+        for _ in 0..3 {
+            flow.mutate_town(|save| save.cycle_standalone_skirmish_map().map(|_| ()))
+                .unwrap();
+        }
+        flow.mutate_town(|save| save.cycle_skirmish_faction().map(|_| ()))
+            .unwrap();
+        flow.mutate_town(|save| save.cycle_skirmish_resources().map(|_| ()))
+            .unwrap();
+        flow.mutate_town(|save| save.cycle_skirmish_victory_mode().map(|_| ()))
+            .unwrap();
+        assert_eq!(
+            flow.save.active_mission,
+            trnm_campaign_core::CampaignMission::EmberOrchardSkirmish
+        );
+        assert_eq!(flow.save.skirmish_setup.starting_resources, 500);
+        assert_eq!(
+            flow.save.skirmish_setup.player_faction,
+            trnm_campaign_core::CampaignFaction::AshenCompact
+        );
+        let maps =
+            MissionMapCatalog::load(&Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../assets"))
+                .unwrap();
+        let authored = maps.for_mission(flow.save.active_mission).clone();
+        flow.start_battle(&authored).unwrap();
+        assert_eq!(flow.mode, CampaignMode::Battle);
+        assert_eq!(flow.mission.as_ref().unwrap().seed.map_id, "ember_orchard");
         std::fs::remove_dir_all(root).unwrap();
     }
 }

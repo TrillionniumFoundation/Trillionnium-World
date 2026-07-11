@@ -405,7 +405,8 @@ Operator handoff note: scripts/check_trillionnium_world_public_launch_operator_h
 - Historical roadmap: [docs/archive/root-history/ROADMAP.md](docs/archive/root-history/ROADMAP.md)
 - Historical backlog snapshots: [docs/archive/root-history/BACKLOG.md](docs/archive/root-history/BACKLOG.md)
 - Unified development scheduling: historical planning boards have existed under archived docs, but if a referenced planning-board file is absent in this checkout, use repository docs under `docs/`, `trillionnium/docs/`, and the subproject READMEs as the live execution entrypoints instead.
-- Current RPG/RTS game truth: [docs/development/trillionnium-rpg-rts-closed-loop-v1.md](docs/development/trillionnium-rpg-rts-closed-loop-v1.md)
+- Current RPG/RTS game status: [GAME_STATUS.md](GAME_STATUS.md)
+- Canonical RPG→RTS→RPG authority contract: [docs/development/trillionnium-rpg-rts-closed-loop-v1.md](docs/development/trillionnium-rpg-rts-closed-loop-v1.md)
 - Frozen World/Bevy development documents: [docs/archive/world-bevy/README.md](docs/archive/world-bevy/README.md)
 - External benchmark comparison: [docs/reports/TRNM_CONCURRENCY_COMPARISON_2026-03-05.md](docs/reports/TRNM_CONCURRENCY_COMPARISON_2026-03-05.md)
 - Concurrency bottleneck map + 8-week roadmap: if an older report is referenced from `RELEASE_READINESS.md` but not present in this checkout, treat it as historical only and do not cite it as current local truth.

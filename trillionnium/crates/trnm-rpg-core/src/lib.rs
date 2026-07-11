@@ -24,8 +24,12 @@ pub const CARAVAN_YARD_ROOM: &str = "caravan_yard";
 pub const OUTER_SIGNAL_ROAD_ROOM: &str = "outer_signal_road";
 pub const GLASS_BASIN_WAYHOUSE_ROOM: &str = "glass_basin_wayhouse";
 pub const DEEP_RELAY_ROOM: &str = "deep_relay";
+pub const GLASS_REED_MARSH_ROOM: &str = "glass_reed_marsh";
+pub const BASIN_OBSERVATORY_ROOM: &str = "basin_observatory";
 pub const MOON_BRIDGE_ROOM: &str = "moon_bridge";
 pub const EMBER_ORCHARD_EDGE_ROOM: &str = "ember_orchard_edge";
+pub const ASH_BEACON_FIELD_ROOM: &str = "ash_beacon_field";
+pub const CINDER_REFUGE_ROOM: &str = "cinder_refuge";
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -244,8 +248,14 @@ pub enum TechniqueStyle {
     #[default]
     CenterlineBreak,
     CompassFeint,
+    CompassSpiral,
+    WayfinderSlip,
     ForgeCounter,
+    RelayHammer,
+    IronReversal,
     NightVeil,
+    ShadowNeedle,
+    LanternCut,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -377,13 +387,42 @@ impl RpgEncounterState {
                         self.enemy_hp -= base;
                         self.enemy_status.exposed_rounds = 2;
                     }
+                    TechniqueStyle::CompassSpiral => {
+                        self.enemy_hp -= base - 3;
+                        self.enemy_status.staggered_rounds = 2;
+                        self.player_status.guarded_rounds = 2;
+                    }
+                    TechniqueStyle::WayfinderSlip => {
+                        self.enemy_hp -= base - 6;
+                        self.player_status.guarded_rounds = 4;
+                        self.player_status.exposed_rounds = 0;
+                    }
                     TechniqueStyle::ForgeCounter => {
                         self.enemy_hp -= base - 4;
                         self.player_status.guarded_rounds = 3;
                     }
+                    TechniqueStyle::RelayHammer => {
+                        self.enemy_hp -= base + i64::from(attributes.craft);
+                        self.enemy_status.staggered_rounds = 3;
+                    }
+                    TechniqueStyle::IronReversal => {
+                        self.enemy_hp -= base - 2;
+                        self.player_status.guarded_rounds = 3;
+                        self.enemy_status.exposed_rounds = 2;
+                    }
                     TechniqueStyle::NightVeil => {
                         self.enemy_hp -= base - 2;
                         self.enemy_status.bleeding_rounds = 3;
+                    }
+                    TechniqueStyle::ShadowNeedle => {
+                        self.enemy_hp -= base + i64::from(attributes.agility);
+                        self.enemy_status.bleeding_rounds = 2;
+                        self.enemy_status.exposed_rounds = 2;
+                    }
+                    TechniqueStyle::LanternCut => {
+                        self.enemy_hp -= base;
+                        self.enemy_status.staggered_rounds = 2;
+                        self.enemy_status.bleeding_rounds = 2;
                     }
                 }
                 self.technique_cooldown = 2;
@@ -1031,6 +1070,18 @@ pub fn mirror_city_world_graph() -> WorldGraph {
             unlock_flag: Some("glass_basin_wayhouse_open".to_string()),
         },
         WorldRoom {
+            id: GLASS_REED_MARSH_ROOM.to_string(),
+            title: "琉璃苇泽".to_string(),
+            region_id: "glass_basin".to_string(),
+            unlock_flag: Some("glass_basin_wayhouse_open".to_string()),
+        },
+        WorldRoom {
+            id: BASIN_OBSERVATORY_ROOM.to_string(),
+            title: "盆地观象台".to_string(),
+            region_id: "glass_basin".to_string(),
+            unlock_flag: Some("glass_basin_wayhouse_open".to_string()),
+        },
+        WorldRoom {
             id: MOON_BRIDGE_ROOM.to_string(),
             title: "月镜桥".to_string(),
             region_id: "ashen_fringe".to_string(),
@@ -1039,6 +1090,18 @@ pub fn mirror_city_world_graph() -> WorldGraph {
         WorldRoom {
             id: EMBER_ORCHARD_EDGE_ROOM.to_string(),
             title: "烬果园边地".to_string(),
+            region_id: "ashen_fringe".to_string(),
+            unlock_flag: Some("ashen_fringe_open".to_string()),
+        },
+        WorldRoom {
+            id: ASH_BEACON_FIELD_ROOM.to_string(),
+            title: "灰烬烽野".to_string(),
+            region_id: "ashen_fringe".to_string(),
+            unlock_flag: Some("ashen_fringe_open".to_string()),
+        },
+        WorldRoom {
+            id: CINDER_REFUGE_ROOM.to_string(),
+            title: "余烬避难所".to_string(),
             region_id: "ashen_fringe".to_string(),
             unlock_flag: Some("ashen_fringe_open".to_string()),
         },
@@ -1086,10 +1149,22 @@ pub fn mirror_city_world_graph() -> WorldGraph {
         ),
         (GLASS_BASIN_WAYHOUSE_ROOM, DEEP_RELAY_ROOM, "east"),
         (DEEP_RELAY_ROOM, GLASS_BASIN_WAYHOUSE_ROOM, "west"),
+        (GLASS_BASIN_WAYHOUSE_ROOM, GLASS_REED_MARSH_ROOM, "north"),
+        (GLASS_REED_MARSH_ROOM, GLASS_BASIN_WAYHOUSE_ROOM, "south"),
+        (GLASS_REED_MARSH_ROOM, BASIN_OBSERVATORY_ROOM, "east"),
+        (BASIN_OBSERVATORY_ROOM, GLASS_REED_MARSH_ROOM, "west"),
+        (BASIN_OBSERVATORY_ROOM, DEEP_RELAY_ROOM, "south"),
+        (DEEP_RELAY_ROOM, BASIN_OBSERVATORY_ROOM, "north"),
         (DEEP_RELAY_ROOM, MOON_BRIDGE_ROOM, "north"),
         (MOON_BRIDGE_ROOM, DEEP_RELAY_ROOM, "south"),
         (MOON_BRIDGE_ROOM, EMBER_ORCHARD_EDGE_ROOM, "east"),
         (EMBER_ORCHARD_EDGE_ROOM, MOON_BRIDGE_ROOM, "west"),
+        (MOON_BRIDGE_ROOM, ASH_BEACON_FIELD_ROOM, "north"),
+        (ASH_BEACON_FIELD_ROOM, MOON_BRIDGE_ROOM, "south"),
+        (ASH_BEACON_FIELD_ROOM, CINDER_REFUGE_ROOM, "east"),
+        (CINDER_REFUGE_ROOM, ASH_BEACON_FIELD_ROOM, "west"),
+        (CINDER_REFUGE_ROOM, EMBER_ORCHARD_EDGE_ROOM, "south"),
+        (EMBER_ORCHARD_EDGE_ROOM, CINDER_REFUGE_ROOM, "north"),
     ] {
         exits.push(WorldExit {
             from: from.to_string(),
