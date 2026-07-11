@@ -54,11 +54,11 @@ The RPG layer uses only clean-room mechanics study of 白金英雄坛说. No sou
 
 - title NEW/LOAD/CONTINUE, independent slots, corrupt-slot isolation and resume guard;
 - authoritative pause, journal, progressive guide and character identity confirmation;
-- low motion, input mode, three control-scheme profiles, subtitles/high contrast and a persisted master-volume preference;
+- low motion, input mode, three control-scheme profiles, subtitles/high contrast and live master-volume control;
 - desktop installer assets under `packaging/` and `scripts/install_trnm_desktop.sh`;
 - deterministic performance matrix at `scripts/check_trnm_perf_matrix.sh`.
 
-The master-volume preference is stored and exposed by the shell, but there is no audio playback pipeline yet. Authored sound/music assets, playback and final mix remain future work and must not be claimed as complete audio production.
+The native client has a real buffered audio pipeline with two project-owned procedural WAV loops: Mirror City ambience and Signal battle pulse. Campaign mode switches the active loop, and F8 updates both live audio players immediately. These are a functional original baseline; a fully composed soundtrack, richer sound effects and final mix remain future content work.
 
 The control profiles alter live RTS input: Classic uses Q/W/E/R for move/attack/harvest/hold, Left Handed uses A/S/D/F, and Arrow Grid uses the four arrow keys (with WASD camera pan). They are not display-only labels.
 
@@ -67,7 +67,7 @@ The control profiles alter live RTS input: Classic uses Q/W/E/R for move/attack/
 - three independent five-second observers: pending;
 - one real 10-15 minute non-developer play session: pending;
 - player-driven balance and usability changes: pending those observations;
-- authored music/sound mix: pending;
+- final composed soundtrack, richer effects and mix: pending (basic original playback is complete);
 - installer smoke across target distributions: pending;
 - public beta/commercial launch and networking: out of current scope.
 
@@ -75,14 +75,14 @@ Run `scripts/check_trnm_human_validation_packet.sh`; “packet ready” is not h
 
 ## Current local evidence
 
-- five-crate unit/integration/E2E suite: 80/80 passing;
+- five-crate unit/integration/E2E suite: 82/82 passing;
 - workspace Clippy with `-D warnings`: passing;
 - product boundary: green (5 game / 12 platform / legacy working tree absent);
 - release build and desktop installer smoke: passing;
-- measured matrix on the current X230 host: RPG 2.72 s / 258 MiB, campaign 7.04 s / 455 MiB, RTS 29.50 s / 316 MiB, closed loop 11.87 s / 68 MiB, release build 59.95 s / 738 MiB;
+- warm-cache matrix on the current X230 host: RPG 0.25 s / 70 MiB, campaign 0.26 s / 71 MiB, RTS 30.09 s / 71 MiB, closed loop 15.22 s / 71 MiB, incremental release build 0.54 s / 107 MiB;
 - release client service: active with a viewable native window after restart.
 
-These are local-machine facts, not substitutes for the pending human session or a multi-distribution performance/installer matrix.
+The first clean release rebuild after changing the Bevy/audio feature graph took 12m08s under the service host's constrained X230 environment; that is a developer compile cost, not installed-game startup. These are local-machine facts, not substitutes for the pending human session or a multi-distribution performance/installer matrix.
 
 ## Verification entry points
 

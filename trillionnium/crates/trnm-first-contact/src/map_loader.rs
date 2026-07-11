@@ -517,5 +517,23 @@ mod tests {
             catalog.night_watch_crossing.terrain_rows,
             catalog.convoy_exodus.terrain_rows
         );
+        assert_ne!(
+            catalog.iron_delta.terrain_rows,
+            catalog.night_watch_crossing.terrain_rows
+        );
+        assert_ne!(
+            (
+                catalog.iron_delta.player_start.x,
+                catalog.iron_delta.player_start.y
+            ),
+            (
+                catalog.night_watch_crossing.player_start.x,
+                catalog.night_watch_crossing.player_start.y
+            )
+        );
+        assert_ne!(
+            catalog.iron_delta.objective.id,
+            catalog.night_watch_crossing.objective.id
+        );
     }
 }

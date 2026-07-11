@@ -1,4 +1,5 @@
 mod asset_loader;
+mod audio;
 mod campaign_flow;
 mod campaign_ui;
 mod evidence_adapter;
@@ -9,6 +10,7 @@ mod simulation_adapter;
 mod view_math;
 
 use asset_loader::{load_first_contact_atlas, FirstContactAtlasManifest};
+use audio::{spawn_trnm_audio, sync_trnm_audio, validate_trnm_audio_assets};
 use bevy::prelude::*;
 use campaign_flow::{handle_campaign_input, settle_finished_battle, CampaignFlow};
 use campaign_ui::{spawn_campaign_ui, update_campaign_ui};
@@ -34,6 +36,7 @@ pub struct FirstContactLivePlugin {
 
 impl FirstContactLivePlugin {
     pub fn load(asset_root: &Path) -> Result<Self, String> {
+        validate_trnm_audio_assets(asset_root)?;
         let maps = MissionMapCatalog::load(asset_root)?;
         let atlas = load_first_contact_atlas(&asset_root.join("first_contact/atlas.yaml"))?;
         let campaign = CampaignFlow::load()?;
@@ -75,6 +78,7 @@ impl Plugin for FirstContactLivePlugin {
                     spawn_first_contact_live_scene,
                     spawn_first_contact_hud,
                     spawn_campaign_ui,
+                    spawn_trnm_audio,
                 )
                     .chain(),
             )
@@ -91,6 +95,7 @@ impl Plugin for FirstContactLivePlugin {
                     pan_first_contact_camera,
                     update_first_contact_hud,
                     update_campaign_ui,
+                    sync_trnm_audio,
                 )
                     .chain(),
             );

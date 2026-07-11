@@ -132,7 +132,7 @@ Title/pause shell:
 - new character: `C` cycles the persistent display name; `Enter` confirms it
 - `Enter`: load/continue, then pass the resume guard before gameplay is revealed
 - `F2`: low-motion mode; `F3`: hybrid/keyboard-only/mouse-only input mode
-- `F5`: subtitles/high contrast; `F7`: control-scheme profile; `F8`: persisted master-volume preference (audio playback remains pending)
+- `F5`: subtitles/high contrast; `F7`: control-scheme profile; `F8`: live master volume for the town/battle Bevy audio sinks
 - `Esc`: resume from pause; settings are profile-scoped rather than character-scoped
 
 Battle:

@@ -20,7 +20,7 @@ measure rpg_core cargo test --manifest-path "$repo_root/trillionnium/Cargo.toml"
 measure campaign_core cargo test --manifest-path "$repo_root/trillionnium/Cargo.toml" -p trnm-campaign-core --all-targets
 measure rts_sim cargo test --manifest-path "$repo_root/trillionnium/Cargo.toml" -p trnm-rts-sim --all-targets
 measure closed_loop cargo test --manifest-path "$repo_root/trillionnium/Cargo.toml" -p trnm-rts-sim --test campaign_closed_loop
-measure release_build cargo build --manifest-path "$repo_root/trillionnium/Cargo.toml" --release -p trnm-first-contact
+measure release_incremental_build cargo build --manifest-path "$repo_root/trillionnium/Cargo.toml" --release -p trnm-first-contact
 
 awk -F '\t' 'NR > 1 && ($2 > 90 || $3 > 4194304) { bad=1 } END { exit bad }' "$output"
-echo "TRNM performance matrix: green ($output)"
+echo "TRNM warm-cache performance matrix: green ($output)"
