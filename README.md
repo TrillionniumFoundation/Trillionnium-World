@@ -3,12 +3,14 @@
 **TRNM** is a Rust-native Layer 1 focused on **Decentralized AI Compute** (PoCO).
 
 - Active game workspace: `trillionnium/Cargo.toml` (5 product crates only)
+- Current one-page game status: `GAME_STATUS.md`
 - Platform workspace: `trillionnium/crates/platform/Cargo.toml`
 - Removed legacy-game index: `docs/archive/frozen-legacy-final-index-2026-07-11.md`
 - Historical status/archive docs live under `docs/archive/`
 
 ## Trillionnium World Client Boundary
 
+- Current game status and honest open gates: `GAME_STATUS.md`
 - Canonical RPG/RTS product contract: `docs/development/trillionnium-rpg-rts-closed-loop-v1.md`
 - Native playable client: `trillionnium/crates/trnm-first-contact`
 - Authoritative campaign aggregate: `trillionnium/crates/trnm-campaign-core`
@@ -343,6 +345,8 @@ ANDROID_SERIAL=<device-serial> ./scripts/check_trillionnium_world_s5_device_evid
 ```
 
 Historical release-review note: packets generated before the 2026-07-11 cleanup credited the old CEX World adapter and removed `trnm-world-bevy` evidence chain. Those packets are archived snapshots, not current green product evidence. Current verification is the five-crate test/Clippy/release/live-window chain plus `scripts/check_trnm_game_product.sh`.
+
+> **Retired World appendix:** the classic-modeling and release-review notes below document the removed pre-2026-07-11 World workspace. They remain for audit/recovery only, grant no current game credit, and must not override `GAME_STATUS.md`.
 
 Classic modeling foundation note: `scripts/check_trillionnium_world_bevy_classic_art_pack.sh`, `scripts/check_trillionnium_world_bevy_classic_manifest_lint.sh`, and `scripts/check_trillionnium_world_bevy_classic_isometric_modeling.sh` are packet-bound through `classic_asset_pack_semantics`, `classic_manifest_lint_semantics`, `classic_isometric_modeling_semantics`, and `classic_isometric_modeling_ppm_semantics`. These checks bind the project-owned manifest/PPM atlas, frame/scene/actor/clip lint, orthographic isometric depth-sorted modeling, nonblank PPM evidence, and the low-spec renderer CEX/wgpu no-credit boundary.
 

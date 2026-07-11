@@ -14,24 +14,32 @@ use std::{
 };
 use trnm_rpg_core::{
     inventory_item_for as trillionnium_inventory_item_for, mirror_city_world_graph,
-    resolve_mentor_sparring, BuildPath, BuildTitle, Character as WorldTrillionniumCharacter,
-    CharacterOrigin, EncounterOutcome, EquipmentAffixCondition, FactionRank, GrowthStat,
-    NpcRelationship, RelationshipAction, RpgEncounterState, SparringAction, SparringOutcome,
-    SparringReport, TrillionniumAttributes, WorldRoutePlan, EXPEDITION_GATE_ROOM, MENTOR_HALL_ROOM,
-    MIRROR_SQUARE_ROOM, RELAY_QUARTER_ROOM,
+    original_combat_log, resolve_mentor_sparring, skill_unlockable, BuildPath, BuildTitle,
+    Character as WorldTrillionniumCharacter, CharacterOrigin, CombatLogBeat, EncounterOutcome,
+    EquipmentAffixCondition, FactionRank, GrowthStat, ItemCondition, NpcRelationship,
+    RelationshipAction, RpgEncounterState, SparringAction, SparringOutcome, SparringReport,
+    TrillionniumAttributes, WorldRoutePlan, ARCHIVE_STEPS_ROOM, CARAVAN_YARD_ROOM,
+    CISTERN_WARD_ROOM, CRAFTING_RECIPES, ECONOMY_ITEM_CATALOG, ENCOUNTER_CATALOG,
+    EXPEDITION_GATE_ROOM, LANTERN_INFIRMARY_ROOM, MARKET_WIND_PAVILION_ROOM, MENTOR_HALL_ROOM,
+    MIRROR_SQUARE_ROOM, NIGHT_WATCH_POST_ROOM, NPC_CATALOG, OUTER_SIGNAL_ROAD_ROOM,
+    REGIONAL_QUEST_CATALOG, RELAY_QUARTER_ROOM, SECT_CATALOG, SKILL_CATALOG, WORKSHOP_GATE_ROOM,
 };
-pub use trnm_rpg_core::{EncounterAction, MasteryChallenge};
+pub use trnm_rpg_core::{EncounterAction, MasteryChallenge, SectId};
 
 pub const CAMPAIGN_SAVE_CONTRACT: &str = "trnm_campaign_save_v1";
-pub const BATTLE_SEED_CONTRACT: &str = "trnm_battle_seed_v6";
+pub const BATTLE_SEED_CONTRACT: &str = "trnm_battle_seed_v7";
 pub const BATTLE_RESULT_CONTRACT: &str = "trnm_battle_result_v2";
 pub const SETTLEMENT_RECEIPT_CONTRACT: &str = "trnm_settlement_receipt_v1";
-pub const FIRST_CONTACT_RULES_VERSION: &str = "first_contact_campaign_rules_v6";
+pub const FIRST_CONTACT_RULES_VERSION: &str = "first_contact_campaign_rules_v7";
 pub const MAX_MENTOR_TRAINING_SESSIONS: u8 = 2;
 pub const FIELD_CLINIC_CREDIT_COST: i64 = 40;
 
 fn default_campaign_credits() -> i64 {
     260
+}
+
+fn legacy_campaign_schema_revision() -> u16 {
+    1
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -146,6 +154,14 @@ pub enum CampaignRoom {
     MentorHall,
     ExpeditionGate,
     RelayQuarter,
+    CisternWard,
+    NightWatchPost,
+    WorkshopGate,
+    MarketWindPavilion,
+    LanternInfirmary,
+    ArchiveSteps,
+    CaravanYard,
+    OuterSignalRoad,
 }
 
 impl CampaignRoom {
@@ -155,6 +171,14 @@ impl CampaignRoom {
             Self::MentorHall => MENTOR_HALL_ROOM,
             Self::ExpeditionGate => EXPEDITION_GATE_ROOM,
             Self::RelayQuarter => RELAY_QUARTER_ROOM,
+            Self::CisternWard => CISTERN_WARD_ROOM,
+            Self::NightWatchPost => NIGHT_WATCH_POST_ROOM,
+            Self::WorkshopGate => WORKSHOP_GATE_ROOM,
+            Self::MarketWindPavilion => MARKET_WIND_PAVILION_ROOM,
+            Self::LanternInfirmary => LANTERN_INFIRMARY_ROOM,
+            Self::ArchiveSteps => ARCHIVE_STEPS_ROOM,
+            Self::CaravanYard => CARAVAN_YARD_ROOM,
+            Self::OuterSignalRoad => OUTER_SIGNAL_ROAD_ROOM,
         }
     }
 
@@ -164,6 +188,14 @@ impl CampaignRoom {
             Self::MentorHall => "街指南师父居",
             Self::ExpeditionGate => "First Contact 出征口",
             Self::RelayQuarter => "中继新街",
+            Self::CisternWard => "蓄水坊",
+            Self::NightWatchPost => "夜巡哨所",
+            Self::WorkshopGate => "铁工门",
+            Self::MarketWindPavilion => "市风阁",
+            Self::LanternInfirmary => "灯火医馆",
+            Self::ArchiveSteps => "镜档石阶",
+            Self::CaravanYard => "行商院",
+            Self::OuterSignalRoad => "外信号道",
         }
     }
 }
@@ -195,6 +227,8 @@ pub enum CampaignMission {
     AftershockPatrol,
     ConvoyExodus,
     MirrorSiege,
+    IronDeltaSkirmish,
+    NightWatchCrossingSkirmish,
 }
 
 impl CampaignMission {
@@ -204,6 +238,8 @@ impl CampaignMission {
             Self::AftershockPatrol => "aftershock_patrol",
             Self::ConvoyExodus => "convoy_exodus",
             Self::MirrorSiege => "mirror_siege",
+            Self::IronDeltaSkirmish => "iron_delta",
+            Self::NightWatchCrossingSkirmish => "night_watch_crossing",
         }
     }
 
@@ -213,6 +249,8 @@ impl CampaignMission {
             Self::AftershockPatrol => "Aftershock Patrol",
             Self::ConvoyExodus => "Signal Convoy Exodus",
             Self::MirrorSiege => "Mirror Siege Counterstrike",
+            Self::IronDeltaSkirmish => "Iron Delta Skirmish",
+            Self::NightWatchCrossingSkirmish => "Night Watch Crossing",
         }
     }
 }
@@ -373,6 +411,46 @@ impl MissionDefinition {
                     kind: ObjectiveKind::Capture,
                     target: map.objective,
                     duration_ticks: 720,
+                },
+            ],
+            CampaignMission::IronDeltaSkirmish => vec![
+                MissionObjectiveDefinition {
+                    id: "take_delta_crossing".to_string(),
+                    kind: ObjectiveKind::Escort,
+                    target: map.approach_point,
+                    duration_ticks: 0,
+                },
+                MissionObjectiveDefinition {
+                    id: "destroy_ash_foundry".to_string(),
+                    kind: ObjectiveKind::Destroy,
+                    target: map.objective,
+                    duration_ticks: 0,
+                },
+                MissionObjectiveDefinition {
+                    id: "hold_iron_delta".to_string(),
+                    kind: ObjectiveKind::Capture,
+                    target: map.objective,
+                    duration_ticks: 500,
+                },
+            ],
+            CampaignMission::NightWatchCrossingSkirmish => vec![
+                MissionObjectiveDefinition {
+                    id: "screen_night_convoy".to_string(),
+                    kind: ObjectiveKind::Escort,
+                    target: map.approach_point,
+                    duration_ticks: 0,
+                },
+                MissionObjectiveDefinition {
+                    id: "break_ash_beacon".to_string(),
+                    kind: ObjectiveKind::Destroy,
+                    target: map.objective,
+                    duration_ticks: 0,
+                },
+                MissionObjectiveDefinition {
+                    id: "extract_watch_patrol".to_string(),
+                    kind: ObjectiveKind::Extract,
+                    target: map.objective,
+                    duration_ticks: 80,
                 },
             ],
         };
@@ -820,6 +898,13 @@ impl Default for StoryProgress {
             unlocked_room_ids: BTreeSet::from([
                 MIRROR_SQUARE_ROOM.to_string(),
                 MENTOR_HALL_ROOM.to_string(),
+                CISTERN_WARD_ROOM.to_string(),
+                NIGHT_WATCH_POST_ROOM.to_string(),
+                WORKSHOP_GATE_ROOM.to_string(),
+                MARKET_WIND_PAVILION_ROOM.to_string(),
+                LANTERN_INFIRMARY_ROOM.to_string(),
+                ARCHIVE_STEPS_ROOM.to_string(),
+                CARAVAN_YARD_ROOM.to_string(),
             ]),
         }
     }
@@ -1040,6 +1125,10 @@ pub struct BattleSeedV1 {
     pub build_path: BuildPath,
     #[serde(default)]
     pub active_title: Option<BuildTitle>,
+    #[serde(default)]
+    pub sect_id: Option<String>,
+    #[serde(default)]
+    pub regional_skill_bonus_permille: u16,
     #[serde(default = "default_field_build_cost_permille")]
     pub field_build_cost_permille: u16,
     #[serde(default = "default_expedition_readiness")]
@@ -1077,6 +1166,8 @@ impl BattleSeedV1 {
                 | "first_contact_aftershock"
                 | "convoy_exodus"
                 | "mirror_siege"
+                | "iron_delta"
+                | "night_watch_crossing"
         ) || self.rules_version != FIRST_CONTACT_RULES_VERSION
         {
             return Err(CampaignError::InvalidContract(
@@ -1249,6 +1340,8 @@ impl SettlementReceiptV1 {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CampaignSaveV1 {
     pub contract_version: String,
+    #[serde(default = "legacy_campaign_schema_revision")]
+    pub schema_revision: u16,
     pub campaign_id: String,
     pub revision: u64,
     pub room: CampaignRoom,
@@ -1289,6 +1382,14 @@ pub struct CampaignSaveV1 {
     pub active_encounter: Option<RpgEncounterState>,
     #[serde(default)]
     pub last_encounter_outcome: Option<EncounterOutcome>,
+    #[serde(default)]
+    pub combat_log: Vec<CombatLogBeat>,
+    #[serde(default)]
+    pub regional_quest_states: BTreeMap<String, QuestState>,
+    #[serde(default)]
+    pub active_regional_quest_id: Option<String>,
+    #[serde(default)]
+    pub item_conditions: BTreeMap<String, ItemCondition>,
     #[serde(default)]
     pub quest_chain: Option<QuestChainProgress>,
     #[serde(default)]
@@ -1352,8 +1453,10 @@ impl Default for CampaignSaveV1 {
         let mut striker = base.clone();
         striker.force += 5;
         striker.agility += 2;
+        let item_conditions = character_item_conditions(&character);
         Self {
             contract_version: CAMPAIGN_SAVE_CONTRACT.to_string(),
+            schema_revision: 2,
             campaign_id: "local-campaign".to_string(),
             revision: 0,
             room: CampaignRoom::MirrorSquare,
@@ -1497,16 +1600,15 @@ impl Default for CampaignSaveV1 {
             selected_loadout: LoadoutPreset::default(),
             active_mission: CampaignMission::default(),
             story: StoryProgress::default(),
-            npc_relationships: BTreeMap::from([
-                (
-                    "street-compass-sifu".to_string(),
-                    NpcRelationship::new("street-compass-sifu", "signal-road-school"),
-                ),
-                (
-                    "relay-smith-brann".to_string(),
-                    NpcRelationship::new("relay-smith-brann", "relay-quarter"),
-                ),
-            ]),
+            npc_relationships: NPC_CATALOG
+                .iter()
+                .map(|npc| {
+                    (
+                        npc.id.to_string(),
+                        NpcRelationship::new(npc.id, npc.faction_id),
+                    )
+                })
+                .collect(),
             faction_rank: FactionRank::Outsider,
             last_sparring: None,
             pending_growth_stat: None,
@@ -1515,6 +1617,13 @@ impl Default for CampaignSaveV1 {
             active_title: None,
             active_encounter: None,
             last_encounter_outcome: None,
+            combat_log: Vec::new(),
+            regional_quest_states: REGIONAL_QUEST_CATALOG
+                .iter()
+                .map(|quest| (quest.id.to_string(), QuestState::Available))
+                .collect(),
+            active_regional_quest_id: None,
+            item_conditions,
             quest_chain: None,
             world_clock: WorldClock::default(),
             expedition_supplies: ExpeditionSupplyState::default(),
@@ -1531,6 +1640,7 @@ impl Default for CampaignSaveV1 {
 
 impl CampaignSaveV1 {
     pub fn ensure_gameplay_defaults(&mut self) {
+        self.schema_revision = 2;
         let defaults = Self::default();
         for member in defaults.party {
             if let Some(existing) = self
@@ -1547,12 +1657,16 @@ impl CampaignSaveV1 {
                 self.party.push(member);
             }
         }
-        self.npc_relationships
-            .entry("street-compass-sifu".to_string())
-            .or_insert_with(|| NpcRelationship::new("street-compass-sifu", "signal-road-school"));
-        self.npc_relationships
-            .entry("relay-smith-brann".to_string())
-            .or_insert_with(|| NpcRelationship::new("relay-smith-brann", "relay-quarter"));
+        for npc in NPC_CATALOG {
+            self.npc_relationships
+                .entry(npc.id.to_string())
+                .or_insert_with(|| NpcRelationship::new(npc.id, npc.faction_id));
+        }
+        for quest in REGIONAL_QUEST_CATALOG {
+            self.regional_quest_states
+                .entry(quest.id.to_string())
+                .or_insert(QuestState::Available);
+        }
         if self.progression.growth_points_awarded == 0
             && self.progression.growth_allocations.is_empty()
         {
@@ -1569,12 +1683,23 @@ impl CampaignSaveV1 {
                 self.character.inventory_items.push(item);
             }
         }
+        for (instance_id, condition) in character_item_conditions(&self.character) {
+            self.item_conditions.entry(instance_id).or_insert(condition);
+        }
         if self.character.display_name.trim().is_empty() {
             self.apply_character_identity_name();
         }
-        self.story
-            .unlocked_room_ids
-            .extend([MIRROR_SQUARE_ROOM.to_string(), MENTOR_HALL_ROOM.to_string()]);
+        self.story.unlocked_room_ids.extend([
+            MIRROR_SQUARE_ROOM.to_string(),
+            MENTOR_HALL_ROOM.to_string(),
+            CISTERN_WARD_ROOM.to_string(),
+            NIGHT_WATCH_POST_ROOM.to_string(),
+            WORKSHOP_GATE_ROOM.to_string(),
+            MARKET_WIND_PAVILION_ROOM.to_string(),
+            LANTERN_INFIRMARY_ROOM.to_string(),
+            ARCHIVE_STEPS_ROOM.to_string(),
+            CARAVAN_YARD_ROOM.to_string(),
+        ]);
         if self.mentor_met {
             self.progression
                 .world_flags
@@ -1606,6 +1731,12 @@ impl CampaignSaveV1 {
             return Err(CampaignError::InvalidContract(
                 self.contract_version.clone(),
             ));
+        }
+        if self.schema_revision != 2 {
+            return Err(CampaignError::InvalidContract(format!(
+                "unsupported campaign schema revision {}",
+                self.schema_revision
+            )));
         }
         if self.active_party_ids.len() != 4 {
             return Err(CampaignError::InvalidState(
@@ -1836,6 +1967,8 @@ impl CampaignSaveV1 {
             CampaignMission::AftershockPatrol => "Break the repeatable aftershock patrol",
             CampaignMission::ConvoyExodus => "Escort, defend and extract the signal convoy",
             CampaignMission::MirrorSiege => "Break the siege and reclaim Mirror Gate",
+            CampaignMission::IronDeltaSkirmish => "Win the Iron Delta score skirmish",
+            CampaignMission::NightWatchCrossingSkirmish => "Escort the Night Watch patrol",
         };
         let cistern = match self.quest_chain.as_ref() {
             None => CampaignJournalEntry {
@@ -1919,6 +2052,32 @@ impl CampaignSaveV1 {
     }
 
     pub fn current_task_route_plan(&self) -> WorldRoutePlan {
+        if let Some(quest_id) = self.active_regional_quest_id.as_deref() {
+            if let Some(definition) = REGIONAL_QUEST_CATALOG
+                .iter()
+                .find(|definition| definition.id == quest_id)
+            {
+                let start_index = definition
+                    .waypoint_room_ids
+                    .iter()
+                    .position(|room| *room == self.room.id())
+                    .map(|index| index + 1)
+                    .unwrap_or(0);
+                let remaining = definition.waypoint_room_ids[start_index..]
+                    .iter()
+                    .map(|room| (*room).to_string())
+                    .collect::<Vec<_>>();
+                let mut flags = self.progression.world_flags.clone();
+                if self.active_title == Some(BuildTitle::RelayRunner) {
+                    flags.insert("signal_road_secured".to_string());
+                }
+                return mirror_city_world_graph().ordered_task_route(
+                    self.room.id(),
+                    &remaining,
+                    &flags,
+                );
+            }
+        }
         let destination = self
             .quest_chain
             .as_ref()
@@ -2416,9 +2575,27 @@ impl CampaignSaveV1 {
                 "an RPG encounter is already active".to_string(),
             ));
         }
-        self.active_encounter = Some(RpgEncounterState::signal_road_ambush(
-            &self.character.attributes,
-        ));
+        self.active_encounter =
+            RpgEncounterState::from_definition("signal_road_ambush", &self.character.attributes);
+        self.last_encounter_outcome = None;
+        self.revision += 1;
+        Ok(())
+    }
+
+    pub fn begin_regional_encounter(&mut self, encounter_id: &str) -> Result<(), CampaignError> {
+        self.require_town()?;
+        if self.active_encounter.is_some() {
+            return Err(CampaignError::InvalidState(
+                "an RPG encounter is already active".to_string(),
+            ));
+        }
+        self.active_encounter =
+            RpgEncounterState::from_definition(encounter_id, &self.character.attributes);
+        if self.active_encounter.is_none() {
+            return Err(CampaignError::InvalidState(format!(
+                "unknown regional encounter: {encounter_id}"
+            )));
+        }
         self.last_encounter_outcome = None;
         self.revision += 1;
         Ok(())
@@ -2434,12 +2611,15 @@ impl CampaignSaveV1 {
             .inventory
             .iter()
             .any(|stack| stack.item_id == "field-tonic-kit" && stack.quantity > 0);
-        let turn = self
+        let encounter = self
             .active_encounter
             .as_mut()
-            .ok_or_else(|| CampaignError::InvalidState("no RPG encounter is active".to_string()))?
+            .ok_or_else(|| CampaignError::InvalidState("no RPG encounter is active".to_string()))?;
+        let turn = encounter
             .advance(&self.character.attributes, action, item_available)
             .map_err(CampaignError::InvalidState)?;
+        let encounter_id = encounter.encounter_id.clone();
+        let encounter_round = encounter.round;
         if turn.item_consumed {
             consume_loot(&mut self.progression.inventory, "field-tonic-kit", 1)?;
         }
@@ -2450,16 +2630,29 @@ impl CampaignSaveV1 {
                     self.progression.experience = self.progression.experience.saturating_add(80);
                     self.character.attributes.reputation =
                         self.character.attributes.reputation.saturating_add(2);
-                    merge_loot(
-                        &mut self.progression.inventory,
-                        &[LootStack {
-                            item_id: "signal-road-emblem".to_string(),
-                            quantity: 1,
-                        }],
-                    );
+                    let loot = ENCOUNTER_CATALOG
+                        .iter()
+                        .find(|definition| definition.id == encounter_id)
+                        .map(|definition| {
+                            definition
+                                .loot_table
+                                .iter()
+                                .map(|item_id| LootStack {
+                                    item_id: (*item_id).to_string(),
+                                    quantity: 1,
+                                })
+                                .collect::<Vec<_>>()
+                        })
+                        .unwrap_or_else(|| {
+                            vec![LootStack {
+                                item_id: "signal-road-emblem".to_string(),
+                                quantity: 1,
+                            }]
+                        });
+                    merge_loot(&mut self.progression.inventory, &loot);
                     self.progression
                         .world_flags
-                        .insert("signal_road_ambush_cleared".to_string());
+                        .insert(format!("{encounter_id}_cleared"));
                 }
                 EncounterOutcome::Defeat => {
                     if let Some(hero) = self
@@ -2471,18 +2664,345 @@ impl CampaignSaveV1 {
                     }
                     self.progression
                         .world_flags
-                        .insert("signal_road_ambush_defeat".to_string());
+                        .insert(format!("{encounter_id}_defeat"));
                 }
                 EncounterOutcome::Withdrawn => {
                     self.progression
                         .world_flags
-                        .insert("signal_road_ambush_withdrawn".to_string());
+                        .insert(format!("{encounter_id}_withdrawn"));
                 }
             }
+            self.combat_log = original_combat_log(
+                &encounter_id,
+                encounter_round,
+                outcome == EncounterOutcome::Victory,
+            );
             self.active_encounter = None;
         }
         self.revision += 1;
         Ok(turn.outcome)
+    }
+
+    pub fn join_regional_sect(&mut self, sect: SectId) -> Result<(), CampaignError> {
+        self.require_town()?;
+        let definition = SECT_CATALOG
+            .iter()
+            .find(|definition| definition.id == sect)
+            .expect("three authored sects are static");
+        if self.room.id() != definition.hall_room_id {
+            return Err(CampaignError::InvalidState(format!(
+                "{} requires visiting {}",
+                definition.display_name, definition.hall_room_id
+            )));
+        }
+        if self
+            .character
+            .sect_id
+            .as_deref()
+            .is_some_and(|current| current != sect.id())
+        {
+            return Err(CampaignError::InvalidState(
+                "a character may commit to only one regional sect".to_string(),
+            ));
+        }
+        self.character.sect_id = Some(sect.id().to_string());
+        if !self
+            .character
+            .skill_ids
+            .iter()
+            .any(|skill| skill == definition.entry_skill_id)
+        {
+            self.character
+                .skill_ids
+                .push(definition.entry_skill_id.to_string());
+        }
+        self.progression
+            .skill_progress
+            .entry(definition.entry_skill_id.to_string())
+            .or_insert(SkillProgress {
+                rank: 1,
+                experience: 0,
+            });
+        self.npc_relationships
+            .entry(definition.mentor_id.to_string())
+            .or_insert_with(|| NpcRelationship::new(definition.mentor_id, sect.id()))
+            .apply(RelationshipAction::Train);
+        self.revision += 1;
+        Ok(())
+    }
+
+    pub fn train_next_sect_skill(&mut self) -> Result<String, CampaignError> {
+        self.require_town()?;
+        let sect = current_sect(&self.character).ok_or_else(|| {
+            CampaignError::InvalidState(
+                "join one regional sect before advanced training".to_string(),
+            )
+        })?;
+        let known = self
+            .character
+            .skill_ids
+            .iter()
+            .cloned()
+            .collect::<BTreeSet<_>>();
+        let skill = SKILL_CATALOG
+            .iter()
+            .find(|skill| {
+                skill.sect == Some(sect)
+                    && !known.contains(skill.id)
+                    && skill_unlockable(skill.id, &known, Some(sect))
+            })
+            .ok_or_else(|| {
+                CampaignError::InvalidState("no next sect skill is unlockable".to_string())
+            })?;
+        if self.progression.credits < 35 {
+            return Err(CampaignError::InvalidState(
+                "advanced sect training costs 35 credits".to_string(),
+            ));
+        }
+        self.progression.credits -= 35;
+        self.character.skill_ids.push(skill.id.to_string());
+        self.progression.skill_progress.insert(
+            skill.id.to_string(),
+            SkillProgress {
+                rank: 1,
+                experience: 0,
+            },
+        );
+        self.revision += 1;
+        Ok(skill.id.to_string())
+    }
+
+    pub fn start_regional_quest(&mut self, quest_id: &str) -> Result<(), CampaignError> {
+        self.require_town()?;
+        let definition = REGIONAL_QUEST_CATALOG
+            .iter()
+            .find(|definition| definition.id == quest_id)
+            .ok_or_else(|| {
+                CampaignError::InvalidState(format!("unknown regional quest: {quest_id}"))
+            })?;
+        let giver = NPC_CATALOG
+            .iter()
+            .find(|npc| npc.id == definition.giver_npc_id)
+            .expect("quest giver is catalog validated");
+        if self.room.id() != giver.room_id {
+            return Err(CampaignError::InvalidState(format!(
+                "{} is offered in {}",
+                definition.title, giver.room_id
+            )));
+        }
+        if self.active_regional_quest_id.is_some() {
+            return Err(CampaignError::InvalidState(
+                "finish the active regional quest before accepting another".to_string(),
+            ));
+        }
+        self.regional_quest_states
+            .insert(quest_id.to_string(), QuestState::Accepted);
+        self.active_regional_quest_id = Some(quest_id.to_string());
+        self.revision += 1;
+        Ok(())
+    }
+
+    pub fn start_first_regional_quest_here(&mut self) -> Result<String, CampaignError> {
+        let quest_id = NPC_CATALOG
+            .iter()
+            .filter(|npc| npc.room_id == self.room.id())
+            .flat_map(|npc| npc.task_ids.iter().copied())
+            .find(|quest_id| {
+                self.regional_quest_states.get(*quest_id) == Some(&QuestState::Available)
+            })
+            .ok_or_else(|| {
+                CampaignError::InvalidState("no available regional quest in this room".to_string())
+            })?
+            .to_string();
+        self.start_regional_quest(&quest_id)?;
+        Ok(quest_id)
+    }
+
+    pub fn advance_active_regional_quest(&mut self) -> Result<(), CampaignError> {
+        let quest_id = self.active_regional_quest_id.clone().ok_or_else(|| {
+            CampaignError::InvalidState("no regional quest is active".to_string())
+        })?;
+        let definition = REGIONAL_QUEST_CATALOG
+            .iter()
+            .find(|definition| definition.id == quest_id)
+            .expect("active regional quest remains catalog bound");
+        if let Some(encounter_id) = definition.encounter_id {
+            let cleared = format!("{encounter_id}_cleared");
+            if !self.progression.world_flags.contains(&cleared) {
+                return self.begin_regional_encounter(encounter_id);
+            }
+        }
+        self.complete_regional_quest()
+    }
+
+    pub fn complete_regional_quest(&mut self) -> Result<(), CampaignError> {
+        self.require_town()?;
+        let quest_id = self.active_regional_quest_id.clone().ok_or_else(|| {
+            CampaignError::InvalidState("no regional quest is active".to_string())
+        })?;
+        let definition = REGIONAL_QUEST_CATALOG
+            .iter()
+            .find(|definition| definition.id == quest_id)
+            .expect("active regional quest remains catalog bound");
+        if definition.waypoint_room_ids.last().copied() != Some(self.room.id()) {
+            return Err(CampaignError::InvalidState(format!(
+                "{} ends in {}",
+                definition.title,
+                definition
+                    .waypoint_room_ids
+                    .last()
+                    .copied()
+                    .unwrap_or("unknown")
+            )));
+        }
+        if let Some(encounter_id) = definition.encounter_id {
+            let flag = format!("{encounter_id}_cleared");
+            if !self.progression.world_flags.contains(&flag) {
+                return Err(CampaignError::InvalidState(format!(
+                    "{} requires winning encounter {}",
+                    definition.title, encounter_id
+                )));
+            }
+        }
+        self.progression.credits += definition.credit_reward;
+        self.character.attributes.reputation = self
+            .character
+            .attributes
+            .reputation
+            .saturating_add(definition.reputation_reward);
+        self.regional_quest_states
+            .insert(quest_id.clone(), QuestState::Completed);
+        self.progression
+            .world_flags
+            .insert(format!("regional_quest_{quest_id}_complete"));
+        self.active_regional_quest_id = None;
+        self.revision += 1;
+        Ok(())
+    }
+
+    pub fn buy_regional_item(&mut self, item_id: &str) -> Result<(), CampaignError> {
+        self.require_room(CampaignRoom::MarketWindPavilion)?;
+        let definition = ECONOMY_ITEM_CATALOG
+            .iter()
+            .find(|definition| definition.id == item_id)
+            .ok_or_else(|| CampaignError::InvalidState(format!("unknown shop item: {item_id}")))?;
+        if self.progression.credits < definition.buy_price {
+            return Err(CampaignError::InvalidState(format!(
+                "{} costs {} credits",
+                definition.display_name, definition.buy_price
+            )));
+        }
+        self.progression.credits -= definition.buy_price;
+        if definition.material {
+            merge_loot(
+                &mut self.progression.inventory,
+                &[LootStack {
+                    item_id: item_id.to_string(),
+                    quantity: 1,
+                }],
+            );
+        } else if let Some(item) = trillionnium_inventory_item_for(
+            &self.character.matrix_user_id,
+            item_id,
+            "market_wind_shop",
+            None,
+            (self.world_clock.day * 24 * 60 + u32::from(self.world_clock.minute_of_day)) as i64,
+        ) {
+            let instance_id = item.item_instance_id.clone();
+            self.character.inventory_items.push(item);
+            if let Some(condition) = ItemCondition::new(item_id) {
+                self.item_conditions.insert(instance_id, condition);
+            }
+        } else {
+            merge_loot(
+                &mut self.progression.inventory,
+                &[LootStack {
+                    item_id: item_id.to_string(),
+                    quantity: 1,
+                }],
+            );
+        }
+        self.revision += 1;
+        Ok(())
+    }
+
+    pub fn craft_regional_item(&mut self, recipe_id: &str) -> Result<(), CampaignError> {
+        self.require_room(CampaignRoom::WorkshopGate)?;
+        let recipe = CRAFTING_RECIPES
+            .iter()
+            .find(|recipe| recipe.id == recipe_id)
+            .ok_or_else(|| CampaignError::InvalidState(format!("unknown recipe: {recipe_id}")))?;
+        if !self
+            .character
+            .skill_ids
+            .iter()
+            .any(|skill| skill == recipe.required_skill_id)
+        {
+            return Err(CampaignError::InvalidState(format!(
+                "recipe requires skill {}",
+                recipe.required_skill_id
+            )));
+        }
+        for (item_id, quantity) in recipe.ingredients {
+            if !self
+                .progression
+                .inventory
+                .iter()
+                .any(|stack| stack.item_id == *item_id && stack.quantity >= *quantity)
+            {
+                return Err(CampaignError::InvalidState(format!(
+                    "recipe is missing {quantity}x {item_id}"
+                )));
+            }
+        }
+        for (item_id, quantity) in recipe.ingredients {
+            consume_loot(&mut self.progression.inventory, item_id, *quantity)?;
+        }
+        let item = trillionnium_inventory_item_for(
+            &self.character.matrix_user_id,
+            recipe.output_item_id,
+            "iron_workshop_crafting",
+            None,
+            (self.world_clock.day * 24 * 60 + u32::from(self.world_clock.minute_of_day)) as i64,
+        )
+        .ok_or_else(|| {
+            CampaignError::InvalidState(
+                "crafted item is missing from the typed item catalog".to_string(),
+            )
+        })?;
+        let instance_id = item.item_instance_id.clone();
+        self.character.inventory_items.push(item);
+        if let Some(condition) = ItemCondition::new(recipe.output_item_id) {
+            self.item_conditions.insert(instance_id, condition);
+        }
+        self.progression
+            .world_flags
+            .insert(format!("crafted_{}", recipe.output_item_id));
+        self.revision += 1;
+        Ok(())
+    }
+
+    pub fn repair_all_equipment(&mut self) -> Result<i64, CampaignError> {
+        self.require_room(CampaignRoom::WorkshopGate)?;
+        let cost = self
+            .item_conditions
+            .values()
+            .map(ItemCondition::repair_cost)
+            .sum::<i64>();
+        if cost == 0 {
+            return Ok(0);
+        }
+        if self.progression.credits < cost {
+            return Err(CampaignError::InvalidState(format!(
+                "repairing equipment costs {cost} credits"
+            )));
+        }
+        self.progression.credits -= cost;
+        for condition in self.item_conditions.values_mut() {
+            condition.repair();
+        }
+        self.revision += 1;
+        Ok(cost)
     }
 
     pub fn equip_starter_weapon(&mut self) -> Result<(), CampaignError> {
@@ -2816,7 +3336,11 @@ impl CampaignSaveV1 {
             } else if !mirror_siege_secured {
                 CampaignMission::MirrorSiege
             } else {
-                CampaignMission::AftershockPatrol
+                match self.active_mission {
+                    CampaignMission::IronDeltaSkirmish
+                    | CampaignMission::NightWatchCrossingSkirmish => self.active_mission,
+                    _ => CampaignMission::AftershockPatrol,
+                }
             };
         } else if self.quest_state == QuestState::Available {
             self.active_mission = CampaignMission::FirstContact;
@@ -2828,6 +3352,26 @@ impl CampaignSaveV1 {
         self.quest_state = QuestState::Accepted;
         self.revision += 1;
         Ok(())
+    }
+
+    pub fn cycle_endgame_mission(&mut self) -> Result<CampaignMission, CampaignError> {
+        self.require_room(CampaignRoom::ExpeditionGate)?;
+        if !self
+            .progression
+            .world_flags
+            .contains("mirror_siege_secured")
+        {
+            return Err(CampaignError::InvalidState(
+                "secure Mirror Siege before opening skirmish operations".to_string(),
+            ));
+        }
+        self.active_mission = match self.active_mission {
+            CampaignMission::AftershockPatrol => CampaignMission::IronDeltaSkirmish,
+            CampaignMission::IronDeltaSkirmish => CampaignMission::NightWatchCrossingSkirmish,
+            _ => CampaignMission::AftershockPatrol,
+        };
+        self.revision += 1;
+        Ok(self.active_mission)
     }
 
     pub fn start_first_contact_battle(
@@ -2897,6 +3441,13 @@ impl CampaignSaveV1 {
                 );
                 apply_campaign_growth(&mut stats, unit_level, reputation);
                 apply_expedition_readiness(&mut stats, &expedition_readiness);
+                if member.unit_id == "hero" {
+                    apply_regional_skills_and_sect(
+                        &mut stats,
+                        &skills,
+                        current_sect(&self.character),
+                    );
+                }
                 BattleUnitSeedV1 {
                     unit_id: member.unit_id.clone(),
                     display_name: member.display_name.clone(),
@@ -2926,6 +3477,14 @@ impl CampaignSaveV1 {
             character_origin: self.character_origin,
             build_path: self.build_path,
             active_title: self.active_title,
+            sect_id: self.character.sect_id.clone(),
+            regional_skill_bonus_permille: self
+                .character
+                .skill_ids
+                .iter()
+                .filter_map(|skill_id| SKILL_CATALOG.iter().find(|skill| skill.id == skill_id))
+                .map(|skill| skill.rts_modifier_permille)
+                .sum::<u16>(),
             field_build_cost_permille: if self.active_title == Some(BuildTitle::ForgeMaster) {
                 800
             } else {
@@ -3097,6 +3656,18 @@ impl CampaignSaveV1 {
             skill.experience += experience_delta / self.character.skill_ids.len().max(1) as u64;
             skill.rank = (1 + skill.experience / 250) as u16;
         }
+        if result.outcome != BattleOutcome::Withdrawal {
+            let wear = if result.outcome == BattleOutcome::Victory {
+                6
+            } else {
+                12
+            };
+            for instance_id in self.character.equipment_slots.values() {
+                if let Some(condition) = self.item_conditions.get_mut(instance_id) {
+                    condition.apply_wear(wear);
+                }
+            }
+        }
         self.quest_state = match result.outcome {
             BattleOutcome::Victory => QuestState::Completed,
             BattleOutcome::Defeat => QuestState::Failed,
@@ -3201,6 +3772,13 @@ impl CampaignSaveV1 {
                     .progression
                     .world_flags
                     .contains("mirror_siege_secured"),
+                CampaignMission::IronDeltaSkirmish => {
+                    self.progression.world_flags.contains("iron_delta_won")
+                }
+                CampaignMission::NightWatchCrossingSkirmish => self
+                    .progression
+                    .world_flags
+                    .contains("night_watch_crossing_won"),
             },
         });
         if !conditions_met {
@@ -3273,6 +3851,24 @@ pub fn typed_equipment_modifier(item_id: &str) -> TypedEquipmentModifier {
             modifier.armor = 2;
             modifier.energy = 25;
             modifier.ability_range = 2;
+        }
+        "reinforced-staff" => {
+            modifier.damage = 10;
+            modifier.armor = 2;
+            modifier.ability_range = 2;
+        }
+        "signal-lamellar" => {
+            modifier.max_hp = 30;
+            modifier.armor = 5;
+        }
+        "watcher-boots" => {
+            modifier.move_speed_milli = 180;
+            modifier.evasion_permille = 60;
+        }
+        "field-medic-satchel" => {
+            modifier.max_hp = 15;
+            modifier.energy = 35;
+            modifier.ability_range = 1;
         }
         _ => {}
     }
@@ -3433,6 +4029,73 @@ fn apply_expedition_readiness(stats: &mut RtsUnitStats, readiness: &ExpeditionRe
     }
 }
 
+fn apply_regional_skills_and_sect(
+    stats: &mut RtsUnitStats,
+    skill_ids: &[String],
+    sect: Option<SectId>,
+) {
+    for skill in skill_ids
+        .iter()
+        .filter_map(|skill_id| SKILL_CATALOG.iter().find(|skill| skill.id == skill_id))
+    {
+        match skill.effect {
+            trnm_rpg_core::SkillEffect::Damage => {
+                stats.damage = stats
+                    .damage
+                    .saturating_add(u32::from(skill.rts_modifier_permille) / 25)
+            }
+            trnm_rpg_core::SkillEffect::Guard => {
+                stats.armor = stats
+                    .armor
+                    .saturating_add(u32::from(skill.rts_modifier_permille) / 35)
+            }
+            trnm_rpg_core::SkillEffect::Mobility => {
+                stats.move_speed_milli = stats
+                    .move_speed_milli
+                    .saturating_add(u32::from(skill.rts_modifier_permille))
+            }
+            trnm_rpg_core::SkillEffect::Recon => {
+                stats.ability_range = stats.ability_range.saturating_add(1)
+            }
+            trnm_rpg_core::SkillEffect::Healing => {
+                stats.energy = stats
+                    .energy
+                    .saturating_add(u32::from(skill.rts_modifier_permille) / 2)
+            }
+            trnm_rpg_core::SkillEffect::Construction => {
+                stats.max_hp = stats
+                    .max_hp
+                    .saturating_add(u32::from(skill.rts_modifier_permille) / 3)
+            }
+            trnm_rpg_core::SkillEffect::Economy => {
+                stats.skill_power_permille = stats
+                    .skill_power_permille
+                    .saturating_add(skill.rts_modifier_permille / 2)
+            }
+            trnm_rpg_core::SkillEffect::Diplomacy => {
+                stats.energy = stats
+                    .energy
+                    .saturating_add(u32::from(skill.rts_modifier_permille) / 4)
+            }
+        }
+    }
+    match sect {
+        Some(SectId::StreetCompass) => {
+            stats.move_speed_milli = stats.move_speed_milli.saturating_add(100);
+            stats.ability_range = stats.ability_range.saturating_add(1);
+        }
+        Some(SectId::IronWorkshop) => {
+            stats.max_hp = stats.max_hp.saturating_add(24);
+            stats.armor = stats.armor.saturating_add(3);
+        }
+        Some(SectId::NightWatch) => {
+            stats.damage = stats.damage.saturating_add(3);
+            stats.evasion_permille = stats.evasion_permille.saturating_add(50).min(500);
+        }
+        None => {}
+    }
+}
+
 fn require_supplies(
     supplies: &ExpeditionSupplyState,
     rations: u8,
@@ -3465,6 +4128,29 @@ fn equipped_item_ids(character: &WorldTrillionniumCharacter) -> Vec<String> {
         .collect::<Vec<_>>();
     ids.sort();
     ids
+}
+
+fn character_item_conditions(
+    character: &WorldTrillionniumCharacter,
+) -> BTreeMap<String, ItemCondition> {
+    character
+        .inventory_items
+        .iter()
+        .filter_map(|item| {
+            ItemCondition::new(item.item_id.clone())
+                .filter(|condition| condition.max_durability > 0)
+                .map(|condition| (item.item_instance_id.clone(), condition))
+        })
+        .collect()
+}
+
+fn current_sect(character: &WorldTrillionniumCharacter) -> Option<SectId> {
+    match character.sect_id.as_deref()? {
+        "signal-road-school" | "street_compass_society" => Some(SectId::StreetCompass),
+        "iron_workshop_gate" => Some(SectId::IronWorkshop),
+        "night_watch_alliance" => Some(SectId::NightWatch),
+        _ => None,
+    }
 }
 
 fn merge_loot(inventory: &mut Vec<LootStack>, loot: &[LootStack]) {
@@ -3661,7 +4347,7 @@ impl SaveSlotStore {
     }
 }
 
-pub const PLAYER_SETTINGS_CONTRACT: &str = "trnm_player_settings_v1";
+pub const PLAYER_SETTINGS_CONTRACT: &str = "trnm_player_settings_v2";
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -3682,11 +4368,47 @@ impl InputMode {
     }
 }
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ControlScheme {
+    #[default]
+    Classic,
+    LeftHanded,
+    ArrowGrid,
+}
+
+impl ControlScheme {
+    pub fn next(self) -> Self {
+        match self {
+            Self::Classic => Self::LeftHanded,
+            Self::LeftHanded => Self::ArrowGrid,
+            Self::ArrowGrid => Self::Classic,
+        }
+    }
+}
+
+fn default_true() -> bool {
+    true
+}
+fn default_volume() -> u8 {
+    80
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PlayerSettings {
     pub contract_version: String,
+    #[serde(default)]
     pub low_motion: bool,
+    #[serde(default)]
     pub input_mode: InputMode,
+    #[serde(default = "default_true")]
+    pub subtitles: bool,
+    #[serde(default)]
+    pub high_contrast: bool,
+    #[serde(default)]
+    pub control_scheme: ControlScheme,
+    #[serde(default = "default_volume")]
+    pub master_volume_percent: u8,
 }
 
 impl Default for PlayerSettings {
@@ -3695,6 +4417,10 @@ impl Default for PlayerSettings {
             contract_version: PLAYER_SETTINGS_CONTRACT.to_string(),
             low_motion: false,
             input_mode: InputMode::Hybrid,
+            subtitles: true,
+            high_contrast: false,
+            control_scheme: ControlScheme::Classic,
+            master_volume_percent: 80,
         }
     }
 }
@@ -3713,15 +4439,29 @@ impl PlayerSettingsStore {
         if !self.path.exists() {
             return Ok(PlayerSettings::default());
         }
-        let settings: PlayerSettings = serde_json::from_slice(&fs::read(&self.path)?)?;
-        if settings.contract_version != PLAYER_SETTINGS_CONTRACT {
+        let bytes = fs::read(&self.path)?;
+        let mut value: serde_json::Value = serde_json::from_slice(&bytes)?;
+        if value
+            .get("contract_version")
+            .and_then(serde_json::Value::as_str)
+            == Some("trnm_player_settings_v1")
+        {
+            value["contract_version"] =
+                serde_json::Value::String(PLAYER_SETTINGS_CONTRACT.to_string());
+        }
+        let settings: PlayerSettings = serde_json::from_value(value)?;
+        if settings.contract_version != PLAYER_SETTINGS_CONTRACT
+            || settings.master_volume_percent > 100
+        {
             return Err(CampaignError::InvalidContract(settings.contract_version));
         }
         Ok(settings)
     }
 
     pub fn save_atomic(&self, settings: &PlayerSettings) -> Result<(), CampaignError> {
-        if settings.contract_version != PLAYER_SETTINGS_CONTRACT {
+        if settings.contract_version != PLAYER_SETTINGS_CONTRACT
+            || settings.master_volume_percent > 100
+        {
             return Err(CampaignError::InvalidContract(
                 settings.contract_version.clone(),
             ));
@@ -4541,5 +5281,83 @@ mod tests {
             campaign.campaign_journal()[0].objective,
             "Break the siege and reclaim Mirror Gate"
         );
+    }
+
+    #[test]
+    fn twelve_room_region_three_sects_and_regional_quest_route_are_live() {
+        let graph = mirror_city_world_graph();
+        assert_eq!(graph.rooms.len(), 12);
+        let mut campaign = CampaignSaveV1::default();
+        campaign.move_to(CampaignRoom::MarketWindPavilion).unwrap();
+        assert_eq!(
+            campaign.start_first_regional_quest_here().unwrap(),
+            "market_debt"
+        );
+        assert_eq!(
+            campaign.current_task_route_plan().destination_room_id,
+            WORKSHOP_GATE_ROOM
+        );
+        campaign.move_to(CampaignRoom::MirrorSquare).unwrap();
+        campaign.move_to(CampaignRoom::MentorHall).unwrap();
+        campaign.move_to(CampaignRoom::WorkshopGate).unwrap();
+        campaign.complete_regional_quest().unwrap();
+        assert_eq!(
+            campaign.regional_quest_states.get("market_debt"),
+            Some(&QuestState::Completed)
+        );
+        campaign.join_regional_sect(SectId::IronWorkshop).unwrap();
+        assert_eq!(
+            campaign.character.sect_id.as_deref(),
+            Some("iron_workshop_gate")
+        );
+        assert!(campaign.train_next_sect_skill().is_ok());
+    }
+
+    #[test]
+    fn sect_skill_tree_changes_battle_seed_and_crafting_consumes_materials() {
+        let mut baseline = ready_campaign();
+        let baseline_seed = baseline.start_first_contact_battle(map()).unwrap();
+        let mut artisan = ready_campaign();
+        artisan.move_to(CampaignRoom::MentorHall).unwrap();
+        artisan.move_to(CampaignRoom::WorkshopGate).unwrap();
+        artisan.join_regional_sect(SectId::IronWorkshop).unwrap();
+        artisan.progression.inventory.extend([
+            LootStack {
+                item_id: "salvaged-alloy".to_string(),
+                quantity: 3,
+            },
+            LootStack {
+                item_id: "route-token".to_string(),
+                quantity: 1,
+            },
+        ]);
+        artisan.craft_regional_item("reinforced_staff").unwrap();
+        assert!(artisan
+            .character
+            .inventory_items
+            .iter()
+            .any(|item| item.item_id == "reinforced-staff"));
+        artisan.move_to(CampaignRoom::MentorHall).unwrap();
+        artisan.move_to(CampaignRoom::ExpeditionGate).unwrap();
+        let artisan_seed = artisan.start_first_contact_battle(map()).unwrap();
+        assert_ne!(baseline_seed.seed_hash, artisan_seed.seed_hash);
+        assert_eq!(artisan_seed.sect_id.as_deref(), Some("iron_workshop_gate"));
+        assert!(artisan_seed.party[0].stats.armor > baseline_seed.party[0].stats.armor);
+    }
+
+    #[test]
+    fn v1_settings_migrate_to_subtitles_controls_and_master_volume_preference() {
+        let directory = tempdir().unwrap();
+        let path = directory.path().join("settings.json");
+        fs::write(
+            &path,
+            br#"{"contract_version":"trnm_player_settings_v1","low_motion":true,"input_mode":"keyboard_only"}"#,
+        )
+        .unwrap();
+        let settings = PlayerSettingsStore::new(path).load_or_default().unwrap();
+        assert_eq!(settings.contract_version, PLAYER_SETTINGS_CONTRACT);
+        assert!(settings.subtitles);
+        assert_eq!(settings.master_volume_percent, 80);
+        assert_eq!(settings.control_scheme, ControlScheme::Classic);
     }
 }

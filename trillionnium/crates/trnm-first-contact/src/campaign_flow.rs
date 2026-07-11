@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 use trnm_campaign_core::{
     CampaignError, CampaignPhase, CampaignRoom, CampaignSaveV1, CampaignStore, EncounterAction,
     InputMode, PlayerSettings, PlayerSettingsStore, QuestBranch, QuestState, SaveSlotId,
-    SaveSlotMeta, SaveSlotStore, SettlementReceiptV1,
+    SaveSlotMeta, SaveSlotStore, SectId, SettlementReceiptV1,
 };
 use trnm_rts_sim::{MissionSimV1, SimCheckpointStore};
 
@@ -261,6 +261,33 @@ impl CampaignFlow {
             .map_err(|error| error.to_string())
     }
 
+    pub fn toggle_subtitles_and_contrast(&mut self) -> Result<(), String> {
+        self.settings.subtitles = !self.settings.subtitles;
+        self.settings.high_contrast = self.settings.subtitles;
+        self.settings_store
+            .save_atomic(&self.settings)
+            .map_err(|error| error.to_string())
+    }
+
+    pub fn cycle_control_scheme(&mut self) -> Result<(), String> {
+        self.settings.control_scheme = self.settings.control_scheme.next();
+        self.settings_store
+            .save_atomic(&self.settings)
+            .map_err(|error| error.to_string())
+    }
+
+    pub fn cycle_master_volume(&mut self) -> Result<(), String> {
+        self.settings.master_volume_percent = match self.settings.master_volume_percent {
+            0..=39 => 40,
+            40..=79 => 80,
+            80..=99 => 100,
+            _ => 0,
+        };
+        self.settings_store
+            .save_atomic(&self.settings)
+            .map_err(|error| error.to_string())
+    }
+
     pub fn mutate_town<F>(&mut self, mutation: F) -> Result<(), CampaignError>
     where
         F: FnOnce(&mut CampaignSaveV1) -> Result<(), CampaignError>,
@@ -373,6 +400,37 @@ pub(super) fn handle_campaign_input(
         } else if flow.shell_mode == ShellMode::Journal {
             flow.shell_mode = ShellMode::Playing;
             flow.status = "Campaign journal closed".to_string();
+        }
+        return;
+    }
+    if input.just_pressed(KeyCode::F5) {
+        match flow.toggle_subtitles_and_contrast() {
+            Ok(()) => {
+                flow.status = format!(
+                    "Subtitles: {} | high contrast: {}",
+                    flow.settings.subtitles, flow.settings.high_contrast
+                )
+            }
+            Err(error) => flow.status = error,
+        }
+        return;
+    }
+    if input.just_pressed(KeyCode::F7) {
+        match flow.cycle_control_scheme() {
+            Ok(()) => flow.status = format!("Control scheme: {:?}", flow.settings.control_scheme),
+            Err(error) => flow.status = error,
+        }
+        return;
+    }
+    if input.just_pressed(KeyCode::F8) {
+        match flow.cycle_master_volume() {
+            Ok(()) => {
+                flow.status = format!(
+                    "Master volume preference: {}%",
+                    flow.settings.master_volume_percent
+                )
+            }
+            Err(error) => flow.status = error,
         }
         return;
     }
@@ -525,10 +583,40 @@ pub(super) fn handle_campaign_input(
     } else if input.just_pressed(KeyCode::Digit4) {
         let result = flow.mutate_town(|save| save.move_to(CampaignRoom::RelayQuarter));
         set_status(&mut flow, result, "Entered Relay Quarter");
+    } else if input.just_pressed(KeyCode::Digit5) {
+        let result = flow.mutate_town(|save| save.move_to(CampaignRoom::CisternWard));
+        set_status(&mut flow, result, "Entered Cistern Ward");
+    } else if input.just_pressed(KeyCode::Digit6) {
+        let result = flow.mutate_town(|save| save.move_to(CampaignRoom::NightWatchPost));
+        set_status(&mut flow, result, "Entered the Night Watch Post");
+    } else if input.just_pressed(KeyCode::Digit7) {
+        let result = flow.mutate_town(|save| save.move_to(CampaignRoom::WorkshopGate));
+        set_status(&mut flow, result, "Entered Iron Workshop Gate");
+    } else if input.just_pressed(KeyCode::Digit8) {
+        let result = flow.mutate_town(|save| save.move_to(CampaignRoom::MarketWindPavilion));
+        set_status(&mut flow, result, "Entered Market Wind Pavilion");
+    } else if input.just_pressed(KeyCode::Digit9) {
+        let result = flow.mutate_town(|save| save.move_to(CampaignRoom::LanternInfirmary));
+        set_status(&mut flow, result, "Entered Lantern Infirmary");
+    } else if input.just_pressed(KeyCode::Digit0) {
+        let result = flow.mutate_town(|save| save.move_to(CampaignRoom::ArchiveSteps));
+        set_status(&mut flow, result, "Entered Archive Steps");
+    } else if input.just_pressed(KeyCode::Minus) {
+        let result = flow.mutate_town(|save| save.move_to(CampaignRoom::CaravanYard));
+        set_status(&mut flow, result, "Entered Caravan Yard");
+    } else if input.just_pressed(KeyCode::Equal) {
+        let result = flow.mutate_town(|save| save.move_to(CampaignRoom::OuterSignalRoad));
+        set_status(&mut flow, result, "Entered Outer Signal Road");
     } else if input.just_pressed(KeyCode::KeyT) {
         if flow.save.room == CampaignRoom::RelayQuarter {
             let result = flow.mutate_town(CampaignSaveV1::talk_to_relay_smith);
             set_status(&mut flow, result, "Built trust with Relay Smith Brann");
+        } else if flow.save.room == CampaignRoom::WorkshopGate {
+            let result = flow.mutate_town(|save| save.join_regional_sect(SectId::IronWorkshop));
+            set_status(&mut flow, result, "Committed to Iron Workshop Gate");
+        } else if flow.save.room == CampaignRoom::NightWatchPost {
+            let result = flow.mutate_town(|save| save.join_regional_sect(SectId::NightWatch));
+            set_status(&mut flow, result, "Committed to the Night Watch Alliance");
         } else {
             let result = flow.mutate_town(CampaignSaveV1::talk_to_mentor);
             set_status(
@@ -538,8 +626,12 @@ pub(super) fn handle_campaign_input(
             );
         }
     } else if input.just_pressed(KeyCode::KeyK) {
-        let result = flow.mutate_town(CampaignSaveV1::train_with_mentor);
-        set_status(&mut flow, result, "Completed paid mentor training");
+        let result = if flow.save.room == CampaignRoom::MentorHall {
+            flow.mutate_town(CampaignSaveV1::train_with_mentor)
+        } else {
+            flow.mutate_town(|save| save.train_next_sect_skill().map(|_| ()))
+        };
+        set_status(&mut flow, result, "Completed paid sect training");
     } else if input.just_pressed(KeyCode::KeyL) {
         let result = flow.mutate_town(CampaignSaveV1::cycle_training_path);
         set_status(&mut flow, result, "Changed mentor training path");
@@ -641,6 +733,45 @@ pub(super) fn handle_campaign_input(
     } else if input.just_pressed(KeyCode::F6) && flow.save.room == CampaignRoom::ExpeditionGate {
         let result = flow.mutate_town(|save| save.cycle_difficulty().map(|_| ()));
         set_status(&mut flow, result, "Changed campaign difficulty");
+    } else if input.just_pressed(KeyCode::F9) {
+        let result = flow.mutate_town(|save| save.start_first_regional_quest_here().map(|_| ()));
+        set_status(&mut flow, result, "Accepted a regional authored quest");
+    } else if input.just_pressed(KeyCode::F10) {
+        let endgame = flow.save.room == CampaignRoom::ExpeditionGate
+            && flow.save.active_regional_quest_id.is_none()
+            && flow
+                .save
+                .progression
+                .world_flags
+                .contains("mirror_siege_secured");
+        let result = if endgame {
+            flow.mutate_town(|save| save.cycle_endgame_mission().map(|_| ()))
+        } else {
+            flow.mutate_town(CampaignSaveV1::advance_active_regional_quest)
+        };
+        set_status(
+            &mut flow,
+            result,
+            if endgame {
+                "Changed endgame skirmish"
+            } else {
+                "Advanced the active regional quest"
+            },
+        );
+    } else if input.just_pressed(KeyCode::F11) {
+        let result = if flow.save.room == CampaignRoom::MarketWindPavilion {
+            flow.mutate_town(|save| save.buy_regional_item("watcher-boots"))
+        } else {
+            flow.mutate_town(|save| save.craft_regional_item("reinforced_staff"))
+        };
+        set_status(
+            &mut flow,
+            result,
+            "Completed a regional shop/crafting action",
+        );
+    } else if input.just_pressed(KeyCode::F12) {
+        let result = flow.mutate_town(|save| save.repair_all_equipment().map(|_| ()));
+        set_status(&mut flow, result, "Repaired regional equipment durability");
     } else if input.just_pressed(KeyCode::KeyJ)
         && (flow.save.room == CampaignRoom::RelayQuarter
             || flow

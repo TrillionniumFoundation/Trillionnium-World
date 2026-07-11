@@ -3,7 +3,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 ACCEPTANCE_DIR="$ROOT/acceptance/S6_public_launch/latest"
-DOC_REL="docs/development/trillionnium-world-review-bot-executor-surface-batch-2026-07-09.md"
+DOC_REL="docs/archive/world-review-2026-07/trillionnium-world-review-bot-executor-surface-batch-2026-07-09.md"
 DOC="$ROOT/$DOC_REL"
 RUNTIME_OWNER_QUEUE_JSON="$ACCEPTANCE_DIR/trillionnium-world-review-runtime-owner-queue.json"
 EXECUTION_BATCHES_JSON="$ACCEPTANCE_DIR/trillionnium-world-review-execution-batches.json"

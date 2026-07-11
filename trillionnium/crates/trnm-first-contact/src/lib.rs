@@ -45,6 +45,9 @@ impl FirstContactLivePlugin {
         let map = match active_mission {
             "aftershock_patrol" | "first_contact_aftershock" => maps.aftershock_patrol.clone(),
             "convoy_exodus" => maps.convoy_exodus.clone(),
+            "mirror_siege" => maps.mirror_siege.clone(),
+            "iron_delta" => maps.iron_delta.clone(),
+            "night_watch_crossing" => maps.night_watch_crossing.clone(),
             _ => maps.first_contact.clone(),
         };
         Ok(Self {
@@ -95,7 +98,9 @@ impl Plugin for FirstContactLivePlugin {
 }
 
 pub fn default_first_contact_asset_root() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../assets")
+    std::env::var_os("TRNM_ASSET_ROOT")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../assets"))
 }
 
 pub fn build_first_contact_live_bevy_app(low_spec: bool) -> Result<App, String> {

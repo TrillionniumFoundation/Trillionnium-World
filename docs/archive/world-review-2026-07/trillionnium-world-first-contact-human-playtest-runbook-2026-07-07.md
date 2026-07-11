@@ -18,7 +18,7 @@ notes.
 - Handoff packet:
   `acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-handoff-packet.json`
 - Observation log:
-  `docs/development/trillionnium-world-first-contact-human-playtest-observation-log-2026-07-07.md`
+  `docs/archive/world-review-2026-07/trillionnium-world-first-contact-human-playtest-observation-log-2026-07-07.md`
 - Live screenshot:
   `acceptance/S5_native_bevy_device/latest/manual_bevy/bevy-classic-player-screen-runner-status.png`
 

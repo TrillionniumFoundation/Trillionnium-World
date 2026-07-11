@@ -90,6 +90,14 @@ fn room_label(room: CampaignRoom) -> &'static str {
         CampaignRoom::MentorHall => "STREET COMPASS SIFU HALL",
         CampaignRoom::ExpeditionGate => "FIRST CONTACT EXPEDITION GATE",
         CampaignRoom::RelayQuarter => "RELAY QUARTER / SIGNAL ROAD",
+        CampaignRoom::CisternWard => "CISTERN WARD",
+        CampaignRoom::NightWatchPost => "NIGHT WATCH POST",
+        CampaignRoom::WorkshopGate => "IRON WORKSHOP GATE",
+        CampaignRoom::MarketWindPavilion => "MARKET WIND PAVILION",
+        CampaignRoom::LanternInfirmary => "LANTERN INFIRMARY",
+        CampaignRoom::ArchiveSteps => "ARCHIVE STEPS",
+        CampaignRoom::CaravanYard => "CARAVAN YARD",
+        CampaignRoom::OuterSignalRoad => "OUTER SIGNAL ROAD",
     }
 }
 
@@ -128,7 +136,7 @@ fn town_body(flow: &CampaignFlow) -> String {
             encounter.enemy_max_hp,
         );
     }
-    match save.room {
+    let body = match save.room {
         CampaignRoom::MirrorSquare => format!(
             "{}\n\n{}  |  ORIGIN {}  |  LV {}  |  XP {}  |  CR {}  |  REP {}\nGUIDE: {}\nTIME {}  |  STAMINA {}  |  RATIONS {}  |  WATER {}\nGROWTH {}  |  PREVIEW {:?}  |  BUILD {:?}  |  TITLE {:?}\n{}\n\nO changes origin before mentor progress; A/S/D choose growth; Q earns the selected path title through its mastery challenge.\n\nSTORY: {:?}  |  MISSION: {}  |  AFTERSHOCK WINS {}  |  SAVE REVISION {}",
             room_label(save.room),
@@ -231,6 +239,22 @@ fn town_body(flow: &CampaignFlow) -> String {
                 .filter(|flag| flag.contains("contact") || flag.contains("aftershock") || flag.contains("signal_road"))
                 .collect::<Vec<_>>(),
         ),
+        room => format!(
+            "{}\n\nMIRROR CITY REGIONAL DISTRICT\n\nThis district belongs to the authored twelve-room RPG region. Its mentor, NPC and regional quest definitions are authoritative clean-room content; travel still follows adjacency, locks and the current journal route.\n\n{}\n\nNPC CATALOG: 10  |  REGIONAL QUESTS: 15  |  SECTS: 3\nUse the room travel keys to follow connected exits; F4 opens the authoritative journal.",
+            room_label(room),
+            navigation,
+        ),
+    };
+    if flow.settings.subtitles && !save.combat_log.is_empty() {
+        let captions = save
+            .combat_log
+            .iter()
+            .map(|beat| format!("[{}] {}", beat.kind.to_ascii_uppercase(), beat.text))
+            .collect::<Vec<_>>()
+            .join("\n");
+        format!("{body}\n\nCOMBAT CAPTIONS\n{captions}")
+    } else {
+        body
     }
 }
 
@@ -293,11 +317,15 @@ fn shell_body(flow: &CampaignFlow) -> String {
                 .collect::<Vec<_>>()
                 .join("\n");
             format!(
-                "THREE INDEPENDENT CAMPAIGN SLOTS\n\n{}\n\nSelected: {}  |  Low motion: {}  |  Input: {:?}\n\nA corrupt slot is isolated and cannot poison another slot. NEW requires a second explicit N before overwriting an occupied slot.",
+                "THREE INDEPENDENT CAMPAIGN SLOTS\n\n{}\n\nSelected: {}  |  Low motion: {}  |  Input: {:?}\nSubtitles: {}  |  Contrast: {}  |  Controls: {:?}  |  Audio: {}%\n\nA corrupt slot is isolated and cannot poison another slot. NEW requires a second explicit N before overwriting an occupied slot.",
                 slots,
                 flow.selected_slot.label(),
                 flow.settings.low_motion,
                 flow.settings.input_mode,
+                flow.settings.subtitles,
+                flow.settings.high_contrast,
+                flow.settings.control_scheme,
+                flow.settings.master_volume_percent,
             )
         }
         ShellMode::ResumeGuard => format!(
@@ -305,11 +333,14 @@ fn shell_body(flow: &CampaignFlow) -> String {
             flow.active_slot.label(), flow.save.phase,
         ),
         ShellMode::Paused => format!(
-            "PAUSED\n\nSlot {}  |  Tick {}\nLow motion: {}  |  Input: {:?}\n\nAuthoritative RTS ticks, commands, mouse selection and camera input are stopped. Settings are stored in player-settings.json, outside every character slot.",
+            "PAUSED\n\nSlot {}  |  Tick {}\nLow motion: {}  |  Input: {:?}\nSubtitles: {}  |  Controls: {:?}  |  Audio: {}%\n\nAuthoritative RTS ticks, commands, mouse selection and camera input are stopped. Settings are stored in player-settings.json, outside every character slot.",
             flow.active_slot.label(),
             flow.mission.as_ref().map(|mission| mission.tick).unwrap_or_default(),
             flow.settings.low_motion,
             flow.settings.input_mode,
+            flow.settings.subtitles,
+            flow.settings.control_scheme,
+            flow.settings.master_volume_percent,
         ),
         ShellMode::CharacterCreate => format!(
             "CREATE CHARACTER IDENTITY\n\nNAME: {}\nORIGIN: selected later in Mirror Square\nSAVE SLOT: {}\n\nThe name is persisted on both the RPG character and party hero. Origin remains the existing independent gameplay choice.",
@@ -458,7 +489,7 @@ pub(super) fn update_campaign_ui(
     }
     for (mut action, mut color) in &mut actions {
         action.0 = if flow.shell_mode == ShellMode::Title {
-            "1/2/3 SELECT SLOT | N NEW / CONFIRM OVERWRITE | ENTER LOAD/CONTINUE | F2 LOW MOTION | F3 INPUT MODE".to_string()
+            "1/2/3 SLOT | N NEW | ENTER LOAD | F2 MOTION | F3 INPUT | F5 SUBTITLE/CONTRAST | F7 CONTROLS | F8 AUDIO".to_string()
         } else if flow.shell_mode == ShellMode::CharacterCreate {
             "C CYCLE NAME | ENTER CONFIRM | ESC TITLE".to_string()
         } else if flow.shell_mode == ShellMode::Journal {
@@ -466,7 +497,7 @@ pub(super) fn update_campaign_ui(
         } else if flow.shell_mode == ShellMode::ResumeGuard {
             "ENTER RESUME | F1 TITLE".to_string()
         } else if flow.shell_mode == ShellMode::Paused {
-            "ESC RESUME | F1 TITLE | F2 LOW MOTION | F3 INPUT MODE".to_string()
+            "ESC RESUME | F1 TITLE | F2 MOTION | F3 INPUT | F5 SUBTITLE/CONTRAST | F7 CONTROLS | F8 AUDIO".to_string()
         } else if flow.mode == CampaignMode::Debrief {
             "ENTER  RETURN TO MIRROR SQUARE".to_string()
         } else if flow.save.active_encounter.is_some() {
@@ -480,18 +511,23 @@ pub(super) fn update_campaign_ui(
                     "T TALK | L PATH | K TRAIN | Y SPAR | Q MASTERY | E LOADOUT | H HEAL | 1 SQUARE | 3 GATE".to_string()
                 }
                 CampaignRoom::ExpeditionGate => {
-                    "R PREPARATION | F6 DIFFICULTY | F4 JOURNAL | B RELIEF SUPPLIES | Z/X/C PARTY | E LOADOUT | F ACCEPT/DEPLOY | F1 TITLE"
+                    "R PREP | F6 DIFFICULTY | F10 ENDGAME MAP | F4 JOURNAL | Z/X/C PARTY | E LOADOUT | F ACCEPT/DEPLOY"
                         .to_string()
                 }
                 CampaignRoom::RelayQuarter => {
                     "B CISTERN RELIEF | N REINFORCE | M EVACUATE | T TALK BRANN | U RECRUIT | J RPG AMBUSH | F1 TITLE | ESC PAUSE".to_string()
                 }
+                _ => "1-0/-/= TRAVEL | T JOIN SECT | K TRAIN | F9 ACCEPT QUEST | F10 ADVANCE | F11 SHOP/CRAFT | F12 REPAIR".to_string(),
             }
         };
         color.0 = if hidden {
             Color::NONE
         } else {
-            Color::srgb(0.62, 0.88, 0.70)
+            if flow.settings.high_contrast {
+                Color::WHITE
+            } else {
+                Color::srgb(0.62, 0.88, 0.70)
+            }
         };
     }
     for (mut status, mut color) in &mut statuses {
@@ -499,7 +535,11 @@ pub(super) fn update_campaign_ui(
         color.0 = if hidden {
             Color::NONE
         } else {
-            Color::srgb(0.72, 0.80, 0.76)
+            if flow.settings.high_contrast {
+                Color::srgb(1.0, 0.92, 0.35)
+            } else {
+                Color::srgb(0.72, 0.80, 0.76)
+            }
         };
     }
 }

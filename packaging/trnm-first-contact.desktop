@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Trillionnium: First Contact
+Comment=Original RPG and real-time-strategy campaign
+Exec=trnm-first-contact
+Terminal=false
+Categories=Game;StrategyGame;RolePlaying;
+Keywords=RPG;RTS;Strategy;

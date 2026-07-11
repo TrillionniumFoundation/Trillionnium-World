@@ -1,6 +1,6 @@
 # Trillionnium RPG -> RTS -> RPG Closed Loop v1
 
-Status: canonical local product truth source as of 2026-07-11, guided-campaign/identity/Mirror-Siege P0-P3 revision.
+Status: canonical product contract as of 2026-07-11. `GAME_STATUS.md` is the concise current status and open-gate view.
 
 ## Product Definition
 
@@ -30,6 +30,8 @@ Mirror Square
   -> unlock the outer Signal Road and retain the repeatable patrol loop
   -> counterattack on the fourth original Mirror Siege map
   -> break the siege, reclaim Mirror Gate and persist the result
+  -> select Iron Delta or Night Watch Crossing as deterministic endgame skirmishes
+  -> return their faction loot and equipment materials to the RPG economy
 ```
 
 ## Authority Boundaries
@@ -41,17 +43,17 @@ Mirror Square
 | Frame-order contract | `trnm-rts-protocol` | Lightweight player-order validation and deterministic stream contract. |
 | Battle simulation | `trnm-rts-sim` | Bevy-free, two-dimensional, map-aware simulation consuming `RtsFrameOrder` as its only player input. |
 | Native presentation/input | `trnm-first-contact` | Consumes `BattleSeedV1`; may only emit `BattleResultV1`. |
-| Authored map/art | `assets/first_contact` | Four canonical original 40x24 mission maps and PNG atlases. |
+| Authored map/art | `assets/first_contact` | Six canonical original 40x24 campaign/skirmish maps and PNG atlases. |
 | Historical implementation | `docs/archive/frozen-legacy-final-index-2026-07-11.md` | Removed from the current checkout; recoverable by an explicit historical Git worktree only. |
 
 ## Stable Contracts
 
 - `trnm_campaign_save_v1`
-- `trnm_battle_seed_v6`
+- `trnm_battle_seed_v7`
 - `trnm_battle_result_v2`
 - `trnm_settlement_receipt_v1`
-- `trnm_rts_sim_v8`
-- `trnm_rts_sim_checkpoint_v8`
+- `trnm_rts_sim_v9`
+- `trnm_rts_sim_checkpoint_v9`
 
 `BattleSeedV1` binds campaign revision, battle id, map/rules version, four
 persistent party members, spawn slots, skills, typed equipment modifiers,
@@ -97,6 +99,8 @@ Town:
 - `2`: mentor hall
 - `3`: expedition gate
 - `4`: Relay Quarter after the two-mission Signal Road chain
+- `5/6/7/8/9/0/-/=`: Cistern Ward, Night Watch Post, Iron Workshop Gate,
+  Market Wind Pavilion, Lantern Infirmary, Archive Steps, Caravan Yard and Outer Signal Road
 - `T`: talk to mentor, or build Brann trust in Relay Quarter
 - `L`: cycle Iron Guard / Wind Step / Inner Flame training path
 - `K`: buy one capped mentor training session
@@ -117,6 +121,9 @@ Town:
 - `R` at the expedition gate: cycle immediate/rested/supplied/shortcut preparation
 - `F6` at the expedition gate: cycle Story / Standard / Veteran before acceptance
 - `F`: accept mission / deploy
+- `F9/F10`: accept and advance the authored regional quest available at the current NPC room
+- `T/K` in a regional mentor hall: commit to one of three sects and train its prerequisite skill tree
+- `F11/F12`: contextual shop/crafting and equipment repair
 
 Title/pause shell:
 
@@ -125,6 +132,7 @@ Title/pause shell:
 - new character: `C` cycles the persistent display name; `Enter` confirms it
 - `Enter`: load/continue, then pass the resume guard before gameplay is revealed
 - `F2`: low-motion mode; `F3`: hybrid/keyboard-only/mouse-only input mode
+- `F5`: subtitles/high contrast; `F7`: control-scheme profile; `F8`: persisted master-volume preference (audio playback remains pending)
 - `Esc`: resume from pause; settings are profile-scoped rather than character-scoped
 
 Battle:
@@ -159,6 +167,14 @@ Battle:
 Debrief:
 
 - `Enter`: return to Mirror Square after the atomically saved settlement.
+
+Current authored content expansion:
+
+- twelve-room first region, three exclusive sects, three mentors and ten NPC definitions;
+- fifteen regional quests, seven encounter definitions and original combat captions;
+- fifteen skills, eighteen economy items, four recipes, durability and repair;
+- two factions, twelve unit archetypes, ten structures and ten technologies;
+- Iron Delta and Night Watch Crossing join the four campaign maps as selectable endgame skirmishes.
 
 ## M0-M4 Implementation State
 

@@ -107,6 +107,8 @@ pub struct MissionMapCatalog {
     pub aftershock_patrol: FirstContactMap,
     pub convoy_exodus: FirstContactMap,
     pub mirror_siege: FirstContactMap,
+    pub iron_delta: FirstContactMap,
+    pub night_watch_crossing: FirstContactMap,
 }
 
 impl MissionMapCatalog {
@@ -124,6 +126,12 @@ impl MissionMapCatalog {
             mirror_siege: load_first_contact_map(
                 &asset_root.join("first_contact/maps/mirror_siege.yaml"),
             )?,
+            iron_delta: load_first_contact_map(
+                &asset_root.join("first_contact/maps/iron_delta.yaml"),
+            )?,
+            night_watch_crossing: load_first_contact_map(
+                &asset_root.join("first_contact/maps/night_watch_crossing.yaml"),
+            )?,
         })
     }
 
@@ -133,6 +141,8 @@ impl MissionMapCatalog {
             CampaignMission::AftershockPatrol => &self.aftershock_patrol,
             CampaignMission::ConvoyExodus => &self.convoy_exodus,
             CampaignMission::MirrorSiege => &self.mirror_siege,
+            CampaignMission::IronDeltaSkirmish => &self.iron_delta,
+            CampaignMission::NightWatchCrossingSkirmish => &self.night_watch_crossing,
         }
     }
 }
@@ -203,7 +213,12 @@ impl FirstContactMap {
         }
         if !matches!(
             self.id.as_str(),
-            "first_contact" | "aftershock_patrol" | "convoy_exodus" | "mirror_siege"
+            "first_contact"
+                | "aftershock_patrol"
+                | "convoy_exodus"
+                | "mirror_siege"
+                | "iron_delta"
+                | "night_watch_crossing"
         ) || self.title.trim().is_empty()
         {
             return Err("campaign map identity/title is invalid".into());
@@ -357,14 +372,84 @@ pub fn load_first_contact_map(path: &Path) -> Result<FirstContactMap, String> {
             path.display()
         )
     })?;
-    let map: FirstContactMap = serde_yaml::from_str(&source).map_err(|error| {
+    let mut value: serde_yaml::Value = serde_yaml::from_str(&source).map_err(|error| {
         format!(
             "failed to parse First Contact map {}: {error}",
             path.display()
         )
     })?;
+    let extends = value
+        .get("extends")
+        .and_then(serde_yaml::Value::as_str)
+        .map(str::to_string);
+    if let Some(extends) = extends {
+        let base_path = path.with_file_name(format!("{extends}.yaml"));
+        let base_source = fs::read_to_string(&base_path).map_err(|error| {
+            format!(
+                "failed to read extended map {}: {error}",
+                base_path.display()
+            )
+        })?;
+        let mut base: serde_yaml::Value = serde_yaml::from_str(&base_source).map_err(|error| {
+            format!(
+                "failed to parse extended map {}: {error}",
+                base_path.display()
+            )
+        })?;
+        merge_yaml(&mut base, value);
+        value = base;
+    }
+    let transform = value
+        .get("terrain_transform")
+        .and_then(serde_yaml::Value::as_str)
+        .map(str::to_string);
+    if let Some(mapping) = value.as_mapping_mut() {
+        mapping.remove(serde_yaml::Value::String("extends".to_string()));
+        mapping.remove(serde_yaml::Value::String("terrain_transform".to_string()));
+    }
+    let mut map: FirstContactMap = serde_yaml::from_value(value).map_err(|error| {
+        format!(
+            "failed to materialize First Contact map {}: {error}",
+            path.display()
+        )
+    })?;
+    match transform.as_deref() {
+        Some("mirror_x") => {
+            for row in map
+                .terrain_rows
+                .iter_mut()
+                .chain(map.height_rows.iter_mut())
+            {
+                *row = row.chars().rev().collect();
+            }
+        }
+        Some("rotate_180") => {
+            for rows in [&mut map.terrain_rows, &mut map.height_rows] {
+                rows.reverse();
+                for row in rows.iter_mut() {
+                    *row = row.chars().rev().collect();
+                }
+            }
+        }
+        Some(other) => return Err(format!("unsupported terrain transform: {other}")),
+        None => {}
+    }
     map.validate()?;
     Ok(map)
+}
+
+fn merge_yaml(base: &mut serde_yaml::Value, overlay: serde_yaml::Value) {
+    match (base, overlay) {
+        (serde_yaml::Value::Mapping(base), serde_yaml::Value::Mapping(overlay)) => {
+            for (key, value) in overlay {
+                if key.as_str() == Some("extends") {
+                    continue;
+                }
+                base.insert(key, value);
+            }
+        }
+        (base, overlay) => *base = overlay,
+    }
 }
 
 #[cfg(test)]
@@ -391,7 +476,7 @@ mod tests {
     }
 
     #[test]
-    fn campaign_catalog_contains_four_distinct_authored_maps() {
+    fn campaign_catalog_contains_six_distinct_authored_maps() {
         let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../assets");
         let catalog = MissionMapCatalog::load(&root).expect("both authored maps load");
         assert_eq!(catalog.aftershock_patrol.id, "aftershock_patrol");
@@ -421,6 +506,16 @@ mod tests {
                 .filter(|unit| unit.owner == "contact")
                 .count(),
             5
+        );
+        assert_eq!(catalog.iron_delta.id, "iron_delta");
+        assert_eq!(catalog.night_watch_crossing.id, "night_watch_crossing");
+        assert_ne!(
+            catalog.iron_delta.terrain_rows,
+            catalog.first_contact.terrain_rows
+        );
+        assert_ne!(
+            catalog.night_watch_crossing.terrain_rows,
+            catalog.convoy_exodus.terrain_rows
         );
     }
 }

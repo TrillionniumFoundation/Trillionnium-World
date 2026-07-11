@@ -7,10 +7,21 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, BTreeSet, HashMap, VecDeque};
 
+mod content;
+pub use content::*;
+
 pub const MIRROR_SQUARE_ROOM: &str = "mirror_square";
 pub const MENTOR_HALL_ROOM: &str = "mentor_hall";
 pub const EXPEDITION_GATE_ROOM: &str = "expedition_gate";
 pub const RELAY_QUARTER_ROOM: &str = "relay_quarter";
+pub const CISTERN_WARD_ROOM: &str = "cistern_ward";
+pub const NIGHT_WATCH_POST_ROOM: &str = "night_watch_post";
+pub const WORKSHOP_GATE_ROOM: &str = "workshop_gate";
+pub const MARKET_WIND_PAVILION_ROOM: &str = "market_wind_pavilion";
+pub const LANTERN_INFIRMARY_ROOM: &str = "lantern_infirmary";
+pub const ARCHIVE_STEPS_ROOM: &str = "archive_steps";
+pub const CARAVAN_YARD_ROOM: &str = "caravan_yard";
+pub const OUTER_SIGNAL_ROAD_ROOM: &str = "outer_signal_road";
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -241,16 +252,27 @@ pub struct EncounterTurn {
 
 impl RpgEncounterState {
     pub fn signal_road_ambush(attributes: &TrillionniumAttributes) -> Self {
+        Self::from_definition("signal_road_ambush", attributes)
+            .expect("signal road encounter definition exists")
+    }
+
+    pub fn from_definition(
+        encounter_id: &str,
+        attributes: &TrillionniumAttributes,
+    ) -> Option<Self> {
+        let definition = ENCOUNTER_CATALOG
+            .iter()
+            .find(|definition| definition.id == encounter_id)?;
         let player_max_hp = attributes.derived_stats().max_hp;
-        Self {
-            encounter_id: "signal_road_ambush".to_string(),
+        Some(Self {
+            encounter_id: encounter_id.to_string(),
             round: 0,
             player_hp: player_max_hp,
             player_max_hp,
-            enemy_hp: 135,
-            enemy_max_hp: 135,
+            enemy_hp: definition.enemy_hp,
+            enemy_max_hp: definition.enemy_hp,
             outcome: None,
-        }
+        })
     }
 
     pub fn advance(
@@ -746,6 +768,54 @@ pub fn mirror_city_world_graph() -> WorldGraph {
             region_id: "signal_road".to_string(),
             unlock_flag: Some("signal_road_secured".to_string()),
         },
+        WorldRoom {
+            id: CISTERN_WARD_ROOM.to_string(),
+            title: "蓄水坊".to_string(),
+            region_id: "mirror_city".to_string(),
+            unlock_flag: None,
+        },
+        WorldRoom {
+            id: NIGHT_WATCH_POST_ROOM.to_string(),
+            title: "夜巡哨所".to_string(),
+            region_id: "mirror_city".to_string(),
+            unlock_flag: None,
+        },
+        WorldRoom {
+            id: WORKSHOP_GATE_ROOM.to_string(),
+            title: "铁工门".to_string(),
+            region_id: "mirror_city".to_string(),
+            unlock_flag: None,
+        },
+        WorldRoom {
+            id: MARKET_WIND_PAVILION_ROOM.to_string(),
+            title: "市风阁".to_string(),
+            region_id: "mirror_city".to_string(),
+            unlock_flag: None,
+        },
+        WorldRoom {
+            id: LANTERN_INFIRMARY_ROOM.to_string(),
+            title: "灯火医馆".to_string(),
+            region_id: "mirror_city".to_string(),
+            unlock_flag: None,
+        },
+        WorldRoom {
+            id: ARCHIVE_STEPS_ROOM.to_string(),
+            title: "镜档石阶".to_string(),
+            region_id: "mirror_city".to_string(),
+            unlock_flag: None,
+        },
+        WorldRoom {
+            id: CARAVAN_YARD_ROOM.to_string(),
+            title: "行商院".to_string(),
+            region_id: "mirror_city".to_string(),
+            unlock_flag: None,
+        },
+        WorldRoom {
+            id: OUTER_SIGNAL_ROAD_ROOM.to_string(),
+            title: "外信号道".to_string(),
+            region_id: "signal_road".to_string(),
+            unlock_flag: Some("outer_signal_road_open".to_string()),
+        },
     ]
     .into_iter()
     .map(|room| (room.id.clone(), room))
@@ -760,6 +830,24 @@ pub fn mirror_city_world_graph() -> WorldGraph {
         (EXPEDITION_GATE_ROOM, MENTOR_HALL_ROOM, "northwest"),
         (MIRROR_SQUARE_ROOM, RELAY_QUARTER_ROOM, "northeast"),
         (RELAY_QUARTER_ROOM, MIRROR_SQUARE_ROOM, "southwest"),
+        (MIRROR_SQUARE_ROOM, CISTERN_WARD_ROOM, "south"),
+        (CISTERN_WARD_ROOM, MIRROR_SQUARE_ROOM, "north"),
+        (CISTERN_WARD_ROOM, LANTERN_INFIRMARY_ROOM, "west"),
+        (LANTERN_INFIRMARY_ROOM, CISTERN_WARD_ROOM, "east"),
+        (MIRROR_SQUARE_ROOM, MARKET_WIND_PAVILION_ROOM, "west"),
+        (MARKET_WIND_PAVILION_ROOM, MIRROR_SQUARE_ROOM, "east"),
+        (MARKET_WIND_PAVILION_ROOM, CARAVAN_YARD_ROOM, "south"),
+        (CARAVAN_YARD_ROOM, MARKET_WIND_PAVILION_ROOM, "north"),
+        (MENTOR_HALL_ROOM, ARCHIVE_STEPS_ROOM, "west"),
+        (ARCHIVE_STEPS_ROOM, MENTOR_HALL_ROOM, "east"),
+        (ARCHIVE_STEPS_ROOM, NIGHT_WATCH_POST_ROOM, "north"),
+        (NIGHT_WATCH_POST_ROOM, ARCHIVE_STEPS_ROOM, "south"),
+        (MENTOR_HALL_ROOM, WORKSHOP_GATE_ROOM, "east"),
+        (WORKSHOP_GATE_ROOM, MENTOR_HALL_ROOM, "west"),
+        (RELAY_QUARTER_ROOM, OUTER_SIGNAL_ROAD_ROOM, "northeast"),
+        (OUTER_SIGNAL_ROAD_ROOM, RELAY_QUARTER_ROOM, "southwest"),
+        (CARAVAN_YARD_ROOM, EXPEDITION_GATE_ROOM, "east"),
+        (EXPEDITION_GATE_ROOM, CARAVAN_YARD_ROOM, "west"),
     ] {
         exits.push(WorldExit {
             from: from.to_string(),
@@ -881,6 +969,30 @@ const ITEM_CATALOG: &[ItemDefinition] = &[
         slot: "pack",
         family: "evidence",
         display_name: "Evidence Wrap Case",
+    },
+    ItemDefinition {
+        id: "reinforced-staff",
+        slot: "weapon",
+        family: "staff",
+        display_name: "Reinforced Route Staff",
+    },
+    ItemDefinition {
+        id: "signal-lamellar",
+        slot: "armor",
+        family: "lamellar",
+        display_name: "Signal Lamellar",
+    },
+    ItemDefinition {
+        id: "watcher-boots",
+        slot: "boots",
+        family: "lightness",
+        display_name: "Watcher Boots",
+    },
+    ItemDefinition {
+        id: "field-medic-satchel",
+        slot: "party_tool",
+        family: "medicine",
+        display_name: "Field Medic Satchel",
     },
 ];
 

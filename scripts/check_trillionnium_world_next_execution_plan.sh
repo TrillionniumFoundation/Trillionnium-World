@@ -3,89 +3,89 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 ACCEPTANCE_DIR="$ROOT/acceptance/S6_public_launch/latest"
-DOC="$ROOT/docs/development/trillionnium-world-next-execution-plan-v1.md"
-READABILITY_REVIEW_DOC="$ROOT/docs/development/trillionnium-world-first-contact-readability-review-2026-07-07.md"
-READABILITY_REVIEW_DOC_REL="docs/development/trillionnium-world-first-contact-readability-review-2026-07-07.md"
-PLAYTEST_OBSERVATION_LOG_DOC="$ROOT/docs/development/trillionnium-world-first-contact-human-playtest-observation-log-2026-07-07.md"
-PLAYTEST_OBSERVATION_LOG_DOC_REL="docs/development/trillionnium-world-first-contact-human-playtest-observation-log-2026-07-07.md"
+DOC="$ROOT/docs/archive/world-bevy/development/trillionnium-world-next-execution-plan-v1.md"
+READABILITY_REVIEW_DOC="$ROOT/docs/archive/world-review-2026-07/trillionnium-world-first-contact-readability-review-2026-07-07.md"
+READABILITY_REVIEW_DOC_REL="docs/archive/world-review-2026-07/trillionnium-world-first-contact-readability-review-2026-07-07.md"
+PLAYTEST_OBSERVATION_LOG_DOC="$ROOT/docs/archive/world-review-2026-07/trillionnium-world-first-contact-human-playtest-observation-log-2026-07-07.md"
+PLAYTEST_OBSERVATION_LOG_DOC_REL="docs/archive/world-review-2026-07/trillionnium-world-first-contact-human-playtest-observation-log-2026-07-07.md"
 PLAYTEST_OBSERVATION_LOG_JSON="$ACCEPTANCE_DIR/first-contact-human-playtest-observation-log.json"
-PLAYTEST_RUNBOOK_DOC="$ROOT/docs/development/trillionnium-world-first-contact-human-playtest-runbook-2026-07-07.md"
-PLAYTEST_RUNBOOK_DOC_REL="docs/development/trillionnium-world-first-contact-human-playtest-runbook-2026-07-07.md"
+PLAYTEST_RUNBOOK_DOC="$ROOT/docs/archive/world-review-2026-07/trillionnium-world-first-contact-human-playtest-runbook-2026-07-07.md"
+PLAYTEST_RUNBOOK_DOC_REL="docs/archive/world-review-2026-07/trillionnium-world-first-contact-human-playtest-runbook-2026-07-07.md"
 PLAYTEST_RUNBOOK_JSON="$ACCEPTANCE_DIR/first-contact-human-playtest-runbook.json"
-EVIDENCE_VOLUME_CURATION_DOC="$ROOT/docs/development/trillionnium-world-evidence-volume-curation-2026-07-07.md"
-EVIDENCE_VOLUME_CURATION_DOC_REL="docs/development/trillionnium-world-evidence-volume-curation-2026-07-07.md"
+EVIDENCE_VOLUME_CURATION_DOC="$ROOT/docs/archive/world-review-2026-07/trillionnium-world-evidence-volume-curation-2026-07-07.md"
+EVIDENCE_VOLUME_CURATION_DOC_REL="docs/archive/world-review-2026-07/trillionnium-world-evidence-volume-curation-2026-07-07.md"
 EVIDENCE_VOLUME_CURATION_JSON="$ACCEPTANCE_DIR/trillionnium-world-evidence-volume-curation.json"
-REVIEWER_HANDOFF_INDEX_DOC="$ROOT/docs/development/trillionnium-world-reviewer-handoff-index-2026-07-07.md"
-REVIEWER_HANDOFF_INDEX_DOC_REL="docs/development/trillionnium-world-reviewer-handoff-index-2026-07-07.md"
+REVIEWER_HANDOFF_INDEX_DOC="$ROOT/docs/archive/world-bevy/development/trillionnium-world-reviewer-handoff-index-2026-07-07.md"
+REVIEWER_HANDOFF_INDEX_DOC_REL="docs/archive/world-bevy/development/trillionnium-world-reviewer-handoff-index-2026-07-07.md"
 REVIEWER_HANDOFF_INDEX_JSON="$ACCEPTANCE_DIR/trillionnium-world-reviewer-handoff-index.json"
-REVIEW_SLICE_STRATEGY_DOC="$ROOT/docs/development/trillionnium-world-review-slice-strategy-2026-07-07.md"
-REVIEW_SLICE_STRATEGY_DOC_REL="docs/development/trillionnium-world-review-slice-strategy-2026-07-07.md"
+REVIEW_SLICE_STRATEGY_DOC="$ROOT/docs/archive/world-review-2026-07/trillionnium-world-review-slice-strategy-2026-07-07.md"
+REVIEW_SLICE_STRATEGY_DOC_REL="docs/archive/world-review-2026-07/trillionnium-world-review-slice-strategy-2026-07-07.md"
 REVIEW_SLICE_STRATEGY_JSON="$ACCEPTANCE_DIR/trillionnium-world-review-slice-strategy.json"
-REVIEW_SLICE_MANIFEST_DOC="$ROOT/docs/development/trillionnium-world-review-slice-manifest-2026-07-07.md"
-REVIEW_SLICE_MANIFEST_DOC_REL="docs/development/trillionnium-world-review-slice-manifest-2026-07-07.md"
+REVIEW_SLICE_MANIFEST_DOC="$ROOT/docs/archive/world-review-2026-07/trillionnium-world-review-slice-manifest-2026-07-07.md"
+REVIEW_SLICE_MANIFEST_DOC_REL="docs/archive/world-review-2026-07/trillionnium-world-review-slice-manifest-2026-07-07.md"
 REVIEW_SLICE_MANIFEST_JSON="$ACCEPTANCE_DIR/trillionnium-world-review-slice-manifest.json"
-REVIEW_TRIAGE_QUEUE_DOC="$ROOT/docs/development/trillionnium-world-review-triage-queue-2026-07-07.md"
-REVIEW_TRIAGE_QUEUE_DOC_REL="docs/development/trillionnium-world-review-triage-queue-2026-07-07.md"
+REVIEW_TRIAGE_QUEUE_DOC="$ROOT/docs/archive/world-review-2026-07/trillionnium-world-review-triage-queue-2026-07-07.md"
+REVIEW_TRIAGE_QUEUE_DOC_REL="docs/archive/world-review-2026-07/trillionnium-world-review-triage-queue-2026-07-07.md"
 REVIEW_TRIAGE_QUEUE_JSON="$ACCEPTANCE_DIR/trillionnium-world-review-triage-queue.json"
-REVIEW_PRIMARY_OWNER_PLAN_DOC="$ROOT/docs/development/trillionnium-world-review-primary-owner-plan-2026-07-07.md"
-REVIEW_PRIMARY_OWNER_PLAN_DOC_REL="docs/development/trillionnium-world-review-primary-owner-plan-2026-07-07.md"
+REVIEW_PRIMARY_OWNER_PLAN_DOC="$ROOT/docs/archive/world-review-2026-07/trillionnium-world-review-primary-owner-plan-2026-07-07.md"
+REVIEW_PRIMARY_OWNER_PLAN_DOC_REL="docs/archive/world-review-2026-07/trillionnium-world-review-primary-owner-plan-2026-07-07.md"
 REVIEW_PRIMARY_OWNER_PLAN_JSON="$ACCEPTANCE_DIR/trillionnium-world-review-primary-owner-plan.json"
-REVIEW_RELEASE_OWNER_QUEUE_DOC="$ROOT/docs/development/trillionnium-world-review-release-owner-queue-2026-07-07.md"
-REVIEW_RELEASE_OWNER_QUEUE_DOC_REL="docs/development/trillionnium-world-review-release-owner-queue-2026-07-07.md"
+REVIEW_RELEASE_OWNER_QUEUE_DOC="$ROOT/docs/archive/world-review-2026-07/trillionnium-world-review-release-owner-queue-2026-07-07.md"
+REVIEW_RELEASE_OWNER_QUEUE_DOC_REL="docs/archive/world-review-2026-07/trillionnium-world-review-release-owner-queue-2026-07-07.md"
 REVIEW_RELEASE_OWNER_QUEUE_JSON="$ACCEPTANCE_DIR/trillionnium-world-review-release-owner-queue.json"
-REVIEW_RUNTIME_OWNER_QUEUE_DOC="$ROOT/docs/development/trillionnium-world-review-runtime-owner-queue-2026-07-07.md"
-REVIEW_RUNTIME_OWNER_QUEUE_DOC_REL="docs/development/trillionnium-world-review-runtime-owner-queue-2026-07-07.md"
+REVIEW_RUNTIME_OWNER_QUEUE_DOC="$ROOT/docs/archive/world-review-2026-07/trillionnium-world-review-runtime-owner-queue-2026-07-07.md"
+REVIEW_RUNTIME_OWNER_QUEUE_DOC_REL="docs/archive/world-review-2026-07/trillionnium-world-review-runtime-owner-queue-2026-07-07.md"
 REVIEW_RUNTIME_OWNER_QUEUE_JSON="$ACCEPTANCE_DIR/trillionnium-world-review-runtime-owner-queue.json"
-REVIEW_RESIDUAL_QUEUE_DOC="$ROOT/docs/development/trillionnium-world-review-residual-queue-2026-07-08.md"
-REVIEW_RESIDUAL_QUEUE_DOC_REL="docs/development/trillionnium-world-review-residual-queue-2026-07-08.md"
+REVIEW_RESIDUAL_QUEUE_DOC="$ROOT/docs/archive/world-review-2026-07/trillionnium-world-review-residual-queue-2026-07-08.md"
+REVIEW_RESIDUAL_QUEUE_DOC_REL="docs/archive/world-review-2026-07/trillionnium-world-review-residual-queue-2026-07-08.md"
 REVIEW_RESIDUAL_QUEUE_JSON="$ACCEPTANCE_DIR/trillionnium-world-review-residual-queue.json"
-REVIEW_EXECUTION_BATCHES_DOC="$ROOT/docs/development/trillionnium-world-review-execution-batches-2026-07-08.md"
-REVIEW_EXECUTION_BATCHES_DOC_REL="docs/development/trillionnium-world-review-execution-batches-2026-07-08.md"
+REVIEW_EXECUTION_BATCHES_DOC="$ROOT/docs/archive/world-review-2026-07/trillionnium-world-review-execution-batches-2026-07-08.md"
+REVIEW_EXECUTION_BATCHES_DOC_REL="docs/archive/world-review-2026-07/trillionnium-world-review-execution-batches-2026-07-08.md"
 REVIEW_EXECUTION_BATCHES_JSON="$ACCEPTANCE_DIR/trillionnium-world-review-execution-batches.json"
-REVIEW_PUBLIC_BOUNDARY_BATCH_DOC="$ROOT/docs/development/trillionnium-world-review-public-boundary-batch-2026-07-08.md"
-REVIEW_PUBLIC_BOUNDARY_BATCH_DOC_REL="docs/development/trillionnium-world-review-public-boundary-batch-2026-07-08.md"
+REVIEW_PUBLIC_BOUNDARY_BATCH_DOC="$ROOT/docs/archive/world-review-2026-07/trillionnium-world-review-public-boundary-batch-2026-07-08.md"
+REVIEW_PUBLIC_BOUNDARY_BATCH_DOC_REL="docs/archive/world-review-2026-07/trillionnium-world-review-public-boundary-batch-2026-07-08.md"
 REVIEW_PUBLIC_BOUNDARY_BATCH_JSON="$ACCEPTANCE_DIR/trillionnium-world-review-public-boundary-batch.json"
-REVIEW_RELEASE_NATIVE_HANDOFF_BATCH_DOC="$ROOT/docs/development/trillionnium-world-review-release-native-handoff-batch-2026-07-08.md"
-REVIEW_RELEASE_NATIVE_HANDOFF_BATCH_DOC_REL="docs/development/trillionnium-world-review-release-native-handoff-batch-2026-07-08.md"
+REVIEW_RELEASE_NATIVE_HANDOFF_BATCH_DOC="$ROOT/docs/archive/world-review-2026-07/trillionnium-world-review-release-native-handoff-batch-2026-07-08.md"
+REVIEW_RELEASE_NATIVE_HANDOFF_BATCH_DOC_REL="docs/archive/world-review-2026-07/trillionnium-world-review-release-native-handoff-batch-2026-07-08.md"
 REVIEW_RELEASE_NATIVE_HANDOFF_BATCH_JSON="$ACCEPTANCE_DIR/trillionnium-world-review-release-native-handoff-batch.json"
-REVIEW_RUNTIME_BOUNDARY_BATCH_DOC="$ROOT/docs/development/trillionnium-world-review-runtime-boundary-batch-2026-07-08.md"
-REVIEW_RUNTIME_BOUNDARY_BATCH_DOC_REL="docs/development/trillionnium-world-review-runtime-boundary-batch-2026-07-08.md"
+REVIEW_RUNTIME_BOUNDARY_BATCH_DOC="$ROOT/docs/archive/world-review-2026-07/trillionnium-world-review-runtime-boundary-batch-2026-07-08.md"
+REVIEW_RUNTIME_BOUNDARY_BATCH_DOC_REL="docs/archive/world-review-2026-07/trillionnium-world-review-runtime-boundary-batch-2026-07-08.md"
 REVIEW_RUNTIME_BOUNDARY_BATCH_JSON="$ACCEPTANCE_DIR/trillionnium-world-review-runtime-boundary-batch.json"
-REVIEW_RUNTIME_CORE_SEMANTICS_BATCH_DOC="$ROOT/docs/development/trillionnium-world-review-runtime-core-semantics-batch-2026-07-08.md"
-REVIEW_RUNTIME_CORE_SEMANTICS_BATCH_DOC_REL="docs/development/trillionnium-world-review-runtime-core-semantics-batch-2026-07-08.md"
+REVIEW_RUNTIME_CORE_SEMANTICS_BATCH_DOC="$ROOT/docs/archive/world-bevy/development/trillionnium-world-review-runtime-core-semantics-batch-2026-07-08.md"
+REVIEW_RUNTIME_CORE_SEMANTICS_BATCH_DOC_REL="docs/archive/world-bevy/development/trillionnium-world-review-runtime-core-semantics-batch-2026-07-08.md"
 REVIEW_RUNTIME_CORE_SEMANTICS_BATCH_JSON="$ACCEPTANCE_DIR/trillionnium-world-review-runtime-core-semantics-batch.json"
-REVIEW_RUNTIME_ADAPTER_ONLINE_BATCH_DOC="$ROOT/docs/development/trillionnium-world-review-runtime-adapter-online-batch-2026-07-08.md"
-REVIEW_RUNTIME_ADAPTER_ONLINE_BATCH_DOC_REL="docs/development/trillionnium-world-review-runtime-adapter-online-batch-2026-07-08.md"
+REVIEW_RUNTIME_ADAPTER_ONLINE_BATCH_DOC="$ROOT/docs/archive/world-review-2026-07/trillionnium-world-review-runtime-adapter-online-batch-2026-07-08.md"
+REVIEW_RUNTIME_ADAPTER_ONLINE_BATCH_DOC_REL="docs/archive/world-review-2026-07/trillionnium-world-review-runtime-adapter-online-batch-2026-07-08.md"
 REVIEW_RUNTIME_ADAPTER_ONLINE_BATCH_JSON="$ACCEPTANCE_DIR/trillionnium-world-review-runtime-adapter-online-batch.json"
-REVIEW_OPENRA_PARITY_CLAIM_BATCH_DOC="$ROOT/docs/development/trillionnium-world-review-openra-parity-claim-batch-2026-07-08.md"
-REVIEW_OPENRA_PARITY_CLAIM_BATCH_DOC_REL="docs/development/trillionnium-world-review-openra-parity-claim-batch-2026-07-08.md"
+REVIEW_OPENRA_PARITY_CLAIM_BATCH_DOC="$ROOT/docs/archive/world-review-2026-07/trillionnium-world-review-openra-parity-claim-batch-2026-07-08.md"
+REVIEW_OPENRA_PARITY_CLAIM_BATCH_DOC_REL="docs/archive/world-review-2026-07/trillionnium-world-review-openra-parity-claim-batch-2026-07-08.md"
 REVIEW_OPENRA_PARITY_CLAIM_BATCH_JSON="$ACCEPTANCE_DIR/trillionnium-world-review-openra-parity-claim-batch.json"
-REVIEW_FIRST_CONTACT_RTS_DATA_BATCH_DOC="$ROOT/docs/development/trillionnium-world-review-first-contact-rts-data-batch-2026-07-09.md"
-REVIEW_FIRST_CONTACT_RTS_DATA_BATCH_DOC_REL="docs/development/trillionnium-world-review-first-contact-rts-data-batch-2026-07-09.md"
+REVIEW_FIRST_CONTACT_RTS_DATA_BATCH_DOC="$ROOT/docs/archive/world-review-2026-07/trillionnium-world-review-first-contact-rts-data-batch-2026-07-09.md"
+REVIEW_FIRST_CONTACT_RTS_DATA_BATCH_DOC_REL="docs/archive/world-review-2026-07/trillionnium-world-review-first-contact-rts-data-batch-2026-07-09.md"
 REVIEW_FIRST_CONTACT_RTS_DATA_BATCH_JSON="$ACCEPTANCE_DIR/trillionnium-world-review-first-contact-rts-data-batch.json"
-REVIEW_RTS_EVIDENCE_CRATE_BATCH_DOC="$ROOT/docs/development/trillionnium-world-review-rts-evidence-crate-batch-2026-07-09.md"
-REVIEW_RTS_EVIDENCE_CRATE_BATCH_DOC_REL="docs/development/trillionnium-world-review-rts-evidence-crate-batch-2026-07-09.md"
+REVIEW_RTS_EVIDENCE_CRATE_BATCH_DOC="$ROOT/docs/archive/world-bevy/development/trillionnium-world-review-rts-evidence-crate-batch-2026-07-09.md"
+REVIEW_RTS_EVIDENCE_CRATE_BATCH_DOC_REL="docs/archive/world-bevy/development/trillionnium-world-review-rts-evidence-crate-batch-2026-07-09.md"
 REVIEW_RTS_EVIDENCE_CRATE_BATCH_JSON="$ACCEPTANCE_DIR/trillionnium-world-review-rts-evidence-crate-batch.json"
-REVIEW_EVIDENCE_EXPOSURE_BATCH_DOC="$ROOT/docs/development/trillionnium-world-review-evidence-exposure-batch-2026-07-09.md"
-REVIEW_EVIDENCE_EXPOSURE_BATCH_DOC_REL="docs/development/trillionnium-world-review-evidence-exposure-batch-2026-07-09.md"
+REVIEW_EVIDENCE_EXPOSURE_BATCH_DOC="$ROOT/docs/archive/world-review-2026-07/trillionnium-world-review-evidence-exposure-batch-2026-07-09.md"
+REVIEW_EVIDENCE_EXPOSURE_BATCH_DOC_REL="docs/archive/world-review-2026-07/trillionnium-world-review-evidence-exposure-batch-2026-07-09.md"
 REVIEW_EVIDENCE_EXPOSURE_BATCH_JSON="$ACCEPTANCE_DIR/trillionnium-world-review-evidence-exposure-batch.json"
-REVIEW_BEVY_RUNTIME_RENDERER_BATCH_DOC="$ROOT/docs/development/trillionnium-world-review-bevy-runtime-renderer-batch-2026-07-09.md"
-REVIEW_BEVY_RUNTIME_RENDERER_BATCH_DOC_REL="docs/development/trillionnium-world-review-bevy-runtime-renderer-batch-2026-07-09.md"
+REVIEW_BEVY_RUNTIME_RENDERER_BATCH_DOC="$ROOT/docs/archive/world-bevy/development/trillionnium-world-review-bevy-runtime-renderer-batch-2026-07-09.md"
+REVIEW_BEVY_RUNTIME_RENDERER_BATCH_DOC_REL="docs/archive/world-bevy/development/trillionnium-world-review-bevy-runtime-renderer-batch-2026-07-09.md"
 REVIEW_BEVY_RUNTIME_RENDERER_BATCH_JSON="$ACCEPTANCE_DIR/trillionnium-world-review-bevy-runtime-renderer-batch.json"
-REVIEW_FIRST_CONTACT_PLAYER_SURFACE_CUES_BATCH_DOC="$ROOT/docs/development/trillionnium-world-review-first-contact-player-surface-cues-batch-2026-07-09.md"
-REVIEW_FIRST_CONTACT_PLAYER_SURFACE_CUES_BATCH_DOC_REL="docs/development/trillionnium-world-review-first-contact-player-surface-cues-batch-2026-07-09.md"
+REVIEW_FIRST_CONTACT_PLAYER_SURFACE_CUES_BATCH_DOC="$ROOT/docs/archive/world-review-2026-07/trillionnium-world-review-first-contact-player-surface-cues-batch-2026-07-09.md"
+REVIEW_FIRST_CONTACT_PLAYER_SURFACE_CUES_BATCH_DOC_REL="docs/archive/world-review-2026-07/trillionnium-world-review-first-contact-player-surface-cues-batch-2026-07-09.md"
 REVIEW_FIRST_CONTACT_PLAYER_SURFACE_CUES_BATCH_JSON="$ACCEPTANCE_DIR/trillionnium-world-review-first-contact-player-surface-cues-batch.json"
-REVIEW_GENERATED_COUNT_SURFACE_BATCH_DOC="$ROOT/docs/development/trillionnium-world-review-generated-count-surface-batch-2026-07-09.md"
-REVIEW_GENERATED_COUNT_SURFACE_BATCH_DOC_REL="docs/development/trillionnium-world-review-generated-count-surface-batch-2026-07-09.md"
+REVIEW_GENERATED_COUNT_SURFACE_BATCH_DOC="$ROOT/docs/archive/world-review-2026-07/trillionnium-world-review-generated-count-surface-batch-2026-07-09.md"
+REVIEW_GENERATED_COUNT_SURFACE_BATCH_DOC_REL="docs/archive/world-review-2026-07/trillionnium-world-review-generated-count-surface-batch-2026-07-09.md"
 REVIEW_GENERATED_COUNT_SURFACE_BATCH_JSON="$ACCEPTANCE_DIR/trillionnium-world-review-generated-count-surface-batch.json"
-REVIEW_DOCS_PLAN_TRUTH_SOURCE_BATCH_DOC="$ROOT/docs/development/trillionnium-world-review-docs-plan-truth-source-batch-2026-07-09.md"
-REVIEW_DOCS_PLAN_TRUTH_SOURCE_BATCH_DOC_REL="docs/development/trillionnium-world-review-docs-plan-truth-source-batch-2026-07-09.md"
+REVIEW_DOCS_PLAN_TRUTH_SOURCE_BATCH_DOC="$ROOT/docs/archive/world-bevy/development/trillionnium-world-review-docs-plan-truth-source-batch-2026-07-09.md"
+REVIEW_DOCS_PLAN_TRUTH_SOURCE_BATCH_DOC_REL="docs/archive/world-bevy/development/trillionnium-world-review-docs-plan-truth-source-batch-2026-07-09.md"
 REVIEW_DOCS_PLAN_TRUTH_SOURCE_BATCH_JSON="$ACCEPTANCE_DIR/trillionnium-world-review-docs-plan-truth-source-batch.json"
-REVIEW_BOT_EXECUTOR_SURFACE_BATCH_DOC="$ROOT/docs/development/trillionnium-world-review-bot-executor-surface-batch-2026-07-09.md"
-REVIEW_BOT_EXECUTOR_SURFACE_BATCH_DOC_REL="docs/development/trillionnium-world-review-bot-executor-surface-batch-2026-07-09.md"
+REVIEW_BOT_EXECUTOR_SURFACE_BATCH_DOC="$ROOT/docs/archive/world-review-2026-07/trillionnium-world-review-bot-executor-surface-batch-2026-07-09.md"
+REVIEW_BOT_EXECUTOR_SURFACE_BATCH_DOC_REL="docs/archive/world-review-2026-07/trillionnium-world-review-bot-executor-surface-batch-2026-07-09.md"
 REVIEW_BOT_EXECUTOR_SURFACE_BATCH_JSON="$ACCEPTANCE_DIR/trillionnium-world-review-bot-executor-surface-batch.json"
-PUBLIC_LAUNCH_BLOCKER_LEDGER_DOC="$ROOT/docs/development/trillionnium-world-public-launch-blocker-execution-ledger-2026-07-07.md"
-PUBLIC_LAUNCH_BLOCKER_LEDGER_DOC_REL="docs/development/trillionnium-world-public-launch-blocker-execution-ledger-2026-07-07.md"
+PUBLIC_LAUNCH_BLOCKER_LEDGER_DOC="$ROOT/docs/archive/world-review-2026-07/trillionnium-world-public-launch-blocker-execution-ledger-2026-07-07.md"
+PUBLIC_LAUNCH_BLOCKER_LEDGER_DOC_REL="docs/archive/world-review-2026-07/trillionnium-world-public-launch-blocker-execution-ledger-2026-07-07.md"
 PUBLIC_LAUNCH_BLOCKER_LEDGER_JSON="$ACCEPTANCE_DIR/trillionnium-world-public-launch-blocker-execution-ledger.json"
 PACKET_JSON="$ACCEPTANCE_DIR/release-review-packet-integrity.json"
 PUBLIC_LAUNCH_JSON="$ACCEPTANCE_DIR/public-launch-readiness.json"
@@ -412,7 +412,7 @@ jq -e '
   and .android_s5_real_device_claimed == false
 ' "$REVIEW_SLICE_STRATEGY_JSON" >/dev/null
 
-refresh_input "$ROOT/scripts/check_trillionnium_world_review_slice_manifest.sh" >/dev/null
+refresh_input "$ROOT/scripts/archive/world-bevy/check_trillionnium_world_review_slice_manifest.sh" >/dev/null
 require_file "$REVIEW_SLICE_MANIFEST_JSON"
 jq -e '
   .contract_version == "trillionnium_world_review_slice_manifest_v1"
@@ -431,7 +431,7 @@ jq -e '
   and .android_s5_real_device_claimed == false
 ' "$REVIEW_SLICE_MANIFEST_JSON" >/dev/null
 
-refresh_input "$ROOT/scripts/check_trillionnium_world_review_triage_queue.sh" >/dev/null
+refresh_input "$ROOT/scripts/archive/world-bevy/check_trillionnium_world_review_triage_queue.sh" >/dev/null
 require_file "$REVIEW_TRIAGE_QUEUE_JSON"
 jq -e '
   .contract_version == "trillionnium_world_review_triage_queue_v1"
@@ -474,7 +474,7 @@ jq -e '
   and .android_s5_real_device_claimed == false
 ' "$REVIEW_PRIMARY_OWNER_PLAN_JSON" >/dev/null
 
-refresh_input "$ROOT/scripts/check_trillionnium_world_review_release_owner_queue.sh" >/dev/null
+refresh_input "$ROOT/scripts/archive/world-bevy/check_trillionnium_world_review_release_owner_queue.sh" >/dev/null
 require_file "$REVIEW_RELEASE_OWNER_QUEUE_JSON"
 jq -e '
   .contract_version == "trillionnium_world_review_release_owner_queue_v1"
@@ -497,7 +497,7 @@ jq -e '
   and .android_s5_real_device_claimed == false
 ' "$REVIEW_RELEASE_OWNER_QUEUE_JSON" >/dev/null
 
-refresh_input "$ROOT/scripts/check_trillionnium_world_review_runtime_owner_queue.sh" >/dev/null
+refresh_input "$ROOT/scripts/archive/world-bevy/check_trillionnium_world_review_runtime_owner_queue.sh" >/dev/null
 require_file "$REVIEW_RUNTIME_OWNER_QUEUE_JSON"
 jq -e '
   .contract_version == "trillionnium_world_review_runtime_owner_queue_v1"
@@ -521,7 +521,7 @@ jq -e '
   and .android_s5_real_device_claimed == false
 ' "$REVIEW_RUNTIME_OWNER_QUEUE_JSON" >/dev/null
 
-refresh_input "$ROOT/scripts/check_trillionnium_world_review_residual_queue.sh" >/dev/null
+refresh_input "$ROOT/scripts/archive/world-bevy/check_trillionnium_world_review_residual_queue.sh" >/dev/null
 require_file "$REVIEW_RESIDUAL_QUEUE_JSON"
 jq -e '
   .contract_version == "trillionnium_world_review_residual_queue_v1"
@@ -652,7 +652,7 @@ jq -e '
 ' "$REVIEW_RUNTIME_BOUNDARY_BATCH_JSON" >/dev/null
 
 refresh_input env TRNM_WORLD_REVIEW_RUNTIME_CORE_SEMANTICS_BATCH_REFRESH_INPUTS=0 \
-  "$ROOT/scripts/check_trillionnium_world_review_runtime_core_semantics_batch.sh" >/dev/null
+  "$ROOT/scripts/archive/world-bevy/check_trillionnium_world_review_runtime_core_semantics_batch.sh" >/dev/null
 require_file "$REVIEW_RUNTIME_CORE_SEMANTICS_BATCH_JSON"
 jq -e '
   .contract_version == "trillionnium_world_review_runtime_core_semantics_batch_v1"
@@ -770,7 +770,7 @@ jq -e '
 ' "$REVIEW_FIRST_CONTACT_RTS_DATA_BATCH_JSON" >/dev/null
 
 refresh_input env TRNM_WORLD_REVIEW_RTS_EVIDENCE_CRATE_BATCH_REFRESH_INPUTS=0 \
-  "$ROOT/scripts/check_trillionnium_world_review_rts_evidence_crate_batch.sh" >/dev/null
+  "$ROOT/scripts/archive/world-bevy/check_trillionnium_world_review_rts_evidence_crate_batch.sh" >/dev/null
 require_file "$REVIEW_RTS_EVIDENCE_CRATE_BATCH_JSON"
 jq -e '
   .contract_version == "trillionnium_world_review_rts_evidence_crate_batch_v1"
@@ -832,7 +832,7 @@ jq -e '
 ' "$REVIEW_EVIDENCE_EXPOSURE_BATCH_JSON" >/dev/null
 
 refresh_input env TRNM_WORLD_REVIEW_BEVY_RUNTIME_RENDERER_BATCH_REFRESH_INPUTS=0 \
-  "$ROOT/scripts/check_trillionnium_world_review_bevy_runtime_renderer_batch.sh" >/dev/null
+  "$ROOT/scripts/archive/world-bevy/check_trillionnium_world_review_bevy_runtime_renderer_batch.sh" >/dev/null
 require_file "$REVIEW_BEVY_RUNTIME_RENDERER_BATCH_JSON"
 jq -e '
   .contract_version == "trillionnium_world_review_bevy_runtime_renderer_batch_v1"

@@ -3,7 +3,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 ACCEPTANCE_DIR="$ROOT/acceptance/S6_public_launch/latest"
-DOC_REL="docs/development/trillionnium-world-evidence-volume-curation-2026-07-07.md"
+DOC_REL="docs/archive/world-review-2026-07/trillionnium-world-evidence-volume-curation-2026-07-07.md"
 DOC="$ROOT/$DOC_REL"
 S5_DIR="$ROOT/acceptance/S5_native_bevy_device/latest"
 SUMMARY="$ACCEPTANCE_DIR/trillionnium-world-evidence-volume-curation.json"

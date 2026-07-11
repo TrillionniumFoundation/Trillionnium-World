@@ -1,6 +1,6 @@
 # TRNM Release Readiness
 
-Updated date: 2026-07-07
+Updated date: 2026-07-11
 Scope: When citing this file, you must always record the current output of `git rev-parse origin/main`. Do not keep using a fixed commit hash from an older doc header as a permanent truth source.
 
 > This file is the active **release readiness truth source**.
@@ -53,7 +53,7 @@ Current major drift risks include:
 ### 4. Trillionnium World Release Review Handoff (local gate, not public readiness)
 - **Status**: Local release-review handoff packet is available, but public launch is still blocked on real external evidence.
 - **Primary local aggregate command**: `scripts/check_trillionnium_world_release_review_ci_gate.sh`.
-- **Client boundary gate**: `scripts/check_trillionnium_world_client_boundary.sh` verifies that manual playtest and future game account entry target `trnm-world-bevy`, while CEX remains evidence/reference only.
+- **Current game boundary gate**: `scripts/check_trnm_game_product.sh` verifies the five-crate product and rejects removed World/RTS dependencies. `scripts/check_trillionnium_world_client_boundary.sh` is a historical pre-cleanup checker and grants no current product credit.
 - **Current aggregate artifact**: `acceptance/S6_public_launch/latest/release-review-ci-gate.json`.
 - **Contract**: `trillionnium_world_release_review_ci_gate_v1`.
 - **Expected local status while blockers remain**: `release_review_ci_gate_green_with_public_launch_blockers`.

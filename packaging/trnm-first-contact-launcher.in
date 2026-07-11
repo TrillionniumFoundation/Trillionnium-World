@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+set -euo pipefail
+export TRNM_ASSET_ROOT="@ASSET_ROOT@"
+exec "@BINARY@" "$@"

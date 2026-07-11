@@ -60,9 +60,9 @@ objective:
 - Use the five-step human playtest path to log the first three confusion points
   before choosing a renderer change.
 - Seed the observation pass with
-  `docs/development/trillionnium-world-first-contact-human-playtest-observation-log-2026-07-07.md`.
+  `docs/archive/world-review-2026-07/trillionnium-world-first-contact-human-playtest-observation-log-2026-07-07.md`.
 - Run the observer pass with
-  `docs/development/trillionnium-world-first-contact-human-playtest-runbook-2026-07-07.md`
+  `docs/archive/world-review-2026-07/trillionnium-world-first-contact-human-playtest-runbook-2026-07-07.md`
   so the first three confusion points are prompt-bound.
 
 ## Non-Goals

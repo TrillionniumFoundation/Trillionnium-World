@@ -20,9 +20,9 @@ isolated micro-cue adjustment.
 - Screenshot context:
   `acceptance/S5_native_bevy_device/latest/manual_bevy/bevy-classic-player-screen-runner-status.png`
 - Current readability review:
-  `docs/development/trillionnium-world-first-contact-readability-review-2026-07-07.md`
+  `docs/archive/world-review-2026-07/trillionnium-world-first-contact-readability-review-2026-07-07.md`
 - Observer runbook:
-  `docs/development/trillionnium-world-first-contact-human-playtest-runbook-2026-07-07.md`
+  `docs/archive/world-review-2026-07/trillionnium-world-first-contact-human-playtest-runbook-2026-07-07.md`
 
 ## Observation Rules
 

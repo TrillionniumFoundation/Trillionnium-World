@@ -19,8 +19,11 @@ use trnm_campaign_core::{
 };
 use trnm_rts_protocol::{RtsFrameOrder, RtsOrderKind, RtsUnitStance};
 
-pub const RTS_SIM_CONTRACT: &str = "trnm_rts_sim_v8";
-pub const RTS_SIM_CHECKPOINT_CONTRACT: &str = "trnm_rts_sim_checkpoint_v8";
+mod content;
+pub use content::*;
+
+pub const RTS_SIM_CONTRACT: &str = "trnm_rts_sim_v9";
+pub const RTS_SIM_CHECKPOINT_CONTRACT: &str = "trnm_rts_sim_checkpoint_v9";
 pub const TICKS_PER_SECOND: u64 = 10;
 pub const THREE_MINUTE_TICKS: u64 = 3 * 60 * TICKS_PER_SECOND;
 pub const FIVE_MINUTE_TICKS: u64 = 5 * 60 * TICKS_PER_SECOND;
@@ -161,6 +164,10 @@ pub enum SimJobKind {
     ResearchOptics,
     UpgradeRelayArms,
     UpgradeFieldArmor,
+    ResearchSensorNet,
+    ResearchFieldMedicine,
+    UpgradeSiegeDrills,
+    UpgradeReactivePlating,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -182,6 +189,9 @@ pub enum SimStructureKind {
     RelayGenerator,
     SupplyCache,
     FieldBarricade,
+    SensorTower,
+    FieldHospital,
+    SiegeFoundry,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -202,6 +212,7 @@ impl SimStructure {
         match self.kind {
             SimStructureKind::CommandPost => 8,
             SimStructureKind::SupplyCache => 4,
+            SimStructureKind::FieldHospital => 2,
             _ => 0,
         }
     }
@@ -218,6 +229,9 @@ impl SimStructure {
         match self.kind {
             SimStructureKind::FieldWorkshop => 30,
             SimStructureKind::FieldBarricade => 4,
+            SimStructureKind::SensorTower => 12,
+            SimStructureKind::FieldHospital => 20,
+            SimStructureKind::SiegeFoundry => 25,
             _ => 0,
         }
     }
@@ -413,10 +427,13 @@ impl MissionSimV1 {
         ];
         let aftershock = is_aftershock_map(&seed.map_id);
         let siege = seed.map_id == "mirror_siege";
+        let skirmish = matches!(seed.map_id.as_str(), "iron_delta" | "night_watch_crossing");
         let mission_scale = if siege {
             110
         } else if aftershock {
             112
+        } else if skirmish {
+            105
         } else {
             100
         };
@@ -432,8 +449,27 @@ impl MissionSimV1 {
             .iter()
             .enumerate()
             .map(|(index, spawn)| {
-                let (role, hp, damage, armor, speed, interval) =
-                    enemy_profiles[index.min(enemy_profiles.len() - 1)];
+                let (role, hp, damage, armor, speed, interval) = UNIT_ROSTER
+                    .iter()
+                    .find(|unit| unit.faction == RtsFaction::AshenCompact && unit.id == spawn.id)
+                    .map(|unit| {
+                        let speed = match unit.visual_family {
+                            "scout" => 1_080,
+                            "striker" => 920,
+                            "relay_engineer" => 820,
+                            "sentinel" => 650,
+                            _ => 760,
+                        };
+                        (
+                            unit.role,
+                            unit.hp as i64 * 8,
+                            unit.damage as i64,
+                            2_i64 + unit.supply as i64 * 2,
+                            speed,
+                            17_u32 + unit.supply as u32 * 3,
+                        )
+                    })
+                    .unwrap_or(enemy_profiles[index.min(enemy_profiles.len() - 1)]);
                 SimUnit {
                     unit_id: spawn.id.clone(),
                     role: role.to_string(),
@@ -1711,6 +1747,9 @@ impl MissionSimV1 {
             "field_workshop" => (SimStructureKind::FieldWorkshop, 45, 600),
             "supply_cache" => (SimStructureKind::SupplyCache, 25, 420),
             "field_barricade" => (SimStructureKind::FieldBarricade, FORTIFY_COST, 480),
+            "sensor_tower" => (SimStructureKind::SensorTower, 40, 430),
+            "field_hospital" => (SimStructureKind::FieldHospital, 55, 500),
+            "siege_foundry" => (SimStructureKind::SiegeFoundry, 60, 650),
             _ => return Err(SimError::Order(format!("unknown structure rule {rule}"))),
         };
         let target = order
@@ -1786,8 +1825,12 @@ impl MissionSimV1 {
             (RtsOrderKind::Train, "field_medic") => SimJobKind::TrainMedic,
             (RtsOrderKind::Train, _) => SimJobKind::TrainSupport,
             (RtsOrderKind::Research, "signal_optics") => SimJobKind::ResearchOptics,
+            (RtsOrderKind::Research, "sensor_net") => SimJobKind::ResearchSensorNet,
+            (RtsOrderKind::Research, "field_medicine") => SimJobKind::ResearchFieldMedicine,
             (RtsOrderKind::Research, _) => SimJobKind::ResearchLogistics,
             (RtsOrderKind::Upgrade, "field_armor") => SimJobKind::UpgradeFieldArmor,
+            (RtsOrderKind::Upgrade, "siege_drills") => SimJobKind::UpgradeSiegeDrills,
+            (RtsOrderKind::Upgrade, "reactive_plating") => SimJobKind::UpgradeReactivePlating,
             (RtsOrderKind::Upgrade, _) => SimJobKind::UpgradeRelayArms,
             _ => return Err(SimError::Order("unsupported job order".to_string())),
         };
@@ -1820,6 +1863,10 @@ impl MissionSimV1 {
                 | SimJobKind::ResearchOptics
                 | SimJobKind::UpgradeRelayArms
                 | SimJobKind::UpgradeFieldArmor
+                | SimJobKind::ResearchSensorNet
+                | SimJobKind::ResearchFieldMedicine
+                | SimJobKind::UpgradeSiegeDrills
+                | SimJobKind::UpgradeReactivePlating
         ) && !workshop_ready
         {
             return Err(SimError::Order(
@@ -1875,6 +1922,48 @@ impl MissionSimV1 {
                     ));
                 }
                 (UPGRADE_COST + 10, 75, "field armor upgrade")
+            }
+            SimJobKind::ResearchSensorNet => {
+                if !self.researched_techs.contains("signal_optics") {
+                    return Err(SimError::Order(
+                        "research signal optics before sensor net".to_string(),
+                    ));
+                }
+                if self.researched_techs.contains("sensor_net") {
+                    return Err(SimError::Order(
+                        "sensor net is already researched".to_string(),
+                    ));
+                }
+                (RESEARCH_COST + 20, 100, "sensor net research")
+            }
+            SimJobKind::ResearchFieldMedicine => {
+                if !self.researched_techs.contains("field_logistics") {
+                    return Err(SimError::Order(
+                        "research field logistics before field medicine".to_string(),
+                    ));
+                }
+                if self.researched_techs.contains("field_medicine") {
+                    return Err(SimError::Order(
+                        "field medicine is already researched".to_string(),
+                    ));
+                }
+                (RESEARCH_COST + 20, 100, "field medicine research")
+            }
+            SimJobKind::UpgradeSiegeDrills => {
+                if !self.researched_techs.contains("field_logistics") {
+                    return Err(SimError::Order(
+                        "research field logistics before siege drills".to_string(),
+                    ));
+                }
+                (UPGRADE_COST + 15, 90, "siege drills upgrade")
+            }
+            SimJobKind::UpgradeReactivePlating => {
+                if !self.researched_techs.contains("field_logistics") {
+                    return Err(SimError::Order(
+                        "research field logistics before reactive plating".to_string(),
+                    ));
+                }
+                (UPGRADE_COST + 15, 90, "reactive plating upgrade")
             }
         };
         self.spend_resources(cost, label)?;
@@ -2005,6 +2094,30 @@ impl MissionSimV1 {
                         unit.armor += 2;
                         unit.max_hp += 25;
                         unit.hp += 25;
+                    }
+                }
+                SimJobKind::ResearchSensorNet => {
+                    self.researched_techs.insert("sensor_net".to_string());
+                    self.intel_level = 3;
+                }
+                SimJobKind::ResearchFieldMedicine => {
+                    self.researched_techs.insert("field_medicine".to_string());
+                    for unit in &mut self.party {
+                        unit.max_energy += 20;
+                        unit.energy += 20;
+                    }
+                }
+                SimJobKind::UpgradeSiegeDrills => {
+                    self.researched_techs.insert("siege_drills".to_string());
+                    for unit in &mut self.party {
+                        unit.damage += 4;
+                    }
+                    self.relay_guard_hp = self.relay_guard_hp.saturating_sub(150);
+                }
+                SimJobKind::UpgradeReactivePlating => {
+                    self.researched_techs.insert("reactive_plating".to_string());
+                    for unit in &mut self.party {
+                        unit.armor += 3;
                     }
                 }
             }
@@ -2549,10 +2662,15 @@ impl MissionSimV1 {
         })?;
         let final_snapshot_hash = self.snapshot_hash()?;
         let siege = self.seed.map_id == "mirror_siege";
+        let skirmish = matches!(
+            self.seed.map_id.as_str(),
+            "iron_delta" | "night_watch_crossing"
+        );
         let experience = match outcome {
             BattleOutcome::Victory if siege => 70,
             BattleOutcome::Victory if self.seed.map_id == "convoy_exodus" => 60,
             BattleOutcome::Victory if is_aftershock_map(&self.seed.map_id) => 55,
+            BattleOutcome::Victory if skirmish => 50,
             BattleOutcome::Victory => 40,
             BattleOutcome::Defeat if self.tick >= 60 * TICKS_PER_SECOND => 3,
             BattleOutcome::Defeat | BattleOutcome::Withdrawal => 0,
@@ -2585,6 +2703,22 @@ impl MissionSimV1 {
         let aftershock = is_aftershock_map(&self.seed.map_id);
         let convoy = self.seed.map_id == "convoy_exodus";
         let (loot, reputation_delta, world_flags) = match outcome {
+            BattleOutcome::Victory if self.seed.map_id == "iron_delta" => (
+                vec![LootStack {
+                    item_id: "salvaged-alloy".to_string(),
+                    quantity: 3,
+                }],
+                4,
+                vec!["iron_delta_won".to_string()],
+            ),
+            BattleOutcome::Victory if self.seed.map_id == "night_watch_crossing" => (
+                vec![LootStack {
+                    item_id: "watch-cloth".to_string(),
+                    quantity: 3,
+                }],
+                4,
+                vec!["night_watch_crossing_won".to_string()],
+            ),
             BattleOutcome::Victory if siege => (
                 vec![LootStack {
                     item_id: "mirror-gate-insignia".to_string(),
@@ -2971,7 +3105,9 @@ impl SimCheckpointStore {
 mod tests {
     use super::*;
     use tempfile::tempdir;
-    use trnm_campaign_core::{BattleMapNodeV1, BattleMapSeedV1, CampaignRoom, CampaignSaveV1};
+    use trnm_campaign_core::{
+        BattleMapNodeV1, BattleMapSeedV1, CampaignMission, CampaignRoom, CampaignSaveV1, QuestState,
+    };
     use trnm_rts_protocol::{RtsOrderSource, RtsTile};
 
     fn map() -> BattleMapSeedV1 {
@@ -3016,6 +3152,64 @@ mod tests {
         campaign.move_to(CampaignRoom::ExpeditionGate).unwrap();
         campaign.accept_first_contact_quest().unwrap();
         campaign.start_first_contact_battle(map()).unwrap()
+    }
+
+    fn iron_delta_seed() -> BattleSeedV1 {
+        let mut campaign = CampaignSaveV1::default();
+        campaign.move_to(CampaignRoom::MentorHall).unwrap();
+        campaign.talk_to_mentor().unwrap();
+        campaign.train_with_mentor().unwrap();
+        campaign.equip_starter_weapon().unwrap();
+        campaign.move_to(CampaignRoom::ExpeditionGate).unwrap();
+        campaign.quest_state = QuestState::Completed;
+        campaign.active_mission = CampaignMission::AftershockPatrol;
+        for flag in [
+            "first_contact_secured",
+            "convoy_exodus_secured",
+            "mirror_siege_secured",
+        ] {
+            campaign.progression.world_flags.insert(flag.to_string());
+        }
+        assert_eq!(
+            campaign.cycle_endgame_mission().unwrap(),
+            CampaignMission::IronDeltaSkirmish
+        );
+        campaign.accept_first_contact_quest().unwrap();
+        let mut authored_map = map();
+        authored_map.enemy_spawns = [
+            "ash_runner",
+            "ash_bulwark",
+            "ash_lancer",
+            "ash_sapper",
+            "ash_commander",
+        ]
+        .into_iter()
+        .enumerate()
+        .map(|(index, id)| BattleMapNodeV1 {
+            id: id.to_string(),
+            position: BattleGridPoint::new(10 + index as i16, 5),
+        })
+        .collect();
+        campaign.start_first_contact_battle(authored_map).unwrap()
+    }
+
+    #[test]
+    fn iron_delta_instantiates_the_authored_ashen_compact_roster() {
+        let sim = MissionSimV1::from_seed(iron_delta_seed()).unwrap();
+        let runner = sim
+            .enemies
+            .iter()
+            .find(|enemy| enemy.unit_id == "ash_runner")
+            .unwrap();
+        let commander = sim
+            .enemies
+            .iter()
+            .find(|enemy| enemy.unit_id == "ash_commander")
+            .unwrap();
+        assert_eq!(runner.role, "raider");
+        assert_eq!(commander.role, "heavy");
+        assert!(commander.max_hp > runner.max_hp);
+        assert!(commander.damage > runner.damage);
     }
 
     fn order(sim: &MissionSimV1, kind: RtsOrderKind, target: BattleGridPoint) -> RtsFrameOrder {

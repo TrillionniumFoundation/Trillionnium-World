@@ -1,0 +1,47 @@
+extends: first_contact
+terrain_transform: mirror_x
+contract_version: trnm_first_contact_map_v1
+id: night_watch_crossing
+title: Night Watch Crossing
+player_start: { x: 33, y: 18 }
+camera_start: { x: 28, y: 16 }
+objective:
+  id: night_crossing
+  label: Extract the Night Watch Patrol
+  x: 6
+  y: 5
+bases:
+  - { id: watch_base, owner: player, x: 26, y: 13, width: 12, height: 9, entrance_x: 26, entrance_y: 18 }
+  - { id: ashen_crossing, owner: contact, x: 1, y: 1, width: 12, height: 10, entrance_x: 1, entrance_y: 6 }
+chokepoints:
+  - { id: north_pass, x: 18, y: 6, width: 4, height: 3, approach: front }
+  - { id: south_pass, x: 18, y: 15, width: 4, height: 3, approach: mid }
+resources:
+  - { id: watch_cyan, kind: cyan_crystal, x: 28, y: 11, route: watch_to_south }
+  - { id: crossing_amber, kind: amber_salvage, x: 13, y: 18, route: south_to_mid }
+  - { id: ashen_cyan, kind: cyan_crystal, x: 9, y: 8, route: north_to_ash }
+landmarks:
+  - { id: watch_lantern, role: front, x: 24, y: 17, frame: front }
+  - { id: crossing_shrine, role: mid, x: 15, y: 13, frame: mid }
+  - { id: night_crossing, role: rear, x: 6, y: 5, frame: rear }
+structures:
+  - { id: watch_command, family: command_core, owner: player, x: 33, y: 19, active: true }
+  - { id: watch_hospital, family: foundry, owner: player, x: 30, y: 20, active: true }
+  - { id: watch_refinery, family: refinery, owner: player, x: 35, y: 20, active: true }
+  - { id: watch_sensor, family: shield_relay, owner: player, x: 29, y: 16, active: true }
+  - { id: ashen_command, family: command_core, owner: contact, x: 6, y: 4, active: true }
+  - { id: ashen_foundry, family: foundry, owner: contact, x: 9, y: 3, active: true }
+  - { id: ashen_beacon, family: shield_relay, owner: contact, x: 4, y: 7, active: true }
+  - { id: crossing_turret, family: defense_turret, owner: contact, x: 11, y: 8, active: true }
+units:
+  - { id: party_0, spawn_slot: party_0, family: worker, owner: player, x: 32, y: 17, selected: true }
+  - { id: party_1, spawn_slot: party_1, family: scout, owner: player, x: 31, y: 17, selected: true }
+  - { id: party_2, spawn_slot: party_2, family: warden, owner: player, x: 32, y: 16, selected: true }
+  - { id: party_3, spawn_slot: party_3, family: striker, owner: player, x: 31, y: 16, selected: true }
+  - { id: watch_medic, family: worker, owner: player, x: 34, y: 17, selected: false }
+  - { id: watch_sentinel, family: sentinel, owner: player, x: 28, y: 19, selected: false }
+  - { id: ash_runner, family: scout, owner: contact, x: 13, y: 12, selected: false }
+  - { id: ash_bulwark, family: warden, owner: contact, x: 10, y: 8, selected: false }
+  - { id: ash_lancer, family: striker, owner: contact, x: 8, y: 7, selected: false }
+  - { id: ash_whisper, family: relay_engineer, owner: contact, x: 7, y: 6, selected: false }
+  - { id: ash_commander, family: sentinel, owner: contact, x: 5, y: 5, selected: false }

@@ -22,7 +22,7 @@ before any push, rebase, reset, squash, history rewrite, or external handoff.
 - Review triage queue:
   `acceptance/S6_public_launch/latest/trillionnium-world-review-triage-queue.json`.
 - Review triage queue doc:
-  `docs/development/trillionnium-world-review-triage-queue-2026-07-07.md`.
+  `docs/archive/world-review-2026-07/trillionnium-world-review-triage-queue-2026-07-07.md`.
 
 ## Owner Routing
 

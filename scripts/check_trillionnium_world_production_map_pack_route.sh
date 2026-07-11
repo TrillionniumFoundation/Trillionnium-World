@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ACCEPTANCE_DIR="$ROOT/acceptance/S4_map_pack_gate/latest"
 SUMMARY_FILE="$ACCEPTANCE_DIR/production-map-pack-route.json"
-ADR_FILE="$ROOT/docs/development/trillionnium-world-production-map-pack-adr-v1.md"
+ADR_FILE="$ROOT/docs/archive/world-review-2026-07/trillionnium-world-production-map-pack-adr-v1.md"
 UNSIGNED_MANIFEST="$ACCEPTANCE_DIR/map_pack_manifest_unsigned.json"
 SIGNED_MANIFEST="$ACCEPTANCE_DIR/map_pack_manifest_signed.json"
 ATTRIBUTION_EVIDENCE="$ACCEPTANCE_DIR/attribution_evidence.json"

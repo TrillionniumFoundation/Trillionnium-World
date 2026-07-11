@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 ACCEPTANCE_DIR="$ROOT/acceptance/S6_public_launch/latest"
 S5_DIR="$ROOT/acceptance/S5_native_bevy_device/latest"
-DOC_REL="docs/development/trillionnium-world-review-evidence-exposure-batch-2026-07-09.md"
+DOC_REL="docs/archive/world-review-2026-07/trillionnium-world-review-evidence-exposure-batch-2026-07-09.md"
 DOC="$ROOT/$DOC_REL"
 RUNTIME_BOUNDARY_BATCH_JSON="$ACCEPTANCE_DIR/trillionnium-world-review-runtime-boundary-batch.json"
 RTS_EVIDENCE_CRATE_BATCH_JSON="$ACCEPTANCE_DIR/trillionnium-world-review-rts-evidence-crate-batch.json"

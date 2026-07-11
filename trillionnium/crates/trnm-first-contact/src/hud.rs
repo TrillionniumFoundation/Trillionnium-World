@@ -1,6 +1,7 @@
 use super::{
+    campaign_flow::CampaignFlow,
     map_loader::FirstContactMap,
-    simulation_adapter::{FirstContactCommand, FirstContactRuntime},
+    simulation_adapter::{command_key_for_scheme, FirstContactCommand, FirstContactRuntime},
     view_math::world_to_minimap,
 };
 use bevy::prelude::*;
@@ -26,6 +27,11 @@ pub(super) struct FirstContactCommandCard {
 }
 
 #[derive(Component)]
+pub(super) struct FirstContactCommandKey {
+    command: FirstContactCommand,
+}
+
+#[derive(Component)]
 pub(super) struct FirstContactRadarPlayerMarker;
 
 fn command_card(command: FirstContactCommand, key: &str, label: &str) -> impl Bundle {
@@ -45,6 +51,7 @@ fn command_card(command: FirstContactCommand, key: &str, label: &str) -> impl Bu
         children![
             (
                 Text::new(key.to_string()),
+                FirstContactCommandKey { command },
                 TextFont::from_font_size(12.0),
                 TextColor(Color::srgb(0.62, 0.78, 0.74)),
             ),
@@ -322,11 +329,13 @@ pub(super) fn spawn_first_contact_hud(mut commands: Commands, map: Res<FirstCont
 pub(super) fn update_first_contact_hud(
     runtime: Res<FirstContactRuntime>,
     map: Res<FirstContactMap>,
+    flow: Res<CampaignFlow>,
     mut resources: Query<
         &mut Text,
         (
             With<FirstContactResourceText>,
             Without<FirstContactRosterText>,
+            Without<FirstContactCommandKey>,
         ),
     >,
     mut objectives: Query<
@@ -335,6 +344,7 @@ pub(super) fn update_first_contact_hud(
             With<FirstContactObjectiveText>,
             Without<FirstContactResourceText>,
             Without<FirstContactRosterText>,
+            Without<FirstContactCommandKey>,
         ),
     >,
     mut feedback: Query<
@@ -344,6 +354,7 @@ pub(super) fn update_first_contact_hud(
             Without<FirstContactResourceText>,
             Without<FirstContactObjectiveText>,
             Without<FirstContactRosterText>,
+            Without<FirstContactCommandKey>,
         ),
     >,
     mut rosters: Query<
@@ -354,6 +365,7 @@ pub(super) fn update_first_contact_hud(
             Without<FirstContactObjectiveText>,
             Without<FirstContactFeedbackText>,
             Without<FirstContactMatchClockText>,
+            Without<FirstContactCommandKey>,
         ),
     >,
     mut clocks: Query<
@@ -364,6 +376,7 @@ pub(super) fn update_first_contact_hud(
             Without<FirstContactObjectiveText>,
             Without<FirstContactFeedbackText>,
             Without<FirstContactRosterText>,
+            Without<FirstContactCommandKey>,
         ),
     >,
     mut cards: Query<(
@@ -371,8 +384,21 @@ pub(super) fn update_first_contact_hud(
         &mut BackgroundColor,
         &mut BorderColor,
     )>,
+    mut command_keys: Query<
+        (&FirstContactCommandKey, &mut Text),
+        (
+            Without<FirstContactResourceText>,
+            Without<FirstContactObjectiveText>,
+            Without<FirstContactFeedbackText>,
+            Without<FirstContactRosterText>,
+            Without<FirstContactMatchClockText>,
+        ),
+    >,
     mut radar_markers: Query<&mut Node, With<FirstContactRadarPlayerMarker>>,
 ) {
+    for (key, mut text) in &mut command_keys {
+        text.0 = command_key_for_scheme(key.command, flow.settings.control_scheme).to_string();
+    }
     for mut text in &mut resources {
         text.0 = format!(
             "FIELD {} | PWR {}% | PARTY {}% | VIS {}% | INTEL {} | JOBS {} | ORDERS {} | SUPPORT {} | TECH {} | VET {} | SUPPLY {}/{}",

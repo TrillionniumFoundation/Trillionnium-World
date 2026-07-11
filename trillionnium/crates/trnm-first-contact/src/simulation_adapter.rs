@@ -12,7 +12,7 @@ use super::{
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 use std::collections::BTreeSet;
-use trnm_campaign_core::{BattleGridPoint, BattleOutcome};
+use trnm_campaign_core::{BattleGridPoint, BattleOutcome, ControlScheme};
 use trnm_rts_protocol::{
     RtsFrameOrder, RtsFrameOrderStream, RtsOrderKind, RtsOrderSource, RtsTile, RtsUnitStance,
 };
@@ -35,6 +35,114 @@ pub enum FirstContactCommand {
     Retreat,
     #[default]
     Hold,
+}
+
+fn command_for_keyboard(
+    input: &ButtonInput<KeyCode>,
+    scheme: ControlScheme,
+) -> Option<FirstContactCommand> {
+    let keys = match scheme {
+        ControlScheme::Classic => [
+            (KeyCode::KeyQ, FirstContactCommand::Move),
+            (KeyCode::KeyW, FirstContactCommand::Attack),
+            (KeyCode::KeyE, FirstContactCommand::Harvest),
+            (KeyCode::KeyR, FirstContactCommand::Hold),
+            (KeyCode::KeyA, FirstContactCommand::Ability),
+            (KeyCode::KeyS, FirstContactCommand::FieldAid),
+            (KeyCode::KeyD, FirstContactCommand::Fortify),
+            (KeyCode::KeyC, FirstContactCommand::Recon),
+            (KeyCode::KeyV, FirstContactCommand::Train),
+            (KeyCode::KeyB, FirstContactCommand::Research),
+            (KeyCode::KeyN, FirstContactCommand::Upgrade),
+            (KeyCode::KeyP, FirstContactCommand::Patrol),
+            (KeyCode::Space, FirstContactCommand::Stop),
+            (KeyCode::KeyX, FirstContactCommand::Retreat),
+        ],
+        ControlScheme::LeftHanded => [
+            (KeyCode::KeyA, FirstContactCommand::Move),
+            (KeyCode::KeyS, FirstContactCommand::Attack),
+            (KeyCode::KeyD, FirstContactCommand::Harvest),
+            (KeyCode::KeyF, FirstContactCommand::Hold),
+            (KeyCode::KeyQ, FirstContactCommand::Ability),
+            (KeyCode::KeyW, FirstContactCommand::FieldAid),
+            (KeyCode::KeyE, FirstContactCommand::Fortify),
+            (KeyCode::KeyR, FirstContactCommand::Recon),
+            (KeyCode::KeyZ, FirstContactCommand::Train),
+            (KeyCode::KeyX, FirstContactCommand::Research),
+            (KeyCode::KeyC, FirstContactCommand::Upgrade),
+            (KeyCode::KeyV, FirstContactCommand::Patrol),
+            (KeyCode::Space, FirstContactCommand::Stop),
+            (KeyCode::KeyG, FirstContactCommand::Retreat),
+        ],
+        ControlScheme::ArrowGrid => [
+            (KeyCode::ArrowUp, FirstContactCommand::Move),
+            (KeyCode::ArrowRight, FirstContactCommand::Attack),
+            (KeyCode::ArrowLeft, FirstContactCommand::Harvest),
+            (KeyCode::ArrowDown, FirstContactCommand::Hold),
+            (KeyCode::KeyU, FirstContactCommand::Ability),
+            (KeyCode::KeyI, FirstContactCommand::FieldAid),
+            (KeyCode::KeyO, FirstContactCommand::Fortify),
+            (KeyCode::KeyJ, FirstContactCommand::Recon),
+            (KeyCode::KeyK, FirstContactCommand::Train),
+            (KeyCode::KeyL, FirstContactCommand::Research),
+            (KeyCode::KeyM, FirstContactCommand::Upgrade),
+            (KeyCode::KeyP, FirstContactCommand::Patrol),
+            (KeyCode::Space, FirstContactCommand::Stop),
+            (KeyCode::Backspace, FirstContactCommand::Retreat),
+        ],
+    };
+    keys.into_iter()
+        .find_map(|(key, command)| input.just_pressed(key).then_some(command))
+}
+
+pub(super) fn command_key_for_scheme(
+    command: FirstContactCommand,
+    scheme: ControlScheme,
+) -> &'static str {
+    match (scheme, command) {
+        (ControlScheme::Classic, FirstContactCommand::Move) => "Q",
+        (ControlScheme::Classic, FirstContactCommand::Attack) => "W",
+        (ControlScheme::Classic, FirstContactCommand::Harvest) => "E",
+        (ControlScheme::Classic, FirstContactCommand::Hold) => "R",
+        (ControlScheme::Classic, FirstContactCommand::Ability) => "A",
+        (ControlScheme::Classic, FirstContactCommand::FieldAid) => "S",
+        (ControlScheme::Classic, FirstContactCommand::Fortify) => "D",
+        (ControlScheme::Classic, FirstContactCommand::Recon) => "C",
+        (ControlScheme::Classic, FirstContactCommand::Train) => "V",
+        (ControlScheme::Classic, FirstContactCommand::Research) => "B",
+        (ControlScheme::Classic, FirstContactCommand::Upgrade) => "N",
+        (ControlScheme::Classic, FirstContactCommand::Patrol) => "P",
+        (ControlScheme::Classic, FirstContactCommand::Stop) => "SPACE",
+        (ControlScheme::Classic, FirstContactCommand::Retreat) => "X",
+        (ControlScheme::LeftHanded, FirstContactCommand::Move) => "A",
+        (ControlScheme::LeftHanded, FirstContactCommand::Attack) => "S",
+        (ControlScheme::LeftHanded, FirstContactCommand::Harvest) => "D",
+        (ControlScheme::LeftHanded, FirstContactCommand::Hold) => "F",
+        (ControlScheme::LeftHanded, FirstContactCommand::Ability) => "Q",
+        (ControlScheme::LeftHanded, FirstContactCommand::FieldAid) => "W",
+        (ControlScheme::LeftHanded, FirstContactCommand::Fortify) => "E",
+        (ControlScheme::LeftHanded, FirstContactCommand::Recon) => "R",
+        (ControlScheme::LeftHanded, FirstContactCommand::Train) => "Z",
+        (ControlScheme::LeftHanded, FirstContactCommand::Research) => "X",
+        (ControlScheme::LeftHanded, FirstContactCommand::Upgrade) => "C",
+        (ControlScheme::LeftHanded, FirstContactCommand::Patrol) => "V",
+        (ControlScheme::LeftHanded, FirstContactCommand::Stop) => "SPACE",
+        (ControlScheme::LeftHanded, FirstContactCommand::Retreat) => "G",
+        (ControlScheme::ArrowGrid, FirstContactCommand::Move) => "UP",
+        (ControlScheme::ArrowGrid, FirstContactCommand::Attack) => "RIGHT",
+        (ControlScheme::ArrowGrid, FirstContactCommand::Harvest) => "LEFT",
+        (ControlScheme::ArrowGrid, FirstContactCommand::Hold) => "DOWN",
+        (ControlScheme::ArrowGrid, FirstContactCommand::Ability) => "U",
+        (ControlScheme::ArrowGrid, FirstContactCommand::FieldAid) => "I",
+        (ControlScheme::ArrowGrid, FirstContactCommand::Fortify) => "O",
+        (ControlScheme::ArrowGrid, FirstContactCommand::Recon) => "J",
+        (ControlScheme::ArrowGrid, FirstContactCommand::Train) => "K",
+        (ControlScheme::ArrowGrid, FirstContactCommand::Research) => "L",
+        (ControlScheme::ArrowGrid, FirstContactCommand::Upgrade) => "M",
+        (ControlScheme::ArrowGrid, FirstContactCommand::Patrol) => "P",
+        (ControlScheme::ArrowGrid, FirstContactCommand::Stop) => "SPACE",
+        (ControlScheme::ArrowGrid, FirstContactCommand::Retreat) => "BACK",
+    }
 }
 
 impl FirstContactCommand {
@@ -773,37 +881,7 @@ pub(super) fn handle_first_contact_commands(
         return;
     }
 
-    let command = if input.just_pressed(KeyCode::KeyQ) {
-        Some(FirstContactCommand::Move)
-    } else if input.just_pressed(KeyCode::KeyW) {
-        Some(FirstContactCommand::Attack)
-    } else if input.just_pressed(KeyCode::KeyE) {
-        Some(FirstContactCommand::Harvest)
-    } else if input.just_pressed(KeyCode::KeyR) {
-        Some(FirstContactCommand::Hold)
-    } else if input.just_pressed(KeyCode::KeyA) {
-        Some(FirstContactCommand::Ability)
-    } else if input.just_pressed(KeyCode::KeyS) {
-        Some(FirstContactCommand::FieldAid)
-    } else if input.just_pressed(KeyCode::KeyD) {
-        Some(FirstContactCommand::Fortify)
-    } else if input.just_pressed(KeyCode::KeyC) {
-        Some(FirstContactCommand::Recon)
-    } else if input.just_pressed(KeyCode::KeyV) {
-        Some(FirstContactCommand::Train)
-    } else if input.just_pressed(KeyCode::KeyB) {
-        Some(FirstContactCommand::Research)
-    } else if input.just_pressed(KeyCode::KeyN) {
-        Some(FirstContactCommand::Upgrade)
-    } else if input.just_pressed(KeyCode::KeyP) {
-        Some(FirstContactCommand::Patrol)
-    } else if input.just_pressed(KeyCode::Space) {
-        Some(FirstContactCommand::Stop)
-    } else if input.just_pressed(KeyCode::KeyX) {
-        Some(FirstContactCommand::Retreat)
-    } else {
-        None
-    };
+    let command = command_for_keyboard(&input, flow.settings.control_scheme);
     let Some(command) = command else {
         return;
     };
@@ -1214,6 +1292,9 @@ pub(super) fn advance_first_contact_simulation(
                     SimStructureKind::RelayGenerator => "shield_relay",
                     SimStructureKind::SupplyCache => "refinery",
                     SimStructureKind::FieldBarricade => "defense_turret",
+                    SimStructureKind::SensorTower => "shield_relay",
+                    SimStructureKind::FieldHospital => "refinery",
+                    SimStructureKind::SiegeFoundry => "foundry",
                 };
                 let family = manifest
                     .structure(family_id)
@@ -1398,16 +1479,33 @@ pub(super) fn pan_first_contact_camera(
         camera.translation.y = request.y;
     }
     let mut direction = Vec2::ZERO;
-    if input.pressed(KeyCode::ArrowLeft) {
+    let arrow_grid = flow.settings.control_scheme == ControlScheme::ArrowGrid;
+    if input.pressed(if arrow_grid {
+        KeyCode::KeyA
+    } else {
+        KeyCode::ArrowLeft
+    }) {
         direction.x -= 1.0;
     }
-    if input.pressed(KeyCode::ArrowRight) {
+    if input.pressed(if arrow_grid {
+        KeyCode::KeyD
+    } else {
+        KeyCode::ArrowRight
+    }) {
         direction.x += 1.0;
     }
-    if input.pressed(KeyCode::ArrowUp) {
+    if input.pressed(if arrow_grid {
+        KeyCode::KeyW
+    } else {
+        KeyCode::ArrowUp
+    }) {
         direction.y += 1.0;
     }
-    if input.pressed(KeyCode::ArrowDown) {
+    if input.pressed(if arrow_grid {
+        KeyCode::KeyS
+    } else {
+        KeyCode::ArrowDown
+    }) {
         direction.y -= 1.0;
     }
     camera.translation += direction.normalize_or_zero().extend(0.0) * 360.0 * time.delta_secs();
@@ -1637,4 +1735,31 @@ mod tests {
         );
         assert!((8..=12).contains(&sim.order_count));
     }
+}
+#[test]
+fn control_profiles_remap_authoritative_commands_instead_of_only_changing_a_label() {
+    let mut classic = ButtonInput::default();
+    classic.press(KeyCode::KeyQ);
+    assert_eq!(
+        command_for_keyboard(&classic, ControlScheme::Classic),
+        Some(FirstContactCommand::Move)
+    );
+
+    let mut left_handed = ButtonInput::default();
+    left_handed.press(KeyCode::KeyA);
+    assert_eq!(
+        command_for_keyboard(&left_handed, ControlScheme::LeftHanded),
+        Some(FirstContactCommand::Move)
+    );
+
+    let mut arrow_grid = ButtonInput::default();
+    arrow_grid.press(KeyCode::ArrowRight);
+    assert_eq!(
+        command_for_keyboard(&arrow_grid, ControlScheme::ArrowGrid),
+        Some(FirstContactCommand::Attack)
+    );
+    assert_eq!(
+        command_key_for_scheme(FirstContactCommand::Attack, ControlScheme::ArrowGrid),
+        "RIGHT"
+    );
 }
