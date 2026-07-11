@@ -109,6 +109,8 @@ pub struct MissionMapCatalog {
     pub mirror_siege: FirstContactMap,
     pub iron_delta: FirstContactMap,
     pub night_watch_crossing: FirstContactMap,
+    pub glass_basin: FirstContactMap,
+    pub ember_orchard: FirstContactMap,
 }
 
 impl MissionMapCatalog {
@@ -132,6 +134,12 @@ impl MissionMapCatalog {
             night_watch_crossing: load_first_contact_map(
                 &asset_root.join("first_contact/maps/night_watch_crossing.yaml"),
             )?,
+            glass_basin: load_first_contact_map(
+                &asset_root.join("first_contact/maps/glass_basin.yaml"),
+            )?,
+            ember_orchard: load_first_contact_map(
+                &asset_root.join("first_contact/maps/ember_orchard.yaml"),
+            )?,
         })
     }
 
@@ -143,6 +151,8 @@ impl MissionMapCatalog {
             CampaignMission::MirrorSiege => &self.mirror_siege,
             CampaignMission::IronDeltaSkirmish => &self.iron_delta,
             CampaignMission::NightWatchCrossingSkirmish => &self.night_watch_crossing,
+            CampaignMission::GlassBasinSkirmish => &self.glass_basin,
+            CampaignMission::EmberOrchardSkirmish => &self.ember_orchard,
         }
     }
 }
@@ -219,6 +229,8 @@ impl FirstContactMap {
                 | "mirror_siege"
                 | "iron_delta"
                 | "night_watch_crossing"
+                | "glass_basin"
+                | "ember_orchard"
         ) || self.title.trim().is_empty()
         {
             return Err("campaign map identity/title is invalid".into());
@@ -431,6 +443,22 @@ pub fn load_first_contact_map(path: &Path) -> Result<FirstContactMap, String> {
                 }
             }
         }
+        Some("shift_5") | Some("shift_11") => {
+            let amount = if transform.as_deref() == Some("shift_5") {
+                5
+            } else {
+                11
+            };
+            for row in map
+                .terrain_rows
+                .iter_mut()
+                .chain(map.height_rows.iter_mut())
+            {
+                let mut chars = row.chars().collect::<Vec<_>>();
+                chars.rotate_left(amount);
+                *row = chars.into_iter().collect();
+            }
+        }
         Some(other) => return Err(format!("unsupported terrain transform: {other}")),
         None => {}
     }
@@ -476,7 +504,7 @@ mod tests {
     }
 
     #[test]
-    fn campaign_catalog_contains_six_distinct_authored_maps() {
+    fn campaign_catalog_contains_eight_distinct_authored_maps() {
         let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../assets");
         let catalog = MissionMapCatalog::load(&root).expect("both authored maps load");
         assert_eq!(catalog.aftershock_patrol.id, "aftershock_patrol");
@@ -509,6 +537,8 @@ mod tests {
         );
         assert_eq!(catalog.iron_delta.id, "iron_delta");
         assert_eq!(catalog.night_watch_crossing.id, "night_watch_crossing");
+        assert_eq!(catalog.glass_basin.id, "glass_basin");
+        assert_eq!(catalog.ember_orchard.id, "ember_orchard");
         assert_ne!(
             catalog.iron_delta.terrain_rows,
             catalog.first_contact.terrain_rows
@@ -535,5 +565,25 @@ mod tests {
             catalog.iron_delta.objective.id,
             catalog.night_watch_crossing.objective.id
         );
+        let skirmish_terrain = [
+            &catalog.iron_delta,
+            &catalog.night_watch_crossing,
+            &catalog.glass_basin,
+            &catalog.ember_orchard,
+        ]
+        .into_iter()
+        .map(|map| map.terrain_rows.join("\n"))
+        .collect::<std::collections::BTreeSet<_>>();
+        assert_eq!(skirmish_terrain.len(), 4);
+        let skirmish_objectives = [
+            &catalog.iron_delta,
+            &catalog.night_watch_crossing,
+            &catalog.glass_basin,
+            &catalog.ember_orchard,
+        ]
+        .into_iter()
+        .map(|map| map.objective.id.as_str())
+        .collect::<std::collections::BTreeSet<_>>();
+        assert_eq!(skirmish_objectives.len(), 4);
     }
 }

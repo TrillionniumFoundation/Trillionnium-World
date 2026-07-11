@@ -1,0 +1,41 @@
+extends: first_contact
+terrain_transform: shift_5
+contract_version: trnm_first_contact_map_v1
+id: glass_basin
+title: Glass Basin Control
+player_start: { x: 4, y: 18 }
+camera_start: { x: 9, y: 16 }
+objective: { id: basin_array, label: Control the Glass Basin, x: 34, y: 5 }
+bases:
+  - { id: mirror_basin_base, owner: player, x: 1, y: 13, width: 12, height: 10, entrance_x: 13, entrance_y: 18 }
+  - { id: ash_basin_base, owner: contact, x: 27, y: 1, width: 12, height: 10, entrance_x: 26, entrance_y: 6 }
+chokepoints:
+  - { id: north_pass, x: 20, y: 5, width: 3, height: 4, approach: rear }
+  - { id: south_pass, x: 16, y: 15, width: 5, height: 2, approach: front }
+resources:
+  - { id: basin_cyan, kind: cyan_crystal, x: 10, y: 12, route: west_shelf }
+  - { id: basin_amber, kind: amber_salvage, x: 29, y: 11, route: east_shelf }
+  - { id: basin_center, kind: cyan_crystal, x: 20, y: 10, route: glass_center }
+landmarks:
+  - { id: mirror_ramp, role: front, x: 12, y: 17, frame: front }
+  - { id: glass_basin, role: mid, x: 20, y: 10, frame: mid }
+  - { id: basin_array, role: rear, x: 34, y: 5, frame: rear }
+structures:
+  - { id: mirror_command, family: command_core, owner: player, x: 4, y: 19, active: true }
+  - { id: mirror_workshop, family: foundry, owner: player, x: 7, y: 20, active: true }
+  - { id: mirror_sensor, family: shield_relay, owner: player, x: 9, y: 16, active: true }
+  - { id: ash_command, family: command_core, owner: contact, x: 34, y: 4, active: true }
+  - { id: ash_foundry, family: foundry, owner: contact, x: 31, y: 3, active: true }
+  - { id: ash_beacon, family: shield_relay, owner: contact, x: 29, y: 7, active: true }
+units:
+  - { id: party_0, spawn_slot: party_0, family: worker, owner: player, x: 5, y: 18, selected: true }
+  - { id: party_1, spawn_slot: party_1, family: scout, owner: player, x: 6, y: 18, selected: true }
+  - { id: party_2, spawn_slot: party_2, family: warden, owner: player, x: 5, y: 17, selected: true }
+  - { id: party_3, spawn_slot: party_3, family: striker, owner: player, x: 6, y: 17, selected: true }
+  - { id: mirror_engineer, family: relay_engineer, owner: player, x: 8, y: 18, selected: false }
+  - { id: mirror_sentinel, family: sentinel, owner: player, x: 9, y: 18, selected: false }
+  - { id: ash_runner, family: scout, owner: contact, x: 25, y: 9, selected: false }
+  - { id: ash_bulwark, family: warden, owner: contact, x: 29, y: 7, selected: false }
+  - { id: ash_lancer, family: striker, owner: contact, x: 31, y: 6, selected: false }
+  - { id: ash_sapper, family: relay_engineer, owner: contact, x: 32, y: 5, selected: false }
+  - { id: ash_commander, family: sentinel, owner: contact, x: 34, y: 6, selected: false }

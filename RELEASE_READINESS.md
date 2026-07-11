@@ -52,7 +52,7 @@ Current major drift risks include:
 
 ### 4. Trillionnium World Release Review Handoff (local gate, not public readiness)
 - **Status**: Local release-review handoff packet is available, but public launch is still blocked on real external evidence.
-- **Game software scope**: the finite deep-RPG + complete-RTS v1 definition in `docs/development/trnm-deep-rpg-complete-rts-v1-dod.md` is complete; this does not change the repository-wide or public-launch conclusion above.
+- **Game software scope**: the finite v1 checklist in `docs/development/trnm-deep-rpg-complete-rts-v1-dod.md` is a completed historical acceptance baseline, not proof that the broader deep-RPG + complete-RTS vision is 100%; this does not change the repository-wide or public-launch conclusion above.
 - **Primary local aggregate command**: `scripts/check_trillionnium_world_release_review_ci_gate.sh`.
 - **Current game boundary gate**: `scripts/check_trnm_game_product.sh` verifies the five-crate product and rejects removed World/RTS dependencies. `scripts/check_trillionnium_world_client_boundary.sh` is a historical pre-cleanup checker and grants no current product credit.
 - **Current aggregate artifact**: `acceptance/S6_public_launch/latest/release-review-ci-gate.json`.

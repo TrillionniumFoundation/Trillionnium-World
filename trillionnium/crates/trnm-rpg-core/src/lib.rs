@@ -22,6 +22,10 @@ pub const LANTERN_INFIRMARY_ROOM: &str = "lantern_infirmary";
 pub const ARCHIVE_STEPS_ROOM: &str = "archive_steps";
 pub const CARAVAN_YARD_ROOM: &str = "caravan_yard";
 pub const OUTER_SIGNAL_ROAD_ROOM: &str = "outer_signal_road";
+pub const GLASS_BASIN_WAYHOUSE_ROOM: &str = "glass_basin_wayhouse";
+pub const DEEP_RELAY_ROOM: &str = "deep_relay";
+pub const MOON_BRIDGE_ROOM: &str = "moon_bridge";
+pub const EMBER_ORCHARD_EDGE_ROOM: &str = "ember_orchard_edge";
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -234,6 +238,24 @@ pub enum EncounterOutcome {
     Withdrawn,
 }
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TechniqueStyle {
+    #[default]
+    CenterlineBreak,
+    CompassFeint,
+    ForgeCounter,
+    NightVeil,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct EncounterStatus {
+    pub guarded_rounds: u8,
+    pub exposed_rounds: u8,
+    pub bleeding_rounds: u8,
+    pub staggered_rounds: u8,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RpgEncounterState {
     pub encounter_id: String,
@@ -246,6 +268,14 @@ pub struct RpgEncounterState {
     pub technique_cooldown: u8,
     #[serde(default)]
     pub momentum: i8,
+    #[serde(default)]
+    pub technique_style: TechniqueStyle,
+    #[serde(default)]
+    pub player_status: EncounterStatus,
+    #[serde(default)]
+    pub enemy_status: EncounterStatus,
+    #[serde(default)]
+    pub enemy_intent: String,
     pub outcome: Option<EncounterOutcome>,
 }
 
@@ -278,8 +308,16 @@ impl RpgEncounterState {
             enemy_max_hp: definition.enemy_hp,
             technique_cooldown: 0,
             momentum: 0,
+            technique_style: TechniqueStyle::CenterlineBreak,
+            player_status: EncounterStatus::default(),
+            enemy_status: EncounterStatus::default(),
+            enemy_intent: enemy_intent_for(definition.kind, 1).to_string(),
             outcome: None,
         })
+    }
+
+    pub fn set_technique_style(&mut self, style: TechniqueStyle) {
+        self.technique_style = style;
     }
 
     pub fn advance(
@@ -299,6 +337,20 @@ impl RpgEncounterState {
         }
         self.round = self.round.saturating_add(1);
         self.technique_cooldown = self.technique_cooldown.saturating_sub(1);
+        self.player_status.guarded_rounds = self.player_status.guarded_rounds.saturating_sub(1);
+        self.player_status.exposed_rounds = self.player_status.exposed_rounds.saturating_sub(1);
+        self.player_status.bleeding_rounds = self.player_status.bleeding_rounds.saturating_sub(1);
+        self.player_status.staggered_rounds = self.player_status.staggered_rounds.saturating_sub(1);
+        self.enemy_status.guarded_rounds = self.enemy_status.guarded_rounds.saturating_sub(1);
+        self.enemy_status.exposed_rounds = self.enemy_status.exposed_rounds.saturating_sub(1);
+        self.enemy_status.bleeding_rounds = self.enemy_status.bleeding_rounds.saturating_sub(1);
+        self.enemy_status.staggered_rounds = self.enemy_status.staggered_rounds.saturating_sub(1);
+        if self.player_status.bleeding_rounds > 0 {
+            self.player_hp -= 4;
+        }
+        if self.enemy_status.bleeding_rounds > 0 {
+            self.enemy_hp -= 5;
+        }
         let mut item_consumed = false;
         let defending = action == EncounterAction::Defend;
         match action {
@@ -310,12 +362,30 @@ impl RpgEncounterState {
             EncounterAction::Defend => {
                 self.enemy_hp -= 4 + i64::from(attributes.insight / 3);
                 self.momentum = (self.momentum + 2).min(5);
+                self.player_status.guarded_rounds = 2;
             }
             EncounterAction::Technique => {
-                self.enemy_hp -= 18
+                let base = 18
                     + i64::from(attributes.insight) * 2
                     + i64::from(attributes.agility)
                     + i64::from(self.momentum.max(0)) * 3;
+                match self.technique_style {
+                    TechniqueStyle::CenterlineBreak => {
+                        self.enemy_hp -= base + i64::from(attributes.force)
+                    }
+                    TechniqueStyle::CompassFeint => {
+                        self.enemy_hp -= base;
+                        self.enemy_status.exposed_rounds = 2;
+                    }
+                    TechniqueStyle::ForgeCounter => {
+                        self.enemy_hp -= base - 4;
+                        self.player_status.guarded_rounds = 3;
+                    }
+                    TechniqueStyle::NightVeil => {
+                        self.enemy_hp -= base - 2;
+                        self.enemy_status.bleeding_rounds = 3;
+                    }
+                }
                 self.technique_cooldown = 2;
                 self.momentum = 0;
             }
@@ -348,8 +418,46 @@ impl RpgEncounterState {
                     EncounterKind::Investigation => 0,
                 })
                 .unwrap_or(0);
-            let enemy_damage = 16 + encounter_pressure + i64::from(self.round % 3) * 4;
+            let definition = ENCOUNTER_CATALOG
+                .iter()
+                .find(|definition| definition.id == self.encounter_id);
+            let kind = definition
+                .map(|definition| definition.kind)
+                .unwrap_or(EncounterKind::Duel);
+            let enemy_move = enemy_move_for(kind, self.round);
+            let exposed_bonus = if self.player_status.exposed_rounds > 0 {
+                6
+            } else {
+                0
+            };
+            let enemy_guard = if self.enemy_status.guarded_rounds > 0 {
+                5
+            } else {
+                0
+            };
+            let stagger_penalty = if self.enemy_status.staggered_rounds > 0 {
+                7
+            } else {
+                0
+            };
+            let enemy_damage = 16
+                + encounter_pressure
+                + i64::from(self.round % 3) * 4
+                + enemy_move.damage_bonus
+                + exposed_bonus
+                - stagger_penalty;
+            self.enemy_hp += enemy_guard.min((self.enemy_max_hp - self.enemy_hp).max(0));
+            if enemy_move.bleed && !defending {
+                self.player_status.bleeding_rounds = 3;
+            }
+            if enemy_move.expose && !defending {
+                self.player_status.exposed_rounds = 2;
+            }
+            if enemy_move.guard {
+                self.enemy_status.guarded_rounds = 2;
+            }
             self.player_hp -= (enemy_damage - mitigation).max(1);
+            self.enemy_intent = enemy_intent_for(kind, self.round.saturating_add(1)).to_string();
             if self.player_hp <= 0 {
                 self.outcome = Some(EncounterOutcome::Defeat);
             }
@@ -358,6 +466,66 @@ impl RpgEncounterState {
             item_consumed,
             outcome: self.outcome,
         })
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+struct EnemyMove {
+    damage_bonus: i64,
+    bleed: bool,
+    expose: bool,
+    guard: bool,
+}
+
+fn enemy_move_for(kind: EncounterKind, round: u8) -> EnemyMove {
+    match (kind, round % 3) {
+        (EncounterKind::Duel, 0) => EnemyMove {
+            damage_bonus: 6,
+            bleed: false,
+            expose: true,
+            guard: false,
+        },
+        (EncounterKind::Ambush, 1) => EnemyMove {
+            damage_bonus: 8,
+            bleed: true,
+            expose: false,
+            guard: false,
+        },
+        (EncounterKind::Hunt, 2) => EnemyMove {
+            damage_bonus: 5,
+            bleed: false,
+            expose: true,
+            guard: false,
+        },
+        (EncounterKind::Defense, 0) => EnemyMove {
+            damage_bonus: -2,
+            bleed: false,
+            expose: false,
+            guard: true,
+        },
+        (EncounterKind::Investigation, 1) => EnemyMove {
+            damage_bonus: 3,
+            bleed: false,
+            expose: true,
+            guard: false,
+        },
+        _ => EnemyMove {
+            damage_bonus: 0,
+            bleed: false,
+            expose: false,
+            guard: false,
+        },
+    }
+}
+
+fn enemy_intent_for(kind: EncounterKind, round: u8) -> &'static str {
+    match (kind, round % 3) {
+        (EncounterKind::Duel, 0) => "measured centerline break",
+        (EncounterKind::Ambush, 1) => "hidden flanking cut",
+        (EncounterKind::Hunt, 2) => "quarry's desperate lunge",
+        (EncounterKind::Defense, 0) => "brace and punish",
+        (EncounterKind::Investigation, 1) => "feint toward the evidence",
+        _ => "probing exchange",
     }
 }
 
@@ -850,6 +1018,30 @@ pub fn mirror_city_world_graph() -> WorldGraph {
             region_id: "signal_road".to_string(),
             unlock_flag: Some("outer_signal_road_open".to_string()),
         },
+        WorldRoom {
+            id: GLASS_BASIN_WAYHOUSE_ROOM.to_string(),
+            title: "琉璃盆地驿".to_string(),
+            region_id: "glass_basin".to_string(),
+            unlock_flag: Some("glass_basin_wayhouse_open".to_string()),
+        },
+        WorldRoom {
+            id: DEEP_RELAY_ROOM.to_string(),
+            title: "深层中继站".to_string(),
+            region_id: "glass_basin".to_string(),
+            unlock_flag: Some("glass_basin_wayhouse_open".to_string()),
+        },
+        WorldRoom {
+            id: MOON_BRIDGE_ROOM.to_string(),
+            title: "月镜桥".to_string(),
+            region_id: "ashen_fringe".to_string(),
+            unlock_flag: Some("ashen_fringe_open".to_string()),
+        },
+        WorldRoom {
+            id: EMBER_ORCHARD_EDGE_ROOM.to_string(),
+            title: "烬果园边地".to_string(),
+            region_id: "ashen_fringe".to_string(),
+            unlock_flag: Some("ashen_fringe_open".to_string()),
+        },
     ]
     .into_iter()
     .map(|room| (room.id.clone(), room))
@@ -882,6 +1074,22 @@ pub fn mirror_city_world_graph() -> WorldGraph {
         (OUTER_SIGNAL_ROAD_ROOM, RELAY_QUARTER_ROOM, "southwest"),
         (CARAVAN_YARD_ROOM, EXPEDITION_GATE_ROOM, "east"),
         (EXPEDITION_GATE_ROOM, CARAVAN_YARD_ROOM, "west"),
+        (
+            OUTER_SIGNAL_ROAD_ROOM,
+            GLASS_BASIN_WAYHOUSE_ROOM,
+            "northeast",
+        ),
+        (
+            GLASS_BASIN_WAYHOUSE_ROOM,
+            OUTER_SIGNAL_ROAD_ROOM,
+            "southwest",
+        ),
+        (GLASS_BASIN_WAYHOUSE_ROOM, DEEP_RELAY_ROOM, "east"),
+        (DEEP_RELAY_ROOM, GLASS_BASIN_WAYHOUSE_ROOM, "west"),
+        (DEEP_RELAY_ROOM, MOON_BRIDGE_ROOM, "north"),
+        (MOON_BRIDGE_ROOM, DEEP_RELAY_ROOM, "south"),
+        (MOON_BRIDGE_ROOM, EMBER_ORCHARD_EDGE_ROOM, "east"),
+        (EMBER_ORCHARD_EDGE_ROOM, MOON_BRIDGE_ROOM, "west"),
     ] {
         exits.push(WorldExit {
             from: from.to_string(),
@@ -1027,6 +1235,30 @@ const ITEM_CATALOG: &[ItemDefinition] = &[
         slot: "party_tool",
         family: "medicine",
         display_name: "Field Medic Satchel",
+    },
+    ItemDefinition {
+        id: "compass-thread-coat",
+        slot: "armor",
+        family: "navigation",
+        display_name: "Compass Thread Coat",
+    },
+    ItemDefinition {
+        id: "emberglass-lens",
+        slot: "relic",
+        family: "relay_salvage",
+        display_name: "Emberglass Signal Lens",
+    },
+    ItemDefinition {
+        id: "cistern-seal-kit",
+        slot: "party_tool",
+        family: "engineering",
+        display_name: "Cistern Seal Kit",
+    },
+    ItemDefinition {
+        id: "ashward-tonic",
+        slot: "consumable",
+        family: "medicine",
+        display_name: "Ashward Tonic",
     },
 ];
 
@@ -1369,5 +1601,32 @@ mod tests {
             .advance(&attributes, EncounterAction::Defend, false)
             .unwrap();
         assert_eq!(encounter.technique_cooldown, 0);
+    }
+
+    #[test]
+    fn sect_techniques_and_enemy_patterns_apply_distinct_persistent_statuses() {
+        let attributes = TrillionniumAttributes::default();
+        let mut compass =
+            RpgEncounterState::from_definition("roadside_ambush", &attributes).unwrap();
+        compass.set_technique_style(TechniqueStyle::CompassFeint);
+        compass
+            .advance(&attributes, EncounterAction::Defend, false)
+            .unwrap();
+        compass
+            .advance(&attributes, EncounterAction::Technique, false)
+            .unwrap();
+        assert!(compass.enemy_status.exposed_rounds > 0);
+        assert!(!compass.enemy_intent.is_empty());
+
+        let mut night = RpgEncounterState::from_definition("night_raiders", &attributes).unwrap();
+        night.set_technique_style(TechniqueStyle::NightVeil);
+        night
+            .advance(&attributes, EncounterAction::Defend, false)
+            .unwrap();
+        night
+            .advance(&attributes, EncounterAction::Technique, false)
+            .unwrap();
+        assert!(night.enemy_status.bleeding_rounds > 0);
+        assert_ne!(compass.technique_style, night.technique_style);
     }
 }

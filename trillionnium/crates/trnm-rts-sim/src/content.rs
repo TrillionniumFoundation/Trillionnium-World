@@ -13,6 +13,43 @@ pub struct UnitArchetype {
     pub supply: u8,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum UnitAbility {
+    RevealPulse,
+    GuardWall,
+    ArcVolley,
+    FieldRepair,
+    TriageAura,
+    SuppressionBlast,
+    SmokeDash,
+    RetaliationPlate,
+    PiercingCharge,
+    DemolitionCharge,
+    SignalJam,
+    CommandSurge,
+}
+
+impl UnitArchetype {
+    pub fn ability(&self) -> UnitAbility {
+        match self.id {
+            "mirror_wayfinder" => UnitAbility::RevealPulse,
+            "mirror_warden" => UnitAbility::GuardWall,
+            "mirror_striker" => UnitAbility::ArcVolley,
+            "relay_engineer" => UnitAbility::FieldRepair,
+            "field_medic" => UnitAbility::TriageAura,
+            "mirror_sentinel" => UnitAbility::SuppressionBlast,
+            "ash_runner" => UnitAbility::SmokeDash,
+            "ash_bulwark" => UnitAbility::RetaliationPlate,
+            "ash_lancer" => UnitAbility::PiercingCharge,
+            "ash_sapper" => UnitAbility::DemolitionCharge,
+            "ash_whisper" => UnitAbility::SignalJam,
+            "ash_commander" => UnitAbility::CommandSurge,
+            _ => unreachable!("unit catalog ability coverage is exhaustive"),
+        }
+    }
+}
+
 pub const UNIT_ROSTER: [UnitArchetype; 12] = [
     UnitArchetype {
         id: "mirror_wayfinder",
@@ -144,6 +181,39 @@ pub struct StructureArchetype {
     pub hp: u32,
     pub power_delta: i16,
     pub supply_delta: i8,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum StructureFunction {
+    Headquarters,
+    Production,
+    Power,
+    Supply,
+    Defense,
+    Detection,
+    Healing,
+    SiegeProduction,
+    DisruptionPower,
+    RallySpeed,
+}
+
+impl StructureArchetype {
+    pub fn function(&self) -> StructureFunction {
+        match self.id {
+            "command_post" => StructureFunction::Headquarters,
+            "field_workshop" => StructureFunction::Production,
+            "relay_generator" => StructureFunction::Power,
+            "supply_cache" => StructureFunction::Supply,
+            "field_barricade" => StructureFunction::Defense,
+            "sensor_tower" => StructureFunction::Detection,
+            "field_hospital" => StructureFunction::Healing,
+            "siege_foundry" => StructureFunction::SiegeProduction,
+            "ash_beacon" => StructureFunction::DisruptionPower,
+            "forward_rally" => StructureFunction::RallySpeed,
+            _ => unreachable!("structure catalog function coverage is exhaustive"),
+        }
+    }
 }
 
 pub const STRUCTURE_ROSTER: [StructureArchetype; 10] = [
@@ -339,7 +409,10 @@ impl SkirmishRules {
         if self.player_faction == self.enemy_faction {
             return Err("skirmish factions must differ".to_string());
         }
-        if !matches!(self.map_id.as_str(), "iron_delta" | "night_watch_crossing") {
+        if !matches!(
+            self.map_id.as_str(),
+            "iron_delta" | "night_watch_crossing" | "glass_basin" | "ember_orchard"
+        ) {
             return Err("unknown authored skirmish map".to_string());
         }
         if !(100..=1000).contains(&self.starting_resources) || self.victory_score < 500 {
@@ -379,6 +452,14 @@ mod tests {
             );
         }
         assert!(faction_balance_delta_permille() <= 100);
+        assert_eq!(
+            UNIT_ROSTER
+                .iter()
+                .map(UnitArchetype::ability)
+                .collect::<BTreeSet<_>>()
+                .len(),
+            12
+        );
     }
 
     #[test]
@@ -393,6 +474,14 @@ mod tests {
             .iter()
             .filter_map(|tech| tech.prerequisite)
             .all(|required| ids.contains(required)));
+        assert_eq!(
+            STRUCTURE_ROSTER
+                .iter()
+                .map(StructureArchetype::function)
+                .collect::<BTreeSet<_>>()
+                .len(),
+            10
+        );
     }
 
     #[test]

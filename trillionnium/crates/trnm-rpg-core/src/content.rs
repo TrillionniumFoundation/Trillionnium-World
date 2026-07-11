@@ -177,6 +177,105 @@ pub struct NpcSchedule {
     pub activity: &'static str,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RelationshipStage {
+    Stranger,
+    Acquaintance,
+    Ally,
+    Confidant,
+    Kin,
+}
+
+impl RelationshipStage {
+    pub fn from_trust(trust: i16, completed_tasks: usize) -> Self {
+        match trust.saturating_add((completed_tasks as i16).saturating_mul(2)) {
+            i16::MIN..=1 => Self::Stranger,
+            2..=5 => Self::Acquaintance,
+            6..=10 => Self::Ally,
+            11..=16 => Self::Confidant,
+            _ => Self::Kin,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DialogueChoice {
+    #[default]
+    AskForWork,
+    OfferHelp,
+    ShareNews,
+}
+
+impl DialogueChoice {
+    pub fn next(self) -> Self {
+        match self {
+            Self::AskForWork => Self::OfferHelp,
+            Self::OfferHelp => Self::ShareNews,
+            Self::ShareNews => Self::AskForWork,
+        }
+    }
+}
+
+/// NPCs travel between work, civic and rest locations instead of merely
+/// disappearing outside a single static presence window.
+pub fn npc_room_at(npc_id: &str, minute_of_day: u16) -> Option<&'static str> {
+    let hour = minute_of_day / 60;
+    Some(match npc_id {
+        "street-compass-sifu" => match hour {
+            6..=11 => "mentor_hall",
+            12..=17 => "archive_steps",
+            _ => "mirror_square",
+        },
+        "master-orsen" => match hour {
+            7..=15 => "workshop_gate",
+            16..=18 => "relay_quarter",
+            _ => "caravan_yard",
+        },
+        "captain-veyra" => match hour {
+            0..=5 | 16..=23 => "night_watch_post",
+            6..=11 => "lantern_infirmary",
+            _ => "archive_steps",
+        },
+        "relay-smith-brann" => match hour {
+            5..=18 => "relay_quarter",
+            _ => "market_wind_pavilion",
+        },
+        "healer-nima" => match hour {
+            6..=15 => "lantern_infirmary",
+            16..=20 => "cistern_ward",
+            _ => "mirror_square",
+        },
+        "archivist-sol" => match hour {
+            8..=16 => "archive_steps",
+            17..=19 => "night_watch_post",
+            _ => "mentor_hall",
+        },
+        "merchant-aya" => match hour {
+            8..=15 => "market_wind_pavilion",
+            16..=20 => "caravan_yard",
+            _ => "mirror_square",
+        },
+        "courier-tess" => match hour {
+            5..=10 => "caravan_yard",
+            11..=16 => "expedition_gate",
+            _ => "market_wind_pavilion",
+        },
+        "scout-mako" => match hour {
+            4..=11 => "outer_signal_road",
+            12..=17 => "expedition_gate",
+            _ => "night_watch_post",
+        },
+        "quartermaster-nia" => match hour {
+            6..=13 => "cistern_ward",
+            14..=18 => "caravan_yard",
+            _ => "lantern_infirmary",
+        },
+        _ => return None,
+    })
+}
+
 impl NpcSchedule {
     pub fn present(self, minute_of_day: u16) -> bool {
         if self.start_minute <= self.end_minute {
@@ -308,6 +407,33 @@ pub fn npc_dialogue(npc_id: &str, trust: i16, completed_tasks: usize) -> Option<
     })
 }
 
+pub fn npc_choice_dialogue(
+    npc_id: &str,
+    stage: RelationshipStage,
+    choice: DialogueChoice,
+) -> &'static str {
+    match (npc_id, choice, stage) {
+        ("street-compass-sifu", DialogueChoice::AskForWork, _) => "Map what people fear, then test whether the fear deserves its roadblock.",
+        ("street-compass-sifu", DialogueChoice::OfferHelp, RelationshipStage::Stranger | RelationshipStage::Acquaintance) => "Carry chalk and listen. A useful apprentice first learns where not to speak.",
+        ("street-compass-sifu", DialogueChoice::OfferHelp, _) => "Take the western apprentices. Their route is yours to judge, not mine.",
+        ("master-orsen", DialogueChoice::AskForWork, _) => "The deep relay needs a hinge that can survive heat, grit and a frightened operator.",
+        ("master-orsen", DialogueChoice::OfferHelp, _) => "Sort alloy from slag. Your hands will tell me more than your promise.",
+        ("captain-veyra", DialogueChoice::AskForWork, _) => "Follow the lantern gap. If it moves against the wind, someone is signalling beyond the wall.",
+        ("captain-veyra", DialogueChoice::ShareNews, _) => "Names can wait. Give me direction, timing and which dogs did not bark.",
+        ("relay-smith-brann", DialogueChoice::OfferHelp, _) => "Hold this coil steady and do not flatter the sparks. They know when you are afraid.",
+        ("healer-nima", DialogueChoice::OfferHelp, _) => "Boil cloth, count breaths, and ask before touching a wound. Heroics come later.",
+        ("archivist-sol", DialogueChoice::ShareNews, _) => "Tell it twice: once as you remember it, once as your enemy would record it.",
+        ("merchant-aya", DialogueChoice::AskForWork, _) => "Find which caravan is late before buying rumours about why.",
+        ("merchant-aya", DialogueChoice::ShareNews, RelationshipStage::Confidant | RelationshipStage::Kin) => "That changes tomorrow's price. I will change yours today, quietly.",
+        ("courier-tess", DialogueChoice::AskForWork, _) => "Choose: a safe letter delivered late, or a dangerous truth delivered before curfew.",
+        ("scout-mako", DialogueChoice::ShareNews, _) => "Show me the track you almost ignored. That is usually where the useful story begins.",
+        ("quartermaster-nia", DialogueChoice::OfferHelp, _) => "Count the missing cups, then the people who insist no cup is missing.",
+        (_, DialogueChoice::AskForWork, _) => "There is work nearby, but the road and its cost must both be understood.",
+        (_, DialogueChoice::OfferHelp, _) => "Help is welcome when it arrives with patience and enough supplies.",
+        (_, DialogueChoice::ShareNews, _) => "News earns trust only after its source and consequence are both named.",
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum QuestArchetype {
@@ -318,6 +444,142 @@ pub enum QuestArchetype {
     Investigation,
     Supply,
     TrainingTrial,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum QuestApproach {
+    #[default]
+    Direct,
+    Diplomatic,
+    Resourceful,
+}
+
+impl QuestApproach {
+    pub fn next(self) -> Self {
+        match self {
+            Self::Direct => Self::Diplomatic,
+            Self::Diplomatic => Self::Resourceful,
+            Self::Resourceful => Self::Direct,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct QuestRuntimeRule {
+    pub deadline_days: u32,
+    pub minimum_trust_for_diplomacy: i16,
+    pub resource_item_id: &'static str,
+    pub resource_quantity: u16,
+    pub failure_reputation: i32,
+}
+
+pub fn quest_runtime_rule(archetype: QuestArchetype) -> QuestRuntimeRule {
+    match archetype {
+        QuestArchetype::Courier => QuestRuntimeRule {
+            deadline_days: 1,
+            minimum_trust_for_diplomacy: 4,
+            resource_item_id: "route-token",
+            resource_quantity: 1,
+            failure_reputation: -2,
+        },
+        QuestArchetype::FindItem => QuestRuntimeRule {
+            deadline_days: 3,
+            minimum_trust_for_diplomacy: 6,
+            resource_item_id: "salvaged-alloy",
+            resource_quantity: 2,
+            failure_reputation: -1,
+        },
+        QuestArchetype::Escort => QuestRuntimeRule {
+            deadline_days: 2,
+            minimum_trust_for_diplomacy: 7,
+            resource_item_id: "route-token",
+            resource_quantity: 1,
+            failure_reputation: -3,
+        },
+        QuestArchetype::Hunt => QuestRuntimeRule {
+            deadline_days: 3,
+            minimum_trust_for_diplomacy: 8,
+            resource_item_id: "watch-cloth",
+            resource_quantity: 2,
+            failure_reputation: -2,
+        },
+        QuestArchetype::Investigation => QuestRuntimeRule {
+            deadline_days: 4,
+            minimum_trust_for_diplomacy: 5,
+            resource_item_id: "market-ledger",
+            resource_quantity: 1,
+            failure_reputation: -1,
+        },
+        QuestArchetype::Supply => QuestRuntimeRule {
+            deadline_days: 2,
+            minimum_trust_for_diplomacy: 5,
+            resource_item_id: "salvaged-alloy",
+            resource_quantity: 2,
+            failure_reputation: -3,
+        },
+        QuestArchetype::TrainingTrial => QuestRuntimeRule {
+            deadline_days: 5,
+            minimum_trust_for_diplomacy: 9,
+            resource_item_id: "route-token",
+            resource_quantity: 2,
+            failure_reputation: 0,
+        },
+    }
+}
+
+pub fn quest_step_verb(archetype: QuestArchetype, step: usize) -> &'static str {
+    match archetype {
+        QuestArchetype::Courier => {
+            if step == 0 {
+                "collect the sealed dispatch"
+            } else {
+                "deliver it without breaking the seal"
+            }
+        }
+        QuestArchetype::FindItem => {
+            if step == 0 {
+                "search for a physical trace"
+            } else {
+                "recover and identify the missing item"
+            }
+        }
+        QuestArchetype::Escort => {
+            if step == 0 {
+                "assemble the escort"
+            } else {
+                "hold the protected route"
+            }
+        }
+        QuestArchetype::Hunt => {
+            if step == 0 {
+                "read the quarry's trail"
+            } else {
+                "corner the quarry"
+            }
+        }
+        QuestArchetype::Investigation => {
+            if step == 0 {
+                "interview the first witness"
+            } else {
+                "corroborate the evidence"
+            }
+        }
+        QuestArchetype::Supply => {
+            if step == 0 {
+                "audit the requested stores"
+            } else {
+                "deliver usable supplies"
+            }
+        }
+        QuestArchetype::TrainingTrial => {
+            if step == 0 {
+                "declare the trial"
+            } else {
+                "complete the measured discipline"
+            }
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -783,7 +1045,7 @@ pub struct EconomyItemDefinition {
     pub material: bool,
 }
 
-pub const ECONOMY_ITEM_CATALOG: [EconomyItemDefinition; 18] = [
+pub const ECONOMY_ITEM_CATALOG: [EconomyItemDefinition; 22] = [
     EconomyItemDefinition {
         id: "route-guard-staff",
         display_name: "Route Guard Staff",
@@ -910,6 +1172,34 @@ pub const ECONOMY_ITEM_CATALOG: [EconomyItemDefinition; 18] = [
         max_durability: 90,
         material: false,
     },
+    EconomyItemDefinition {
+        id: "compass-thread-coat",
+        display_name: "Compass Thread Coat",
+        buy_price: 165,
+        max_durability: 150,
+        material: false,
+    },
+    EconomyItemDefinition {
+        id: "emberglass-lens",
+        display_name: "Emberglass Signal Lens",
+        buy_price: 145,
+        max_durability: 110,
+        material: false,
+    },
+    EconomyItemDefinition {
+        id: "cistern-seal-kit",
+        display_name: "Cistern Seal Kit",
+        buy_price: 75,
+        max_durability: 40,
+        material: false,
+    },
+    EconomyItemDefinition {
+        id: "ashward-tonic",
+        display_name: "Ashward Tonic",
+        buy_price: 50,
+        max_durability: 1,
+        material: false,
+    },
 ];
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -920,7 +1210,7 @@ pub struct CraftingRecipe {
     pub required_skill_id: &'static str,
 }
 
-pub const CRAFTING_RECIPES: [CraftingRecipe; 4] = [
+pub const CRAFTING_RECIPES: [CraftingRecipe; 8] = [
     CraftingRecipe {
         id: "reinforced_staff",
         output_item_id: "reinforced-staff",
@@ -945,7 +1235,45 @@ pub const CRAFTING_RECIPES: [CraftingRecipe; 4] = [
         ingredients: &[("watch-cloth", 2), ("salvaged-alloy", 2)],
         required_skill_id: "field_mend",
     },
+    CraftingRecipe {
+        id: "compass_thread_coat",
+        output_item_id: "compass-thread-coat",
+        ingredients: &[("watch-cloth", 3), ("route-token", 2)],
+        required_skill_id: "route_scouting",
+    },
+    CraftingRecipe {
+        id: "emberglass_lens",
+        output_item_id: "emberglass-lens",
+        ingredients: &[("salvaged-alloy", 3), ("relay-core-fragment", 1)],
+        required_skill_id: "relay_overcharge",
+    },
+    CraftingRecipe {
+        id: "cistern_seal_kit",
+        output_item_id: "cistern-seal-kit",
+        ingredients: &[("salvaged-alloy", 2), ("watch-cloth", 2)],
+        required_skill_id: "artifact_crafting",
+    },
+    CraftingRecipe {
+        id: "ashward_tonic",
+        output_item_id: "ashward-tonic",
+        ingredients: &[("field-tonic-kit", 1), ("ash-runner-seal", 1)],
+        required_skill_id: "field_mend",
+    },
 ];
+
+pub fn market_price(item_id: &str, day: u32, buying: bool) -> Option<i64> {
+    let item = ECONOMY_ITEM_CATALOG
+        .iter()
+        .find(|item| item.id == item_id)?;
+    let cycle = ((day as i64 + item.id.bytes().map(i64::from).sum::<i64>()) % 5) - 2;
+    let demand_permille = 1_000 + cycle * 70;
+    let market = item.buy_price * demand_permille / 1_000;
+    Some(if buying {
+        market.max(1)
+    } else {
+        (market * 55 / 100).max(1)
+    })
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ItemCondition {
@@ -1002,7 +1330,7 @@ mod tests {
     }
 
     #[test]
-    fn every_relationship_npc_has_a_schedule_and_two_authored_dialogue_states() {
+    fn every_relationship_npc_moves_and_has_five_stage_choice_dialogue() {
         let mut opening_lines = BTreeSet::new();
         let mut trusted_lines = BTreeSet::new();
         for npc in NPC_CATALOG {
@@ -1013,6 +1341,20 @@ mod tests {
             assert_ne!(opening, trusted);
             opening_lines.insert(opening);
             trusted_lines.insert(trusted);
+            let rooms = [8 * 60, 14 * 60, 21 * 60]
+                .into_iter()
+                .filter_map(|minute| npc_room_at(npc.id, minute))
+                .collect::<BTreeSet<_>>();
+            assert!(rooms.len() >= 2, "{} never moves", npc.id);
+            for choice in [
+                DialogueChoice::AskForWork,
+                DialogueChoice::OfferHelp,
+                DialogueChoice::ShareNews,
+            ] {
+                assert!(
+                    !npc_choice_dialogue(npc.id, RelationshipStage::Confidant, choice).is_empty()
+                );
+            }
         }
         assert_eq!(opening_lines.len(), NPC_CATALOG.len());
         assert_eq!(trusted_lines.len(), NPC_CATALOG.len());
@@ -1048,8 +1390,12 @@ mod tests {
 
     #[test]
     fn item_economy_has_shop_prices_recipes_durability_and_repair() {
-        assert_eq!(ECONOMY_ITEM_CATALOG.len(), 18);
-        assert_eq!(CRAFTING_RECIPES.len(), 4);
+        assert_eq!(ECONOMY_ITEM_CATALOG.len(), 22);
+        assert_eq!(CRAFTING_RECIPES.len(), 8);
+        assert!(
+            market_price("iron-workshop-blade", 2, true).unwrap()
+                > market_price("iron-workshop-blade", 2, false).unwrap()
+        );
         let mut item = ItemCondition::new("iron-workshop-blade").unwrap();
         item.apply_wear(17);
         assert!(item.repair_cost() > 0);

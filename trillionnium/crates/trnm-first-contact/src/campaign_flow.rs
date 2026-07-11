@@ -22,6 +22,7 @@ pub(super) enum CampaignMode {
 pub(super) enum ShellMode {
     Title,
     CharacterCreate,
+    SkirmishSetup,
     Journal,
     ResumeGuard,
     Playing,
@@ -247,6 +248,21 @@ impl CampaignFlow {
         Ok(())
     }
 
+    pub fn open_selected_slot_skirmish(&mut self) -> Result<(), String> {
+        let slot = self.selected_slot;
+        let save = self
+            .slot_store
+            .load(slot)
+            .map_err(|error| error.to_string())?;
+        self.activate_slot(slot, save)?;
+        self.mutate_town(CampaignSaveV1::prepare_standalone_skirmish)
+            .map_err(|error| error.to_string())?;
+        self.shell_mode = ShellMode::SkirmishSetup;
+        self.status =
+            "Standalone skirmish setup opened; campaign completion was not granted".to_string();
+        Ok(())
+    }
+
     pub fn toggle_low_motion(&mut self) -> Result<(), String> {
         self.settings.low_motion = !self.settings.low_motion;
         self.settings_store
@@ -455,6 +471,10 @@ pub(super) fn handle_campaign_input(
                 if let Err(error) = flow.load_selected_slot() {
                     flow.status = error;
                 }
+            } else if input.just_pressed(KeyCode::KeyK) {
+                if let Err(error) = flow.open_selected_slot_skirmish() {
+                    flow.status = error;
+                }
             } else if input.just_pressed(KeyCode::F2) {
                 match flow.toggle_low_motion() {
                     Ok(()) => flow.status = format!("Low motion: {}", flow.settings.low_motion),
@@ -465,6 +485,37 @@ pub(super) fn handle_campaign_input(
                     Ok(()) => flow.status = format!("Input mode: {:?}", flow.settings.input_mode),
                     Err(error) => flow.status = error,
                 }
+            }
+            return;
+        }
+        ShellMode::SkirmishSetup => {
+            if input.just_pressed(KeyCode::KeyM) {
+                let result =
+                    flow.mutate_town(|save| save.cycle_standalone_skirmish_map().map(|_| ()));
+                set_status(&mut flow, result, "Changed standalone skirmish map");
+            } else if input.just_pressed(KeyCode::KeyT) {
+                let result = flow.mutate_town(|save| save.cycle_skirmish_faction().map(|_| ()));
+                set_status(&mut flow, result, "Changed standalone faction matchup");
+            } else if input.just_pressed(KeyCode::KeyY) {
+                let result = flow.mutate_town(|save| save.cycle_skirmish_resources().map(|_| ()));
+                set_status(&mut flow, result, "Changed standalone starting resources");
+            } else if input.just_pressed(KeyCode::KeyU) {
+                let result =
+                    flow.mutate_town(|save| save.cycle_skirmish_victory_mode().map(|_| ()));
+                set_status(&mut flow, result, "Changed standalone victory rule");
+            } else if input.just_pressed(KeyCode::Enter) {
+                *map = maps.for_mission(flow.save.active_mission).clone();
+                match flow.start_battle(&map) {
+                    Ok(()) => {
+                        runtime.reset_for_battle(&map);
+                        adapter.accepted_orders.clear();
+                        flow.shell_mode = ShellMode::Playing;
+                    }
+                    Err(error) => flow.status = error,
+                }
+            } else if input.just_pressed(KeyCode::Escape) {
+                flow.shell_mode = ShellMode::Title;
+                flow.status = "Standalone skirmish setup canceled".to_string();
             }
             return;
         }
@@ -576,7 +627,20 @@ pub(super) fn handle_campaign_input(
         return;
     }
 
-    if input.just_pressed(KeyCode::Digit1) {
+    let shift = input.pressed(KeyCode::ShiftLeft) || input.pressed(KeyCode::ShiftRight);
+    if shift && input.just_pressed(KeyCode::Digit1) {
+        let result = flow.mutate_town(|save| save.move_to(CampaignRoom::GlassBasinWayhouse));
+        set_status(&mut flow, result, "Entered Glass Basin Wayhouse");
+    } else if shift && input.just_pressed(KeyCode::Digit2) {
+        let result = flow.mutate_town(|save| save.move_to(CampaignRoom::DeepRelay));
+        set_status(&mut flow, result, "Entered Deep Relay");
+    } else if shift && input.just_pressed(KeyCode::Digit3) {
+        let result = flow.mutate_town(|save| save.move_to(CampaignRoom::MoonBridge));
+        set_status(&mut flow, result, "Entered Moon Bridge");
+    } else if shift && input.just_pressed(KeyCode::Digit4) {
+        let result = flow.mutate_town(|save| save.move_to(CampaignRoom::EmberOrchardEdge));
+        set_status(&mut flow, result, "Entered Ember Orchard Edge");
+    } else if input.just_pressed(KeyCode::Digit1) {
         let result = flow.mutate_town(|save| save.move_to(CampaignRoom::MirrorSquare));
         set_status(&mut flow, result, "Entered Mirror Square");
     } else if input.just_pressed(KeyCode::Digit2) {
@@ -613,6 +677,12 @@ pub(super) fn handle_campaign_input(
         let result = flow.mutate_town(|save| save.move_to(CampaignRoom::OuterSignalRoad));
         set_status(&mut flow, result, "Entered Outer Signal Road");
     } else if input.just_pressed(KeyCode::KeyT) {
+        let shift = input.pressed(KeyCode::ShiftLeft) || input.pressed(KeyCode::ShiftRight);
+        if shift && flow.save.room != CampaignRoom::ExpeditionGate {
+            let result = flow.mutate_town(|save| save.cycle_dialogue_choice().map(|_| ()));
+            set_status(&mut flow, result, "Changed the next NPC dialogue choice");
+            return;
+        }
         if flow.save.room == CampaignRoom::ExpeditionGate && flow.save.skirmish_setup.enabled {
             let result = flow.mutate_town(|save| save.cycle_skirmish_faction().map(|_| ()));
             set_status(&mut flow, result, "Changed skirmish faction matchup");
@@ -765,6 +835,13 @@ pub(super) fn handle_campaign_input(
     } else if input.just_pressed(KeyCode::F6) && flow.save.room == CampaignRoom::ExpeditionGate {
         let result = flow.mutate_town(|save| save.cycle_difficulty().map(|_| ()));
         set_status(&mut flow, result, "Changed campaign difficulty");
+    } else if input.just_pressed(KeyCode::KeyR) && flow.save.active_regional_quest_id.is_some() {
+        let result = flow.mutate_town(|save| save.cycle_regional_quest_approach().map(|_| ()));
+        set_status(
+            &mut flow,
+            result,
+            "Changed the active quest resolution approach",
+        );
     } else if input.just_pressed(KeyCode::F9) {
         let result = flow.mutate_town(|save| save.start_first_regional_quest_here().map(|_| ()));
         set_status(&mut flow, result, "Accepted a regional authored quest");
@@ -799,8 +876,11 @@ pub(super) fn handle_campaign_input(
         );
     } else if input.just_pressed(KeyCode::F11) {
         let shift = input.pressed(KeyCode::ShiftLeft) || input.pressed(KeyCode::ShiftRight);
+        let control = input.pressed(KeyCode::ControlLeft) || input.pressed(KeyCode::ControlRight);
         let result = if flow.save.room == CampaignRoom::MarketWindPavilion {
-            if shift {
+            if control {
+                flow.mutate_town(|save| save.sell_selected_shop_item().map(|_| ()))
+            } else if shift {
                 flow.mutate_town(|save| save.buy_selected_shop_item().map(|_| ()))
             } else {
                 flow.mutate_town(|save| save.cycle_shop_item().map(|_| ()))
@@ -817,7 +897,9 @@ pub(super) fn handle_campaign_input(
         set_status(
             &mut flow,
             result,
-            if shift {
+            if control {
+                "Sold the selected catalog entry at today's demand price"
+            } else if shift {
                 "Purchased or crafted the selected catalog entry"
             } else {
                 "Changed the shop, recipe or equipped-item selection"
@@ -933,5 +1015,49 @@ mod tests {
         flow.settings.input_mode = InputMode::MouseOnly;
         assert!(!flow.keyboard_gameplay_enabled());
         assert!(flow.mouse_gameplay_enabled());
+    }
+
+    #[test]
+    fn title_slot_opens_independent_skirmish_setup_without_campaign_unlock_credit() {
+        let root = std::env::temp_dir().join(format!(
+            "trnm-standalone-skirmish-client-{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(&root).unwrap();
+        let slot_store = SaveSlotStore::new(&root);
+        slot_store.create_new(SaveSlotId::A, false).unwrap();
+        let save_path = slot_store.path(SaveSlotId::A);
+        let mut flow = CampaignFlow {
+            save: CampaignSaveV1::default(),
+            mode: CampaignMode::Town,
+            mission: None,
+            last_receipt: None,
+            status: String::new(),
+            last_checkpoint_tick: 0,
+            shell_mode: ShellMode::Title,
+            active_slot: SaveSlotId::A,
+            selected_slot: SaveSlotId::A,
+            overwrite_pending: None,
+            settings: PlayerSettings::default(),
+            settings_store: PlayerSettingsStore::new(root.join("settings.json")),
+            store: CampaignStore::new(&save_path),
+            checkpoint_store: SimCheckpointStore::new(checkpoint_path_for(&save_path)),
+            slot_store,
+        };
+        flow.open_selected_slot_skirmish().unwrap();
+        assert_eq!(flow.shell_mode, ShellMode::SkirmishSetup);
+        assert!(flow.save.skirmish_setup.enabled);
+        assert!(flow
+            .save
+            .progression
+            .world_flags
+            .contains("standalone_skirmish_accessed"));
+        assert!(!flow
+            .save
+            .progression
+            .world_flags
+            .contains("mirror_siege_secured"));
+        std::fs::remove_dir_all(root).unwrap();
     }
 }

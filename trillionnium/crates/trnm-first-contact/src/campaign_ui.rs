@@ -98,6 +98,10 @@ fn room_label(room: CampaignRoom) -> &'static str {
         CampaignRoom::ArchiveSteps => "ARCHIVE STEPS",
         CampaignRoom::CaravanYard => "CARAVAN YARD",
         CampaignRoom::OuterSignalRoad => "OUTER SIGNAL ROAD",
+        CampaignRoom::GlassBasinWayhouse => "GLASS BASIN WAYHOUSE",
+        CampaignRoom::DeepRelay => "DEEP RELAY",
+        CampaignRoom::MoonBridge => "MOON BRIDGE",
+        CampaignRoom::EmberOrchardEdge => "EMBER ORCHARD EDGE",
     }
 }
 
@@ -128,14 +132,18 @@ fn town_body(flow: &CampaignFlow) -> String {
     };
     if let Some(encounter) = &save.active_encounter {
         return format!(
-            "REGIONAL RPG ENCOUNTER\n\nROUND {}  |  HERO HP {}/{}  |  ENEMY HP {}/{}\nMOMENTUM {}  |  TECHNIQUE COOLDOWN {}\n\nAttack builds momentum, defend builds it faster, and K releases a sect technique. Items, withdrawal, encounter-specific pressure, injury, loot and route flags all use the same campaign save.",
+            "REGIONAL RPG ENCOUNTER\n\nROUND {}  |  HERO HP {}/{}  |  ENEMY HP {}/{}\nMOMENTUM {}  |  TECHNIQUE {:?}  |  COOLDOWN {}\nHERO STATUS {:?}  |  ENEMY STATUS {:?}\nENEMY INTENT: {}\n\nAttack builds momentum, defend answers telegraphed moves, and K releases the equipped sect technique. Bleed/exposure/guard, item use, withdrawal, injury and loot remain authoritative.",
             encounter.round,
             encounter.player_hp.max(0),
             encounter.player_max_hp,
             encounter.enemy_hp.max(0),
             encounter.enemy_max_hp,
             encounter.momentum,
+            encounter.technique_style,
             encounter.technique_cooldown,
+            encounter.player_status,
+            encounter.enemy_status,
+            encounter.enemy_intent,
         );
     }
     let body = match save.room {
@@ -272,7 +280,7 @@ fn town_body(flow: &CampaignFlow) -> String {
                 _ => "F11 cycles equipped owned items outside shop/workshop rooms".to_string(),
             };
             format!(
-                "{}\n\nMIRROR CITY REGIONAL DISTRICT\n\nNPC: {}\n{}\n\nQUEST: {}\n{}\n\n{}\n\nT talks before F9 acceptance; F10 advances every authored waypoint in order. W waits two hours. F11 cycles catalog/equipment; Shift+F11 buys or crafts; F12 repairs.",
+                "{}\n\nMIRROR CITY REGIONAL DISTRICT\n\nNPC: {}\n{}\n\nQUEST: {}\n{}\n\n{}\n\nT talks; Shift+T changes dialogue intent. F9 accepts, F10 advances typed steps, R changes Direct/Diplomatic/Resourceful resolution. W advances moving NPC schedules. F11 cycles; Shift+F11 buys/crafts; Ctrl+F11 sells; F12 repairs.",
                 room_label(room), npc, dialogue, quest, navigation, commerce,
             )
         }
@@ -378,6 +386,15 @@ fn shell_body(flow: &CampaignFlow) -> String {
             "CREATE CHARACTER IDENTITY\n\nNAME: {}\nORIGIN: selected later in Mirror Square\nSAVE SLOT: {}\n\nThe name is persisted on both the RPG character and party hero. Origin remains the existing independent gameplay choice.",
             flow.save.character_identity.name.display_name(),
             flow.active_slot.label(),
+        ),
+        ShellMode::SkirmishSetup => format!(
+            "STANDALONE SKIRMISH\n\nMAP: {}\nPLAYER: {:?}  |  OPPONENT: {:?}\nSTARTING RESOURCES: {}\nVICTORY: {:?}  |  SCORE TARGET: {}\n\nThis lane is available from the title slot selector. It grants no campaign-completion flags, but its BattleSeed, deterministic simulation and one-time RPG settlement use the same authority as campaign battles.",
+            flow.save.active_mission.display_name(),
+            flow.save.skirmish_setup.player_faction,
+            flow.save.skirmish_setup.enemy_faction,
+            flow.save.skirmish_setup.starting_resources,
+            flow.save.skirmish_setup.victory_mode,
+            flow.save.skirmish_setup.score_target,
         ),
         ShellMode::Journal => journal_body(flow),
         ShellMode::Playing => String::new(),
@@ -488,6 +505,8 @@ pub(super) fn update_campaign_ui(
             "TRILLIONNIUM".to_string()
         } else if flow.shell_mode == ShellMode::CharacterCreate {
             "NEW CHARACTER".to_string()
+        } else if flow.shell_mode == ShellMode::SkirmishSetup {
+            "SKIRMISH SETUP".to_string()
         } else if flow.shell_mode == ShellMode::Journal {
             "CAMPAIGN JOURNAL".to_string()
         } else if flow.shell_mode == ShellMode::Paused {
@@ -521,9 +540,11 @@ pub(super) fn update_campaign_ui(
     }
     for (mut action, mut color) in &mut actions {
         action.0 = if flow.shell_mode == ShellMode::Title {
-            "1/2/3 SLOT | N NEW | ENTER LOAD | F2 MOTION | F3 INPUT | F5 SUBTITLE/CONTRAST | F7 CONTROLS | F8 AUDIO".to_string()
+            "1/2/3 SLOT | N NEW | ENTER LOAD | K SKIRMISH | F2 MOTION | F3 INPUT | F5 SUBTITLE/CONTRAST | F7 CONTROLS | F8 AUDIO".to_string()
         } else if flow.shell_mode == ShellMode::CharacterCreate {
             "C CYCLE NAME | ENTER CONFIRM | ESC TITLE".to_string()
+        } else if flow.shell_mode == ShellMode::SkirmishSetup {
+            "M MAP | T FACTIONS | Y RESOURCES | U VICTORY | ENTER DEPLOY | ESC TITLE".to_string()
         } else if flow.shell_mode == ShellMode::Journal {
             "F4 / ESC CLOSE JOURNAL".to_string()
         } else if flow.shell_mode == ShellMode::ResumeGuard {
@@ -549,7 +570,7 @@ pub(super) fn update_campaign_ui(
                 CampaignRoom::RelayQuarter => {
                     "B CISTERN RELIEF | N REINFORCE | M EVACUATE | T TALK BRANN | U RECRUIT | J RPG AMBUSH | F1 TITLE | ESC PAUSE".to_string()
                 }
-                _ => "1-0/-/= TRAVEL | T TALK/JOIN | K TRAIN | W WAIT | F9 ACCEPT | F10 STEP | F11 CYCLE | SHIFT+F11 BUY/CRAFT | F12 REPAIR".to_string(),
+                _ => "1-0/-/= TRAVEL | T TALK | SHIFT+T INTENT | R APPROACH | W WAIT | F9 ACCEPT | F10 STEP | F11 CYCLE | SHIFT+F11 BUY/CRAFT | CTRL+F11 SELL | F12 REPAIR".to_string(),
             }
         };
         color.0 = if hidden {

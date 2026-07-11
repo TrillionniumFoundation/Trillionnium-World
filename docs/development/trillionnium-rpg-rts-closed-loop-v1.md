@@ -30,7 +30,7 @@ Mirror Square
   -> unlock the outer Signal Road and retain the repeatable patrol loop
   -> counterattack on the fourth original Mirror Siege map
   -> break the siege, reclaim Mirror Gate and persist the result
-  -> select Iron Delta or Night Watch Crossing as deterministic endgame skirmishes
+  -> select Iron Delta, Night Watch Crossing, Glass Basin or Ember Orchard as deterministic skirmishes
   -> return their faction loot and equipment materials to the RPG economy
 ```
 
@@ -43,7 +43,7 @@ Mirror Square
 | Frame-order contract | `trnm-rts-protocol` | Lightweight player-order validation and deterministic stream contract. |
 | Battle simulation | `trnm-rts-sim` | Bevy-free, two-dimensional, map-aware simulation consuming `RtsFrameOrder` as its only player input. |
 | Native presentation/input | `trnm-first-contact` | Consumes `BattleSeedV1`; may only emit `BattleResultV1`. |
-| Authored map/art | `assets/first_contact` | Six canonical original 40x24 campaign/skirmish maps and PNG atlases. |
+| Authored map/art | `assets/first_contact` | Eight canonical original 40x24 campaign/skirmish maps and PNG atlases. |
 | Historical implementation | `docs/archive/frozen-legacy-final-index-2026-07-11.md` | Removed from the current checkout; recoverable by an explicit historical Git worktree only. |
 
 ## Stable Contracts
@@ -52,8 +52,8 @@ Mirror Square
 - `trnm_battle_seed_v8`
 - `trnm_battle_result_v2`
 - `trnm_settlement_receipt_v1`
-- `trnm_rts_sim_v10`
-- `trnm_rts_sim_checkpoint_v10`
+- `trnm_rts_sim_v11`
+- `trnm_rts_sim_checkpoint_v11`
 
 `BattleSeedV1` binds campaign revision, battle id, map/rules version, four
 persistent party members, spawn slots, skills, typed equipment modifiers,
@@ -101,7 +101,8 @@ Town:
 - `4`: Relay Quarter after the two-mission Signal Road chain
 - `5/6/7/8/9/0/-/=`: Cistern Ward, Night Watch Post, Iron Workshop Gate,
   Market Wind Pavilion, Lantern Infirmary, Archive Steps, Caravan Yard and Outer Signal Road
-- `T`: talk to mentor, or build Brann trust in Relay Quarter
+- `Shift+1/2/3/4`: Glass Basin Wayhouse, Deep Relay, Moon Bridge and Ember Orchard Edge after their story locks open
+- `T`: talk to the scheduled NPC; `Shift+T`: cycle ask-for-work / offer-help / share-news dialogue intent
 - `L`: cycle Iron Guard / Wind Step / Inner Flame training path
 - `K`: buy one capped mentor training session
 - `E`: cycle Guard / Raider / Mystic typed loadouts
@@ -115,15 +116,15 @@ Town:
   growth point; `D`: cancel without spending; `O`: select origin before mentor
   commitment; `Q`: complete the selected path mastery; `V`: cycle earned titles
 - `J`: begin the Signal Road typed RPG encounter from Relay Quarter (or the
-  Gate Warden route); during it use `J/R/I/Esc` for attack/defend/item/withdraw
+  Gate Warden route); during it use `J/R/K/I/Esc` for attack/defend/sect-technique/item/withdraw
 - `B`: start/advance Cistern Relief; at its branch use `N` to reinforce or `M`
   to evacuate; its supply step is completed at the expedition gate
 - `R` at the expedition gate: cycle immediate/rested/supplied/shortcut preparation
 - `F6` at the expedition gate: cycle Story / Standard / Veteran before acceptance
 - `F`: accept mission / deploy
-- `F9/F10`: accept and advance the authored regional quest available at the current NPC room
+- `F9/F10`: accept and advance the authored regional quest available at the current NPC room; `R` away from the expedition gate cycles Direct/Diplomatic/Resourceful resolution
 - `T/K` in a regional mentor hall: commit to one of three sects and train its prerequisite skill tree
-- `F11/F12`: contextual shop/crafting and equipment repair
+- `F11`: cycle shop/crafting/equipment; `Shift+F11`: buy or craft; `Ctrl+F11`: sell at daily demand price; `F12`: equipment repair
 
 Title/pause shell:
 
@@ -131,6 +132,7 @@ Title/pause shell:
 - `N`: create a new campaign; press a second time to explicitly confirm overwrite
 - new character: `C` cycles the persistent display name; `Enter` confirms it
 - `Enter`: load/continue, then pass the resume guard before gameplay is revealed
+- `K`: open independent skirmish setup for the selected existing slot; then `M/T/Y/U` select map/factions/resources/victory and `Enter` deploys
 - `F2`: low-motion mode; `F3`: hybrid/keyboard-only/mouse-only input mode
 - `F5`: subtitles/high contrast; `F7`: control-scheme profile; `F8`: live master volume for the town/battle Bevy audio sinks
 - `Esc`: resume from pause; settings are profile-scoped rather than character-scoped
@@ -143,12 +145,10 @@ Battle:
 - `R`: hold
 - `A`: activate selected units' energy/cooldown/range-bound signature abilities
 - `S`: spend 20 field resources on Field Aid for selected units
-- `H`: cycle barricade / generator / workshop / supply-cache construction;
-  `D`: build the selected structure inside an authoritative build radius
+- `H`: cycle all faction-compatible structures; `D`: build the selected structure inside an authoritative build radius
 - `C`: spend 10 field resources on a recon sweep that reveals authoritative fog
-- `Z`: switch support-drone / field-medic production; `V`: queue the selection
-- `B`: research Field Logistics, then Signal Optics
-- `N`: upgrade Relay Arms, then Field Armor
+- `Z`: cycle the full six-unit faction roster; `V`: queue the selection
+- `T`: cycle all faction-compatible technologies; `B` queues research and `N` queues upgrades
 - `X`: withdraw
 - `0`: select all; `Ctrl+1..9`: assign a control group; `1..9`: recall it;
   double-tap the group number to focus the camera on living members
@@ -170,17 +170,17 @@ Debrief:
 
 Current authored content expansion:
 
-- twelve-room first region, three exclusive sects, three mentors and ten NPC definitions;
+- sixteen-room four-region world, three exclusive sects, three mentors and ten moving NPC definitions;
 - fifteen regional quests, seven encounter definitions and original combat captions;
-- fifteen skills, eighteen economy items, four recipes, durability and repair;
+- fifteen skills, twenty-two economy items, eight recipes, durability and repair;
 - two factions, twelve unit archetypes, ten structures and ten technologies;
-- Iron Delta and Night Watch Crossing join the four campaign maps as selectable endgame skirmishes.
+- Iron Delta, Night Watch Crossing, Glass Basin and Ember Orchard join the four campaign maps as independently selectable skirmishes.
 
 ## M0-M4 Implementation State
 
 - M0: complete. Versioned contracts, payload hashes, validation failures and
   atomic save tests are in `trnm-campaign-core`.
-- M1: complete. Three-room RPG, mentor dialogue/training, equipment, party,
+- M1: complete. Sixteen-room RPG, mentor dialogue/training, equipment, party,
   quest acceptance, campaign UI and atomic save are in the default client.
 - M2: complete. `BattleSeedV1` embeds the authored 40x24 navigation projection;
   `RtsFrameOrder` directly drives deterministic 2D pathfinding, occupancy,
@@ -189,10 +189,11 @@ Current authored content expansion:
 - M3: complete. Battle result staging, crash recovery, idempotent settlement,
   debrief/return UI, XP, skill XP, loot, reputation, injuries, quest state and
   durable reload are connected.
-- M4 software gates: complete. Seven closed-loop E2E cases cover victory,
+- M4 software gates: complete. Nine closed-loop E2E cases cover victory,
   defeat, withdrawal, mid-battle crash, mid-settlement crash, duplicate result,
-  and two consecutive victories with reload between First Contact and the
-  repeatable Aftershock Patrol.
+  two consecutive victories with reload between First Contact and the
+  repeatable Aftershock Patrol, the convoy chain and independent configurable
+  skirmish settlement.
 - Gameplay P0: complete. Training is paid and capped; withdrawal pays zero XP
   and resources; defeat rewards are bounded; harvested resources settle only
   on victory; loot can be consumed for healing or equipped as a typed relic;
@@ -209,9 +210,9 @@ Current authored content expansion:
   from the current checkout. The product uses only the lightweight RPG and
   order-protocol cores; historical sources require an explicit Git worktree.
   The canonical player, map, save and order authorities are singular.
-- Legacy extraction P0: complete. The three-room town now uses a validated
-  data-driven world graph. The expedition gate is mentor-locked, non-adjacent
-  travel is rejected and Relay Quarter is story-locked.
+- Legacy extraction P0: complete. The sixteen-room, four-region world uses a
+  validated data-driven graph. The expedition gate is mentor-locked,
+  non-adjacent travel is rejected and frontier regions are story-locked.
 - Legacy extraction P1: complete. Typed `QuestDefinition`, conditions, rewards
   and persisted story steps drive an original Signal Road arc. First Contact
   and Aftershock use distinct authored 40x24 maps; winning both and returning

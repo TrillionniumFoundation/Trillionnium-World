@@ -13,15 +13,18 @@ use std::{
     path::{Path, PathBuf},
 };
 use trnm_rpg_core::{
-    inventory_item_for as trillionnium_inventory_item_for, mirror_city_world_graph, npc_dialogue,
-    npc_schedule, original_combat_log, resolve_mentor_sparring, skill_unlockable, BuildPath,
+    inventory_item_for as trillionnium_inventory_item_for, market_price, mirror_city_world_graph,
+    npc_choice_dialogue, npc_dialogue, npc_room_at, npc_schedule, original_combat_log,
+    quest_runtime_rule, quest_step_verb, resolve_mentor_sparring, skill_unlockable, BuildPath,
     BuildTitle, Character as WorldTrillionniumCharacter, CharacterOrigin, CombatLogBeat,
-    EncounterOutcome, EquipmentAffixCondition, FactionRank, GrowthStat, ItemCondition,
-    NpcRelationship, RelationshipAction, RpgEncounterState, SparringAction, SparringOutcome,
-    SparringReport, TrillionniumAttributes, WorldRoutePlan, ARCHIVE_STEPS_ROOM, CARAVAN_YARD_ROOM,
-    CISTERN_WARD_ROOM, CRAFTING_RECIPES, ECONOMY_ITEM_CATALOG, ENCOUNTER_CATALOG,
-    EXPEDITION_GATE_ROOM, LANTERN_INFIRMARY_ROOM, MARKET_WIND_PAVILION_ROOM, MENTOR_HALL_ROOM,
-    MIRROR_SQUARE_ROOM, NIGHT_WATCH_POST_ROOM, NPC_CATALOG, OUTER_SIGNAL_ROAD_ROOM,
+    DialogueChoice, EncounterOutcome, EquipmentAffixCondition, FactionRank, GrowthStat,
+    ItemCondition, NpcRelationship, QuestApproach, RelationshipAction, RelationshipStage,
+    RpgEncounterState, SparringAction, SparringOutcome, SparringReport, TechniqueStyle,
+    TrillionniumAttributes, WorldRoutePlan, ARCHIVE_STEPS_ROOM, CARAVAN_YARD_ROOM,
+    CISTERN_WARD_ROOM, CRAFTING_RECIPES, DEEP_RELAY_ROOM, ECONOMY_ITEM_CATALOG,
+    EMBER_ORCHARD_EDGE_ROOM, ENCOUNTER_CATALOG, EXPEDITION_GATE_ROOM, GLASS_BASIN_WAYHOUSE_ROOM,
+    LANTERN_INFIRMARY_ROOM, MARKET_WIND_PAVILION_ROOM, MENTOR_HALL_ROOM, MIRROR_SQUARE_ROOM,
+    MOON_BRIDGE_ROOM, NIGHT_WATCH_POST_ROOM, NPC_CATALOG, OUTER_SIGNAL_ROAD_ROOM,
     REGIONAL_QUEST_CATALOG, RELAY_QUARTER_ROOM, SECT_CATALOG, SKILL_CATALOG, WORKSHOP_GATE_ROOM,
 };
 pub use trnm_rpg_core::{EncounterAction, MasteryChallenge, SectId};
@@ -162,6 +165,10 @@ pub enum CampaignRoom {
     ArchiveSteps,
     CaravanYard,
     OuterSignalRoad,
+    GlassBasinWayhouse,
+    DeepRelay,
+    MoonBridge,
+    EmberOrchardEdge,
 }
 
 impl CampaignRoom {
@@ -179,6 +186,10 @@ impl CampaignRoom {
             Self::ArchiveSteps => ARCHIVE_STEPS_ROOM,
             Self::CaravanYard => CARAVAN_YARD_ROOM,
             Self::OuterSignalRoad => OUTER_SIGNAL_ROAD_ROOM,
+            Self::GlassBasinWayhouse => GLASS_BASIN_WAYHOUSE_ROOM,
+            Self::DeepRelay => DEEP_RELAY_ROOM,
+            Self::MoonBridge => MOON_BRIDGE_ROOM,
+            Self::EmberOrchardEdge => EMBER_ORCHARD_EDGE_ROOM,
         }
     }
 
@@ -196,6 +207,10 @@ impl CampaignRoom {
             Self::ArchiveSteps => "镜档石阶",
             Self::CaravanYard => "行商院",
             Self::OuterSignalRoad => "外信号道",
+            Self::GlassBasinWayhouse => "琉璃盆地驿",
+            Self::DeepRelay => "深层中继站",
+            Self::MoonBridge => "月镜桥",
+            Self::EmberOrchardEdge => "烬果园边地",
         }
     }
 }
@@ -229,6 +244,8 @@ pub enum CampaignMission {
     MirrorSiege,
     IronDeltaSkirmish,
     NightWatchCrossingSkirmish,
+    GlassBasinSkirmish,
+    EmberOrchardSkirmish,
 }
 
 impl CampaignMission {
@@ -240,6 +257,8 @@ impl CampaignMission {
             Self::MirrorSiege => "mirror_siege",
             Self::IronDeltaSkirmish => "iron_delta",
             Self::NightWatchCrossingSkirmish => "night_watch_crossing",
+            Self::GlassBasinSkirmish => "glass_basin",
+            Self::EmberOrchardSkirmish => "ember_orchard",
         }
     }
 
@@ -251,6 +270,8 @@ impl CampaignMission {
             Self::MirrorSiege => "Mirror Siege Counterstrike",
             Self::IronDeltaSkirmish => "Iron Delta Skirmish",
             Self::NightWatchCrossingSkirmish => "Night Watch Crossing",
+            Self::GlassBasinSkirmish => "Glass Basin Control",
+            Self::EmberOrchardSkirmish => "Ember Orchard Annihilation",
         }
     }
 }
@@ -539,6 +560,46 @@ impl MissionDefinition {
                     kind: ObjectiveKind::Extract,
                     target: map.objective,
                     duration_ticks: 80,
+                },
+            ],
+            CampaignMission::GlassBasinSkirmish => vec![
+                MissionObjectiveDefinition {
+                    id: "cross_glass_flats".to_string(),
+                    kind: ObjectiveKind::Escort,
+                    target: map.approach_point,
+                    duration_ticks: 0,
+                },
+                MissionObjectiveDefinition {
+                    id: "disable_basin_array".to_string(),
+                    kind: ObjectiveKind::Destroy,
+                    target: map.objective,
+                    duration_ticks: 0,
+                },
+                MissionObjectiveDefinition {
+                    id: "hold_glass_basin".to_string(),
+                    kind: ObjectiveKind::Capture,
+                    target: map.objective,
+                    duration_ticks: 560,
+                },
+            ],
+            CampaignMission::EmberOrchardSkirmish => vec![
+                MissionObjectiveDefinition {
+                    id: "enter_ember_orchard".to_string(),
+                    kind: ObjectiveKind::Escort,
+                    target: map.approach_point,
+                    duration_ticks: 0,
+                },
+                MissionObjectiveDefinition {
+                    id: "break_orchard_command".to_string(),
+                    kind: ObjectiveKind::Destroy,
+                    target: map.objective,
+                    duration_ticks: 0,
+                },
+                MissionObjectiveDefinition {
+                    id: "clear_orchard_base".to_string(),
+                    kind: ObjectiveKind::Capture,
+                    target: map.objective,
+                    duration_ticks: 620,
                 },
             ],
         };
@@ -1423,6 +1484,39 @@ pub struct NpcConversationRecord {
     pub minute_of_day: u16,
 }
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum MainStoryChapter {
+    #[default]
+    MirrorCityOaths,
+    SignalRoadReckoning,
+    AshenFringeCountermarch,
+    ChapterComplete,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RegionalQuestRuntime {
+    pub quest_id: String,
+    pub accepted_day: u32,
+    pub deadline_day: u32,
+    pub approach: QuestApproach,
+    pub evidence_count: u8,
+    pub failure_count: u8,
+}
+
+impl RegionalQuestRuntime {
+    fn new(quest_id: &str, accepted_day: u32, deadline_days: u32, failures: u8) -> Self {
+        Self {
+            quest_id: quest_id.to_string(),
+            accepted_day,
+            deadline_day: accepted_day.saturating_add(deadline_days),
+            approach: QuestApproach::Direct,
+            evidence_count: 0,
+            failure_count: failures,
+        }
+    }
+}
+
 impl SettlementReceiptV1 {
     pub fn duplicate_from(existing: &Self, revision: u64) -> Self {
         Self {
@@ -1498,6 +1592,14 @@ pub struct CampaignSaveV1 {
     pub active_regional_quest_id: Option<String>,
     #[serde(default)]
     pub active_regional_quest_step: usize,
+    #[serde(default)]
+    pub active_regional_quest_runtime: Option<RegionalQuestRuntime>,
+    #[serde(default)]
+    pub regional_quest_failure_counts: BTreeMap<String, u8>,
+    #[serde(default)]
+    pub dialogue_choice: DialogueChoice,
+    #[serde(default)]
+    pub main_story_chapter: MainStoryChapter,
     #[serde(default)]
     pub last_npc_conversation: Option<NpcConversationRecord>,
     #[serde(default)]
@@ -1576,7 +1678,7 @@ impl Default for CampaignSaveV1 {
         let item_conditions = character_item_conditions(&character);
         Self {
             contract_version: CAMPAIGN_SAVE_CONTRACT.to_string(),
-            schema_revision: 3,
+            schema_revision: 4,
             campaign_id: "local-campaign".to_string(),
             revision: 0,
             room: CampaignRoom::MirrorSquare,
@@ -1745,6 +1847,10 @@ impl Default for CampaignSaveV1 {
                 .collect(),
             active_regional_quest_id: None,
             active_regional_quest_step: 0,
+            active_regional_quest_runtime: None,
+            regional_quest_failure_counts: BTreeMap::new(),
+            dialogue_choice: DialogueChoice::AskForWork,
+            main_story_chapter: MainStoryChapter::MirrorCityOaths,
             last_npc_conversation: None,
             conversation_history: Vec::new(),
             selected_shop_item_index: 0,
@@ -1767,9 +1873,10 @@ impl Default for CampaignSaveV1 {
 
 impl CampaignSaveV1 {
     pub fn ensure_gameplay_defaults(&mut self) {
-        self.schema_revision = 3;
+        self.schema_revision = 4;
         if self.active_regional_quest_id.is_none() {
             self.active_regional_quest_step = 0;
+            self.active_regional_quest_runtime = None;
         }
         if self.conversation_history.len() > 24 {
             self.conversation_history = self
@@ -1854,6 +1961,22 @@ impl CampaignSaveV1 {
                 .insert(RELAY_QUARTER_ROOM.to_string());
             self.story.current_step = StoryStepId::SignalRoadComplete;
         }
+        if self
+            .progression
+            .world_flags
+            .contains("glass_basin_wayhouse_open")
+        {
+            self.story.unlocked_room_ids.extend([
+                GLASS_BASIN_WAYHOUSE_ROOM.to_string(),
+                DEEP_RELAY_ROOM.to_string(),
+            ]);
+        }
+        if self.progression.world_flags.contains("ashen_fringe_open") {
+            self.story.unlocked_room_ids.extend([
+                MOON_BRIDGE_ROOM.to_string(),
+                EMBER_ORCHARD_EDGE_ROOM.to_string(),
+            ]);
+        }
         let mut effective_flags = self.progression.world_flags.clone();
         if self.active_title == Some(BuildTitle::RelayRunner) {
             effective_flags.insert("signal_road_secured".to_string());
@@ -1872,7 +1995,7 @@ impl CampaignSaveV1 {
                 self.contract_version.clone(),
             ));
         }
-        if self.schema_revision != 3 {
+        if self.schema_revision != 4 {
             return Err(CampaignError::InvalidContract(format!(
                 "unsupported campaign schema revision {}",
                 self.schema_revision
@@ -1881,6 +2004,16 @@ impl CampaignSaveV1 {
         if self.active_regional_quest_id.is_none() && self.active_regional_quest_step != 0 {
             return Err(CampaignError::InvalidState(
                 "regional quest step exists without an active quest".to_string(),
+            ));
+        }
+        if self.active_regional_quest_id.as_deref()
+            != self
+                .active_regional_quest_runtime
+                .as_ref()
+                .map(|runtime| runtime.quest_id.as_str())
+        {
+            return Err(CampaignError::InvalidState(
+                "regional quest runtime does not match the active quest".to_string(),
             ));
         }
         if self.conversation_history.len() > 24 {
@@ -2119,6 +2252,8 @@ impl CampaignSaveV1 {
             CampaignMission::MirrorSiege => "Break the siege and reclaim Mirror Gate",
             CampaignMission::IronDeltaSkirmish => "Win the Iron Delta score skirmish",
             CampaignMission::NightWatchCrossingSkirmish => "Escort the Night Watch patrol",
+            CampaignMission::GlassBasinSkirmish => "Control the Glass Basin relay array",
+            CampaignMission::EmberOrchardSkirmish => "Break the Ember Orchard base",
         };
         let cistern = match self.quest_chain.as_ref() {
             None => CampaignJournalEntry {
@@ -2724,6 +2859,10 @@ impl CampaignSaveV1 {
         }
         self.active_encounter =
             RpgEncounterState::from_definition("signal_road_ambush", &self.character.attributes);
+        let style = self.active_technique_style();
+        if let Some(encounter) = &mut self.active_encounter {
+            encounter.set_technique_style(style);
+        }
         self.last_encounter_outcome = None;
         self.revision += 1;
         Ok(())
@@ -2743,9 +2882,22 @@ impl CampaignSaveV1 {
                 "unknown regional encounter: {encounter_id}"
             )));
         }
+        let style = self.active_technique_style();
+        if let Some(encounter) = &mut self.active_encounter {
+            encounter.set_technique_style(style);
+        }
         self.last_encounter_outcome = None;
         self.revision += 1;
         Ok(())
+    }
+
+    fn active_technique_style(&self) -> TechniqueStyle {
+        match current_sect(&self.character) {
+            Some(SectId::StreetCompass) => TechniqueStyle::CompassFeint,
+            Some(SectId::IronWorkshop) => TechniqueStyle::ForgeCounter,
+            Some(SectId::NightWatch) => TechniqueStyle::NightVeil,
+            None => TechniqueStyle::CenterlineBreak,
+        }
     }
 
     pub fn act_in_signal_road_encounter(
@@ -2937,7 +3089,17 @@ impl CampaignSaveV1 {
     }
 
     pub fn current_regional_npc(&self) -> Option<&'static trnm_rpg_core::NpcDefinition> {
-        NPC_CATALOG.iter().find(|npc| npc.room_id == self.room.id())
+        NPC_CATALOG
+            .iter()
+            .find(|npc| {
+                npc.room_id == self.room.id()
+                    && npc_room_at(npc.id, self.world_clock.minute_of_day) == Some(self.room.id())
+            })
+            .or_else(|| {
+                NPC_CATALOG.iter().find(|npc| {
+                    npc_room_at(npc.id, self.world_clock.minute_of_day) == Some(self.room.id())
+                })
+            })
     }
 
     pub fn current_regional_npc_summary(&self) -> Option<String> {
@@ -2951,11 +3113,7 @@ impl CampaignSaveV1 {
             schedule.activity,
             relationship.map(|value| value.trust).unwrap_or(0),
             relationship.map(|value| value.interactions).unwrap_or(0),
-            if schedule.present(self.world_clock.minute_of_day) {
-                "present"
-            } else {
-                "away"
-            }
+            "present at this scheduled location"
         ))
     }
 
@@ -2976,16 +3134,6 @@ impl CampaignSaveV1 {
             CampaignError::InvalidState("there is no regional NPC in this room".to_string())
         })?;
         let schedule = npc_schedule(npc.id).expect("catalog NPC schedules are complete");
-        if !schedule.present(self.world_clock.minute_of_day) {
-            return Err(CampaignError::InvalidState(format!(
-                "{} is away; active hours are {:02}:{:02}-{:02}:{:02}",
-                npc.display_name,
-                schedule.start_minute / 60,
-                schedule.start_minute % 60,
-                schedule.end_minute / 60,
-                schedule.end_minute % 60
-            )));
-        }
         let completed_tasks = npc
             .task_ids
             .iter()
@@ -3003,12 +3151,28 @@ impl CampaignSaveV1 {
             relationship.apply(RelationshipAction::CompleteMission);
             self.faction_rank = self.faction_rank.max(FactionRank::Envoy);
         }
-        let line = npc_dialogue(npc.id, relationship.trust, completed_tasks)
+        let stage = RelationshipStage::from_trust(relationship.trust, completed_tasks);
+        let baseline = npc_dialogue(npc.id, relationship.trust, completed_tasks)
             .expect("catalog NPC dialogue is complete");
+        let response = npc_choice_dialogue(npc.id, stage, self.dialogue_choice);
+        match self.dialogue_choice {
+            DialogueChoice::AskForWork => {}
+            DialogueChoice::OfferHelp => {
+                relationship.apply(RelationshipAction::Train);
+            }
+            DialogueChoice::ShareNews if completed_tasks > 0 => {
+                relationship.apply(RelationshipAction::CompleteMission);
+            }
+            DialogueChoice::ShareNews => {}
+        }
+        let line = format!(
+            "[{stage:?} / {:?}] {baseline} {response}",
+            self.dialogue_choice
+        );
         let record = NpcConversationRecord {
             npc_id: npc.id.to_string(),
-            line: line.to_string(),
-            activity: schedule.activity.to_string(),
+            line,
+            activity: format!("{}; currently in {}", schedule.activity, self.room.id()),
             day: self.world_clock.day,
             minute_of_day: self.world_clock.minute_of_day,
         };
@@ -3021,6 +3185,13 @@ impl CampaignSaveV1 {
         Ok(record)
     }
 
+    pub fn cycle_dialogue_choice(&mut self) -> Result<DialogueChoice, CampaignError> {
+        self.require_town()?;
+        self.dialogue_choice = self.dialogue_choice.next();
+        self.revision += 1;
+        Ok(self.dialogue_choice)
+    }
+
     pub fn active_regional_quest_objective(&self) -> Option<String> {
         let quest_id = self.active_regional_quest_id.as_deref()?;
         let definition = REGIONAL_QUEST_CATALOG
@@ -3028,11 +3199,15 @@ impl CampaignSaveV1 {
             .find(|definition| definition.id == quest_id)?;
         if self.active_regional_quest_step < definition.waypoint_room_ids.len() {
             let room = definition.waypoint_room_ids[self.active_regional_quest_step];
+            let runtime = self.active_regional_quest_runtime.as_ref()?;
             return Some(format!(
-                "Step {}/{}: reach {}",
+                "Step {}/{}: {} at {} | {:?} approach | deadline day {}",
                 self.active_regional_quest_step + 1,
                 definition.waypoint_room_ids.len(),
-                room
+                quest_step_verb(definition.archetype, self.active_regional_quest_step),
+                room,
+                runtime.approach,
+                runtime.deadline_day,
             ));
         }
         definition
@@ -3074,10 +3249,31 @@ impl CampaignSaveV1 {
                 giver.display_name, definition.title
             )));
         }
+        if !matches!(
+            self.regional_quest_states.get(quest_id),
+            Some(QuestState::Available | QuestState::Failed | QuestState::Withdrawn)
+        ) {
+            return Err(CampaignError::InvalidState(format!(
+                "{} is not available for acceptance",
+                definition.title
+            )));
+        }
         self.regional_quest_states
             .insert(quest_id.to_string(), QuestState::Accepted);
         self.active_regional_quest_id = Some(quest_id.to_string());
         self.active_regional_quest_step = 0;
+        let failures = self
+            .regional_quest_failure_counts
+            .get(quest_id)
+            .copied()
+            .unwrap_or_default();
+        let rule = quest_runtime_rule(definition.archetype);
+        self.active_regional_quest_runtime = Some(RegionalQuestRuntime::new(
+            quest_id,
+            self.world_clock.day,
+            rule.deadline_days,
+            failures,
+        ));
         self.revision += 1;
         Ok(())
     }
@@ -3088,7 +3284,10 @@ impl CampaignSaveV1 {
             .filter(|npc| npc.room_id == self.room.id())
             .flat_map(|npc| npc.task_ids.iter().copied())
             .find(|quest_id| {
-                self.regional_quest_states.get(*quest_id) == Some(&QuestState::Available)
+                matches!(
+                    self.regional_quest_states.get(*quest_id),
+                    Some(QuestState::Available | QuestState::Failed | QuestState::Withdrawn)
+                )
             })
             .ok_or_else(|| {
                 CampaignError::InvalidState("no available regional quest in this room".to_string())
@@ -3106,6 +3305,13 @@ impl CampaignSaveV1 {
             .iter()
             .find(|definition| definition.id == quest_id)
             .expect("active regional quest remains catalog bound");
+        if self
+            .active_regional_quest_runtime
+            .as_ref()
+            .is_some_and(|runtime| self.world_clock.day > runtime.deadline_day)
+        {
+            return self.fail_active_regional_quest("the quest deadline expired");
+        }
         if self.active_regional_quest_step < definition.waypoint_room_ids.len() {
             let expected_room = definition.waypoint_room_ids[self.active_regional_quest_step];
             if self.room.id() != expected_room {
@@ -3118,13 +3324,22 @@ impl CampaignSaveV1 {
                 )));
             }
             self.active_regional_quest_step += 1;
+            if let Some(runtime) = &mut self.active_regional_quest_runtime {
+                runtime.evidence_count = runtime.evidence_count.saturating_add(1);
+            }
             self.revision += 1;
             return Ok(());
         }
-        if let Some(encounter_id) = definition.encounter_id {
-            let cleared = format!("{encounter_id}_cleared");
-            if !self.progression.world_flags.contains(&cleared) {
-                return self.begin_regional_encounter(encounter_id);
+        if self
+            .active_regional_quest_runtime
+            .as_ref()
+            .is_some_and(|runtime| runtime.approach == QuestApproach::Direct)
+        {
+            if let Some(encounter_id) = definition.encounter_id {
+                let cleared = format!("{encounter_id}_cleared");
+                if !self.progression.world_flags.contains(&cleared) {
+                    return self.begin_regional_encounter(encounter_id);
+                }
             }
         }
         self.complete_regional_quest()
@@ -3152,21 +3367,52 @@ impl CampaignSaveV1 {
                     .unwrap_or("unknown")
             )));
         }
-        if let Some(encounter_id) = definition.encounter_id {
-            let flag = format!("{encounter_id}_cleared");
-            if !self.progression.world_flags.contains(&flag) {
+        let runtime = self.active_regional_quest_runtime.clone().ok_or_else(|| {
+            CampaignError::InvalidState("regional quest runtime is missing".to_string())
+        })?;
+        let rule = quest_runtime_rule(definition.archetype);
+        if runtime.approach == QuestApproach::Diplomatic {
+            let trust = self
+                .npc_relationships
+                .get(definition.giver_npc_id)
+                .map(|relationship| relationship.trust)
+                .unwrap_or_default();
+            if trust < rule.minimum_trust_for_diplomacy {
                 return Err(CampaignError::InvalidState(format!(
-                    "{} requires winning encounter {}",
-                    definition.title, encounter_id
+                    "diplomatic resolution requires trust {} with {}",
+                    rule.minimum_trust_for_diplomacy, definition.giver_npc_id
                 )));
             }
         }
-        self.progression.credits += definition.credit_reward;
+        if runtime.approach == QuestApproach::Resourceful {
+            consume_loot(
+                &mut self.progression.inventory,
+                rule.resource_item_id,
+                rule.resource_quantity,
+            )?;
+        }
+        if runtime.approach == QuestApproach::Direct {
+            if let Some(encounter_id) = definition.encounter_id {
+                let flag = format!("{encounter_id}_cleared");
+                if !self.progression.world_flags.contains(&flag) {
+                    return Err(CampaignError::InvalidState(format!(
+                        "{} requires winning encounter {}",
+                        definition.title, encounter_id
+                    )));
+                }
+            }
+        }
+        let (credit_bonus, reputation_bonus) = match runtime.approach {
+            QuestApproach::Direct => (0, 0),
+            QuestApproach::Diplomatic => (-definition.credit_reward / 5, 2),
+            QuestApproach::Resourceful => (definition.credit_reward / 4, 1),
+        };
+        self.progression.credits += definition.credit_reward + credit_bonus;
         self.character.attributes.reputation = self
             .character
             .attributes
             .reputation
-            .saturating_add(definition.reputation_reward);
+            .saturating_add(definition.reputation_reward + reputation_bonus);
         self.regional_quest_states
             .insert(quest_id.clone(), QuestState::Completed);
         self.progression
@@ -3194,6 +3440,78 @@ impl CampaignSaveV1 {
         };
         self.active_regional_quest_id = None;
         self.active_regional_quest_step = 0;
+        self.active_regional_quest_runtime = None;
+        self.main_story_chapter = match completed {
+            0..=4 => MainStoryChapter::MirrorCityOaths,
+            5..=9 => MainStoryChapter::SignalRoadReckoning,
+            10..=14 => MainStoryChapter::AshenFringeCountermarch,
+            _ => MainStoryChapter::ChapterComplete,
+        };
+        if completed >= 5 {
+            self.progression
+                .world_flags
+                .insert("glass_basin_wayhouse_open".to_string());
+            self.story.unlocked_room_ids.extend([
+                GLASS_BASIN_WAYHOUSE_ROOM.to_string(),
+                DEEP_RELAY_ROOM.to_string(),
+            ]);
+        }
+        if completed >= 10 {
+            self.progression
+                .world_flags
+                .insert("ashen_fringe_open".to_string());
+            self.story.unlocked_room_ids.extend([
+                MOON_BRIDGE_ROOM.to_string(),
+                EMBER_ORCHARD_EDGE_ROOM.to_string(),
+            ]);
+        }
+        self.revision += 1;
+        Ok(())
+    }
+
+    pub fn cycle_regional_quest_approach(&mut self) -> Result<QuestApproach, CampaignError> {
+        self.require_town()?;
+        let runtime = self.active_regional_quest_runtime.as_mut().ok_or_else(|| {
+            CampaignError::InvalidState("no regional quest is active".to_string())
+        })?;
+        runtime.approach = runtime.approach.next();
+        self.revision += 1;
+        Ok(runtime.approach)
+    }
+
+    pub fn fail_active_regional_quest(&mut self, reason: &str) -> Result<(), CampaignError> {
+        let quest_id = self.active_regional_quest_id.clone().ok_or_else(|| {
+            CampaignError::InvalidState("no regional quest is active".to_string())
+        })?;
+        let definition = REGIONAL_QUEST_CATALOG
+            .iter()
+            .find(|definition| definition.id == quest_id)
+            .expect("active regional quest remains catalog bound");
+        let failures = self
+            .regional_quest_failure_counts
+            .entry(quest_id.clone())
+            .or_default();
+        *failures = failures.saturating_add(1);
+        self.character.attributes.reputation = self
+            .character
+            .attributes
+            .reputation
+            .saturating_add(quest_runtime_rule(definition.archetype).failure_reputation);
+        self.regional_quest_states
+            .insert(quest_id.clone(), QuestState::Failed);
+        self.progression
+            .world_flags
+            .insert(format!("regional_quest_{quest_id}_failed_{}", *failures));
+        self.combat_log.push(CombatLogBeat {
+            kind: "quest_failure".to_string(),
+            text: format!(
+                "{} failed: {reason}. The giver will allow a revised attempt.",
+                definition.title
+            ),
+        });
+        self.active_regional_quest_id = None;
+        self.active_regional_quest_step = 0;
+        self.active_regional_quest_runtime = None;
         self.revision += 1;
         Ok(())
     }
@@ -3204,13 +3522,15 @@ impl CampaignSaveV1 {
             .iter()
             .find(|definition| definition.id == item_id)
             .ok_or_else(|| CampaignError::InvalidState(format!("unknown shop item: {item_id}")))?;
-        if self.progression.credits < definition.buy_price {
+        let price = market_price(item_id, self.world_clock.day, true)
+            .expect("catalog item has a market price");
+        if self.progression.credits < price {
             return Err(CampaignError::InvalidState(format!(
                 "{} costs {} credits",
-                definition.display_name, definition.buy_price
+                definition.display_name, price
             )));
         }
-        self.progression.credits -= definition.buy_price;
+        self.progression.credits -= price;
         if definition.material {
             merge_loot(
                 &mut self.progression.inventory,
@@ -3251,11 +3571,13 @@ impl CampaignSaveV1 {
     pub fn shop_selection_label(&self) -> String {
         let item = self.selected_shop_item();
         format!(
-            "{} | {} credits | durability {}{}",
+            "{} | buy {} / sell {} credits | durability {}{} | day {} demand",
             item.display_name,
-            item.buy_price,
+            market_price(item.id, self.world_clock.day, true).unwrap_or(item.buy_price),
+            market_price(item.id, self.world_clock.day, false).unwrap_or(item.buy_price / 2),
             item.max_durability,
-            if item.material { " | material" } else { "" }
+            if item.material { " | material" } else { "" },
+            self.world_clock.day,
         )
     }
 
@@ -3271,6 +3593,37 @@ impl CampaignSaveV1 {
         let item_id = self.selected_shop_item().id.to_string();
         self.buy_regional_item(&item_id)?;
         Ok(item_id)
+    }
+
+    pub fn sell_selected_shop_item(&mut self) -> Result<String, CampaignError> {
+        self.require_room(CampaignRoom::MarketWindPavilion)?;
+        let item = self.selected_shop_item();
+        if item.material {
+            consume_loot(&mut self.progression.inventory, item.id, 1)?;
+        } else {
+            let index = self
+                .character
+                .inventory_items
+                .iter()
+                .rposition(|owned| owned.item_id == item.id)
+                .ok_or_else(|| {
+                    CampaignError::InvalidState(format!("you do not own {}", item.display_name))
+                })?;
+            let removed = self.character.inventory_items.remove(index);
+            self.item_conditions.remove(&removed.item_instance_id);
+            self.character
+                .equipment_slots
+                .retain(|_, instance_id| instance_id != &removed.item_instance_id);
+        }
+        let price = market_price(item.id, self.world_clock.day, false)
+            .expect("catalog item has a market price");
+        self.progression.credits += price;
+        self.progression.world_flags.insert(format!(
+            "market_sale_{}_day_{}",
+            item.id, self.world_clock.day
+        ));
+        self.revision += 1;
+        Ok(item.id.to_string())
     }
 
     pub fn craft_regional_item(&mut self, recipe_id: &str) -> Result<(), CampaignError> {
@@ -3748,7 +4101,9 @@ impl CampaignSaveV1 {
             } else {
                 match self.active_mission {
                     CampaignMission::IronDeltaSkirmish
-                    | CampaignMission::NightWatchCrossingSkirmish => self.active_mission,
+                    | CampaignMission::NightWatchCrossingSkirmish
+                    | CampaignMission::GlassBasinSkirmish
+                    | CampaignMission::EmberOrchardSkirmish => self.active_mission,
                     _ => CampaignMission::AftershockPatrol,
                 }
             };
@@ -3760,6 +4115,30 @@ impl CampaignSaveV1 {
             ));
         }
         self.quest_state = QuestState::Accepted;
+        self.revision += 1;
+        Ok(())
+    }
+
+    /// Opens a fully independent skirmish lane without granting campaign
+    /// completion flags. The battle still uses the current character, normal
+    /// BattleSeed hashing and the same one-time RPG settlement path.
+    pub fn prepare_standalone_skirmish(&mut self) -> Result<(), CampaignError> {
+        self.require_town()?;
+        if self.pending_battle.is_some() {
+            return Err(CampaignError::InvalidState(
+                "finish the pending battle before configuring a skirmish".to_string(),
+            ));
+        }
+        self.room = CampaignRoom::ExpeditionGate;
+        self.active_mission = CampaignMission::IronDeltaSkirmish;
+        self.skirmish_setup.enabled = true;
+        self.quest_state = QuestState::Accepted;
+        self.progression
+            .world_flags
+            .insert("standalone_skirmish_accessed".to_string());
+        self.progression
+            .world_flags
+            .insert("expedition_gate_open".to_string());
         self.revision += 1;
         Ok(())
     }
@@ -3778,12 +4157,39 @@ impl CampaignSaveV1 {
         self.active_mission = match self.active_mission {
             CampaignMission::AftershockPatrol => CampaignMission::IronDeltaSkirmish,
             CampaignMission::IronDeltaSkirmish => CampaignMission::NightWatchCrossingSkirmish,
+            CampaignMission::NightWatchCrossingSkirmish => CampaignMission::GlassBasinSkirmish,
+            CampaignMission::GlassBasinSkirmish => CampaignMission::EmberOrchardSkirmish,
             _ => CampaignMission::AftershockPatrol,
         };
         self.skirmish_setup.enabled = matches!(
             self.active_mission,
-            CampaignMission::IronDeltaSkirmish | CampaignMission::NightWatchCrossingSkirmish
+            CampaignMission::IronDeltaSkirmish
+                | CampaignMission::NightWatchCrossingSkirmish
+                | CampaignMission::GlassBasinSkirmish
+                | CampaignMission::EmberOrchardSkirmish
         );
+        self.revision += 1;
+        Ok(self.active_mission)
+    }
+
+    pub fn cycle_standalone_skirmish_map(&mut self) -> Result<CampaignMission, CampaignError> {
+        self.require_room(CampaignRoom::ExpeditionGate)?;
+        if !self.skirmish_setup.enabled
+            || !self
+                .progression
+                .world_flags
+                .contains("standalone_skirmish_accessed")
+        {
+            return Err(CampaignError::InvalidState(
+                "standalone skirmish setup is not active".to_string(),
+            ));
+        }
+        self.active_mission = match self.active_mission {
+            CampaignMission::IronDeltaSkirmish => CampaignMission::NightWatchCrossingSkirmish,
+            CampaignMission::NightWatchCrossingSkirmish => CampaignMission::GlassBasinSkirmish,
+            CampaignMission::GlassBasinSkirmish => CampaignMission::EmberOrchardSkirmish,
+            _ => CampaignMission::IronDeltaSkirmish,
+        };
         self.revision += 1;
         Ok(self.active_mission)
     }
@@ -3948,7 +4354,10 @@ impl CampaignSaveV1 {
             expedition_readiness,
             skirmish: if matches!(
                 self.active_mission,
-                CampaignMission::IronDeltaSkirmish | CampaignMission::NightWatchCrossingSkirmish
+                CampaignMission::IronDeltaSkirmish
+                    | CampaignMission::NightWatchCrossingSkirmish
+                    | CampaignMission::GlassBasinSkirmish
+                    | CampaignMission::EmberOrchardSkirmish
             ) {
                 let mut setup = self.skirmish_setup.clone();
                 setup.enabled = true;
@@ -4244,6 +4653,12 @@ impl CampaignSaveV1 {
                     .progression
                     .world_flags
                     .contains("night_watch_crossing_won"),
+                CampaignMission::GlassBasinSkirmish => {
+                    self.progression.world_flags.contains("glass_basin_won")
+                }
+                CampaignMission::EmberOrchardSkirmish => {
+                    self.progression.world_flags.contains("ember_orchard_won")
+                }
             },
         });
         if !conditions_met {
@@ -4334,6 +4749,23 @@ pub fn typed_equipment_modifier(item_id: &str) -> TypedEquipmentModifier {
             modifier.max_hp = 15;
             modifier.energy = 35;
             modifier.ability_range = 1;
+        }
+        "compass-storm-coat" => {
+            modifier.armor = 2;
+            modifier.move_speed_milli = 140;
+            modifier.evasion_permille = 50;
+        }
+        "emberglass-lens" => {
+            modifier.energy = 30;
+            modifier.ability_range = 3;
+        }
+        "cistern-repair-kit" => {
+            modifier.max_hp = 25;
+            modifier.armor = 3;
+        }
+        "ashward-tonic" => {
+            modifier.max_hp = 18;
+            modifier.evasion_permille = 20;
         }
         _ => {}
     }
@@ -5265,6 +5697,10 @@ mod tests {
         assert!(campaign.character.equipment_slots.contains_key("relic"));
         let modifier = typed_equipment_modifier("relay-core-fragment");
         assert!(modifier.energy > 0 && modifier.ability_range > 0);
+        let coat = typed_equipment_modifier("compass-storm-coat");
+        assert!(coat.armor > 0 && coat.move_speed_milli > 0 && coat.evasion_permille > 0);
+        let lens = typed_equipment_modifier("emberglass-lens");
+        assert!(lens.energy > 0 && lens.ability_range > 0);
     }
 
     #[test]
@@ -5749,9 +6185,18 @@ mod tests {
     }
 
     #[test]
-    fn twelve_room_region_three_sects_and_regional_quest_route_are_live() {
+    fn sixteen_room_four_region_three_sect_world_and_regional_quest_route_are_live() {
         let graph = mirror_city_world_graph();
-        assert_eq!(graph.rooms.len(), 12);
+        assert_eq!(graph.rooms.len(), 16);
+        assert_eq!(
+            graph
+                .rooms
+                .values()
+                .map(|room| room.region_id.as_str())
+                .collect::<BTreeSet<_>>()
+                .len(),
+            4
+        );
         let mut campaign = CampaignSaveV1::default();
         campaign.move_to(CampaignRoom::MarketWindPavilion).unwrap();
         campaign.talk_to_regional_npc().unwrap();
@@ -5847,6 +6292,67 @@ mod tests {
         assert_eq!(seed.skirmish.starting_resources, 500);
         assert_eq!(seed.skirmish.victory_mode, SkirmishVictoryMode::Score);
         seed.validate().unwrap();
+    }
+
+    #[test]
+    fn regional_quests_have_typed_approaches_deadlines_failure_recovery_and_market_resale() {
+        let mut diplomatic = CampaignSaveV1::default();
+        diplomatic
+            .move_to(CampaignRoom::MarketWindPavilion)
+            .unwrap();
+        diplomatic.talk_to_regional_npc().unwrap();
+        diplomatic.talk_to_regional_npc().unwrap();
+        diplomatic.start_regional_quest("market_debt").unwrap();
+        assert_eq!(
+            diplomatic.cycle_regional_quest_approach().unwrap(),
+            QuestApproach::Diplomatic
+        );
+        diplomatic.advance_active_regional_quest().unwrap();
+        diplomatic.move_to(CampaignRoom::MirrorSquare).unwrap();
+        diplomatic.move_to(CampaignRoom::MentorHall).unwrap();
+        diplomatic.move_to(CampaignRoom::WorkshopGate).unwrap();
+        diplomatic.advance_active_regional_quest().unwrap();
+        diplomatic.complete_regional_quest().unwrap();
+        assert_eq!(
+            diplomatic.regional_quest_states.get("market_debt"),
+            Some(&QuestState::Completed)
+        );
+
+        let mut expired = CampaignSaveV1::default();
+        expired.move_to(CampaignRoom::MarketWindPavilion).unwrap();
+        expired.talk_to_regional_npc().unwrap();
+        expired.start_regional_quest("market_debt").unwrap();
+        expired.world_clock.day += 2;
+        expired.advance_active_regional_quest().unwrap();
+        assert_eq!(
+            expired.regional_quest_states.get("market_debt"),
+            Some(&QuestState::Failed)
+        );
+        assert_eq!(expired.regional_quest_failure_counts["market_debt"], 1);
+        expired.start_regional_quest("market_debt").unwrap();
+        assert_eq!(
+            expired
+                .active_regional_quest_runtime
+                .as_ref()
+                .unwrap()
+                .failure_count,
+            1
+        );
+
+        let mut market = CampaignSaveV1::default();
+        market.move_to(CampaignRoom::MarketWindPavilion).unwrap();
+        while market.selected_shop_item().id != "salvaged-alloy" {
+            market.cycle_shop_item().unwrap();
+        }
+        market.buy_selected_shop_item().unwrap();
+        let credits_after_buy = market.progression.credits;
+        market.sell_selected_shop_item().unwrap();
+        assert!(market.progression.credits > credits_after_buy);
+        assert!(market
+            .progression
+            .world_flags
+            .iter()
+            .any(|flag| flag.starts_with("market_sale_salvaged-alloy")));
     }
 
     #[test]

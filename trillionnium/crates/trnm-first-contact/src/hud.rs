@@ -404,10 +404,15 @@ pub(super) fn update_first_contact_hud(
     }
     for mut text in &mut resources {
         text.0 = format!(
-            "FIELD {} | SCORE {}:{} | PWR {}% | PARTY {}% | VIS {}% | INTEL {} | JOBS {} | ORDERS {} | SUPPORT {} | TECH {} | VET {} | SUPPLY {}/{}",
+            "FIELD {} | SCORE {}:{} | ENEMY ECO R{} W{} B{} T{} Q{} | PWR {}% | PARTY {}% | VIS {}% | INTEL {} | JOBS {} | ORDERS {} | SUPPORT {} | TECH {} | VET {} | SUPPLY {}/{}",
             runtime.credits,
             runtime.player_score,
             runtime.enemy_score,
+            runtime.enemy_resources,
+            runtime.enemy_workers,
+            runtime.enemy_structures,
+            runtime.enemy_techs,
+            runtime.enemy_jobs,
             runtime.power_percent,
             runtime.party_hp_percent,
             runtime.visible_percent,

@@ -51,6 +51,8 @@ impl FirstContactLivePlugin {
             "mirror_siege" => maps.mirror_siege.clone(),
             "iron_delta" => maps.iron_delta.clone(),
             "night_watch_crossing" => maps.night_watch_crossing.clone(),
+            "glass_basin" => maps.glass_basin.clone(),
+            "ember_orchard" => maps.ember_orchard.clone(),
             _ => maps.first_contact.clone(),
         };
         Ok(Self {

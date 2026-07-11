@@ -1,7 +1,7 @@
 use tempfile::tempdir;
 use trnm_campaign_core::{
-    BattleGridPoint, BattleMapNodeV1, BattleMapSeedV1, BattleOutcome, CampaignPhase, CampaignRoom,
-    CampaignSaveV1, CampaignStore, QuestState,
+    BattleGridPoint, BattleMapNodeV1, BattleMapSeedV1, BattleOutcome, CampaignMission,
+    CampaignPhase, CampaignRoom, CampaignSaveV1, CampaignStore, QuestState,
 };
 use trnm_rts_protocol::{RtsFrameOrder, RtsOrderKind, RtsOrderSource, RtsTile};
 use trnm_rts_sim::{
@@ -208,6 +208,34 @@ fn run_convoy_victory(mut sim: MissionSimV1) -> MissionSimV1 {
     step_until(&mut sim, MissionSimV1::terminal, FIVE_MINUTE_TICKS);
     assert_eq!(sim.outcome, Some(BattleOutcome::Victory));
     sim
+}
+
+#[test]
+fn standalone_skirmish_configuration_runs_and_settles_back_into_rpg_once() {
+    let directory = tempdir().unwrap();
+    let store = CampaignStore::new(directory.path().join("standalone-skirmish.json"));
+    let mut campaign = CampaignSaveV1::default();
+    campaign.prepare_standalone_skirmish().unwrap();
+    assert_eq!(campaign.active_mission, CampaignMission::IronDeltaSkirmish);
+    campaign.cycle_skirmish_faction().unwrap();
+    campaign.cycle_skirmish_resources().unwrap();
+    let seed = campaign.start_first_contact_battle(map()).unwrap();
+    assert!(seed.skirmish.enabled);
+    let mut sim = MissionSimV1::from_seed(seed).unwrap();
+    sim.objective_index = sim.seed.mission.objectives.len();
+    sim.step().unwrap();
+    assert_eq!(sim.outcome, Some(BattleOutcome::Victory));
+    let result = sim.into_result().unwrap();
+    store
+        .stage_result_atomic(&mut campaign, result.clone())
+        .unwrap();
+    let receipt = store.settle_atomic(&mut campaign).unwrap();
+    assert!(!receipt.duplicate);
+    assert_eq!(campaign.phase, CampaignPhase::Town);
+    assert!(campaign.progression.world_flags.contains("iron_delta_won"));
+    let duplicate = campaign.submit_battle_result(result).unwrap();
+    assert!(duplicate.duplicate);
+    assert_eq!(duplicate.experience_delta, 0);
 }
 
 #[test]

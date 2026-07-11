@@ -334,6 +334,11 @@ pub struct FirstContactRuntime {
     pub tech_variant: u8,
     pub player_score: u32,
     pub enemy_score: u32,
+    pub enemy_resources: u32,
+    pub enemy_workers: u8,
+    pub enemy_structures: usize,
+    pub enemy_techs: usize,
+    pub enemy_jobs: usize,
     pub selected_stance: RtsUnitStance,
     pub active_control_group: Option<u8>,
     pub last_group_recall: Option<(u8, f32)>,
@@ -382,6 +387,11 @@ impl Default for FirstContactRuntime {
             tech_variant: 0,
             player_score: 0,
             enemy_score: 0,
+            enemy_resources: 0,
+            enemy_workers: 0,
+            enemy_structures: 0,
+            enemy_techs: 0,
+            enemy_jobs: 0,
             selected_stance: RtsUnitStance::Guard,
             active_control_group: Some(1),
             last_group_recall: None,
@@ -1216,6 +1226,15 @@ pub(super) fn advance_first_contact_simulation(
         runtime.tech_level = mission.upgrade_level;
         runtime.player_score = mission.player_score;
         runtime.enemy_score = mission.enemy_score;
+        runtime.enemy_resources = mission.enemy_resources_available;
+        runtime.enemy_workers = mission.enemy_workers;
+        runtime.enemy_structures = mission
+            .enemy_structures
+            .iter()
+            .filter(|structure| structure.hp > 0)
+            .count();
+        runtime.enemy_techs = mission.enemy_researched_techs.len();
+        runtime.enemy_jobs = mission.enemy_jobs.len();
         runtime.veteran_rank = mission
             .party
             .iter()
