@@ -52,13 +52,13 @@ Mirror Square
 - `trnm_battle_seed_v8`
 - `trnm_battle_result_v2`
 - `trnm_settlement_receipt_v1`
-- `trnm_rts_sim_v13`
-- `trnm_rts_sim_checkpoint_v13`
+- `trnm_rts_sim_v14`
+- `trnm_rts_sim_checkpoint_v14`
 
-Campaign persistence remains `trnm_campaign_save_v1` with schema revision 6.
-Revision 6 adds executed quest-graph node evidence, independent chapter decisions,
-NPC bonds/work output and persistent technique mastery while preserving the
-revision-5 social-memory, market-state and migration paths.
+Campaign persistence remains `trnm_campaign_save_v1` with schema revision 7.
+Revision 7 adds branch-driven per-quest DAG navigation, explicit ending state,
+primary/secondary technique loadouts, four regional markets and deterministic
+inter-region logistics while preserving revision-6 migration paths.
 
 `BattleSeedV1` binds campaign revision, battle id, map/rules version, four
 persistent party members, spawn slots, skills, typed equipment modifiers,
@@ -96,22 +96,25 @@ BattleSeed effect.
 
 ## Deeper RPG and symmetric skirmish authority
 
-- all fifteen regional quests own a typed condition graph, authored approach
-  prose, failure recovery, and approach-specific relationship/economy effects;
+- all fifteen regional quests own a structurally distinct typed DAG whose
+  currently reachable nodes drive route choice, plus authored approach prose,
+  real encounter execution, failure recovery and relationship/economy effects;
 - the twenty-room world includes four-room Glass Basin and Ashen Fringe
-  regions plus a persisted three-chapter main-story choice;
-- NPC schedules produce bounded pairwise social-event memories that alter
-  relationships and market stock/demand;
-- each sect exposes three selectable techniques, while encounters retain
-  telegraphed enemy moves and typed combat statuses;
+  regions plus three independent chapter decisions and five ending states;
+- NPC schedules produce bounded pairwise social-event memories; persisted bond
+  and work output alter goals, production, four regional markets and logistics;
+- each sect exposes an alternating primary/secondary technique loadout with
+  separate mastery, telegraphed enemy moves and typed combat statuses;
 - both RTS sides use `SimUnit` workers, shared resource nodes, cargo return,
-  `SimStructure` buildings, power, supply, production and research jobs;
+  builder-bound sites, `SimStructure` buildings and one side-generic structure
+  function authority alongside power, supply, production and research jobs;
 - enemy buildings are explicit selectable attack targets; proximity cannot
   damage a base;
 - all twelve roster abilities have individual authoritative effects;
-- `trnm_battle_replay_v1` replays frame orders and verifies the final snapshot
-  hash; the balance gate runs four maps, both faction assignments and three
-  deterministic seeds per assignment through live simulation authority.
+- `trnm_battle_replay_v2` chunk-hashes up to 65,536 frame orders, migrates v1,
+  exposes a title replay browser and verifies the final snapshot hash; the
+  terminal-oriented balance gate runs four real YAML maps, both faction and
+  spawn assignments, and three gameplay-affecting seeds through live authority.
 
 The authored map's four selected player records are presentation spawn slots;
 they are no longer hard-coded RPG character identities.
@@ -152,6 +155,7 @@ Town:
 - `F`: accept mission / deploy
 - `F9/F10`: accept and advance the authored regional quest available at the current NPC room; `R` away from the expedition gate cycles Direct/Diplomatic/Resourceful resolution
 - `T/K` in a regional mentor hall: commit to one of three sects and train its prerequisite skill tree
+- `Shift+K` / `Ctrl+Shift+K`: select the primary / secondary sect technique
 - `F11`: cycle shop/crafting/equipment; `Shift+F11`: buy or craft; `Ctrl+F11`: sell at daily demand price; `F12`: equipment repair
 
 Title/pause shell:
@@ -161,6 +165,7 @@ Title/pause shell:
 - new character: `C` cycles the persistent display name; `Enter` confirms it
 - `Enter`: load/continue, then pass the resume guard before gameplay is revealed
 - `K`: open independent skirmish setup for the selected existing slot; then `M/T/Y/U/I` select map/factions/resources/victory/deterministic seed and `Enter` deploys
+- `P`: open the selected slot's last verified chunked replay browser
 - `F2`: low-motion mode; `F3`: hybrid/keyboard-only/mouse-only input mode
 - `F5`: subtitles/high contrast; `F7`: control-scheme profile; `F8`: live master volume for the town/battle Bevy audio sinks
 - `Esc`: resume from pause; settings are profile-scoped rather than character-scoped

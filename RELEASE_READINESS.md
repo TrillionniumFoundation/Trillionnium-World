@@ -55,7 +55,7 @@ Current major drift risks include:
 - **Game software scope**: the finite v1 checklist in `docs/development/trnm-deep-rpg-complete-rts-v1-dod.md` is a completed historical acceptance baseline, not proof that the broader deep-RPG + complete-RTS vision is 100%; this does not change the repository-wide or public-launch conclusion above.
 - **Primary local aggregate command**: `scripts/check_trillionnium_world_release_review_ci_gate.sh`.
 - **Current game boundary gate**: `scripts/check_trnm_game_product.sh` verifies the five-crate product and rejects removed World/RTS dependencies. `scripts/check_trillionnium_world_client_boundary.sh` is a historical pre-cleanup checker and grants no current product credit.
-- **Current game depth evidence**: `GAME_STATUS.md` enumerates the revision-6 authored RPG topology/story/social/economy state and the v13 symmetric RTS worker/site/building/ability/replay authority. The automated real-map/faction-swap/player-seed matrix is regression evidence, not a public-launch or esports-balance claim.
+- **Current game depth evidence**: `GAME_STATUS.md` enumerates the revision-7 per-quest DAG/chapter/social/regional-economy state and the side-generic construction/structure, meaningful-seed, terminal-matrix and chunked-replay authority. The automated real-map/faction/spawn/seed matrix is regression evidence, not a public-launch or esports-balance claim.
 - **Current aggregate artifact**: `acceptance/S6_public_launch/latest/release-review-ci-gate.json`.
 - **Contract**: `trillionnium_world_release_review_ci_gate_v1`.
 - **Expected local status while blockers remain**: `release_review_ci_gate_green_with_public_launch_blockers`.

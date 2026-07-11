@@ -896,7 +896,16 @@ pub fn quest_condition_graph(
     let node_ids = nodes.iter().map(|node| node.id.clone()).collect::<Vec<_>>();
     let giver = node_ids[0].clone();
     let settlement = node_ids.last().expect("settlement node exists").clone();
-    let middle = &node_ids[1..node_ids.len() - 1];
+    let waypoint_ids = node_ids
+        .iter()
+        .skip(1)
+        .take(definition.waypoint_room_ids.len())
+        .cloned()
+        .collect::<Vec<_>>();
+    let branch = node_ids
+        .get(1 + definition.waypoint_room_ids.len())
+        .filter(|id| **id != settlement)
+        .cloned();
     let mut edges = Vec::new();
     let mut connect = |from: &str, to: &str| {
         edges.push(QuestConditionEdge {
@@ -904,67 +913,118 @@ pub fn quest_condition_graph(
             to: to.to_string(),
         });
     };
-    match topology {
-        QuestGraphTopology::OathCircuit | QuestGraphTopology::TonicChain => {
-            for pair in node_ids.windows(2) {
-                connect(&pair[0], &pair[1]);
-            }
+    let terminal = branch.as_deref().unwrap_or(&settlement);
+    let w = |index: usize| waypoint_ids[index].as_str();
+    match definition.id {
+        // Every authored quest owns its edge list. Parallel edges below are
+        // intentional player route choices; chains are intentional escorts.
+        "wayfinder_oath" => {
+            connect(&giver, w(0));
+            connect(w(0), w(1));
+            connect(w(1), w(2));
+            connect(w(2), terminal);
         }
-        QuestGraphTopology::SplitInvestigation
-        | QuestGraphTopology::WitnessCorroboration
-        | QuestGraphTopology::AuditReconciliation => {
-            for node in middle {
-                connect(&giver, node);
-                connect(node, &settlement);
-            }
+        "broken_milestone" => {
+            connect(&giver, w(0));
+            connect(&giver, w(1));
+            connect(w(0), terminal);
+            connect(w(1), terminal);
         }
-        QuestGraphTopology::CommissionDependency
-        | QuestGraphTopology::DebtMediation
-        | QuestGraphTopology::ManifestTrace => {
-            if let Some(first) = middle.first() {
-                connect(&giver, first);
-                for node in middle.iter().skip(1) {
-                    connect(first, node);
-                    connect(node, &settlement);
-                }
-            } else {
-                connect(&giver, &settlement);
-            }
+        "forge_commission" => {
+            connect(&giver, w(0));
+            connect(w(0), w(1));
+            connect(&giver, w(1));
+            connect(w(1), terminal);
         }
-        QuestGraphTopology::RecoverySpoke
-        | QuestGraphTopology::SalvageClaim
-        | QuestGraphTopology::ConvoyAssembly => {
-            for node in middle {
-                connect(&giver, node);
-            }
-            if let Some(last) = middle.last() {
-                for node in middle.iter().take(middle.len().saturating_sub(1)) {
-                    connect(node, last);
-                }
-                connect(last, &settlement);
-            }
+        "lost_tooling" => {
+            connect(&giver, w(0));
+            connect(&giver, w(1));
+            connect(w(0), w(1));
+            connect(w(1), terminal);
         }
-        QuestGraphTopology::EscortRelay | QuestGraphTopology::CurfewRelay => {
-            if let Some(first) = middle.first() {
-                connect(&giver, first);
-                for pair in middle.windows(2) {
-                    connect(&pair[0], &pair[1]);
-                }
-                connect(middle.last().unwrap_or(first), &settlement);
-                connect(&giver, &settlement);
-            }
+        "lantern_watch" => {
+            connect(&giver, w(0));
+            connect(w(0), w(1));
+            connect(w(0), w(2));
+            connect(w(1), w(2));
+            connect(w(2), terminal);
         }
-        QuestGraphTopology::HuntPincer | QuestGraphTopology::TrackEncirclement => {
-            if let Some(last) = middle.last() {
-                for node in middle.iter().take(middle.len().saturating_sub(1)) {
-                    connect(&giver, node);
-                    connect(node, last);
-                }
-                connect(last, &settlement);
-            } else {
-                connect(&giver, &settlement);
-            }
+        "wanted_raider" => {
+            connect(&giver, w(0));
+            connect(&giver, w(1));
+            connect(w(0), terminal);
+            connect(w(1), terminal);
+            connect(&giver, terminal);
+            connect(w(0), &settlement);
         }
+        "relay_salvage" => {
+            connect(&giver, w(0));
+            connect(w(0), w(1));
+            connect(w(0), terminal);
+            connect(w(1), terminal);
+        }
+        "fever_tonic" => {
+            connect(&giver, w(0));
+            connect(w(0), w(1));
+            connect(w(1), terminal);
+            connect(&giver, terminal);
+        }
+        "archive_witness" => {
+            connect(&giver, w(0));
+            connect(&giver, w(1));
+            connect(w(0), terminal);
+            connect(w(1), terminal);
+            connect(w(0), w(1));
+        }
+        "market_debt" => {
+            connect(&giver, w(0));
+            connect(&giver, w(1));
+            connect(w(0), w(1));
+            connect(w(0), terminal);
+            connect(w(1), terminal);
+            connect(&giver, &settlement);
+        }
+        "missing_crate" => {
+            connect(&giver, w(0));
+            connect(w(0), w(1));
+            connect(w(1), terminal);
+            connect(&giver, w(1));
+            connect(w(0), terminal);
+        }
+        "night_letter" => {
+            connect(&giver, w(0));
+            connect(w(0), w(1));
+            connect(w(1), terminal);
+            connect(&giver, terminal);
+            connect(w(0), terminal);
+        }
+        "escort_manifest" => {
+            connect(&giver, w(0));
+            connect(w(0), w(1));
+            connect(w(1), terminal);
+            connect(&giver, w(1));
+            connect(&giver, terminal);
+        }
+        "bandit_tracks" => {
+            connect(&giver, w(0));
+            connect(&giver, w(1));
+            connect(w(0), terminal);
+            connect(w(1), terminal);
+            connect(w(0), w(1));
+            connect(&giver, terminal);
+        }
+        "ration_audit" => {
+            connect(&giver, w(0));
+            connect(&giver, w(1));
+            connect(w(0), w(2));
+            connect(w(1), w(2));
+            connect(w(2), terminal);
+            connect(&giver, w(2));
+        }
+        _ => unreachable!("catalog validation binds every authored quest"),
+    }
+    if let Some(branch) = &branch {
+        connect(branch, &settlement);
     }
     QuestConditionGraph {
         quest_id: definition.id.to_string(),
@@ -1753,6 +1813,31 @@ mod tests {
                 .len(),
             REGIONAL_QUEST_CATALOG.len(),
             "every regional quest must retain a distinct authored topology"
+        );
+        let mut signature_owners = std::collections::BTreeMap::new();
+        for quest in &REGIONAL_QUEST_CATALOG {
+            let graph = quest_condition_graph(quest, QuestApproach::Direct);
+            let indexes = graph
+                .nodes
+                .iter()
+                .enumerate()
+                .map(|(index, node)| (node.id.as_str(), index))
+                .collect::<std::collections::BTreeMap<_, _>>();
+            let mut edges = graph
+                .edges
+                .iter()
+                .map(|edge| (indexes[edge.from.as_str()], indexes[edge.to.as_str()]))
+                .collect::<Vec<_>>();
+            edges.sort_unstable();
+            signature_owners
+                .entry((graph.nodes.len(), edges))
+                .or_insert_with(Vec::new)
+                .push(quest.id);
+        }
+        assert_eq!(
+            signature_owners.len(),
+            REGIONAL_QUEST_CATALOG.len(),
+            "quest ids and enum names cannot disguise a repeated graph structure: {signature_owners:?}"
         );
     }
 

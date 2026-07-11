@@ -284,9 +284,19 @@ fn town_body(flow: &CampaignFlow) -> String {
                 CampaignRoom::WorkshopGate => format!("RECIPE: {}", save.recipe_selection_label()),
                 _ => "F11 cycles equipped owned items outside shop/workshop rooms".to_string(),
             };
+            let story = flow
+                .save
+                .main_story_ending
+                .map(|ending| format!("ENDING: {}", ending.label()))
+                .unwrap_or_else(|| {
+                    format!(
+                        "CHAPTER: {:?} | next resolution: {:?}",
+                        flow.save.main_story_chapter, flow.save.main_story_choice
+                    )
+                });
             format!(
-                "{}\n\nMIRROR CITY REGIONAL DISTRICT\n\nNPC: {}\n{}\n\nQUEST: {}\n{}\n\n{}\n\nT talks; Shift+T changes dialogue intent. F9 accepts, F10 advances typed steps, R changes Direct/Diplomatic/Resourceful resolution. W advances moving NPC schedules. F11 cycles; Shift+F11 buys/crafts; Ctrl+F11 sells; F12 repairs.",
-                room_label(room), npc, dialogue, quest, navigation, commerce,
+                "{}\n\nMIRROR CITY REGIONAL DISTRICT\n\nNPC: {}\n{}\n\nQUEST: {}\n{}\n\n{}\n{}\n\nT talks; Shift+T changes dialogue intent. F9 accepts, F10 advances graph-ready nodes, R changes Direct/Diplomatic/Resourceful resolution. W advances moving NPC schedules. Shift+K / Ctrl+Shift+K choose primary / secondary sect techniques. F11 cycles; Shift+F11 buys/crafts; Ctrl+F11 sells; F12 repairs.",
+                room_label(room), npc, dialogue, quest, navigation, commerce, story,
             )
         }
     };
@@ -403,6 +413,10 @@ fn shell_body(flow: &CampaignFlow) -> String {
             flow.save.skirmish_setup.simulation_seed,
         ),
         ShellMode::Journal => journal_body(flow),
+        ShellMode::ReplayBrowser => format!(
+            "VERIFIED REPLAY BROWSER\n\n{}\n\nEnter re-runs every authoritative order and verifies the final snapshot hash. Escape returns to title.",
+            flow.status
+        ),
         ShellMode::Playing => String::new(),
     }
 }
@@ -513,6 +527,8 @@ pub(super) fn update_campaign_ui(
             "NEW CHARACTER".to_string()
         } else if flow.shell_mode == ShellMode::SkirmishSetup {
             "SKIRMISH SETUP".to_string()
+        } else if flow.shell_mode == ShellMode::ReplayBrowser {
+            "REPLAY BROWSER".to_string()
         } else if flow.shell_mode == ShellMode::Journal {
             "CAMPAIGN JOURNAL".to_string()
         } else if flow.shell_mode == ShellMode::Paused {
@@ -546,11 +562,14 @@ pub(super) fn update_campaign_ui(
     }
     for (mut action, mut color) in &mut actions {
         action.0 = if flow.shell_mode == ShellMode::Title {
-            "1/2/3 SLOT | N NEW | ENTER LOAD | K SKIRMISH | F2 MOTION | F3 INPUT | F5 SUBTITLE/CONTRAST | F7 CONTROLS | F8 AUDIO".to_string()
+            "1/2/3 SLOT | N NEW | ENTER LOAD | K SKIRMISH | P REPLAY | F2 MOTION | F3 INPUT | F5 SUBTITLE/CONTRAST | F7 CONTROLS | F8 AUDIO".to_string()
         } else if flow.shell_mode == ShellMode::CharacterCreate {
             "C CYCLE NAME | ENTER CONFIRM | ESC TITLE".to_string()
         } else if flow.shell_mode == ShellMode::SkirmishSetup {
-            "M MAP | T FACTIONS | Y RESOURCES | U VICTORY | ENTER DEPLOY | ESC TITLE".to_string()
+            "M MAP | T FACTIONS | Y RESOURCES | U VICTORY | I SEED | ENTER DEPLOY | ESC TITLE"
+                .to_string()
+        } else if flow.shell_mode == ShellMode::ReplayBrowser {
+            "ENTER VERIFY REPLAY | ESC TITLE".to_string()
         } else if flow.shell_mode == ShellMode::Journal {
             "F4 / ESC CLOSE JOURNAL".to_string()
         } else if flow.shell_mode == ShellMode::ResumeGuard {

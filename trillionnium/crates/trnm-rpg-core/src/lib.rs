@@ -298,7 +298,13 @@ pub struct RpgEncounterState {
     #[serde(default)]
     pub technique_style: TechniqueStyle,
     #[serde(default)]
+    pub secondary_technique_style: TechniqueStyle,
+    #[serde(default)]
     pub technique_rank: u8,
+    #[serde(default)]
+    pub secondary_technique_rank: u8,
+    #[serde(default)]
+    pub technique_chain_step: u8,
     #[serde(default)]
     pub player_status: EncounterStatus,
     #[serde(default)]
@@ -338,7 +344,10 @@ impl RpgEncounterState {
             technique_cooldown: 0,
             momentum: 0,
             technique_style: TechniqueStyle::CenterlineBreak,
+            secondary_technique_style: TechniqueStyle::CenterlineBreak,
             technique_rank: 0,
+            secondary_technique_rank: 0,
+            technique_chain_step: 0,
             player_status: EncounterStatus::default(),
             enemy_status: EncounterStatus::default(),
             enemy_intent: enemy_intent_for(definition.kind, 1).to_string(),
@@ -348,6 +357,28 @@ impl RpgEncounterState {
 
     pub fn set_technique_style(&mut self, style: TechniqueStyle) {
         self.technique_style = style;
+    }
+
+    pub fn set_technique_loadout(
+        &mut self,
+        primary: TechniqueStyle,
+        primary_rank: u8,
+        secondary: TechniqueStyle,
+        secondary_rank: u8,
+    ) {
+        self.technique_style = primary;
+        self.technique_rank = primary_rank.min(10);
+        self.secondary_technique_style = secondary;
+        self.secondary_technique_rank = secondary_rank.min(10);
+        self.technique_chain_step = 0;
+    }
+
+    pub fn next_technique_style(&self) -> TechniqueStyle {
+        if self.technique_chain_step.is_multiple_of(2) {
+            self.technique_style
+        } else {
+            self.secondary_technique_style
+        }
     }
 
     pub fn set_technique_rank(&mut self, rank: u8) {
@@ -399,12 +430,18 @@ impl RpgEncounterState {
                 self.player_status.guarded_rounds = 2;
             }
             EncounterAction::Technique => {
+                let active_style = self.next_technique_style();
+                let active_rank = if self.technique_chain_step.is_multiple_of(2) {
+                    self.technique_rank
+                } else {
+                    self.secondary_technique_rank
+                };
                 let base = 18
                     + i64::from(attributes.insight) * 2
                     + i64::from(attributes.agility)
                     + i64::from(self.momentum.max(0)) * 3
-                    + i64::from(self.technique_rank) * 2;
-                match self.technique_style {
+                    + i64::from(active_rank) * 2;
+                match active_style {
                     TechniqueStyle::CenterlineBreak => {
                         self.enemy_hp -= base + i64::from(attributes.force)
                     }
@@ -452,6 +489,7 @@ impl RpgEncounterState {
                 }
                 self.technique_cooldown = 2;
                 self.momentum = 0;
+                self.technique_chain_step = self.technique_chain_step.saturating_add(1);
             }
             EncounterAction::UseItem => {
                 item_consumed = true;

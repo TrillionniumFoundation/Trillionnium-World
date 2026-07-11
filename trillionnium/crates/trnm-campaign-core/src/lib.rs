@@ -16,19 +16,18 @@ use trnm_rpg_core::{
     inventory_item_for as trillionnium_inventory_item_for, market_price_with_state,
     mirror_city_world_graph, npc_choice_dialogue, npc_dialogue, npc_room_at, npc_schedule,
     npc_social_event, original_combat_log, quest_condition_graph, quest_narrative,
-    quest_resolution_text, quest_runtime_rule, quest_step_verb, resolve_mentor_sparring,
-    skill_unlockable, BuildPath, BuildTitle, Character as WorldTrillionniumCharacter,
-    CharacterOrigin, CombatLogBeat, DialogueChoice, EncounterOutcome, EquipmentAffixCondition,
-    FactionRank, GrowthStat, ItemCondition, NpcRelationship, QuestApproach, RelationshipAction,
-    RelationshipStage, RpgEncounterState, SparringAction, SparringOutcome, SparringReport,
-    TechniqueStyle, TrillionniumAttributes, WorldRoutePlan, ARCHIVE_STEPS_ROOM,
-    ASH_BEACON_FIELD_ROOM, BASIN_OBSERVATORY_ROOM, CARAVAN_YARD_ROOM, CINDER_REFUGE_ROOM,
-    CISTERN_WARD_ROOM, CRAFTING_RECIPES, DEEP_RELAY_ROOM, ECONOMY_ITEM_CATALOG,
-    EMBER_ORCHARD_EDGE_ROOM, ENCOUNTER_CATALOG, EXPEDITION_GATE_ROOM, GLASS_BASIN_WAYHOUSE_ROOM,
-    GLASS_REED_MARSH_ROOM, LANTERN_INFIRMARY_ROOM, MARKET_WIND_PAVILION_ROOM, MENTOR_HALL_ROOM,
-    MIRROR_SQUARE_ROOM, MOON_BRIDGE_ROOM, NIGHT_WATCH_POST_ROOM, NPC_CATALOG,
-    OUTER_SIGNAL_ROAD_ROOM, REGIONAL_QUEST_CATALOG, RELAY_QUARTER_ROOM, SECT_CATALOG,
-    SKILL_CATALOG, WORKSHOP_GATE_ROOM,
+    quest_resolution_text, quest_runtime_rule, resolve_mentor_sparring, skill_unlockable,
+    BuildPath, BuildTitle, Character as WorldTrillionniumCharacter, CharacterOrigin, CombatLogBeat,
+    DialogueChoice, EncounterOutcome, EquipmentAffixCondition, FactionRank, GrowthStat,
+    ItemCondition, NpcRelationship, QuestApproach, RelationshipAction, RelationshipStage,
+    RpgEncounterState, SparringAction, SparringOutcome, SparringReport, TechniqueStyle,
+    TrillionniumAttributes, WorldRoutePlan, ARCHIVE_STEPS_ROOM, ASH_BEACON_FIELD_ROOM,
+    BASIN_OBSERVATORY_ROOM, CARAVAN_YARD_ROOM, CINDER_REFUGE_ROOM, CISTERN_WARD_ROOM,
+    CRAFTING_RECIPES, DEEP_RELAY_ROOM, ECONOMY_ITEM_CATALOG, EMBER_ORCHARD_EDGE_ROOM,
+    ENCOUNTER_CATALOG, EXPEDITION_GATE_ROOM, GLASS_BASIN_WAYHOUSE_ROOM, GLASS_REED_MARSH_ROOM,
+    LANTERN_INFIRMARY_ROOM, MARKET_WIND_PAVILION_ROOM, MENTOR_HALL_ROOM, MIRROR_SQUARE_ROOM,
+    MOON_BRIDGE_ROOM, NIGHT_WATCH_POST_ROOM, NPC_CATALOG, OUTER_SIGNAL_ROAD_ROOM,
+    REGIONAL_QUEST_CATALOG, RELAY_QUARTER_ROOM, SECT_CATALOG, SKILL_CATALOG, WORKSHOP_GATE_ROOM,
 };
 pub use trnm_rpg_core::{EncounterAction, MasteryChallenge, SectId};
 
@@ -83,7 +82,7 @@ impl TrainingPath {
     }
 }
 
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum LoadoutPreset {
     #[default]
@@ -249,7 +248,7 @@ pub enum QuestState {
     Withdrawn,
 }
 
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum CampaignMission {
     #[default]
@@ -1525,13 +1524,75 @@ pub struct NpcSocialEventRecord {
     pub minute_of_day: u16,
 }
 
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RegionalMarketTransfer {
+    pub item_id: String,
+    pub from_region_id: String,
+    pub to_region_id: String,
+    pub quantity: u16,
+    pub day: u32,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum MainStoryChoice {
     #[default]
     ProtectWayhouses,
     ExposeConspiracy,
     ForgeAccord,
+}
+
+const fn default_secondary_technique_slot() -> u8 {
+    1
+}
+
+const MARKET_REGION_IDS: [&str; 4] = ["mirror_city", "signal_road", "glass_basin", "ashen_fringe"];
+
+fn default_regional_market_stock() -> BTreeMap<String, BTreeMap<String, u16>> {
+    MARKET_REGION_IDS
+        .into_iter()
+        .enumerate()
+        .map(|(region_index, region)| {
+            let items = ECONOMY_ITEM_CATALOG
+                .iter()
+                .enumerate()
+                .map(|(item_index, item)| {
+                    let baseline = if item.material { 12 } else { 4 };
+                    let local_bias = if region_index == 0 {
+                        0
+                    } else {
+                        ((region_index + item_index) % 3) as u16
+                    };
+                    (item.id.to_string(), baseline + local_bias)
+                })
+                .collect();
+            (region.to_string(), items)
+        })
+        .collect()
+}
+
+fn default_regional_market_demand() -> BTreeMap<String, BTreeMap<String, i16>> {
+    MARKET_REGION_IDS
+        .into_iter()
+        .enumerate()
+        .map(|(region_index, region)| {
+            let items = ECONOMY_ITEM_CATALOG
+                .iter()
+                .enumerate()
+                .map(|(item_index, item)| {
+                    (
+                        item.id.to_string(),
+                        if region_index == 0 {
+                            0
+                        } else {
+                            ((region_index * 2 + item_index) % 5) as i16 - 2
+                        },
+                    )
+                })
+                .collect();
+            (region.to_string(), items)
+        })
+        .collect()
 }
 
 impl MainStoryChoice {
@@ -1552,6 +1613,172 @@ pub enum MainStoryChapter {
     SignalRoadReckoning,
     AshenFringeCountermarch,
     ChapterComplete,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum MainStoryEnding {
+    WayhouseLeague,
+    OpenArchiveRepublic,
+    FrontierAccord,
+    ThreeRoadCompact,
+    ContestedMandate,
+}
+
+impl MainStoryEnding {
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::WayhouseLeague => "The Wayhouse League",
+            Self::OpenArchiveRepublic => "The Open Archive",
+            Self::FrontierAccord => "The Frontier Accord",
+            Self::ThreeRoadCompact => "The Three-Road Compact",
+            Self::ContestedMandate => "The Contested Mandate",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct MainStoryChapterDefinition {
+    pub chapter: MainStoryChapter,
+    pub title: &'static str,
+    pub protagonist_id: &'static str,
+    pub scene_id: &'static str,
+    pub quest_ids: [&'static str; 5],
+}
+
+pub const MAIN_STORY_CHAPTERS: [MainStoryChapterDefinition; 3] = [
+    MainStoryChapterDefinition {
+        chapter: MainStoryChapter::MirrorCityOaths,
+        title: "Oaths Beneath the Mirror",
+        protagonist_id: "street-compass-sifu",
+        scene_id: "mirror_square_public_oath",
+        quest_ids: [
+            "wayfinder_oath",
+            "broken_milestone",
+            "forge_commission",
+            "lost_tooling",
+            "lantern_watch",
+        ],
+    },
+    MainStoryChapterDefinition {
+        chapter: MainStoryChapter::SignalRoadReckoning,
+        title: "The Signal Road Reckoning",
+        protagonist_id: "captain-veyra",
+        scene_id: "archive_steps_reckoning",
+        quest_ids: [
+            "wanted_raider",
+            "relay_salvage",
+            "fever_tonic",
+            "archive_witness",
+            "market_debt",
+        ],
+    },
+    MainStoryChapterDefinition {
+        chapter: MainStoryChapter::AshenFringeCountermarch,
+        title: "Countermarch at Ashen Fringe",
+        protagonist_id: "scout-mako",
+        scene_id: "ash_beacon_final_assembly",
+        quest_ids: [
+            "missing_crate",
+            "night_letter",
+            "escort_manifest",
+            "bandit_tracks",
+            "ration_audit",
+        ],
+    },
+];
+
+fn main_story_chapter_outcome(
+    chapter: MainStoryChapter,
+    choice: MainStoryChoice,
+) -> (&'static str, i64, i32, &'static str) {
+    match (chapter, choice) {
+        (MainStoryChapter::MirrorCityOaths, MainStoryChoice::ProtectWayhouses) => (
+            "chapter_mirror_oaths_wayhouses",
+            35,
+            2,
+            "At the public oath, the first wayhouses become neutral shelters under your seal.",
+        ),
+        (MainStoryChapter::MirrorCityOaths, MainStoryChoice::ExposeConspiracy) => (
+            "chapter_mirror_oaths_archive",
+            15,
+            5,
+            "At the public oath, the archive names the guild officers who sold the road markers.",
+        ),
+        (MainStoryChapter::MirrorCityOaths, MainStoryChoice::ForgeAccord) => (
+            "chapter_mirror_oaths_accord",
+            25,
+            3,
+            "At the public oath, city smiths and road guides sign a shared repair compact.",
+        ),
+        (MainStoryChapter::SignalRoadReckoning, MainStoryChoice::ProtectWayhouses) => (
+            "chapter_signal_reckoning_wayhouses",
+            45,
+            2,
+            "Veyra stations mixed watches at every Signal Road refuge.",
+        ),
+        (MainStoryChapter::SignalRoadReckoning, MainStoryChoice::ExposeConspiracy) => (
+            "chapter_signal_reckoning_archive",
+            20,
+            6,
+            "Sol publishes the convoy ledger and breaks the hidden ration cartel.",
+        ),
+        (MainStoryChapter::SignalRoadReckoning, MainStoryChoice::ForgeAccord) => (
+            "chapter_signal_reckoning_accord",
+            35,
+            4,
+            "The watch, couriers and salvagers accept one road court.",
+        ),
+        (MainStoryChapter::AshenFringeCountermarch, MainStoryChoice::ProtectWayhouses) => (
+            "chapter_ashen_countermarch_wayhouses",
+            55,
+            3,
+            "The countermarch ends with a defended chain of free frontier houses.",
+        ),
+        (MainStoryChapter::AshenFringeCountermarch, MainStoryChoice::ExposeConspiracy) => (
+            "chapter_ashen_countermarch_archive",
+            25,
+            7,
+            "The final assembly hears every witness and dissolves the Ashen command clique.",
+        ),
+        (MainStoryChapter::AshenFringeCountermarch, MainStoryChoice::ForgeAccord) => (
+            "chapter_ashen_countermarch_accord",
+            45,
+            5,
+            "Mirror City and the Ashen Fringe sign a guarded frontier constitution.",
+        ),
+        _ => unreachable!("terminal chapter outcomes exclude ChapterComplete"),
+    }
+}
+
+pub fn resolve_main_story_ending(decisions: &[MainStoryDecisionRecord]) -> Option<MainStoryEnding> {
+    if decisions.len() != MAIN_STORY_CHAPTERS.len() {
+        return None;
+    }
+    let choices = decisions
+        .iter()
+        .map(|decision| decision.choice)
+        .collect::<Vec<_>>();
+    if choices
+        .iter()
+        .all(|choice| *choice == MainStoryChoice::ProtectWayhouses)
+    {
+        Some(MainStoryEnding::WayhouseLeague)
+    } else if choices
+        .iter()
+        .all(|choice| *choice == MainStoryChoice::ExposeConspiracy)
+    {
+        Some(MainStoryEnding::OpenArchiveRepublic)
+    } else if choices
+        .iter()
+        .all(|choice| *choice == MainStoryChoice::ForgeAccord)
+    {
+        Some(MainStoryEnding::FrontierAccord)
+    } else if choices.iter().copied().collect::<BTreeSet<_>>().len() == 3 {
+        Some(MainStoryEnding::ThreeRoadCompact)
+    } else {
+        Some(MainStoryEnding::ContestedMandate)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -1684,6 +1911,8 @@ pub struct CampaignSaveV1 {
     pub dialogue_choice: DialogueChoice,
     #[serde(default)]
     pub equipped_technique_slot: u8,
+    #[serde(default = "default_secondary_technique_slot")]
+    pub secondary_technique_slot: u8,
     #[serde(default)]
     pub technique_mastery: BTreeMap<String, u16>,
     #[serde(default)]
@@ -1692,6 +1921,8 @@ pub struct CampaignSaveV1 {
     pub main_story_choice: MainStoryChoice,
     #[serde(default)]
     pub main_story_decisions: Vec<MainStoryDecisionRecord>,
+    #[serde(default)]
+    pub main_story_ending: Option<MainStoryEnding>,
     #[serde(default)]
     pub last_npc_conversation: Option<NpcConversationRecord>,
     #[serde(default)]
@@ -1716,6 +1947,12 @@ pub struct CampaignSaveV1 {
     pub market_stock: BTreeMap<String, u16>,
     #[serde(default)]
     pub market_demand: BTreeMap<String, i16>,
+    #[serde(default = "default_regional_market_stock")]
+    pub regional_market_stock: BTreeMap<String, BTreeMap<String, u16>>,
+    #[serde(default = "default_regional_market_demand")]
+    pub regional_market_demand: BTreeMap<String, BTreeMap<String, i16>>,
+    #[serde(default)]
+    pub regional_logistics: Vec<RegionalMarketTransfer>,
     #[serde(default)]
     pub quest_chain: Option<QuestChainProgress>,
     #[serde(default)]
@@ -1782,7 +2019,7 @@ impl Default for CampaignSaveV1 {
         let item_conditions = character_item_conditions(&character);
         Self {
             contract_version: CAMPAIGN_SAVE_CONTRACT.to_string(),
-            schema_revision: 6,
+            schema_revision: 7,
             campaign_id: "local-campaign".to_string(),
             revision: 0,
             room: CampaignRoom::MirrorSquare,
@@ -1955,10 +2192,12 @@ impl Default for CampaignSaveV1 {
             regional_quest_failure_counts: BTreeMap::new(),
             dialogue_choice: DialogueChoice::AskForWork,
             equipped_technique_slot: 0,
+            secondary_technique_slot: default_secondary_technique_slot(),
             technique_mastery: BTreeMap::new(),
             main_story_chapter: MainStoryChapter::MirrorCityOaths,
             main_story_choice: MainStoryChoice::ProtectWayhouses,
             main_story_decisions: Vec::new(),
+            main_story_ending: None,
             last_npc_conversation: None,
             conversation_history: Vec::new(),
             social_event_history: Vec::new(),
@@ -1977,6 +2216,9 @@ impl Default for CampaignSaveV1 {
                 .iter()
                 .map(|item| (item.id.to_string(), 0))
                 .collect(),
+            regional_market_stock: default_regional_market_stock(),
+            regional_market_demand: default_regional_market_demand(),
+            regional_logistics: Vec::new(),
             quest_chain: None,
             world_clock: WorldClock::default(),
             expedition_supplies: ExpeditionSupplyState::default(),
@@ -1993,7 +2235,7 @@ impl Default for CampaignSaveV1 {
 
 impl CampaignSaveV1 {
     pub fn ensure_gameplay_defaults(&mut self) {
-        self.schema_revision = 6;
+        self.schema_revision = 7;
         if self.active_regional_quest_id.is_none() {
             self.active_regional_quest_step = 0;
             self.active_regional_quest_runtime = None;
@@ -2013,6 +2255,21 @@ impl CampaignSaveV1 {
                 *memory = memory.split_off(memory.len() - 8);
             }
         }
+        self.main_story_decisions
+            .sort_by_key(|decision| decision.chapter);
+        self.main_story_decisions
+            .dedup_by_key(|decision| decision.chapter);
+        self.main_story_ending = resolve_main_story_ending(&self.main_story_decisions);
+        self.main_story_chapter = MAIN_STORY_CHAPTERS
+            .iter()
+            .find(|chapter| {
+                !self
+                    .main_story_decisions
+                    .iter()
+                    .any(|decision| decision.chapter == chapter.chapter)
+            })
+            .map(|chapter| chapter.chapter)
+            .unwrap_or(MainStoryChapter::ChapterComplete);
         self.selected_shop_item_index %= ECONOMY_ITEM_CATALOG.len();
         self.selected_recipe_index %= CRAFTING_RECIPES.len();
         if !self.character.inventory_items.is_empty() {
@@ -2068,6 +2325,42 @@ impl CampaignSaveV1 {
                 .entry(item.id.to_string())
                 .or_insert(if item.material { 12 } else { 4 });
             self.market_demand.entry(item.id.to_string()).or_insert(0);
+        }
+        let default_stock = default_regional_market_stock();
+        let default_demand = default_regional_market_demand();
+        for region in MARKET_REGION_IDS {
+            let stock = self
+                .regional_market_stock
+                .entry(region.to_string())
+                .or_default();
+            let demand = self
+                .regional_market_demand
+                .entry(region.to_string())
+                .or_default();
+            for item in ECONOMY_ITEM_CATALOG {
+                stock.entry(item.id.to_string()).or_insert_with(|| {
+                    default_stock[region]
+                        .get(item.id)
+                        .copied()
+                        .unwrap_or_default()
+                });
+                demand.entry(item.id.to_string()).or_insert_with(|| {
+                    default_demand[region]
+                        .get(item.id)
+                        .copied()
+                        .unwrap_or_default()
+                });
+            }
+        }
+        if let Some(mirror_stock) = self.regional_market_stock.get_mut("mirror_city") {
+            for (item_id, stock) in &self.market_stock {
+                mirror_stock.insert(item_id.clone(), *stock);
+            }
+        }
+        if let Some(mirror_demand) = self.regional_market_demand.get_mut("mirror_city") {
+            for (item_id, demand) in &self.market_demand {
+                mirror_demand.insert(item_id.clone(), *demand);
+            }
         }
         if self.character.display_name.trim().is_empty() {
             self.apply_character_identity_name();
@@ -2135,7 +2428,7 @@ impl CampaignSaveV1 {
                 self.contract_version.clone(),
             ));
         }
-        if self.schema_revision != 6 {
+        if self.schema_revision != 7 {
             return Err(CampaignError::InvalidContract(format!(
                 "unsupported campaign schema revision {}",
                 self.schema_revision
@@ -2168,9 +2461,17 @@ impl CampaignSaveV1 {
                 .values()
                 .any(|bond| bond.unsigned_abs() > 100)
             || self.main_story_decisions.len() > 3
+            || self
+                .main_story_decisions
+                .iter()
+                .map(|decision| decision.chapter)
+                .collect::<BTreeSet<_>>()
+                .len()
+                != self.main_story_decisions.len()
+            || self.main_story_ending != resolve_main_story_ending(&self.main_story_decisions)
         {
             return Err(CampaignError::InvalidState(
-                "NPC social history exceeds its bounded save budget".to_string(),
+                "NPC social or main-story history is inconsistent or exceeds its bound".to_string(),
             ));
         }
         if self
@@ -2189,6 +2490,28 @@ impl CampaignSaveV1 {
         }) {
             return Err(CampaignError::InvalidState(
                 "market stock/demand state is incomplete or out of bounds".to_string(),
+            ));
+        }
+        if self.regional_logistics.len() > 64
+            || MARKET_REGION_IDS.into_iter().any(|region| {
+                ECONOMY_ITEM_CATALOG.iter().any(|item| {
+                    !self
+                        .regional_market_stock
+                        .get(region)
+                        .is_some_and(|state| state.contains_key(item.id))
+                        || !self
+                            .regional_market_demand
+                            .get(region)
+                            .is_some_and(|state| {
+                                state
+                                    .get(item.id)
+                                    .is_some_and(|demand| demand.unsigned_abs() <= 20)
+                            })
+                })
+            })
+        {
+            return Err(CampaignError::InvalidState(
+                "regional market or logistics state is incomplete or out of bounds".to_string(),
             ));
         }
         if self.active_party_ids.len() != 4 {
@@ -2508,20 +2831,25 @@ impl CampaignSaveV1 {
 
     pub fn current_task_route_plan(&self) -> WorldRoutePlan {
         if let Some(quest_id) = self.active_regional_quest_id.as_deref() {
-            if let Some(definition) = REGIONAL_QUEST_CATALOG
+            if REGIONAL_QUEST_CATALOG
                 .iter()
                 .find(|definition| definition.id == quest_id)
+                .is_some()
             {
-                let start_index = self
-                    .active_regional_quest_step
-                    .min(definition.waypoint_room_ids.len());
-                let remaining = definition.waypoint_room_ids[start_index..]
-                    .iter()
-                    .map(|room| (*room).to_string())
-                    .collect::<Vec<_>>();
+                let remaining = self.active_regional_quest_ready_rooms();
                 let mut flags = self.progression.world_flags.clone();
                 if self.active_title == Some(BuildTitle::RelayRunner) {
                     flags.insert("signal_road_secured".to_string());
+                }
+                if let Some(route) = remaining
+                    .iter()
+                    .map(|room| {
+                        mirror_city_world_graph().shortest_route(self.room.id(), room, &flags)
+                    })
+                    .filter(|route| route.reachable())
+                    .min_by_key(|route| route.path.len())
+                {
+                    return route;
                 }
                 return mirror_city_world_graph().ordered_task_route(
                     self.room.id(),
@@ -3029,17 +3357,12 @@ impl CampaignSaveV1 {
         }
         self.active_encounter =
             RpgEncounterState::from_definition("signal_road_ambush", &self.character.attributes);
-        let style = self.active_technique_style();
-        let rank = self
-            .technique_mastery
-            .get(style.rule_id())
-            .copied()
-            .unwrap_or_default()
-            .saturating_div(10)
-            .min(10) as u8;
+        let primary = self.active_technique_style();
+        let secondary = self.secondary_technique_style();
+        let primary_rank = self.technique_rank(primary);
+        let secondary_rank = self.technique_rank(secondary);
         if let Some(encounter) = &mut self.active_encounter {
-            encounter.set_technique_style(style);
-            encounter.set_technique_rank(rank);
+            encounter.set_technique_loadout(primary, primary_rank, secondary, secondary_rank);
         }
         self.last_encounter_outcome = None;
         self.revision += 1;
@@ -3060,25 +3383,20 @@ impl CampaignSaveV1 {
                 "unknown regional encounter: {encounter_id}"
             )));
         }
-        let style = self.active_technique_style();
-        let rank = self
-            .technique_mastery
-            .get(style.rule_id())
-            .copied()
-            .unwrap_or_default()
-            .saturating_div(10)
-            .min(10) as u8;
+        let primary = self.active_technique_style();
+        let secondary = self.secondary_technique_style();
+        let primary_rank = self.technique_rank(primary);
+        let secondary_rank = self.technique_rank(secondary);
         if let Some(encounter) = &mut self.active_encounter {
-            encounter.set_technique_style(style);
-            encounter.set_technique_rank(rank);
+            encounter.set_technique_loadout(primary, primary_rank, secondary, secondary_rank);
         }
         self.last_encounter_outcome = None;
         self.revision += 1;
         Ok(())
     }
 
-    fn active_technique_style(&self) -> TechniqueStyle {
-        let slot = self.equipped_technique_slot % 3;
+    fn technique_style_for_slot(&self, slot: u8) -> TechniqueStyle {
+        let slot = slot % 3;
         match (current_sect(&self.character), slot) {
             (Some(SectId::StreetCompass), 0) => TechniqueStyle::CompassFeint,
             (Some(SectId::StreetCompass), 1) => TechniqueStyle::CompassSpiral,
@@ -3093,6 +3411,23 @@ impl CampaignSaveV1 {
         }
     }
 
+    fn active_technique_style(&self) -> TechniqueStyle {
+        self.technique_style_for_slot(self.equipped_technique_slot)
+    }
+
+    pub fn secondary_technique_style(&self) -> TechniqueStyle {
+        self.technique_style_for_slot(self.secondary_technique_slot)
+    }
+
+    fn technique_rank(&self, style: TechniqueStyle) -> u8 {
+        self.technique_mastery
+            .get(style.rule_id())
+            .copied()
+            .unwrap_or_default()
+            .saturating_div(10)
+            .min(10) as u8
+    }
+
     pub fn cycle_equipped_technique(&mut self) -> Result<TechniqueStyle, CampaignError> {
         self.require_town()?;
         if current_sect(&self.character).is_none() {
@@ -3105,12 +3440,26 @@ impl CampaignSaveV1 {
         Ok(self.active_technique_style())
     }
 
+    pub fn cycle_secondary_equipped_technique(&mut self) -> Result<TechniqueStyle, CampaignError> {
+        self.require_town()?;
+        if current_sect(&self.character).is_none() {
+            return Err(CampaignError::InvalidState(
+                "join a regional sect before configuring techniques".to_string(),
+            ));
+        }
+        self.secondary_technique_slot = (self.secondary_technique_slot + 1) % 3;
+        if self.secondary_technique_slot == self.equipped_technique_slot {
+            self.secondary_technique_slot = (self.secondary_technique_slot + 1) % 3;
+        }
+        self.revision += 1;
+        Ok(self.secondary_technique_style())
+    }
+
     pub fn act_in_signal_road_encounter(
         &mut self,
         action: EncounterAction,
     ) -> Result<Option<EncounterOutcome>, CampaignError> {
         self.require_town()?;
-        let technique_style = self.active_technique_style();
         let item_available = self
             .progression
             .inventory
@@ -3120,6 +3469,7 @@ impl CampaignSaveV1 {
             .active_encounter
             .as_mut()
             .ok_or_else(|| CampaignError::InvalidState("no RPG encounter is active".to_string()))?;
+        let technique_style = encounter.next_technique_style();
         let turn = encounter
             .advance(&self.character.attributes, action, item_available)
             .map_err(CampaignError::InvalidState)?;
@@ -3298,6 +3648,7 @@ impl CampaignSaveV1 {
             .saturating_add((minutes / 30) as u8)
             .min(100);
         self.apply_current_social_event();
+        self.run_regional_logistics();
         self.revision += 1;
         Ok(())
     }
@@ -3328,28 +3679,33 @@ impl CampaignSaveV1 {
         let bond_key = format!("{}::{}", pair[0], pair[1]);
         let bond = self.npc_bonds.entry(bond_key).or_default();
         *bond = bond.saturating_add(2).clamp(-100, 100);
-        let current_stock = self
-            .market_stock
-            .get(event.market_item_id)
-            .copied()
-            .unwrap_or_default();
+        let bond_strength = *bond;
+        let production = [event.first_npc_id, event.second_npc_id]
+            .into_iter()
+            .map(|npc_id| {
+                self.npc_work_output
+                    .get(npc_id)
+                    .copied()
+                    .unwrap_or_default()
+            })
+            .sum::<u32>()
+            / 4
+            + u32::from(bond_strength >= 8);
+        let region_id = Self::region_id_for_room_id(event.room_id);
+        let (current_stock, demand) = self.regional_market_state(region_id, event.market_item_id);
         let next_stock = if event.stock_delta >= 0 {
             current_stock
                 .saturating_add(event.stock_delta as u16)
+                .saturating_add(production.min(6) as u16)
                 .min(99)
         } else {
             current_stock.saturating_sub(event.stock_delta.unsigned_abs())
         };
-        self.market_stock
-            .insert(event.market_item_id.to_string(), next_stock);
-        let demand = self
-            .market_demand
-            .get(event.market_item_id)
-            .copied()
-            .unwrap_or_default();
-        self.market_demand.insert(
-            event.market_item_id.to_string(),
-            (demand + event.demand_delta).clamp(-20, 20),
+        self.set_regional_market_state(
+            region_id,
+            event.market_item_id,
+            next_stock,
+            (demand + event.demand_delta - i16::from(bond_strength >= 8)).clamp(-20, 20),
         );
         self.social_event_history.push(NpcSocialEventRecord {
             event_id: event.id.to_string(),
@@ -3461,9 +3817,30 @@ impl CampaignSaveV1 {
             .and_then(|memory| memory.last())
             .map(|memory| format!(" I remember: {memory}"))
             .unwrap_or_default();
+        let work_output = self
+            .npc_work_output
+            .get(npc.id)
+            .copied()
+            .unwrap_or_default();
+        let strongest_bond = self
+            .npc_bonds
+            .iter()
+            .filter(|(pair, _)| pair.split("::").any(|member| member == npc.id))
+            .map(|(_, bond)| *bond)
+            .max()
+            .unwrap_or_default();
+        let goal = if work_output >= 8 && strongest_bond >= 8 {
+            "organising a joint production caravan"
+        } else if work_output >= 4 {
+            "turning recent work into local supplies"
+        } else if strongest_bond < 0 {
+            "repairing a damaged civic relationship"
+        } else {
+            "building trust before committing scarce stock"
+        };
         let line = format!(
-            "[{stage:?} / {:?}] {baseline} {response}{remembered}",
-            self.dialogue_choice
+            "[{stage:?} / {:?}] {baseline} {response}{remembered} Current goal: {goal} (work {work_output}, bond {strongest_bond:+}).",
+            self.dialogue_choice,
         );
         let record = NpcConversationRecord {
             npc_id: npc.id.to_string(),
@@ -3493,15 +3870,14 @@ impl CampaignSaveV1 {
         let definition = REGIONAL_QUEST_CATALOG
             .iter()
             .find(|definition| definition.id == quest_id)?;
-        if self.active_regional_quest_step < definition.waypoint_room_ids.len() {
-            let room = definition.waypoint_room_ids[self.active_regional_quest_step];
+        let ready_rooms = self.active_regional_quest_ready_rooms();
+        if !ready_rooms.is_empty() {
             let runtime = self.active_regional_quest_runtime.as_ref()?;
             return Some(format!(
-                "Step {}/{}: {} at {} | {:?} approach | deadline day {}",
-                self.active_regional_quest_step + 1,
+                "Authored graph {}/{}: choose ready node [{}] | {:?} approach | deadline day {}",
+                self.active_regional_quest_step,
                 definition.waypoint_room_ids.len(),
-                quest_step_verb(definition.archetype, self.active_regional_quest_step),
-                room,
+                ready_rooms.join(" / "),
                 runtime.approach,
                 runtime.deadline_day,
             ));
@@ -3510,6 +3886,32 @@ impl CampaignSaveV1 {
             .encounter_id
             .map(|encounter| format!("Win {encounter}, then report to the quest giver"))
             .or_else(|| Some("Return for settlement".to_string()))
+    }
+
+    pub fn active_regional_quest_ready_rooms(&self) -> Vec<String> {
+        let Some(quest_id) = self.active_regional_quest_id.as_deref() else {
+            return Vec::new();
+        };
+        let Some(definition) = REGIONAL_QUEST_CATALOG
+            .iter()
+            .find(|definition| definition.id == quest_id)
+        else {
+            return Vec::new();
+        };
+        let Some(runtime) = self.active_regional_quest_runtime.as_ref() else {
+            return Vec::new();
+        };
+        let graph = quest_condition_graph(definition, runtime.approach);
+        graph
+            .nodes
+            .iter()
+            .filter(|node| node.kind == trnm_rpg_core::QuestConditionKind::VisitWaypoint)
+            .filter(|node| !runtime.completed_condition_node_ids.contains(&node.id))
+            .filter(|node| {
+                quest_graph_node_ready(&graph, &node.id, &runtime.completed_condition_node_ids)
+            })
+            .map(|node| node.subject_id.clone())
+            .collect()
     }
 
     pub fn start_regional_quest(&mut self, quest_id: &str) -> Result<(), CampaignError> {
@@ -3608,38 +4010,39 @@ impl CampaignSaveV1 {
         {
             return self.fail_active_regional_quest("the quest deadline expired");
         }
-        if self.active_regional_quest_step < definition.waypoint_room_ids.len() {
-            let expected_room = definition.waypoint_room_ids[self.active_regional_quest_step];
-            if self.room.id() != expected_room {
-                return Err(CampaignError::InvalidState(format!(
-                    "{} step {} requires {}, current room is {}",
-                    definition.title,
-                    self.active_regional_quest_step + 1,
-                    expected_room,
-                    self.room.id()
-                )));
-            }
+        let ready_rooms = self.active_regional_quest_ready_rooms();
+        if !ready_rooms.is_empty() {
             let runtime = self.active_regional_quest_runtime.as_mut().ok_or_else(|| {
                 CampaignError::InvalidState("regional quest runtime is missing".to_string())
             })?;
             let condition_graph = quest_condition_graph(definition, runtime.approach);
-            let node_id = format!(
-                "{}_waypoint_{}",
-                definition.id,
-                self.active_regional_quest_step + 1
-            );
-            if !quest_graph_node_ready(
-                &condition_graph,
-                &node_id,
-                &runtime.completed_condition_node_ids,
-            ) {
+            let node = condition_graph
+                .nodes
+                .iter()
+                .filter(|node| node.kind == trnm_rpg_core::QuestConditionKind::VisitWaypoint)
+                .find(|node| {
+                    node.subject_id == self.room.id()
+                        && !runtime.completed_condition_node_ids.contains(&node.id)
+                        && quest_graph_node_ready(
+                            &condition_graph,
+                            &node.id,
+                            &runtime.completed_condition_node_ids,
+                        )
+                });
+            let Some(node) = node else {
                 return Err(CampaignError::InvalidState(format!(
-                    "{} condition node {} is blocked by its authored prerequisites",
-                    definition.title, node_id
+                    "{} requires one of the currently ready authored nodes [{}], current room is {}",
+                    definition.title,
+                    ready_rooms.join(" / "),
+                    self.room.id(),
                 )));
-            }
-            runtime.completed_condition_node_ids.insert(node_id);
-            self.active_regional_quest_step += 1;
+            };
+            runtime.completed_condition_node_ids.insert(node.id.clone());
+            self.active_regional_quest_step = runtime
+                .completed_condition_node_ids
+                .iter()
+                .filter(|node_id| node_id.contains("_waypoint_"))
+                .count();
             runtime.evidence_count = runtime.evidence_count.saturating_add(1);
             self.revision += 1;
             return Ok(());
@@ -3668,23 +4071,31 @@ impl CampaignSaveV1 {
             .iter()
             .find(|definition| definition.id == quest_id)
             .expect("active regional quest remains catalog bound");
-        if self.active_regional_quest_step != definition.waypoint_room_ids.len()
-            || definition.waypoint_room_ids.last().copied() != Some(self.room.id())
-        {
-            return Err(CampaignError::InvalidState(format!(
-                "{} still has route steps remaining before settlement in {}",
-                definition.title,
-                definition
-                    .waypoint_room_ids
-                    .last()
-                    .copied()
-                    .unwrap_or("unknown")
-            )));
-        }
         let runtime = self.active_regional_quest_runtime.clone().ok_or_else(|| {
             CampaignError::InvalidState("regional quest runtime is missing".to_string())
         })?;
         let condition_graph = quest_condition_graph(definition, runtime.approach);
+        let unfinished_waypoints = condition_graph
+            .nodes
+            .iter()
+            .filter(|node| node.kind == trnm_rpg_core::QuestConditionKind::VisitWaypoint)
+            .filter(|node| !runtime.completed_condition_node_ids.contains(&node.id))
+            .map(|node| node.subject_id.clone())
+            .collect::<Vec<_>>();
+        let settlement_room = condition_graph
+            .nodes
+            .iter()
+            .find(|node| node.kind == trnm_rpg_core::QuestConditionKind::ReturnForSettlement)
+            .map(|node| node.subject_id.as_str())
+            .unwrap_or("unknown");
+        if !unfinished_waypoints.is_empty() || settlement_room != self.room.id() {
+            return Err(CampaignError::InvalidState(format!(
+                "{} still has authored nodes [{}] before settlement in {}",
+                definition.title,
+                unfinished_waypoints.join(" / "),
+                settlement_room,
+            )));
+        }
         let visited_waypoints = condition_graph
             .nodes
             .iter()
@@ -3780,27 +4191,19 @@ impl CampaignSaveV1 {
         self.progression.world_flags.insert(
             format!("regional_quest_{quest_id}_{:?}", runtime.approach).to_ascii_lowercase(),
         );
-        let stock = self
-            .market_stock
-            .entry(rule.resource_item_id.to_string())
-            .or_default();
-        let demand = self
-            .market_demand
-            .entry(rule.resource_item_id.to_string())
-            .or_default();
-        match runtime.approach {
-            QuestApproach::Direct => {
-                *stock = stock.saturating_add(1);
-                *demand = demand.saturating_sub(1).max(-20);
-            }
-            QuestApproach::Diplomatic => {
-                *stock = stock.saturating_add(2);
-                *demand = demand.saturating_sub(2).max(-20);
-            }
-            QuestApproach::Resourceful => {
-                *demand = demand.saturating_add(3).min(20);
-            }
-        }
+        let region_id = Self::region_id_for_room_id(settlement_room);
+        let (stock, demand) = self.regional_market_state(region_id, rule.resource_item_id);
+        let (stock_delta, demand_delta) = match runtime.approach {
+            QuestApproach::Direct => (1, -1),
+            QuestApproach::Diplomatic => (2, -2),
+            QuestApproach::Resourceful => (0, 3),
+        };
+        self.set_regional_market_state(
+            region_id,
+            rule.resource_item_id,
+            stock.saturating_add(stock_delta),
+            demand.saturating_add(demand_delta),
+        );
         if let Some(text) = quest_resolution_text(&quest_id, runtime.approach) {
             self.combat_log.push(CombatLogBeat {
                 kind: "quest_resolution".to_string(),
@@ -3830,48 +4233,21 @@ impl CampaignSaveV1 {
         self.active_regional_quest_id = None;
         self.active_regional_quest_step = 0;
         self.active_regional_quest_runtime = None;
-        self.main_story_chapter = match completed {
-            0..=4 => MainStoryChapter::MirrorCityOaths,
-            5..=9 => MainStoryChapter::SignalRoadReckoning,
-            10..=14 => MainStoryChapter::AshenFringeCountermarch,
-            _ => MainStoryChapter::ChapterComplete,
-        };
-        if matches!(completed, 5 | 10 | 15) {
-            let decided_chapter = match completed {
-                5 => MainStoryChapter::MirrorCityOaths,
-                10 => MainStoryChapter::SignalRoadReckoning,
-                _ => MainStoryChapter::AshenFringeCountermarch,
-            };
-            if self
+        if let Some(chapter) = MAIN_STORY_CHAPTERS.iter().find(|chapter| {
+            !self
                 .main_story_decisions
                 .iter()
-                .any(|decision| decision.chapter == decided_chapter)
-            {
-                return Err(CampaignError::InvalidState(
-                    "main story chapter already has a terminal decision".to_string(),
-                ));
-            }
-            let (flag, credits, reputation, text) = match self.main_story_choice {
-                MainStoryChoice::ProtectWayhouses => (
-                    "main_story_wayhouses_protected",
-                    35,
-                    2,
-                    "The frontier wayhouses become neutral shelters under your guarantee.",
-                ),
-                MainStoryChoice::ExposeConspiracy => (
-                    "main_story_conspiracy_exposed",
-                    15,
-                    5,
-                    "The archive publishes the hidden supply chain and forces public resignations.",
-                ),
-                MainStoryChoice::ForgeAccord => (
-                    "main_story_frontier_accord",
-                    25,
-                    3,
-                    "Mirror City and the Ashen Fringe sign a guarded trade accord.",
-                ),
-            };
+                .any(|decision| decision.chapter == chapter.chapter)
+                && chapter.quest_ids.iter().all(|quest_id| {
+                    self.regional_quest_states.get(*quest_id) == Some(&QuestState::Completed)
+                })
+        }) {
+            let (flag, credits, reputation, text) =
+                main_story_chapter_outcome(chapter.chapter, self.main_story_choice);
             self.progression.world_flags.insert(flag.to_string());
+            self.progression
+                .world_flags
+                .insert(format!("main_story_scene_{}", chapter.scene_id));
             self.progression.credits += credits;
             self.character.attributes.reputation = self
                 .character
@@ -3879,17 +4255,47 @@ impl CampaignSaveV1 {
                 .reputation
                 .saturating_add(reputation);
             self.combat_log.push(CombatLogBeat {
-                kind: "main_story_choice".to_string(),
-                text: text.to_string(),
+                kind: "main_story_chapter".to_string(),
+                text: format!(
+                    "{} — {} and the player resolve the chapter: {}",
+                    chapter.title, chapter.protagonist_id, text
+                ),
             });
             self.main_story_decisions.push(MainStoryDecisionRecord {
-                chapter: decided_chapter,
+                chapter: chapter.chapter,
                 choice: self.main_story_choice,
                 outcome_flag: flag.to_string(),
                 day: self.world_clock.day,
             });
         }
-        if completed >= 5 {
+        self.main_story_chapter = MAIN_STORY_CHAPTERS
+            .iter()
+            .find(|chapter| {
+                !self
+                    .main_story_decisions
+                    .iter()
+                    .any(|decision| decision.chapter == chapter.chapter)
+            })
+            .map(|chapter| chapter.chapter)
+            .unwrap_or(MainStoryChapter::ChapterComplete);
+        self.main_story_ending = resolve_main_story_ending(&self.main_story_decisions);
+        if let Some(ending) = self.main_story_ending {
+            self.progression.world_flags.insert(format!(
+                "main_story_ending_{}",
+                ending.label().to_ascii_lowercase().replace([' ', '-'], "_")
+            ));
+            if !self
+                .combat_log
+                .iter()
+                .any(|beat| beat.kind == "main_story_ending")
+            {
+                self.combat_log.push(CombatLogBeat {
+                    kind: "main_story_ending".to_string(),
+                    text: format!("ENDING: {}", ending.label()),
+                });
+            }
+        }
+        if !self.main_story_decisions.is_empty() {
             self.progression
                 .world_flags
                 .insert("glass_basin_wayhouse_open".to_string());
@@ -3898,7 +4304,7 @@ impl CampaignSaveV1 {
                 DEEP_RELAY_ROOM.to_string(),
             ]);
         }
-        if completed >= 10 {
+        if self.main_story_decisions.len() >= 2 {
             self.progression
                 .world_flags
                 .insert("ashen_fringe_open".to_string());
@@ -3958,20 +4364,116 @@ impl CampaignSaveV1 {
         Ok(())
     }
 
+    fn region_id_for_room_id(room_id: &str) -> &'static str {
+        match room_id {
+            GLASS_BASIN_WAYHOUSE_ROOM
+            | DEEP_RELAY_ROOM
+            | GLASS_REED_MARSH_ROOM
+            | BASIN_OBSERVATORY_ROOM => "glass_basin",
+            MOON_BRIDGE_ROOM
+            | EMBER_ORCHARD_EDGE_ROOM
+            | ASH_BEACON_FIELD_ROOM
+            | CINDER_REFUGE_ROOM => "ashen_fringe",
+            OUTER_SIGNAL_ROAD_ROOM | RELAY_QUARTER_ROOM => "signal_road",
+            _ => "mirror_city",
+        }
+    }
+
+    pub fn regional_market_state(&self, region_id: &str, item_id: &str) -> (u16, i16) {
+        (
+            self.regional_market_stock
+                .get(region_id)
+                .and_then(|stock| stock.get(item_id))
+                .copied()
+                .unwrap_or_default(),
+            self.regional_market_demand
+                .get(region_id)
+                .and_then(|demand| demand.get(item_id))
+                .copied()
+                .unwrap_or_default(),
+        )
+    }
+
+    fn set_regional_market_state(
+        &mut self,
+        region_id: &str,
+        item_id: &str,
+        stock: u16,
+        demand: i16,
+    ) {
+        self.regional_market_stock
+            .entry(region_id.to_string())
+            .or_default()
+            .insert(item_id.to_string(), stock.min(99));
+        self.regional_market_demand
+            .entry(region_id.to_string())
+            .or_default()
+            .insert(item_id.to_string(), demand.clamp(-20, 20));
+        if region_id == "mirror_city" {
+            self.market_stock.insert(item_id.to_string(), stock.min(99));
+            self.market_demand
+                .insert(item_id.to_string(), demand.clamp(-20, 20));
+        }
+    }
+
+    fn run_regional_logistics(&mut self) {
+        let item = &ECONOMY_ITEM_CATALOG[(self.world_clock.day as usize
+            + usize::from(self.world_clock.minute_of_day / 120))
+            % ECONOMY_ITEM_CATALOG.len()];
+        let mut regions = MARKET_REGION_IDS
+            .into_iter()
+            .map(|region| {
+                let (stock, demand) = self.regional_market_state(region, item.id);
+                (region, stock, demand)
+            })
+            .collect::<Vec<_>>();
+        regions.sort_by_key(|(_, stock, demand)| (i32::from(*stock) - i32::from(*demand), *stock));
+        let Some(&(to_region, to_stock, to_demand)) = regions.first() else {
+            return;
+        };
+        let Some(&(from_region, from_stock, from_demand)) = regions.last() else {
+            return;
+        };
+        if from_region == to_region || from_stock <= to_stock.saturating_add(1) {
+            return;
+        }
+        self.set_regional_market_state(
+            from_region,
+            item.id,
+            from_stock - 1,
+            from_demand.saturating_add(1),
+        );
+        self.set_regional_market_state(
+            to_region,
+            item.id,
+            to_stock.saturating_add(1),
+            to_demand.saturating_sub(1),
+        );
+        self.regional_logistics.push(RegionalMarketTransfer {
+            item_id: item.id.to_string(),
+            from_region_id: from_region.to_string(),
+            to_region_id: to_region.to_string(),
+            quantity: 1,
+            day: self.world_clock.day,
+        });
+        if self.regional_logistics.len() > 64 {
+            self.regional_logistics.remove(0);
+        }
+    }
+
     pub fn buy_regional_item(&mut self, item_id: &str) -> Result<(), CampaignError> {
         self.require_room(CampaignRoom::MarketWindPavilion)?;
         let definition = ECONOMY_ITEM_CATALOG
             .iter()
             .find(|definition| definition.id == item_id)
             .ok_or_else(|| CampaignError::InvalidState(format!("unknown shop item: {item_id}")))?;
-        let stock = self.market_stock.get(item_id).copied().unwrap_or_default();
+        let (stock, demand) = self.regional_market_state("mirror_city", item_id);
         if stock == 0 {
             return Err(CampaignError::InvalidState(format!(
                 "{} is out of stock until local production recovers",
                 definition.display_name
             )));
         }
-        let demand = self.market_demand.get(item_id).copied().unwrap_or_default();
         let price = market_price_with_state(item_id, self.world_clock.day, stock, demand, true)
             .expect("catalog item has a market price");
         if self.progression.credits < price {
@@ -3981,9 +4483,7 @@ impl CampaignSaveV1 {
             )));
         }
         self.progression.credits -= price;
-        self.market_stock.insert(item_id.to_string(), stock - 1);
-        self.market_demand
-            .insert(item_id.to_string(), (demand + 2).min(20));
+        self.set_regional_market_state("mirror_city", item_id, stock - 1, demand + 2);
         if definition.material {
             merge_loot(
                 &mut self.progression.inventory,
@@ -4023,8 +4523,7 @@ impl CampaignSaveV1 {
 
     pub fn shop_selection_label(&self) -> String {
         let item = self.selected_shop_item();
-        let stock = self.market_stock.get(item.id).copied().unwrap_or_default();
-        let demand = self.market_demand.get(item.id).copied().unwrap_or_default();
+        let (stock, demand) = self.regional_market_state("mirror_city", item.id);
         format!(
             "{} | buy {} / sell {} credits | stock {} demand {:+} | durability {}{} | day {}",
             item.display_name,
@@ -4074,15 +4573,11 @@ impl CampaignSaveV1 {
                 .equipment_slots
                 .retain(|_, instance_id| instance_id != &removed.item_instance_id);
         }
-        let stock = self.market_stock.get(item.id).copied().unwrap_or_default();
-        let demand = self.market_demand.get(item.id).copied().unwrap_or_default();
+        let (stock, demand) = self.regional_market_state("mirror_city", item.id);
         let price = market_price_with_state(item.id, self.world_clock.day, stock, demand, false)
             .expect("catalog item has a market price");
         self.progression.credits += price;
-        self.market_stock
-            .insert(item.id.to_string(), stock.saturating_add(1).min(99));
-        self.market_demand
-            .insert(item.id.to_string(), (demand - 2).max(-20));
+        self.set_regional_market_state("mirror_city", item.id, stock.saturating_add(1), demand - 2);
         self.progression.world_flags.insert(format!(
             "market_sale_{}_day_{}",
             item.id, self.world_clock.day
@@ -6936,17 +7431,36 @@ mod tests {
                 quantity: rule.resource_quantity,
             });
         }
-        for waypoint in definition.waypoint_room_ids {
-            campaign.room = test_room(waypoint);
+        while let Some(waypoint) = campaign
+            .active_regional_quest_ready_rooms()
+            .into_iter()
+            .last()
+        {
+            campaign.room = test_room(&waypoint);
             campaign.advance_active_regional_quest().unwrap();
         }
-        if let Some(encounter) = definition.encounter_id {
-            campaign
-                .progression
-                .world_flags
-                .insert(format!("{encounter}_cleared"));
+        if approach == QuestApproach::Direct && definition.encounter_id.is_some() {
+            campaign.character.attributes.physique = 80;
+            campaign.character.attributes.force = 80;
+            campaign.character.attributes.agility = 80;
+            campaign.character.attributes.insight = 80;
+            campaign.advance_active_regional_quest().unwrap();
+            while campaign.active_encounter.is_some() {
+                campaign
+                    .act_in_signal_road_encounter(EncounterAction::Attack)
+                    .unwrap();
+            }
         }
-        campaign.complete_regional_quest().unwrap();
+        if campaign.active_regional_quest_id.is_some() {
+            let graph = quest_condition_graph(definition, approach);
+            let settlement = graph
+                .nodes
+                .iter()
+                .find(|node| node.kind == trnm_rpg_core::QuestConditionKind::ReturnForSettlement)
+                .unwrap();
+            campaign.room = test_room(&settlement.subject_id);
+            campaign.complete_regional_quest().unwrap();
+        }
     }
 
     fn finish_authored_quest(quest_id: &str, approach: QuestApproach) -> CampaignSaveV1 {
@@ -6975,6 +7489,38 @@ mod tests {
                 ));
             }
         }
+    }
+
+    #[test]
+    fn authored_forks_change_the_live_route_and_accept_either_ready_branch_first() {
+        let mut campaign = CampaignSaveV1::default();
+        let definition = REGIONAL_QUEST_CATALOG
+            .iter()
+            .find(|quest| quest.id == "broken_milestone")
+            .unwrap();
+        let giver = NPC_CATALOG
+            .iter()
+            .find(|npc| npc.id == definition.giver_npc_id)
+            .unwrap();
+        campaign.room = test_room(giver.room_id);
+        campaign
+            .npc_relationships
+            .get_mut(giver.id)
+            .unwrap()
+            .interactions = 1;
+        campaign.start_regional_quest(definition.id).unwrap();
+        let first_ready = campaign.active_regional_quest_ready_rooms();
+        assert!(
+            first_ready.len() >= 2,
+            "the authored fork must expose route choice"
+        );
+        campaign.room = test_room(first_ready.last().unwrap());
+        campaign.advance_active_regional_quest().unwrap();
+        let after_branch = campaign.active_regional_quest_ready_rooms();
+        assert_ne!(after_branch, first_ready);
+        assert!(!after_branch.contains(first_ready.last().unwrap()));
+        let route = campaign.current_task_route_plan();
+        assert!(after_branch.contains(&route.destination_room_id));
     }
 
     #[test]
@@ -7020,6 +7566,60 @@ mod tests {
                 .collect::<BTreeSet<_>>()
                 .len(),
             3
+        );
+        assert_eq!(
+            campaign.main_story_ending,
+            Some(MainStoryEnding::ThreeRoadCompact)
+        );
+        for chapter in MAIN_STORY_CHAPTERS {
+            assert!(campaign
+                .progression
+                .world_flags
+                .contains(&format!("main_story_scene_{}", chapter.scene_id)));
+        }
+    }
+
+    #[test]
+    fn all_five_explicit_main_story_endings_are_resolved() {
+        let decisions = |choices: [MainStoryChoice; 3]| {
+            MAIN_STORY_CHAPTERS
+                .iter()
+                .zip(choices)
+                .map(|(chapter, choice)| MainStoryDecisionRecord {
+                    chapter: chapter.chapter,
+                    choice,
+                    outcome_flag: format!("test_{:?}_{choice:?}", chapter.chapter),
+                    day: 1,
+                })
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(
+            resolve_main_story_ending(&decisions([MainStoryChoice::ProtectWayhouses; 3])),
+            Some(MainStoryEnding::WayhouseLeague)
+        );
+        assert_eq!(
+            resolve_main_story_ending(&decisions([MainStoryChoice::ExposeConspiracy; 3])),
+            Some(MainStoryEnding::OpenArchiveRepublic)
+        );
+        assert_eq!(
+            resolve_main_story_ending(&decisions([MainStoryChoice::ForgeAccord; 3])),
+            Some(MainStoryEnding::FrontierAccord)
+        );
+        assert_eq!(
+            resolve_main_story_ending(&decisions([
+                MainStoryChoice::ProtectWayhouses,
+                MainStoryChoice::ExposeConspiracy,
+                MainStoryChoice::ForgeAccord,
+            ])),
+            Some(MainStoryEnding::ThreeRoadCompact)
+        );
+        assert_eq!(
+            resolve_main_story_ending(&decisions([
+                MainStoryChoice::ProtectWayhouses,
+                MainStoryChoice::ProtectWayhouses,
+                MainStoryChoice::ForgeAccord,
+            ])),
+            Some(MainStoryEnding::ContestedMandate)
         );
     }
 
@@ -7078,6 +7678,45 @@ mod tests {
         let store = CampaignStore::new(directory.path().join("mastery.json"));
         store.save_atomic(&campaign).unwrap();
         assert_eq!(store.load().unwrap().technique_mastery["relay_hammer"], 51);
+    }
+
+    #[test]
+    fn primary_secondary_techniques_chain_and_regional_logistics_persist() {
+        let mut campaign = CampaignSaveV1::default();
+        campaign.character.sect_id = Some("iron_workshop_gate".to_string());
+        campaign.equipped_technique_slot = 0;
+        campaign.secondary_technique_slot = 1;
+        campaign.room = CampaignRoom::RelayQuarter;
+        campaign.begin_signal_road_encounter().unwrap();
+        campaign.active_encounter.as_mut().unwrap().momentum = 8;
+        campaign
+            .act_in_signal_road_encounter(EncounterAction::Technique)
+            .unwrap();
+        campaign
+            .act_in_signal_road_encounter(EncounterAction::Defend)
+            .unwrap();
+        campaign
+            .act_in_signal_road_encounter(EncounterAction::Defend)
+            .unwrap();
+        campaign.active_encounter.as_mut().unwrap().momentum = 8;
+        campaign
+            .act_in_signal_road_encounter(EncounterAction::Technique)
+            .unwrap();
+        assert_eq!(campaign.technique_mastery["forge_counter"], 1);
+        assert_eq!(campaign.technique_mastery["relay_hammer"], 1);
+        campaign.active_encounter = None;
+        let before = campaign.regional_market_stock.clone();
+        campaign.wait_in_town(120).unwrap();
+        assert!(!campaign.regional_logistics.is_empty());
+        assert_ne!(campaign.regional_market_stock, before);
+        assert!(campaign.npc_work_output.values().any(|output| *output > 0));
+        let directory = tempdir().unwrap();
+        let store = CampaignStore::new(directory.path().join("regional-economy.json"));
+        store.save_atomic(&campaign).unwrap();
+        let loaded = store.load().unwrap();
+        assert_eq!(loaded.schema_revision, 7);
+        assert_eq!(loaded.regional_logistics, campaign.regional_logistics);
+        assert_eq!(loaded.technique_mastery, campaign.technique_mastery);
     }
 
     #[test]

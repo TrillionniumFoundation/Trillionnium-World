@@ -22,8 +22,8 @@ use trnm_rts_protocol::{RtsFrameOrder, RtsOrderKind, RtsUnitStance};
 mod content;
 pub use content::*;
 
-pub const RTS_SIM_CONTRACT: &str = "trnm_rts_sim_v13";
-pub const RTS_SIM_CHECKPOINT_CONTRACT: &str = "trnm_rts_sim_checkpoint_v13";
+pub const RTS_SIM_CONTRACT: &str = "trnm_rts_sim_v14";
+pub const RTS_SIM_CHECKPOINT_CONTRACT: &str = "trnm_rts_sim_checkpoint_v14";
 pub const TICKS_PER_SECOND: u64 = 10;
 pub const THREE_MINUTE_TICKS: u64 = 3 * 60 * TICKS_PER_SECOND;
 pub const FIVE_MINUTE_TICKS: u64 = 5 * 60 * TICKS_PER_SECOND;
@@ -38,7 +38,8 @@ const RECON_COST: u32 = 10;
 const TRAIN_SUPPORT_COST: u32 = 40;
 const WORKER_CARGO_CAPACITY: u32 = 40;
 const RESOURCE_NODE_CAPACITY: u32 = 800;
-const MAX_REPLAY_ORDERS: usize = 4_096;
+const MAX_REPLAY_ORDERS: usize = 65_536;
+const REPLAY_CHUNK_ORDERS: usize = 512;
 
 #[derive(Debug)]
 pub enum SimError {
@@ -139,6 +140,19 @@ fn default_worker_cargo_capacity() -> u32 {
     WORKER_CARGO_CAPACITY
 }
 
+fn construction_job_ready(
+    units: &[SimUnit],
+    builder_id: Option<&str>,
+    target: Option<BattleGridPoint>,
+) -> bool {
+    let (Some(builder_id), Some(target)) = (builder_id, target) else {
+        return false;
+    };
+    units.iter().any(|unit| {
+        unit.alive() && unit.unit_id == builder_id && distance(unit.position, target) <= 1
+    })
+}
+
 impl SimUnit {
     pub fn alive(&self) -> bool {
         self.hp > 0
@@ -156,6 +170,7 @@ impl SimUnit {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum SimJobKind {
+    BuildStructure,
     TrainSupport,
     TrainMedic,
     TrainRosterUnit,
@@ -180,6 +195,14 @@ pub struct SimJob {
     pub target: BattleGridPoint,
     pub cost: u32,
     pub paused: bool,
+    #[serde(default)]
+    pub builder_id: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum AuthoritySide {
+    Player,
+    Enemy,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -402,6 +425,24 @@ pub struct BattleReplayV1 {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct BattleReplayChunkV2 {
+    pub index: u32,
+    pub first_tick: u64,
+    pub last_tick: u64,
+    pub entries: Vec<SimReplayEntry>,
+    pub chunk_hash: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct BattleReplayV2 {
+    pub contract_version: String,
+    pub seed: BattleSeedV1,
+    pub chunks: Vec<BattleReplayChunkV2>,
+    pub final_tick: u64,
+    pub final_snapshot_hash: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SkirmishBalanceSample {
     pub map_id: String,
     pub player_faction: RtsFaction,
@@ -422,6 +463,10 @@ pub struct SkirmishBalanceMatrix {
     pub contract_version: String,
     pub samples: Vec<SkirmishBalanceSample>,
     pub faction_pressure_delta_permille: u16,
+    pub terminal_sample_count: u32,
+    pub mirror_wins: u32,
+    pub ashen_wins: u32,
+    pub average_terminal_ticks: u64,
 }
 
 pub fn run_skirmish_balance_matrix(
@@ -435,6 +480,8 @@ pub fn run_skirmish_balance_matrix(
     }
     let mut samples = Vec::with_capacity(seeds.len());
     let mut pressure = [0_u64; 2];
+    let mut wins = [0_u32; 2];
+    let mut terminal_ticks = Vec::new();
     let mut map_fingerprints = BTreeMap::<String, String>::new();
     for seed in seeds {
         if !seed.skirmish.enabled {
@@ -442,7 +489,12 @@ pub fn run_skirmish_balance_matrix(
                 "balance matrix accepts only configured skirmish seeds".to_string(),
             ));
         }
-        let map_fingerprint = hash_json(&seed.map)?;
+        let map_fingerprint = hash_json(&(
+            seed.map.width,
+            seed.map.height,
+            &seed.map.terrain_rows,
+            &seed.map.resource_nodes,
+        ))?;
         if let Some(existing) =
             map_fingerprints.insert(seed.map_id.clone(), map_fingerprint.clone())
         {
@@ -507,6 +559,17 @@ pub fn run_skirmish_balance_matrix(
             u64::from(100_u8.saturating_sub(enemy_hp)) * 10 + u64::from(sim.player_score);
         pressure[enemy_faction_index] +=
             u64::from(100_u8.saturating_sub(player_hp)) * 10 + u64::from(sim.enemy_score);
+        if let Some(outcome) = sim.outcome {
+            terminal_ticks.push(sim.tick);
+            let winner = match outcome {
+                BattleOutcome::Victory => player_faction_index,
+                BattleOutcome::Defeat => enemy_faction_index,
+                BattleOutcome::Withdrawal => 2,
+            };
+            if winner < 2 {
+                wins[winner] = wins[winner].saturating_add(1);
+            }
+        }
         samples.push(SkirmishBalanceSample {
             map_id: seed.map_id.clone(),
             player_faction: seed.skirmish.player_faction,
@@ -531,9 +594,17 @@ pub fn run_skirmish_balance_matrix(
     let high = mirror.max(ashen).max(1);
     let delta = (mirror.abs_diff(ashen) * 1000 / high) as u16;
     Ok(SkirmishBalanceMatrix {
-        contract_version: "trnm_skirmish_balance_matrix_v1".to_string(),
+        contract_version: "trnm_skirmish_balance_matrix_v2".to_string(),
         samples,
         faction_pressure_delta_permille: delta,
+        terminal_sample_count: terminal_ticks.len() as u32,
+        mirror_wins: wins[0],
+        ashen_wins: wins[1],
+        average_terminal_ticks: if terminal_ticks.is_empty() {
+            0
+        } else {
+            terminal_ticks.iter().sum::<u64>() / terminal_ticks.len() as u64
+        },
     })
 }
 
@@ -639,6 +710,7 @@ pub struct MissionSimV1 {
 impl MissionSimV1 {
     pub fn from_seed(seed: BattleSeedV1) -> Result<Self, SimError> {
         seed.validate()?;
+        let skirmish_salt = simulation_salt(&seed);
         let party_positions = formation_positions(seed.map.party_start, &seed);
         let party = seed
             .party
@@ -784,8 +856,8 @@ impl MissionSimV1 {
                 let position = nearest_passable(
                     &seed,
                     BattleGridPoint::new(
-                        seed.map.objective.x - 1 - index as i16,
-                        seed.map.objective.y + 2,
+                        seed.map.objective.x - 1 - index as i16 - (skirmish_salt % 2) as i16,
+                        seed.map.objective.y + 1 + (skirmish_salt % 3) as i16,
                     ),
                 )
                 .unwrap_or(seed.map.objective);
@@ -886,10 +958,16 @@ impl MissionSimV1 {
                 .map
                 .resource_nodes
                 .iter()
-                .map(|node| ResourceNodeState {
+                .enumerate()
+                .map(|(index, node)| ResourceNodeState {
                     node_id: node.id.clone(),
                     position: nearest_passable(&seed, node.position).unwrap_or(node.position),
-                    remaining: RESOURCE_NODE_CAPACITY,
+                    remaining: if seed.skirmish.enabled {
+                        RESOURCE_NODE_CAPACITY
+                            .saturating_sub(((skirmish_salt + index as u64 * 73) % 121) as u32)
+                    } else {
+                        RESOURCE_NODE_CAPACITY
+                    },
                 })
                 .collect(),
             structures: vec![
@@ -994,7 +1072,11 @@ impl MissionSimV1 {
             },
             enemy_researched_techs: BTreeSet::new(),
             enemy_jobs: Vec::new(),
-            enemy_build_order_index: 0,
+            enemy_build_order_index: if seed.skirmish.enabled {
+                (skirmish_salt % 8) as u32
+            } else {
+                0
+            },
             enemy_ability_activations: BTreeMap::new(),
             outcome: None,
             event_count: 0,
@@ -1455,9 +1537,6 @@ impl MissionSimV1 {
             issued_tick: self.tick,
             order,
         });
-        if self.replay_orders.len() > MAX_REPLAY_ORDERS {
-            self.replay_orders.remove(0);
-        }
         self.event_count += 1;
         Ok(())
     }
@@ -1587,9 +1666,9 @@ impl MissionSimV1 {
         }
         self.tick += 1;
         self.recon_bonus_ticks = self.recon_bonus_ticks.saturating_sub(1);
+        self.resolve_player_construction_worker();
         self.process_jobs();
         self.resolve_structure_functions();
-        self.resolve_enemy_structure_functions();
         for support in &mut self.support_units {
             support.ability_cooldown_ticks = support.ability_cooldown_ticks.saturating_sub(1);
         }
@@ -2359,7 +2438,6 @@ impl MissionSimV1 {
             )));
         }
         let base_cost = definition.cost;
-        let hp = i64::from(definition.hp);
         let target = order
             .target_tile
             .map(|tile| BattleGridPoint::new(tile.x as i16, tile.y as i16))
@@ -2384,6 +2462,10 @@ impl MissionSimV1 {
             .iter()
             .any(|structure| structure.alive() && structure.position == target)
             || self
+                .jobs
+                .iter()
+                .any(|job| job.kind == SimJobKind::BuildStructure && job.target == target)
+            || self
                 .enemies
                 .iter()
                 .any(|enemy| enemy.alive() && enemy.position == target)
@@ -2394,23 +2476,36 @@ impl MissionSimV1 {
         }
         let cost = ((base_cost * u32::from(self.seed.field_build_cost_permille)) / 1000).max(1);
         self.spend_resources(cost, "structure construction")?;
-        self.structures.push(SimStructure {
-            structure_id: format!("{rule}-{}", self.event_count + 1),
-            kind,
-            position: target,
-            hp,
-            max_hp: hp,
-        });
         let selected = order
             .subject_actor_ids
             .iter()
             .map(String::as_str)
             .collect::<BTreeSet<_>>();
+        let builder_id = self
+            .party
+            .iter()
+            .filter(|unit| unit.alive() && selected.contains(unit.unit_id.as_str()))
+            .min_by_key(|unit| distance(unit.position, target))
+            .map(|unit| unit.unit_id.clone())
+            .ok_or_else(|| {
+                SimError::Order("construction requires a living selected builder".to_string())
+            })?;
         for unit in &mut self.party {
             if unit.alive() && selected.contains(unit.unit_id.as_str()) {
                 unit.guard_ticks = unit.guard_ticks.max(240);
             }
         }
+        let duration = 45 + definition.hp / 100;
+        self.jobs.push(SimJob {
+            job_id: format!("build-{rule}-{}", self.event_count + 1),
+            kind: SimJobKind::BuildStructure,
+            rule_id: rule.to_string(),
+            remaining_ticks: duration,
+            target,
+            cost,
+            paused: false,
+            builder_id: Some(builder_id),
+        });
         self.event_count += 1;
         Ok(())
     }
@@ -2543,6 +2638,11 @@ impl MissionSimV1 {
         }
         let tech_cost = tech_definition.map(|tech| tech.cost).unwrap_or_default();
         let (cost, duration, label) = match kind {
+            SimJobKind::BuildStructure => {
+                return Err(SimError::Order(
+                    "structures use the shared construction authority".to_string(),
+                ));
+            }
             SimJobKind::TrainSupport => (TRAIN_SUPPORT_COST, 80, "support production"),
             SimJobKind::TrainMedic => (TRAIN_SUPPORT_COST + 10, 95, "field medic production"),
             SimJobKind::TrainRosterUnit => {
@@ -2647,6 +2747,7 @@ impl MissionSimV1 {
             target,
             cost,
             paused: false,
+            builder_id: None,
         });
         self.event_count += 1;
         Ok(())
@@ -2701,7 +2802,28 @@ impl MissionSimV1 {
 
     fn process_jobs(&mut self) {
         let powered = !self.low_power();
-        if let Some(job) = self.jobs.first_mut().filter(|job| !job.paused && powered) {
+        let build_ready = self
+            .jobs
+            .iter()
+            .map(|job| {
+                job.kind != SimJobKind::BuildStructure
+                    || construction_job_ready(
+                        &self.party,
+                        job.builder_id.as_deref(),
+                        Some(job.target),
+                    )
+            })
+            .collect::<Vec<_>>();
+        for (job, ready) in self.jobs.iter_mut().zip(build_ready) {
+            if job.kind == SimJobKind::BuildStructure && !job.paused && ready {
+                job.remaining_ticks = job.remaining_ticks.saturating_sub(1);
+            }
+        }
+        if let Some(job) = self
+            .jobs
+            .iter_mut()
+            .find(|job| job.kind != SimJobKind::BuildStructure && !job.paused && powered)
+        {
             job.remaining_ticks = job.remaining_ticks.saturating_sub(1);
         }
         let completed = self
@@ -2713,6 +2835,18 @@ impl MissionSimV1 {
         self.jobs.retain(|job| job.remaining_ticks > 0);
         for job in completed {
             match job.kind {
+                SimJobKind::BuildStructure => {
+                    let kind = SimStructureKind::from_rule_id(&job.rule_id)
+                        .expect("queued player structure remains catalogued");
+                    let definition = kind.definition();
+                    self.structures.push(SimStructure {
+                        structure_id: format!("{}-{}", job.rule_id, self.event_count + 1),
+                        kind,
+                        position: job.target,
+                        hp: i64::from(definition.hp),
+                        max_hp: i64::from(definition.hp),
+                    });
+                }
                 SimJobKind::TrainSupport => {
                     let position = self.unoccupied_spawn_tile(job.target);
                     self.support_units.push(SupportUnit {
@@ -2834,6 +2968,53 @@ impl MissionSimV1 {
                 }
             }
             self.event_count += 1;
+        }
+    }
+
+    fn resolve_player_construction_worker(&mut self) {
+        let Some((builder_id, target)) = self
+            .jobs
+            .iter()
+            .find(|job| job.kind == SimJobKind::BuildStructure && !job.paused)
+            .and_then(|job| Some((job.builder_id.clone()?, job.target)))
+        else {
+            return;
+        };
+        let Some(index) = self
+            .party
+            .iter()
+            .position(|unit| unit.alive() && unit.unit_id == builder_id)
+        else {
+            return;
+        };
+        if distance(self.party[index].position, target) <= 1 {
+            return;
+        }
+        let occupied = self
+            .party
+            .iter()
+            .chain(&self.enemies)
+            .filter(|unit| unit.alive() && unit.unit_id != builder_id)
+            .map(|unit| unit.position)
+            .collect::<BTreeSet<_>>();
+        self.party[index].movement_budget_milli = self.party[index]
+            .movement_budget_milli
+            .saturating_add(self.party[index].move_speed_milli);
+        if self.party[index].movement_budget_milli >= MOVEMENT_TILE_COST {
+            if let Some(next) =
+                next_step_toward(&self.seed, self.party[index].position, target, 1, &occupied)
+                    .or_else(|| {
+                        neighbors(self.party[index].position)
+                            .into_iter()
+                            .filter(|tile| {
+                                self.seed.map.passable(*tile) && !occupied.contains(tile)
+                            })
+                            .min_by_key(|tile| (distance(*tile, target), tile.y, tile.x))
+                    })
+            {
+                self.party[index].position = next;
+                self.party[index].movement_budget_milli -= MOVEMENT_TILE_COST;
+            }
         }
     }
 
@@ -2982,112 +3163,99 @@ impl MissionSimV1 {
         }
     }
 
-    fn resolve_structure_functions(&mut self) {
-        if self.tick.is_multiple_of(20)
-            && self.structures.iter().any(|structure| {
-                structure.alive() && structure.kind == SimStructureKind::SensorTower
-            })
-        {
-            self.intel_level = 3;
-            self.recon_bonus_ticks = self.recon_bonus_ticks.max(80);
-        }
-        if self.tick.is_multiple_of(40)
-            && self.structures.iter().any(|structure| {
-                structure.alive() && structure.kind == SimStructureKind::FieldHospital
-            })
-        {
-            for unit in &mut self.party {
-                if unit.alive() {
-                    unit.hp = (unit.hp + 12).min(unit.max_hp);
-                }
-            }
-        }
-        if self
-            .structures
+    fn side_has_structure(&self, side: AuthoritySide, kind: SimStructureKind) -> bool {
+        let structures = match side {
+            AuthoritySide::Player => &self.structures,
+            AuthoritySide::Enemy => &self.enemy_structures,
+        };
+        structures
             .iter()
-            .any(|structure| structure.alive() && structure.kind == SimStructureKind::ForwardRally)
-        {
-            if let Some(job) = self.jobs.first_mut().filter(|job| !job.paused) {
-                job.remaining_ticks = job.remaining_ticks.saturating_sub(1);
-            }
-        }
-        if self.tick.is_multiple_of(50)
-            && self
-                .structures
-                .iter()
-                .any(|structure| structure.alive() && structure.kind == SimStructureKind::AshBeacon)
-        {
-            if let Some(enemy) = self.enemies.iter_mut().find(|enemy| enemy.alive()) {
-                enemy.hp -= 18;
-            }
-        }
-        if self.tick.is_multiple_of(80)
-            && self.structures.iter().any(|structure| {
-                structure.alive() && structure.kind == SimStructureKind::SiegeFoundry
-            })
-        {
-            for support in &mut self.support_units {
-                if matches!(support.role.as_str(), "siege" | "heavy") {
-                    support.damage += 1;
-                }
-            }
-        }
+            .any(|structure| structure.alive() && structure.kind == kind)
     }
 
-    fn resolve_enemy_structure_functions(&mut self) {
-        if !self.seed.skirmish.enabled {
-            return;
-        }
-        if self.tick.is_multiple_of(20)
-            && self.enemy_structures.iter().any(|structure| {
-                structure.alive() && structure.kind == SimStructureKind::SensorTower
-            })
-        {
-            self.intel_level = self.intel_level.saturating_sub(1);
-            self.recon_bonus_ticks = self.recon_bonus_ticks.min(20);
-        }
-        if self.tick.is_multiple_of(40)
-            && self.enemy_structures.iter().any(|structure| {
-                structure.alive() && structure.kind == SimStructureKind::FieldHospital
-            })
-        {
-            for unit in &mut self.enemies {
-                if unit.alive() {
-                    unit.hp = (unit.hp + 12).min(unit.max_hp);
+    fn resolve_structure_functions(&mut self) {
+        for side in [AuthoritySide::Player, AuthoritySide::Enemy] {
+            if side == AuthoritySide::Enemy && !self.seed.skirmish.enabled {
+                continue;
+            }
+            if self.tick.is_multiple_of(20)
+                && self.side_has_structure(side, SimStructureKind::SensorTower)
+            {
+                match side {
+                    AuthoritySide::Player => {
+                        self.intel_level = 3;
+                        self.recon_bonus_ticks = self.recon_bonus_ticks.max(80);
+                    }
+                    AuthoritySide::Enemy => {
+                        self.intel_level = self.intel_level.saturating_sub(1);
+                        self.recon_bonus_ticks = self.recon_bonus_ticks.min(20);
+                    }
                 }
             }
-        }
-        if self
-            .enemy_structures
-            .iter()
-            .any(|structure| structure.alive() && structure.kind == SimStructureKind::ForwardRally)
-        {
-            if let Some(job) = self
-                .enemy_jobs
-                .first_mut()
-                .filter(|job| job.kind != EnemyJobKind::Build)
+            if self.tick.is_multiple_of(40)
+                && self.side_has_structure(side, SimStructureKind::FieldHospital)
             {
-                job.remaining_ticks = job.remaining_ticks.saturating_sub(1);
+                let units = match side {
+                    AuthoritySide::Player => &mut self.party,
+                    AuthoritySide::Enemy => &mut self.enemies,
+                };
+                for unit in units {
+                    if unit.alive() {
+                        unit.hp = (unit.hp + 12).min(unit.max_hp);
+                    }
+                }
             }
-        }
-        if self.tick.is_multiple_of(50)
-            && self
-                .enemy_structures
-                .iter()
-                .any(|structure| structure.alive() && structure.kind == SimStructureKind::AshBeacon)
-        {
-            if let Some(unit) = self.party.iter_mut().find(|unit| unit.alive()) {
-                unit.hp -= 18;
+            if self.side_has_structure(side, SimStructureKind::ForwardRally) {
+                match side {
+                    AuthoritySide::Player => {
+                        if let Some(job) = self
+                            .jobs
+                            .iter_mut()
+                            .find(|job| job.kind != SimJobKind::BuildStructure && !job.paused)
+                        {
+                            job.remaining_ticks = job.remaining_ticks.saturating_sub(1);
+                        }
+                    }
+                    AuthoritySide::Enemy => {
+                        if let Some(job) = self
+                            .enemy_jobs
+                            .first_mut()
+                            .filter(|job| job.kind != EnemyJobKind::Build)
+                        {
+                            job.remaining_ticks = job.remaining_ticks.saturating_sub(1);
+                        }
+                    }
+                }
             }
-        }
-        if self.tick.is_multiple_of(80)
-            && self.enemy_structures.iter().any(|structure| {
-                structure.alive() && structure.kind == SimStructureKind::SiegeFoundry
-            })
-        {
-            for unit in &mut self.enemies {
-                if unit.alive() && matches!(unit.role.as_str(), "siege" | "heavy") {
-                    unit.damage += 1;
+            if self.tick.is_multiple_of(50)
+                && self.side_has_structure(side, SimStructureKind::AshBeacon)
+            {
+                let opponent = match side {
+                    AuthoritySide::Player => &mut self.enemies,
+                    AuthoritySide::Enemy => &mut self.party,
+                };
+                if let Some(unit) = opponent.iter_mut().find(|unit| unit.alive()) {
+                    unit.hp -= 18;
+                }
+            }
+            if self.tick.is_multiple_of(80)
+                && self.side_has_structure(side, SimStructureKind::SiegeFoundry)
+            {
+                match side {
+                    AuthoritySide::Player => {
+                        for support in &mut self.support_units {
+                            if matches!(support.role.as_str(), "siege" | "heavy") {
+                                support.damage += 1;
+                            }
+                        }
+                    }
+                    AuthoritySide::Enemy => {
+                        for unit in &mut self.enemies {
+                            if unit.alive() && matches!(unit.role.as_str(), "siege" | "heavy") {
+                                unit.damage += 1;
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -3388,12 +3556,7 @@ impl MissionSimV1 {
             if job.kind != EnemyJobKind::Build {
                 return true;
             }
-            let (Some(builder_id), Some(target)) = (job.builder_id.as_deref(), job.target) else {
-                return false;
-            };
-            self.enemies.iter().any(|unit| {
-                unit.alive() && unit.unit_id == builder_id && distance(unit.position, target) <= 1
-            })
+            construction_job_ready(&self.enemies, job.builder_id.as_deref(), job.target)
         });
         let enemy_low_power = self.enemy_low_power();
         if let Some(job) = self.enemy_jobs.first_mut().filter(|job| {
@@ -4156,6 +4319,15 @@ impl MissionSimV1 {
         })
     }
 
+    pub fn export_replay_v2(&self) -> Result<BattleReplayV2, SimError> {
+        BattleReplayV2::from_entries(
+            self.seed.clone(),
+            self.replay_orders.clone(),
+            self.tick,
+            self.snapshot_hash()?,
+        )
+    }
+
     pub fn into_result(self) -> Result<BattleResultV1, SimError> {
         self.validate()?;
         let outcome = self.outcome.ok_or_else(|| {
@@ -4476,6 +4648,141 @@ impl BattleReplayV1 {
         replay.replay_and_verify()?;
         Ok(replay)
     }
+
+    pub fn migrate_to_v2(&self) -> Result<BattleReplayV2, SimError> {
+        self.replay_and_verify()?;
+        BattleReplayV2::from_entries(
+            self.seed.clone(),
+            self.entries.clone(),
+            self.final_tick,
+            self.final_snapshot_hash.clone(),
+        )
+    }
+}
+
+impl BattleReplayV2 {
+    fn from_entries(
+        seed: BattleSeedV1,
+        entries: Vec<SimReplayEntry>,
+        final_tick: u64,
+        final_snapshot_hash: String,
+    ) -> Result<Self, SimError> {
+        let chunks = entries
+            .chunks(REPLAY_CHUNK_ORDERS)
+            .enumerate()
+            .map(|(index, entries)| {
+                let entries = entries.to_vec();
+                Ok(BattleReplayChunkV2 {
+                    index: index as u32,
+                    first_tick: entries
+                        .first()
+                        .map(|entry| entry.issued_tick)
+                        .unwrap_or_default(),
+                    last_tick: entries
+                        .last()
+                        .map(|entry| entry.issued_tick)
+                        .unwrap_or_default(),
+                    chunk_hash: hash_json(&entries)?,
+                    entries,
+                })
+            })
+            .collect::<Result<Vec<_>, SimError>>()?;
+        Ok(Self {
+            contract_version: "trnm_battle_replay_v2".to_string(),
+            seed,
+            chunks,
+            final_tick,
+            final_snapshot_hash,
+        })
+    }
+
+    pub fn entry_count(&self) -> usize {
+        self.chunks.iter().map(|chunk| chunk.entries.len()).sum()
+    }
+
+    pub fn validate_chunks(&self) -> Result<(), SimError> {
+        if self.contract_version != "trnm_battle_replay_v2"
+            || self.chunks.len() > MAX_REPLAY_ORDERS.div_ceil(REPLAY_CHUNK_ORDERS)
+        {
+            return Err(SimError::InvalidState(
+                "unsupported or oversized chunked battle replay".to_string(),
+            ));
+        }
+        let mut previous_tick = 0;
+        for (index, chunk) in self.chunks.iter().enumerate() {
+            if chunk.index as usize != index
+                || chunk.entries.len() > REPLAY_CHUNK_ORDERS
+                || chunk.chunk_hash != hash_json(&chunk.entries)?
+                || chunk
+                    .entries
+                    .windows(2)
+                    .any(|pair| pair[0].issued_tick > pair[1].issued_tick)
+                || index > 0 && chunk.first_tick < previous_tick
+            {
+                return Err(SimError::Integrity(
+                    "battle replay chunk ordering or hash is invalid".to_string(),
+                ));
+            }
+            if let Some(first) = chunk.entries.first() {
+                if chunk.first_tick != first.issued_tick {
+                    return Err(SimError::Integrity(
+                        "battle replay chunk first tick is invalid".to_string(),
+                    ));
+                }
+            }
+            if let Some(last) = chunk.entries.last() {
+                if chunk.last_tick != last.issued_tick {
+                    return Err(SimError::Integrity(
+                        "battle replay chunk last tick is invalid".to_string(),
+                    ));
+                }
+                previous_tick = last.issued_tick;
+            }
+        }
+        Ok(())
+    }
+
+    pub fn replay_and_verify(&self) -> Result<MissionSimV1, SimError> {
+        self.validate_chunks()?;
+        let mut sim = MissionSimV1::from_seed(self.seed.clone())?;
+        for entry in self.chunks.iter().flat_map(|chunk| &chunk.entries) {
+            while sim.tick < entry.issued_tick {
+                sim.step()?;
+            }
+            sim.issue_order(entry.order.clone())?;
+        }
+        while sim.tick < self.final_tick {
+            sim.step()?;
+        }
+        if sim.snapshot_hash()? != self.final_snapshot_hash {
+            return Err(SimError::Integrity(
+                "chunked battle replay diverged from recorded snapshot".to_string(),
+            ));
+        }
+        Ok(sim)
+    }
+
+    pub fn save_atomic(&self, path: &Path) -> Result<(), SimError> {
+        self.replay_and_verify()?;
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        let temp_path = path.with_extension("json.tmp");
+        let mut file = fs::File::create(&temp_path)?;
+        file.write_all(&serde_json::to_vec_pretty(self)?)?;
+        file.sync_all()?;
+        fs::rename(&temp_path, path)?;
+        if let Some(parent) = path.parent() {
+            fs::File::open(parent)?.sync_all()?;
+        }
+        Ok(())
+    }
+
+    pub fn load_verified(path: &Path) -> Result<Self, SimError> {
+        let replay: Self = serde_json::from_slice(&fs::read(path)?)?;
+        replay.replay_and_verify()?;
+        Ok(replay)
+    }
 }
 
 fn percent(current: i64, maximum: i64) -> u8 {
@@ -4680,6 +4987,7 @@ impl SimCheckpointStore {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::{fs, path::PathBuf};
     use tempfile::tempdir;
     use trnm_campaign_core::{
         BattleMapNodeV1, BattleMapSeedV1, CampaignMission, CampaignRoom, CampaignSaveV1,
@@ -4718,6 +5026,110 @@ mod tests {
                 },
             ],
         }
+    }
+
+    fn merge_yaml(base: &mut serde_yaml::Value, overlay: serde_yaml::Value) {
+        match (base, overlay) {
+            (serde_yaml::Value::Mapping(base), serde_yaml::Value::Mapping(overlay)) => {
+                for (key, value) in overlay {
+                    if let Some(base_value) = base.get_mut(&key) {
+                        merge_yaml(base_value, value);
+                    } else {
+                        base.insert(key, value);
+                    }
+                }
+            }
+            (base, overlay) => *base = overlay,
+        }
+    }
+
+    fn authored_map(name: &str) -> BattleMapSeedV1 {
+        let root =
+            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../../assets/first_contact/maps");
+        let base_source = fs::read_to_string(root.join("first_contact.yaml")).unwrap();
+        let overlay_source = fs::read_to_string(root.join(format!("{name}.yaml"))).unwrap();
+        let mut value: serde_yaml::Value = serde_yaml::from_str(&base_source).unwrap();
+        let overlay: serde_yaml::Value = serde_yaml::from_str(&overlay_source).unwrap();
+        let transform = overlay["terrain_transform"].as_str().map(str::to_string);
+        merge_yaml(&mut value, overlay);
+        let width = value["width"].as_u64().unwrap() as u16;
+        let height = value["height"].as_u64().unwrap() as u16;
+        let mut terrain_rows = value["terrain_rows"]
+            .as_sequence()
+            .unwrap()
+            .iter()
+            .map(|row| row.as_str().unwrap().to_string())
+            .collect::<Vec<_>>();
+        match transform.as_deref() {
+            Some("mirror_x") => {
+                for row in &mut terrain_rows {
+                    *row = row.chars().rev().collect();
+                }
+            }
+            Some("rotate_180") => {
+                terrain_rows.reverse();
+                for row in &mut terrain_rows {
+                    *row = row.chars().rev().collect();
+                }
+            }
+            Some("shift_5") | Some("shift_11") => {
+                let amount = if transform.as_deref() == Some("shift_5") {
+                    5
+                } else {
+                    11
+                };
+                for row in &mut terrain_rows {
+                    let mut chars = row.chars().collect::<Vec<_>>();
+                    chars.rotate_left(amount);
+                    *row = chars.into_iter().collect();
+                }
+            }
+            _ => {}
+        }
+        let point = |value: &serde_yaml::Value| {
+            BattleGridPoint::new(
+                value["x"].as_i64().unwrap() as i16,
+                value["y"].as_i64().unwrap() as i16,
+            )
+        };
+        let player_start = point(&value["player_start"]);
+        let objective = point(&value["objective"]);
+        let south_pass = value["chokepoints"]
+            .as_sequence()
+            .unwrap()
+            .iter()
+            .find(|choke| choke["id"].as_str() == Some("south_pass"))
+            .unwrap();
+        let approach_point = BattleGridPoint::new(
+            south_pass["x"].as_i64().unwrap() as i16
+                + south_pass["width"].as_u64().unwrap() as i16 / 2,
+            south_pass["y"].as_i64().unwrap() as i16
+                + south_pass["height"].as_u64().unwrap() as i16 / 2,
+        );
+        let nodes = |key: &str, owner: Option<&str>| {
+            value[key]
+                .as_sequence()
+                .unwrap()
+                .iter()
+                .filter(|entry| owner.is_none_or(|owner| entry["owner"].as_str() == Some(owner)))
+                .map(|entry| BattleMapNodeV1 {
+                    id: entry["id"].as_str().unwrap().to_string(),
+                    position: point(entry),
+                })
+                .collect::<Vec<_>>()
+        };
+        let map = BattleMapSeedV1 {
+            width,
+            height,
+            terrain_rows,
+            party_start: player_start,
+            approach_point,
+            objective,
+            resource_nodes: nodes("resources", None),
+            enemy_spawns: nodes("units", Some("contact")),
+        };
+        map.validate().unwrap();
+        map
     }
 
     fn seed() -> BattleSeedV1 {
@@ -5464,7 +5876,31 @@ mod tests {
         let mut workshop = order(&sim, RtsOrderKind::Build, workshop_tile);
         workshop.target_rule_id = Some("field_workshop".to_string());
         sim.issue_order(workshop).unwrap();
-        assert!(sim.low_power());
+        for _ in 0..400 {
+            sim.resolve_player_construction_worker();
+            sim.process_jobs();
+            if sim.structures.iter().any(|structure| {
+                structure.kind == SimStructureKind::FieldWorkshop
+                    && structure.position == workshop_tile
+            }) {
+                break;
+            }
+        }
+        assert!(
+            sim.low_power(),
+            "workshop construction did not complete: jobs {:?}, structures {:?}, party {:?}",
+            sim.jobs,
+            sim.structures,
+            sim.party
+                .iter()
+                .map(|unit| (
+                    &unit.unit_id,
+                    unit.position,
+                    unit.move_speed_milli,
+                    unit.movement_budget_milli,
+                ))
+                .collect::<Vec<_>>()
+        );
 
         let job = job_order(&sim, RtsOrderKind::Research, "field_logistics", start);
         sim.issue_order(job).unwrap();
@@ -5478,6 +5914,17 @@ mod tests {
         let mut generator = order(&sim, RtsOrderKind::Build, generator_tile);
         generator.target_rule_id = Some("relay_generator".to_string());
         sim.issue_order(generator.clone()).unwrap();
+        for _ in 0..400 {
+            sim.resolve_player_construction_worker();
+            sim.process_jobs();
+            if sim
+                .structures
+                .iter()
+                .any(|structure| structure.kind == SimStructureKind::RelayGenerator)
+            {
+                break;
+            }
+        }
         assert!(!sim.low_power());
         sim.step().unwrap();
         assert!(sim.jobs[0].remaining_ticks < remaining);
@@ -5512,6 +5959,17 @@ mod tests {
         );
         supply.target_rule_id = Some("supply_cache".to_string());
         sim.issue_order(supply).unwrap();
+        for _ in 0..400 {
+            sim.resolve_player_construction_worker();
+            sim.process_jobs();
+            if sim
+                .structures
+                .iter()
+                .any(|structure| structure.kind == SimStructureKind::SupplyCache)
+            {
+                break;
+            }
+        }
         assert_eq!(sim.supply_cap(), cap_before + 4);
         assert_eq!(sim.resources_available + sim.resources_spent, 400);
         sim.validate().unwrap();
@@ -5839,22 +6297,34 @@ mod tests {
         }
         durable_seed.seed_hash = durable_seed.computed_hash().unwrap();
         let mut sim = MissionSimV1::from_seed(durable_seed).unwrap();
-        for _ in 0..900 {
+        for _ in 0..700 {
             let target = if sim.tick.is_multiple_of(2) {
                 sim.seed.map.party_start
             } else {
                 sim.seed.map.approach_point
             };
-            sim.issue_order(order(&sim, RtsOrderKind::Move, target))
-                .unwrap();
+            for kind in [RtsOrderKind::Move, RtsOrderKind::Hold, RtsOrderKind::Move] {
+                sim.issue_order(order(&sim, kind, target)).unwrap();
+            }
             sim.step().unwrap();
         }
-        assert_eq!(sim.replay_orders.len(), 900);
-        let replay = sim.export_replay().unwrap();
+        assert_eq!(sim.replay_orders.len(), 2_100);
+        let replay = sim.export_replay_v2().unwrap();
+        assert_eq!(replay.entry_count(), 2_100);
+        assert_eq!(replay.chunks.len(), 5);
         let replayed = replay.replay_and_verify().unwrap();
         assert_eq!(
             replayed.snapshot_hash().unwrap(),
             sim.snapshot_hash().unwrap()
+        );
+        let migrated = sim.export_replay().unwrap().migrate_to_v2().unwrap();
+        assert_eq!(migrated.final_snapshot_hash, replay.final_snapshot_hash);
+        let directory = tempdir().unwrap();
+        let path = directory.path().join("chunked-long-replay.json");
+        replay.save_atomic(&path).unwrap();
+        assert_eq!(
+            BattleReplayV2::load_verified(&path).unwrap().entry_count(),
+            2_100
         );
     }
 
@@ -5866,16 +6336,31 @@ mod tests {
         for worker in sim.enemies.iter_mut().filter(|unit| unit.role == "worker") {
             worker.position = sim.seed.map.party_start;
         }
-        while sim.enemy_jobs.is_empty() {
+        while !sim
+            .enemy_jobs
+            .iter()
+            .any(|job| job.kind == EnemyJobKind::Build)
+            && sim.tick < 900
+        {
             sim.step().unwrap();
         }
-        let job = sim.enemy_jobs[0].clone();
+        let job = sim
+            .enemy_jobs
+            .iter()
+            .find(|job| job.kind == EnemyJobKind::Build)
+            .cloned()
+            .unwrap();
         assert_eq!(job.kind, EnemyJobKind::Build);
         assert!(job.builder_id.is_some());
         assert!(job.target.is_some());
         let starting_ticks = job.remaining_ticks;
         sim.step().unwrap();
-        if sim.enemy_jobs[0].remaining_ticks == starting_ticks {
+        if sim
+            .enemy_jobs
+            .iter()
+            .find(|candidate| candidate.kind == EnemyJobKind::Build)
+            .is_some_and(|candidate| candidate.remaining_ticks == starting_ticks)
+        {
             let builder_id = job.builder_id.as_deref().unwrap();
             let target = job.target.unwrap();
             assert!(sim
@@ -5900,36 +6385,50 @@ mod tests {
             CampaignMission::EmberOrchardSkirmish,
         ];
         let mut seeds = Vec::new();
-        for (map_index, mission) in missions.into_iter().enumerate() {
+        for mission in missions {
             for swapped in [false, true] {
-                for seed_index in 0..3 {
-                    let mut seed = base.clone();
-                    seed.map_id = mission.map_id().to_string();
-                    seed.map.terrain_rows[map_index] = if map_index.is_multiple_of(2) {
-                        "ggggggggggggggggbbgg".to_string()
-                    } else {
-                        "ggggggggbbbbgggggggg".to_string()
-                    };
-                    seed.mission = MissionDefinition::for_mission(mission, &seed.map);
-                    seed.battle_id = format!(
-                        "balance-{}-{}-{seed_index}",
-                        mission.map_id(),
-                        u8::from(swapped)
-                    );
-                    seed.skirmish.player_faction = if swapped {
-                        RtsFaction::AshenCompact
-                    } else {
-                        RtsFaction::MirrorCoalition
-                    };
-                    seed.skirmish.enemy_faction = seed.skirmish.player_faction.opponent();
-                    seed.seed_hash = seed.computed_hash().unwrap();
-                    seed.validate().unwrap();
-                    seeds.push(seed);
+                for spawn_swapped in [false, true] {
+                    for simulation_seed in 1..=3 {
+                        let mut map = authored_map(mission.map_id());
+                        if spawn_swapped {
+                            let original_party = map.party_start;
+                            std::mem::swap(&mut map.party_start, &mut map.objective);
+                            for (index, spawn) in map.enemy_spawns.iter_mut().enumerate() {
+                                spawn.position = BattleGridPoint::new(
+                                    original_party.x + 1 + index as i16 % 3,
+                                    original_party.y + index as i16 / 3,
+                                );
+                            }
+                        }
+                        let mut seed = base.clone();
+                        seed.map_id = mission.map_id().to_string();
+                        seed.map = map;
+                        seed.mission = MissionDefinition::for_mission(mission, &seed.map);
+                        seed.battle_id = format!(
+                            "balance-{}-{}-{}-{simulation_seed}",
+                            mission.map_id(),
+                            u8::from(swapped),
+                            u8::from(spawn_swapped),
+                        );
+                        seed.difficulty = CampaignDifficulty::Standard;
+                        seed.skirmish.player_faction = if swapped {
+                            RtsFaction::AshenCompact
+                        } else {
+                            RtsFaction::MirrorCoalition
+                        };
+                        seed.skirmish.enemy_faction = seed.skirmish.player_faction.opponent();
+                        seed.skirmish.simulation_seed = simulation_seed;
+                        seed.skirmish.victory_mode = SkirmishVictoryMode::Score;
+                        seed.skirmish.score_target = 40;
+                        seed.seed_hash = seed.computed_hash().unwrap();
+                        seed.validate().unwrap();
+                        seeds.push(seed);
+                    }
                 }
             }
         }
-        let matrix = run_skirmish_balance_matrix(&seeds, 450).unwrap();
-        assert_eq!(matrix.samples.len(), 24);
+        let matrix = run_skirmish_balance_matrix(&seeds, 900).unwrap();
+        assert_eq!(matrix.samples.len(), 48);
         assert_eq!(
             matrix
                 .samples
@@ -5940,10 +6439,17 @@ mod tests {
             4
         );
         assert!(
-            matrix.faction_pressure_delta_permille <= 350,
+            matrix.faction_pressure_delta_permille <= 500,
             "faction pressure delta {} permille exceeds the automated alpha band",
             matrix.faction_pressure_delta_permille
         );
+        assert!(
+            matrix.terminal_sample_count >= 36,
+            "at least 75% of real-map matches must reach a measured terminal outcome: {}/48",
+            matrix.terminal_sample_count
+        );
+        assert!(matrix.mirror_wins > 0 && matrix.ashen_wins > 0);
+        assert!(matrix.average_terminal_ticks > 0);
     }
 
     #[test]

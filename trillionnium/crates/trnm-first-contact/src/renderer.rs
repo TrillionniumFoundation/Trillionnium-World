@@ -77,6 +77,43 @@ pub(super) fn atlas_sprite(
     }
 }
 
+pub(super) fn attach_identity_geometry(
+    commands: &mut Commands,
+    parent: Entity,
+    family_id: &str,
+    tile_size: f32,
+    hostile: bool,
+) {
+    let signature = family_id.bytes().fold(2_166_136_261_u32, |hash, byte| {
+        (hash ^ u32::from(byte)).wrapping_mul(16_777_619)
+    });
+    let width = tile_size * (0.18 + (signature & 7) as f32 * 0.025);
+    let height = tile_size * (0.08 + ((signature >> 3) & 3) as f32 * 0.025);
+    let offset_x = (((signature >> 5) & 7) as f32 - 3.5) * tile_size * 0.035;
+    let offset_y = tile_size * (0.26 + ((signature >> 8) & 3) as f32 * 0.04);
+    let angle = (((signature >> 10) & 15) as f32 - 7.5) * 0.075;
+    let accent = if hostile {
+        Color::srgb(1.0, 0.35 + ((signature >> 14) & 3) as f32 * 0.08, 0.22)
+    } else {
+        Color::srgb(0.25, 0.72 + ((signature >> 14) & 3) as f32 * 0.07, 0.92)
+    };
+    commands.entity(parent).with_children(|children| {
+        children.spawn((
+            Sprite::from_color(accent, Vec2::new(width, height)),
+            Transform::from_xyz(offset_x, offset_y, 0.4)
+                .with_rotation(Quat::from_rotation_z(angle)),
+        ));
+        children.spawn((
+            Sprite::from_color(
+                Color::srgba(0.04, 0.07, 0.08, 0.95),
+                Vec2::new(height * 0.65, width * 0.72),
+            ),
+            Transform::from_xyz(-offset_x * 0.6, -offset_y * 0.42, 0.35)
+                .with_rotation(Quat::from_rotation_z(-angle * 0.7)),
+        ));
+    });
+}
+
 fn terrain_frame_name(key: char, alternate: bool) -> &'static str {
     match (key, alternate) {
         ('g', false) => "moss_a",
@@ -293,18 +330,32 @@ pub(super) fn spawn_first_contact_live_scene(
         if structure.owner == "contact" && family.tint == [1.0, 1.0, 1.0] {
             sprite.color = Color::srgb(1.0, 0.76, 0.72);
         }
-        commands.spawn((
-            sprite,
-            Transform::from_translation(map_world_position(&map, structure.x, structure.y, 5.0))
+        let entity = commands
+            .spawn((
+                sprite,
+                Transform::from_translation(map_world_position(
+                    &map,
+                    structure.x,
+                    structure.y,
+                    5.0,
+                ))
                 .with_rotation(Quat::from_rotation_z(
                     family.silhouette_rotation_degrees.to_radians(),
                 )),
-            FirstContactStructureSprite {
-                id: structure.id.clone(),
-                family: structure.family.clone(),
-                active: structure.active,
-            },
-        ));
+                FirstContactStructureSprite {
+                    id: structure.id.clone(),
+                    family: structure.family.clone(),
+                    active: structure.active,
+                },
+            ))
+            .id();
+        attach_identity_geometry(
+            &mut commands,
+            entity,
+            &structure.family,
+            tile_size,
+            structure.owner == "contact",
+        );
     }
 
     let ring_frame = manifest.effect_frames["selection_ring"];
@@ -340,17 +391,26 @@ pub(super) fn spawn_first_contact_live_scene(
         if unit.owner == "contact" && family.tint == [1.0, 1.0, 1.0] {
             sprite.color = Color::srgb(1.0, 0.74, 0.70);
         }
-        commands.spawn((
-            sprite,
-            Transform::from_translation(position).with_rotation(Quat::from_rotation_z(
-                family.silhouette_rotation_degrees.to_radians(),
-            )),
-            FirstContactUnitSprite {
-                id: unit.id.clone(),
-                family: unit.family.clone(),
-                owner: unit.owner.clone(),
-            },
-        ));
+        let entity = commands
+            .spawn((
+                sprite,
+                Transform::from_translation(position).with_rotation(Quat::from_rotation_z(
+                    family.silhouette_rotation_degrees.to_radians(),
+                )),
+                FirstContactUnitSprite {
+                    id: unit.id.clone(),
+                    family: unit.family.clone(),
+                    owner: unit.owner.clone(),
+                },
+            ))
+            .id();
+        attach_identity_geometry(
+            &mut commands,
+            entity,
+            &unit.family,
+            tile_size,
+            unit.owner == "contact",
+        );
     }
 
     let capture_frame = manifest.effect_frames["capture_pulse"];

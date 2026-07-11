@@ -9,7 +9,7 @@ use trnm_campaign_core::{
     InputMode, PlayerSettings, PlayerSettingsStore, QuestBranch, QuestState, SaveSlotId,
     SaveSlotMeta, SaveSlotStore, SectId, SettlementReceiptV1,
 };
-use trnm_rts_sim::{MissionSimV1, SimCheckpointStore};
+use trnm_rts_sim::{BattleReplayV2, MissionSimV1, SimCheckpointStore};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum CampaignMode {
@@ -27,6 +27,7 @@ pub(super) enum ShellMode {
     ResumeGuard,
     Playing,
     Paused,
+    ReplayBrowser,
 }
 
 #[derive(Resource, Debug, Clone)]
@@ -359,6 +360,10 @@ impl CampaignFlow {
             .mission
             .take()
             .ok_or_else(|| "terminal battle simulation is missing".to_string())?;
+        mission
+            .export_replay_v2()
+            .and_then(|replay| replay.save_atomic(&self.replay_path()))
+            .map_err(|error| error.to_string())?;
         let result = mission.into_result().map_err(|error| error.to_string())?;
         self.store
             .stage_result_atomic(&mut self.save, result)
@@ -374,6 +379,28 @@ impl CampaignFlow {
         self.last_receipt = Some(receipt.clone());
         self.mode = CampaignMode::Debrief;
         Ok(receipt)
+    }
+
+    fn replay_path(&self) -> PathBuf {
+        self.store.path().with_file_name(format!(
+            "slot-{}-last-replay-v2.json",
+            self.active_slot.label()
+        ))
+    }
+
+    fn open_replay_browser(&mut self) -> Result<(), String> {
+        let replay = BattleReplayV2::load_verified(&self.replay_path())
+            .map_err(|error| format!("No verified replay for this slot: {error}"))?;
+        self.shell_mode = ShellMode::ReplayBrowser;
+        self.status = format!(
+            "REPLAY {} | {} chunks / {} orders | final tick {} | hash {}",
+            replay.seed.map_id,
+            replay.chunks.len(),
+            replay.entry_count(),
+            replay.final_tick,
+            &replay.final_snapshot_hash[..12],
+        );
+        Ok(())
     }
 }
 
@@ -475,6 +502,10 @@ pub(super) fn handle_campaign_input(
                 if let Err(error) = flow.open_selected_slot_skirmish() {
                     flow.status = error;
                 }
+            } else if input.just_pressed(KeyCode::KeyP) {
+                if let Err(error) = flow.open_replay_browser() {
+                    flow.status = error;
+                }
             } else if input.just_pressed(KeyCode::F2) {
                 match flow.toggle_low_motion() {
                     Ok(()) => flow.status = format!("Low motion: {}", flow.settings.low_motion),
@@ -520,6 +551,26 @@ pub(super) fn handle_campaign_input(
             } else if input.just_pressed(KeyCode::Escape) {
                 flow.shell_mode = ShellMode::Title;
                 flow.status = "Standalone skirmish setup canceled".to_string();
+            }
+            return;
+        }
+        ShellMode::ReplayBrowser => {
+            if input.just_pressed(KeyCode::Enter) {
+                match BattleReplayV2::load_verified(&flow.replay_path())
+                    .and_then(|replay| replay.replay_and_verify())
+                {
+                    Ok(sim) => {
+                        flow.status = format!(
+                            "Replay verified through tick {} with snapshot {}",
+                            sim.tick,
+                            &sim.snapshot_hash().unwrap_or_default()[..12]
+                        );
+                    }
+                    Err(error) => flow.status = error.to_string(),
+                }
+            } else if input.just_pressed(KeyCode::Escape) {
+                flow.shell_mode = ShellMode::Title;
+                flow.status = "Replay browser closed".to_string();
             }
             return;
         }
@@ -632,6 +683,7 @@ pub(super) fn handle_campaign_input(
     }
 
     let shift = input.pressed(KeyCode::ShiftLeft) || input.pressed(KeyCode::ShiftRight);
+    let control = input.pressed(KeyCode::ControlLeft) || input.pressed(KeyCode::ControlRight);
     if shift && input.just_pressed(KeyCode::Digit1) {
         let result = flow.mutate_town(|save| save.move_to(CampaignRoom::GlassBasinWayhouse));
         set_status(&mut flow, result, "Entered Glass Basin Wayhouse");
@@ -733,6 +785,9 @@ pub(super) fn handle_campaign_input(
         } else {
             flow.status = "No one here is available for conversation".to_string();
         }
+    } else if control && shift && input.just_pressed(KeyCode::KeyK) {
+        let result = flow.mutate_town(|save| save.cycle_secondary_equipped_technique().map(|_| ()));
+        set_status(&mut flow, result, "Changed the secondary sect technique");
     } else if shift && input.just_pressed(KeyCode::KeyK) {
         let result = flow.mutate_town(|save| save.cycle_equipped_technique().map(|_| ()));
         set_status(&mut flow, result, "Changed the equipped sect technique");
@@ -999,7 +1054,9 @@ pub(super) fn settle_finished_battle(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use trnm_campaign_core::{BattleOutcome, CampaignDifficulty, SkirmishVictoryMode};
+    use trnm_campaign_core::{
+        BattleOutcome, CampaignDifficulty, CampaignMission, SkirmishVictoryMode,
+    };
     use trnm_rts_protocol::{RtsFrameOrder, RtsOrderKind, RtsOrderSource, RtsTile};
 
     #[test]
@@ -1116,6 +1173,82 @@ mod tests {
     }
 
     #[test]
+    fn complete_keyboard_skirmish_setup_chain_reaches_authored_deployment() {
+        let root = std::env::temp_dir().join(format!(
+            "trnm-keyboard-skirmish-chain-{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(&root).unwrap();
+        let slot_store = SaveSlotStore::new(&root);
+        slot_store.create_new(SaveSlotId::A, false).unwrap();
+        let save_path = slot_store.path(SaveSlotId::A);
+        let maps =
+            MissionMapCatalog::load(&Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../assets"))
+                .unwrap();
+        let map = maps.iron_delta.clone();
+        let flow = CampaignFlow {
+            save: CampaignSaveV1::default(),
+            mode: CampaignMode::Town,
+            mission: None,
+            last_receipt: None,
+            status: String::new(),
+            last_checkpoint_tick: 0,
+            shell_mode: ShellMode::Title,
+            active_slot: SaveSlotId::A,
+            selected_slot: SaveSlotId::A,
+            overwrite_pending: None,
+            settings: PlayerSettings::default(),
+            settings_store: PlayerSettingsStore::new(root.join("settings.json")),
+            store: CampaignStore::new(&save_path),
+            checkpoint_store: SimCheckpointStore::new(checkpoint_path_for(&save_path)),
+            slot_store,
+        };
+        let mut app = App::new();
+        app.insert_resource(ButtonInput::<KeyCode>::default())
+            .insert_resource(map)
+            .insert_resource(maps)
+            .insert_resource(flow)
+            .insert_resource(FirstContactRuntime::default())
+            .insert_resource(FirstContactSimulationAdapter::default())
+            .add_systems(Update, handle_campaign_input);
+        let tap = |app: &mut App, key: KeyCode| {
+            app.world_mut()
+                .resource_mut::<ButtonInput<KeyCode>>()
+                .press(key);
+            app.update();
+            let mut input = app.world_mut().resource_mut::<ButtonInput<KeyCode>>();
+            input.release(key);
+            input.clear();
+        };
+        for key in [
+            KeyCode::KeyK,
+            KeyCode::KeyM,
+            KeyCode::KeyT,
+            KeyCode::KeyY,
+            KeyCode::KeyU,
+            KeyCode::KeyI,
+            KeyCode::Enter,
+        ] {
+            tap(&mut app, key);
+        }
+        let flow = app.world().resource::<CampaignFlow>();
+        assert_eq!(flow.shell_mode, ShellMode::Playing);
+        assert_eq!(flow.mode, CampaignMode::Battle);
+        assert!(flow.save.skirmish_setup.enabled);
+        assert_eq!(
+            flow.save.active_mission,
+            CampaignMission::NightWatchCrossingSkirmish
+        );
+        assert_eq!(flow.save.skirmish_setup.simulation_seed, 2);
+        assert_eq!(
+            flow.mission.as_ref().unwrap().seed.map_id,
+            "night_watch_crossing"
+        );
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
     fn authored_map_score_skirmish_wins_replays_and_settles_through_real_orders() {
         let root = std::env::temp_dir().join(format!(
             "trnm-authored-skirmish-victory-{}",
@@ -1207,6 +1340,137 @@ mod tests {
         assert_eq!(receipt.outcome, BattleOutcome::Victory);
         assert!(!receipt.duplicate);
         assert!(flow.save.submit_battle_result(result).unwrap().duplicate);
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn standard_annihilation_on_authored_map_destroys_the_real_base_and_settles() {
+        let root = std::env::temp_dir().join(format!(
+            "trnm-standard-annihilation-victory-{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(&root).unwrap();
+        let slot_store = SaveSlotStore::new(&root);
+        slot_store.create_new(SaveSlotId::A, false).unwrap();
+        let save_path = slot_store.path(SaveSlotId::A);
+        let mut flow = CampaignFlow {
+            save: CampaignSaveV1::default(),
+            mode: CampaignMode::Town,
+            mission: None,
+            last_receipt: None,
+            status: String::new(),
+            last_checkpoint_tick: 0,
+            shell_mode: ShellMode::Title,
+            active_slot: SaveSlotId::A,
+            selected_slot: SaveSlotId::A,
+            overwrite_pending: None,
+            settings: PlayerSettings::default(),
+            settings_store: PlayerSettingsStore::new(root.join("settings.json")),
+            store: CampaignStore::new(&save_path),
+            checkpoint_store: SimCheckpointStore::new(checkpoint_path_for(&save_path)),
+            slot_store,
+        };
+        flow.open_selected_slot_skirmish().unwrap();
+        flow.save.difficulty = CampaignDifficulty::Standard;
+        flow.save.skirmish_setup.starting_resources = 500;
+        flow.save.skirmish_setup.victory_mode = SkirmishVictoryMode::Annihilation;
+        flow.save.active_mission = CampaignMission::GlassBasinSkirmish;
+        for attributes in std::iter::once(&mut flow.save.character.attributes).chain(
+            flow.save
+                .party
+                .iter_mut()
+                .map(|member| &mut member.attributes),
+        ) {
+            attributes.physique = 500;
+            attributes.force = 500;
+            attributes.agility = 500;
+            attributes.insight = 500;
+            attributes.resolve = 500;
+        }
+        let maps =
+            MissionMapCatalog::load(&Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../assets"))
+                .unwrap();
+        flow.start_battle(&maps.glass_basin).unwrap();
+        let sim = flow.mission.as_mut().unwrap();
+        for _ in 0..3 {
+            let mut recon = RtsFrameOrder::new(
+                sim.tick as u32,
+                "player",
+                sim.party
+                    .iter()
+                    .map(|unit| unit.unit_id.clone())
+                    .collect::<Vec<_>>(),
+                RtsOrderKind::Recon,
+                RtsOrderSource::LocalInput,
+            );
+            recon.target_tile = Some(RtsTile::new(
+                i32::from(sim.seed.map.objective.x),
+                i32::from(sim.seed.map.objective.y),
+            ));
+            sim.issue_order(recon).unwrap();
+            sim.step().unwrap();
+        }
+        while !sim.terminal() && sim.tick < 3_600 {
+            if sim.tick.is_multiple_of(15) || sim.active_order.is_none() {
+                let subjects = sim
+                    .party
+                    .iter()
+                    .filter(|unit| unit.hp > 0)
+                    .map(|unit| unit.unit_id.clone())
+                    .collect::<Vec<_>>();
+                let target = sim
+                    .enemies
+                    .iter()
+                    .filter(|unit| unit.hp > 0)
+                    .min_by_key(|unit| {
+                        (unit.position.x - sim.seed.map.party_start.x).abs()
+                            + (unit.position.y - sim.seed.map.party_start.y).abs()
+                    })
+                    .map(|unit| unit.position)
+                    .or_else(|| {
+                        sim.enemy_structures
+                            .iter()
+                            .find(|structure| structure.hp > 0)
+                            .map(|structure| structure.position)
+                    })
+                    .unwrap_or(sim.seed.map.objective);
+                let mut order = RtsFrameOrder::new(
+                    sim.tick as u32,
+                    "player",
+                    subjects,
+                    RtsOrderKind::AttackMove,
+                    RtsOrderSource::LocalInput,
+                );
+                order.target_tile = Some(RtsTile::new(i32::from(target.x), i32::from(target.y)));
+                sim.issue_order(order).unwrap();
+            }
+            sim.step().unwrap();
+        }
+        assert_eq!(
+            sim.outcome,
+            Some(BattleOutcome::Victory),
+            "tick {} party {}/{} enemies {}/{} structures {:?}",
+            sim.tick,
+            sim.party.iter().filter(|unit| unit.hp > 0).count(),
+            sim.party.len(),
+            sim.enemies.iter().filter(|unit| unit.hp > 0).count(),
+            sim.enemies.len(),
+            sim.enemy_structures
+                .iter()
+                .map(|structure| (&structure.structure_id, structure.hp))
+                .collect::<Vec<_>>()
+        );
+        assert!(sim
+            .enemy_structures
+            .iter()
+            .all(|structure| structure.hp <= 0));
+        let replay = sim.export_replay().unwrap();
+        replay.replay_and_verify().unwrap();
+        let result = sim.clone().into_result().unwrap();
+        let receipt = flow.save.submit_battle_result(result).unwrap();
+        assert_eq!(receipt.outcome, BattleOutcome::Victory);
+        assert!(!receipt.duplicate);
         std::fs::remove_dir_all(root).unwrap();
     }
 }

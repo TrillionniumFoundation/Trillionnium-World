@@ -3,9 +3,9 @@ use super::{
     campaign_flow::CampaignFlow,
     map_loader::FirstContactMap,
     renderer::{
-        atlas_sprite, map_world_position, FirstContactCamera, FirstContactObjectivePulse,
-        FirstContactSelectionRing, FirstContactStructureSprite, FirstContactUnitSprite,
-        FIRST_CONTACT_CAMERA_SCALE,
+        atlas_sprite, attach_identity_geometry, map_world_position, FirstContactCamera,
+        FirstContactObjectivePulse, FirstContactSelectionRing, FirstContactStructureSprite,
+        FirstContactUnitSprite, FIRST_CONTACT_CAMERA_SCALE,
     },
     view_math::{minimap_to_tile, points_in_drag_rect, ViewportSpec},
 };
@@ -1389,23 +1389,32 @@ pub(super) fn advance_first_contact_simulation(
                 ),
             );
             sprite.color = Color::srgb(family.tint[0], family.tint[1], family.tint[2]);
-            commands.spawn((
-                sprite,
-                Transform::from_translation(map_world_position(
-                    &map,
-                    position.x as i32,
-                    position.y as i32,
-                    8.0,
+            let entity = commands
+                .spawn((
+                    sprite,
+                    Transform::from_translation(map_world_position(
+                        &map,
+                        position.x as i32,
+                        position.y as i32,
+                        8.0,
+                    ))
+                    .with_rotation(Quat::from_rotation_z(
+                        family.silhouette_rotation_degrees.to_radians(),
+                    )),
+                    FirstContactUnitSprite {
+                        id: id.clone(),
+                        family: family_id.to_string(),
+                        owner: if *player { "player" } else { "contact" }.to_string(),
+                    },
                 ))
-                .with_rotation(Quat::from_rotation_z(
-                    family.silhouette_rotation_degrees.to_radians(),
-                )),
-                FirstContactUnitSprite {
-                    id: id.clone(),
-                    family: family_id.to_string(),
-                    owner: if *player { "player" } else { "contact" }.to_string(),
-                },
-            ));
+                .id();
+            attach_identity_geometry(
+                &mut commands,
+                entity,
+                family_id,
+                map.tile_size as f32,
+                !*player,
+            );
         }
         if let Some(mission) = flow.mission.as_ref() {
             for structure in mission.structures.iter().chain(&mission.enemy_structures) {
@@ -1441,23 +1450,32 @@ pub(super) fn advance_first_contact_simulation(
                 } else {
                     Color::srgb(family.tint[0], family.tint[1], family.tint[2])
                 };
-                commands.spawn((
-                    sprite,
-                    Transform::from_translation(map_world_position(
-                        &map,
-                        structure.position.x as i32,
-                        structure.position.y as i32,
-                        6.0,
+                let entity = commands
+                    .spawn((
+                        sprite,
+                        Transform::from_translation(map_world_position(
+                            &map,
+                            structure.position.x as i32,
+                            structure.position.y as i32,
+                            6.0,
+                        ))
+                        .with_rotation(Quat::from_rotation_z(
+                            family.silhouette_rotation_degrees.to_radians(),
+                        )),
+                        FirstContactStructureSprite {
+                            id: structure.structure_id.clone(),
+                            family: family_id.to_string(),
+                            active: true,
+                        },
                     ))
-                    .with_rotation(Quat::from_rotation_z(
-                        family.silhouette_rotation_degrees.to_radians(),
-                    )),
-                    FirstContactStructureSprite {
-                        id: structure.structure_id.clone(),
-                        family: family_id.to_string(),
-                        active: true,
-                    },
-                ));
+                    .id();
+                attach_identity_geometry(
+                    &mut commands,
+                    entity,
+                    family_id,
+                    map.tile_size as f32,
+                    structure.structure_id.starts_with("enemy_"),
+                );
             }
         }
     }

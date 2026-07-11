@@ -4,7 +4,7 @@ Updated: 2026-07-11
 
 This is the one-page status source for the current native RPG + real-time-strategy product. The older finite checklist in `docs/development/trnm-deep-rpg-complete-rts-v1-dod.md` is retained as a completed historical baseline, not as a claim that the broader deep-RPG + complete-RTS vision is 100%. This does not grant blockchain, CEX, Android, multiplayer or public-launch credit.
 
-The current depth-pass acceptance contract is `docs/development/trnm-authored-rpg-symmetric-rts-v2-dod.md`.
+The bounded v2 checklist remains historical evidence; this page records the newer runtime state directly and does not create another artificial "100%" contract.
 
 ## Product boundary
 
@@ -23,12 +23,13 @@ The current depth-pass acceptance contract is `docs/development/trnm-authored-rp
 
 - twenty connected rooms across Mirror City, Signal Road, Glass Basin and the Ashen Fringe, with story locks and authoritative route planning; Glass Basin and Ashen Fringe each contain four traversable rooms rather than a two-node label;
 - three exclusive clean-room sects, three mentors and ten relationship NPC definitions;
-- fifteen authored regional quests across courier, investigation, supply, hunt, escort and training-trial archetypes; every quest now has a distinct named graph topology with explicit edges, resolution/failure text, deadline, failure/retry state and Direct/Diplomatic/Resourceful consequences with trust, item, encounter and route-evidence gates; all 45 approach paths execute in tests;
-- seven RPG encounter definitions, encounter-specific original combat logs, telegraphed enemy moves, bleed/exposure/guard/stagger states and three selectable techniques per sect with momentum/cooldown plus persistent technique mastery;
+- fifteen authored regional quests across courier, investigation, supply, hunt, escort and training-trial archetypes; every quest now owns a structurally distinct per-quest DAG whose currently reachable nodes drive navigation and permit real branch order, plus resolution/failure text, deadline, retry state and Direct/Diplomatic/Resourceful consequences; all 45 approaches run route authority and Direct paths run the actual encounter rather than inserting a cleared flag;
+- seven RPG encounter definitions, encounter-specific original combat logs, telegraphed enemy moves, bleed/exposure/guard/stagger states and three techniques per sect; primary/secondary techniques form an alternating loadout and keep independent persistent mastery;
 - seven attributes, three origins, three growth paths, three mastery titles and fifteen skill definitions;
 - twenty-two shop/economy items, eight crafting recipes, equipment durability and repair;
-- world time, stamina, rations, water, injuries, trust, rank, journal and route planning; all ten NPCs move between work/civic/rest rooms, expose five relationship stages plus three dialogue intents, and participate in persisted pairwise bonds, work output, social events and memories;
-- inventory/production/consumption/quest/social-event-driven market stock and demand, buy/sell pricing, a browsable shop/craft surface and owned-equipment selector;
+- world time, stamina, rations, water, injuries, trust, rank, journal and route planning; all ten NPCs move between work/civic/rest rooms, expose five relationship stages plus three dialogue intents, and participate in persisted pairwise bonds, work output, social events and memories; bond/work values now alter production and goal dialogue instead of being write-only;
+- four persistent regional markets with distinct stock/demand, inventory/production/consumption/quest/social-event effects and deterministic inter-region caravan transfers, plus buy/sell pricing, shop/craft browsing and owned-equipment selection;
+- three independent five-quest chapters with chapter-specific protagonists/scenes, irreversible choices and five explicit ending resolutions;
 - three atomic save slots and schema migration for existing saves/settings.
 
 The RPG layer uses only clean-room mechanics study of 白金英雄坛说. No source code, text, maps, NPC/task tables, art, music or proprietary data is copied.
@@ -38,22 +39,24 @@ The RPG layer uses only clean-room mechanics study of 白金英雄坛说. No sou
 - eight authored 40x24 maps: four campaign missions plus Iron Delta, Night Watch Crossing, Glass Basin and Ember Orchard skirmishes;
 - two typed factions with twelve unit archetypes;
 - ten structure definitions and ten technology definitions, all mapped into authoritative runtime kinds/jobs and filtered by the selected player faction;
-- authoritative worker logistics, shared resource nodes, supply, power, construction, repair, production, research and upgrades for both sides: enemy workers are real `SimUnit` actors that carry cargo and must reach their assigned build site before construction advances; enemy buildings are normal destructible `SimStructure` targets, and production pauses when worker/power/supply prerequisites fail;
+- authoritative worker logistics, shared resource nodes, supply, power, construction, repair, production, research and upgrades for both sides: player and enemy construction both bind a living builder, real site, movement and progress; structure functions execute through one side-generic authority; enemy buildings remain normal destructible `SimStructure` targets;
 - fog/recon, control groups, queued orders, formations, stance/patrol/stop, veterancy and deterministic congestion recovery;
 - typed escort, defend, extract, destroy and capture objectives;
 - Story / Standard / Veteran pressure and deterministic adaptive AI;
 - independent title-menu skirmish setup with map, faction matchup, starting-resource, Objective/Score/Annihilation and selectable deterministic-seed configuration, plus durable loot and normal one-time RPG settlement; the campaign gate remains an additional in-world entry;
 - twelve typed unit abilities and ten distinct structure functions are executed by the authority rather than existing as names or stat-only catalog rows;
-- battle orders can be exported as a hash-verified replay with a 4,096-order long-match window; a 24-match matrix loads the four real authored YAML maps, swaps factions and executes three player-selectable deterministic simulation seeds;
-- the atlas manifest exposes twelve roster-specific unit identities and ten structure-specific identities with distinct runtime palettes and silhouettes, while retaining six/five base animation rows as original authored pixel sources.
+- battle orders export to chunk-hashed `trnm_battle_replay_v2`, migrate verified v1 recordings, retain up to 65,536 orders and have an in-client title replay browser; the long-match gate verifies 2,100 orders across five chunks, over four times the legacy window;
+- the balance gate runs 48 terminal-oriented samples across four real authored YAML maps, faction swaps, spawn swaps and three meaningful simulation seeds; seeds vary finite resource capacity, worker placement, evasion sampling and AI build-order origin;
+- a real authored-map Standard Annihilation path destroys the actual enemy base, verifies replay, and settles once; K then M/T/Y/U/I then Enter is covered as a complete keyboard setup/deploy chain;
+- the atlas manifest exposes twelve roster-specific unit identities and ten structure-specific identities; each now receives deterministic code-native two-piece identity geometry in addition to palette/scale/rotation, while retaining six/five base animation rows as original authored pixel sources.
 
 ## Stable contracts
 
-- `trnm_campaign_save_v1`, schema revision 6;
+- `trnm_campaign_save_v1`, schema revision 7;
 - `trnm_battle_seed_v8`;
 - `trnm_battle_result_v2`;
 - `trnm_settlement_receipt_v1`;
-- `trnm_rts_sim_v13` / `trnm_rts_sim_checkpoint_v13`;
+- `trnm_rts_sim_v14` / `trnm_rts_sim_checkpoint_v14`;
 - `trnm_player_settings_v2`.
 
 ## Product shell
@@ -79,11 +82,11 @@ The control profiles alter live RTS input: Classic uses Q/W/E/R for move/attack/
 
 ## Current local evidence
 
-- five-crate unit/integration/E2E suite: 102/102 passing;
+- five-crate unit/integration/E2E suite: 107/107 passing (32 Campaign, 18 First Contact, 13 RPG, 4 protocol, 31 RTS, 9 closed-loop E2E);
 - workspace Clippy with `-D warnings`: passing;
 - product boundary: green (5 game / 12 platform / legacy working tree absent);
 - release build and desktop installer smoke: passing;
-- current X230 warm-cache matrix after the real-map/long-replay depth pass: RPG 3.01 s / 268 MiB, campaign 8.25 s / 556 MiB, RTS 38.42 s / 410 MiB, closed loop 14.02 s / 70 MiB, incremental release build 0.74 s / 107 MiB;
+- current X230 warm-cache matrix after the branching-RPG/terminal-RTS depth pass: RPG 0.39 s / 70 MiB, campaign 0.50 s / 70 MiB, RTS 82.01 s / 70 MiB, closed loop 13.67 s / 70 MiB, incremental release build 0.54 s / 106 MiB; the RTS gate now includes the 48 real-map terminal matrix and multi-chunk replay proof while remaining below its 90-second bound;
 - release client service: active with a viewable native window after restart.
 
 The first clean release rebuild after changing the Bevy/audio feature graph took 12m08s under the service host's constrained X230 environment; that is a developer compile cost, not installed-game startup. These are local-machine facts, not substitutes for the pending human session or a multi-distribution performance/installer matrix.
