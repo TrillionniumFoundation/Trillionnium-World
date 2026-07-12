@@ -10,7 +10,6 @@ cex_load_env
 LEDGER_URL="${LEDGER_BASE_URL:-http://127.0.0.1:7002}"
 CONSUMER_URL="${CONSUMER_ENTRY_BASE_URL:-http://127.0.0.1:8090}"
 ADMIN_TOKEN="${LEDGER_ADMIN_TOKEN:-${IDENTITY_ADMIN_TOKEN:?identity/ledger admin token required}}"
-ENTRY_TOKEN="${CONSUMER_ENTRY_INGRESS_TOKEN:-$ADMIN_TOKEN}"
 ORG_ID="00000000-0000-0000-0000-00000000ce01"
 RUN_ID="native-client-$(date +%s)-${RANDOM}"
 WORK_DIR="$(mktemp -d /tmp/trnm-native-client-cex.XXXXXX)"
@@ -19,6 +18,7 @@ trap 'status=$?; if [[ $status -ne 0 ]]; then echo "native client CEX E2E failed
 
 post_ledger() {
   curl -fsS "$LEDGER_URL$1" -H "x-admin-token: $ADMIN_TOKEN" \
+    -H 'x-trnm-system-operation: true' \
     -H 'content-type: application/json' --data-binary "$2"
 }
 
@@ -28,7 +28,7 @@ create_account() {
 }
 
 CURRENT_PHASE="migration"
-cex_psql_stdin -f - <"$CEX_PROJECT_ROOT/migrations/0028_add_trnm_seller_hold_and_identity_recovery.sql" >/dev/null
+cex_psql_stdin -f - <"$CEX_PROJECT_ROOT/migrations/0029_add_trnm_value_entitlements_and_player_sessions.sql" >/dev/null
 CURRENT_PHASE="accounts"
 buyer_id="$(create_account trnm-native-client-buyer 200)"
 seller_id="$(create_account trnm-native-client-market 0)"
@@ -41,10 +41,14 @@ post_ledger /v1/trnm/identity/register "$(jq -cn --arg player "$RUN_ID" --arg ac
 CURRENT_PHASE="identity-recover"
 post_ledger /v1/trnm/identity/recover "$(jq -cn --arg player "$RUN_ID" --arg key "$recovery_key" --arg next "$rotated_key" \
   '{player_id:$player,recovery_key:$key,new_recovery_key:$next}')" | jq -e '.recovery_generation == 2' >/dev/null
+player_session="$(curl -fsS "$LEDGER_URL/v1/trnm/identity/session" \
+  -H 'content-type: application/json' --data-binary "$(jq -cn \
+    --arg player "$RUN_ID" --arg key "$rotated_key" \
+    '{player_id:$player,recovery_key:$key,device_id:"native-bevy-e2e"}')" | jq -er '.session_token')"
 
 export TRNM_CAMPAIGN_SAVE_PATH="$WORK_DIR/campaign.json"
 export TRNM_CEX_BASE_URL="$CONSUMER_URL"
-export TRNM_CEX_ENTRY_TOKEN="$ENTRY_TOKEN"
+export TRNM_CEX_PLAYER_SESSION="$player_session"
 export TRNM_CEX_ACCOUNT_ID="$buyer_id"
 export TRNM_CEX_ACTOR_ID="$RUN_ID"
 export TRNM_CEX_MARKET_ACCOUNT_ID="$seller_id"

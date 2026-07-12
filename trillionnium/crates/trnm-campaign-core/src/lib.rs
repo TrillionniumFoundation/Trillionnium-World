@@ -20,7 +20,8 @@ pub use trnm_economy_protocol::{
     IdempotencyKey as EconomyIdempotencyKey, ReceiptProgressionClass, ReceiptStatus,
     SettlementBackendKind, WalletSnapshot, BATTLE_WALLET_REWARD_DAILY_CAP,
     BATTLE_WALLET_REWARD_PER_EVENT_CAP, CEX_SETTLEMENT_BACKEND_ID, OFFLINE_LOCAL_BACKEND_ID,
-    SELLER_REVERSIBLE_WINDOW_SECONDS, TERM_EXCHANGE_PROTOCOL_VERSION,
+    SELLER_REVERSIBLE_WINDOW_SECONDS, SERVER_SIGNED_VALUE_ENTITLEMENT_METADATA_KEY,
+    TERM_EXCHANGE_PROTOCOL_VERSION,
 };
 use trnm_rpg_core::{
     inventory_item_for as trillionnium_inventory_item_for, market_price_with_state,

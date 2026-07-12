@@ -11,10 +11,10 @@ use std::{
 };
 use trnm_campaign_core::{
     CampaignError, CampaignPhase, CampaignRoom, CampaignSaveV1, CampaignStore, EconomicIntent,
-    EconomicReceipt, EconomyAccountBinding, EconomyBackend, EconomyMode, EncounterAction,
-    InputMode, OfflineLocalEconomyBackend, PlayerSettings, PlayerSettingsStore, QuestBranch,
-    QuestState, SaveSlotId, SaveSlotMeta, SaveSlotStore, SectId, SettlementReceiptV1,
-    WalletSnapshot,
+    EconomicIntentKind, EconomicReceipt, EconomyAccountBinding, EconomyBackend, EconomyMode,
+    EncounterAction, InputMode, OfflineLocalEconomyBackend, PlayerSettings, PlayerSettingsStore,
+    QuestBranch, QuestState, SaveSlotId, SaveSlotMeta, SaveSlotStore, SectId, SettlementReceiptV1,
+    WalletSnapshot, SERVER_SIGNED_VALUE_ENTITLEMENT_METADATA_KEY,
 };
 use trnm_rpg_core::ECONOMY_ITEM_CATALOG;
 use trnm_rts_sim::{BattleReplayV2, MissionSimV1, SimCheckpointStore};
@@ -65,7 +65,7 @@ pub(super) struct CampaignFlow {
 #[derive(Debug, Clone)]
 struct CexHttpEconomyBackend {
     base_url: String,
-    entry_token: Option<String>,
+    player_session: String,
     client: reqwest::blocking::Client,
 }
 
@@ -80,9 +80,12 @@ impl CexHttpEconomyBackend {
             .map_err(|error| format!("CEX HTTP client: {error}"))?;
         Ok(Self {
             base_url,
-            entry_token: env::var("TRNM_CEX_ENTRY_TOKEN")
+            player_session: env::var("TRNM_CEX_PLAYER_SESSION")
                 .ok()
-                .filter(|value| !value.trim().is_empty()),
+                .filter(|value| !value.trim().is_empty())
+                .ok_or_else(|| {
+                    "TRNM_CEX_PLAYER_SESSION is required for connected player economy".to_string()
+                })?,
             client,
         })
     }
@@ -91,11 +94,7 @@ impl CexHttpEconomyBackend {
         let request = self
             .client
             .post(format!("{}{}", self.base_url.trim_end_matches('/'), path));
-        if let Some(token) = &self.entry_token {
-            request.header("x-entry-token", token)
-        } else {
-            request
-        }
+        request.header("x-trnm-player-session", &self.player_session)
     }
 }
 
@@ -105,9 +104,38 @@ impl EconomyBackend for CexHttpEconomyBackend {
     }
 
     fn execute(&self, intent: &EconomicIntent) -> Result<EconomicReceipt, String> {
+        let mut authorized_intent = intent.clone();
+        if matches!(authorized_intent.kind, EconomicIntentKind::ReleaseReward)
+            && authorized_intent.amount_credits.unwrap_or_default() > 0
+        {
+            let entitlement = env::var("TRNM_CEX_VALUE_ENTITLEMENTS_JSON")
+                .ok()
+                .and_then(|raw| raw.parse::<Value>().ok())
+                .and_then(|value| value.get(&authorized_intent.intent_id).cloned())
+                .or_else(|| {
+                    env::var("TRNM_CEX_VALUE_ENTITLEMENT_JSON")
+                        .ok()
+                        .and_then(|raw| raw.parse::<Value>().ok())
+                })
+                .ok_or_else(|| {
+                    "connected wallet reward is pending: trusted server entitlement is missing"
+                        .to_string()
+                })?;
+            if !authorized_intent.metadata.is_object() {
+                authorized_intent.metadata = json!({});
+            }
+            authorized_intent
+                .metadata
+                .as_object_mut()
+                .expect("metadata was normalized to an object")
+                .insert(
+                    SERVER_SIGNED_VALUE_ENTITLEMENT_METADATA_KEY.to_string(),
+                    entitlement,
+                );
+        }
         let response = self
             .request("/v1/trillionnium/economy/intents")
-            .json(&serde_json::json!({"intent": intent}))
+            .json(&serde_json::json!({"intent": authorized_intent}))
             .send()
             .map_err(|error| format!("CEX intent transport: {error}"))?;
         let status = response.status();
@@ -697,14 +725,22 @@ pub(super) fn handle_campaign_input(
         return;
     }
     if input.just_pressed(KeyCode::F8) {
-        match flow.cycle_master_volume() {
-            Ok(()) => {
-                flow.status = format!(
-                    "Master volume preference: {}%",
-                    flow.settings.master_volume_percent
-                )
+        let control = input.pressed(KeyCode::ControlLeft) || input.pressed(KeyCode::ControlRight);
+        let shift = input.pressed(KeyCode::ShiftLeft) || input.pressed(KeyCode::ShiftRight);
+        if control && shift {
+            flow.status = flow
+                .cancel_latest_tradeable_purchase_and_reconcile()
+                .unwrap_or_else(|error| error);
+        } else {
+            match flow.cycle_master_volume() {
+                Ok(()) => {
+                    flow.status = format!(
+                        "Master volume preference: {}%",
+                        flow.settings.master_volume_percent
+                    )
+                }
+                Err(error) => flow.status = error,
             }
-            Err(error) => flow.status = error,
         }
         return;
     }
@@ -1445,7 +1481,7 @@ pub(super) fn run_native_economy_e2e_phase(phase: &str) -> Result<Value, String>
         app.world_mut().resource_mut::<CampaignFlow>().shell_mode = ShellMode::Playing;
         native_economy_e2e_tap(&mut app, KeyCode::F7, false, true, false);
         if phase == "cancel" {
-            native_economy_e2e_tap(&mut app, KeyCode::F7, false, true, true);
+            native_economy_e2e_tap(&mut app, KeyCode::F8, true, true, false);
         }
     }
 

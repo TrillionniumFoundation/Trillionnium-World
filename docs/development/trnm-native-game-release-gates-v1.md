@@ -13,7 +13,7 @@ Status: **green**.
 
 - six current game crates; legacy working tree absent;
 - deterministic RPG -> RTS -> RPG loop, atomic saves and replay;
-- revision 12 economy state and protocol 2.2.0;
+- revision 12 economy state and protocol 2.3.0;
 - local test, Clippy, format, release-build and native-window evidence.
 
 ## Gate B — commercial single-player candidate
@@ -32,6 +32,8 @@ Status: **green for the persistent single-node local production profile**.
 - seller payout remains reserved through the reversible window;
 - native Bevy input -> CEX HTTP -> PostgreSQL -> restart -> UI projection E2E;
 - rotating recovery credential, backup/restore and cross-instance idempotency gates;
+- server-signed value authorization, player/account/device session ownership,
+  physical base backup, WAL/PITR and same-host promotion evidence;
 - public discovery remains disabled.
 
 ## Gate D — public player market
@@ -44,7 +46,7 @@ Required before enabling:
 - signed inventory custody and listing ownership proof;
 - matching fairness, anti-cheat, abuse/rate-limit and fraud controls;
 - dispute, chargeback, customer-support and seller-collateral operations;
-- backup/PITR/HA, capacity, live-traffic and public-network security evidence;
+- multi-host replication/fencing/HA, capacity, live-traffic and public-network security evidence;
 - human usability, commercial and legal approval.
 
 The current trusted seller UUID path must never be described as a public
@@ -54,8 +56,8 @@ player market.
 
 - local soft credits are bound and cannot convert to wallet credits;
 - quest/chapter/ending rewards remain `LocalSoftOnly` with zero-value CEX audit;
-- battle `DualTrack` wallet issuance is capped at 100 per event and 300 per
-  in-game day;
+- battle `DualTrack` wallet issuance is server-entitled and capped at 100 per
+  event and 300 per UTC budget day; `CompleteContract` is always zero-value;
 - public player listings remain disabled by the protocol policy manifest;
 - seller proceeds are unavailable until the reversible payout window matures.
 

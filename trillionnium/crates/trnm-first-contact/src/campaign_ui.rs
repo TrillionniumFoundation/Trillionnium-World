@@ -335,7 +335,7 @@ pub(super) fn town_body(flow: &CampaignFlow) -> String {
         }
     };
     let body = format!(
-        "{body}\n\nECONOMY: {:?} | soft {} | wallet available {} / reserved {} | outbox {} + priority compensation {} | receipts {} | value events {} | dead letters {}\nCtrl+F7 binds/reconciles; Ctrl+Shift+F7 starts an escrow-backed tradeable purchase; Ctrl+Alt+F7 cancels the latest purchase through the priority compensation lane. Local-only, wallet-only and explicit capped dual-track rewards are audited separately. RTS resources and bound items remain local authority; public player listings remain release-gated.",
+        "{body}\n\nECONOMY: {:?} | soft {} | wallet available {} / reserved {} | outbox {} + priority compensation {} | receipts {} | value events {} | dead letters {}\nCtrl+F7 binds/reconciles; Ctrl+Shift+F7 starts an escrow-backed tradeable purchase; Ctrl+Shift+F8 cancels the latest purchase through the priority compensation lane (Ctrl+Alt+F7 remains a compatibility chord). Local-only, wallet-only and explicit capped dual-track rewards are audited separately. RTS resources and bound items remain local authority; public player listings remain release-gated.",
         save.economy_mode,
         save.progression.credits,
         save.wallet_snapshot.available_credits,
