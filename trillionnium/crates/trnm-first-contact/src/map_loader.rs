@@ -651,7 +651,11 @@ mod tests {
                 }
             }
         }
-        let matrix = run_skirmish_balance_matrix(&seeds, 600).unwrap();
+        // This adapter test owns authored-map/faction/seed identity, while the
+        // 64-sample terminal economy matrix lives in trnm-rts-sim. Three
+        // hundred ticks are enough to expose distinct pressure/fingerprints
+        // without making this client package duplicate the terminal gate.
+        let matrix = run_skirmish_balance_matrix(&seeds, 300).unwrap();
         assert_eq!(matrix.samples.len(), 16);
         assert_eq!(
             matrix

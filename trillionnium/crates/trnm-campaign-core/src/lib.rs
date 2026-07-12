@@ -1632,6 +1632,38 @@ pub struct PendingTradeablePurchase {
     pub consume_intent_id: Option<String>,
     #[serde(default)]
     pub refund_intent_id: Option<String>,
+    #[serde(default)]
+    pub inventory_rolled_back: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ValueEventSource {
+    RegionalQuest,
+    Chapter,
+    Ending,
+    Battle,
+    PlayerTrade,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ValueSettlementPolicy {
+    LocalSoftOnly,
+    WalletOnly,
+    DualTrack,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ValueEventRecord {
+    pub event_id: String,
+    pub source: ValueEventSource,
+    pub policy: ValueSettlementPolicy,
+    pub local_soft_credit_delta: i64,
+    pub wallet_credit_delta: i64,
+    pub economic_intent_id: String,
+    #[serde(default)]
+    pub economic_receipt_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -1653,6 +1685,7 @@ struct EconomicIntentDraft {
     quantity: i64,
     amount_credits: i64,
     metadata: Value,
+    compensation: bool,
 }
 
 pub trait EconomyBackend {
@@ -2278,6 +2311,8 @@ pub struct CampaignSaveV1 {
     #[serde(default)]
     pub pending_economic_intents: Vec<EconomicIntent>,
     #[serde(default)]
+    pub pending_economic_compensations: Vec<EconomicIntent>,
+    #[serde(default)]
     pub verified_economic_receipts: Vec<EconomicReceipt>,
     #[serde(default)]
     pub economic_idempotency_keys: BTreeSet<String>,
@@ -2285,6 +2320,8 @@ pub struct CampaignSaveV1 {
     pub economic_dead_letters: Vec<EconomicIntent>,
     #[serde(default)]
     pub pending_tradeable_purchases: Vec<PendingTradeablePurchase>,
+    #[serde(default)]
+    pub value_events: Vec<ValueEventRecord>,
     #[serde(default)]
     pub reconciliation_cursor: u64,
     #[serde(default)]
@@ -2353,7 +2390,7 @@ impl Default for CampaignSaveV1 {
         let item_conditions = character_item_conditions(&character);
         Self {
             contract_version: CAMPAIGN_SAVE_CONTRACT.to_string(),
-            schema_revision: 10,
+            schema_revision: 11,
             campaign_id: "local-campaign".to_string(),
             revision: 0,
             room: CampaignRoom::MirrorSquare,
@@ -2565,10 +2602,12 @@ impl Default for CampaignSaveV1 {
             economy_account_binding: None,
             wallet_snapshot: WalletSnapshot::default(),
             pending_economic_intents: Vec::new(),
+            pending_economic_compensations: Vec::new(),
             verified_economic_receipts: Vec::new(),
             economic_idempotency_keys: BTreeSet::new(),
             economic_dead_letters: Vec::new(),
             pending_tradeable_purchases: Vec::new(),
+            value_events: Vec::new(),
             reconciliation_cursor: 0,
             quest_chain: None,
             world_clock: WorldClock::default(),
@@ -2586,7 +2625,14 @@ impl Default for CampaignSaveV1 {
 
 impl CampaignSaveV1 {
     pub fn ensure_gameplay_defaults(&mut self) {
-        self.schema_revision = 10;
+        let previous_schema_revision = self.schema_revision;
+        self.schema_revision = 11;
+        if previous_schema_revision < 11
+            && self.ending_epilogue_complete
+            && self.ending_epilogue_progress == 3
+        {
+            self.ending_epilogue_progress = 4;
+        }
         if self.active_regional_quest_id.is_none() {
             self.active_regional_quest_step = 0;
             self.active_regional_quest_runtime = None;
@@ -2734,6 +2780,9 @@ impl CampaignSaveV1 {
         if self.pending_economic_intents.len() > 128 {
             self.pending_economic_intents.truncate(128);
         }
+        if self.pending_economic_compensations.len() > 64 {
+            self.pending_economic_compensations.truncate(64);
+        }
         if self.verified_economic_receipts.len() > 256 {
             let keep_from = self.verified_economic_receipts.len() - 256;
             self.verified_economic_receipts.drain(..keep_from);
@@ -2747,6 +2796,15 @@ impl CampaignSaveV1 {
                 .iter()
                 .map(|intent| intent.idempotency_key.key.clone()),
         );
+        self.economic_idempotency_keys.extend(
+            self.pending_economic_compensations
+                .iter()
+                .map(|intent| intent.idempotency_key.key.clone()),
+        );
+        if self.value_events.len() > 256 {
+            let keep_from = self.value_events.len() - 256;
+            self.value_events.drain(..keep_from);
+        }
         if self.character.display_name.trim().is_empty() {
             self.apply_character_identity_name();
         }
@@ -2813,7 +2871,7 @@ impl CampaignSaveV1 {
                 self.contract_version.clone(),
             ));
         }
-        if self.schema_revision != 10 {
+        if self.schema_revision != 11 {
             return Err(CampaignError::InvalidContract(format!(
                 "unsupported campaign schema revision {}",
                 self.schema_revision
@@ -2858,8 +2916,8 @@ impl CampaignSaveV1 {
                 .main_story_scene_progress
                 .values()
                 .any(|step| *step > 2)
-            || self.ending_epilogue_progress > 3
-            || self.ending_epilogue_complete != (self.ending_epilogue_progress >= 3)
+            || self.ending_epilogue_progress > 4
+            || self.ending_epilogue_complete != (self.ending_epilogue_progress >= 4)
         {
             return Err(CampaignError::InvalidState(
                 "NPC social or main-story history is inconsistent or exceeds its bound".to_string(),
@@ -2912,6 +2970,7 @@ impl CampaignSaveV1 {
             ));
         }
         if self.pending_economic_intents.len() > 128
+            || self.pending_economic_compensations.len() > 64
             || self.verified_economic_receipts.len() > 256
             || self.economic_dead_letters.len() > 64
             || self.pending_tradeable_purchases.len() > 32
@@ -2919,6 +2978,33 @@ impl CampaignSaveV1 {
                 .pending_economic_intents
                 .iter()
                 .any(|intent| intent.validate().is_err())
+            || self
+                .pending_economic_compensations
+                .iter()
+                .any(|intent| intent.validate().is_err())
+            || self.value_events.len() > 256
+            || self.value_events.iter().any(|event| {
+                event.event_id.trim().is_empty()
+                    || event.economic_intent_id.trim().is_empty()
+                    || event.local_soft_credit_delta < 0
+                    || event.wallet_credit_delta < 0
+                    || match event.policy {
+                        ValueSettlementPolicy::LocalSoftOnly => event.wallet_credit_delta != 0,
+                        ValueSettlementPolicy::WalletOnly => event.local_soft_credit_delta != 0,
+                        ValueSettlementPolicy::DualTrack => {
+                            event.local_soft_credit_delta != event.wallet_credit_delta
+                        }
+                    }
+                    || event
+                        .economic_receipt_id
+                        .as_ref()
+                        .is_some_and(|receipt_id| {
+                            !self.verified_economic_receipts.iter().any(|receipt| {
+                                receipt.receipt_id == *receipt_id
+                                    && receipt.intent_id == event.economic_intent_id
+                            })
+                        })
+            })
             || self.verified_economic_receipts.iter().any(|receipt| {
                 receipt.protocol_version != TERM_EXCHANGE_PROTOCOL_VERSION
                     || receipt.progression_class != receipt.status.progression_class()
@@ -3490,10 +3576,12 @@ impl CampaignSaveV1 {
             .ok_or_else(|| {
                 CampaignError::InvalidState("missing quest branch rewards".to_string())
             })?;
+        let mut local_soft_credit_reward = 0_i64;
         for reward in rewards {
             match reward {
                 QuestChainReward::Credits { amount } => {
                     self.progression.credits = self.progression.credits.saturating_add(amount);
+                    local_soft_credit_reward = local_soft_credit_reward.saturating_add(amount);
                 }
                 QuestChainReward::Reputation { amount } => {
                     self.character.attributes.reputation =
@@ -3521,6 +3609,13 @@ impl CampaignSaveV1 {
         chain.current_node = QuestChainNodeId::ReliefComplete;
         chain.chosen_branch = Some(branch);
         chain.complete = true;
+        self.record_value_event(
+            format!("quest-chain:cistern-relief:{branch:?}").to_ascii_lowercase(),
+            format!("quest-contract:cistern-relief:{branch:?}").to_ascii_lowercase(),
+            ValueEventSource::RegionalQuest,
+            ValueSettlementPolicy::LocalSoftOnly,
+            local_soft_credit_reward,
+        )?;
         self.revision += 1;
         Ok(())
     }
@@ -4826,7 +4921,7 @@ impl CampaignSaveV1 {
             region_id,
             rule.resource_item_id,
             stock.saturating_add(stock_delta),
-            demand.saturating_add(demand_delta),
+            demand.saturating_add(demand_delta).clamp(-20, 20),
         );
         if let Some(text) = quest_resolution_text(&quest_id, runtime.approach) {
             self.combat_log.push(CombatLogBeat {
@@ -4888,6 +4983,13 @@ impl CampaignSaveV1 {
             })
             .map(|chapter| chapter.chapter)
             .unwrap_or(MainStoryChapter::ChapterComplete);
+        self.record_value_event(
+            format!("regional-quest:{quest_id}"),
+            format!("quest-contract:{quest_id}"),
+            ValueEventSource::RegionalQuest,
+            ValueSettlementPolicy::LocalSoftOnly,
+            definition.credit_reward + credit_bonus,
+        )?;
         self.revision += 1;
         Ok(())
     }
@@ -5067,6 +5169,13 @@ impl CampaignSaveV1 {
                 text: format!("ENDING SCENE — {}: {post_state}", ending.label()),
             });
         }
+        self.record_value_event(
+            format!("chapter:{:?}", chapter.chapter).to_ascii_lowercase(),
+            format!("chapter-contract:{:?}", chapter.chapter).to_ascii_lowercase(),
+            ValueEventSource::Chapter,
+            ValueSettlementPolicy::LocalSoftOnly,
+            credits,
+        )?;
         self.revision += 1;
         Ok(decision)
     }
@@ -5121,8 +5230,35 @@ impl CampaignSaveV1 {
             (MainStoryEnding::ContestedMandate, 0) => {
                 "Rival envoys meet at Moon Bridge; no banner lowers, but both sides accept the player as mediator."
             }
-            (_, 1) => {
-                "The player walks the changed district, hears who benefited and who still objects, then chooses to keep serving the living world."
+            (MainStoryEnding::WayhouseLeague, 1) => {
+                "Porters elect the league's first route steward while innkeepers publish the cost of every free bed."
+            }
+            (MainStoryEnding::OpenArchiveRepublic, 1) => {
+                "An apprentice challenges an incorrect grain ledger in public and the senior archivists amend it without reprisal."
+            }
+            (MainStoryEnding::FrontierAccord, 1) => {
+                "Mirror and Ashen scouts exchange wounded prisoners, then mark a shared rescue path across the marsh."
+            }
+            (MainStoryEnding::ThreeRoadCompact, 1) => {
+                "The compact's first deadlock ends when market workers demand that all three delegates answer the same shortage."
+            }
+            (MainStoryEnding::ContestedMandate, 1) => {
+                "Two rival tax patrols arrive together; the player forces both to hear the district's accounts before collecting anything."
+            }
+            (MainStoryEnding::WayhouseLeague, 2) => {
+                "A caravan once excluded from the city receives a league seal, shelter and a place on the next route council."
+            }
+            (MainStoryEnding::OpenArchiveRepublic, 2) => {
+                "Citizens copy the corrected ledgers into ward books so no single archive can hide the next crisis."
+            }
+            (MainStoryEnding::FrontierAccord, 2) => {
+                "Children from both frontiers relight a minor beacon and argue cheerfully over whose signal code is clearer."
+            }
+            (MainStoryEnding::ThreeRoadCompact, 2) => {
+                "Independent guilds sign a narrow water pact, proving cooperation need not erase their competing loyalties."
+            }
+            (MainStoryEnding::ContestedMandate, 2) => {
+                "The unresolved banners remain, but a permanent witness bench gives ordinary residents leverage over both courts."
             }
             _ => "The epilogue closes and the post-story world opens for continuing regional work.",
         }
@@ -5132,7 +5268,7 @@ impl CampaignSaveV1 {
             text: format!("{} — {text}", ending.label()),
         });
         self.ending_epilogue_progress = self.ending_epilogue_progress.saturating_add(1);
-        if self.ending_epilogue_progress >= 3 {
+        if self.ending_epilogue_progress >= 4 {
             self.ending_epilogue_complete = true;
             self.progression
                 .world_flags
@@ -5140,6 +5276,13 @@ impl CampaignSaveV1 {
             self.progression.credits += 75;
             self.character.attributes.reputation =
                 self.character.attributes.reputation.saturating_add(8);
+            self.record_value_event(
+                format!("ending:{ending:?}").to_ascii_lowercase(),
+                format!("ending-contract:{ending:?}").to_ascii_lowercase(),
+                ValueEventSource::Ending,
+                ValueSettlementPolicy::LocalSoftOnly,
+                75,
+            )?;
         }
         self.revision += 1;
         Ok(text)
@@ -5392,6 +5535,10 @@ impl CampaignSaveV1 {
                 quantity: delivered,
                 day: self.world_clock.day,
             });
+            if self.regional_logistics.len() > 64 {
+                let keep_from = self.regional_logistics.len() - 64;
+                self.regional_logistics.drain(..keep_from);
+            }
         }
         let item = &ECONOMY_ITEM_CATALOG[(self.world_clock.day as usize
             + usize::from(self.world_clock.minute_of_day / 120))
@@ -7570,6 +7717,7 @@ impl CampaignSaveV1 {
             quantity,
             amount_credits,
             metadata,
+            compensation,
         } = draft;
         let idempotency_key = format!("{}:{}", self.campaign_id, intent_id);
         if self.economic_idempotency_keys.contains(&idempotency_key) {
@@ -7605,14 +7753,92 @@ impl CampaignSaveV1 {
                 + i64::from(self.world_clock.minute_of_day) * 60,
         };
         intent.validate().map_err(CampaignError::InvalidState)?;
-        if self.pending_economic_intents.len() >= 128 {
-            return Err(CampaignError::InvalidState(
-                "economic outbox reached its bounded capacity".to_string(),
-            ));
-        }
         self.economic_idempotency_keys.insert(idempotency_key);
-        self.pending_economic_intents.push(intent);
+        if compensation {
+            if self.pending_economic_compensations.len() >= 64 {
+                return Err(CampaignError::InvalidState(
+                    "economic compensation lane reached its bounded capacity".to_string(),
+                ));
+            }
+            self.pending_economic_compensations.push(intent);
+        } else {
+            if self.pending_economic_intents.len() >= 128 {
+                return Err(CampaignError::InvalidState(
+                    "economic outbox reached its bounded capacity".to_string(),
+                ));
+            }
+            self.pending_economic_intents.push(intent);
+        }
         Ok(true)
+    }
+
+    fn record_value_event(
+        &mut self,
+        event_id: String,
+        intent_id: String,
+        source: ValueEventSource,
+        policy: ValueSettlementPolicy,
+        local_soft_credit_delta: i64,
+    ) -> Result<(), CampaignError> {
+        if self
+            .value_events
+            .iter()
+            .any(|event| event.event_id == event_id)
+        {
+            return Ok(());
+        }
+        let recorded_local_soft_delta = if policy == ValueSettlementPolicy::WalletOnly {
+            0
+        } else {
+            local_soft_credit_delta
+        };
+        let wallet_credit_delta = match policy {
+            ValueSettlementPolicy::LocalSoftOnly => 0,
+            ValueSettlementPolicy::WalletOnly | ValueSettlementPolicy::DualTrack => {
+                local_soft_credit_delta.max(0)
+            }
+        };
+        let kind = if wallet_credit_delta > 0 {
+            EconomicIntentKind::ReleaseReward
+        } else {
+            EconomicIntentKind::CompleteContract
+        };
+        let asset_id = if wallet_credit_delta > 0 {
+            "cex-wallet-credit"
+        } else {
+            "trnm-soft-credit"
+        };
+        self.queue_economic_intent(EconomicIntentDraft {
+            kind,
+            term_id: format!("trnm_value_event:{source:?}").to_ascii_lowercase(),
+            intent_id: intent_id.clone(),
+            binding: self.effective_economy_binding(),
+            asset_id: asset_id.to_string(),
+            quantity: local_soft_credit_delta.max(0),
+            amount_credits: wallet_credit_delta,
+            metadata: json!({
+                "value_event_id": event_id.clone(),
+                "source": source,
+                "payout_policy": policy,
+                "local_soft_credit_delta": recorded_local_soft_delta,
+                "wallet_credit_delta": wallet_credit_delta,
+                "double_issuance": policy == ValueSettlementPolicy::DualTrack,
+            }),
+            compensation: false,
+        })?;
+        self.value_events.push(ValueEventRecord {
+            event_id,
+            source,
+            policy,
+            local_soft_credit_delta: recorded_local_soft_delta,
+            wallet_credit_delta,
+            economic_intent_id: intent_id,
+            economic_receipt_id: None,
+        });
+        if self.economy_mode == EconomyMode::OfflineLocal {
+            self.reconcile_economy(&OfflineLocalEconomyBackend, 8)?;
+        }
+        Ok(())
     }
 
     fn queue_battle_reward_economy(
@@ -7622,22 +7848,13 @@ impl CampaignSaveV1 {
         if receipt.duplicate || receipt.credit_delta <= 0 {
             return Ok(());
         }
-        let binding = self.effective_economy_binding();
-        self.queue_economic_intent(EconomicIntentDraft {
-            kind: EconomicIntentKind::ReleaseReward,
-            term_id: "trnm_battle_reward".to_string(),
-            intent_id: format!("battle-reward:{}", receipt.battle_id),
-            binding,
-            asset_id: "cex-wallet-credit".to_string(),
-            quantity: receipt.credit_delta,
-            amount_credits: receipt.credit_delta,
-            metadata: json!({
-                "battle_id": receipt.battle_id,
-                "result_hash": receipt.result_hash,
-                "local_soft_credit_delta": receipt.credit_delta,
-            }),
-        })?;
-        Ok(())
+        self.record_value_event(
+            format!("battle:{}", receipt.battle_id),
+            format!("battle-reward:{}", receipt.battle_id),
+            ValueEventSource::Battle,
+            ValueSettlementPolicy::DualTrack,
+            receipt.credit_delta,
+        )
     }
 
     pub fn begin_selected_tradeable_purchase(&mut self) -> Result<String, CampaignError> {
@@ -7685,6 +7902,8 @@ impl CampaignSaveV1 {
             account_id: seller_account_id,
             binding_revision: self.revision,
         };
+        let buyer_account_id = buyer.account_id.clone();
+        let seller_account_id_for_metadata = seller.account_id.clone();
         let purchase_id = format!(
             "trade:{}:{}:{}",
             self.campaign_id, item.id, self.reconciliation_cursor
@@ -7703,6 +7922,7 @@ impl CampaignSaveV1 {
                 settle_intent_id: None,
                 consume_intent_id: None,
                 refund_intent_id: None,
+                inventory_rolled_back: false,
             });
         self.queue_economic_intent(EconomicIntentDraft {
             kind: EconomicIntentKind::Reserve,
@@ -7712,7 +7932,14 @@ impl CampaignSaveV1 {
             asset_id: item.id.to_string(),
             quantity: 1,
             amount_credits: price,
-            metadata: json!({"purchase_id": purchase_id, "stage": "reserve", "region_id": region_id}),
+            metadata: json!({
+                "purchase_id": purchase_id,
+                "stage": "reserve",
+                "region_id": region_id,
+                "buyer_account_id": buyer_account_id,
+                "seller_account_id": seller_account_id_for_metadata,
+            }),
+            compensation: false,
         })?;
         Ok(purchase_id)
     }
@@ -7725,24 +7952,77 @@ impl CampaignSaveV1 {
             .ok_or_else(|| {
                 CampaignError::InvalidState("tradeable purchase is missing".to_string())
             })?;
-        let purchase = self.pending_tradeable_purchases[index].clone();
-        let (kind, binding) = if purchase.stage == TradeablePurchaseStage::Consumed {
-            (EconomicIntentKind::Chargeback, purchase.seller.clone())
-        } else {
-            (EconomicIntentKind::Refund, purchase.buyer.clone())
+        let mut purchase = self.pending_tradeable_purchases[index].clone();
+        if matches!(
+            purchase.stage,
+            TradeablePurchaseStage::RefundPending | TradeablePurchaseStage::Refunded
+        ) {
+            return Ok(());
+        }
+        if purchase.stage == TradeablePurchaseStage::ReservePending {
+            self.pending_economic_intents
+                .retain(|intent| intent.intent_id != purchase.reserve_intent_id);
+            self.pending_tradeable_purchases[index].stage = TradeablePurchaseStage::Refunded;
+            return Ok(());
+        }
+        let (kind, escrow_open) = match purchase.stage {
+            TradeablePurchaseStage::SellerSettled | TradeablePurchaseStage::BuyerConsumePending => {
+                (EconomicIntentKind::Refund, true)
+            }
+            TradeablePurchaseStage::Consumed => (EconomicIntentKind::Chargeback, true),
+            TradeablePurchaseStage::Reserved | TradeablePurchaseStage::SellerSettlementPending => {
+                self.pending_economic_intents.retain(|intent| {
+                    purchase.settle_intent_id.as_deref() != Some(intent.intent_id.as_str())
+                });
+                (EconomicIntentKind::Refund, false)
+            }
+            TradeablePurchaseStage::HardFailed => {
+                return Err(CampaignError::InvalidState(
+                    "hard-failed purchase requires operator reconciliation".to_string(),
+                ));
+            }
+            TradeablePurchaseStage::ReservePending
+            | TradeablePurchaseStage::RefundPending
+            | TradeablePurchaseStage::Refunded => unreachable!(),
         };
+        if purchase.stage == TradeablePurchaseStage::BuyerConsumePending {
+            self.pending_economic_intents.retain(|intent| {
+                purchase.consume_intent_id.as_deref() != Some(intent.intent_id.as_str())
+            });
+        }
+        if purchase.stage == TradeablePurchaseStage::Consumed && !purchase.inventory_rolled_back {
+            consume_loot(
+                &mut self.progression.inventory,
+                &purchase.item_id,
+                purchase.quantity,
+            )?;
+            purchase.inventory_rolled_back = true;
+            self.pending_tradeable_purchases[index].inventory_rolled_back = true;
+        }
         let intent_id = format!("{}:recovery", purchase.purchase_id);
         self.pending_tradeable_purchases[index].stage = TradeablePurchaseStage::RefundPending;
         self.pending_tradeable_purchases[index].refund_intent_id = Some(intent_id.clone());
+        let mut metadata = json!({
+            "stage": if kind == EconomicIntentKind::Chargeback { "chargeback" } else { "refund" },
+            "buyer_account_id": purchase.buyer.account_id.clone(),
+            "seller_account_id": purchase.seller.account_id.clone(),
+            "inventory_rolled_back": purchase.inventory_rolled_back,
+        });
+        if escrow_open {
+            metadata["purchase_id"] = json!(purchase.purchase_id);
+        } else {
+            metadata["reservation_purchase_id"] = json!(purchase.purchase_id);
+        }
         self.queue_economic_intent(EconomicIntentDraft {
             kind,
             term_id: "trnm_tradeable_purchase_recovery".to_string(),
             intent_id,
-            binding,
+            binding: purchase.buyer,
             asset_id: purchase.item_id,
             quantity: i64::from(purchase.quantity),
             amount_credits: purchase.price_wallet_credits,
-            metadata: json!({"purchase_id": purchase.purchase_id, "stage": "refund_or_chargeback"}),
+            metadata,
+            compensation: true,
         })?;
         Ok(())
     }
@@ -7764,11 +8044,22 @@ impl CampaignSaveV1 {
         let amount = intent.amount_credits.unwrap_or_default().max(0);
         if applies_to_bound_wallet && receipt.allows_progression() {
             match intent.kind {
-                EconomicIntentKind::ReleaseReward | EconomicIntentKind::Settle => {
+                EconomicIntentKind::ReleaseReward => {
                     self.wallet_snapshot.available_credits = self
                         .wallet_snapshot
                         .available_credits
                         .saturating_add(amount);
+                }
+                EconomicIntentKind::Settle => {
+                    if intent.term_id == "trnm_tradeable_purchase" {
+                        self.wallet_snapshot.reserved_credits =
+                            self.wallet_snapshot.reserved_credits.saturating_sub(amount);
+                    } else {
+                        self.wallet_snapshot.available_credits = self
+                            .wallet_snapshot
+                            .available_credits
+                            .saturating_add(amount);
+                    }
                 }
                 EconomicIntentKind::Reserve => {
                     self.wallet_snapshot.available_credits = self
@@ -7778,7 +8069,7 @@ impl CampaignSaveV1 {
                     self.wallet_snapshot.reserved_credits =
                         self.wallet_snapshot.reserved_credits.saturating_add(amount);
                 }
-                EconomicIntentKind::Consume => {
+                EconomicIntentKind::Consume if intent.term_id != "trnm_tradeable_purchase" => {
                     self.wallet_snapshot.reserved_credits =
                         self.wallet_snapshot.reserved_credits.saturating_sub(amount);
                 }
@@ -7790,11 +8081,27 @@ impl CampaignSaveV1 {
                     self.wallet_snapshot.reserved_credits =
                         self.wallet_snapshot.reserved_credits.saturating_sub(amount);
                 }
+                EconomicIntentKind::Chargeback => {
+                    self.wallet_snapshot.available_credits = self
+                        .wallet_snapshot
+                        .available_credits
+                        .saturating_add(amount);
+                }
                 _ => {}
             }
         }
 
-        if intent.term_id == "trnm_battle_reward" && receipt.allows_progression() {
+        if receipt.allows_progression() {
+            if let Some(event) = self
+                .value_events
+                .iter_mut()
+                .find(|event| event.economic_intent_id == intent.intent_id)
+            {
+                event.economic_receipt_id = Some(receipt.receipt_id.clone());
+            }
+        }
+
+        if receipt.allows_progression() {
             if let Some(settlement) = self.settlement_receipts.iter_mut().find(|settlement| {
                 settlement.economic_intent_id.as_deref() == Some(intent.intent_id.as_str())
             }) {
@@ -7830,11 +8137,18 @@ impl CampaignSaveV1 {
                 kind: EconomicIntentKind::Settle,
                 term_id: "trnm_tradeable_purchase".to_string(),
                 intent_id: next_id,
-                binding: purchase.seller,
-                asset_id: purchase.item_id,
+                binding: purchase.buyer.clone(),
+                asset_id: purchase.item_id.clone(),
                 quantity: i64::from(purchase.quantity),
                 amount_credits: purchase.price_wallet_credits,
-                metadata: json!({"purchase_id": purchase.purchase_id, "stage": "seller_settlement"}),
+                metadata: json!({
+                    "purchase_id": purchase.purchase_id,
+                    "stage": "escrow_hold",
+                    "reserve_intent_id": purchase.reserve_intent_id,
+                    "buyer_account_id": purchase.buyer.account_id,
+                    "seller_account_id": purchase.seller.account_id,
+                }),
+                compensation: false,
             })?;
         } else if purchase.settle_intent_id.as_deref() == Some(intent.intent_id.as_str()) {
             let next_id = format!("{}:consume", purchase.purchase_id);
@@ -7845,11 +8159,17 @@ impl CampaignSaveV1 {
                 kind: EconomicIntentKind::Consume,
                 term_id: "trnm_tradeable_purchase".to_string(),
                 intent_id: next_id,
-                binding: purchase.buyer,
-                asset_id: purchase.item_id,
+                binding: purchase.buyer.clone(),
+                asset_id: purchase.item_id.clone(),
                 quantity: i64::from(purchase.quantity),
                 amount_credits: purchase.price_wallet_credits,
-                metadata: json!({"purchase_id": purchase.purchase_id, "stage": "buyer_consume"}),
+                metadata: json!({
+                    "purchase_id": purchase.purchase_id,
+                    "stage": "buyer_consume_and_seller_commit",
+                    "buyer_account_id": purchase.buyer.account_id,
+                    "seller_account_id": purchase.seller.account_id,
+                }),
+                compensation: false,
             })?;
         } else if purchase.consume_intent_id.as_deref() == Some(intent.intent_id.as_str()) {
             self.pending_tradeable_purchases[index].stage = TradeablePurchaseStage::Consumed;
@@ -7873,9 +8193,13 @@ impl CampaignSaveV1 {
     ) -> Result<EconomyReconciliationReport, CampaignError> {
         let mut report = EconomyReconciliationReport::default();
         while (report.attempted as usize) < max_intents {
-            let Some(intent) = self.pending_economic_intents.first().cloned() else {
-                break;
+            let compensation = !self.pending_economic_compensations.is_empty();
+            let intent = if compensation {
+                self.pending_economic_compensations.first().cloned()
+            } else {
+                self.pending_economic_intents.first().cloned()
             };
+            let Some(intent) = intent else { break };
             report.attempted = report.attempted.saturating_add(1);
             let receipt = match backend.execute(&intent) {
                 Ok(receipt) => receipt,
@@ -7889,7 +8213,11 @@ impl CampaignSaveV1 {
                 report.hard_failures = report.hard_failures.saturating_add(1);
                 report.last_error = Some(error);
                 self.economic_dead_letters.push(intent);
-                self.pending_economic_intents.remove(0);
+                if compensation {
+                    self.pending_economic_compensations.remove(0);
+                } else {
+                    self.pending_economic_intents.remove(0);
+                }
                 continue;
             }
             if let Some(existing) = self
@@ -7904,7 +8232,11 @@ impl CampaignSaveV1 {
             match receipt.progression_class {
                 ReceiptProgressionClass::ProgressionAllowed
                 | ReceiptProgressionClass::TerminalSkip => {
-                    self.pending_economic_intents.remove(0);
+                    if compensation {
+                        self.pending_economic_compensations.remove(0);
+                    } else {
+                        self.pending_economic_intents.remove(0);
+                    }
                     self.apply_verified_economic_receipt(&intent, &receipt)?;
                     report.applied = report.applied.saturating_add(1);
                 }
@@ -7914,7 +8246,11 @@ impl CampaignSaveV1 {
                     break;
                 }
                 ReceiptProgressionClass::HardFail => {
-                    self.pending_economic_intents.remove(0);
+                    if compensation {
+                        self.pending_economic_compensations.remove(0);
+                    } else {
+                        self.pending_economic_intents.remove(0);
+                    }
                     self.economic_dead_letters.push(intent.clone());
                     self.apply_verified_economic_receipt(&intent, &receipt)?;
                     report.hard_failures = report.hard_failures.saturating_add(1);
@@ -7932,7 +8268,8 @@ impl CampaignSaveV1 {
             let keep_from = self.verified_economic_receipts.len() - 256;
             self.verified_economic_receipts.drain(..keep_from);
         }
-        report.remaining = self.pending_economic_intents.len();
+        report.remaining =
+            self.pending_economic_compensations.len() + self.pending_economic_intents.len();
         self.validate()?;
         Ok(report)
     }
@@ -9280,7 +9617,7 @@ mod tests {
         let store = CampaignStore::new(directory.path().join("regional-economy.json"));
         store.save_atomic(&campaign).unwrap();
         let loaded = store.load().unwrap();
-        assert_eq!(loaded.schema_revision, 10);
+        assert_eq!(loaded.schema_revision, 11);
         assert_eq!(loaded.regional_logistics, campaign.regional_logistics);
         assert_eq!(loaded.technique_mastery, campaign.technique_mastery);
     }
@@ -9351,10 +9688,37 @@ mod tests {
         }
     }
 
+    struct CompensationFirstBackend;
+
+    impl EconomyBackend for CompensationFirstBackend {
+        fn backend_id(&self) -> &str {
+            "compensation-first-test"
+        }
+
+        fn execute(&self, intent: &EconomicIntent) -> Result<EconomicReceipt, String> {
+            if matches!(
+                intent.kind,
+                EconomicIntentKind::Refund | EconomicIntentKind::Chargeback
+            ) {
+                return OfflineLocalEconomyBackend.execute(intent);
+            }
+            let mut receipt = EconomicReceipt::from_intent(
+                format!("blocked:{}", intent.intent_id),
+                intent,
+                self.backend_id(),
+                SettlementBackendKind::LocalTest,
+                ReceiptStatus::FailedNetwork,
+                intent.created_at_epoch,
+            );
+            receipt.reason = Some("regular FIFO head is deliberately unavailable".to_string());
+            Ok(receipt)
+        }
+    }
+
     #[test]
-    fn revision_ten_separates_soft_wallet_bound_tradeable_and_ephemeral_assets() {
+    fn revision_eleven_separates_value_events_and_asset_authorities() {
         let campaign = CampaignSaveV1::default();
-        assert_eq!(campaign.schema_revision, 10);
+        assert_eq!(campaign.schema_revision, 11);
         assert_eq!(campaign.economy_mode, EconomyMode::OfflineLocal);
         assert_eq!(
             CampaignSaveV1::economy_asset_semantic("trnm-soft-credit").transferability,
@@ -9367,6 +9731,90 @@ mod tests {
         assert_eq!(
             CampaignSaveV1::economy_asset_semantic("rts-resource:cyan").transferability,
             EconomyTransferability::Ephemeral
+        );
+
+        let mut revision_ten_complete_epilogue = CampaignSaveV1 {
+            schema_revision: 10,
+            ending_epilogue_progress: 3,
+            ending_epilogue_complete: true,
+            ..CampaignSaveV1::default()
+        };
+        revision_ten_complete_epilogue.ensure_gameplay_defaults();
+        assert_eq!(revision_ten_complete_epilogue.ending_epilogue_progress, 4);
+        revision_ten_complete_epilogue.validate().unwrap();
+    }
+
+    #[test]
+    fn value_events_make_local_wallet_and_dual_track_issuance_explicit() {
+        let mut campaign = CampaignSaveV1::default();
+        campaign
+            .bind_cex_economy_account("player-one", "11111111-1111-1111-1111-111111111111")
+            .unwrap();
+        let fixtures = [
+            (
+                "quest",
+                ValueEventSource::RegionalQuest,
+                ValueSettlementPolicy::LocalSoftOnly,
+                11,
+            ),
+            (
+                "chapter",
+                ValueEventSource::Chapter,
+                ValueSettlementPolicy::LocalSoftOnly,
+                22,
+            ),
+            (
+                "ending",
+                ValueEventSource::Ending,
+                ValueSettlementPolicy::WalletOnly,
+                33,
+            ),
+            (
+                "battle",
+                ValueEventSource::Battle,
+                ValueSettlementPolicy::DualTrack,
+                44,
+            ),
+            (
+                "future-trade",
+                ValueEventSource::PlayerTrade,
+                ValueSettlementPolicy::WalletOnly,
+                55,
+            ),
+        ];
+        for (id, source, policy, amount) in fixtures {
+            campaign
+                .record_value_event(
+                    format!("value:{id}"),
+                    format!("value-intent:{id}"),
+                    source,
+                    policy,
+                    amount,
+                )
+                .unwrap();
+        }
+
+        assert_eq!(campaign.value_events.len(), 5);
+        assert_eq!(campaign.pending_economic_intents.len(), 5);
+        assert_eq!(campaign.value_events[0].wallet_credit_delta, 0);
+        assert_eq!(campaign.value_events[2].local_soft_credit_delta, 0);
+        assert_eq!(campaign.value_events[3].local_soft_credit_delta, 44);
+        assert_eq!(campaign.value_events[3].wallet_credit_delta, 44);
+        assert_eq!(
+            campaign.pending_economic_intents[0].kind,
+            EconomicIntentKind::CompleteContract
+        );
+        assert_eq!(
+            campaign.pending_economic_intents[3].kind,
+            EconomicIntentKind::ReleaseReward
+        );
+        assert_eq!(
+            campaign.pending_economic_intents[3].metadata["double_issuance"],
+            json!(true)
+        );
+        assert_eq!(
+            campaign.pending_economic_intents[4].metadata["double_issuance"],
+            json!(false)
         );
     }
 
@@ -9461,6 +9909,7 @@ mod tests {
                 quantity: 1,
                 amount_credits: 1,
                 metadata: json!({}),
+                compensation: false,
             })
             .unwrap();
         let report = campaign
@@ -9468,6 +9917,70 @@ mod tests {
             .unwrap();
         assert_eq!(report.hard_failures, 1);
         assert_eq!(campaign.economic_dead_letters.len(), 1);
+    }
+
+    #[test]
+    fn compensation_lane_bypasses_regular_head_and_rolls_back_consumed_inventory() {
+        let selected_shop_item_index = ECONOMY_ITEM_CATALOG
+            .iter()
+            .position(|item| item.material)
+            .unwrap();
+        let mut campaign = CampaignSaveV1 {
+            room: CampaignRoom::MarketWindPavilion,
+            selected_shop_item_index,
+            ..CampaignSaveV1::default()
+        };
+        let item_id = ECONOMY_ITEM_CATALOG[selected_shop_item_index]
+            .id
+            .to_string();
+        let purchase_id = campaign.begin_selected_tradeable_purchase().unwrap();
+        campaign
+            .reconcile_economy(&OfflineLocalEconomyBackend, 8)
+            .unwrap();
+        assert_eq!(
+            campaign.pending_tradeable_purchases[0].stage,
+            TradeablePurchaseStage::Consumed
+        );
+        assert!(campaign
+            .progression
+            .inventory
+            .iter()
+            .any(|loot| loot.item_id == item_id));
+
+        campaign
+            .queue_economic_intent(EconomicIntentDraft {
+                kind: EconomicIntentKind::ReleaseReward,
+                term_id: "blocked_regular_value_event".to_string(),
+                intent_id: "blocked-regular-intent".to_string(),
+                binding: campaign.effective_economy_binding(),
+                asset_id: "cex-wallet-credit".to_string(),
+                quantity: 1,
+                amount_credits: 1,
+                metadata: json!({}),
+                compensation: false,
+            })
+            .unwrap();
+        campaign.cancel_tradeable_purchase(&purchase_id).unwrap();
+        assert!(!campaign
+            .progression
+            .inventory
+            .iter()
+            .any(|loot| loot.item_id == item_id));
+        assert_eq!(campaign.pending_economic_compensations.len(), 1);
+        assert_eq!(campaign.pending_economic_intents.len(), 1);
+
+        let report = campaign
+            .reconcile_economy(&CompensationFirstBackend, 2)
+            .unwrap();
+        assert_eq!(report.applied, 1);
+        assert_eq!(report.recoverable_holds, 1);
+        assert!(campaign.pending_economic_compensations.is_empty());
+        assert_eq!(campaign.pending_economic_intents.len(), 1);
+        assert_eq!(
+            campaign.pending_tradeable_purchases[0].stage,
+            TradeablePurchaseStage::Refunded
+        );
+        assert!(campaign.pending_tradeable_purchases[0].inventory_rolled_back);
     }
 
     #[test]

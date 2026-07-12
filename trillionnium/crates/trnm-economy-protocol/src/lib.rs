@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
 pub const TERM_EXCHANGE_PROTOCOL_VERSION: &str = "term_exchange_protocol_v2";
+pub const TERM_EXCHANGE_PROTOCOL_PACKAGE_VERSION: &str = env!("CARGO_PKG_VERSION");
 pub const TERM_EXCHANGE_KERNEL_CONTRACT_VERSION: &str = "trillionnium_term_exchange_kernel_v2";
 pub const TERM_EXCHANGE_BACKEND_CONTRACT_VERSION: &str = "term_exchange_backend_v2";
 pub const TERM_EXCHANGE_KERNEL_ID: &str = "term-exchange-kernel";
@@ -377,6 +378,7 @@ pub fn cex_settlement_backend_manifest(active: bool) -> SettlementBackendManifes
 pub fn protocol_manifest_json() -> Value {
     json!({
         "protocol_version": TERM_EXCHANGE_PROTOCOL_VERSION,
+        "package_version": TERM_EXCHANGE_PROTOCOL_PACKAGE_VERSION,
         "kernel_contract_version": TERM_EXCHANGE_KERNEL_CONTRACT_VERSION,
         "backend_contract_version": TERM_EXCHANGE_BACKEND_CONTRACT_VERSION,
         "domain": "trnm_game",

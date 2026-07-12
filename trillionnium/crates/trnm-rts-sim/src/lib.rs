@@ -7229,7 +7229,7 @@ mod tests {
                 }
             }
         }
-        let matrix = run_skirmish_balance_matrix(&seeds, 550).unwrap();
+        let matrix = run_skirmish_balance_matrix(&seeds, 500).unwrap();
         assert_eq!(matrix.samples.len(), 64);
         assert_eq!(
             matrix

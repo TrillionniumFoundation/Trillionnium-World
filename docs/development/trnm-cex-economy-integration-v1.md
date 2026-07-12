@@ -12,9 +12,12 @@ receipts and wallet reconciliation. The CEX Web/Matrix World shell is not a
 game client.
 
 The stable protocol is owned by
-`trillionnium/crates/trnm-economy-protocol`. CEX consumes that crate through a
-workspace path dependency and does not depend on removed `trnm-world-api`,
-`trnm-world-domain` or `trnm-world-projection` crates.
+`trillionnium/crates/trnm-economy-protocol`, package version `2.1.0`. CEX
+vendors that exact package version inside its own checkout, so it no longer
+assumes a sibling `../Trillionnium` directory. CEX does not depend on removed
+`trnm-world-api`, `trnm-world-domain` or `trnm-world-projection` crates. Its old
+v1 protocol crate was removed from the workspace and replaced by an explicit
+quarantine note; Git history remains the only migration reference.
 
 ## Asset semantics
 
@@ -30,28 +33,50 @@ No RTS tick, NPC work tick or regional-market tick calls CEX.
 
 ## Save and recovery contract
 
-`trnm_campaign_save_v1` schema revision 10 persists:
+`trnm_campaign_save_v1` schema revision 11 persists:
 
 - `economy_mode` and account binding;
 - wallet snapshot;
-- bounded pending-intent outbox;
+- bounded pending-intent outbox plus a separate priority compensation lane;
 - verified receipts and idempotency keys;
 - hard-fail dead letters;
 - pending trade lifecycle;
+- inventory rollback and explicit value-event payout policy;
 - reconciliation cursor.
 
-Battle settlement remains locally atomic and queues one `ReleaseReward` intent
-per non-duplicate positive reward. Offline play reconciles through
+Quest, chapter, ending, battle and future player-trade values pass through a
+single `ValueEvent` mapping. Each event declares `LocalSoftOnly`, `WalletOnly`
+or `DualTrack`; only `DualTrack` intentionally issues both local and wallet
+value. Battle settlement remains locally atomic and currently uses explicit
+`DualTrack`, queuing one `ReleaseReward` intent per non-duplicate positive
+reward. Quest/chapter/ending soft rewards use `CompleteContract` audit receipts
+without duplicating their local credits into the wallet. Offline play reconciles through
 `OfflineLocalEconomyBackend`. Connected play posts to CEX and advances only on
 a receipt bound to the exact intent/term with a matching progression class.
 Network/ledger failure stays pending across save/reload. A malformed or
 mismatched receipt is moved to the dead-letter lane and cannot advance state.
 
-Tradeable purchases use buyer `Reserve`, seller `Settle`, then buyer `Consume`.
+Tradeable purchases use buyer `Reserve`, an escrow hold, then buyer-authorized
+`Consume` to atomically commit the held amount to the seller. The seller is not
+paid before consume succeeds.
 Connected purchases require explicit valid ledger account IDs for both buyer
-and market seller. Cancellation/recovery emits typed Refund or Chargeback
-intents. Player-to-player listing discovery remains a later product surface;
-the current client exposes the typed system-market settlement path only.
+and market seller. A pre-commit cancellation refunds buyer escrow. A committed
+cancellation first rolls back local inventory and then atomically debits the
+seller and credits the buyer through `Chargeback`. Recovery intents use a
+separate priority lane, so a failed ordinary FIFO head cannot block
+compensation. Player-to-player listing discovery remains release-gated; the
+current client exposes the trusted system-market settlement path only.
+
+## Persistent CEX runtime
+
+CEX migration `0027_add_trnm_native_economy_persistence.sql` owns unique
+PostgreSQL records for intent IDs, `(scope,key)` idempotency, one receipt per
+intent, reconciliation cursors and escrow purchases. Ledger mutation and
+intent/receipt storage commit in one SQL transaction. The formal
+`cex-trnm-ledger.service` and `cex-trnm-consumer.service` user-systemd units run
+release binaries with `LEDGER_FAIL_FAST=true`; PostgreSQL absence prevents the
+ledger from opening its port and never activates the development memory
+fallback.
 
 ## CEX HTTP surface
 
@@ -77,13 +102,17 @@ outbox, verified receipts and dead letters separately.
 
 ## Verification
 
-TRNM tests prove schema migration, asset separation, one-intent outbox
-deduplication, crash/reload retry, recoverable hold, corrupt-receipt dead letter
-and Reserve -> Settle -> Consume. CEX tests start a real in-process ledger and
-prove reward exactly-once, duplicate replay, reserve/refund,
-reserve/chargeback, wallet reconciliation, typed receipt audit, service-down
-fail-closed behavior and invalid-protocol rejection.
+TRNM tests prove schema migration, asset separation, explicit value-event
+policies, one-intent outbox deduplication, priority compensation over a failed
+ordinary head, inventory rollback, crash/reload retry, recoverable hold,
+corrupt-receipt dead letter and Reserve -> escrow -> Consume. CEX unit tests
+retain in-process coverage, and
+`scripts/check-trnm-native-economy-cross-process.sh` creates new persistent
+accounts and proves reward exactly-once, identical replay before and after
+service restart, held-escrow refund, committed escrow, chargeback reversal,
+wallet/cursor recovery and unique PostgreSQL intent/receipt/entry records.
 
-This is local integration evidence, not a claim of public CEX deployment,
-production account provisioning, commercial/legal readiness or public player
-trading.
+This is persistent local-production-profile integration evidence, not a claim
+of high availability, public CEX exposure, commercial/legal readiness or
+public player trading. Public listing, custody, matching, anti-abuse and
+dispute/support operations remain blocked until human and release approval.

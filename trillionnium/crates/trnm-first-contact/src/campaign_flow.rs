@@ -1379,6 +1379,20 @@ mod tests {
     use trnm_rts_protocol::{RtsFrameOrder, RtsOrderKind, RtsOrderSource, RtsTile};
     use trnm_rts_sim::{BattlePhase, FIVE_MINUTE_TICKS};
 
+    #[cfg(all(target_os = "linux", target_env = "gnu"))]
+    unsafe extern "C" {
+        fn malloc_trim(pad: usize) -> i32;
+    }
+
+    fn release_finished_client_test_heap() {
+        #[cfg(all(target_os = "linux", target_env = "gnu"))]
+        {
+            // SAFETY: malloc_trim(0) is a process-local glibc allocator hint.
+            // All Bevy App owners have been dropped before this helper runs.
+            let _ = unsafe { malloc_trim(0) };
+        }
+    }
+
     fn tap_client_key(app: &mut App, key: KeyCode, shift: bool, control: bool) {
         {
             let mut input = app.world_mut().resource_mut::<ButtonInput<KeyCode>>();
@@ -1900,6 +1914,9 @@ mod tests {
             .progression
             .world_flags
             .contains("outer_signal_road_open"));
+        drop(prologue);
+        std::fs::remove_dir_all(&prologue_root).unwrap();
+        release_finished_client_test_heap();
 
         for approach in [
             QuestApproach::Direct,
@@ -2138,20 +2155,23 @@ mod tests {
                 trnm_campaign_core::MainStoryEnding::ContestedMandate => "moon_bridge",
             };
             walk_client_to(&mut app, epilogue_room);
-            for _ in 0..3 {
+            for _ in 0..4 {
                 tap_client_key(&mut app, KeyCode::KeyB, true, true);
             }
-            let flow = app.world().resource::<CampaignFlow>();
-            assert_eq!(
-                flow.save.main_story_chapter,
-                MainStoryChapter::ChapterComplete
-            );
-            assert!(flow.save.main_story_ending.is_some());
-            assert!(flow.save.post_ending_world_state.is_some());
-            assert!(flow.save.ending_epilogue_complete);
+            {
+                let flow = app.world().resource::<CampaignFlow>();
+                assert_eq!(
+                    flow.save.main_story_chapter,
+                    MainStoryChapter::ChapterComplete
+                );
+                assert!(flow.save.main_story_ending.is_some());
+                assert!(flow.save.post_ending_world_state.is_some());
+                assert!(flow.save.ending_epilogue_complete);
+            }
+            drop(app);
             std::fs::remove_dir_all(root).unwrap();
+            release_finished_client_test_heap();
         }
-        std::fs::remove_dir_all(prologue_root).unwrap();
     }
 
     #[test]

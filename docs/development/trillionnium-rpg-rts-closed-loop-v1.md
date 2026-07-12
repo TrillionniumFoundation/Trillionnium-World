@@ -57,11 +57,11 @@ Mirror Square
 - `trnm_rts_sim_v16`
 - `trnm_rts_sim_checkpoint_v16`
 
-Campaign persistence remains `trnm_campaign_save_v1` with schema revision 10.
-Revision 10 retains the revision-9 multi-beat chapter/epilogue and visible
-caravan state, and adds account binding, wallet snapshots, pending economic
-intents, verified receipts, idempotency keys, dead letters, trade lifecycle and
-reconciliation cursor while preserving older save migration paths.
+Campaign persistence remains `trnm_campaign_save_v1` with schema revision 11.
+Revision 11 retains the revision-10 account/wallet/outbox state and adds
+explicit value-event payout policy, a bounded priority compensation lane,
+inventory rollback state and escrow recovery while preserving older save
+migration paths.
 
 `BattleSeedV1` binds campaign revision, battle id, map/rules version, four
 persistent party members, spawn slots, skills, typed equipment modifiers,
