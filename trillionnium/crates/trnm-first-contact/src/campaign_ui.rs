@@ -290,21 +290,47 @@ fn town_body(flow: &CampaignFlow) -> String {
                 .save
                 .main_story_ending
                 .map(|ending| format!(
-                    "ENDING SCENE: {}\nPOST-ENDING WORLD: {}",
+                    "ENDING SCENE: {}\nPOST-ENDING WORLD: {}\nEPILOGUE: {}/3 ({})",
                     ending.label(),
-                    flow.save.post_ending_world_state.as_deref().unwrap_or("pending")
+                    flow.save.post_ending_world_state.as_deref().unwrap_or("pending"),
+                    flow.save.ending_epilogue_progress,
+                    if flow.save.ending_epilogue_complete { "complete" } else { "playable" },
                 ))
                 .unwrap_or_else(|| {
+                    let scene_step = flow
+                        .save
+                        .pending_main_story_chapter
+                        .and_then(|pending| trnm_campaign_core::MAIN_STORY_CHAPTERS
+                            .iter()
+                            .find(|chapter| chapter.chapter == pending))
+                        .and_then(|chapter| flow.save.main_story_scene_progress.get(chapter.scene_id))
+                        .copied()
+                        .unwrap_or_default();
                     format!(
-                        "CHAPTER: {:?} | pending scene: {:?} | next resolution: {:?}",
+                        "CHAPTER: {:?} | pending scene: {:?} | scene beat: {}/2 | next resolution: {:?}",
                         flow.save.main_story_chapter,
                         flow.save.pending_main_story_chapter,
+                        scene_step,
                         flow.save.main_story_choice
                     )
                 });
+            let caravan = save
+                .visible_regional_caravan()
+                .map(|caravan| format!(
+                    "VISIBLE CARAVAN: {} | {} x{} | {} -> {} | integrity {} | risk {} | {:?}\nCtrl+Shift+C escorts it; repeat after escort to intercept it.",
+                    caravan.caravan_id,
+                    caravan.item_id,
+                    caravan.quantity,
+                    caravan.from_region_id,
+                    caravan.to_region_id,
+                    caravan.integrity,
+                    caravan.risk,
+                    caravan.incident,
+                ))
+                .unwrap_or_else(|| "VISIBLE CARAVAN: none in this room".to_string());
             format!(
-                "{}\n\nMIRROR CITY REGIONAL DISTRICT\n\nNPC: {}\n{}\n\nQUEST: {}\n{}\n\n{}\n{}\n\nT talks; Shift+T changes dialogue intent; Ctrl+T joins the sect in a sect hall. F9 accepts, N walks one legal route edge, F10 resolves the graph-ready node, Ctrl+F10 abandons it for a retry, and R changes Direct/Diplomatic/Resourceful resolution. Shift+B selects a chapter outcome; Ctrl+Shift+B resolves it in its scene. W advances schedules. Shift+K / Ctrl+Shift+K choose techniques. F11 cycles; Shift+F11 buys/crafts; Ctrl+F11 sells; F12 repairs.",
-                room_label(room), npc, dialogue, quest, navigation, commerce, story,
+                "{}\n\nMIRROR CITY REGIONAL DISTRICT\n\nNPC: {}\n{}\n\nQUEST: {}\n{}\n\n{}\n{}\n{}\n\nT talks; Shift+T changes dialogue intent; Ctrl+T joins the sect in a sect hall. F9 accepts, N walks one legal route edge, F10 resolves the graph-ready node, Ctrl+F10 abandons it for a retry, and R changes Direct/Diplomatic/Resourceful resolution. Shift+B selects a chapter outcome; Ctrl+Shift+B advances its authored scene/epilogue. W advances schedules. Shift+K / Ctrl+Shift+K choose techniques. F11 cycles; Shift+F11 buys/crafts; Ctrl+F11 sells; F12 repairs.",
+                room_label(room), npc, dialogue, quest, navigation, commerce, story, caravan,
             )
         }
     };
@@ -422,8 +448,10 @@ fn shell_body(flow: &CampaignFlow) -> String {
         ),
         ShellMode::Journal => journal_body(flow),
         ShellMode::ReplayBrowser => format!(
-            "VERIFIED REPLAY TIMELINE\n\n{}\n\nSpace play/pause | Left/Right seek | Up speed 1x/2x/4x/8x | Enter full hash verification | Escape title.",
-            flow.status
+            "VERIFIED REPLAY TIMELINE\n\n{}\n\nFREE CAMERA: ({}, {})\n\nW/A/S/D pan | Space play/pause | Left/Right seek | Up speed 1x/2x/4x/8x | Enter full hash verification | Escape title.",
+            flow.status,
+            flow.replay_camera_x,
+            flow.replay_camera_y,
         ),
         ShellMode::Playing => String::new(),
     }

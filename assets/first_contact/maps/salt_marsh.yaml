@@ -1,0 +1,37 @@
+extends: first_contact
+terrain_transform: shift_3
+contract_version: trnm_first_contact_map_v1
+id: salt_marsh
+title: Salt Marsh Divide
+player_start: { x: 34, y: 18 }
+camera_start: { x: 30, y: 16 }
+objective: { id: marsh_pump, label: Secure the Salt Marsh Pump, x: 5, y: 5 }
+bases:
+  - { id: mirror_marsh_base, owner: player, x: 27, y: 13, width: 12, height: 10, entrance_x: 26, entrance_y: 18 }
+  - { id: ash_marsh_base, owner: contact, x: 1, y: 1, width: 12, height: 10, entrance_x: 13, entrance_y: 6 }
+chokepoints:
+  - { id: north_pass, x: 13, y: 5, width: 4, height: 4, approach: rear }
+  - { id: south_pass, x: 22, y: 14, width: 4, height: 4, approach: front }
+resources:
+  - { id: salt_cyan, kind: cyan_crystal, x: 30, y: 13, route: dry_bank }
+  - { id: marsh_amber, kind: amber_salvage, x: 10, y: 10, route: drowned_road }
+  - { id: divide_cache, kind: amber_salvage, x: 20, y: 11, route: salt_causeway }
+landmarks:
+  - { id: dry_bank, role: front, x: 28, y: 17, frame: front }
+  - { id: salt_causeway, role: mid, x: 20, y: 11, frame: mid }
+  - { id: marsh_pump, role: rear, x: 5, y: 5, frame: rear }
+structures:
+  - { id: mirror_marsh_command, family: command_core, owner: player, x: 34, y: 19, active: true }
+  - { id: mirror_marsh_refinery, family: refinery, owner: player, x: 31, y: 20, active: true }
+  - { id: mirror_marsh_workshop, family: foundry, owner: player, x: 36, y: 20, active: true }
+  - { id: ash_marsh_command, family: command_core, owner: contact, x: 5, y: 4, active: true }
+  - { id: ash_marsh_pump, family: shield_relay, owner: contact, x: 8, y: 6, active: true }
+units:
+  - { id: party_0, spawn_slot: party_0, family: worker, owner: player, x: 33, y: 18, selected: true }
+  - { id: party_1, spawn_slot: party_1, family: scout, owner: player, x: 32, y: 18, selected: true }
+  - { id: party_2, spawn_slot: party_2, family: warden, owner: player, x: 33, y: 17, selected: true }
+  - { id: party_3, spawn_slot: party_3, family: striker, owner: player, x: 32, y: 17, selected: true }
+  - { id: marsh_runner, family: scout, owner: contact, x: 15, y: 9, selected: false }
+  - { id: marsh_warden, family: warden, owner: contact, x: 11, y: 7, selected: false }
+  - { id: pump_sapper, family: relay_engineer, owner: contact, x: 7, y: 6, selected: false }
+  - { id: marsh_commander, family: sentinel, owner: contact, x: 5, y: 6, selected: false }

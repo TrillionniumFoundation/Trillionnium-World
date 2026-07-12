@@ -30,7 +30,7 @@ Mirror Square
   -> unlock the outer Signal Road and retain the repeatable patrol loop
   -> counterattack on the fourth original Mirror Siege map
   -> break the siege, reclaim Mirror Gate and persist the result
-  -> select Iron Delta, Night Watch Crossing, Glass Basin or Ember Orchard as deterministic skirmishes
+  -> select Iron Delta, Night Watch Crossing, Glass Basin, Ember Orchard, Salt Marsh Divide or Cinder Crown Siege as deterministic skirmishes
   -> return their faction loot and equipment materials to the RPG economy
 ```
 
@@ -43,7 +43,7 @@ Mirror Square
 | Frame-order contract | `trnm-rts-protocol` | Lightweight player-order validation and deterministic stream contract. |
 | Battle simulation | `trnm-rts-sim` | Bevy-free, two-dimensional, map-aware simulation consuming `RtsFrameOrder` as its only player input. |
 | Native presentation/input | `trnm-first-contact` | Consumes `BattleSeedV1`; may only emit `BattleResultV1`. |
-| Authored map/art | `assets/first_contact` | Eight canonical original 40x24 campaign/skirmish maps and PNG atlases. |
+| Authored map/art | `assets/first_contact` | Ten canonical original 40x24 campaign/skirmish maps and PNG atlases. |
 | Historical implementation | `docs/archive/frozen-legacy-final-index-2026-07-11.md` | Removed from the current checkout; recoverable by an explicit historical Git worktree only. |
 
 ## Stable Contracts
@@ -52,13 +52,13 @@ Mirror Square
 - `trnm_battle_seed_v8`
 - `trnm_battle_result_v2`
 - `trnm_settlement_receipt_v1`
-- `trnm_rts_sim_v15`
-- `trnm_rts_sim_checkpoint_v15`
+- `trnm_rts_sim_v16`
+- `trnm_rts_sim_checkpoint_v16`
 
-Campaign persistence remains `trnm_campaign_save_v1` with schema revision 8.
-Revision 8 adds mutually exclusive/optional route consequences, playable
-chapter scenes, post-ending state and autonomous NPC/caravan state while
-preserving revision-7 migration paths.
+Campaign persistence remains `trnm_campaign_save_v1` with schema revision 9.
+Revision 9 adds multi-beat chapter scenes and ending epilogues plus routed,
+visible caravan entities with player interaction while preserving older save
+migration paths.
 
 `BattleSeedV1` binds campaign revision, battle id, map/rules version, four
 persistent party members, spawn slots, skills, typed equipment modifiers,
@@ -100,11 +100,13 @@ BattleSeed effect.
   currently reachable nodes drive movement, mutually exclusive/skippable route
   choice and persisted consequences, plus authored approach prose, real
   encounter execution, failure recovery and relationship/economy effects;
-- a client-level 15 x 3 matrix sends the same movement, accept, approach,
-  abandon/retry, graph-resolution, shop, primary/secondary combat and chapter
-  scene keys available to a player; its post-prologue fixture writes neither
-  room, character attributes, NPC trust, inventory, encounter results nor quest
-  nodes directly;
+- a client-level journey starts from the default new save, sends real mentor,
+  loadout, party, difficulty and deployment keys, wins all four authoritative
+  campaign missions, then forks that legally produced save into a 15 x 3 matrix
+  using movement, accept, approach, abandon/retry, graph-resolution, shop,
+  primary/secondary combat, chapter-scene and ending-epilogue keys; no prologue
+  unlock flag, room, character attribute, NPC trust, inventory, encounter result
+  or quest node is written directly;
 - the twenty-room world includes four-room Glass Basin and Ashen Fringe
   regions plus three independent chapter decisions and five ending states;
 - NPC schedules produce bounded pairwise social-event memories; persisted bond,
@@ -114,19 +116,19 @@ BattleSeed effect.
   mastery, combo/counter rules, telegraphed enemy move trees and typed statuses;
 - both RTS sides use `SimUnit` workers, shared resource nodes, cargo return,
   builder-bound sites, `SimStructure` buildings and one side-tagged `SimJob`
-  execution/structure-function authority alongside power, supply, production
-  and research prerequisites;
-- player orders and adaptive-AI build choices share resource deduction, job
-  submission, progress and construction-worker execution; strategic AI goal
-  selection remains a controller concern rather than a second job authority;
+  authority; one worker logistics function, source-checked job-command inlet and
+  progress/completion scheduler now execute both sides, while strategic AI goal
+  selection and side-specific unit/tech effects remain bounded adapters;
 - enemy buildings are explicit selectable attack targets; proximity cannot
   damage a base;
 - all twelve roster abilities have individual authoritative effects;
-- `trnm_battle_replay_v2` chunk-hashes up to 65,536 frame orders, migrates v1,
-  exposes a pause/seek/speed title replay timeline and verifies the final
-  snapshot hash; the terminal-oriented balance gate runs four real YAML maps,
-  both faction and spawn assignments, and three gameplay-affecting seeds through
-  player/enemy harvesting, spending, production, research and terminal authority.
+- `trnm_battle_replay_v2` chunk-hashes up to 65,536 frame orders, automatically
+  migrates verified v1 files, embeds hashed seek checkpoints, supports verified
+  chunk-directory storage and exposes pause/seek/speed/free-camera inspection;
+  the terminal-oriented balance gate runs four real YAML maps, both faction and
+  spawn assignments, and four gameplay-affecting seeds through player/enemy
+  harvesting, spending, production, research and terminal authority while
+  reporting win, duration, resource-efficiency, technology and per-map metrics.
 
 The authored map's four selected player records are presentation spawn slots;
 they are no longer hard-coded RPG character identities.
@@ -221,7 +223,7 @@ Current authored content expansion:
 - fifteen regional quests, seven encounter definitions and original combat captions;
 - fifteen skills, twenty-two economy items, eight recipes, durability and repair;
 - two factions, twelve unit archetypes, ten structures and ten technologies;
-- Iron Delta, Night Watch Crossing, Glass Basin and Ember Orchard join the four campaign maps as independently selectable skirmishes.
+- Iron Delta, Night Watch Crossing, Glass Basin, Ember Orchard, Salt Marsh Divide and Cinder Crown Siege join the four campaign maps as independently selectable skirmishes.
 
 ## M0-M4 Implementation State
 

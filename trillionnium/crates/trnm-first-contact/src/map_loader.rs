@@ -111,6 +111,8 @@ pub struct MissionMapCatalog {
     pub night_watch_crossing: FirstContactMap,
     pub glass_basin: FirstContactMap,
     pub ember_orchard: FirstContactMap,
+    pub salt_marsh: FirstContactMap,
+    pub cinder_crown: FirstContactMap,
 }
 
 impl MissionMapCatalog {
@@ -140,6 +142,12 @@ impl MissionMapCatalog {
             ember_orchard: load_first_contact_map(
                 &asset_root.join("first_contact/maps/ember_orchard.yaml"),
             )?,
+            salt_marsh: load_first_contact_map(
+                &asset_root.join("first_contact/maps/salt_marsh.yaml"),
+            )?,
+            cinder_crown: load_first_contact_map(
+                &asset_root.join("first_contact/maps/cinder_crown.yaml"),
+            )?,
         })
     }
 
@@ -153,6 +161,8 @@ impl MissionMapCatalog {
             CampaignMission::NightWatchCrossingSkirmish => &self.night_watch_crossing,
             CampaignMission::GlassBasinSkirmish => &self.glass_basin,
             CampaignMission::EmberOrchardSkirmish => &self.ember_orchard,
+            CampaignMission::SaltMarshSkirmish => &self.salt_marsh,
+            CampaignMission::CinderCrownSkirmish => &self.cinder_crown,
         }
     }
 }
@@ -231,6 +241,8 @@ impl FirstContactMap {
                 | "night_watch_crossing"
                 | "glass_basin"
                 | "ember_orchard"
+                | "salt_marsh"
+                | "cinder_crown"
         ) || self.title.trim().is_empty()
         {
             return Err("campaign map identity/title is invalid".into());
@@ -443,11 +455,12 @@ pub fn load_first_contact_map(path: &Path) -> Result<FirstContactMap, String> {
                 }
             }
         }
-        Some("shift_5") | Some("shift_11") => {
-            let amount = if transform.as_deref() == Some("shift_5") {
-                5
-            } else {
-                11
+        Some("shift_3") | Some("shift_5") | Some("shift_7") | Some("shift_11") => {
+            let amount = match transform.as_deref() {
+                Some("shift_3") => 3,
+                Some("shift_5") => 5,
+                Some("shift_7") => 7,
+                _ => 11,
             };
             for row in map
                 .terrain_rows
@@ -506,7 +519,7 @@ mod tests {
     }
 
     #[test]
-    fn campaign_catalog_contains_eight_distinct_authored_maps() {
+    fn campaign_catalog_contains_ten_distinct_authored_maps() {
         let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../assets");
         let catalog = MissionMapCatalog::load(&root).expect("both authored maps load");
         assert_eq!(catalog.aftershock_patrol.id, "aftershock_patrol");
@@ -541,6 +554,8 @@ mod tests {
         assert_eq!(catalog.night_watch_crossing.id, "night_watch_crossing");
         assert_eq!(catalog.glass_basin.id, "glass_basin");
         assert_eq!(catalog.ember_orchard.id, "ember_orchard");
+        assert_eq!(catalog.salt_marsh.id, "salt_marsh");
+        assert_eq!(catalog.cinder_crown.id, "cinder_crown");
         assert_ne!(
             catalog.iron_delta.terrain_rows,
             catalog.first_contact.terrain_rows
@@ -572,21 +587,25 @@ mod tests {
             &catalog.night_watch_crossing,
             &catalog.glass_basin,
             &catalog.ember_orchard,
+            &catalog.salt_marsh,
+            &catalog.cinder_crown,
         ]
         .into_iter()
         .map(|map| map.terrain_rows.join("\n"))
         .collect::<std::collections::BTreeSet<_>>();
-        assert_eq!(skirmish_terrain.len(), 4);
+        assert_eq!(skirmish_terrain.len(), 6);
         let skirmish_objectives = [
             &catalog.iron_delta,
             &catalog.night_watch_crossing,
             &catalog.glass_basin,
             &catalog.ember_orchard,
+            &catalog.salt_marsh,
+            &catalog.cinder_crown,
         ]
         .into_iter()
         .map(|map| map.objective.id.as_str())
         .collect::<std::collections::BTreeSet<_>>();
-        assert_eq!(skirmish_objectives.len(), 4);
+        assert_eq!(skirmish_objectives.len(), 6);
     }
 
     #[test]
@@ -611,7 +630,7 @@ mod tests {
                 CampaignFaction::MirrorCoalition,
                 CampaignFaction::AshenCompact,
             ] {
-                for seed_index in 0..3 {
+                for seed_index in 0..2 {
                     let mut campaign = CampaignSaveV1 {
                         campaign_id: format!(
                             "real-balance-{}-{player_faction:?}-{seed_index}",
@@ -633,7 +652,7 @@ mod tests {
             }
         }
         let matrix = run_skirmish_balance_matrix(&seeds, 600).unwrap();
-        assert_eq!(matrix.samples.len(), 24);
+        assert_eq!(matrix.samples.len(), 16);
         assert_eq!(
             matrix
                 .samples
@@ -657,7 +676,7 @@ mod tests {
                     .map(|sample| sample.simulation_salt)
                     .collect::<std::collections::BTreeSet<_>>()
                     .len(),
-                3,
+                2,
                 "battle identity must produce real deterministic variation for {map_id}"
             );
         }

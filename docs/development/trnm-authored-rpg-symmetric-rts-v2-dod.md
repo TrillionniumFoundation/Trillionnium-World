@@ -4,8 +4,8 @@ Updated: 2026-07-11
 
 Status: **superseded historical acceptance snapshot**. The `Protect / Expose /
 Accord` and `24`-sample wording below records this bounded July 11 gate and is
-not the current runtime truth. Current state is schema revision 8 with three
-independent chapter choices, 48 economy-bearing samples and RTS/checkpoint v15;
+not the current runtime truth. Current state is schema revision 9 with multi-beat
+chapter/epilogue play, 64 economy-bearing samples and RTS/checkpoint v16;
 use `GAME_STATUS.md` and `trillionnium-rpg-rts-closed-loop-v1.md`.
 
 This is a bounded software acceptance contract for the July 11 depth pass. It

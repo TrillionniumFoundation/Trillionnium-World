@@ -77,6 +77,15 @@ pub(super) fn atlas_sprite(
     }
 }
 
+#[derive(Component, Debug, Clone, Copy)]
+pub(super) struct IdentityMotion {
+    base_translation: Vec3,
+    base_angle: f32,
+    phase: f32,
+    frequency: f32,
+    amplitude: f32,
+}
+
 pub(super) fn attach_identity_geometry(
     commands: &mut Commands,
     parent: Entity,
@@ -98,20 +107,55 @@ pub(super) fn attach_identity_geometry(
         Color::srgb(0.25, 0.72 + ((signature >> 14) & 3) as f32 * 0.07, 0.92)
     };
     commands.entity(parent).with_children(|children| {
+        let first_translation = Vec3::new(offset_x, offset_y, 0.4);
         children.spawn((
             Sprite::from_color(accent, Vec2::new(width, height)),
-            Transform::from_xyz(offset_x, offset_y, 0.4)
+            Transform::from_translation(first_translation)
                 .with_rotation(Quat::from_rotation_z(angle)),
+            IdentityMotion {
+                base_translation: first_translation,
+                base_angle: angle,
+                phase: (signature & 255) as f32 * 0.024,
+                frequency: 1.6 + ((signature >> 16) & 7) as f32 * 0.18,
+                amplitude: tile_size * (0.012 + ((signature >> 20) & 3) as f32 * 0.004),
+            },
         ));
+        let second_translation = Vec3::new(-offset_x * 0.6, -offset_y * 0.42, 0.35);
         children.spawn((
             Sprite::from_color(
                 Color::srgba(0.04, 0.07, 0.08, 0.95),
                 Vec2::new(height * 0.65, width * 0.72),
             ),
-            Transform::from_xyz(-offset_x * 0.6, -offset_y * 0.42, 0.35)
+            Transform::from_translation(second_translation)
                 .with_rotation(Quat::from_rotation_z(-angle * 0.7)),
+            IdentityMotion {
+                base_translation: second_translation,
+                base_angle: -angle * 0.7,
+                phase: (signature & 127) as f32 * 0.031 + 1.4,
+                frequency: 1.2 + ((signature >> 23) & 7) as f32 * 0.16,
+                amplitude: tile_size * (0.009 + ((signature >> 26) & 3) as f32 * 0.003),
+            },
         ));
     });
+}
+
+pub(super) fn animate_identity_geometry(
+    time: Res<Time>,
+    mut identities: Query<(&IdentityMotion, &mut Transform)>,
+) {
+    let seconds = time.elapsed_secs();
+    for (motion, mut transform) in &mut identities {
+        let wave = (seconds * motion.frequency + motion.phase).sin();
+        let counter = (seconds * (motion.frequency * 0.53) + motion.phase).cos();
+        transform.translation = motion.base_translation
+            + Vec3::new(
+                counter * motion.amplitude * 0.45,
+                wave * motion.amplitude,
+                0.0,
+            );
+        transform.rotation = Quat::from_rotation_z(motion.base_angle + wave * 0.045);
+        transform.scale = Vec3::new(1.0 + counter * 0.025, 1.0 + wave.abs() * 0.035, 1.0);
+    }
 }
 
 fn terrain_frame_name(key: char, alternate: bool) -> &'static str {

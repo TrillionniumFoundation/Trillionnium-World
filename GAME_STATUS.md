@@ -28,36 +28,35 @@ The bounded v2 checklist remains historical evidence; this page records the newe
 - seven attributes, three origins, three growth paths, three mastery titles and fifteen skill definitions;
 - twenty-two shop/economy items, eight crafting recipes, equipment durability and repair;
 - world time, stamina, rations, water, injuries, trust, rank, journal and route planning; all ten NPCs move between work/civic/rest rooms, expose five relationship stages plus three dialogue intents, and participate in persisted pairwise bonds, work output, social events and memories; autonomous produce/migrate/ally/conflict/publish-task goals now alter rooms, production, dialogue, relationships and world flags rather than being write-only;
-- four persistent regional markets with distinct stock/demand, inventory/production/consumption/quest/social-event effects and multi-leg inter-region caravan state with shipment risk and delivery, plus regional buy/sell pricing, shop/craft browsing and owned-equipment selection;
-- three independent five-quest chapters with chapter-specific protagonists and playable scene rooms, irreversible choices, five explicit ending resolutions and persistent post-ending world state;
+- four persistent regional markets with distinct stock/demand, inventory/production/consumption/quest/social-event effects and multi-leg inter-region caravans; caravans occupy real world rooms along authored routes, retain integrity/risk/incidents and can be visibly escorted or intercepted before delivery;
+- three independent five-quest chapters with chapter-specific protagonists and playable scene rooms; each chapter requires two authored testimony/confrontation beats before its irreversible choice, and all five endings continue through a three-beat playable epilogue into persistent post-ending world state;
 - three atomic save slots and schema migration for existing saves/settings.
 
 The RPG layer uses only clean-room mechanics study of 白金英雄坛说. No source code, text, maps, NPC/task tables, art, music or proprietary data is copied.
 
 ### RTS
 
-- eight authored 40x24 maps: four campaign missions plus Iron Delta, Night Watch Crossing, Glass Basin and Ember Orchard skirmishes;
+- ten authored 40x24 maps: four campaign missions plus Iron Delta, Night Watch Crossing, Glass Basin, Ember Orchard, Salt Marsh Divide and Cinder Crown Siege skirmishes;
 - two typed factions with twelve unit archetypes;
 - ten structure definitions and ten technology definitions, all mapped into authoritative runtime kinds/jobs and filtered by the selected player faction;
-- authoritative worker logistics, shared resource nodes, supply, power, construction, repair, production, research and upgrades for both sides: player and enemy jobs are one side-tagged `SimJob` model, construction binds a living builder, real site, movement and progress, and production/research pause without a powered workshop; structure functions execute through one side-generic authority and enemy buildings remain normal destructible `SimStructure` targets;
-- the adaptive opponent still owns its strategic goal/build-order selection, but its selected build/train/research work now enters the same side-tagged resource deduction and queue command gate, advances through the same job-progress authority and moves builders through the same construction executor; there is no remaining `EnemyJob` payload or bypass queue;
+- authoritative worker logistics, shared resource nodes, supply, power, construction, repair, production, research and upgrades for both sides: player and enemy jobs are one side-tagged `SimJob` model; both sides now use one worker movement/gather/cargo/return function, one source-checked authority-job command inlet, one job progress/completion scheduler and the same builder/site executor. Side-specific unit/technology effects and AI strategic selection remain adapters/controllers rather than second job authorities;
 - fog/recon, control groups, queued orders, formations, stance/patrol/stop, veterancy and deterministic congestion recovery;
 - typed escort, defend, extract, destroy and capture objectives;
 - Story / Standard / Veteran pressure and deterministic adaptive AI;
 - independent title-menu skirmish setup with map, faction matchup, starting-resource, Objective/Score/Annihilation and selectable deterministic-seed configuration, plus durable loot and normal one-time RPG settlement; the campaign gate remains an additional in-world entry;
 - twelve typed unit abilities and ten distinct structure functions are executed by the authority rather than existing as names or stat-only catalog rows;
-- battle orders export to chunk-hashed `trnm_battle_replay_v2`, migrate verified v1 recordings, retain up to 65,536 orders and have an in-client title replay timeline with pause/play, seek and 1x/2x/4x/8x inspection; the long-match gate verifies 2,100 orders across five chunks, over four times the legacy window;
-- the balance gate runs 48 terminal-oriented samples across four real authored YAML maps, faction swaps, spawn swaps and three meaningful simulation seeds while exercising player and enemy spending, harvesting, production and research metrics; seeds vary finite resource capacity, worker placement, evasion sampling and AI build-order origin;
+- battle orders export to chunk-hashed `trnm_battle_replay_v2`, automatically migrate a verified v1 file in the client path, retain up to 65,536 orders, persist hashed seek checkpoints, save/load independently verified disk chunk directories and expose pause/play, checkpoint seek, 1x/2x/4x/8x plus a free W/A/S/D camera; the long-match gate verifies 1,200 orders across three chunks, over twice the legacy window;
+- the balance gate runs 64 terminal-oriented samples across four canonical balance YAML maps, faction swaps, spawn swaps and four meaningful simulation seeds while exercising player/enemy spending, harvesting, production and research; it reports faction win delta, resource-efficiency delta, technology delta and terminal counts by map in addition to pressure/time metrics;
 - a real authored-map Standard Annihilation path uses unmodified campaign growth attributes, sustained harvesting, supply, production, research, recon, field aid and typed anti-structure abilities to destroy the actual enemy force/base, verifies replay, settles once and returns through the real client debrief key path; K then M/T/Y/U/I then Enter remains covered as the complete setup/deploy chain;
-- the atlas manifest now loads an original transparent 8x3 identity atlas with twelve unique unit frames and ten unique structure frames. Runtime units/buildings use those bitmap identities while retaining the existing six/five base animation rows for compatible motion; this is not a claim of 22 wholly independent animation sets.
+- the atlas manifest loads an original transparent 8x3 identity atlas with twelve unique unit frames and ten unique structure frames. Every identity now also receives deterministic family-specific breathing/recoil geometry motion while retaining the existing six/five base sprite rows; this improves live distinction but is still not a claim of 22 wholly independent hand-drawn frame sets.
 
 ## Stable contracts
 
-- `trnm_campaign_save_v1`, schema revision 8;
+- `trnm_campaign_save_v1`, schema revision 9;
 - `trnm_battle_seed_v8`;
 - `trnm_battle_result_v2`;
 - `trnm_settlement_receipt_v1`;
-- `trnm_rts_sim_v15` / `trnm_rts_sim_checkpoint_v15`;
+- `trnm_rts_sim_v16` / `trnm_rts_sim_checkpoint_v16`;
 - `trnm_player_settings_v2`.
 
 ## Product shell
@@ -68,7 +67,7 @@ The RPG layer uses only clean-room mechanics study of 白金英雄坛说. No sou
 - desktop installer assets under `packaging/` and `scripts/install_trnm_desktop.sh`;
 - deterministic performance matrix at `scripts/check_trnm_perf_matrix.sh`.
 
-The native client has a real buffered audio pipeline with two project-owned procedural WAV loops: Mirror City ambience and Signal battle pulse. Campaign mode switches the active loop, and F8 updates both live audio players immediately. These are a functional original baseline; a fully composed soundtrack, richer sound effects and final mix remain future content work.
+The native client has a real buffered audio pipeline with two project-owned procedural WAV loops: Mirror City ambience and Signal battle pulse. Town and battle switch cleanly; ending/epilogue play uses a dedicated layered mix of both sources, and F8 updates all live players immediately. These are an original functional score system; additional composed cues, richer effects and a final mastered mix remain content work.
 
 The control profiles alter live RTS input: Classic uses Q/W/E/R for move/attack/harvest/hold, Left Handed uses A/S/D/F, and Arrow Grid uses the four arrow keys (with WASD camera pan). They are not display-only labels.
 
@@ -83,11 +82,11 @@ The control profiles alter live RTS input: Classic uses Q/W/E/R for move/attack/
 
 ## Current local evidence
 
-- five-crate unit/integration/E2E suite: 108/108 passing (32 Campaign, 19 First Contact, 13 RPG, 4 protocol, 31 RTS, 9 closed-loop E2E); the added client regression drives all fifteen quests through all three approaches with real key input, legal navigation, abandon/retry, regional purchasing, primary/secondary combat and chapter-scene resolution;
+- five-crate unit/integration/E2E suite: 109/109 passing (33 Campaign, 19 First Contact, 13 RPG, 4 protocol, 31 RTS, 9 closed-loop E2E); the authored client regression begins at a default new save, uses real setup/deploy keys and authoritative orders to win all four campaign battles, then drives all fifteen quests through all three approaches, chapter scenes and an ending epilogue without directly inserting prologue flags;
 - workspace Clippy with `-D warnings`: passing;
 - product boundary: green (5 game / 12 platform / legacy working tree absent);
 - release build and desktop installer smoke: passing;
-- current X230 matrix after the authored-client/symmetric-authority pass: RPG 0.67 s / 69 MiB, campaign 0.64 s / 69 MiB, RTS simulation 72.52 s / 399 MiB, closed loop 16.64 s / 241 MiB and changed-source incremental release build 50.60 s / 746 MiB; the performance script now times the 31 simulation tests and 9 closed-loop tests separately instead of executing the integration target once inside `--all-targets` and then a second time, and every row remains below the explicit 90-second / 4-GiB bound;
+- current X230 warm-cache matrix after the continuous-client/shared-authority pass: RPG 0.30 s / 69 MiB, campaign 7.28 s / 524 MiB, new-save client journey 41.83 s / 105 MiB, Standard Annihilation 79.92 s / 105 MiB, authored-map adapter 41.19 s / 105 MiB, RTS simulation 76.78 s / 69 MiB, closed loop 18.53 s / 376 MiB and changed-source incremental release build 75.30 s / 733 MiB; the performance script times each of the three formerly hidden First Contact heavy paths separately, and every row remains below the explicit 90-second / 4-GiB bound;
 - release client service: active with a viewable native window after restart.
 
 The first clean release rebuild after changing the Bevy/audio feature graph took 12m08s under the service host's constrained X230 environment; that is a developer compile cost, not installed-game startup. These are local-machine facts, not substitutes for the pending human session or a multi-distribution performance/installer matrix.

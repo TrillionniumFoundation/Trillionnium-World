@@ -19,8 +19,15 @@ const AUDIO_STABILITY_BUFFER_FRAMES: u32 = 32_768;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 struct AudioState {
-    battle: bool,
+    scene: AudioScene,
     volume: f32,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum AudioScene {
+    Town,
+    Battle,
+    Epilogue,
 }
 
 #[derive(Debug)]
@@ -59,7 +66,7 @@ pub(super) fn validate_trnm_audio_assets(asset_root: &Path) -> Result<(), String
 pub(super) fn spawn_trnm_audio(mut commands: Commands, flow: Res<CampaignFlow>) {
     let asset_root = super::default_first_contact_asset_root();
     let initial = AudioState {
-        battle: flow.in_battle(),
+        scene: audio_scene(&flow),
         volume: live_volume(flow.settings.master_volume_percent),
     };
     let (sender, receiver) = mpsc::channel();
@@ -124,20 +131,39 @@ fn loop_player(stream: &rodio::MixerDeviceSink, path: PathBuf) -> Result<Player,
 }
 
 fn apply_audio_state(town: &Player, battle: &Player, state: AudioState) {
-    town.set_volume(state.volume);
-    battle.set_volume(state.volume);
-    if state.battle {
-        town.pause();
-        battle.play();
+    match state.scene {
+        AudioScene::Town => {
+            town.set_volume(state.volume);
+            battle.pause();
+            town.play();
+        }
+        AudioScene::Battle => {
+            battle.set_volume(state.volume);
+            town.pause();
+            battle.play();
+        }
+        AudioScene::Epilogue => {
+            town.set_volume(state.volume * 0.72);
+            battle.set_volume(state.volume * 0.22);
+            town.play();
+            battle.play();
+        }
+    }
+}
+
+fn audio_scene(flow: &CampaignFlow) -> AudioScene {
+    if flow.in_battle() {
+        AudioScene::Battle
+    } else if flow.save.main_story_ending.is_some() {
+        AudioScene::Epilogue
     } else {
-        battle.pause();
-        town.play();
+        AudioScene::Town
     }
 }
 
 pub(super) fn sync_trnm_audio(flow: Res<CampaignFlow>, mut audio: ResMut<TrnmAudioControl>) {
     let next = AudioState {
-        battle: flow.in_battle(),
+        scene: audio_scene(&flow),
         volume: live_volume(flow.settings.master_volume_percent),
     };
     if next != audio.applied && audio.sender.send(AudioCommand::Apply(next)).is_ok() {

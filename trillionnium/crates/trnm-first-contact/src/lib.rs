@@ -17,7 +17,9 @@ use campaign_ui::{spawn_campaign_ui, update_campaign_ui};
 use evidence_adapter::FirstContactVisualAcceptance;
 use hud::{spawn_first_contact_hud, update_first_contact_hud};
 use map_loader::{FirstContactMap, MissionMapCatalog};
-use renderer::{spawn_first_contact_live_scene, sync_first_contact_authored_map};
+use renderer::{
+    animate_identity_geometry, spawn_first_contact_live_scene, sync_first_contact_authored_map,
+};
 use simulation_adapter::{
     advance_first_contact_simulation, expire_first_contact_feedback, handle_first_contact_commands,
     handle_first_contact_mouse_selection, pan_first_contact_camera, FirstContactRuntime,
@@ -53,6 +55,8 @@ impl FirstContactLivePlugin {
             "night_watch_crossing" => maps.night_watch_crossing.clone(),
             "glass_basin" => maps.glass_basin.clone(),
             "ember_orchard" => maps.ember_orchard.clone(),
+            "salt_marsh" => maps.salt_marsh.clone(),
+            "cinder_crown" => maps.cinder_crown.clone(),
             _ => maps.first_contact.clone(),
         };
         Ok(Self {
@@ -98,6 +102,7 @@ impl Plugin for FirstContactLivePlugin {
                     update_first_contact_hud,
                     update_campaign_ui,
                     sync_trnm_audio,
+                    animate_identity_geometry,
                 )
                     .chain(),
             );

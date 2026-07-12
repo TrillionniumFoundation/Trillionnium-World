@@ -287,6 +287,8 @@ pub enum CampaignMission {
     NightWatchCrossingSkirmish,
     GlassBasinSkirmish,
     EmberOrchardSkirmish,
+    SaltMarshSkirmish,
+    CinderCrownSkirmish,
 }
 
 impl CampaignMission {
@@ -300,6 +302,8 @@ impl CampaignMission {
             Self::NightWatchCrossingSkirmish => "night_watch_crossing",
             Self::GlassBasinSkirmish => "glass_basin",
             Self::EmberOrchardSkirmish => "ember_orchard",
+            Self::SaltMarshSkirmish => "salt_marsh",
+            Self::CinderCrownSkirmish => "cinder_crown",
         }
     }
 
@@ -313,6 +317,8 @@ impl CampaignMission {
             Self::NightWatchCrossingSkirmish => "Night Watch Crossing",
             Self::GlassBasinSkirmish => "Glass Basin Control",
             Self::EmberOrchardSkirmish => "Ember Orchard Annihilation",
+            Self::SaltMarshSkirmish => "Salt Marsh Divide",
+            Self::CinderCrownSkirmish => "Cinder Crown Siege",
         }
     }
 }
@@ -424,7 +430,12 @@ impl SkirmishSetup {
         }
         if !matches!(
             map_id,
-            "iron_delta" | "night_watch_crossing" | "glass_basin" | "ember_orchard"
+            "iron_delta"
+                | "night_watch_crossing"
+                | "glass_basin"
+                | "ember_orchard"
+                | "salt_marsh"
+                | "cinder_crown"
         ) {
             return Err(CampaignError::InvalidContract(
                 "skirmish setup requires an authored skirmish map".to_string(),
@@ -651,6 +662,46 @@ impl MissionDefinition {
                     kind: ObjectiveKind::Capture,
                     target: map.objective,
                     duration_ticks: 620,
+                },
+            ],
+            CampaignMission::SaltMarshSkirmish => vec![
+                MissionObjectiveDefinition {
+                    id: "cross_salt_causeway".to_string(),
+                    kind: ObjectiveKind::Escort,
+                    target: map.approach_point,
+                    duration_ticks: 0,
+                },
+                MissionObjectiveDefinition {
+                    id: "break_marsh_pump".to_string(),
+                    kind: ObjectiveKind::Destroy,
+                    target: map.objective,
+                    duration_ticks: 0,
+                },
+                MissionObjectiveDefinition {
+                    id: "hold_salt_divide".to_string(),
+                    kind: ObjectiveKind::Capture,
+                    target: map.objective,
+                    duration_ticks: 580,
+                },
+            ],
+            CampaignMission::CinderCrownSkirmish => vec![
+                MissionObjectiveDefinition {
+                    id: "breach_cinder_ring".to_string(),
+                    kind: ObjectiveKind::Escort,
+                    target: map.approach_point,
+                    duration_ticks: 0,
+                },
+                MissionObjectiveDefinition {
+                    id: "destroy_crown_command".to_string(),
+                    kind: ObjectiveKind::Destroy,
+                    target: map.objective,
+                    duration_ticks: 0,
+                },
+                MissionObjectiveDefinition {
+                    id: "secure_cinder_crown".to_string(),
+                    kind: ObjectiveKind::Capture,
+                    target: map.objective,
+                    duration_ticks: 640,
                 },
             ],
         };
@@ -1372,6 +1423,8 @@ impl BattleSeedV1 {
                 | "night_watch_crossing"
                 | "glass_basin"
                 | "ember_orchard"
+                | "salt_marsh"
+                | "cinder_crown"
         ) || self.rules_version != FIRST_CONTACT_RULES_VERSION
         {
             return Err(CampaignError::InvalidContract(
@@ -1383,7 +1436,12 @@ impl BattleSeedV1 {
         self.skirmish.validate(&self.map_id)?;
         let skirmish_map = matches!(
             self.map_id.as_str(),
-            "iron_delta" | "night_watch_crossing" | "glass_basin" | "ember_orchard"
+            "iron_delta"
+                | "night_watch_crossing"
+                | "glass_basin"
+                | "ember_orchard"
+                | "salt_marsh"
+                | "cinder_crown"
         );
         if self.skirmish.enabled != skirmish_map {
             return Err(CampaignError::InvalidContract(
@@ -1587,6 +1645,28 @@ pub struct RegionalCaravanState {
     pub quantity: u16,
     pub progress_legs: u8,
     pub risk: u8,
+    #[serde(default)]
+    pub route_room_ids: Vec<String>,
+    #[serde(default)]
+    pub route_index: usize,
+    #[serde(default = "default_caravan_integrity")]
+    pub integrity: u8,
+    #[serde(default)]
+    pub guarded_by_player: bool,
+    #[serde(default)]
+    pub incident: Option<String>,
+}
+
+const fn default_caravan_integrity() -> u8 {
+    100
+}
+
+impl RegionalCaravanState {
+    pub fn current_room_id(&self) -> Option<&str> {
+        self.route_room_ids
+            .get(self.route_index)
+            .map(String::as_str)
+    }
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
@@ -1849,6 +1929,16 @@ pub struct MainStoryDecisionRecord {
     pub day: u32,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum MainStorySceneAdvance {
+    SceneBeat {
+        chapter: MainStoryChapter,
+        step: u8,
+        text: String,
+    },
+    ChapterResolved(MainStoryDecisionRecord),
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RegionalQuestRuntime {
     pub quest_id: String,
@@ -2020,7 +2110,13 @@ pub struct CampaignSaveV1 {
     #[serde(default)]
     pub pending_main_story_chapter: Option<MainStoryChapter>,
     #[serde(default)]
+    pub main_story_scene_progress: BTreeMap<String, u8>,
+    #[serde(default)]
     pub post_ending_world_state: Option<String>,
+    #[serde(default)]
+    pub ending_epilogue_progress: u8,
+    #[serde(default)]
+    pub ending_epilogue_complete: bool,
     #[serde(default)]
     pub last_npc_conversation: Option<NpcConversationRecord>,
     #[serde(default)]
@@ -2123,7 +2219,7 @@ impl Default for CampaignSaveV1 {
         let item_conditions = character_item_conditions(&character);
         Self {
             contract_version: CAMPAIGN_SAVE_CONTRACT.to_string(),
-            schema_revision: 8,
+            schema_revision: 9,
             campaign_id: "local-campaign".to_string(),
             revision: 0,
             room: CampaignRoom::MirrorSquare,
@@ -2303,7 +2399,10 @@ impl Default for CampaignSaveV1 {
             main_story_decisions: Vec::new(),
             main_story_ending: None,
             pending_main_story_chapter: None,
+            main_story_scene_progress: BTreeMap::new(),
             post_ending_world_state: None,
+            ending_epilogue_progress: 0,
+            ending_epilogue_complete: false,
             last_npc_conversation: None,
             conversation_history: Vec::new(),
             social_event_history: Vec::new(),
@@ -2344,7 +2443,7 @@ impl Default for CampaignSaveV1 {
 
 impl CampaignSaveV1 {
     pub fn ensure_gameplay_defaults(&mut self) {
-        self.schema_revision = 8;
+        self.schema_revision = 9;
         if self.active_regional_quest_id.is_none() {
             self.active_regional_quest_step = 0;
             self.active_regional_quest_runtime = None;
@@ -2471,6 +2570,15 @@ impl CampaignSaveV1 {
                 mirror_demand.insert(item_id.clone(), *demand);
             }
         }
+        for caravan in &mut self.active_regional_caravans {
+            if caravan.route_room_ids.is_empty() {
+                caravan.route_room_ids =
+                    Self::caravan_route(&caravan.from_region_id, &caravan.to_region_id);
+            }
+            caravan.route_index = caravan.route_index.min(caravan.route_room_ids.len() - 1);
+            caravan.integrity = caravan.integrity.min(100);
+            caravan.risk = caravan.risk.min(9);
+        }
         if self.character.display_name.trim().is_empty() {
             self.apply_character_identity_name();
         }
@@ -2537,7 +2645,7 @@ impl CampaignSaveV1 {
                 self.contract_version.clone(),
             ));
         }
-        if self.schema_revision != 8 {
+        if self.schema_revision != 9 {
             return Err(CampaignError::InvalidContract(format!(
                 "unsupported campaign schema revision {}",
                 self.schema_revision
@@ -2578,6 +2686,12 @@ impl CampaignSaveV1 {
                 .len()
                 != self.main_story_decisions.len()
             || self.main_story_ending != resolve_main_story_ending(&self.main_story_decisions)
+            || self
+                .main_story_scene_progress
+                .values()
+                .any(|step| *step > 2)
+            || self.ending_epilogue_progress > 3
+            || self.ending_epilogue_complete != (self.ending_epilogue_progress >= 3)
         {
             return Err(CampaignError::InvalidState(
                 "NPC social or main-story history is inconsistent or exceeds its bound".to_string(),
@@ -2602,6 +2716,12 @@ impl CampaignSaveV1 {
             ));
         }
         if self.regional_logistics.len() > 64
+            || self.active_regional_caravans.iter().any(|caravan| {
+                caravan.route_room_ids.is_empty()
+                    || caravan.route_index >= caravan.route_room_ids.len()
+                    || caravan.integrity > 100
+                    || caravan.risk > 9
+            })
             || MARKET_REGION_IDS.into_iter().any(|region| {
                 ECONOMY_ITEM_CATALOG.iter().any(|item| {
                     !self
@@ -2856,6 +2976,8 @@ impl CampaignSaveV1 {
             CampaignMission::NightWatchCrossingSkirmish => "Escort the Night Watch patrol",
             CampaignMission::GlassBasinSkirmish => "Control the Glass Basin relay array",
             CampaignMission::EmberOrchardSkirmish => "Break the Ember Orchard base",
+            CampaignMission::SaltMarshSkirmish => "Control the Salt Marsh causeway",
+            CampaignMission::CinderCrownSkirmish => "Break the Cinder Crown siege",
         };
         let cistern = match self.quest_chain.as_ref() {
             None => CampaignJournalEntry {
@@ -4547,7 +4669,76 @@ impl CampaignSaveV1 {
         Ok(())
     }
 
-    pub fn resolve_pending_main_story_chapter(
+    pub fn advance_pending_main_story_scene(
+        &mut self,
+    ) -> Result<MainStorySceneAdvance, CampaignError> {
+        self.require_town()?;
+        let pending = self.pending_main_story_chapter.ok_or_else(|| {
+            CampaignError::InvalidState(
+                "no playable chapter scene is awaiting resolution".to_string(),
+            )
+        })?;
+        let chapter = MAIN_STORY_CHAPTERS
+            .iter()
+            .find(|chapter| chapter.chapter == pending)
+            .expect("pending chapter remains catalog bound");
+        if self.room.id() != chapter.room_id {
+            return Err(CampaignError::InvalidState(format!(
+                "{} must be played in {}",
+                chapter.title, chapter.room_id,
+            )));
+        }
+        let step = self
+            .main_story_scene_progress
+            .get(chapter.scene_id)
+            .copied()
+            .unwrap_or_default();
+        if step < 2 {
+            let text = match (chapter.chapter, step) {
+                (MainStoryChapter::MirrorCityOaths, 0) => {
+                    "The square hears testimony from porters, smiths and ward captains before any oath is proposed."
+                }
+                (MainStoryChapter::MirrorCityOaths, _) => {
+                    "Street Compass Sifu places the three rival charters side by side and asks who will bear their cost."
+                }
+                (MainStoryChapter::SignalRoadReckoning, 0) => {
+                    "Captain Veyra opens the seized route ledger while witnesses identify the hands behind each missing convoy."
+                }
+                (MainStoryChapter::SignalRoadReckoning, _) => {
+                    "The archive doors close; guards, merchants and scouts challenge the evidence before the road is judged."
+                }
+                (MainStoryChapter::AshenFringeCountermarch, 0) => {
+                    "Scout Mako walks the beacon line with the player as refugees and patrols name what the countermarch destroyed."
+                }
+                (MainStoryChapter::AshenFringeCountermarch, _) => {
+                    "At the final assembly every faction commits people and stores, forcing the last choice to carry a visible price."
+                }
+                (MainStoryChapter::ChapterComplete, _) => unreachable!(),
+            }
+            .to_string();
+            let next = step + 1;
+            self.main_story_scene_progress
+                .insert(chapter.scene_id.to_string(), next);
+            self.progression.world_flags.insert(format!(
+                "main_story_scene_{}_beat_{}",
+                chapter.scene_id, next
+            ));
+            self.combat_log.push(CombatLogBeat {
+                kind: "main_story_scene_beat".to_string(),
+                text: format!("{} — {text}", chapter.title),
+            });
+            self.revision += 1;
+            return Ok(MainStorySceneAdvance::SceneBeat {
+                chapter: chapter.chapter,
+                step: next,
+                text,
+            });
+        }
+        self.finalize_pending_main_story_chapter()
+            .map(MainStorySceneAdvance::ChapterResolved)
+    }
+
+    fn finalize_pending_main_story_chapter(
         &mut self,
     ) -> Result<MainStoryDecisionRecord, CampaignError> {
         self.require_town()?;
@@ -4655,6 +4846,80 @@ impl CampaignSaveV1 {
         }
         self.revision += 1;
         Ok(decision)
+    }
+
+    pub fn resolve_pending_main_story_chapter(
+        &mut self,
+    ) -> Result<MainStoryDecisionRecord, CampaignError> {
+        loop {
+            match self.advance_pending_main_story_scene()? {
+                MainStorySceneAdvance::SceneBeat { .. } => {}
+                MainStorySceneAdvance::ChapterResolved(decision) => return Ok(decision),
+            }
+        }
+    }
+
+    pub fn advance_ending_epilogue(&mut self) -> Result<String, CampaignError> {
+        self.require_town()?;
+        let ending = self.main_story_ending.ok_or_else(|| {
+            CampaignError::InvalidState("no resolved ending has an epilogue".to_string())
+        })?;
+        if self.ending_epilogue_complete {
+            return Err(CampaignError::InvalidState(
+                "the ending epilogue is already complete".to_string(),
+            ));
+        }
+        let required_room = match ending {
+            MainStoryEnding::WayhouseLeague => CARAVAN_YARD_ROOM,
+            MainStoryEnding::OpenArchiveRepublic => ARCHIVE_STEPS_ROOM,
+            MainStoryEnding::FrontierAccord => ASH_BEACON_FIELD_ROOM,
+            MainStoryEnding::ThreeRoadCompact => MIRROR_SQUARE_ROOM,
+            MainStoryEnding::ContestedMandate => MOON_BRIDGE_ROOM,
+        };
+        if self.room.id() != required_room {
+            return Err(CampaignError::InvalidState(format!(
+                "{} epilogue continues in {required_room}",
+                ending.label()
+            )));
+        }
+        let text = match (ending, self.ending_epilogue_progress) {
+            (MainStoryEnding::WayhouseLeague, 0) => {
+                "A winter caravan arrives without losing a traveller; the new league signs its first public shelter ledger."
+            }
+            (MainStoryEnding::OpenArchiveRepublic, 0) => {
+                "Citizens compare the first open ledgers and catch a shortage before a ward goes hungry."
+            }
+            (MainStoryEnding::FrontierAccord, 0) => {
+                "Former enemies relight the Ash Beacon together and exchange patrol routes under witness."
+            }
+            (MainStoryEnding::ThreeRoadCompact, 0) => {
+                "Three delegations take separate seats in Mirror Square and agree to rotate the deciding voice."
+            }
+            (MainStoryEnding::ContestedMandate, 0) => {
+                "Rival envoys meet at Moon Bridge; no banner lowers, but both sides accept the player as mediator."
+            }
+            (_, 1) => {
+                "The player walks the changed district, hears who benefited and who still objects, then chooses to keep serving the living world."
+            }
+            _ => "The epilogue closes and the post-story world opens for continuing regional work.",
+        }
+        .to_string();
+        self.combat_log.push(CombatLogBeat {
+            kind: "main_story_epilogue".to_string(),
+            text: format!("{} — {text}", ending.label()),
+        });
+        self.ending_epilogue_progress = self.ending_epilogue_progress.saturating_add(1);
+        if self.ending_epilogue_progress >= 3 {
+            self.ending_epilogue_complete = true;
+            self.progression
+                .world_flags
+                .insert("main_story_epilogue_complete".to_string());
+            self.progression.credits += 75;
+            self.character.attributes.reputation =
+                self.character.attributes.reputation.saturating_add(8);
+        }
+        self.revision += 1;
+        Ok(text)
     }
 
     pub fn cycle_regional_quest_approach(&mut self) -> Result<QuestApproach, CampaignError> {
@@ -4776,17 +5041,119 @@ impl CampaignSaveV1 {
         }
     }
 
+    fn caravan_route(from_region: &str, to_region: &str) -> Vec<String> {
+        let hub = |region: &str| match region {
+            "signal_road" => RELAY_QUARTER_ROOM,
+            "glass_basin" => GLASS_BASIN_WAYHOUSE_ROOM,
+            "ashen_fringe" => CINDER_REFUGE_ROOM,
+            _ => CARAVAN_YARD_ROOM,
+        };
+        let mut route = vec![hub(from_region).to_string()];
+        for waypoint in [
+            OUTER_SIGNAL_ROAD_ROOM,
+            MOON_BRIDGE_ROOM,
+            ASH_BEACON_FIELD_ROOM,
+        ] {
+            if waypoint != route[0] && waypoint != hub(to_region) {
+                route.push(waypoint.to_string());
+            }
+        }
+        route.push(hub(to_region).to_string());
+        route
+    }
+
+    pub fn visible_regional_caravan(&self) -> Option<&RegionalCaravanState> {
+        self.active_regional_caravans
+            .iter()
+            .find(|caravan| caravan.current_room_id() == Some(self.room.id()))
+    }
+
+    pub fn interact_with_visible_caravan(
+        &mut self,
+        protect: bool,
+    ) -> Result<String, CampaignError> {
+        self.require_town()?;
+        let room_id = self.room.id().to_string();
+        let index = self
+            .active_regional_caravans
+            .iter()
+            .position(|caravan| caravan.current_room_id() == Some(room_id.as_str()))
+            .ok_or_else(|| {
+                CampaignError::InvalidState("no caravan is currently visible here".to_string())
+            })?;
+        let caravan = &mut self.active_regional_caravans[index];
+        let text = if protect {
+            caravan.guarded_by_player = true;
+            caravan.risk = caravan.risk.saturating_sub(4);
+            caravan.integrity = caravan.integrity.saturating_add(15).min(100);
+            caravan.incident = Some("player_escort".to_string());
+            self.progression.world_flags.insert(format!(
+                "caravan_{}_escorted",
+                caravan.caravan_id.replace('-', "_")
+            ));
+            self.character.attributes.reputation =
+                self.character.attributes.reputation.saturating_add(2);
+            format!(
+                "The player escorts {} toward {}; risk falls to {}.",
+                caravan.caravan_id, caravan.to_region_id, caravan.risk
+            )
+        } else {
+            let seized = caravan.quantity.min(1);
+            caravan.quantity = caravan.quantity.saturating_sub(seized);
+            caravan.integrity = caravan.integrity.saturating_sub(25);
+            caravan.incident = Some("player_seizure".to_string());
+            self.progression.credits += i64::from(seized) * 12;
+            self.character.attributes.reputation =
+                self.character.attributes.reputation.saturating_sub(3);
+            self.progression.world_flags.insert(format!(
+                "caravan_{}_seized",
+                caravan.caravan_id.replace('-', "_")
+            ));
+            for bond in self.npc_bonds.values_mut() {
+                *bond = bond.saturating_sub(1).clamp(-100, 100);
+            }
+            format!(
+                "The player seizes {seized} {} from {}; regional witnesses remember it.",
+                caravan.item_id, caravan.caravan_id
+            )
+        };
+        self.combat_log.push(CombatLogBeat {
+            kind: "caravan_encounter".to_string(),
+            text: text.clone(),
+        });
+        self.revision += 1;
+        Ok(text)
+    }
+
     fn run_regional_logistics(&mut self) {
         let mut travelling = std::mem::take(&mut self.active_regional_caravans);
         for mut caravan in travelling.drain(..) {
+            if caravan.route_room_ids.is_empty() {
+                caravan.route_room_ids =
+                    Self::caravan_route(&caravan.from_region_id, &caravan.to_region_id);
+            }
             caravan.progress_legs = caravan.progress_legs.saturating_add(1);
-            if caravan.progress_legs < 3 {
+            caravan.route_index = (caravan.route_index + 1).min(caravan.route_room_ids.len() - 1);
+            if caravan.risk >= 7
+                && !caravan.guarded_by_player
+                && caravan.route_index + 1 < caravan.route_room_ids.len()
+                && caravan.incident.is_none()
+            {
+                caravan.integrity = caravan.integrity.saturating_sub(35);
+                caravan.quantity = caravan.quantity.saturating_sub(1);
+                caravan.incident = Some("road_ambush".to_string());
+                self.progression.world_flags.insert(format!(
+                    "caravan_{}_ambushed",
+                    caravan.caravan_id.replace('-', "_")
+                ));
+            }
+            if caravan.route_index + 1 < caravan.route_room_ids.len() {
                 self.active_regional_caravans.push(caravan);
                 continue;
             }
             let delivered = caravan
                 .quantity
-                .saturating_sub(u16::from(caravan.risk >= 7));
+                .saturating_sub(u16::from(caravan.integrity < 50));
             let (stock, demand) =
                 self.regional_market_state(&caravan.to_region_id, &caravan.item_id);
             self.set_regional_market_state(
@@ -4843,6 +5210,11 @@ impl CampaignSaveV1 {
                 + u32::from(self.world_clock.minute_of_day / 60)
                 + item.id.len() as u32)
                 % 10) as u8,
+            route_room_ids: Self::caravan_route(from_region, to_region),
+            route_index: 0,
+            integrity: default_caravan_integrity(),
+            guarded_by_player: false,
+            incident: None,
         });
         if self.regional_logistics.len() > 64 {
             self.regional_logistics.remove(0);
@@ -5460,7 +5832,9 @@ impl CampaignSaveV1 {
                     CampaignMission::IronDeltaSkirmish
                     | CampaignMission::NightWatchCrossingSkirmish
                     | CampaignMission::GlassBasinSkirmish
-                    | CampaignMission::EmberOrchardSkirmish => self.active_mission,
+                    | CampaignMission::EmberOrchardSkirmish
+                    | CampaignMission::SaltMarshSkirmish
+                    | CampaignMission::CinderCrownSkirmish => self.active_mission,
                     _ => CampaignMission::AftershockPatrol,
                 }
             };
@@ -5516,6 +5890,8 @@ impl CampaignSaveV1 {
             CampaignMission::IronDeltaSkirmish => CampaignMission::NightWatchCrossingSkirmish,
             CampaignMission::NightWatchCrossingSkirmish => CampaignMission::GlassBasinSkirmish,
             CampaignMission::GlassBasinSkirmish => CampaignMission::EmberOrchardSkirmish,
+            CampaignMission::EmberOrchardSkirmish => CampaignMission::SaltMarshSkirmish,
+            CampaignMission::SaltMarshSkirmish => CampaignMission::CinderCrownSkirmish,
             _ => CampaignMission::AftershockPatrol,
         };
         self.skirmish_setup.enabled = matches!(
@@ -5524,6 +5900,8 @@ impl CampaignSaveV1 {
                 | CampaignMission::NightWatchCrossingSkirmish
                 | CampaignMission::GlassBasinSkirmish
                 | CampaignMission::EmberOrchardSkirmish
+                | CampaignMission::SaltMarshSkirmish
+                | CampaignMission::CinderCrownSkirmish
         );
         self.revision += 1;
         Ok(self.active_mission)
@@ -5545,6 +5923,8 @@ impl CampaignSaveV1 {
             CampaignMission::IronDeltaSkirmish => CampaignMission::NightWatchCrossingSkirmish,
             CampaignMission::NightWatchCrossingSkirmish => CampaignMission::GlassBasinSkirmish,
             CampaignMission::GlassBasinSkirmish => CampaignMission::EmberOrchardSkirmish,
+            CampaignMission::EmberOrchardSkirmish => CampaignMission::SaltMarshSkirmish,
+            CampaignMission::SaltMarshSkirmish => CampaignMission::CinderCrownSkirmish,
             _ => CampaignMission::IronDeltaSkirmish,
         };
         self.revision += 1;
@@ -5731,6 +6111,8 @@ impl CampaignSaveV1 {
                     | CampaignMission::NightWatchCrossingSkirmish
                     | CampaignMission::GlassBasinSkirmish
                     | CampaignMission::EmberOrchardSkirmish
+                    | CampaignMission::SaltMarshSkirmish
+                    | CampaignMission::CinderCrownSkirmish
             ) {
                 let mut setup = self.skirmish_setup.clone();
                 setup.enabled = true;
@@ -6045,6 +6427,12 @@ impl CampaignSaveV1 {
                 }
                 CampaignMission::EmberOrchardSkirmish => {
                     self.progression.world_flags.contains("ember_orchard_won")
+                }
+                CampaignMission::SaltMarshSkirmish => {
+                    self.progression.world_flags.contains("salt_marsh_won")
+                }
+                CampaignMission::CinderCrownSkirmish => {
+                    self.progression.world_flags.contains("cinder_crown_won")
                 }
             },
         });
@@ -8181,9 +8569,12 @@ mod tests {
         let before = campaign.regional_market_stock.clone();
         campaign.wait_in_town(120).unwrap();
         assert!(!campaign.active_regional_caravans.is_empty());
-        campaign.wait_in_town(120).unwrap();
-        campaign.wait_in_town(120).unwrap();
-        campaign.wait_in_town(120).unwrap();
+        for _ in 0..8 {
+            campaign.wait_in_town(120).unwrap();
+            if !campaign.regional_logistics.is_empty() {
+                break;
+            }
+        }
         assert!(!campaign.regional_logistics.is_empty());
         assert_ne!(campaign.regional_market_stock, before);
         assert!(campaign.npc_work_output.values().any(|output| *output > 0));
@@ -8191,9 +8582,47 @@ mod tests {
         let store = CampaignStore::new(directory.path().join("regional-economy.json"));
         store.save_atomic(&campaign).unwrap();
         let loaded = store.load().unwrap();
-        assert_eq!(loaded.schema_revision, 8);
+        assert_eq!(loaded.schema_revision, 9);
         assert_eq!(loaded.regional_logistics, campaign.regional_logistics);
         assert_eq!(loaded.technique_mastery, campaign.technique_mastery);
+    }
+
+    #[test]
+    fn chapter_scenes_require_three_player_beats_and_caravans_exist_in_rooms() {
+        let mut campaign = CampaignSaveV1 {
+            pending_main_story_chapter: Some(MainStoryChapter::MirrorCityOaths),
+            room: CampaignRoom::MirrorSquare,
+            ..CampaignSaveV1::default()
+        };
+        for expected_step in [1, 2] {
+            let advance = campaign.advance_pending_main_story_scene().unwrap();
+            assert!(matches!(
+                advance,
+                MainStorySceneAdvance::SceneBeat { step, .. } if step == expected_step
+            ));
+            assert!(campaign.main_story_decisions.is_empty());
+        }
+        assert!(matches!(
+            campaign.advance_pending_main_story_scene().unwrap(),
+            MainStorySceneAdvance::ChapterResolved(_)
+        ));
+        assert_eq!(campaign.main_story_decisions.len(), 1);
+
+        campaign.wait_in_town(120).unwrap();
+        let room_id = campaign.active_regional_caravans[0]
+            .current_room_id()
+            .unwrap()
+            .to_string();
+        campaign.room = CampaignRoom::from_id(&room_id).unwrap();
+        let caravan_id = campaign.active_regional_caravans[0].caravan_id.clone();
+        campaign.interact_with_visible_caravan(true).unwrap();
+        let caravan = campaign
+            .active_regional_caravans
+            .iter()
+            .find(|caravan| caravan.caravan_id == caravan_id)
+            .unwrap();
+        assert!(caravan.guarded_by_player);
+        assert_eq!(caravan.incident.as_deref(), Some("player_escort"));
     }
 
     #[test]

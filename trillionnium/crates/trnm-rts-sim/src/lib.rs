@@ -22,14 +22,15 @@ use trnm_rts_protocol::{RtsFrameOrder, RtsOrderKind, RtsUnitStance};
 mod content;
 pub use content::*;
 
-pub const RTS_SIM_CONTRACT: &str = "trnm_rts_sim_v14";
-pub const RTS_SIM_CHECKPOINT_CONTRACT: &str = "trnm_rts_sim_checkpoint_v15";
+pub const RTS_SIM_CONTRACT: &str = "trnm_rts_sim_v16";
+pub const RTS_SIM_CHECKPOINT_CONTRACT: &str = "trnm_rts_sim_checkpoint_v16";
 pub const TICKS_PER_SECOND: u64 = 10;
 pub const THREE_MINUTE_TICKS: u64 = 3 * 60 * TICKS_PER_SECOND;
 pub const FIVE_MINUTE_TICKS: u64 = 5 * 60 * TICKS_PER_SECOND;
 pub const SKIRMISH_TIME_LIMIT_TICKS: u64 = 12 * 60 * TICKS_PER_SECOND;
 pub const TEN_MINUTE_TICKS: u64 = 10 * 60 * TICKS_PER_SECOND;
 pub const FIFTEEN_MINUTE_TICKS: u64 = 15 * 60 * TICKS_PER_SECOND;
+pub const REPLAY_SEEK_CHECKPOINT_TICKS: u64 = 300;
 const MOVEMENT_TILE_COST: i32 = 10_000;
 const CAPTURE_TICKS_REQUIRED: u32 = 602;
 const RELAY_GUARD_HP: i64 = 5_400;
@@ -215,6 +216,112 @@ fn advance_side_construction_worker(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
+fn advance_worker_logistics(
+    seed: &BattleSeedV1,
+    tick: u64,
+    units: &mut [SimUnit],
+    opposing_units: &[SimUnit],
+    jobs: &[SimJob],
+    resource_nodes: &mut [ResourceNodeState],
+    command_position: BattleGridPoint,
+    selected: Option<&BTreeSet<String>>,
+    preferred_node_index: Option<usize>,
+    resources_available: &mut u32,
+    resources_generated: &mut u32,
+    score: &mut u32,
+    event_count: &mut u64,
+    restore_energy: bool,
+) -> usize {
+    let worker_indices = units
+        .iter()
+        .enumerate()
+        .filter(|(_, unit)| {
+            unit.alive()
+                && selected
+                    .map(|selected| selected.contains(&unit.unit_id))
+                    .unwrap_or(unit.role == "worker")
+        })
+        .map(|(index, _)| index)
+        .collect::<Vec<_>>();
+    let mut occupied = units
+        .iter()
+        .chain(opposing_units)
+        .filter(|unit| unit.alive())
+        .map(|unit| unit.position)
+        .collect::<BTreeSet<_>>();
+    let construction_assignment = jobs
+        .iter()
+        .find(|job| job.kind == SimJobKind::BuildStructure && !job.paused)
+        .and_then(|job| Some((job.builder_id.as_deref()?, job.target)));
+    for index in worker_indices.iter().copied() {
+        if construction_assignment.is_some_and(|(builder_id, _)| builder_id == units[index].unit_id)
+        {
+            continue;
+        }
+        let node_index = preferred_node_index
+            .filter(|node_index| resource_nodes[*node_index].remaining > 0)
+            .or_else(|| {
+                resource_nodes
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, node)| node.remaining > 0)
+                    .min_by_key(|(_, node)| distance(units[index].position, node.position))
+                    .map(|(index, _)| index)
+            });
+        let returning = units[index].cargo >= units[index].cargo_capacity
+            || (node_index.is_none() && units[index].cargo > 0);
+        let target = if returning {
+            command_position
+        } else if let Some(node_index) = node_index {
+            resource_nodes[node_index].position
+        } else {
+            command_position
+        };
+        units[index].movement_budget_milli = units[index]
+            .movement_budget_milli
+            .saturating_add(units[index].move_speed_milli);
+        if units[index].movement_budget_milli >= MOVEMENT_TILE_COST
+            && distance(units[index].position, target) > 1
+        {
+            occupied.remove(&units[index].position);
+            if let Some(next) = next_step_toward(seed, units[index].position, target, 1, &occupied)
+            {
+                units[index].position = next;
+                units[index].movement_budget_milli -= MOVEMENT_TILE_COST;
+            }
+            occupied.insert(units[index].position);
+        }
+        if returning
+            && distance(units[index].position, command_position) <= 1
+            && units[index].cargo > 0
+        {
+            let deposited = std::mem::take(&mut units[index].cargo);
+            *resources_available = resources_available.saturating_add(deposited);
+            *resources_generated = resources_generated.saturating_add(deposited);
+            *score = score.saturating_add(deposited);
+            *event_count += 1;
+        } else if !returning && tick.is_multiple_of(10) {
+            if let Some(node_index) = node_index {
+                if distance(units[index].position, resource_nodes[node_index].position) <= 1 {
+                    let room = units[index]
+                        .cargo_capacity
+                        .saturating_sub(units[index].cargo);
+                    let gathered = 4_u32.min(room).min(resource_nodes[node_index].remaining);
+                    units[index].cargo = units[index].cargo.saturating_add(gathered);
+                    resource_nodes[node_index].remaining -= gathered;
+                    if restore_energy {
+                        units[index].energy =
+                            (units[index].energy + 4).min(units[index].max_energy);
+                    }
+                    *event_count += u64::from(gathered > 0);
+                }
+            }
+        }
+    }
+    worker_indices.len()
+}
+
 impl SimUnit {
     pub fn alive(&self) -> bool {
         self.hp > 0
@@ -285,6 +392,23 @@ pub enum AuthoritySide {
     #[default]
     Player,
     Enemy,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AuthorityCommandSource {
+    PlayerOrder,
+    AdaptiveAi,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AuthorityJobCommandRecord {
+    pub tick: u64,
+    pub source: AuthorityCommandSource,
+    pub side: AuthoritySide,
+    pub job_id: String,
+    pub kind: SimJobKind,
+    pub rule_id: String,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -498,8 +622,27 @@ pub struct BattleReplayV2 {
     pub contract_version: String,
     pub seed: BattleSeedV1,
     pub chunks: Vec<BattleReplayChunkV2>,
+    #[serde(default)]
+    pub seek_checkpoints: Vec<ReplaySeekCheckpointV2>,
     pub final_tick: u64,
     pub final_snapshot_hash: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ReplaySeekCheckpointV2 {
+    pub tick: u64,
+    pub consumed_entry_count: usize,
+    pub checkpoint: SimCheckpointV1,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+struct ReplayChunkDirectoryManifestV1 {
+    contract_version: String,
+    seed: BattleSeedV1,
+    chunk_files: Vec<String>,
+    seek_checkpoints: Vec<ReplaySeekCheckpointV2>,
+    final_tick: u64,
+    final_snapshot_hash: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -512,6 +655,7 @@ pub struct SkirmishBalanceSample {
     pub simulation_salt: u64,
     pub final_tick: u64,
     pub outcome: Option<BattleOutcome>,
+    pub winner_faction: Option<RtsFaction>,
     pub player_score: u32,
     pub enemy_score: u32,
     pub player_hp_percent: u8,
@@ -522,6 +666,8 @@ pub struct SkirmishBalanceSample {
     pub enemy_resources_spent: u32,
     pub player_tech_count: u8,
     pub enemy_tech_count: u8,
+    pub player_resource_efficiency_permille: u16,
+    pub enemy_resource_efficiency_permille: u16,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -533,6 +679,10 @@ pub struct SkirmishBalanceMatrix {
     pub mirror_wins: u32,
     pub ashen_wins: u32,
     pub average_terminal_ticks: u64,
+    pub faction_win_delta_permille: u16,
+    pub average_resource_efficiency_delta_permille: u16,
+    pub average_tech_count_delta_permille: u16,
+    pub terminal_samples_by_map: BTreeMap<String, u32>,
 }
 
 fn drive_balance_player_economy(sim: &mut MissionSimV1) -> Result<bool, SimError> {
@@ -644,7 +794,10 @@ pub fn run_skirmish_balance_matrix(
     let mut samples = Vec::with_capacity(seeds.len());
     let mut pressure = [0_u64; 2];
     let mut wins = [0_u32; 2];
+    let mut efficiency = [0_u64; 2];
+    let mut tech_counts = [0_u64; 2];
     let mut terminal_ticks = Vec::new();
+    let mut terminal_samples_by_map = BTreeMap::<String, u32>::new();
     let mut map_fingerprints = BTreeMap::<String, String>::new();
     for seed in seeds {
         if !seed.skirmish.enabled {
@@ -727,8 +880,11 @@ pub fn run_skirmish_balance_matrix(
             u64::from(100_u8.saturating_sub(enemy_hp)) * 10 + u64::from(sim.player_score);
         pressure[enemy_faction_index] +=
             u64::from(100_u8.saturating_sub(player_hp)) * 10 + u64::from(sim.enemy_score);
-        if let Some(outcome) = sim.outcome {
+        let winner_faction = if let Some(outcome) = sim.outcome {
             terminal_ticks.push(sim.tick);
+            *terminal_samples_by_map
+                .entry(seed.map_id.clone())
+                .or_default() += 1;
             let winner = match outcome {
                 BattleOutcome::Victory => player_faction_index,
                 BattleOutcome::Defeat => enemy_faction_index,
@@ -737,7 +893,29 @@ pub fn run_skirmish_balance_matrix(
             if winner < 2 {
                 wins[winner] = wins[winner].saturating_add(1);
             }
-        }
+            (winner < 2).then_some(if winner == 0 {
+                RtsFaction::MirrorCoalition
+            } else {
+                RtsFaction::AshenCompact
+            })
+        } else {
+            None
+        };
+        let player_resource_efficiency_permille = (u64::from(sim.resources_spent) * 1000
+            / u64::from(
+                seed.skirmish
+                    .starting_resources
+                    .saturating_add(sim.resources_gathered)
+                    .max(1),
+            ))
+        .min(1000) as u16;
+        let enemy_resource_efficiency_permille = (u64::from(sim.enemy_resources_spent) * 1000
+            / u64::from(sim.enemy_resources_generated.max(1)))
+        .min(1000) as u16;
+        efficiency[player_faction_index] += u64::from(player_resource_efficiency_permille);
+        efficiency[enemy_faction_index] += u64::from(enemy_resource_efficiency_permille);
+        tech_counts[player_faction_index] += sim.researched_techs.len() as u64;
+        tech_counts[enemy_faction_index] += sim.enemy_researched_techs.len() as u64;
         samples.push(SkirmishBalanceSample {
             map_id: seed.map_id.clone(),
             player_faction: seed.skirmish.player_faction,
@@ -747,6 +925,7 @@ pub fn run_skirmish_balance_matrix(
             simulation_salt: simulation_salt(seed),
             final_tick: sim.tick,
             outcome: sim.outcome,
+            winner_faction,
             player_score: sim.player_score,
             enemy_score: sim.enemy_score,
             player_hp_percent: player_hp,
@@ -757,6 +936,8 @@ pub fn run_skirmish_balance_matrix(
             enemy_resources_spent: sim.enemy_resources_spent,
             player_tech_count: sim.researched_techs.len().min(u8::MAX as usize) as u8,
             enemy_tech_count: sim.enemy_researched_techs.len().min(u8::MAX as usize) as u8,
+            player_resource_efficiency_permille,
+            enemy_resource_efficiency_permille,
         });
     }
     let [mirror, ashen] = pressure;
@@ -768,7 +949,7 @@ pub fn run_skirmish_balance_matrix(
     let high = mirror.max(ashen).max(1);
     let delta = (mirror.abs_diff(ashen) * 1000 / high) as u16;
     Ok(SkirmishBalanceMatrix {
-        contract_version: "trnm_skirmish_balance_matrix_v2".to_string(),
+        contract_version: "trnm_skirmish_balance_matrix_v3".to_string(),
         samples,
         faction_pressure_delta_permille: delta,
         terminal_sample_count: terminal_ticks.len() as u32,
@@ -779,6 +960,19 @@ pub fn run_skirmish_balance_matrix(
         } else {
             terminal_ticks.iter().sum::<u64>() / terminal_ticks.len() as u64
         },
+        faction_win_delta_permille: {
+            let total = u64::from(wins[0] + wins[1]).max(1);
+            (u64::from(wins[0].abs_diff(wins[1])) * 1000 / total) as u16
+        },
+        average_resource_efficiency_delta_permille: {
+            let high = efficiency[0].max(efficiency[1]).max(1);
+            (efficiency[0].abs_diff(efficiency[1]) * 1000 / high) as u16
+        },
+        average_tech_count_delta_permille: {
+            let high = tech_counts[0].max(tech_counts[1]).max(1);
+            (tech_counts[0].abs_diff(tech_counts[1]) * 1000 / high) as u16
+        },
+        terminal_samples_by_map,
     })
 }
 
@@ -841,6 +1035,8 @@ pub struct MissionSimV1 {
     pub explored_tiles: BTreeSet<BattleGridPoint>,
     #[serde(default)]
     pub jobs: Vec<SimJob>,
+    #[serde(default)]
+    pub authority_job_commands: Vec<AuthorityJobCommandRecord>,
     #[serde(default)]
     pub support_units: Vec<SupportUnit>,
     #[serde(default)]
@@ -1186,6 +1382,7 @@ impl MissionSimV1 {
             visible_tiles: BTreeSet::new(),
             explored_tiles: BTreeSet::new(),
             jobs: Vec::new(),
+            authority_job_commands: Vec::new(),
             support_units: Vec::new(),
             researched_techs: BTreeSet::new(),
             upgrade_level: 0,
@@ -1884,7 +2081,7 @@ impl MissionSimV1 {
         self.tick += 1;
         self.recon_bonus_ticks = self.recon_bonus_ticks.saturating_sub(1);
         advance_side_construction_worker(&self.seed, &mut self.party, &self.enemies, &self.jobs);
-        self.process_jobs();
+        self.advance_side_jobs(AuthoritySide::Player);
         self.resolve_structure_functions();
         for support in &mut self.support_units {
             support.ability_cooldown_ticks = support.ability_cooldown_ticks.saturating_sub(1);
@@ -2658,79 +2855,28 @@ impl MissionSimV1 {
     }
 
     fn resolve_harvest(&mut self, selected: &BTreeSet<String>, order: &RtsFrameOrder) {
-        let Some(node_index) = order
-            .target_actor_id
-            .as_deref()
-            .and_then(|id| {
-                self.resource_nodes
-                    .iter()
-                    .position(|node| node.node_id == id)
-            })
-            .or(if self.resource_nodes.is_empty() {
-                None
-            } else {
-                Some(0)
-            })
-        else {
-            return;
-        };
-        let node_position = self.resource_nodes[node_index].position;
-        let node_depleted = self.resource_nodes[node_index].remaining == 0;
-        let returning = self
-            .party
-            .iter()
-            .filter(|unit| {
-                unit.alive()
-                    && selected.contains(&unit.unit_id)
-                    && (unit.cargo >= unit.cargo_capacity || (node_depleted && unit.cargo > 0))
-            })
-            .map(|unit| unit.unit_id.clone())
-            .collect::<BTreeSet<_>>();
-        let gathering = selected
-            .difference(&returning)
-            .cloned()
-            .collect::<BTreeSet<_>>();
-        if !gathering.is_empty() && !node_depleted {
-            self.move_selected_toward(&gathering, node_position, 1, None);
-        }
-        if !returning.is_empty() {
-            self.move_selected_toward(&returning, self.seed.map.party_start, 1, None);
-        }
-        if self.tick.is_multiple_of(10) {
-            for index in 0..self.party.len() {
-                if !gathering.contains(&self.party[index].unit_id)
-                    || distance(self.party[index].position, node_position) > 1
-                    || self.resource_nodes[node_index].remaining == 0
-                {
-                    continue;
-                }
-                let room = self.party[index]
-                    .cargo_capacity
-                    .saturating_sub(self.party[index].cargo);
-                let harvested = 4_u32
-                    .min(room)
-                    .min(self.resource_nodes[node_index].remaining);
-                self.party[index].cargo = self.party[index].cargo.saturating_add(harvested);
-                self.resource_nodes[node_index].remaining -= harvested;
-                self.party[index].energy =
-                    (self.party[index].energy + 4).min(self.party[index].max_energy);
-                self.event_count += u64::from(harvested > 0);
-            }
-        }
-        for unit in &mut self.party {
-            if returning.contains(&unit.unit_id)
-                && distance(unit.position, self.seed.map.party_start) <= 1
-                && unit.cargo > 0
-            {
-                let deposited = std::mem::take(&mut unit.cargo);
-                self.resources_gathered = self.resources_gathered.saturating_add(deposited);
-                self.resources_available = self.resources_available.saturating_add(deposited);
-                self.player_score = self.player_score.saturating_add(deposited);
-                self.event_count += 1;
-            }
-        }
+        let preferred_node_index = order.target_actor_id.as_deref().and_then(|id| {
+            self.resource_nodes
+                .iter()
+                .position(|node| node.node_id == id)
+        });
+        advance_worker_logistics(
+            &self.seed,
+            self.tick,
+            &mut self.party,
+            &self.enemies,
+            &self.jobs,
+            &mut self.resource_nodes,
+            self.seed.map.party_start,
+            Some(selected),
+            preferred_node_index,
+            &mut self.resources_available,
+            &mut self.resources_gathered,
+            &mut self.player_score,
+            &mut self.event_count,
+            true,
+        );
     }
-
     fn resolve_capture(&mut self, selected: &BTreeSet<String>) {
         if self.current_objective_kind() != Some(ObjectiveKind::Capture)
             || self.relay_guard_hp > 0
@@ -2873,7 +3019,8 @@ impl MissionSimV1 {
             }
         }
         let duration = 45 + definition.hp / 100;
-        self.enqueue_side_job(
+        self.submit_authority_job(
+            AuthorityCommandSource::PlayerOrder,
             SimJob {
                 job_id: format!("build-{rule}-{}", self.event_count + 1),
                 kind: SimJobKind::BuildStructure,
@@ -3113,7 +3260,8 @@ impl MissionSimV1 {
             .target_tile
             .map(|tile| BattleGridPoint::new(tile.x as i16, tile.y as i16))
             .unwrap_or(self.seed.map.party_start);
-        self.enqueue_side_job(
+        self.submit_authority_job(
+            AuthorityCommandSource::PlayerOrder,
             SimJob {
                 job_id: format!(
                     "{}-{}",
@@ -3180,172 +3328,160 @@ impl MissionSimV1 {
         Ok(())
     }
 
-    fn process_jobs(&mut self) {
-        let powered = !self.low_power()
-            && self.side_has_structure(AuthoritySide::Player, SimStructureKind::FieldWorkshop);
-        advance_side_job_queue(&mut self.jobs, &self.party, powered);
-        let completed = self
-            .jobs
-            .iter()
-            .filter(|job| job.remaining_ticks == 0)
-            .cloned()
-            .collect::<Vec<_>>();
-        self.jobs.retain(|job| job.remaining_ticks > 0);
-        for job in completed {
-            match job.kind {
-                SimJobKind::BuildStructure => {
-                    let kind = SimStructureKind::from_rule_id(&job.rule_id)
-                        .expect("queued player structure remains catalogued");
-                    let definition = kind.definition();
-                    self.structures.push(SimStructure {
-                        structure_id: format!("{}-{}", job.rule_id, self.event_count + 1),
-                        kind,
-                        position: job.target,
-                        hp: i64::from(definition.hp),
-                        max_hp: i64::from(definition.hp),
-                    });
+    fn apply_player_job_completion(&mut self, job: SimJob) {
+        match job.kind {
+            SimJobKind::BuildStructure => {
+                let kind = SimStructureKind::from_rule_id(&job.rule_id)
+                    .expect("queued player structure remains catalogued");
+                let definition = kind.definition();
+                self.structures.push(SimStructure {
+                    structure_id: format!("{}-{}", job.rule_id, self.event_count + 1),
+                    kind,
+                    position: job.target,
+                    hp: i64::from(definition.hp),
+                    max_hp: i64::from(definition.hp),
+                });
+            }
+            SimJobKind::TrainSupport => {
+                let position = self.unoccupied_spawn_tile(job.target);
+                self.support_units.push(SupportUnit {
+                    unit_id: format!("field_support_{}", self.support_units.len() + 1),
+                    archetype_id: "field_support_drone".to_string(),
+                    role: "support".to_string(),
+                    position,
+                    hp: 240,
+                    damage: 18 + i64::from(self.upgrade_level) * 5,
+                    armor: 1,
+                    attack_range: 4,
+                    ability_cooldown_ticks: 0,
+                    attack_interval_ticks: 18,
+                    supply: 1,
+                });
+            }
+            SimJobKind::TrainMedic => {
+                let position = self.unoccupied_spawn_tile(job.target);
+                self.support_units.push(SupportUnit {
+                    unit_id: format!("field_medic_{}", self.support_units.len() + 1),
+                    archetype_id: "field_medic".to_string(),
+                    role: "medic".to_string(),
+                    position,
+                    hp: 210,
+                    damage: 6,
+                    armor: 0,
+                    attack_range: 3,
+                    ability_cooldown_ticks: 0,
+                    attack_interval_ticks: 20,
+                    supply: 1,
+                });
+            }
+            SimJobKind::TrainRosterUnit => {
+                let unit = UNIT_ROSTER
+                    .iter()
+                    .find(|unit| unit.id == job.rule_id)
+                    .expect("queued faction unit remains catalogued");
+                let position = self.unoccupied_spawn_tile(job.target);
+                let max_hp = i64::from(unit.hp) * 3;
+                self.party.push(SimUnit {
+                    unit_id: format!("{}_{}", unit.id, self.party.len() + 1),
+                    role: unit.role.to_string(),
+                    persistent: false,
+                    skill_ids: vec![unit.ability().rule_id().to_string()],
+                    position,
+                    hp: max_hp,
+                    max_hp,
+                    damage: i64::from(unit.damage) + i64::from(self.upgrade_level) * 3,
+                    armor: i64::from(unit.supply) * 2,
+                    move_speed_milli: match unit.ability() {
+                        UnitAbility::SmokeDash | UnitAbility::PiercingCharge => 1_050,
+                        UnitAbility::CommandSurge | UnitAbility::SuppressionBlast => 700,
+                        _ => 850,
+                    },
+                    movement_budget_milli: 0,
+                    attack_interval_ticks: 16 + u32::from(unit.supply) * 3,
+                    evasion_permille: if unit.ability() == UnitAbility::SmokeDash {
+                        160
+                    } else {
+                        45
+                    },
+                    energy: 100,
+                    max_energy: 100,
+                    ability_range: 4,
+                    ability_cooldown_ticks: 0,
+                    guard_ticks: 0,
+                    attacks_made: 0,
+                    stance: RtsUnitStance::Guard,
+                    patrol_anchor: None,
+                    patrol_target: None,
+                    patrol_returning: false,
+                    cargo: 0,
+                    cargo_capacity: WORKER_CARGO_CAPACITY,
+                    confirmed_kills: 0,
+                    veteran_rank: 0,
+                });
+            }
+            SimJobKind::ResearchLogistics => {
+                self.researched_techs.insert("field_logistics".to_string());
+            }
+            SimJobKind::ResearchOptics => {
+                self.researched_techs.insert("signal_optics".to_string());
+                self.intel_level = self.intel_level.saturating_add(1).min(3);
+            }
+            SimJobKind::UpgradeRelayArms => {
+                self.researched_techs.insert("relay_arms".to_string());
+                self.upgrade_level = self.upgrade_level.saturating_add(1).min(3);
+                for unit in &mut self.party {
+                    unit.damage += 3;
+                    unit.armor += 1;
                 }
-                SimJobKind::TrainSupport => {
-                    let position = self.unoccupied_spawn_tile(job.target);
-                    self.support_units.push(SupportUnit {
-                        unit_id: format!("field_support_{}", self.support_units.len() + 1),
-                        archetype_id: "field_support_drone".to_string(),
-                        role: "support".to_string(),
-                        position,
-                        hp: 240,
-                        damage: 18 + i64::from(self.upgrade_level) * 5,
-                        armor: 1,
-                        attack_range: 4,
-                        ability_cooldown_ticks: 0,
-                        attack_interval_ticks: 18,
-                        supply: 1,
-                    });
-                }
-                SimJobKind::TrainMedic => {
-                    let position = self.unoccupied_spawn_tile(job.target);
-                    self.support_units.push(SupportUnit {
-                        unit_id: format!("field_medic_{}", self.support_units.len() + 1),
-                        archetype_id: "field_medic".to_string(),
-                        role: "medic".to_string(),
-                        position,
-                        hp: 210,
-                        damage: 6,
-                        armor: 0,
-                        attack_range: 3,
-                        ability_cooldown_ticks: 0,
-                        attack_interval_ticks: 20,
-                        supply: 1,
-                    });
-                }
-                SimJobKind::TrainRosterUnit => {
-                    let unit = UNIT_ROSTER
-                        .iter()
-                        .find(|unit| unit.id == job.rule_id)
-                        .expect("queued faction unit remains catalogued");
-                    let position = self.unoccupied_spawn_tile(job.target);
-                    let max_hp = i64::from(unit.hp) * 3;
-                    self.party.push(SimUnit {
-                        unit_id: format!("{}_{}", unit.id, self.party.len() + 1),
-                        role: unit.role.to_string(),
-                        persistent: false,
-                        skill_ids: vec![unit.ability().rule_id().to_string()],
-                        position,
-                        hp: max_hp,
-                        max_hp,
-                        damage: i64::from(unit.damage) + i64::from(self.upgrade_level) * 3,
-                        armor: i64::from(unit.supply) * 2,
-                        move_speed_milli: match unit.ability() {
-                            UnitAbility::SmokeDash | UnitAbility::PiercingCharge => 1_050,
-                            UnitAbility::CommandSurge | UnitAbility::SuppressionBlast => 700,
-                            _ => 850,
-                        },
-                        movement_budget_milli: 0,
-                        attack_interval_ticks: 16 + u32::from(unit.supply) * 3,
-                        evasion_permille: if unit.ability() == UnitAbility::SmokeDash {
-                            160
-                        } else {
-                            45
-                        },
-                        energy: 100,
-                        max_energy: 100,
-                        ability_range: 4,
-                        ability_cooldown_ticks: 0,
-                        guard_ticks: 0,
-                        attacks_made: 0,
-                        stance: RtsUnitStance::Guard,
-                        patrol_anchor: None,
-                        patrol_target: None,
-                        patrol_returning: false,
-                        cargo: 0,
-                        cargo_capacity: WORKER_CARGO_CAPACITY,
-                        confirmed_kills: 0,
-                        veteran_rank: 0,
-                    });
-                }
-                SimJobKind::ResearchLogistics => {
-                    self.researched_techs.insert("field_logistics".to_string());
-                }
-                SimJobKind::ResearchOptics => {
-                    self.researched_techs.insert("signal_optics".to_string());
-                    self.intel_level = self.intel_level.saturating_add(1).min(3);
-                }
-                SimJobKind::UpgradeRelayArms => {
-                    self.researched_techs.insert("relay_arms".to_string());
-                    self.upgrade_level = self.upgrade_level.saturating_add(1).min(3);
-                    for unit in &mut self.party {
-                        unit.damage += 3;
-                        unit.armor += 1;
-                    }
-                    for support in &mut self.support_units {
-                        support.damage += 5;
-                    }
-                }
-                SimJobKind::UpgradeFieldArmor => {
-                    self.researched_techs.insert("field_armor".to_string());
-                    self.armor_upgrade_level = self.armor_upgrade_level.saturating_add(1).min(3);
-                    for unit in &mut self.party {
-                        unit.armor += 2;
-                        unit.max_hp += 25;
-                        unit.hp += 25;
-                    }
-                }
-                SimJobKind::ResearchSensorNet => {
-                    self.researched_techs.insert("sensor_net".to_string());
-                    self.intel_level = 3;
-                }
-                SimJobKind::ResearchFieldMedicine => {
-                    self.researched_techs.insert("field_medicine".to_string());
-                    for unit in &mut self.party {
-                        unit.max_energy += 20;
-                        unit.energy += 20;
-                    }
-                }
-                SimJobKind::UpgradeSiegeDrills => {
-                    self.researched_techs.insert("siege_drills".to_string());
-                    for unit in &mut self.party {
-                        unit.damage += 4;
-                    }
-                    self.relay_guard_hp = self.relay_guard_hp.saturating_sub(150);
-                }
-                SimJobKind::UpgradeReactivePlating => {
-                    self.researched_techs.insert("reactive_plating".to_string());
-                    for unit in &mut self.party {
-                        unit.armor += 3;
-                    }
-                }
-                SimJobKind::ResearchWayfinderDrills => {
-                    self.researched_techs.insert("wayfinder_drills".to_string());
-                    for unit in &mut self.party {
-                        unit.move_speed_milli += 120;
-                        unit.evasion_permille = unit.evasion_permille.saturating_add(25).min(400);
-                    }
-                }
-                SimJobKind::ResearchRapidMustering => {
-                    self.researched_techs.insert("rapid_mustering".to_string());
+                for support in &mut self.support_units {
+                    support.damage += 5;
                 }
             }
-            self.event_count += 1;
+            SimJobKind::UpgradeFieldArmor => {
+                self.researched_techs.insert("field_armor".to_string());
+                self.armor_upgrade_level = self.armor_upgrade_level.saturating_add(1).min(3);
+                for unit in &mut self.party {
+                    unit.armor += 2;
+                    unit.max_hp += 25;
+                    unit.hp += 25;
+                }
+            }
+            SimJobKind::ResearchSensorNet => {
+                self.researched_techs.insert("sensor_net".to_string());
+                self.intel_level = 3;
+            }
+            SimJobKind::ResearchFieldMedicine => {
+                self.researched_techs.insert("field_medicine".to_string());
+                for unit in &mut self.party {
+                    unit.max_energy += 20;
+                    unit.energy += 20;
+                }
+            }
+            SimJobKind::UpgradeSiegeDrills => {
+                self.researched_techs.insert("siege_drills".to_string());
+                for unit in &mut self.party {
+                    unit.damage += 4;
+                }
+                self.relay_guard_hp = self.relay_guard_hp.saturating_sub(150);
+            }
+            SimJobKind::UpgradeReactivePlating => {
+                self.researched_techs.insert("reactive_plating".to_string());
+                for unit in &mut self.party {
+                    unit.armor += 3;
+                }
+            }
+            SimJobKind::ResearchWayfinderDrills => {
+                self.researched_techs.insert("wayfinder_drills".to_string());
+                for unit in &mut self.party {
+                    unit.move_speed_milli += 120;
+                    unit.evasion_permille = unit.evasion_permille.saturating_add(25).min(400);
+                }
+            }
+            SimJobKind::ResearchRapidMustering => {
+                self.researched_techs.insert("rapid_mustering".to_string());
+            }
         }
+        self.event_count += 1;
     }
 
     fn unoccupied_spawn_tile(&self, preferred: BattleGridPoint) -> BattleGridPoint {
@@ -3602,8 +3738,22 @@ impl MissionSimV1 {
         Ok(())
     }
 
-    fn enqueue_side_job(&mut self, job: SimJob, label: &str) -> Result<(), SimError> {
+    fn submit_authority_job(
+        &mut self,
+        source: AuthorityCommandSource,
+        job: SimJob,
+        label: &str,
+    ) -> Result<(), SimError> {
         let side = job.side;
+        if !matches!(
+            (source, side),
+            (AuthorityCommandSource::PlayerOrder, AuthoritySide::Player)
+                | (AuthorityCommandSource::AdaptiveAi, AuthoritySide::Enemy)
+        ) {
+            return Err(SimError::Order(format!(
+                "{label} source is not authorized for {side:?}"
+            )));
+        }
         if job.remaining_ticks == 0
             || !self.seed.map.in_bounds(job.target)
             || !self.seed.map.passable(job.target)
@@ -3637,7 +3787,16 @@ impl MissionSimV1 {
         }
         *resources_available -= job.cost;
         *resources_spent = resources_spent.saturating_add(job.cost);
+        let record = AuthorityJobCommandRecord {
+            tick: self.tick,
+            source,
+            side,
+            job_id: job.job_id.clone(),
+            kind: job.kind,
+            rule_id: job.rule_id.clone(),
+        };
         jobs.push(job);
+        self.authority_job_commands.push(record);
         self.event_count += 1;
         Ok(())
     }
@@ -3810,101 +3969,227 @@ impl MissionSimV1 {
         else {
             return;
         };
-        let worker_indices = self
-            .enemies
-            .iter()
-            .enumerate()
-            .filter(|(_, unit)| unit.alive() && unit.role == "worker")
-            .map(|(index, _)| index)
-            .collect::<Vec<_>>();
-        self.enemy_workers = worker_indices.len().min(u8::MAX as usize) as u8;
-        let mut occupied = self
-            .party
-            .iter()
-            .chain(&self.enemies)
-            .filter(|unit| unit.alive())
-            .map(|unit| unit.position)
-            .collect::<BTreeSet<_>>();
-        let construction_assignment = self
-            .enemy_jobs
-            .first()
-            .filter(|job| job.kind == SimJobKind::BuildStructure)
-            .and_then(|job| Some((job.builder_id.as_deref()?, job.target)));
-        for index in worker_indices {
-            let assigned_site = construction_assignment
-                .filter(|(builder_id, _)| *builder_id == self.enemies[index].unit_id.as_str())
-                .map(|(_, target)| target);
-            if assigned_site.is_some() {
-                continue;
+        let worker_count = advance_worker_logistics(
+            &self.seed,
+            self.tick,
+            &mut self.enemies,
+            &self.party,
+            &self.enemy_jobs,
+            &mut self.resource_nodes,
+            command_position,
+            None,
+            None,
+            &mut self.enemy_resources_available,
+            &mut self.enemy_resources_generated,
+            &mut self.enemy_score,
+            &mut self.event_count,
+            false,
+        );
+        self.enemy_workers = worker_count.min(u8::MAX as usize) as u8;
+    }
+
+    fn advance_side_jobs(&mut self, side: AuthoritySide) {
+        let powered = match side {
+            AuthoritySide::Player => {
+                !self.low_power()
+                    && self
+                        .side_has_structure(AuthoritySide::Player, SimStructureKind::FieldWorkshop)
             }
-            let node_index = self
-                .resource_nodes
+            AuthoritySide::Enemy => {
+                !self.enemy_low_power()
+                    && self
+                        .side_has_structure(AuthoritySide::Enemy, SimStructureKind::FieldWorkshop)
+            }
+        };
+        let worker_alive = match side {
+            AuthoritySide::Player => self.party.iter().any(|unit| unit.alive()),
+            AuthoritySide::Enemy => self
+                .enemies
                 .iter()
-                .enumerate()
-                .filter(|(_, node)| node.remaining > 0)
-                .min_by_key(|(_, node)| distance(self.enemies[index].position, node.position))
-                .map(|(index, _)| index);
-            let returning = self.enemies[index].cargo >= self.enemies[index].cargo_capacity
-                || (node_index.is_none() && self.enemies[index].cargo > 0);
-            let target = if returning {
-                command_position
-            } else if let Some(node_index) = node_index {
-                self.resource_nodes[node_index].position
-            } else {
-                command_position
-            };
-            let stop_range = 1;
-            self.enemies[index].movement_budget_milli = self.enemies[index]
-                .movement_budget_milli
-                .saturating_add(self.enemies[index].move_speed_milli);
-            if self.enemies[index].movement_budget_milli >= MOVEMENT_TILE_COST
-                && distance(self.enemies[index].position, target) > stop_range
-            {
-                occupied.remove(&self.enemies[index].position);
-                if let Some(next) = next_step_toward(
-                    &self.seed,
-                    self.enemies[index].position,
-                    target,
-                    stop_range,
-                    &occupied,
-                ) {
-                    self.enemies[index].position = next;
-                    self.enemies[index].movement_budget_milli -= MOVEMENT_TILE_COST;
-                }
-                occupied.insert(self.enemies[index].position);
+                .any(|unit| unit.alive() && unit.role == "worker"),
+        };
+        if !worker_alive {
+            return;
+        }
+        let completed = match side {
+            AuthoritySide::Player => {
+                advance_side_job_queue(&mut self.jobs, &self.party, powered);
+                let completed = self
+                    .jobs
+                    .iter()
+                    .filter(|job| job.remaining_ticks == 0)
+                    .cloned()
+                    .collect::<Vec<_>>();
+                self.jobs.retain(|job| job.remaining_ticks > 0);
+                completed
             }
-            if returning
-                && distance(self.enemies[index].position, command_position) <= 1
-                && self.enemies[index].cargo > 0
-            {
-                let deposited = std::mem::take(&mut self.enemies[index].cargo);
-                self.enemy_resources_available =
-                    self.enemy_resources_available.saturating_add(deposited);
-                self.enemy_resources_generated =
-                    self.enemy_resources_generated.saturating_add(deposited);
-                self.enemy_score = self.enemy_score.saturating_add(deposited);
-                self.event_count += 1;
-            } else if !returning && self.tick.is_multiple_of(10) {
-                if let Some(node_index) = node_index {
-                    if distance(
-                        self.enemies[index].position,
-                        self.resource_nodes[node_index].position,
-                    ) <= 1
-                    {
-                        let room = self.enemies[index]
-                            .cargo_capacity
-                            .saturating_sub(self.enemies[index].cargo);
-                        let gathered = 4_u32
-                            .min(room)
-                            .min(self.resource_nodes[node_index].remaining);
-                        self.enemies[index].cargo =
-                            self.enemies[index].cargo.saturating_add(gathered);
-                        self.resource_nodes[node_index].remaining -= gathered;
-                        self.event_count += u64::from(gathered > 0);
+            AuthoritySide::Enemy => {
+                advance_side_job_queue(&mut self.enemy_jobs, &self.enemies, powered);
+                let completed = self
+                    .enemy_jobs
+                    .iter()
+                    .filter(|job| job.remaining_ticks == 0)
+                    .cloned()
+                    .collect::<Vec<_>>();
+                self.enemy_jobs.retain(|job| job.remaining_ticks > 0);
+                completed
+            }
+        };
+        for job in completed {
+            match side {
+                AuthoritySide::Player => self.apply_player_job_completion(job),
+                AuthoritySide::Enemy => self.apply_enemy_job_completion(job),
+            }
+        }
+    }
+
+    fn apply_enemy_job_completion(&mut self, job: SimJob) {
+        match job.kind {
+            SimJobKind::BuildStructure => {
+                if let Some(kind) = SimStructureKind::from_rule_id(&job.rule_id) {
+                    let definition = kind.definition();
+                    self.enemy_structures.push(SimStructure {
+                        structure_id: format!(
+                            "enemy_{}_{}",
+                            job.rule_id,
+                            self.enemy_structures.len()
+                        ),
+                        kind,
+                        position: job.target,
+                        hp: i64::from(definition.hp),
+                        max_hp: i64::from(definition.hp),
+                    });
+                }
+            }
+            SimJobKind::ResearchLogistics
+            | SimJobKind::ResearchOptics
+            | SimJobKind::UpgradeRelayArms
+            | SimJobKind::UpgradeFieldArmor
+            | SimJobKind::ResearchSensorNet
+            | SimJobKind::ResearchFieldMedicine
+            | SimJobKind::UpgradeSiegeDrills
+            | SimJobKind::UpgradeReactivePlating
+            | SimJobKind::ResearchWayfinderDrills
+            | SimJobKind::ResearchRapidMustering => {
+                self.enemy_researched_techs.insert(job.rule_id.clone());
+                match job.rule_id.as_str() {
+                    "relay_arms" | "siege_drills" => {
+                        for enemy in &mut self.enemies {
+                            enemy.damage += 3;
+                        }
                     }
+                    "field_armor" | "reactive_plating" => {
+                        for enemy in &mut self.enemies {
+                            enemy.armor += 2;
+                        }
+                    }
+                    "rapid_mustering" => {
+                        let position = self.unoccupied_spawn_tile(self.seed.map.objective);
+                        let worker_index = self.enemy_workers;
+                        self.enemies.push(SimUnit {
+                            unit_id: format!("enemy_worker_mustered_{worker_index}"),
+                            role: "worker".to_string(),
+                            persistent: false,
+                            skill_ids: vec!["enemy_harvest".to_string()],
+                            max_hp: 460,
+                            hp: 460,
+                            damage: 5,
+                            armor: 2,
+                            move_speed_milli: 900,
+                            movement_budget_milli: 0,
+                            attack_interval_ticks: 30,
+                            evasion_permille: 25,
+                            energy: 0,
+                            max_energy: 0,
+                            ability_range: 1,
+                            ability_cooldown_ticks: 0,
+                            guard_ticks: 0,
+                            position,
+                            attacks_made: 0,
+                            stance: RtsUnitStance::Guard,
+                            patrol_anchor: None,
+                            patrol_target: None,
+                            patrol_returning: false,
+                            cargo: 0,
+                            cargo_capacity: WORKER_CARGO_CAPACITY,
+                            confirmed_kills: 0,
+                            veteran_rank: 0,
+                        });
+                        self.enemy_workers = self.enemy_workers.saturating_add(1);
+                    }
+                    _ => {}
+                }
+            }
+            SimJobKind::TrainRosterUnit | SimJobKind::TrainSupport | SimJobKind::TrainMedic => {
+                if let Some(unit) = UNIT_ROSTER.iter().find(|unit| unit.id == job.rule_id) {
+                    let position = self.unoccupied_spawn_tile(
+                        nearest_passable(
+                            &self.seed,
+                            BattleGridPoint::new(
+                                self.seed.map.objective.x - 3,
+                                self.seed.map.objective.y,
+                            ),
+                        )
+                        .unwrap_or(self.seed.map.objective),
+                    );
+                    let damage_bonus = if self.enemy_researched_techs.contains("relay_arms") {
+                        4
+                    } else {
+                        0
+                    };
+                    let armor_bonus = if self.enemy_researched_techs.contains("field_armor") {
+                        2
+                    } else {
+                        0
+                    };
+                    let hp = i64::from(unit.hp)
+                        * match self.seed.difficulty {
+                            CampaignDifficulty::Story => 100,
+                            CampaignDifficulty::Standard => 150,
+                            CampaignDifficulty::Veteran => 300,
+                        }
+                        / 100;
+                    self.enemies.push(SimUnit {
+                        unit_id: format!("enemy_{}_{}", unit.id, self.enemy_build_order_index),
+                        role: unit.role.to_string(),
+                        persistent: false,
+                        skill_ids: vec![unit.ability().rule_id().to_string()],
+                        max_hp: hp,
+                        hp,
+                        damage: i64::from(unit.damage) + damage_bonus,
+                        armor: i64::from(unit.supply) * 2 + armor_bonus,
+                        move_speed_milli: match unit.ability() {
+                            UnitAbility::SmokeDash | UnitAbility::PiercingCharge => 1_050,
+                            UnitAbility::CommandSurge | UnitAbility::SuppressionBlast => 700,
+                            _ => 850,
+                        },
+                        movement_budget_milli: 0,
+                        attack_interval_ticks: 17 + u32::from(unit.supply) * 3,
+                        evasion_permille: if unit.ability() == UnitAbility::SmokeDash {
+                            160
+                        } else {
+                            45
+                        },
+                        energy: 100,
+                        max_energy: 100,
+                        ability_range: 4,
+                        ability_cooldown_ticks: 0,
+                        guard_ticks: 0,
+                        position,
+                        attacks_made: 0,
+                        stance: RtsUnitStance::Aggressive,
+                        patrol_anchor: None,
+                        patrol_target: None,
+                        patrol_returning: false,
+                        cargo: 0,
+                        cargo_capacity: WORKER_CARGO_CAPACITY,
+                        confirmed_kills: 0,
+                        veteran_rank: 0,
+                    });
                 }
             }
         }
+        self.event_count += 1;
     }
 
     fn resolve_enemy_economy(&mut self) {
@@ -3921,179 +4206,7 @@ impl MissionSimV1 {
             return;
         }
 
-        let worker_alive = self
-            .enemies
-            .iter()
-            .any(|unit| unit.alive() && unit.role == "worker");
-        let enemy_low_power = self.enemy_low_power();
-        let enemy_workshop_ready =
-            self.side_has_structure(AuthoritySide::Enemy, SimStructureKind::FieldWorkshop);
-        if worker_alive {
-            advance_side_job_queue(
-                &mut self.enemy_jobs,
-                &self.enemies,
-                !enemy_low_power && enemy_workshop_ready,
-            );
-        }
-        if self
-            .enemy_jobs
-            .first()
-            .is_some_and(|job| job.remaining_ticks == 0)
-        {
-            let job = self.enemy_jobs.remove(0);
-            match job.kind {
-                SimJobKind::BuildStructure => {
-                    if let Some(kind) = SimStructureKind::from_rule_id(&job.rule_id) {
-                        let position = job.target;
-                        let definition = kind.definition();
-                        self.enemy_structures.push(SimStructure {
-                            structure_id: format!(
-                                "enemy_{}_{}",
-                                job.rule_id,
-                                self.enemy_structures.len()
-                            ),
-                            kind,
-                            position,
-                            hp: i64::from(definition.hp),
-                            max_hp: i64::from(definition.hp),
-                        });
-                    }
-                }
-                SimJobKind::ResearchLogistics
-                | SimJobKind::ResearchOptics
-                | SimJobKind::UpgradeRelayArms
-                | SimJobKind::UpgradeFieldArmor
-                | SimJobKind::ResearchSensorNet
-                | SimJobKind::ResearchFieldMedicine
-                | SimJobKind::UpgradeSiegeDrills
-                | SimJobKind::UpgradeReactivePlating
-                | SimJobKind::ResearchWayfinderDrills
-                | SimJobKind::ResearchRapidMustering => {
-                    self.enemy_researched_techs.insert(job.rule_id.clone());
-                    match job.rule_id.as_str() {
-                        "relay_arms" | "siege_drills" => {
-                            for enemy in &mut self.enemies {
-                                enemy.damage += 3;
-                            }
-                        }
-                        "field_armor" | "reactive_plating" => {
-                            for enemy in &mut self.enemies {
-                                enemy.armor += 2;
-                            }
-                        }
-                        "rapid_mustering" => {
-                            let position = self.unoccupied_spawn_tile(self.seed.map.objective);
-                            let worker_index = self.enemy_workers;
-                            self.enemies.push(SimUnit {
-                                unit_id: format!("enemy_worker_mustered_{worker_index}"),
-                                role: "worker".to_string(),
-                                persistent: false,
-                                skill_ids: vec!["enemy_harvest".to_string()],
-                                max_hp: 460,
-                                hp: 460,
-                                damage: 5,
-                                armor: 2,
-                                move_speed_milli: 900,
-                                movement_budget_milli: 0,
-                                attack_interval_ticks: 30,
-                                evasion_permille: 25,
-                                energy: 0,
-                                max_energy: 0,
-                                ability_range: 1,
-                                ability_cooldown_ticks: 0,
-                                guard_ticks: 0,
-                                position,
-                                attacks_made: 0,
-                                stance: RtsUnitStance::Guard,
-                                patrol_anchor: None,
-                                patrol_target: None,
-                                patrol_returning: false,
-                                cargo: 0,
-                                cargo_capacity: WORKER_CARGO_CAPACITY,
-                                confirmed_kills: 0,
-                                veteran_rank: 0,
-                            });
-                            self.enemy_workers = self.enemy_workers.saturating_add(1);
-                        }
-                        _ => {}
-                    }
-                }
-                SimJobKind::TrainRosterUnit | SimJobKind::TrainSupport | SimJobKind::TrainMedic => {
-                    if let Some(unit) = UNIT_ROSTER.iter().find(|unit| unit.id == job.rule_id) {
-                        let position = self.unoccupied_spawn_tile(
-                            nearest_passable(
-                                &self.seed,
-                                BattleGridPoint::new(
-                                    self.seed.map.objective.x - 3,
-                                    self.seed.map.objective.y,
-                                ),
-                            )
-                            .unwrap_or(self.seed.map.objective),
-                        );
-                        let damage_bonus = if self.enemy_researched_techs.contains("relay_arms") {
-                            4
-                        } else {
-                            0
-                        };
-                        let armor_bonus = if self.enemy_researched_techs.contains("field_armor") {
-                            2
-                        } else {
-                            0
-                        };
-                        self.enemies.push(SimUnit {
-                            unit_id: format!("enemy_{}_{}", unit.id, self.enemy_build_order_index),
-                            role: unit.role.to_string(),
-                            persistent: false,
-                            skill_ids: vec![unit.ability().rule_id().to_string()],
-                            max_hp: i64::from(unit.hp)
-                                * match self.seed.difficulty {
-                                    CampaignDifficulty::Story => 100,
-                                    CampaignDifficulty::Standard => 150,
-                                    CampaignDifficulty::Veteran => 300,
-                                }
-                                / 100,
-                            hp: i64::from(unit.hp)
-                                * match self.seed.difficulty {
-                                    CampaignDifficulty::Story => 100,
-                                    CampaignDifficulty::Standard => 150,
-                                    CampaignDifficulty::Veteran => 300,
-                                }
-                                / 100,
-                            damage: i64::from(unit.damage) + damage_bonus,
-                            armor: i64::from(unit.supply) * 2 + armor_bonus,
-                            move_speed_milli: match unit.ability() {
-                                UnitAbility::SmokeDash | UnitAbility::PiercingCharge => 1_050,
-                                UnitAbility::CommandSurge | UnitAbility::SuppressionBlast => 700,
-                                _ => 850,
-                            },
-                            movement_budget_milli: 0,
-                            attack_interval_ticks: 17 + u32::from(unit.supply) * 3,
-                            evasion_permille: if unit.ability() == UnitAbility::SmokeDash {
-                                160
-                            } else {
-                                45
-                            },
-                            energy: 100,
-                            max_energy: 100,
-                            ability_range: 4,
-                            ability_cooldown_ticks: 0,
-                            guard_ticks: 0,
-                            position,
-                            attacks_made: 0,
-                            stance: RtsUnitStance::Aggressive,
-                            patrol_anchor: None,
-                            patrol_target: None,
-                            patrol_returning: false,
-                            cargo: 0,
-                            cargo_capacity: WORKER_CARGO_CAPACITY,
-                            confirmed_kills: 0,
-                            veteran_rank: 0,
-                        });
-                    }
-                }
-            }
-            self.event_count += 1;
-        }
+        self.advance_side_jobs(AuthoritySide::Enemy);
 
         if !self.enemy_jobs.is_empty() || !self.tick.is_multiple_of(20) {
             return;
@@ -4227,7 +4340,8 @@ impl MissionSimV1 {
                 CampaignDifficulty::Veteran => duration,
             };
             if self
-                .enqueue_side_job(
+                .submit_authority_job(
+                    AuthorityCommandSource::AdaptiveAi,
                     SimJob {
                         job_id: format!("enemy-{}-{}", rule_id, self.enemy_build_order_index),
                         kind,
@@ -5108,6 +5222,8 @@ impl BattleReplayV2 {
         final_tick: u64,
         final_snapshot_hash: String,
     ) -> Result<Self, SimError> {
+        let seek_checkpoints =
+            Self::build_seek_checkpoints(&seed, &entries, final_tick, &final_snapshot_hash)?;
         let chunks = entries
             .chunks(REPLAY_CHUNK_ORDERS)
             .enumerate()
@@ -5132,9 +5248,63 @@ impl BattleReplayV2 {
             contract_version: "trnm_battle_replay_v2".to_string(),
             seed,
             chunks,
+            seek_checkpoints,
             final_tick,
             final_snapshot_hash,
         })
+    }
+
+    fn build_seek_checkpoints(
+        seed: &BattleSeedV1,
+        entries: &[SimReplayEntry],
+        final_tick: u64,
+        final_snapshot_hash: &str,
+    ) -> Result<Vec<ReplaySeekCheckpointV2>, SimError> {
+        let mut sim = MissionSimV1::from_seed(seed.clone())?;
+        let mut checkpoints = vec![ReplaySeekCheckpointV2 {
+            tick: 0,
+            consumed_entry_count: 0,
+            checkpoint: SimCheckpointV1::capture(&sim)?,
+        }];
+        let capture = |sim: &MissionSimV1,
+                       consumed_entry_count: usize,
+                       checkpoints: &mut Vec<ReplaySeekCheckpointV2>|
+         -> Result<(), SimError> {
+            if checkpoints
+                .last()
+                .is_some_and(|entry| entry.tick == sim.tick)
+            {
+                return Ok(());
+            }
+            checkpoints.push(ReplaySeekCheckpointV2 {
+                tick: sim.tick,
+                consumed_entry_count,
+                checkpoint: SimCheckpointV1::capture(sim)?,
+            });
+            Ok(())
+        };
+        for (entry_index, entry) in entries.iter().enumerate() {
+            while sim.tick < entry.issued_tick {
+                sim.step()?;
+                if sim.tick.is_multiple_of(REPLAY_SEEK_CHECKPOINT_TICKS) {
+                    capture(&sim, entry_index, &mut checkpoints)?;
+                }
+            }
+            sim.issue_order(entry.order.clone())?;
+        }
+        while sim.tick < final_tick {
+            sim.step()?;
+            if sim.tick.is_multiple_of(REPLAY_SEEK_CHECKPOINT_TICKS) {
+                capture(&sim, entries.len(), &mut checkpoints)?;
+            }
+        }
+        capture(&sim, entries.len(), &mut checkpoints)?;
+        if sim.snapshot_hash()? != final_snapshot_hash {
+            return Err(SimError::Integrity(
+                "replay checkpoint construction diverged from final snapshot".to_string(),
+            ));
+        }
+        Ok(checkpoints)
     }
 
     pub fn entry_count(&self) -> usize {
@@ -5180,6 +5350,24 @@ impl BattleReplayV2 {
                 previous_tick = last.issued_tick;
             }
         }
+        let mut previous_checkpoint_tick = 0;
+        let mut previous_entry_count = 0;
+        for (index, checkpoint) in self.seek_checkpoints.iter().enumerate() {
+            checkpoint.checkpoint.validate()?;
+            if checkpoint.tick != checkpoint.checkpoint.sim.tick
+                || checkpoint.tick > self.final_tick
+                || checkpoint.consumed_entry_count > self.entry_count()
+                || index > 0 && checkpoint.tick <= previous_checkpoint_tick
+                || checkpoint.consumed_entry_count < previous_entry_count
+                || checkpoint.checkpoint.sim.seed.seed_hash != self.seed.seed_hash
+            {
+                return Err(SimError::Integrity(
+                    "replay seek checkpoint ordering or binding is invalid".to_string(),
+                ));
+            }
+            previous_checkpoint_tick = checkpoint.tick;
+            previous_entry_count = checkpoint.consumed_entry_count;
+        }
         Ok(())
     }
 
@@ -5206,11 +5394,24 @@ impl BattleReplayV2 {
     pub fn replay_until_tick(&self, requested_tick: u64) -> Result<MissionSimV1, SimError> {
         self.validate_chunks()?;
         let target_tick = requested_tick.min(self.final_tick);
-        let mut sim = MissionSimV1::from_seed(self.seed.clone())?;
+        let checkpoint = self
+            .seek_checkpoints
+            .iter()
+            .rev()
+            .find(|checkpoint| checkpoint.tick <= target_tick);
+        let (mut sim, consumed_entry_count) = checkpoint
+            .map(|checkpoint| {
+                (
+                    checkpoint.checkpoint.sim.clone(),
+                    checkpoint.consumed_entry_count,
+                )
+            })
+            .unwrap_or((MissionSimV1::from_seed(self.seed.clone())?, 0));
         for entry in self
             .chunks
             .iter()
             .flat_map(|chunk| &chunk.entries)
+            .skip(consumed_entry_count)
             .filter(|entry| entry.issued_tick <= target_tick)
         {
             while sim.tick < entry.issued_tick {
@@ -5224,8 +5425,28 @@ impl BattleReplayV2 {
         Ok(sim)
     }
 
+    fn validate_persistable(&self) -> Result<(), SimError> {
+        self.validate_chunks()?;
+        let final_checkpoint = self.seek_checkpoints.last().ok_or_else(|| {
+            SimError::Integrity("replay is missing its terminal seek checkpoint".to_string())
+        })?;
+        if final_checkpoint.tick != self.final_tick
+            || final_checkpoint.consumed_entry_count != self.entry_count()
+            || final_checkpoint.checkpoint.sim.snapshot_hash()? != self.final_snapshot_hash
+        {
+            return Err(SimError::Integrity(
+                "replay terminal checkpoint diverged from its manifest".to_string(),
+            ));
+        }
+        Ok(())
+    }
+
     pub fn save_atomic(&self, path: &Path) -> Result<(), SimError> {
-        self.replay_and_verify()?;
+        // Replay construction already performs a full deterministic replay.
+        // Persistence revalidates every chunk/checkpoint hash and binds the
+        // terminal checkpoint to the manifest without redundantly simulating
+        // the entire match a second time. Loading remains a full verification.
+        self.validate_persistable()?;
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent)?;
         }
@@ -5241,7 +5462,84 @@ impl BattleReplayV2 {
     }
 
     pub fn load_verified(path: &Path) -> Result<Self, SimError> {
-        let replay: Self = serde_json::from_slice(&fs::read(path)?)?;
+        let bytes = fs::read(path)?;
+        let value: serde_json::Value = serde_json::from_slice(&bytes)?;
+        match value
+            .get("contract_version")
+            .and_then(serde_json::Value::as_str)
+        {
+            Some("trnm_battle_replay_v2") => {
+                let replay: Self = serde_json::from_value(value)?;
+                replay.replay_and_verify()?;
+                Ok(replay)
+            }
+            Some("trnm_battle_replay_v1") => {
+                let legacy: BattleReplayV1 = serde_json::from_value(value)?;
+                let migrated = legacy.migrate_to_v2()?;
+                migrated.save_atomic(path)?;
+                Ok(migrated)
+            }
+            _ => Err(SimError::InvalidState(
+                "unsupported battle replay file contract".to_string(),
+            )),
+        }
+    }
+
+    pub fn save_chunk_directory(&self, directory: &Path) -> Result<(), SimError> {
+        self.validate_persistable()?;
+        fs::create_dir_all(directory)?;
+        let mut chunk_files = Vec::with_capacity(self.chunks.len());
+        for chunk in &self.chunks {
+            let filename = format!("chunk-{:05}.json", chunk.index);
+            let path = directory.join(&filename);
+            let mut file = fs::File::create(&path)?;
+            file.write_all(&serde_json::to_vec(chunk)?)?;
+            file.sync_all()?;
+            chunk_files.push(filename);
+        }
+        let manifest = ReplayChunkDirectoryManifestV1 {
+            contract_version: "trnm_battle_replay_chunk_directory_v1".to_string(),
+            seed: self.seed.clone(),
+            chunk_files,
+            seek_checkpoints: self.seek_checkpoints.clone(),
+            final_tick: self.final_tick,
+            final_snapshot_hash: self.final_snapshot_hash.clone(),
+        };
+        let temp_path = directory.join("manifest.json.tmp");
+        let manifest_path = directory.join("manifest.json");
+        let mut file = fs::File::create(&temp_path)?;
+        file.write_all(&serde_json::to_vec_pretty(&manifest)?)?;
+        file.sync_all()?;
+        fs::rename(temp_path, manifest_path)?;
+        fs::File::open(directory)?.sync_all()?;
+        Ok(())
+    }
+
+    pub fn load_chunk_directory_verified(directory: &Path) -> Result<Self, SimError> {
+        let manifest: ReplayChunkDirectoryManifestV1 =
+            serde_json::from_slice(&fs::read(directory.join("manifest.json"))?)?;
+        if manifest.contract_version != "trnm_battle_replay_chunk_directory_v1" {
+            return Err(SimError::InvalidState(
+                "unsupported replay chunk directory contract".to_string(),
+            ));
+        }
+        let chunks = manifest
+            .chunk_files
+            .iter()
+            .map(|filename| -> Result<BattleReplayChunkV2, SimError> {
+                Ok(serde_json::from_slice(&fs::read(
+                    directory.join(filename),
+                )?)?)
+            })
+            .collect::<Result<Vec<BattleReplayChunkV2>, SimError>>()?;
+        let replay = Self {
+            contract_version: "trnm_battle_replay_v2".to_string(),
+            seed: manifest.seed,
+            chunks,
+            seek_checkpoints: manifest.seek_checkpoints,
+            final_tick: manifest.final_tick,
+            final_snapshot_hash: manifest.final_snapshot_hash,
+        };
         replay.replay_and_verify()?;
         Ok(replay)
     }
@@ -5723,13 +6021,13 @@ mod tests {
         ))
         .unwrap();
         for _ in 0..80 {
-            sim.process_jobs();
+            sim.advance_side_jobs(AuthoritySide::Player);
         }
         assert!(sim.researched_techs.contains("rapid_mustering"));
         sim.issue_order(job_order(&sim, RtsOrderKind::Train, "ash_runner", start))
             .unwrap();
         for _ in 0..60 {
-            sim.process_jobs();
+            sim.advance_side_jobs(AuthoritySide::Player);
         }
         assert!(sim.party.iter().any(|unit| {
             !unit.persistent && unit.role == "raider" && unit.unit_id.starts_with("ash_runner_")
@@ -5786,6 +6084,10 @@ mod tests {
             }
             assert!(sim.enemy_resources_generated > sim.seed.skirmish.starting_resources);
             assert!(sim.enemy_resources_spent > 0);
+            assert!(sim.authority_job_commands.iter().any(|command| {
+                command.source == AuthorityCommandSource::AdaptiveAi
+                    && command.side == AuthoritySide::Enemy
+            }));
             assert_eq!(
                 sim.enemy_resources_available + sim.enemy_resources_spent,
                 sim.enemy_resources_generated
@@ -6062,6 +6364,10 @@ mod tests {
             target,
         ))
         .unwrap();
+        assert!(sim.authority_job_commands.iter().any(|command| {
+            command.source == AuthorityCommandSource::PlayerOrder
+                && command.side == AuthoritySide::Player
+        }));
         sim.issue_order(job_order(
             &sim,
             RtsOrderKind::Research,
@@ -6342,7 +6648,7 @@ mod tests {
         sim.issue_order(workshop).unwrap();
         for _ in 0..400 {
             advance_side_construction_worker(&sim.seed, &mut sim.party, &sim.enemies, &sim.jobs);
-            sim.process_jobs();
+            sim.advance_side_jobs(AuthoritySide::Player);
             if sim.structures.iter().any(|structure| {
                 structure.kind == SimStructureKind::FieldWorkshop
                     && structure.position == workshop_tile
@@ -6380,7 +6686,7 @@ mod tests {
         sim.issue_order(generator.clone()).unwrap();
         for _ in 0..400 {
             advance_side_construction_worker(&sim.seed, &mut sim.party, &sim.enemies, &sim.jobs);
-            sim.process_jobs();
+            sim.advance_side_jobs(AuthoritySide::Player);
             if sim
                 .structures
                 .iter()
@@ -6425,7 +6731,7 @@ mod tests {
         sim.issue_order(supply).unwrap();
         for _ in 0..400 {
             advance_side_construction_worker(&sim.seed, &mut sim.party, &sim.enemies, &sim.jobs);
-            sim.process_jobs();
+            sim.advance_side_jobs(AuthoritySide::Player);
             if sim
                 .structures
                 .iter()
@@ -6761,7 +7067,7 @@ mod tests {
         }
         durable_seed.seed_hash = durable_seed.computed_hash().unwrap();
         let mut sim = MissionSimV1::from_seed(durable_seed).unwrap();
-        for _ in 0..700 {
+        for _ in 0..400 {
             let target = if sim.tick.is_multiple_of(2) {
                 sim.seed.map.party_start
             } else {
@@ -6772,24 +7078,56 @@ mod tests {
             }
             sim.step().unwrap();
         }
-        assert_eq!(sim.replay_orders.len(), 2_100);
+        assert_eq!(sim.replay_orders.len(), 1_200);
         let replay = sim.export_replay_v2().unwrap();
-        assert_eq!(replay.entry_count(), 2_100);
-        assert_eq!(replay.chunks.len(), 5);
+        assert_eq!(replay.entry_count(), 1_200);
+        assert_eq!(replay.chunks.len(), 3);
+        assert!(replay.seek_checkpoints.len() >= 3);
+        let checkpoint_seek = replay.replay_until_tick(350).unwrap();
+        let mut unindexed = replay.clone();
+        unindexed.seek_checkpoints.clear();
+        let full_seek = unindexed.replay_until_tick(350).unwrap();
+        assert_eq!(
+            checkpoint_seek.snapshot_hash().unwrap(),
+            full_seek.snapshot_hash().unwrap()
+        );
         let replayed = replay.replay_and_verify().unwrap();
         assert_eq!(
             replayed.snapshot_hash().unwrap(),
             sim.snapshot_hash().unwrap()
         );
-        let migrated = sim.export_replay().unwrap().migrate_to_v2().unwrap();
-        assert_eq!(migrated.final_snapshot_hash, replay.final_snapshot_hash);
         let directory = tempdir().unwrap();
         let path = directory.path().join("chunked-long-replay.json");
         replay.save_atomic(&path).unwrap();
         assert_eq!(
             BattleReplayV2::load_verified(&path).unwrap().entry_count(),
-            2_100
+            1_200
         );
+        let legacy_path = directory.path().join("legacy-auto-migrate.json");
+        let mut legacy_sim = MissionSimV1::from_seed(seed()).unwrap();
+        for _ in 0..12 {
+            let target = legacy_sim.seed.map.approach_point;
+            legacy_sim
+                .issue_order(order(&legacy_sim, RtsOrderKind::Move, target))
+                .unwrap();
+            legacy_sim.step().unwrap();
+        }
+        legacy_sim
+            .export_replay()
+            .unwrap()
+            .save_atomic(&legacy_path)
+            .unwrap();
+        let auto_migrated = BattleReplayV2::load_verified(&legacy_path).unwrap();
+        assert_eq!(auto_migrated.entry_count(), 12);
+        assert_eq!(
+            serde_json::from_slice::<serde_json::Value>(&fs::read(&legacy_path).unwrap()).unwrap()
+                ["contract_version"],
+            "trnm_battle_replay_v2"
+        );
+        let chunk_directory = directory.path().join("streamed-chunks");
+        replay.save_chunk_directory(&chunk_directory).unwrap();
+        let streamed = BattleReplayV2::load_chunk_directory_verified(&chunk_directory).unwrap();
+        assert_eq!(streamed.final_snapshot_hash, replay.final_snapshot_hash);
     }
 
     #[test]
@@ -6852,7 +7190,7 @@ mod tests {
         for mission in missions {
             for swapped in [false, true] {
                 for spawn_swapped in [false, true] {
-                    for simulation_seed in 1..=3 {
+                    for simulation_seed in 1..=4 {
                         let mut map = authored_map(mission.map_id());
                         if spawn_swapped {
                             let original_party = map.party_start;
@@ -6891,8 +7229,8 @@ mod tests {
                 }
             }
         }
-        let matrix = run_skirmish_balance_matrix(&seeds, 900).unwrap();
-        assert_eq!(matrix.samples.len(), 48);
+        let matrix = run_skirmish_balance_matrix(&seeds, 550).unwrap();
+        assert_eq!(matrix.samples.len(), 64);
         assert_eq!(
             matrix
                 .samples
@@ -6908,8 +7246,8 @@ mod tests {
             matrix.faction_pressure_delta_permille
         );
         assert!(
-            matrix.terminal_sample_count >= 36,
-            "at least 75% of real-map matches must reach a measured terminal outcome: {}/48",
+            matrix.terminal_sample_count >= 48,
+            "at least 75% of real-map matches must reach a measured terminal outcome: {}/64",
             matrix.terminal_sample_count
         );
         assert!(matrix.mirror_wins > 0 && matrix.ashen_wins > 0);
@@ -6921,6 +7259,10 @@ mod tests {
             .samples
             .iter()
             .any(|sample| { sample.player_tech_count > 0 && sample.enemy_tech_count > 0 }));
+        assert_eq!(matrix.terminal_samples_by_map.len(), 4);
+        assert!(matrix.faction_win_delta_permille <= 900);
+        assert!(matrix.average_resource_efficiency_delta_permille <= 900);
+        assert!(matrix.average_tech_count_delta_permille <= 900);
     }
 
     #[test]

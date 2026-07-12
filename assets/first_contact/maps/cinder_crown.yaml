@@ -1,0 +1,38 @@
+extends: first_contact
+terrain_transform: shift_7
+contract_version: trnm_first_contact_map_v1
+id: cinder_crown
+title: Cinder Crown Siege
+player_start: { x: 5, y: 18 }
+camera_start: { x: 9, y: 16 }
+objective: { id: crown_command, label: Break the Cinder Crown, x: 34, y: 4 }
+bases:
+  - { id: mirror_crown_base, owner: player, x: 1, y: 13, width: 12, height: 10, entrance_x: 13, entrance_y: 18 }
+  - { id: ash_crown_base, owner: contact, x: 27, y: 1, width: 12, height: 10, entrance_x: 26, entrance_y: 6 }
+chokepoints:
+  - { id: north_pass, x: 23, y: 6, width: 3, height: 5, approach: rear }
+  - { id: south_pass, x: 14, y: 14, width: 3, height: 5, approach: front }
+resources:
+  - { id: crown_cyan, kind: cyan_crystal, x: 10, y: 13, route: mirror_ring }
+  - { id: cinder_amber, kind: amber_salvage, x: 30, y: 10, route: crown_ramp }
+  - { id: crown_center, kind: amber_salvage, x: 20, y: 12, route: broken_caldera }
+landmarks:
+  - { id: mirror_ring, role: front, x: 10, y: 17, frame: front }
+  - { id: broken_caldera, role: mid, x: 20, y: 12, frame: mid }
+  - { id: crown_command, role: rear, x: 34, y: 4, frame: rear }
+structures:
+  - { id: mirror_crown_command, family: command_core, owner: player, x: 5, y: 19, active: true }
+  - { id: mirror_crown_workshop, family: foundry, owner: player, x: 8, y: 20, active: true }
+  - { id: ash_crown_command, family: command_core, owner: contact, x: 34, y: 3, active: true }
+  - { id: ash_crown_foundry, family: foundry, owner: contact, x: 31, y: 4, active: true }
+  - { id: ash_crown_beacon, family: shield_relay, owner: contact, x: 29, y: 7, active: true }
+units:
+  - { id: party_0, spawn_slot: party_0, family: worker, owner: player, x: 6, y: 18, selected: true }
+  - { id: party_1, spawn_slot: party_1, family: scout, owner: player, x: 7, y: 18, selected: true }
+  - { id: party_2, spawn_slot: party_2, family: warden, owner: player, x: 6, y: 17, selected: true }
+  - { id: party_3, spawn_slot: party_3, family: striker, owner: player, x: 7, y: 17, selected: true }
+  - { id: crown_runner, family: scout, owner: contact, x: 25, y: 9, selected: false }
+  - { id: crown_bulwark, family: warden, owner: contact, x: 29, y: 7, selected: false }
+  - { id: crown_lancer, family: striker, owner: contact, x: 31, y: 6, selected: false }
+  - { id: crown_sapper, family: relay_engineer, owner: contact, x: 32, y: 5, selected: false }
+  - { id: crown_commander, family: sentinel, owner: contact, x: 34, y: 5, selected: false }
