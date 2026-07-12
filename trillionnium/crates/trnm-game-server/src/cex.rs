@@ -1,3 +1,6 @@
+use base64::{engine::general_purpose::STANDARD, Engine as _};
+use chrono::{Datelike, Utc};
+use ed25519_dalek::{Signer, SigningKey};
 use reqwest::header::HeaderMap;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -5,8 +8,8 @@ use std::sync::Arc;
 use trnm_campaign_core::EconomyBackend;
 use trnm_economy_protocol::{
     EconomicIntent, EconomicIntentKind, EconomicReceipt, EconomyAccountBinding,
-    ServerSignedValueEntitlementV1, ValueEntitlementSource, WalletSnapshot,
-    SERVER_SIGNED_VALUE_ENTITLEMENT_METADATA_KEY,
+    ServerSignedValueEntitlementV2, ValueEntitlementSource, WalletSnapshot,
+    SERVER_SIGNED_VALUE_ENTITLEMENT_METADATA_KEY, SERVER_SIGNED_VALUE_ENTITLEMENT_V2_CONTRACT,
 };
 
 const PLAYER_SESSION_HEADER: &str = "x-trnm-player-session";
@@ -33,18 +36,36 @@ pub struct SessionVerifyResponse {
 pub struct CexClient {
     base_url: Arc<String>,
     game_authority_token: Arc<String>,
+    entitlement_signing_key: Arc<SigningKey>,
+    entitlement_key_id: Arc<String>,
     async_client: reqwest::Client,
     blocking_client: reqwest::blocking::Client,
 }
 
 impl CexClient {
-    pub fn new(base_url: String, game_authority_token: String) -> Result<Self, String> {
+    pub fn new(
+        base_url: String,
+        game_authority_token: String,
+        signing_seed_base64: String,
+        entitlement_key_id: String,
+    ) -> Result<Self, String> {
         if game_authority_token.len() < 24 {
             return Err("TRNM_GAME_AUTHORITY_TOKEN must be at least 24 characters".to_string());
+        }
+        let seed = STANDARD
+            .decode(signing_seed_base64.trim())
+            .map_err(|error| format!("decode Ed25519 entitlement seed: {error}"))?;
+        let seed: [u8; 32] = seed
+            .try_into()
+            .map_err(|_| "Ed25519 entitlement seed must contain exactly 32 bytes".to_string())?;
+        if entitlement_key_id.trim().is_empty() {
+            return Err("TRNM_ENTITLEMENT_ED25519_KEY_ID is required".to_string());
         }
         Ok(Self {
             base_url: Arc::new(base_url.trim_end_matches('/').to_string()),
             game_authority_token: Arc::new(game_authority_token),
+            entitlement_signing_key: Arc::new(SigningKey::from_bytes(&seed)),
+            entitlement_key_id: Arc::new(entitlement_key_id),
             async_client: reqwest::Client::new(),
             blocking_client: reqwest::blocking::Client::new(),
         })
@@ -119,31 +140,48 @@ impl CexClient {
                 .account_id
                 .clone()
                 .ok_or_else(|| "reward intent has no account".to_string())?;
-            let entitlement = self
-                .blocking_client
-                .post(format!("{}/v1/trnm/economy/entitlements", self.base_url))
-                .headers(self.authority_headers()?)
-                .json(&json!({
-                    "actor_id": actor.actor_id,
-                    "account_id": account_id,
-                    "source": ValueEntitlementSource::Battle,
-                    "source_id": authorized.metadata.get("value_event_id")
-                        .and_then(|value| value.as_str())
-                        .unwrap_or(&authorized.intent_id),
-                    "intent_id": authorized.intent_id,
-                    "amount_credits": authorized.amount_credits.unwrap_or_default(),
-                    "lifetime_seconds": 600
-                }))
-                .send()
-                .map_err(|error| format!("CEX entitlement transport: {error}"))?;
-            if !entitlement.status().is_success() {
-                let status = entitlement.status();
-                let body = entitlement.text().unwrap_or_default();
-                return Err(format!("CEX entitlement rejected ({status}): {body}"));
-            }
-            let entitlement = entitlement
-                .json::<ServerSignedValueEntitlementV1>()
-                .map_err(|error| format!("decode CEX entitlement: {error}"))?;
+            let metadata_string = |key: &str| -> Result<String, String> {
+                authorized
+                    .metadata
+                    .get(key)
+                    .and_then(|value| value.as_str())
+                    .filter(|value| !value.is_empty())
+                    .map(str::to_string)
+                    .ok_or_else(|| format!("online reward is missing authoritative {key}"))
+            };
+            let now = Utc::now();
+            let mut entitlement = ServerSignedValueEntitlementV2 {
+                contract_version: SERVER_SIGNED_VALUE_ENTITLEMENT_V2_CONTRACT.to_string(),
+                entitlement_id: format!("trnm-online-entitlement:{}", uuid::Uuid::new_v4()),
+                issuer: "trnm-online-game-server".to_string(),
+                key_id: self.entitlement_key_id.as_ref().clone(),
+                signature_algorithm: "ed25519".to_string(),
+                actor_id: actor.actor_id.clone(),
+                account_id,
+                source: ValueEntitlementSource::Battle,
+                source_id: authorized
+                    .metadata
+                    .get("value_event_id")
+                    .and_then(|value| value.as_str())
+                    .unwrap_or(&authorized.intent_id)
+                    .to_string(),
+                intent_id: authorized.intent_id.clone(),
+                amount_credits: authorized.amount_credits.unwrap_or_default(),
+                currency: "wallet_credits".to_string(),
+                budget_day: (now.year() as u32) * 10_000 + now.month() * 100 + now.day(),
+                issued_at_epoch: now.timestamp(),
+                expires_at_epoch: now.timestamp().saturating_add(600),
+                match_id: metadata_string("online_match_id")?,
+                rules_version: metadata_string("online_rules_version")?,
+                build_id: metadata_string("online_build_id")?,
+                result_hash: metadata_string("online_result_hash")?,
+                participants_hash: metadata_string("online_participants_hash")?,
+                nonce: uuid::Uuid::new_v4().to_string(),
+                signature: String::new(),
+            };
+            let payload = entitlement.signing_payload()?;
+            entitlement.signature =
+                STANDARD.encode(self.entitlement_signing_key.sign(&payload).to_bytes());
             authorized.metadata[SERVER_SIGNED_VALUE_ENTITLEMENT_METADATA_KEY] =
                 serde_json::to_value(entitlement).map_err(|error| error.to_string())?;
         }
@@ -167,7 +205,7 @@ impl CexClient {
 
 impl EconomyBackend for CexClient {
     fn backend_id(&self) -> &str {
-        "cex-trnm-online-authority-v1"
+        "cex-trnm-online-authority-v2"
     }
 
     fn execute(&self, intent: &EconomicIntent) -> Result<EconomicReceipt, String> {

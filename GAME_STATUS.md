@@ -2,7 +2,7 @@
 
 Updated: 2026-07-13
 
-This is the one-page status source for the current native RPG + real-time-strategy product. The older finite checklist in `docs/development/trnm-deep-rpg-complete-rts-v1-dod.md` is retained as a completed historical baseline, not as a claim that the broader deep-RPG + complete-RTS vision is 100%. The current local CEX economy integration and Online Authority v1 vertical slice are enumerated below; neither grants Android or public-launch credit.
+This is the one-page status source for the current native RPG + real-time-strategy product. The older finite checklist in `docs/development/trnm-deep-rpg-complete-rts-v1-dod.md` is retained as a completed historical baseline, not as a claim that the broader deep-RPG + complete-RTS vision is 100%. The current local CEX economy integration and Online Authority v2 vertical slice are enumerated below; neither grants Android or public-launch credit.
 
 Release denominators are separated by
 `docs/development/trnm-native-game-release-gates-v1.md`: software alpha,
@@ -67,7 +67,7 @@ The RPG layer uses only clean-room mechanics study of 白金英雄坛说. No sou
 - `trnm_settlement_receipt_v1`;
 - `trnm_rts_sim_v16` / `trnm_rts_sim_checkpoint_v16`;
 - `trnm_player_settings_v2`.
-- `trnm_online_authority_v1`, build `trnm-online-authority-2026.07-v1`.
+- `trnm_online_authority_v2`, build `trnm-online-authority-2026.07-v2`.
 
 ## Product shell
 
@@ -101,23 +101,27 @@ Connected campaign and intent identifiers are deterministically scoped by the
 bound CEX account, so different players' default local save names cannot
 collide in the global idempotency ledger.
 
-Online Authority v1 is a bounded network vertical slice. Two distinct CEX
-player sessions join one shared-campaign co-op match against the deterministic
-AI. The server owns the campaign JSON, authored-map seed, `MissionSimV1`, tick,
-member-to-unit control sets, command sequence, idempotency receipt, snapshot,
-terminal `BattleResultV1` and the bounded online victory reward. PostgreSQL
-persists every campaign/match/command boundary, so ledger/game-server restart
-does not return authority to the client. The native Bevy client has an explicit
-attach mode (`TRNM_ONLINE_AUTHORITY_URL` plus match/player/account/session): it
-renders server snapshots, sends primary RTS commands to the server, polls the
-authoritative state and disables local stepping and local settlement.
+Online Authority v2 is a bounded network vertical slice. Two distinct CEX
+player sessions bring separate PostgreSQL campaigns into one co-op match
+against the deterministic AI. The server owns both campaign JSON documents,
+authored-map seed, `MissionSimV1`, tick, member-to-unit control sets, command
+sequence/idempotency, snapshots, terminal result and per-member settlement.
+Each member receives an independently persisted XP/inventory provenance event.
+Restart does not return authority to the client; authenticated reconnect returns
+the full current snapshot plus a bounded persisted command-receipt gap.
 
-This v1 is not a public online game claim. The guest temporarily controls two
-units in the host's shared campaign and receives no independent progression.
-There is no matchmaking, lobby browser, party service, chat, friends, guild,
-MMR, season, spectator product, cross-host fleet or public endpoint. Offline
-local saves cannot be mixed with public characters. See
-`docs/development/trnm-online-authority-v1.md`.
+Positive online wallet rewards are match/result/participant-bound Ed25519
+`ServerSignedValueEntitlementV2` values. The private seed remains in a mode-600
+game-server runtime file; CEX loads only an active/revoked public issuer
+registry. The native client uses bounded same-request retries, refreshes stale
+target ticks only after the server proves the original was not accepted, and
+still disables local simulation/settlement while attached.
+
+This v2 is not a public online game claim. There is no matchmaking, lobby
+browser, party service, chat, friends, guild, MMR, season, spectator product,
+cross-host fleet or public endpoint. KMS/HSM custody and automatic key rotation
+are also pending. Offline local saves cannot be mixed with online characters.
+See `docs/development/trnm-online-authority-v2.md`.
 
 The client exposes local/wallet balances, pending intents, priority
 compensations, value events, verified receipts and dead letters. `Ctrl+F7`
@@ -145,9 +149,10 @@ The control profiles alter live RTS input: Classic uses Q/W/E/R for move/attack/
 ## Current local evidence
 
 - eight-crate unit/integration/E2E suite: 128/128 passing (41 Campaign, 19 First Contact, 13 RPG, 8 existing protocols, 31 RTS, 9 closed-loop E2E, 2 online protocol and 5 game-server tests);
-- Online Authority E2E: two real CEX sessions join one match, receive disjoint unit control, reject exact-ID altered replay, sequence skip, old build and control theft, recover through a real systemd restart, win via server ticks, settle a server-owned 25-credit reward and verify 15/15 PostgreSQL commands carry unique persisted request fingerprints plus a CEX wallet receipt;
+- Online Authority v2 E2E: two real CEX sessions bring separate campaigns into one match, receive disjoint unit control, reject exact-ID altered replay, sequence skip, old build and control theft, recover via authenticated command-gap replay through a real systemd restart, each gain 80 XP plus two inventory units, and each settle a server-owned 25-credit Ed25519 reward; 15/15 PostgreSQL commands have unique persisted request fingerprints and the match owns two progression events;
+- network impairment E2E: the same full two-session/restart/settlement gate passes port-scoped loopback netem at 50 ms/1%, 100 ms/3% and 200 ms/5%; this is bounded local evidence, not a public-network SLO;
 - native attach smoke: two distinct X11 `trnm-first-contact` release processes use separate player sessions/windows/control sets and each produce an independently attributed fingerprinted PostgreSQL command; this is automated input evidence, not a human multiplayer session;
-- CEX full workspace: 353 passing with 16 detached-runtime black-box probes explicitly ignored; `consumer-entry-api` is 161/161. The persistent cross-process gate additionally proves new accounts, reward exactly-once, byte-identical replay across ledger/consumer restart, held-escrow refund, committed chargeback, wallet/cursor recovery and PostgreSQL uniqueness;
+- CEX full workspace: 354 passing, including the v2 Ed25519 active/tampered/unknown/revoked issuer test; 16 detached-runtime black-box probes remain explicitly ignored and `consumer-entry-api` remains 161/161. The persistent cross-process gate additionally proves new accounts, reward exactly-once, byte-identical replay across ledger/consumer restart, held-escrow refund, committed chargeback, wallet/cursor recovery and PostgreSQL uniqueness;
 - workspace Clippy with `-D warnings`: passing;
 - product boundary: green (8 game / 12 platform / legacy working tree absent); CEX depends on `trnm-economy-protocol` and no longer depends on removed `trnm-world-api`, `trnm-world-domain` or `trnm-world-projection` crates;
 - release build and desktop installer smoke: passing;
@@ -166,6 +171,7 @@ The first clean release rebuild after adding the native rustls CEX client took 9
 ```bash
 scripts/check_trnm_game_product.sh
 scripts/check-trnm-online-authority-e2e.sh
+scripts/check-trnm-online-network-chaos.sh
 scripts/check-trnm-online-native-two-client.sh
 cargo test --manifest-path trillionnium/Cargo.toml --workspace --all-targets
 cargo clippy --manifest-path trillionnium/Cargo.toml --workspace --all-targets -- -D warnings

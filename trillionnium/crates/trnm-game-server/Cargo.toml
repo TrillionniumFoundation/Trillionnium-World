@@ -7,7 +7,9 @@ authors.workspace = true
 
 [dependencies]
 axum = { version = "0.7", features = ["macros"] }
+base64 = "0.22"
 chrono = { version = "0.4", features = ["serde"] }
+ed25519-dalek = "2"
 reqwest = { version = "0.12", default-features = false, features = ["blocking", "json", "rustls-tls"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

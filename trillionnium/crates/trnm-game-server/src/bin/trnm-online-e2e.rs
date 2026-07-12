@@ -10,7 +10,8 @@ use trnm_online_protocol::{
     OnlineCampaignConnectRequest, OnlineCampaignView, OnlineCommandReceipt,
     OnlineCommandSubmitRequest, OnlineMatchAccessRequest, OnlineMatchCreateRequest,
     OnlineMatchJoinRequest, OnlineMatchPhase, OnlineMatchStartRequest, OnlineMatchView,
-    OnlineSnapshotResponse, ONLINE_AUTHORITY_BUILD, ONLINE_AUTHORITY_PROTOCOL,
+    OnlineReconnectRequest, OnlineReconnectResponse, OnlineSnapshotResponse,
+    ONLINE_AUTHORITY_BUILD, ONLINE_AUTHORITY_PROTOCOL,
 };
 use trnm_rts_protocol::{RtsFrameOrder, RtsOrderKind, RtsOrderSource, RtsTile};
 
@@ -40,7 +41,7 @@ impl OnlineClient {
             base_url: base_url.trim_end_matches('/').to_string(),
             http: Client::builder()
                 .connect_timeout(Duration::from_secs(2))
-                .timeout(Duration::from_secs(10))
+                .timeout(Duration::from_secs(4))
                 .build()
                 .map_err(|error| error.to_string())?,
         })
@@ -52,13 +53,12 @@ impl OnlineClient {
         path: &str,
         body: &T,
     ) -> Result<R, String> {
-        let response = self
+        let request = self
             .http
             .post(format!("{}{}", self.base_url, path))
             .header("x-trnm-player-session", &identity.session)
-            .json(body)
-            .send()
-            .map_err(|error| error.to_string())?;
+            .json(body);
+        let response = send_with_retry(request)?;
         let status = response.status();
         let bytes = response.bytes().map_err(|error| error.to_string())?;
         if !status.is_success() {
@@ -76,13 +76,12 @@ impl OnlineClient {
         path: &str,
         body: &T,
     ) -> Result<(u16, Value), String> {
-        let response = self
+        let request = self
             .http
             .post(format!("{}{}", self.base_url, path))
             .header("x-trnm-player-session", &identity.session)
-            .json(body)
-            .send()
-            .map_err(|error| error.to_string())?;
+            .json(body);
+        let response = send_with_retry(request)?;
         let status = response.status().as_u16();
         let value = response
             .json::<Value>()
@@ -103,6 +102,27 @@ impl OnlineClient {
                 build_id: ONLINE_AUTHORITY_BUILD.to_string(),
                 player_id: identity.player_id.clone(),
                 account_id: identity.account_id.clone(),
+            },
+        )
+    }
+
+    fn reconnect(
+        &self,
+        identity: &Identity,
+        match_id: &str,
+        last_acknowledged_sequence: u64,
+        last_snapshot_hash: String,
+    ) -> Result<OnlineReconnectResponse, String> {
+        self.post(
+            identity,
+            &format!("/v1/online/matches/{match_id}/reconnect"),
+            &OnlineReconnectRequest {
+                protocol_version: ONLINE_AUTHORITY_PROTOCOL.to_string(),
+                build_id: ONLINE_AUTHORITY_BUILD.to_string(),
+                player_id: identity.player_id.clone(),
+                account_id: identity.account_id.clone(),
+                last_acknowledged_sequence,
+                last_snapshot_hash,
             },
         )
     }
@@ -145,7 +165,7 @@ impl OnlineClient {
             }
             _ => {}
         }
-        let request = OnlineCommandSubmitRequest {
+        let mut request = OnlineCommandSubmitRequest {
             protocol_version: ONLINE_AUTHORITY_PROTOCOL.to_string(),
             build_id: ONLINE_AUTHORITY_BUILD.to_string(),
             player_id: identity.player_id.clone(),
@@ -156,13 +176,54 @@ impl OnlineClient {
             target_tick,
             order,
         };
-        let receipt = self.post(
-            identity,
-            &format!("/v1/online/matches/{match_id}/commands"),
-            &request,
-        )?;
+        let path = format!("/v1/online/matches/{match_id}/commands");
+        let receipt = match self.post(identity, &path, &request) {
+            Ok(receipt) => receipt,
+            Err(error) if error.contains("target_tick is outside the authoritative window") => {
+                let fresh = self.snapshot(identity, match_id)?;
+                let last_frame = fresh
+                    .snapshot
+                    .get("last_order_frame")
+                    .and_then(Value::as_u64)
+                    .unwrap_or_default();
+                request.sequence = fresh.view.next_sequence;
+                request.expected_match_revision = fresh.view.match_revision;
+                request.target_tick = fresh
+                    .view
+                    .authoritative_tick
+                    .saturating_add(80)
+                    .max(last_frame.saturating_add(1));
+                request.order.frame = u32::try_from(request.target_tick)
+                    .map_err(|_| "target tick overflow".to_string())?;
+                self.post(identity, &path, &request)?
+            }
+            Err(error) => return Err(error),
+        };
         Ok((receipt, request))
     }
+}
+
+fn send_with_retry(
+    request: reqwest::blocking::RequestBuilder,
+) -> Result<reqwest::blocking::Response, String> {
+    let mut last_error = None;
+    for attempt in 0..4 {
+        let retry = request
+            .try_clone()
+            .ok_or_else(|| "request cannot be safely retried".to_string())?;
+        match retry.send() {
+            Ok(response) => return Ok(response),
+            Err(error) => {
+                last_error = Some(error);
+                if attempt < 3 {
+                    thread::sleep(Duration::from_millis(100 * (attempt + 1) as u64));
+                }
+            }
+        }
+    }
+    Err(last_error
+        .map(|error| error.to_string())
+        .unwrap_or_else(|| "request failed without a response".to_string()))
 }
 
 fn env_identity(prefix: &str) -> Result<Identity, String> {
@@ -281,6 +342,17 @@ fn run() -> Result<Value, String> {
             slot_key: run_id.clone(),
         },
     )?;
+    let guest_campaign: OnlineCampaignView = client.post(
+        &guest,
+        "/v1/online/campaigns/connect",
+        &OnlineCampaignConnectRequest {
+            protocol_version: ONLINE_AUTHORITY_PROTOCOL.to_string(),
+            build_id: ONLINE_AUTHORITY_BUILD.to_string(),
+            player_id: guest.player_id.clone(),
+            account_id: guest.account_id.clone(),
+            slot_key: run_id.clone(),
+        },
+    )?;
     let created: OnlineMatchView = client.post(
         &host,
         "/v1/online/matches",
@@ -300,6 +372,7 @@ fn run() -> Result<Value, String> {
             build_id: ONLINE_AUTHORITY_BUILD.to_string(),
             player_id: guest.player_id.clone(),
             account_id: guest.account_id.clone(),
+            campaign_id: guest_campaign.campaign_id.clone(),
             join_code: created.join_code.clone(),
         },
     )?;
@@ -375,7 +448,9 @@ fn run() -> Result<Value, String> {
     theft.command_id = format!("{run_id}-control-theft");
     theft.sequence = after_first.view.next_sequence;
     theft.expected_match_revision = after_first.view.match_revision;
-    theft.target_tick = after_first.view.authoritative_tick.saturating_add(40);
+    theft.target_tick = after_first.view.authoritative_tick.saturating_add(180);
+    theft.order.frame = u32::try_from(theft.target_tick)
+        .map_err(|_| "control-theft target tick overflow".to_string())?;
     theft.order.subject_actor_ids = host_units.clone();
     let (status, _) = client.post_status(
         &guest,
@@ -404,7 +479,24 @@ fn run() -> Result<Value, String> {
         .as_u64()
         .unwrap_or_default();
     restart_server(&base_url)?;
-    let after_restart = client.snapshot(&guest, &created.match_id)?;
+    let reconnected = client.reconnect(
+        &guest,
+        &created.match_id,
+        0,
+        "stale-client-snapshot".to_string(),
+    )?;
+    if reconnected.reconnect_count != 1
+        || !reconnected.full_snapshot_required
+        || reconnected.replayed_commands.len() != before_restart.view.next_sequence as usize
+    {
+        return Err(
+            "authenticated reconnect did not replay the authoritative command gap".to_string(),
+        );
+    }
+    let after_restart = OnlineSnapshotResponse {
+        view: reconnected.view,
+        snapshot: reconnected.snapshot,
+    };
     if after_restart.view.seed_hash != before_restart.view.seed_hash
         || after_restart.view.next_sequence != before_restart.view.next_sequence
         || after_restart.snapshot["order_count"]
@@ -640,6 +732,27 @@ fn run() -> Result<Value, String> {
             complete.snapshot["outcome"]
         ));
     }
+    for (identity, initial_campaign) in [(&host, &campaign), (&guest, &guest_campaign)] {
+        let member = complete
+            .view
+            .members
+            .iter()
+            .find(|member| member.player_id == identity.player_id)
+            .ok_or_else(|| "completed view lost one member progression".to_string())?;
+        if member.experience <= initial_campaign.experience
+            || member.inventory_count
+                <= initial_campaign
+                    .inventory
+                    .iter()
+                    .map(|stack| u64::from(stack.quantity))
+                    .sum::<u64>()
+        {
+            return Err(format!(
+                "online member {} did not receive independent progression/inventory",
+                identity.player_id
+            ));
+        }
+    }
     Ok(json!({
         "status": "passed",
         "run_id": run_id,
@@ -658,7 +771,10 @@ fn run() -> Result<Value, String> {
         "cross_member_control_rejected": true,
         "old_build_rejected": true,
         "restart_recovery": true,
-        "guest_progression": false,
+        "authenticated_reconnect": true,
+        "replayed_commands": before_restart.view.next_sequence,
+        "guest_progression": true,
+        "independent_cloud_campaigns": [campaign.campaign_id, guest_campaign.campaign_id],
     }))
 }
 

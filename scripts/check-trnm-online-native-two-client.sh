@@ -110,11 +110,15 @@ for _ in $(seq 1 60); do
 done
 curl -fsS "$ONLINE_URL/v1/online/readiness" | jq -e '.status == "ok"' >/dev/null
 
-contract="trnm_online_authority_v1"
-build="trnm-online-authority-2026.07-v1"
+contract="trnm_online_authority_v2"
+build="trnm-online-authority-2026.07-v2"
 campaign="$(player_post "$HOST_SESSION" /v1/online/campaigns/connect "$(jq -cn \
   --arg protocol "$contract" --arg build "$build" --arg player "$HOST_PLAYER" \
   --arg account "$HOST_ACCOUNT" --arg slot "$RUN_ID" \
+  '{protocol_version:$protocol,build_id:$build,player_id:$player,account_id:$account,slot_key:$slot}')")"
+guest_campaign="$(player_post "$GUEST_SESSION" /v1/online/campaigns/connect "$(jq -cn \
+  --arg protocol "$contract" --arg build "$build" --arg player "$GUEST_PLAYER" \
+  --arg account "$GUEST_ACCOUNT" --arg slot "$RUN_ID" \
   '{protocol_version:$protocol,build_id:$build,player_id:$player,account_id:$account,slot_key:$slot}')")"
 created="$(player_post "$HOST_SESSION" /v1/online/matches "$(jq -cn \
   --arg protocol "$contract" --arg build "$build" \
@@ -124,8 +128,9 @@ created="$(player_post "$HOST_SESSION" /v1/online/matches "$(jq -cn \
 MATCH_ID="$(jq -er .match_id <<<"$created")"
 player_post "$GUEST_SESSION" /v1/online/matches/join "$(jq -cn \
   --arg protocol "$contract" --arg build "$build" --arg player "$GUEST_PLAYER" \
-  --arg account "$GUEST_ACCOUNT" --arg code "$(jq -er .join_code <<<"$created")" \
-  '{protocol_version:$protocol,build_id:$build,player_id:$player,account_id:$account,join_code:$code}')" >/dev/null
+  --arg account "$GUEST_ACCOUNT" --arg campaign "$(jq -er .campaign_id <<<"$guest_campaign")" \
+  --arg code "$(jq -er .join_code <<<"$created")" \
+  '{protocol_version:$protocol,build_id:$build,player_id:$player,account_id:$account,campaign_id:$campaign,join_code:$code}')" >/dev/null
 player_post "$HOST_SESSION" "/v1/online/matches/$MATCH_ID/start" "$(jq -cn \
   --arg protocol "$contract" --arg build "$build" --arg player "$HOST_PLAYER" \
   --arg account "$HOST_ACCOUNT" \

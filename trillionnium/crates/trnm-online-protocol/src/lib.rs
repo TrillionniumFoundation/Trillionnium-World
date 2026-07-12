@@ -2,8 +2,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use trnm_rts_protocol::RtsFrameOrder;
 
-pub const ONLINE_AUTHORITY_PROTOCOL: &str = "trnm_online_authority_v1";
-pub const ONLINE_AUTHORITY_BUILD: &str = "trnm-online-authority-2026.07-v1";
+pub const ONLINE_AUTHORITY_PROTOCOL: &str = "trnm_online_authority_v2";
+pub const ONLINE_AUTHORITY_BUILD: &str = "trnm-online-authority-2026.07-v2";
 pub const ONLINE_AUTHORITY_DEFAULT_RULES: &str = "trnm_first_contact_rules_v1";
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -32,6 +32,17 @@ pub struct OnlineCampaignView {
     pub campaign_revision: u64,
     pub schema_revision: u16,
     pub state_hash: String,
+    pub level: u32,
+    pub experience: u64,
+    pub reputation: i32,
+    pub inventory: Vec<OnlineInventoryStack>,
+    pub settled_match_count: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OnlineInventoryStack {
+    pub item_id: String,
+    pub quantity: u16,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -49,6 +60,7 @@ pub struct OnlineMatchJoinRequest {
     pub build_id: String,
     pub player_id: String,
     pub account_id: String,
+    pub campaign_id: String,
     pub join_code: String,
 }
 
@@ -69,6 +81,16 @@ pub struct OnlineMatchAccessRequest {
     pub account_id: String,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OnlineReconnectRequest {
+    pub protocol_version: String,
+    pub build_id: String,
+    pub player_id: String,
+    pub account_id: String,
+    pub last_acknowledged_sequence: u64,
+    pub last_snapshot_hash: String,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum OnlineMatchPhase {
@@ -82,8 +104,13 @@ pub enum OnlineMatchPhase {
 pub struct OnlineMatchMemberView {
     pub player_id: String,
     pub account_id: String,
+    pub campaign_id: String,
     pub role: String,
     pub controlled_unit_ids: Vec<String>,
+    pub campaign_revision: u64,
+    pub level: u32,
+    pub experience: u64,
+    pub inventory_count: u64,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -134,6 +161,15 @@ pub struct OnlineCommandReceipt {
 pub struct OnlineSnapshotResponse {
     pub view: OnlineMatchView,
     pub snapshot: Value,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OnlineReconnectResponse {
+    pub view: OnlineMatchView,
+    pub snapshot: Value,
+    pub replayed_commands: Vec<OnlineCommandReceipt>,
+    pub reconnect_count: u64,
+    pub full_snapshot_required: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

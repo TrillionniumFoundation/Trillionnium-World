@@ -51,7 +51,7 @@ pub fn load_authoritative_map(asset_root: &Path, map_id: &str) -> Result<BattleM
             | "salt_marsh"
             | "cinder_crown"
     ) {
-        return Err("Online Authority v1 map is not in the authored allowlist".to_string());
+        return Err("Online Authority v2 map is not in the authored allowlist".to_string());
     }
     let path = asset_root
         .join("first_contact/maps")

@@ -15,6 +15,11 @@ async fn main() {
         .unwrap_or_else(|_| "http://127.0.0.1:7002".to_string());
     let game_authority_token =
         std::env::var("TRNM_GAME_AUTHORITY_TOKEN").expect("TRNM_GAME_AUTHORITY_TOKEN is required");
+    let entitlement_signing_seed_base64 =
+        std::env::var("TRNM_ENTITLEMENT_ED25519_PRIVATE_KEY_BASE64")
+            .expect("TRNM_ENTITLEMENT_ED25519_PRIVATE_KEY_BASE64 is required");
+    let entitlement_key_id = std::env::var("TRNM_ENTITLEMENT_ED25519_KEY_ID")
+        .expect("TRNM_ENTITLEMENT_ED25519_KEY_ID is required");
     let asset_root = std::env::var_os("TRNM_ASSET_ROOT")
         .map(PathBuf::from)
         .unwrap_or_else(|| PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../../assets"));
@@ -32,6 +37,8 @@ async fn main() {
         &database_url,
         cex_base_url,
         game_authority_token,
+        entitlement_signing_seed_base64,
+        entitlement_key_id,
         asset_root,
     )
     .await
@@ -43,7 +50,7 @@ async fn main() {
     let listener = tokio::net::TcpListener::bind(bind_addr)
         .await
         .unwrap_or_else(|error| panic!("bind {bind_addr}: {error}"));
-    tracing::info!(%bind_addr, "TRNM Online Authority v1 ready");
+    tracing::info!(%bind_addr, "TRNM Online Authority v2 ready");
     axum::serve(listener, build_router(state))
         .await
         .expect("serve Online Authority");

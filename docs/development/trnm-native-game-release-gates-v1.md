@@ -56,14 +56,15 @@ player market.
 
 Status: **blocked**.
 
-Online Authority v1 proves a local dedicated-server vertical slice: two CEX
-sessions, shared-campaign co-op control, PostgreSQL campaign/match/command
-persistence, sequence/idempotency/version/control-set enforcement, systemd
-restart recovery, server-owned result and CEX settlement. It does not yet
-provide independent guest progression, public matchmaking/lobbies, friends,
-party/guild/chat, MMR/seasons, server fleet/regions, cross-host failover,
-network impairment SLOs, moderation or anti-cheat operations. None of those
-gaps may be relabeled green from the local vertical-slice evidence.
+Online Authority v2 proves a local dedicated-server vertical slice: two CEX
+sessions with independent cloud campaigns/progression/inventory provenance,
+PostgreSQL match/command state, sequence/idempotency/version/control-set
+enforcement, authenticated reconnect, systemd restart recovery, Ed25519-bound
+server results and CEX settlement. Three local netem profiles reach 200 ms/5%
+loss, but this is not public-network or regional evidence. It does not yet
+provide public matchmaking/lobbies, friends, party/guild/chat, MMR/seasons,
+server fleet/regions, cross-host failover, moderation or anti-cheat operations.
+None of those gaps may be relabeled green from the local vertical-slice evidence.
 
 ## Monetary policy
 

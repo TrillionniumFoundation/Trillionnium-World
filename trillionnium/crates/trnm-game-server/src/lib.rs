@@ -12,22 +12,32 @@ use cex::CexClient;
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use sqlx::{postgres::PgPoolOptions, PgPool, Row};
-use std::{collections::BTreeSet, path::PathBuf, sync::Arc, time::Duration};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    path::PathBuf,
+    sync::Arc,
+    time::Duration,
+};
 use tokio::time::MissedTickBehavior;
-use trnm_campaign_core::{BattleOutcome, CampaignMission, CampaignSaveV1};
+use trnm_campaign_core::{
+    BattleMapSeedV1, BattleOutcome, BattleResultV1, BattleSeedV1, CampaignMission, CampaignSaveV1,
+    UnitBattleReportV1, UnitBattleStatus,
+};
 use trnm_online_protocol::{
     validate_client_contract, OnlineAuthorityError, OnlineCampaignConnectRequest,
-    OnlineCampaignView, OnlineCommandReceipt, OnlineCommandSubmitRequest, OnlineMatchAccessRequest,
-    OnlineMatchCreateRequest, OnlineMatchJoinRequest, OnlineMatchMemberView, OnlineMatchPhase,
-    OnlineMatchStartRequest, OnlineMatchView, OnlineSnapshotResponse, ONLINE_AUTHORITY_BUILD,
-    ONLINE_AUTHORITY_PROTOCOL,
+    OnlineCampaignView, OnlineCommandReceipt, OnlineCommandSubmitRequest, OnlineInventoryStack,
+    OnlineMatchAccessRequest, OnlineMatchCreateRequest, OnlineMatchJoinRequest,
+    OnlineMatchMemberView, OnlineMatchPhase, OnlineMatchStartRequest, OnlineMatchView,
+    OnlineReconnectRequest, OnlineReconnectResponse, OnlineSnapshotResponse,
+    ONLINE_AUTHORITY_BUILD, ONLINE_AUTHORITY_PROTOCOL,
 };
 use trnm_rts_protocol::RtsOrderSource;
 use trnm_rts_sim::MissionSimV1;
 use uuid::Uuid;
 
 const PLAYER_SESSION_HEADER: &str = "x-trnm-player-session";
-const MIGRATION: &str = include_str!("../migrations/0001_online_authority_v1.sql");
+const MIGRATION_V1: &str = include_str!("../migrations/0001_online_authority_v1.sql");
+const MIGRATION_V2: &str = include_str!("../migrations/0002_online_authority_v2.sql");
 
 #[derive(Clone)]
 pub struct AppState {
@@ -41,6 +51,8 @@ impl AppState {
         database_url: &str,
         cex_base_url: String,
         game_authority_token: String,
+        entitlement_signing_seed_base64: String,
+        entitlement_key_id: String,
         asset_root: PathBuf,
     ) -> Result<Self, String> {
         let pool = PgPoolOptions::new()
@@ -49,11 +61,20 @@ impl AppState {
             .connect(database_url)
             .await
             .map_err(|error| format!("connect Online Authority PostgreSQL: {error}"))?;
-        sqlx::raw_sql(MIGRATION)
+        sqlx::raw_sql(MIGRATION_V1)
             .execute(&pool)
             .await
             .map_err(|error| format!("migrate Online Authority PostgreSQL: {error}"))?;
-        let cex = CexClient::new(cex_base_url, game_authority_token)?;
+        sqlx::raw_sql(MIGRATION_V2)
+            .execute(&pool)
+            .await
+            .map_err(|error| format!("migrate Online Authority v2 PostgreSQL: {error}"))?;
+        let cex = CexClient::new(
+            cex_base_url,
+            game_authority_token,
+            entitlement_signing_seed_base64,
+            entitlement_key_id,
+        )?;
         cex.readiness().await?;
         Ok(Self {
             pool,
@@ -187,10 +208,58 @@ fn mission_for_map(map_id: &str) -> Result<CampaignMission, ApiError> {
         "cinder_crown" => Ok(CampaignMission::CinderCrownSkirmish),
         _ => Err(api_error(
             StatusCode::BAD_REQUEST,
-            "map is not in the Online Authority v1 authored allowlist",
+            "map is not in the Online Authority v2 authored allowlist",
             false,
         )),
     }
+}
+
+fn prepare_campaign_seed(
+    campaign: &mut CampaignSaveV1,
+    map_id: &str,
+    map: BattleMapSeedV1,
+) -> Result<BattleSeedV1, ApiError> {
+    if map_id == "first_contact" {
+        campaign
+            .move_to(trnm_campaign_core::CampaignRoom::MentorHall)
+            .and_then(|_| campaign.talk_to_mentor())
+            .and_then(|_| campaign.train_with_mentor())
+            .and_then(|_| campaign.equip_starter_weapon())
+            .and_then(|_| campaign.move_to(trnm_campaign_core::CampaignRoom::ExpeditionGate))
+            .and_then(|_| campaign.accept_first_contact_quest())
+            .map_err(|error| api_error(StatusCode::CONFLICT, error.to_string(), false))?;
+    } else {
+        campaign
+            .prepare_standalone_skirmish()
+            .map_err(|error| api_error(StatusCode::CONFLICT, error.to_string(), false))?;
+        campaign.active_mission = mission_for_map(map_id)?;
+    }
+    campaign
+        .start_first_contact_battle(map)
+        .map_err(|error| api_error(StatusCode::CONFLICT, error.to_string(), false))
+}
+
+fn member_units(
+    seed: &BattleSeedV1,
+    member_tag: &str,
+    slot_offset: usize,
+) -> (
+    Vec<trnm_campaign_core::BattleUnitSeedV1>,
+    BTreeMap<String, String>,
+) {
+    let mut id_map = BTreeMap::new();
+    let units = seed.party[..2]
+        .iter()
+        .enumerate()
+        .map(|(index, source)| {
+            let mut unit = source.clone();
+            unit.unit_id = format!("{member_tag}:{}", source.unit_id);
+            unit.spawn_slot = format!("party_{}", slot_offset + index);
+            id_map.insert(unit.unit_id.clone(), source.unit_id.clone());
+            unit
+        })
+        .collect();
+    (units, id_map)
 }
 
 pub fn build_router(state: AppState) -> Router {
@@ -206,6 +275,10 @@ pub fn build_router(state: AppState) -> Router {
             post(submit_command),
         )
         .route("/v1/online/matches/:match_id/snapshot", post(get_snapshot))
+        .route(
+            "/v1/online/matches/:match_id/reconnect",
+            post(reconnect_match),
+        )
         .with_state(state)
 }
 
@@ -236,8 +309,11 @@ async fn readiness(State(state): State<AppState>) -> Response {
             "server_authoritative_rts": true,
             "command_sequence_and_idempotency": true,
             "restart_recovery": true,
-            "mode": "two-client shared-campaign coop vs authoritative AI",
-            "guest_progression": false,
+            "authenticated_reconnect": true,
+            "bounded_command_replay": 256,
+            "mode": "two-client independent-campaign coop vs authoritative AI",
+            "independent_member_progression": true,
+            "inventory_event_provenance": true,
             "public_matchmaking": false,
         })),
     )
@@ -258,7 +334,7 @@ async fn connect_campaign(
 
     if let Some(row) = sqlx::query(
         "select campaign_id, player_id, account_id, slot_key, campaign_revision,
-                schema_revision, state_hash
+                schema_revision, state_hash, campaign_json
          from trnm_online_campaigns where account_id = $1 and slot_key = $2",
     )
     .bind(account_id)
@@ -315,6 +391,19 @@ async fn connect_campaign(
         campaign_revision: campaign.revision,
         schema_revision: campaign.schema_revision,
         state_hash,
+        level: campaign.progression.level,
+        experience: campaign.progression.experience,
+        reputation: campaign.character.attributes.reputation,
+        inventory: campaign
+            .progression
+            .inventory
+            .iter()
+            .map(|stack| OnlineInventoryStack {
+                item_id: stack.item_id.clone(),
+                quantity: stack.quantity,
+            })
+            .collect(),
+        settled_match_count: campaign.settled_battle_ids.len(),
     }))
 }
 
@@ -367,12 +456,13 @@ async fn create_match(
     .map_err(internal_db)?;
     sqlx::query(
         "insert into trnm_online_match_members (
-            match_id, player_id, account_id, member_role
-         ) values ($1, $2, $3, 'host')",
+            match_id, player_id, account_id, campaign_id, member_role
+         ) values ($1, $2, $3, $4, 'host')",
     )
     .bind(match_id)
     .bind(&player_id)
     .bind(account_id)
+    .bind(&request.campaign_id)
     .execute(&mut *transaction)
     .await
     .map_err(internal_db)?;
@@ -391,6 +481,23 @@ async fn join_match(
         .map_err(|_| api_error(StatusCode::BAD_REQUEST, "account_id must be a UUID", false))?;
     verify_identity(&state, &headers, &request.player_id, &request.account_id).await?;
     let mut transaction = state.pool.begin().await.map_err(internal_db)?;
+    let campaign_owner = sqlx::query(
+        "select player_id, account_id from trnm_online_campaigns where campaign_id = $1",
+    )
+    .bind(&request.campaign_id)
+    .fetch_optional(&mut *transaction)
+    .await
+    .map_err(internal_db)?
+    .ok_or_else(|| api_error(StatusCode::NOT_FOUND, "guest campaign not found", false))?;
+    let campaign_player_id: String = campaign_owner.try_get("player_id").map_err(internal_db)?;
+    let campaign_account_id: Uuid = campaign_owner.try_get("account_id").map_err(internal_db)?;
+    if campaign_player_id != request.player_id || campaign_account_id != account_id {
+        return Err(api_error(
+            StatusCode::FORBIDDEN,
+            "guest campaign does not belong to the authenticated player/account",
+            false,
+        ));
+    }
     let row = sqlx::query(
         "select match_id, phase from trnm_online_matches where join_code = $1 for update",
     )
@@ -410,12 +517,13 @@ async fn join_match(
     }
     sqlx::query(
         "insert into trnm_online_match_members (
-            match_id, player_id, account_id, member_role
-         ) values ($1, $2, $3, 'coop_guest')",
+            match_id, player_id, account_id, campaign_id, member_role
+         ) values ($1, $2, $3, $4, 'coop_guest')",
     )
     .bind(match_id)
     .bind(&request.player_id)
     .bind(account_id)
+    .bind(&request.campaign_id)
     .execute(&mut *transaction)
     .await
     .map_err(|error| {
@@ -485,67 +593,96 @@ async fn start_match(
     if member_count != 2 {
         return Err(api_error(
             StatusCode::CONFLICT,
-            "Online Authority v1 requires exactly host + one co-op guest",
+            "Online Authority v2 requires exactly host + one co-op guest",
             true,
         ));
     }
-    let campaign_id: String = match_row.try_get("campaign_id").map_err(internal_db)?;
-    let campaign_row = sqlx::query(
-        "select campaign_json from trnm_online_campaigns where campaign_id = $1 for update",
-    )
-    .bind(&campaign_id)
-    .fetch_one(&mut *transaction)
-    .await
-    .map_err(internal_db)?;
-    let campaign_value: Value = campaign_row.try_get("campaign_json").map_err(internal_db)?;
-    let mut campaign: CampaignSaveV1 = serde_json::from_value(campaign_value)
-        .map_err(|error| api_error(StatusCode::INTERNAL_SERVER_ERROR, error.to_string(), false))?;
     let map_id: String = match_row.try_get("map_id").map_err(internal_db)?;
-    if map_id == "first_contact" {
-        campaign
-            .move_to(trnm_campaign_core::CampaignRoom::MentorHall)
-            .and_then(|_| campaign.talk_to_mentor())
-            .and_then(|_| campaign.train_with_mentor())
-            .and_then(|_| campaign.equip_starter_weapon())
-            .and_then(|_| campaign.move_to(trnm_campaign_core::CampaignRoom::ExpeditionGate))
-            .and_then(|_| campaign.accept_first_contact_quest())
-            .map_err(|error| api_error(StatusCode::CONFLICT, error.to_string(), false))?;
-    } else {
-        campaign
-            .prepare_standalone_skirmish()
-            .map_err(|error| api_error(StatusCode::CONFLICT, error.to_string(), false))?;
-        campaign.active_mission = mission_for_map(&map_id)?;
-    }
     let map = map::load_authoritative_map(&state.asset_root, &map_id)
         .map_err(|error| api_error(StatusCode::BAD_REQUEST, error, false))?;
-    let seed = campaign
-        .start_first_contact_battle(map)
-        .map_err(|error| api_error(StatusCode::CONFLICT, error.to_string(), false))?;
+    let member_rows = sqlx::query(
+        "select player_id, account_id, member_role, campaign_id
+         from trnm_online_match_members where match_id = $1
+         order by case member_role when 'host' then 0 else 1 end for update",
+    )
+    .bind(match_id)
+    .fetch_all(&mut *transaction)
+    .await
+    .map_err(internal_db)?;
+    if member_rows.len() != 2 {
+        return Err(api_error(
+            StatusCode::CONFLICT,
+            "both online members must bind a cloud campaign",
+            true,
+        ));
+    }
+    let mut prepared = Vec::with_capacity(2);
+    for member in &member_rows {
+        let campaign_id: Option<String> = member.try_get("campaign_id").map_err(internal_db)?;
+        let campaign_id = campaign_id.ok_or_else(|| {
+            api_error(
+                StatusCode::CONFLICT,
+                "online member is missing a cloud campaign",
+                false,
+            )
+        })?;
+        let campaign_value: Value = sqlx::query_scalar(
+            "select campaign_json from trnm_online_campaigns where campaign_id = $1 for update",
+        )
+        .bind(&campaign_id)
+        .fetch_one(&mut *transaction)
+        .await
+        .map_err(internal_db)?;
+        let mut campaign: CampaignSaveV1 =
+            serde_json::from_value(campaign_value).map_err(|error| {
+                api_error(StatusCode::INTERNAL_SERVER_ERROR, error.to_string(), false)
+            })?;
+        let seed = prepare_campaign_seed(&mut campaign, &map_id, map.clone())?;
+        prepared.push((campaign_id, campaign, seed));
+    }
+    let (host_units, host_id_map) = member_units(&prepared[0].2, "host", 0);
+    let (guest_units, guest_id_map) = member_units(&prepared[1].2, "guest", 2);
+    let mut seed = prepared[0].2.clone();
+    seed.battle_id = format!("online-v2-{match_id}");
+    seed.party = host_units
+        .iter()
+        .chain(guest_units.iter())
+        .cloned()
+        .collect();
+    seed.seed_hash = seed
+        .computed_hash()
+        .map_err(|error| api_error(StatusCode::INTERNAL_SERVER_ERROR, error.to_string(), false))?;
+    seed.validate()
+        .map_err(|error| api_error(StatusCode::INTERNAL_SERVER_ERROR, error.to_string(), false))?;
     let sim = MissionSimV1::from_seed(seed.clone())
         .map_err(|error| api_error(StatusCode::INTERNAL_SERVER_ERROR, error.to_string(), false))?;
     let snapshot_hash = sim
         .snapshot_hash()
         .map_err(|error| api_error(StatusCode::INTERNAL_SERVER_ERROR, error.to_string(), false))?;
-    let host_units = seed.party[..2]
-        .iter()
-        .map(|unit| unit.unit_id.clone())
-        .collect::<Vec<_>>();
-    let guest_units = seed.party[2..]
-        .iter()
-        .map(|unit| unit.unit_id.clone())
-        .collect::<Vec<_>>();
-    sqlx::query(
-        "update trnm_online_match_members set controlled_unit_ids =
-           case member_role when 'host' then $2 else $3 end
-         where match_id = $1",
-    )
-    .bind(match_id)
-    .bind(json!(host_units))
-    .bind(json!(guest_units))
-    .execute(&mut *transaction)
-    .await
-    .map_err(internal_db)?;
-    persist_campaign(&mut transaction, &campaign).await?;
+    for (index, (campaign_id, campaign, member_seed)) in prepared.iter().enumerate() {
+        let (units, id_map) = if index == 0 {
+            (&host_units, &host_id_map)
+        } else {
+            (&guest_units, &guest_id_map)
+        };
+        sqlx::query(
+            "update trnm_online_match_members set controlled_unit_ids = $2,
+                settlement_seed_json = $3, unit_id_map = $4
+             where match_id = $1 and campaign_id = $5",
+        )
+        .bind(match_id)
+        .bind(json!(units
+            .iter()
+            .map(|unit| &unit.unit_id)
+            .collect::<Vec<_>>()))
+        .bind(serde_json::to_value(member_seed).map_err(internal_serialization)?)
+        .bind(serde_json::to_value(id_map).map_err(internal_serialization)?)
+        .bind(campaign_id)
+        .execute(&mut *transaction)
+        .await
+        .map_err(internal_db)?;
+        persist_campaign(&mut transaction, campaign).await?;
+    }
     sqlx::query(
         "update trnm_online_matches set
             phase = 'running', seed_hash = $2, seed_json = $3,
@@ -819,6 +956,277 @@ async fn get_snapshot(
     }))
 }
 
+async fn reconnect_match(
+    State(state): State<AppState>,
+    Path(match_id): Path<Uuid>,
+    headers: HeaderMap,
+    Json(request): Json<OnlineReconnectRequest>,
+) -> Result<Json<OnlineReconnectResponse>, ApiError> {
+    validate_client_contract(&request.protocol_version, &request.build_id)
+        .map_err(|error| api_error(StatusCode::UPGRADE_REQUIRED, error, false))?;
+    verify_identity(&state, &headers, &request.player_id, &request.account_id).await?;
+    let account_id = Uuid::parse_str(&request.account_id)
+        .map_err(|_| api_error(StatusCode::BAD_REQUEST, "account_id must be a UUID", false))?;
+    let mut transaction = state.pool.begin().await.map_err(internal_db)?;
+    let member = sqlx::query(
+        "select reconnect_count from trnm_online_match_members
+         where match_id = $1 and player_id = $2 and account_id = $3 for update",
+    )
+    .bind(match_id)
+    .bind(&request.player_id)
+    .bind(account_id)
+    .fetch_optional(&mut *transaction)
+    .await
+    .map_err(internal_db)?
+    .ok_or_else(|| {
+        api_error(
+            StatusCode::FORBIDDEN,
+            "identity is not a match member",
+            false,
+        )
+    })?;
+    let match_row = sqlx::query(
+        "select simulation_json, snapshot_hash, next_sequence, match_revision
+         from trnm_online_matches where match_id = $1 for share",
+    )
+    .bind(match_id)
+    .fetch_optional(&mut *transaction)
+    .await
+    .map_err(internal_db)?
+    .ok_or_else(|| api_error(StatusCode::NOT_FOUND, "match not found", false))?;
+    let next_sequence = match_row
+        .try_get::<i64, _>("next_sequence")
+        .map_err(internal_db)? as u64;
+    let match_revision = match_row
+        .try_get::<i64, _>("match_revision")
+        .map_err(internal_db)? as u64;
+    if request.last_acknowledged_sequence > next_sequence {
+        return Err(conflict(
+            "client acknowledged a command sequence beyond server authority",
+            match_revision,
+        ));
+    }
+    let snapshot_hash: String = match_row.try_get("snapshot_hash").map_err(internal_db)?;
+    let command_rows = sqlx::query(
+        "select sequence, command_id, target_tick, accepted_match_revision,
+                accepted_snapshot_hash
+         from trnm_online_commands
+         where match_id = $1 and sequence >= $2
+         order by sequence asc limit 256",
+    )
+    .bind(match_id)
+    .bind(request.last_acknowledged_sequence as i64)
+    .fetch_all(&mut *transaction)
+    .await
+    .map_err(internal_db)?;
+    let replayed_commands = command_rows
+        .into_iter()
+        .map(|row| {
+            Ok(OnlineCommandReceipt {
+                protocol_version: ONLINE_AUTHORITY_PROTOCOL.to_string(),
+                match_id: match_id.to_string(),
+                command_id: row.try_get("command_id").map_err(internal_db)?,
+                sequence: row.try_get::<i64, _>("sequence").map_err(internal_db)? as u64,
+                duplicate: true,
+                accepted_tick: row.try_get::<i64, _>("target_tick").map_err(internal_db)? as u64,
+                match_revision: row
+                    .try_get::<i64, _>("accepted_match_revision")
+                    .map_err(internal_db)? as u64,
+                snapshot_hash: row.try_get("accepted_snapshot_hash").map_err(internal_db)?,
+            })
+        })
+        .collect::<Result<Vec<_>, ApiError>>()?;
+    let reconnect_count = member
+        .try_get::<i64, _>("reconnect_count")
+        .map_err(internal_db)? as u64
+        + 1;
+    sqlx::query(
+        "update trnm_online_match_members set reconnect_count = $4,
+            last_acknowledged_sequence = $5, last_snapshot_hash = $6, last_seen_at = now()
+         where match_id = $1 and player_id = $2 and account_id = $3",
+    )
+    .bind(match_id)
+    .bind(&request.player_id)
+    .bind(account_id)
+    .bind(reconnect_count as i64)
+    .bind(next_sequence as i64)
+    .bind(&snapshot_hash)
+    .execute(&mut *transaction)
+    .await
+    .map_err(internal_db)?;
+    let snapshot: Option<Value> = match_row.try_get("simulation_json").map_err(internal_db)?;
+    transaction.commit().await.map_err(internal_db)?;
+    Ok(Json(OnlineReconnectResponse {
+        view: fetch_match_view(&state.pool, match_id).await?,
+        snapshot: snapshot.unwrap_or(Value::Null),
+        replayed_commands,
+        reconnect_count,
+        full_snapshot_required: request.last_snapshot_hash != snapshot_hash,
+    }))
+}
+
+async fn apply_member_progression(
+    transaction: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    match_id: Uuid,
+    combined_result: &BattleResultV1,
+    combined_result_hash: &str,
+) -> Result<bool, String> {
+    let members = sqlx::query(
+        "select player_id, account_id, campaign_id, settlement_seed_json, unit_id_map
+         from trnm_online_match_members where match_id = $1 order by member_role for update",
+    )
+    .bind(match_id)
+    .fetch_all(&mut **transaction)
+    .await
+    .map_err(|error| error.to_string())?;
+    if members.len() != 2 {
+        return Err("terminal online match is missing one member campaign".to_string());
+    }
+    let mut participant_ids = members
+        .iter()
+        .map(|member| member.try_get::<String, _>("player_id"))
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|error| error.to_string())?;
+    participant_ids.sort();
+    let participants_hash = format!(
+        "{:x}",
+        Sha256::digest(serde_json::to_vec(&participant_ids).map_err(|error| error.to_string())?)
+    );
+    let mut any_pending = false;
+    for member in members {
+        let player_id: String = member
+            .try_get("player_id")
+            .map_err(|error| error.to_string())?;
+        let account_id: Uuid = member
+            .try_get("account_id")
+            .map_err(|error| error.to_string())?;
+        let campaign_id: Option<String> = member
+            .try_get("campaign_id")
+            .map_err(|error| error.to_string())?;
+        let campaign_id = campaign_id
+            .ok_or_else(|| "terminal online member has no cloud campaign".to_string())?;
+        let seed_value: Option<Value> = member
+            .try_get("settlement_seed_json")
+            .map_err(|error| error.to_string())?;
+        let settlement_seed: BattleSeedV1 = serde_json::from_value(
+            seed_value
+                .ok_or_else(|| "terminal online member has no settlement seed".to_string())?,
+        )
+        .map_err(|error| error.to_string())?;
+        let id_map_value: Value = member
+            .try_get("unit_id_map")
+            .map_err(|error| error.to_string())?;
+        let id_map: BTreeMap<String, String> =
+            serde_json::from_value(id_map_value).map_err(|error| error.to_string())?;
+        let campaign_value: Value = sqlx::query_scalar(
+            "select campaign_json from trnm_online_campaigns where campaign_id = $1 for update",
+        )
+        .bind(&campaign_id)
+        .fetch_one(&mut **transaction)
+        .await
+        .map_err(|error| error.to_string())?;
+        let mut campaign: CampaignSaveV1 =
+            serde_json::from_value(campaign_value).map_err(|error| error.to_string())?;
+        let experience_before = campaign.progression.experience;
+        let reputation_before = campaign.character.attributes.reputation;
+        let mut unit_reports = Vec::with_capacity(settlement_seed.party.len());
+        for seeded_unit in &settlement_seed.party {
+            let combined_id = id_map
+                .iter()
+                .find_map(|(combined, local)| (local == &seeded_unit.unit_id).then_some(combined));
+            let report = combined_id
+                .and_then(|combined| {
+                    combined_result
+                        .units
+                        .iter()
+                        .find(|report| &report.unit_id == combined)
+                })
+                .map(|report| {
+                    let mut local = report.clone();
+                    local.unit_id = seeded_unit.unit_id.clone();
+                    local
+                })
+                .unwrap_or_else(|| UnitBattleReportV1 {
+                    unit_id: seeded_unit.unit_id.clone(),
+                    status: UnitBattleStatus::Healthy,
+                    remaining_hp: seeded_unit.stats.max_hp,
+                    experience_gained: 0,
+                    veteran_rank: seeded_unit.veteran_rank,
+                    confirmed_kills: 0,
+                });
+            unit_reports.push(report);
+        }
+        let member_result = BattleResultV1 {
+            contract_version: combined_result.contract_version.clone(),
+            battle_id: settlement_seed.battle_id.clone(),
+            seed_hash: settlement_seed.seed_hash.clone(),
+            outcome: combined_result.outcome,
+            units: unit_reports,
+            loot: combined_result.loot.clone(),
+            resource_delta: combined_result.resource_delta,
+            reputation_delta: combined_result.reputation_delta,
+            world_flags: combined_result.world_flags.clone(),
+            elapsed_ticks: combined_result.elapsed_ticks,
+            final_snapshot_hash: combined_result.final_snapshot_hash.clone(),
+        };
+        campaign
+            .submit_battle_result(member_result)
+            .map_err(|error| error.to_string())?;
+        for intent in campaign
+            .pending_economic_intents
+            .iter_mut()
+            .chain(campaign.pending_economic_compensations.iter_mut())
+        {
+            if matches!(
+                intent.kind,
+                trnm_economy_protocol::EconomicIntentKind::ReleaseReward
+            ) && intent.amount_credits.unwrap_or_default() > 0
+            {
+                intent.metadata["online_match_id"] = json!(match_id.to_string());
+                intent.metadata["online_rules_version"] =
+                    json!(trnm_campaign_core::FIRST_CONTACT_RULES_VERSION);
+                intent.metadata["online_build_id"] = json!(ONLINE_AUTHORITY_BUILD);
+                intent.metadata["online_result_hash"] = json!(combined_result_hash);
+                intent.metadata["online_participants_hash"] = json!(participants_hash);
+            }
+        }
+        let experience_delta = campaign
+            .progression
+            .experience
+            .saturating_sub(experience_before);
+        let reputation_delta = campaign
+            .character
+            .attributes
+            .reputation
+            .saturating_sub(reputation_before);
+        persist_campaign_string(transaction, &campaign)
+            .await
+            .map_err(|error| error.1 .0.error.clone())?;
+        sqlx::query(
+            "insert into trnm_online_progression_events (
+                event_id, match_id, player_id, account_id, campaign_id, result_hash,
+                experience_delta, reputation_delta, inventory_delta, campaign_revision
+             ) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)",
+        )
+        .bind(format!("online-progression:{match_id}:{player_id}"))
+        .bind(match_id)
+        .bind(&player_id)
+        .bind(account_id)
+        .bind(&campaign_id)
+        .bind(combined_result_hash)
+        .bind(experience_delta as i64)
+        .bind(reputation_delta)
+        .bind(serde_json::to_value(&combined_result.loot).map_err(|error| error.to_string())?)
+        .bind(campaign.revision as i64)
+        .execute(&mut **transaction)
+        .await
+        .map_err(|error| error.to_string())?;
+        any_pending |= !campaign.pending_economic_intents.is_empty()
+            || !campaign.pending_economic_compensations.is_empty();
+    }
+    Ok(any_pending)
+}
+
 pub async fn run_authority_loop(state: AppState, tick_interval: Duration) {
     let mut interval = tokio::time::interval(tick_interval);
     interval.set_missed_tick_behavior(MissedTickBehavior::Skip);
@@ -889,35 +1297,9 @@ pub async fn advance_running_matches(state: &AppState, limit: i64) -> Result<u64
                 result.resource_delta = result.resource_delta.max(25);
             }
             let result_hash = result.computed_hash().map_err(|error| error.to_string())?;
-            let campaign_id: String = row
-                .try_get("campaign_id")
-                .map_err(|error| error.to_string())?;
-            let campaign_row = sqlx::query(
-                "select campaign_json from trnm_online_campaigns
-                 where campaign_id = $1 for update",
-            )
-            .bind(&campaign_id)
-            .fetch_one(&mut *transaction)
-            .await
-            .map_err(|error| error.to_string())?;
-            let campaign_value: Value = campaign_row
-                .try_get("campaign_json")
-                .map_err(|error| error.to_string())?;
-            let mut campaign: CampaignSaveV1 =
-                serde_json::from_value(campaign_value).map_err(|error| error.to_string())?;
-            campaign
-                .submit_battle_result(result.clone())
-                .map_err(|error| error.to_string())?;
-            persist_campaign_string(&mut transaction, &campaign)
-                .await
-                .map_err(|error| error.1 .0.error.clone())?;
-            let settlement_state = if campaign.pending_economic_intents.is_empty()
-                && campaign.pending_economic_compensations.is_empty()
-            {
-                "settled"
-            } else {
-                "pending"
-            };
+            let any_pending =
+                apply_member_progression(&mut transaction, match_id, &result, &result_hash).await?;
+            let settlement_state = if any_pending { "pending" } else { "settled" };
             sqlx::query(
                 "update trnm_online_matches set phase = 'complete', simulation_json = $2,
                     result_json = $3, result_hash = $4, snapshot_hash = $5,
@@ -973,7 +1355,7 @@ pub async fn settle_pending_matches(state: &AppState, limit: i64) -> Result<u64,
             .await
             .map_err(|error| error.to_string())?;
         let Some(row) = sqlx::query(
-            "select campaign_id, settlement_state from trnm_online_matches
+            "select settlement_state from trnm_online_matches
              where match_id = $1 for update skip locked",
         )
         .bind(match_id)
@@ -990,28 +1372,36 @@ pub async fn settle_pending_matches(state: &AppState, limit: i64) -> Result<u64,
         {
             continue;
         }
-        let campaign_id: String = row
-            .try_get("campaign_id")
-            .map_err(|error| error.to_string())?;
-        let campaign_row = sqlx::query(
-            "select campaign_json from trnm_online_campaigns where campaign_id = $1 for update",
+        let campaign_ids = sqlx::query_scalar::<_, Option<String>>(
+            "select campaign_id from trnm_online_match_members where match_id = $1
+             order by member_role",
         )
-        .bind(&campaign_id)
-        .fetch_one(&mut *transaction)
+        .bind(match_id)
+        .fetch_all(&mut *transaction)
         .await
         .map_err(|error| error.to_string())?;
-        let value: Value = campaign_row
-            .try_get("campaign_json")
-            .map_err(|error| error.to_string())?;
-        let mut campaign: CampaignSaveV1 =
-            serde_json::from_value(value).map_err(|error| error.to_string())?;
-        let report = campaign
-            .reconcile_economy(&state.cex, 8)
-            .map_err(|error| error.to_string())?;
-        persist_campaign_string(&mut transaction, &campaign)
+        let mut all_settled = campaign_ids.len() == 2;
+        for campaign_id in campaign_ids {
+            let campaign_id = campaign_id
+                .ok_or_else(|| "pending member settlement has no cloud campaign".to_string())?;
+            let value: Value = sqlx::query_scalar(
+                "select campaign_json from trnm_online_campaigns where campaign_id = $1 for update",
+            )
+            .bind(&campaign_id)
+            .fetch_one(&mut *transaction)
             .await
-            .map_err(|error| error.1 .0.error.clone())?;
-        let settlement_state = if report.remaining == 0 {
+            .map_err(|error| error.to_string())?;
+            let mut campaign: CampaignSaveV1 =
+                serde_json::from_value(value).map_err(|error| error.to_string())?;
+            let report = campaign
+                .reconcile_economy(&state.cex, 8)
+                .map_err(|error| error.to_string())?;
+            all_settled &= report.remaining == 0;
+            persist_campaign_string(&mut transaction, &campaign)
+                .await
+                .map_err(|error| error.1 .0.error.clone())?;
+        }
+        let settlement_state = if all_settled {
             settled = settled.saturating_add(1);
             "settled"
         } else {
@@ -1075,8 +1465,11 @@ async fn fetch_match_view(pool: &PgPool, match_id: Uuid) -> Result<OnlineMatchVi
     .map_err(internal_db)?
     .ok_or_else(|| api_error(StatusCode::NOT_FOUND, "match not found", false))?;
     let member_rows = sqlx::query(
-        "select player_id, account_id, member_role, controlled_unit_ids
-         from trnm_online_match_members where match_id = $1 order by member_role desc",
+        "select m.player_id, m.account_id, m.campaign_id, m.member_role,
+                m.controlled_unit_ids, c.campaign_revision, c.campaign_json
+         from trnm_online_match_members m
+         join trnm_online_campaigns c on c.campaign_id = m.campaign_id
+         where m.match_id = $1 order by m.member_role desc",
     )
     .bind(match_id)
     .fetch_all(pool)
@@ -1085,15 +1478,30 @@ async fn fetch_match_view(pool: &PgPool, match_id: Uuid) -> Result<OnlineMatchVi
     let mut members = Vec::with_capacity(member_rows.len());
     for member in member_rows {
         let controlled: Value = member.try_get("controlled_unit_ids").map_err(internal_db)?;
+        let campaign_value: Value = member.try_get("campaign_json").map_err(internal_db)?;
+        let campaign: CampaignSaveV1 =
+            serde_json::from_value(campaign_value).map_err(internal_serialization)?;
         members.push(OnlineMatchMemberView {
             player_id: member.try_get("player_id").map_err(internal_db)?,
             account_id: member
                 .try_get::<Uuid, _>("account_id")
                 .map_err(internal_db)?
                 .to_string(),
+            campaign_id: member.try_get("campaign_id").map_err(internal_db)?,
             role: member.try_get("member_role").map_err(internal_db)?,
             controlled_unit_ids: serde_json::from_value(controlled)
                 .map_err(internal_serialization)?,
+            campaign_revision: member
+                .try_get::<i64, _>("campaign_revision")
+                .map_err(internal_db)? as u64,
+            level: campaign.progression.level,
+            experience: campaign.progression.experience,
+            inventory_count: campaign
+                .progression
+                .inventory
+                .iter()
+                .map(|stack| u64::from(stack.quantity))
+                .sum(),
         });
     }
     let phase: String = row.try_get("phase").map_err(internal_db)?;
@@ -1128,6 +1536,9 @@ async fn fetch_match_view(pool: &PgPool, match_id: Uuid) -> Result<OnlineMatchVi
 }
 
 fn campaign_view_from_row(row: &sqlx::postgres::PgRow) -> Result<OnlineCampaignView, ApiError> {
+    let campaign_value: Value = row.try_get("campaign_json").map_err(internal_db)?;
+    let campaign: CampaignSaveV1 =
+        serde_json::from_value(campaign_value).map_err(internal_serialization)?;
     Ok(OnlineCampaignView {
         protocol_version: ONLINE_AUTHORITY_PROTOCOL.to_string(),
         campaign_id: row.try_get("campaign_id").map_err(internal_db)?,
@@ -1144,6 +1555,19 @@ fn campaign_view_from_row(row: &sqlx::postgres::PgRow) -> Result<OnlineCampaignV
             .try_get::<i32, _>("schema_revision")
             .map_err(internal_db)? as u16,
         state_hash: row.try_get("state_hash").map_err(internal_db)?,
+        level: campaign.progression.level,
+        experience: campaign.progression.experience,
+        reputation: campaign.character.attributes.reputation,
+        inventory: campaign
+            .progression
+            .inventory
+            .iter()
+            .map(|stack| OnlineInventoryStack {
+                item_id: stack.item_id.clone(),
+                quantity: stack.quantity,
+            })
+            .collect(),
+        settled_match_count: campaign.settled_battle_ids.len(),
     })
 }
 
