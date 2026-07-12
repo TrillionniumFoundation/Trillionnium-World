@@ -32,3 +32,4 @@ trnm-campaign-core = { path = "../trnm-campaign-core" }
 trnm-rpg-core = { path = "../trnm-rpg-core" }
 trnm-rts-protocol = { path = "../trnm-rts-protocol" }
 trnm-rts-sim = { path = "../trnm-rts-sim" }
+trnm-online-protocol = { path = "../trnm-online-protocol" }

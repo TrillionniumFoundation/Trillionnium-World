@@ -1,0 +1,184 @@
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
+use trnm_rts_protocol::RtsFrameOrder;
+
+pub const ONLINE_AUTHORITY_PROTOCOL: &str = "trnm_online_authority_v1";
+pub const ONLINE_AUTHORITY_BUILD: &str = "trnm-online-authority-2026.07-v1";
+pub const ONLINE_AUTHORITY_DEFAULT_RULES: &str = "trnm_first_contact_rules_v1";
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OnlineClientIdentity {
+    pub player_id: String,
+    pub account_id: String,
+    pub device_id: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OnlineCampaignConnectRequest {
+    pub protocol_version: String,
+    pub build_id: String,
+    pub player_id: String,
+    pub account_id: String,
+    pub slot_key: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OnlineCampaignView {
+    pub protocol_version: String,
+    pub campaign_id: String,
+    pub player_id: String,
+    pub account_id: String,
+    pub slot_key: String,
+    pub campaign_revision: u64,
+    pub schema_revision: u16,
+    pub state_hash: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OnlineMatchCreateRequest {
+    pub protocol_version: String,
+    pub build_id: String,
+    pub campaign_id: String,
+    pub map_id: String,
+    pub expected_campaign_revision: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OnlineMatchJoinRequest {
+    pub protocol_version: String,
+    pub build_id: String,
+    pub player_id: String,
+    pub account_id: String,
+    pub join_code: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OnlineMatchStartRequest {
+    pub protocol_version: String,
+    pub build_id: String,
+    pub player_id: String,
+    pub account_id: String,
+    pub expected_match_revision: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OnlineMatchAccessRequest {
+    pub protocol_version: String,
+    pub build_id: String,
+    pub player_id: String,
+    pub account_id: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum OnlineMatchPhase {
+    Waiting,
+    Running,
+    Complete,
+    FailedClosed,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OnlineMatchMemberView {
+    pub player_id: String,
+    pub account_id: String,
+    pub role: String,
+    pub controlled_unit_ids: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OnlineMatchView {
+    pub protocol_version: String,
+    pub build_id: String,
+    pub match_id: String,
+    pub join_code: String,
+    pub phase: OnlineMatchPhase,
+    pub match_revision: u64,
+    pub authoritative_tick: u64,
+    pub next_sequence: u64,
+    pub map_id: String,
+    pub rules_version: String,
+    pub seed_hash: String,
+    pub snapshot_hash: String,
+    pub members: Vec<OnlineMatchMemberView>,
+    pub result_hash: Option<String>,
+    pub settlement_state: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OnlineCommandSubmitRequest {
+    pub protocol_version: String,
+    pub build_id: String,
+    pub player_id: String,
+    pub account_id: String,
+    pub command_id: String,
+    pub sequence: u64,
+    pub expected_match_revision: u64,
+    pub target_tick: u64,
+    pub order: RtsFrameOrder,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OnlineCommandReceipt {
+    pub protocol_version: String,
+    pub match_id: String,
+    pub command_id: String,
+    pub sequence: u64,
+    pub duplicate: bool,
+    pub accepted_tick: u64,
+    pub match_revision: u64,
+    pub snapshot_hash: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OnlineSnapshotResponse {
+    pub view: OnlineMatchView,
+    pub snapshot: Value,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OnlineAuthorityError {
+    pub error: String,
+    pub recoverable: bool,
+    pub authoritative_revision: Option<u64>,
+}
+
+pub fn validate_client_contract(protocol_version: &str, build_id: &str) -> Result<(), String> {
+    if protocol_version != ONLINE_AUTHORITY_PROTOCOL {
+        return Err(format!("unsupported online protocol {protocol_version}"));
+    }
+    if build_id != ONLINE_AUTHORITY_BUILD {
+        return Err(format!("client build {build_id} is not compatible"));
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn version_and_build_must_match_exactly() {
+        assert!(
+            validate_client_contract(ONLINE_AUTHORITY_PROTOCOL, ONLINE_AUTHORITY_BUILD).is_ok()
+        );
+        assert!(validate_client_contract("v0", ONLINE_AUTHORITY_BUILD).is_err());
+        assert!(validate_client_contract(ONLINE_AUTHORITY_PROTOCOL, "old-build").is_err());
+    }
+
+    #[test]
+    fn wire_contract_round_trips() {
+        let request = OnlineCampaignConnectRequest {
+            protocol_version: ONLINE_AUTHORITY_PROTOCOL.to_string(),
+            build_id: ONLINE_AUTHORITY_BUILD.to_string(),
+            player_id: "player-a".to_string(),
+            account_id: "00000000-0000-0000-0000-000000000001".to_string(),
+            slot_key: "main".to_string(),
+        };
+        let encoded = serde_json::to_vec(&request).unwrap();
+        assert_eq!(
+            serde_json::from_slice::<OnlineCampaignConnectRequest>(&encoded).unwrap(),
+            request
+        );
+    }
+}

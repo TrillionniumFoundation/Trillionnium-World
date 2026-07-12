@@ -22,7 +22,7 @@
 - CEX is an optional settlement backend behind the Trillionnium-owned `trnm-economy-protocol`; never use the CEX Web/Matrix World shell as the native game client.
 - The native client owns account binding, economic outbox/reconciliation UI and gameplay state. CEX owns wallet/ledger settlement and verified receipts through `/v1/trillionnium/economy/*`.
 - Current game boundary gate: `scripts/check_trnm_game_product.sh`
-- Current native snapshot (2026-07-12): schema revision 11, version-pinned Term Exchange protocol v2 and RTS/checkpoint v16; a new-save four-battle-to-45-route client journey, multi-beat chapters/epilogues, visible caravan encounters, shared worker/job command authority, 64-sample balance metrics, checkpointed/streamable replay inspection, ten authored maps, animated transparent identity geometry and optional fail-closed PostgreSQL CEX wallet settlement with atomic intent/receipt persistence, escrow and priority compensation. See `GAME_STATUS.md` for exact evidence and open boundaries; public player listings remain release-gated.
+- Current native snapshot (2026-07-12): schema revision 12, version-pinned Term Exchange protocol v2, RTS/checkpoint v16 and Online Authority v1; a new-save four-battle-to-45-route client journey, multi-beat chapters/epilogues, visible caravan encounters, shared worker/job command authority, 64-sample balance metrics, checkpointed replay inspection, ten authored maps, optional fail-closed PostgreSQL CEX wallet settlement, and a bounded two-session server-authoritative co-op vertical slice. See `GAME_STATUS.md` for exact evidence and open boundaries; matchmaking, social systems and public player listings remain release-gated.
 
 The cohort/commercial collection command writes `acceptance/S6_public_launch/latest/cohort-commercial-evidence-collection.json` plus `.md`, listing first-beta participant/session/feedback/signoff evidence and payment/refund/support/legal/operator/traffic drill evidence with privacy boundaries before the strict validator is run.
 
@@ -347,7 +347,7 @@ ANDROID_SERIAL=<device-serial> ./scripts/check_trillionnium_world_s5_device_evid
 ./scripts/check_trillionnium_world_release_review_quickcheck.sh --require-ready
 ```
 
-Historical release-review note: packets generated before the 2026-07-11 cleanup credited the old CEX World adapter and removed `trnm-world-bevy` evidence chain. Those packets are archived snapshots, not current green product evidence. Current verification is the six-crate test/Clippy/release/live-window chain plus `scripts/check_trnm_game_product.sh`; CEX credit additionally requires the current v2 protocol build and real-ledger E2E.
+Historical release-review note: packets generated before the 2026-07-11 cleanup credited the old CEX World adapter and removed `trnm-world-bevy` evidence chain. Those packets are archived snapshots, not current green product evidence. Current verification is the eight-crate test/Clippy/release/live-window chain plus `scripts/check_trnm_game_product.sh`; CEX credit additionally requires the current v2 protocol build and real-ledger/server E2E.
 
 > **Retired World appendix:** the classic-modeling and release-review notes below document the removed pre-2026-07-11 World workspace. They remain for audit/recovery only, grant no current game credit, and must not override `GAME_STATUS.md`.
 

@@ -1517,8 +1517,15 @@ pub(super) fn run_native_economy_e2e_phase(phase: &str) -> Result<Value, String>
 pub(super) fn settle_finished_battle(
     mut flow: ResMut<CampaignFlow>,
     mut runtime: ResMut<FirstContactRuntime>,
+    online: Option<Res<super::online_authority::OnlineAuthorityClient>>,
 ) {
     if !flow.in_battle() || !flow.mission.as_ref().is_some_and(MissionSimV1::terminal) {
+        return;
+    }
+    if online.is_some() {
+        runtime.command = FirstContactCommand::Hold;
+        runtime.command_feedback =
+            "ONLINE RESULT: authoritative server owns settlement and CEX receipt".to_string();
         return;
     }
     match flow.complete_terminal_battle() {

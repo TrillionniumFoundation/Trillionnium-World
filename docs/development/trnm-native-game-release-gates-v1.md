@@ -11,7 +11,7 @@ native-game row unless that row explicitly names them.
 
 Status: **green**.
 
-- six current game crates; legacy working tree absent;
+- eight current game crates; legacy working tree absent;
 - deterministic RPG -> RTS -> RPG loop, atomic saves and replay;
 - revision 12 economy state and protocol 2.3.0;
 - local test, Clippy, format, release-build and native-window evidence.
@@ -51,6 +51,19 @@ Required before enabling:
 
 The current trusted seller UUID path must never be described as a public
 player market.
+
+## Gate E — public online RPG + RTS
+
+Status: **blocked**.
+
+Online Authority v1 proves a local dedicated-server vertical slice: two CEX
+sessions, shared-campaign co-op control, PostgreSQL campaign/match/command
+persistence, sequence/idempotency/version/control-set enforcement, systemd
+restart recovery, server-owned result and CEX settlement. It does not yet
+provide independent guest progression, public matchmaking/lobbies, friends,
+party/guild/chat, MMR/seasons, server fleet/regions, cross-host failover,
+network impairment SLOs, moderation or anti-cheat operations. None of those
+gaps may be relabeled green from the local vertical-slice evidence.
 
 ## Monetary policy
 

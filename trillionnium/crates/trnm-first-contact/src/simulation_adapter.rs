@@ -2,6 +2,7 @@ use super::{
     asset_loader::{FirstContactAtlasHandles, FirstContactAtlasManifest},
     campaign_flow::CampaignFlow,
     map_loader::FirstContactMap,
+    online_authority::OnlineAuthorityClient,
     renderer::{
         atlas_sprite, attach_identity_geometry, map_world_position, FirstContactCamera,
         FirstContactObjectivePulse, FirstContactSelectionRing, FirstContactStructureSprite,
@@ -666,6 +667,7 @@ pub(super) fn handle_first_contact_commands(
     mut runtime: ResMut<FirstContactRuntime>,
     mut adapter: ResMut<FirstContactSimulationAdapter>,
     mut flow: ResMut<CampaignFlow>,
+    mut online: Option<ResMut<OnlineAuthorityClient>>,
 ) {
     if !flow.in_battle() || !flow.keyboard_gameplay_enabled() {
         return;
@@ -674,6 +676,66 @@ pub(super) fn handle_first_contact_commands(
         runtime.selected_slots.clear();
         runtime.active_control_group = None;
         runtime.command_feedback = "Selected the full four-person party".to_string();
+    }
+    if let Some(online) = online.as_mut() {
+        let command = command_for_keyboard(&input, flow.settings.control_scheme);
+        let Some(command) = command else {
+            return;
+        };
+        if command == FirstContactCommand::Harvest {
+            let resource = map
+                .resources
+                .iter()
+                .find(|resource| Some(resource.id.as_str()) == runtime.target_actor_id.as_deref())
+                .unwrap_or(&map.resources[1]);
+            runtime.target_actor_id = Some(resource.id.clone());
+            runtime.target_tile = IVec2::new(resource.x, resource.y);
+        }
+        let Some(mission) = flow.mission.as_ref() else {
+            flow.status = "Online match lost its server snapshot".to_string();
+            return;
+        };
+        let actor_ids = mission
+            .party
+            .iter()
+            .enumerate()
+            .filter(|(index, unit)| {
+                unit.alive()
+                    && (runtime.selected_slots.is_empty() || runtime.selected_slots.contains(index))
+            })
+            .map(|(_, unit)| unit.unit_id.clone())
+            .collect::<Vec<_>>();
+        let mut order = frame_order_for_command(
+            &map,
+            mission.tick as u32,
+            command,
+            actor_ids,
+            runtime.target_tile,
+            runtime.target_actor_id.clone(),
+        );
+        let shift = input.pressed(KeyCode::ShiftLeft) || input.pressed(KeyCode::ShiftRight);
+        if shift {
+            order.queued = true;
+            order.queue_id = Some(format!("native-online-{}", mission.tick));
+        }
+        match online.submit(order.clone()) {
+            Ok((receipt, authoritative)) => {
+                flow.mission = Some(authoritative);
+                adapter.accepted_orders.push(order);
+                runtime.command = command;
+                runtime.command_feedback = format!(
+                    "ONLINE ACK seq={} rev={} {}",
+                    receipt.sequence,
+                    receipt.match_revision,
+                    command.label()
+                );
+            }
+            Err(error) => {
+                flow.status = format!("ONLINE FAIL-CLOSED: {error}");
+                runtime.command_feedback = "Command held by online authority".to_string();
+            }
+        }
+        return;
     }
     let control = input.pressed(KeyCode::ControlLeft) || input.pressed(KeyCode::ControlRight);
     for (key, group) in [
@@ -1126,6 +1188,7 @@ pub(super) fn advance_first_contact_simulation(
     handles: Option<Res<FirstContactAtlasHandles>>,
     mut runtime: ResMut<FirstContactRuntime>,
     mut flow: ResMut<CampaignFlow>,
+    mut online: Option<ResMut<OnlineAuthorityClient>>,
     mut units: Query<
         (
             &mut Sprite,
@@ -1190,23 +1253,35 @@ pub(super) fn advance_first_contact_simulation(
         }
     }
 
-    let tick_seconds = 1.0 / TICKS_PER_SECOND as f32;
-    while runtime.sim_tick_accumulator >= tick_seconds {
-        let Some(mission) = flow.mission.as_mut() else {
-            flow.status = "Battle mode lost its authoritative simulation".to_string();
-            return;
-        };
-        if mission.terminal() {
-            break;
+    if let Some(online) = online.as_mut() {
+        online.poll_accumulator += delta;
+        if online.poll_accumulator >= 0.05 {
+            online.poll_accumulator = 0.0;
+            match online.refresh() {
+                Ok(authoritative) => flow.mission = Some(authoritative),
+                Err(error) => flow.status = format!("ONLINE FAIL-CLOSED: {error}"),
+            }
         }
-        if let Err(error) = mission.step() {
-            flow.status = error.to_string();
-            break;
+        runtime.sim_tick_accumulator = 0.0;
+    } else {
+        let tick_seconds = 1.0 / TICKS_PER_SECOND as f32;
+        while runtime.sim_tick_accumulator >= tick_seconds {
+            let Some(mission) = flow.mission.as_mut() else {
+                flow.status = "Battle mode lost its authoritative simulation".to_string();
+                return;
+            };
+            if mission.terminal() {
+                break;
+            }
+            if let Err(error) = mission.step() {
+                flow.status = error.to_string();
+                break;
+            }
+            runtime.sim_tick_accumulator -= tick_seconds;
         }
-        runtime.sim_tick_accumulator -= tick_seconds;
-    }
-    if let Err(error) = flow.checkpoint_if_due() {
-        flow.status = error;
+        if let Err(error) = flow.checkpoint_if_due() {
+            flow.status = error;
+        }
     }
     if let Some(mission) = flow.mission.as_ref() {
         runtime.party_hp_percent = mission.party_hp_percent();

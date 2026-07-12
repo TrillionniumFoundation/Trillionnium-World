@@ -31,7 +31,7 @@ enumerated implemented and missing capabilities in `GAME_STATUS.md`.
 
 ## Proof and boundary
 
-The current six-crate product tests and Clippy gate are the software acceptance proof; the sixth crate is the pure economy protocol boundary added after this historical checklist.
+At this historical checklist's completion, the six-crate product tests and Clippy gate were the software acceptance proof; the sixth crate was the pure economy protocol boundary added after the original checklist.
 Human observation is a later usability and balance feedback stream; it is not
 used to lower or block this software completion percentage. Networking,
 public launch, mobile/Windows/macOS packages, endless content volume and a

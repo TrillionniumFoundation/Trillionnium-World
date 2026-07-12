@@ -57,7 +57,7 @@ Mirror Square
 - `trnm_rts_sim_v16`
 - `trnm_rts_sim_checkpoint_v16`
 
-Campaign persistence remains `trnm_campaign_save_v1` with schema revision 11.
+Campaign persistence remains `trnm_campaign_save_v1` with schema revision 12.
 Revision 11 retains the revision-10 account/wallet/outbox state and adds
 explicit value-event payout policy, a bounded priority compensation lane,
 inventory rollback state and escrow recovery while preserving older save

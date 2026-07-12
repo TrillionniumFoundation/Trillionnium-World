@@ -4,7 +4,7 @@ Updated: 2026-07-11
 
 Status: **superseded historical acceptance snapshot**. The `Protect / Expose /
 Accord` and `24`-sample wording below records this bounded July 11 gate and is
-not the current runtime truth. Current state is schema revision 11 with multi-beat
+not the current runtime truth. Current state is schema revision 12 with multi-beat
 chapter/epilogue play, 64 economy-bearing samples and RTS/checkpoint v16;
 use `GAME_STATUS.md` and `trillionnium-rpg-rts-closed-loop-v1.md`.
 
@@ -44,6 +44,6 @@ does not redefine the open-ended historical product vision as a percentage.
 - the standalone skirmish E2E issues real commands until a terminal result,
   exports/verifies replay, settles once and rejects duplicate progression.
 
-The current six-crate test suite, Clippy `-D warnings`, product-boundary gate, release
+The current eight-crate test suite, Clippy `-D warnings`, product-boundary gate, release
 build, isolated desktop install and local runtime smoke are the acceptance
 evidence. Networking and public-launch evidence remain separate scopes.

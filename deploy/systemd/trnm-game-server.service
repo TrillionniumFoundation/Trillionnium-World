@@ -1,0 +1,16 @@
+[Unit]
+Description=TRNM Online Authority v1 Game Server
+After=network-online.target cex-trnm-ledger.service
+Wants=network-online.target cex-trnm-ledger.service
+
+[Service]
+Type=simple
+WorkingDirectory=/home/qian/.openclaw/workspace/Trillionnium
+ExecStart=/home/qian/.openclaw/workspace/Trillionnium/scripts/run-trnm-game-server.sh
+Restart=on-failure
+RestartSec=2
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=default.target

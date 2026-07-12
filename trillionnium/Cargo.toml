@@ -5,6 +5,8 @@ members = [
   "crates/trnm-campaign-core",
   "crates/trnm-rts-protocol",
   "crates/trnm-rts-sim",
+  "crates/trnm-online-protocol",
+  "crates/trnm-game-server",
   "crates/trnm-first-contact",
 ]
 exclude = [

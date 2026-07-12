@@ -1,8 +1,8 @@
 # TRNM Game Status
 
-Updated: 2026-07-12
+Updated: 2026-07-13
 
-This is the one-page status source for the current native RPG + real-time-strategy product. The older finite checklist in `docs/development/trnm-deep-rpg-complete-rts-v1-dod.md` is retained as a completed historical baseline, not as a claim that the broader deep-RPG + complete-RTS vision is 100%. The current local CEX economy integration is enumerated below; it does not grant blockchain, Android, multiplayer or public-launch credit.
+This is the one-page status source for the current native RPG + real-time-strategy product. The older finite checklist in `docs/development/trnm-deep-rpg-complete-rts-v1-dod.md` is retained as a completed historical baseline, not as a claim that the broader deep-RPG + complete-RTS vision is 100%. The current local CEX economy integration and Online Authority v1 vertical slice are enumerated below; neither grants Android or public-launch credit.
 
 Release denominators are separated by
 `docs/development/trnm-native-game-release-gates-v1.md`: software alpha,
@@ -13,13 +13,15 @@ The bounded v2 checklist remains historical evidence; this page records the newe
 
 ## Product boundary
 
-- Product workspace: six crates in `trillionnium/Cargo.toml`.
+- Product workspace: eight crates in `trillionnium/Cargo.toml`.
 - Stable game-owned economy boundary: `trnm-economy-protocol`.
 - Native client: `trnm-first-contact`.
 - RPG/world vocabulary: `trnm-rpg-core`.
 - Campaign, save, progression and settlement authority: `trnm-campaign-core`.
 - Player-order contract: `trnm-rts-protocol`.
 - Bevy-free deterministic battle authority: `trnm-rts-sim`.
+- Versioned online wire contract: `trnm-online-protocol`.
+- PostgreSQL-backed dedicated campaign/RTS authority: `trnm-game-server`.
 - Historical legacy game workspace: absent; see `docs/archive/frozen-legacy-final-index-2026-07-11.md`.
 - CEX settlement backend: optional HTTP runtime behind the game-owned protocol; the native client never uses the CEX Web/Matrix game shell.
 
@@ -65,6 +67,7 @@ The RPG layer uses only clean-room mechanics study of 白金英雄坛说. No sou
 - `trnm_settlement_receipt_v1`;
 - `trnm_rts_sim_v16` / `trnm_rts_sim_checkpoint_v16`;
 - `trnm_player_settings_v2`.
+- `trnm_online_authority_v1`, build `trnm-online-authority-2026.07-v1`.
 
 ## Product shell
 
@@ -98,6 +101,24 @@ Connected campaign and intent identifiers are deterministically scoped by the
 bound CEX account, so different players' default local save names cannot
 collide in the global idempotency ledger.
 
+Online Authority v1 is a bounded network vertical slice. Two distinct CEX
+player sessions join one shared-campaign co-op match against the deterministic
+AI. The server owns the campaign JSON, authored-map seed, `MissionSimV1`, tick,
+member-to-unit control sets, command sequence, idempotency receipt, snapshot,
+terminal `BattleResultV1` and the bounded online victory reward. PostgreSQL
+persists every campaign/match/command boundary, so ledger/game-server restart
+does not return authority to the client. The native Bevy client has an explicit
+attach mode (`TRNM_ONLINE_AUTHORITY_URL` plus match/player/account/session): it
+renders server snapshots, sends primary RTS commands to the server, polls the
+authoritative state and disables local stepping and local settlement.
+
+This v1 is not a public online game claim. The guest temporarily controls two
+units in the host's shared campaign and receives no independent progression.
+There is no matchmaking, lobby browser, party service, chat, friends, guild,
+MMR, season, spectator product, cross-host fleet or public endpoint. Offline
+local saves cannot be mixed with public characters. See
+`docs/development/trnm-online-authority-v1.md`.
+
 The client exposes local/wallet balances, pending intents, priority
 compensations, value events, verified receipts and dead letters. `Ctrl+F7`
 binds/reconciles with a player/account/device-scoped signed session from
@@ -116,17 +137,19 @@ The control profiles alter live RTS input: Classic uses Q/W/E/R for move/attack/
 
 - the 2026-07-11 finite v1 checklist is a completed historical acceptance baseline;
 - the broader historical ambition of a deeply simulated Jianghu-like RPG plus a feature-complete RTS has no honest fixed 100% endpoint; current claims must enumerate implemented systems and remaining scopes instead of converting that ambition into a percentage;
-- human observation and non-developer sessions are post-v1 feedback for usability and balance, not a software completion gate;
+- human observation and non-developer sessions remain required for commercial usability claims and cannot be replaced by automated online E2E;
 - final composed soundtrack, richer effects and mix: pending (basic original playback is complete);
 - installer smoke across target distributions: pending;
-- public beta/commercial launch and networking: out of current scope.
+- public beta/commercial launch, matchmaking/social product and multi-host networking remain blocked.
 
 ## Current local evidence
 
-- six-crate unit/integration/E2E suite: 121/121 passing (41 Campaign, 19 First Contact, 13 RPG, 8 protocol, 31 RTS, 9 closed-loop E2E); the authored client regression begins at a default new save, uses real setup/deploy keys and authoritative orders to win all four campaign battles, then drives all fifteen quests through all three approaches, chapter scenes and a four-beat ending epilogue without directly inserting prologue flags;
-- CEX full workspace: 351 passing with 16 detached-runtime black-box probes explicitly ignored; `consumer-entry-api` is 161/161. The persistent cross-process gate additionally proves new accounts, reward exactly-once, byte-identical replay across ledger/consumer restart, held-escrow refund, committed chargeback, wallet/cursor recovery and PostgreSQL uniqueness;
+- eight-crate unit/integration/E2E suite: 128/128 passing (41 Campaign, 19 First Contact, 13 RPG, 8 existing protocols, 31 RTS, 9 closed-loop E2E, 2 online protocol and 5 game-server tests);
+- Online Authority E2E: two real CEX sessions join one match, receive disjoint unit control, reject exact-ID altered replay, sequence skip, old build and control theft, recover through a real systemd restart, win via server ticks, settle a server-owned 25-credit reward and verify 15/15 PostgreSQL commands carry unique persisted request fingerprints plus a CEX wallet receipt;
+- native attach smoke: two distinct X11 `trnm-first-contact` release processes use separate player sessions/windows/control sets and each produce an independently attributed fingerprinted PostgreSQL command; this is automated input evidence, not a human multiplayer session;
+- CEX full workspace: 353 passing with 16 detached-runtime black-box probes explicitly ignored; `consumer-entry-api` is 161/161. The persistent cross-process gate additionally proves new accounts, reward exactly-once, byte-identical replay across ledger/consumer restart, held-escrow refund, committed chargeback, wallet/cursor recovery and PostgreSQL uniqueness;
 - workspace Clippy with `-D warnings`: passing;
-- product boundary: green (6 game / 12 platform / legacy working tree absent); CEX depends on `trnm-economy-protocol` and no longer depends on removed `trnm-world-api`, `trnm-world-domain` or `trnm-world-projection` crates;
+- product boundary: green (8 game / 12 platform / legacy working tree absent); CEX depends on `trnm-economy-protocol` and no longer depends on removed `trnm-world-api`, `trnm-world-domain` or `trnm-world-projection` crates;
 - release build and desktop installer smoke: passing;
 - current X230 warm-cache matrix after explicit `--no-run` client-harness prewarming: RPG 0.69 s / 75 MiB, Campaign 0.54 s / 75 MiB, full 19-test First Contact package 88.41 s / 117 MiB, 64-sample RTS simulation 81.58 s / 431 MiB, new-save client journey 41.80 s / 118 MiB, Standard Annihilation 78.09 s / 116 MiB, authored-map adapter 12.94 s / 117 MiB, closed loop 21.27 s / 390 MiB and incremental release build 0.87 s / 118 MiB. Every row remains below the explicit 90-second / 4-GiB bound. The former 3.41-GiB client figure was rustc/linker RSS from compiling the test harness on the first measured row, not game-runtime memory; the gate now separates compilation from runtime instead of misreporting it;
 - release client service: active with a viewable native window after restart.
@@ -142,6 +165,8 @@ The first clean release rebuild after adding the native rustls CEX client took 9
 
 ```bash
 scripts/check_trnm_game_product.sh
+scripts/check-trnm-online-authority-e2e.sh
+scripts/check-trnm-online-native-two-client.sh
 cargo test --manifest-path trillionnium/Cargo.toml --workspace --all-targets
 cargo clippy --manifest-path trillionnium/Cargo.toml --workspace --all-targets -- -D warnings
 scripts/check_trnm_perf_matrix.sh

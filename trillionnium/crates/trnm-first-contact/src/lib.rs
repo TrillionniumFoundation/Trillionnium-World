@@ -5,6 +5,7 @@ mod campaign_ui;
 mod evidence_adapter;
 mod hud;
 mod map_loader;
+mod online_authority;
 mod renderer;
 mod simulation_adapter;
 mod view_math;
@@ -12,11 +13,14 @@ mod view_math;
 use asset_loader::{load_first_contact_atlas, FirstContactAtlasManifest};
 use audio::{spawn_trnm_audio, sync_trnm_audio, validate_trnm_audio_assets};
 use bevy::prelude::*;
-use campaign_flow::{handle_campaign_input, settle_finished_battle, CampaignFlow};
+use campaign_flow::{
+    handle_campaign_input, settle_finished_battle, CampaignFlow, CampaignMode, ShellMode,
+};
 use campaign_ui::{spawn_campaign_ui, update_campaign_ui};
 use evidence_adapter::FirstContactVisualAcceptance;
 use hud::{spawn_first_contact_hud, update_first_contact_hud};
 use map_loader::{FirstContactMap, MissionMapCatalog};
+use online_authority::OnlineAuthorityClient;
 use renderer::{
     animate_identity_geometry, spawn_first_contact_live_scene, sync_first_contact_authored_map,
 };
@@ -38,6 +42,7 @@ pub struct FirstContactLivePlugin {
     maps: MissionMapCatalog,
     atlas: FirstContactAtlasManifest,
     campaign: CampaignFlow,
+    online: Option<OnlineAuthorityClient>,
 }
 
 impl FirstContactLivePlugin {
@@ -45,7 +50,15 @@ impl FirstContactLivePlugin {
         validate_trnm_audio_assets(asset_root)?;
         let maps = MissionMapCatalog::load(asset_root)?;
         let atlas = load_first_contact_atlas(&asset_root.join("first_contact/atlas.yaml"))?;
-        let campaign = CampaignFlow::load()?;
+        let mut campaign = CampaignFlow::load()?;
+        let online = OnlineAuthorityClient::from_env()?;
+        if let Some((_, mission)) = online.as_ref() {
+            campaign.mission = Some(mission.clone());
+            campaign.mode = CampaignMode::Battle;
+            campaign.shell_mode = ShellMode::Playing;
+            campaign.status =
+                "ONLINE AUTHORITY: server snapshot attached; local simulation disabled".to_string();
+        }
         let active_mission = campaign
             .mission
             .as_ref()
@@ -68,17 +81,24 @@ impl FirstContactLivePlugin {
             maps,
             atlas,
             campaign,
+            online: online.map(|(client, _)| client),
         })
     }
 }
 
 impl Plugin for FirstContactLivePlugin {
     fn build(&self, app: &mut App) {
+        let mut runtime = FirstContactRuntime::default();
+        if self.online.is_some() {
+            runtime.reset_for_battle(&self.map);
+            runtime.command_feedback =
+                "ONLINE ATTACHED: select assigned units and issue a server command".to_string();
+        }
         app.insert_resource(self.map.clone())
             .insert_resource(self.maps.clone())
             .insert_resource(self.atlas.clone())
             .insert_resource(self.campaign.clone())
-            .init_resource::<FirstContactRuntime>()
+            .insert_resource(runtime)
             .init_resource::<FirstContactSimulationAdapter>()
             .init_resource::<MouseSelectionState>()
             .init_resource::<FirstContactVisualAcceptance>()
@@ -110,6 +130,9 @@ impl Plugin for FirstContactLivePlugin {
                 )
                     .chain(),
             );
+        if let Some(online) = self.online.as_ref() {
+            app.insert_resource(online.clone());
+        }
     }
 }
 
