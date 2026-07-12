@@ -29,8 +29,6 @@ serde_json = "1"
 serde_yaml = "0.9"
 reqwest = { version = "0.12", default-features = false, features = ["blocking", "json", "rustls-tls"] }
 trnm-campaign-core = { path = "../trnm-campaign-core" }
+trnm-rpg-core = { path = "../trnm-rpg-core" }
 trnm-rts-protocol = { path = "../trnm-rts-protocol" }
 trnm-rts-sim = { path = "../trnm-rts-sim" }
-
-[dev-dependencies]
-trnm-rpg-core = { path = "../trnm-rpg-core" }

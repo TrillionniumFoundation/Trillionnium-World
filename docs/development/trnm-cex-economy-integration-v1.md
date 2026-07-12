@@ -12,7 +12,7 @@ receipts and wallet reconciliation. The CEX Web/Matrix World shell is not a
 game client.
 
 The stable protocol is owned by
-`trillionnium/crates/trnm-economy-protocol`, package version `2.1.0`. CEX
+`trillionnium/crates/trnm-economy-protocol`, package version `2.2.0`. CEX
 vendors that exact package version inside its own checkout, so it no longer
 assumes a sibling `../Trillionnium` directory. CEX does not depend on removed
 `trnm-world-api`, `trnm-world-domain` or `trnm-world-projection` crates. Its old
@@ -33,7 +33,7 @@ No RTS tick, NPC work tick or regional-market tick calls CEX.
 
 ## Save and recovery contract
 
-`trnm_campaign_save_v1` schema revision 11 persists:
+`trnm_campaign_save_v1` schema revision 12 persists:
 
 - `economy_mode` and account binding;
 - wallet snapshot;
@@ -67,9 +67,22 @@ separate priority lane, so a failed ordinary FIFO head cannot block
 compensation. Player-to-player listing discovery remains release-gated; the
 current client exposes the trusted system-market settlement path only.
 
+Committed seller proceeds are credited and reserved together. They remain
+unspendable through the 24-hour reversible window, so a chargeback consumes
+the seller payout hold instead of depending on later seller liquidity. Matured
+holds release lazily and atomically during seller wallet reconciliation.
+
+Battle `DualTrack` issuance is capped at 100 wallet credits per event and 300
+per in-game day. Local soft credits are bound and never convert to wallet
+credits.
+Connected campaign and intent identifiers are deterministically namespaced by
+the bound CEX account, so two players using the same local slot name cannot
+collide in the global intent or idempotency keys.
+
 ## Persistent CEX runtime
 
-CEX migration `0027_add_trnm_native_economy_persistence.sql` owns unique
+CEX migrations `0027_add_trnm_native_economy_persistence.sql` and
+`0028_add_trnm_seller_hold_and_identity_recovery.sql` own unique
 PostgreSQL records for intent IDs, `(scope,key)` idempotency, one receipt per
 intent, reconciliation cursors and escrow purchases. Ledger mutation and
 intent/receipt storage commit in one SQL transaction. The formal
@@ -97,7 +110,8 @@ alias but no longer defines current product readiness.
 - `TRNM_CEX_MARKET_ACCOUNT_ID` for connected tradeable purchases
 
 `Ctrl+F7` binds/reconciles; `Ctrl+Shift+F7` starts the current selected
-tradeable purchase. The RPG UI shows soft balance, wallet available/reserved,
+tradeable purchase; `Ctrl+Alt+F7` cancels the latest purchase through the
+priority compensation lane. The RPG UI shows soft balance, wallet available/reserved,
 outbox, verified receipts and dead letters separately.
 
 ## Verification
@@ -111,6 +125,9 @@ retain in-process coverage, and
 accounts and proves reward exactly-once, identical replay before and after
 service restart, held-escrow refund, committed escrow, chargeback reversal,
 wallet/cursor recovery and unique PostgreSQL intent/receipt/entry records.
+`scripts/check_trnm_native_client_cex_e2e.sh` additionally drives the native
+Bevy input system, verifies the same UI projection before and after service
+restart, and cancels through the client while checking PostgreSQL and inventory.
 
 This is persistent local-production-profile integration evidence, not a claim
 of high availability, public CEX exposure, commercial/legal readiness or

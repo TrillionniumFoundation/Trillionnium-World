@@ -3,6 +3,7 @@ use super::simulation_adapter::{
     FirstContactCommand, FirstContactRuntime, FirstContactSimulationAdapter,
 };
 use bevy::prelude::*;
+use serde_json::{json, Value};
 use std::{
     env,
     path::{Path, PathBuf},
@@ -15,6 +16,7 @@ use trnm_campaign_core::{
     QuestState, SaveSlotId, SaveSlotMeta, SaveSlotStore, SectId, SettlementReceiptV1,
     WalletSnapshot,
 };
+use trnm_rpg_core::ECONOMY_ITEM_CATALOG;
 use trnm_rts_sim::{BattleReplayV2, MissionSimV1, SimCheckpointStore};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -424,14 +426,8 @@ impl CampaignFlow {
         }
         let actor_id =
             env::var("TRNM_CEX_ACTOR_ID").unwrap_or_else(|_| save.character.character_id.clone());
-        if save
-            .economy_account_binding
-            .as_ref()
-            .is_none_or(|binding| binding.account_id != account_id || binding.actor_id != actor_id)
-        {
-            save.bind_cex_economy_account(actor_id, account_id)
-                .map_err(|error| error.to_string())?;
-        }
+        save.bind_cex_economy_account(actor_id, account_id)
+            .map_err(|error| error.to_string())?;
         Ok(())
     }
 
@@ -493,6 +489,41 @@ impl CampaignFlow {
         Ok(format!(
             "TRADE {purchase_id}: applied {}, pending {}, wallet {}/{}",
             report.applied,
+            report.remaining,
+            self.save.wallet_snapshot.available_credits,
+            self.save.wallet_snapshot.reserved_credits,
+        ))
+    }
+
+    pub fn cancel_latest_tradeable_purchase_and_reconcile(&mut self) -> Result<String, String> {
+        let mut candidate = self.save.clone();
+        Self::bind_cex_from_env_if_present(&mut candidate)?;
+        let purchase_id = candidate
+            .pending_tradeable_purchases
+            .last()
+            .map(|purchase| purchase.purchase_id.clone())
+            .ok_or_else(|| "no tradeable purchase exists to cancel".to_string())?;
+        candidate
+            .cancel_tradeable_purchase(&purchase_id)
+            .map_err(|error| error.to_string())?;
+        let report = if candidate.economy_mode == EconomyMode::CexConnected {
+            let backend = CexHttpEconomyBackend::from_env()?;
+            candidate
+                .reconcile_economy(&backend, 8)
+                .map_err(|error| error.to_string())?
+        } else {
+            candidate
+                .reconcile_economy(&OfflineLocalEconomyBackend, 8)
+                .map_err(|error| error.to_string())?
+        };
+        self.store
+            .save_atomic(&candidate)
+            .map_err(|error| error.to_string())?;
+        self.save = candidate;
+        Ok(format!(
+            "CANCEL {purchase_id}: applied {}, holds {}, pending {}, wallet {}/{}",
+            report.applied,
+            report.recoverable_holds,
             report.remaining,
             self.save.wallet_snapshot.available_credits,
             self.save.wallet_snapshot.reserved_credits,
@@ -650,7 +681,10 @@ pub(super) fn handle_campaign_input(
     if input.just_pressed(KeyCode::F7) {
         let control = input.pressed(KeyCode::ControlLeft) || input.pressed(KeyCode::ControlRight);
         let shift = input.pressed(KeyCode::ShiftLeft) || input.pressed(KeyCode::ShiftRight);
-        let result = if control && shift {
+        let alt = input.pressed(KeyCode::AltLeft) || input.pressed(KeyCode::AltRight);
+        let result = if control && alt {
+            flow.cancel_latest_tradeable_purchase_and_reconcile()
+        } else if control && shift {
             flow.begin_tradeable_purchase_and_reconcile()
         } else if control {
             flow.reconcile_economy_now()
@@ -1344,6 +1378,104 @@ pub(super) fn handle_campaign_input(
             flow.status = "The First Contact mission is not ready for deployment".to_string();
         }
     }
+}
+
+fn native_economy_e2e_tap(app: &mut App, key: KeyCode, shift: bool, control: bool, alt: bool) {
+    {
+        let mut input = app.world_mut().resource_mut::<ButtonInput<KeyCode>>();
+        if shift {
+            input.press(KeyCode::ShiftLeft);
+        }
+        if control {
+            input.press(KeyCode::ControlLeft);
+        }
+        if alt {
+            input.press(KeyCode::AltLeft);
+        }
+        input.press(key);
+    }
+    app.update();
+    let mut input = app.world_mut().resource_mut::<ButtonInput<KeyCode>>();
+    input.release(key);
+    input.release(KeyCode::ShiftLeft);
+    input.release(KeyCode::ControlLeft);
+    input.release(KeyCode::AltLeft);
+    input.clear();
+}
+
+pub(super) fn run_native_economy_e2e_phase(phase: &str) -> Result<Value, String> {
+    let asset_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../assets");
+    let maps = MissionMapCatalog::load(&asset_root)?;
+    let map = maps.first_contact.clone();
+    let flow = CampaignFlow::load()?;
+    let mut app = App::new();
+    app.insert_resource(ButtonInput::<KeyCode>::default())
+        .insert_resource(map)
+        .insert_resource(maps)
+        .insert_resource(flow)
+        .insert_resource(FirstContactRuntime::default())
+        .insert_resource(FirstContactSimulationAdapter::default())
+        .add_systems(Update, handle_campaign_input);
+
+    if phase == "purchase" {
+        {
+            let mut flow = app.world_mut().resource_mut::<CampaignFlow>();
+            if !flow.save.character_identity.confirmed {
+                flow.create_selected_slot()?;
+                flow.mutate_town(CampaignSaveV1::confirm_character_identity)
+                    .map_err(|error| error.to_string())?;
+            }
+            flow.shell_mode = ShellMode::Playing;
+            flow.mutate_town(|save| save.move_to(CampaignRoom::MarketWindPavilion))
+                .map_err(|error| error.to_string())?;
+            for _ in 0..ECONOMY_ITEM_CATALOG.len() {
+                let item = flow.save.selected_shop_item();
+                if CampaignSaveV1::economy_asset_semantic(item.id).transferability
+                    == trnm_campaign_core::EconomyTransferability::Tradeable
+                {
+                    break;
+                }
+                flow.mutate_town(|save| save.cycle_shop_item().map(|_| ()))
+                    .map_err(|error| error.to_string())?;
+            }
+        }
+        native_economy_e2e_tap(&mut app, KeyCode::F7, false, true, false);
+        native_economy_e2e_tap(&mut app, KeyCode::F7, true, true, false);
+    } else {
+        app.world_mut().resource_mut::<CampaignFlow>().shell_mode = ShellMode::Playing;
+        native_economy_e2e_tap(&mut app, KeyCode::F7, false, true, false);
+        if phase == "cancel" {
+            native_economy_e2e_tap(&mut app, KeyCode::F7, false, true, true);
+        }
+    }
+
+    let flow = app.world().resource::<CampaignFlow>();
+    let purchase = flow.save.pending_tradeable_purchases.last();
+    let item_id = purchase
+        .map(|purchase| purchase.item_id.clone())
+        .unwrap_or_default();
+    let item_quantity = flow
+        .save
+        .progression
+        .inventory
+        .iter()
+        .find(|stack| stack.item_id == item_id)
+        .map(|stack| stack.quantity)
+        .unwrap_or_default();
+    let ui_text = super::campaign_ui::town_body(flow);
+    Ok(json!({
+        "phase": phase,
+        "status": flow.status,
+        "purchase_id": purchase.map(|purchase| purchase.purchase_id.clone()),
+        "purchase_stage": purchase.map(|purchase| format!("{:?}", purchase.stage)),
+        "item_id": item_id,
+        "item_quantity": item_quantity,
+        "wallet": flow.save.wallet_snapshot,
+        "ui_text": ui_text,
+        "native_bevy_input": true,
+        "economic_actions_driven_by_ctrl_f7": true,
+        "live_cex_http": flow.save.economy_mode == EconomyMode::CexConnected,
+    }))
 }
 
 pub(super) fn settle_finished_battle(

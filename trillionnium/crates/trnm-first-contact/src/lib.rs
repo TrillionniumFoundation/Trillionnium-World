@@ -29,6 +29,10 @@ use std::path::{Path, PathBuf};
 
 pub use evidence_adapter::{FirstContactVisualAcceptance as VisualAcceptance, ObserverAnswer};
 
+pub fn run_native_economy_e2e_phase(phase: &str) -> Result<serde_json::Value, String> {
+    campaign_flow::run_native_economy_e2e_phase(phase)
+}
+
 pub struct FirstContactLivePlugin {
     map: FirstContactMap,
     maps: MissionMapCatalog,

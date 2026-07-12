@@ -120,7 +120,7 @@ fn quest_label(state: QuestState) -> &'static str {
     }
 }
 
-fn town_body(flow: &CampaignFlow) -> String {
+pub(super) fn town_body(flow: &CampaignFlow) -> String {
     let save = &flow.save;
     let guide = save.current_guide_step();
     let route = save.current_task_route_plan();
@@ -335,7 +335,7 @@ fn town_body(flow: &CampaignFlow) -> String {
         }
     };
     let body = format!(
-        "{body}\n\nECONOMY: {:?} | soft {} | wallet available {} / reserved {} | outbox {} + priority compensation {} | receipts {} | value events {} | dead letters {}\nCtrl+F7 binds from TRNM_CEX_ACCOUNT_ID/TRNM_CEX_ACTOR_ID and reconciles; Ctrl+Shift+F7 starts an escrow-backed tradeable purchase using TRNM_CEX_MARKET_ACCOUNT_ID. Local-only, wallet-only and explicit dual-track rewards are audited separately. RTS resources and bound items remain local authority; public player listings remain release-gated.",
+        "{body}\n\nECONOMY: {:?} | soft {} | wallet available {} / reserved {} | outbox {} + priority compensation {} | receipts {} | value events {} | dead letters {}\nCtrl+F7 binds/reconciles; Ctrl+Shift+F7 starts an escrow-backed tradeable purchase; Ctrl+Alt+F7 cancels the latest purchase through the priority compensation lane. Local-only, wallet-only and explicit capped dual-track rewards are audited separately. RTS resources and bound items remain local authority; public player listings remain release-gated.",
         save.economy_mode,
         save.progression.credits,
         save.wallet_snapshot.available_credits,

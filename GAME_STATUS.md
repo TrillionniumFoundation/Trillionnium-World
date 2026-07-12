@@ -4,6 +4,11 @@ Updated: 2026-07-12
 
 This is the one-page status source for the current native RPG + real-time-strategy product. The older finite checklist in `docs/development/trnm-deep-rpg-complete-rts-v1-dod.md` is retained as a completed historical baseline, not as a claim that the broader deep-RPG + complete-RTS vision is 100%. The current local CEX economy integration is enumerated below; it does not grant blockchain, Android, multiplayer or public-launch credit.
 
+Release denominators are separated by
+`docs/development/trnm-native-game-release-gates-v1.md`: software alpha,
+commercial single-player, trusted CEX settlement and public player market are
+four different gates.
+
 The bounded v2 checklist remains historical evidence; this page records the newer runtime state directly and does not create another artificial "100%" contract.
 
 ## Product boundary
@@ -53,7 +58,7 @@ The RPG layer uses only clean-room mechanics study of 白金英雄坛说. No sou
 
 ## Stable contracts
 
-- `trnm_campaign_save_v1`, schema revision 11;
+- `trnm_campaign_save_v1`, schema revision 12;
 - `term_exchange_protocol_v2` / `term_exchange_backend_v2`;
 - `trnm_battle_seed_v8`;
 - `trnm_battle_result_v2`;
@@ -69,7 +74,7 @@ The RPG layer uses only clean-room mechanics study of 白金英雄坛说. No sou
 - desktop installer assets under `packaging/` and `scripts/install_trnm_desktop.sh`;
 - deterministic performance matrix at `scripts/check_trnm_perf_matrix.sh`.
 
-Revision 11 separates local soft credits, CEX wallet credits, bound items,
+Revision 12 separates local soft credits, CEX wallet credits, bound items,
 tradeable items and ephemeral RTS resources. It persists account binding,
 wallet snapshot, a bounded economic-intent outbox, a separate priority
 compensation lane, verified receipts, explicit `ValueEvent` payout policies,
@@ -78,12 +83,18 @@ Offline play uses `OfflineLocalEconomyBackend`; connected play sends the same
 typed intents to CEX. Quest, chapter, ending, battle and future trade values
 are recorded with `LocalSoftOnly`, `WalletOnly` or explicit `DualTrack`
 semantics; only `DualTrack` deliberately issues both local and wallet value.
+Battle wallet issuance is capped at 100 credits per event and 300 per in-game
+day; local soft credits are permanently non-convertible.
 Connected tradeable market purchases require explicit buyer and seller ledger
-accounts and use buyer Reserve -> escrow hold -> atomic seller commit. Refund
+accounts and use buyer Reserve -> escrow hold -> atomic seller commit. Seller
+proceeds remain reserved through a reversible payout window. Refund
 and chargeback use the priority lane, refund held escrow or reverse a committed
 trade, and roll back delivered inventory before compensation. Recoverable
 network/ledger failures hold progression and survive save reload; malformed or
 mismatched receipts fail closed.
+Connected campaign and intent identifiers are deterministically scoped by the
+bound CEX account, so different players' default local save names cannot
+collide in the global idempotency ledger.
 
 The client exposes local/wallet balances, pending intents, priority
 compensations, value events, verified receipts and dead letters. `Ctrl+F7`
@@ -108,12 +119,12 @@ The control profiles alter live RTS input: Classic uses Q/W/E/R for move/attack/
 
 ## Current local evidence
 
-- six-crate unit/integration/E2E suite: 117/117 passing (39 Campaign, 19 First Contact, 13 RPG, 6 protocol, 31 RTS, 9 closed-loop E2E); the authored client regression begins at a default new save, uses real setup/deploy keys and authoritative orders to win all four campaign battles, then drives all fifteen quests through all three approaches, chapter scenes and a four-beat ending epilogue without directly inserting prologue flags;
-- CEX full workspace: 347 passing with 16 detached-runtime black-box probes explicitly ignored; `consumer-entry-api` is 161/161. The persistent cross-process gate additionally proves new accounts, reward exactly-once, byte-identical replay across ledger/consumer restart, held-escrow refund, committed chargeback, wallet/cursor recovery and PostgreSQL uniqueness;
+- six-crate unit/integration/E2E suite: 120/120 passing (41 Campaign, 19 First Contact, 13 RPG, 7 protocol, 31 RTS, 9 closed-loop E2E); the authored client regression begins at a default new save, uses real setup/deploy keys and authoritative orders to win all four campaign battles, then drives all fifteen quests through all three approaches, chapter scenes and a four-beat ending epilogue without directly inserting prologue flags;
+- CEX full workspace: 350 passing with 16 detached-runtime black-box probes explicitly ignored; `consumer-entry-api` is 161/161. The persistent cross-process gate additionally proves new accounts, reward exactly-once, byte-identical replay across ledger/consumer restart, held-escrow refund, committed chargeback, wallet/cursor recovery and PostgreSQL uniqueness;
 - workspace Clippy with `-D warnings`: passing;
 - product boundary: green (6 game / 12 platform / legacy working tree absent); CEX depends on `trnm-economy-protocol` and no longer depends on removed `trnm-world-api`, `trnm-world-domain` or `trnm-world-projection` crates;
 - release build and desktop installer smoke: passing;
-- current X230 warm-cache matrix after explicit `--no-run` client-harness prewarming: RPG 0.24 s / 75 MiB, Campaign 0.54 s / 75 MiB, full 19-test First Contact package 88.87 s / 116 MiB, 64-sample RTS simulation 71.79 s / 75 MiB, new-save client journey 41.68 s / 116 MiB, Standard Annihilation 76.68 s / 116 MiB, authored-map adapter 12.89 s / 116 MiB, closed loop 15.75 s / 235 MiB and incremental release build 48.46 s / 786 MiB. Every row remains below the explicit 90-second / 4-GiB bound. The former 3.41-GiB client figure was rustc/linker RSS from compiling the test harness on the first measured row, not game-runtime memory; the gate now separates compilation from runtime instead of misreporting it;
+- current X230 warm-cache matrix after explicit `--no-run` client-harness prewarming: RPG 0.69 s / 75 MiB, Campaign 0.54 s / 75 MiB, full 19-test First Contact package 88.41 s / 117 MiB, 64-sample RTS simulation 81.58 s / 431 MiB, new-save client journey 41.80 s / 118 MiB, Standard Annihilation 78.09 s / 116 MiB, authored-map adapter 12.94 s / 117 MiB, closed loop 21.27 s / 390 MiB and incremental release build 0.87 s / 118 MiB. Every row remains below the explicit 90-second / 4-GiB bound. The former 3.41-GiB client figure was rustc/linker RSS from compiling the test harness on the first measured row, not game-runtime memory; the gate now separates compilation from runtime instead of misreporting it;
 - release client service: active with a viewable native window after restart.
 
 The first clean release rebuild after adding the native rustls CEX client took 9m40s under the service host's constrained X230 environment; that is a developer compile cost, not installed-game startup. These are local-machine facts, not substitutes for the pending human session or a multi-distribution performance/installer matrix.

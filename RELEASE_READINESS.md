@@ -31,6 +31,7 @@ Current major drift risks include:
 7. Concurrency closeout and external comparisons are still in document-consolidation phase: `docs/reports/TRNM_CONCURRENCY_BOTTLENECK_MAP_AND_8W_ROADMAP_2026-03-10.md` is the current bottleneck map and 8-week route entry, `docs/reports/TRNM_CONCURRENCY_COMPARISON_2026-03-05.md` is an external benchmark draft; both describe progress, not release proof.
 8. Trillionnium World release-review handoff gates can be green for local review while public launch remains blocked. Treat `release_review_ci_gate_green_with_public_launch_blockers` as a local review packet result, not external readiness.
 9. Trillionnium World work can drift back to old CEX World or removed `trnm-world-bevy` semantics if the boundary is not checked. The only native playable client is `trillionnium/crates/trnm-first-contact`; CEX is now only an optional settlement backend behind `trnm-economy-protocol`, and the removed implementation is recoverable only through `docs/archive/frozen-legacy-final-index-2026-07-11.md` and Git history.
+10. Native-game release denominators are separated by `docs/development/trnm-native-game-release-gates-v1.md`; a green software-alpha or trusted single-node CEX gate does not make the commercial single-player or public player-market gates green.
 
 ## Component Status
 

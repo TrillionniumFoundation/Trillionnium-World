@@ -18,8 +18,9 @@ pub use trnm_economy_protocol::{
     EconomicReceipt, EconomyAccountBinding, EconomyAssetClass, EconomyAssetSemantic,
     EconomyCurrencyClass, EconomyMode, EconomyTransferability,
     IdempotencyKey as EconomyIdempotencyKey, ReceiptProgressionClass, ReceiptStatus,
-    SettlementBackendKind, WalletSnapshot, CEX_SETTLEMENT_BACKEND_ID, OFFLINE_LOCAL_BACKEND_ID,
-    TERM_EXCHANGE_PROTOCOL_VERSION,
+    SettlementBackendKind, WalletSnapshot, BATTLE_WALLET_REWARD_DAILY_CAP,
+    BATTLE_WALLET_REWARD_PER_EVENT_CAP, CEX_SETTLEMENT_BACKEND_ID, OFFLINE_LOCAL_BACKEND_ID,
+    SELLER_REVERSIBLE_WINDOW_SECONDS, TERM_EXCHANGE_PROTOCOL_VERSION,
 };
 use trnm_rpg_core::{
     inventory_item_for as trillionnium_inventory_item_for, market_price_with_state,
@@ -2323,6 +2324,8 @@ pub struct CampaignSaveV1 {
     #[serde(default)]
     pub value_events: Vec<ValueEventRecord>,
     #[serde(default)]
+    pub wallet_reward_issued_by_day: BTreeMap<u32, i64>,
+    #[serde(default)]
     pub reconciliation_cursor: u64,
     #[serde(default)]
     pub quest_chain: Option<QuestChainProgress>,
@@ -2390,7 +2393,7 @@ impl Default for CampaignSaveV1 {
         let item_conditions = character_item_conditions(&character);
         Self {
             contract_version: CAMPAIGN_SAVE_CONTRACT.to_string(),
-            schema_revision: 11,
+            schema_revision: 12,
             campaign_id: "local-campaign".to_string(),
             revision: 0,
             room: CampaignRoom::MirrorSquare,
@@ -2608,6 +2611,7 @@ impl Default for CampaignSaveV1 {
             economic_dead_letters: Vec::new(),
             pending_tradeable_purchases: Vec::new(),
             value_events: Vec::new(),
+            wallet_reward_issued_by_day: BTreeMap::new(),
             reconciliation_cursor: 0,
             quest_chain: None,
             world_clock: WorldClock::default(),
@@ -2624,9 +2628,25 @@ impl Default for CampaignSaveV1 {
 }
 
 impl CampaignSaveV1 {
+    fn cex_scoped_campaign_id(account_id: &str, campaign_id: &str) -> String {
+        let digest = Sha256::digest(
+            format!("trnm-cex-campaign-scope-v1\0{account_id}\0{campaign_id}").as_bytes(),
+        );
+        format!("cex-campaign-{digest:x}")
+    }
+
+    fn scoped_economic_intent_id(&self, intent_id: &str) -> String {
+        let prefix = format!("{}:", self.campaign_id);
+        if intent_id.starts_with(&prefix) {
+            intent_id.to_string()
+        } else {
+            format!("{prefix}{intent_id}")
+        }
+    }
+
     pub fn ensure_gameplay_defaults(&mut self) {
         let previous_schema_revision = self.schema_revision;
-        self.schema_revision = 11;
+        self.schema_revision = 12;
         if previous_schema_revision < 11
             && self.ending_epilogue_complete
             && self.ending_epilogue_progress == 3
@@ -2776,6 +2796,10 @@ impl CampaignSaveV1 {
             if self.wallet_snapshot.account_id.is_empty() {
                 self.wallet_snapshot.account_id = binding.account_id.clone();
             }
+            if !self.campaign_id.starts_with("cex-campaign-") {
+                self.campaign_id =
+                    Self::cex_scoped_campaign_id(&binding.account_id, &self.campaign_id);
+            }
         }
         if self.pending_economic_intents.len() > 128 {
             self.pending_economic_intents.truncate(128);
@@ -2804,6 +2828,17 @@ impl CampaignSaveV1 {
         if self.value_events.len() > 256 {
             let keep_from = self.value_events.len() - 256;
             self.value_events.drain(..keep_from);
+        }
+        if self.wallet_reward_issued_by_day.len() > 400 {
+            let first_day_to_keep = self
+                .wallet_reward_issued_by_day
+                .keys()
+                .rev()
+                .nth(399)
+                .copied()
+                .unwrap_or_default();
+            self.wallet_reward_issued_by_day
+                .retain(|day, _| *day >= first_day_to_keep);
         }
         if self.character.display_name.trim().is_empty() {
             self.apply_character_identity_name();
@@ -2871,7 +2906,7 @@ impl CampaignSaveV1 {
                 self.contract_version.clone(),
             ));
         }
-        if self.schema_revision != 11 {
+        if self.schema_revision != 12 {
             return Err(CampaignError::InvalidContract(format!(
                 "unsupported campaign schema revision {}",
                 self.schema_revision
@@ -2983,6 +3018,11 @@ impl CampaignSaveV1 {
                 .iter()
                 .any(|intent| intent.validate().is_err())
             || self.value_events.len() > 256
+            || self.wallet_reward_issued_by_day.len() > 400
+            || self
+                .wallet_reward_issued_by_day
+                .values()
+                .any(|amount| *amount < 0 || *amount > BATTLE_WALLET_REWARD_DAILY_CAP)
             || self.value_events.iter().any(|event| {
                 event.event_id.trim().is_empty()
                     || event.economic_intent_id.trim().is_empty()
@@ -2992,7 +3032,8 @@ impl CampaignSaveV1 {
                         ValueSettlementPolicy::LocalSoftOnly => event.wallet_credit_delta != 0,
                         ValueSettlementPolicy::WalletOnly => event.local_soft_credit_delta != 0,
                         ValueSettlementPolicy::DualTrack => {
-                            event.local_soft_credit_delta != event.wallet_credit_delta
+                            event.wallet_credit_delta > event.local_soft_credit_delta
+                                || event.wallet_credit_delta > BATTLE_WALLET_REWARD_PER_EVENT_CAP
                         }
                     }
                     || event
@@ -6726,8 +6767,9 @@ impl CampaignSaveV1 {
             credit_delta,
             loot_delta: result.loot.clone(),
             injury_delta_by_unit,
-            economic_intent_id: (credit_delta > 0)
-                .then(|| format!("battle-reward:{}", result.battle_id)),
+            economic_intent_id: (credit_delta > 0).then(|| {
+                self.scoped_economic_intent_id(&format!("battle-reward:{}", result.battle_id))
+            }),
             economic_receipt_id: None,
             duplicate: false,
         };
@@ -7656,6 +7698,34 @@ impl CampaignSaveV1 {
                 "CEX actor_id and account_id are required".to_string(),
             ));
         }
+        let same_binding = self
+            .economy_account_binding
+            .as_ref()
+            .is_some_and(|binding| {
+                binding.actor_id == actor_id && binding.account_id == account_id
+            });
+        if same_binding && self.campaign_id.starts_with("cex-campaign-") {
+            self.economy_mode = EconomyMode::CexConnected;
+            self.wallet_snapshot.account_id = account_id;
+            return self.validate();
+        }
+        if self
+            .economy_account_binding
+            .as_ref()
+            .is_some_and(|binding| {
+                binding.account_id != account_id
+                    && (!self.pending_economic_intents.is_empty()
+                        || !self.pending_economic_compensations.is_empty()
+                        || !self.verified_economic_receipts.is_empty()
+                        || !self.pending_tradeable_purchases.is_empty())
+            })
+        {
+            return Err(CampaignError::InvalidState(
+                "a CEX account with economic history cannot be rebound to another account"
+                    .to_string(),
+            ));
+        }
+        self.campaign_id = Self::cex_scoped_campaign_id(&account_id, &self.campaign_id);
         self.economy_mode = EconomyMode::CexConnected;
         self.economy_account_binding = Some(EconomyAccountBinding {
             actor_id,
@@ -7787,6 +7857,7 @@ impl CampaignSaveV1 {
         {
             return Ok(());
         }
+        let intent_id = self.scoped_economic_intent_id(&intent_id);
         let recorded_local_soft_delta = if policy == ValueSettlementPolicy::WalletOnly {
             0
         } else {
@@ -7794,10 +7865,24 @@ impl CampaignSaveV1 {
         };
         let wallet_credit_delta = match policy {
             ValueSettlementPolicy::LocalSoftOnly => 0,
-            ValueSettlementPolicy::WalletOnly | ValueSettlementPolicy::DualTrack => {
-                local_soft_credit_delta.max(0)
+            ValueSettlementPolicy::WalletOnly => local_soft_credit_delta.max(0),
+            ValueSettlementPolicy::DualTrack => {
+                let issued = self
+                    .wallet_reward_issued_by_day
+                    .get(&self.world_clock.day)
+                    .copied()
+                    .unwrap_or_default();
+                local_soft_credit_delta
+                    .clamp(0, BATTLE_WALLET_REWARD_PER_EVENT_CAP)
+                    .min(BATTLE_WALLET_REWARD_DAILY_CAP.saturating_sub(issued))
             }
         };
+        if policy == ValueSettlementPolicy::DualTrack && wallet_credit_delta > 0 {
+            self.wallet_reward_issued_by_day
+                .entry(self.world_clock.day)
+                .and_modify(|issued| *issued = issued.saturating_add(wallet_credit_delta))
+                .or_insert(wallet_credit_delta);
+        }
         let kind = if wallet_credit_delta > 0 {
             EconomicIntentKind::ReleaseReward
         } else {
@@ -7823,6 +7908,9 @@ impl CampaignSaveV1 {
                 "local_soft_credit_delta": recorded_local_soft_delta,
                 "wallet_credit_delta": wallet_credit_delta,
                 "double_issuance": policy == ValueSettlementPolicy::DualTrack,
+                "wallet_reward_per_event_cap": BATTLE_WALLET_REWARD_PER_EVENT_CAP,
+                "wallet_reward_daily_cap": BATTLE_WALLET_REWARD_DAILY_CAP,
+                "soft_credit_convertible_to_wallet": false,
             }),
             compensation: false,
         })?;
@@ -8147,6 +8235,7 @@ impl CampaignSaveV1 {
                     "reserve_intent_id": purchase.reserve_intent_id,
                     "buyer_account_id": purchase.buyer.account_id,
                     "seller_account_id": purchase.seller.account_id,
+                    "seller_reversible_window_seconds": SELLER_REVERSIBLE_WINDOW_SECONDS,
                 }),
                 compensation: false,
             })?;
@@ -8398,7 +8487,10 @@ mod tests {
         assert!(!receipt.duplicate);
         assert_eq!(receipt.experience_delta, 120);
         assert_eq!(receipt.credit_delta, 80);
-        let expected_economic_intent_id = format!("battle-reward:{}", receipt.battle_id);
+        let expected_economic_intent_id = format!(
+            "{}:battle-reward:{}",
+            campaign.campaign_id, receipt.battle_id
+        );
         assert_eq!(
             receipt.economic_intent_id.as_deref(),
             Some(expected_economic_intent_id.as_str())
@@ -9617,7 +9709,7 @@ mod tests {
         let store = CampaignStore::new(directory.path().join("regional-economy.json"));
         store.save_atomic(&campaign).unwrap();
         let loaded = store.load().unwrap();
-        assert_eq!(loaded.schema_revision, 11);
+        assert_eq!(loaded.schema_revision, 12);
         assert_eq!(loaded.regional_logistics, campaign.regional_logistics);
         assert_eq!(loaded.technique_mastery, campaign.technique_mastery);
     }
@@ -9716,9 +9808,9 @@ mod tests {
     }
 
     #[test]
-    fn revision_eleven_separates_value_events_and_asset_authorities() {
+    fn revision_twelve_separates_value_events_and_caps_wallet_issuance() {
         let campaign = CampaignSaveV1::default();
-        assert_eq!(campaign.schema_revision, 11);
+        assert_eq!(campaign.schema_revision, 12);
         assert_eq!(campaign.economy_mode, EconomyMode::OfflineLocal);
         assert_eq!(
             CampaignSaveV1::economy_asset_semantic("trnm-soft-credit").transferability,
@@ -9740,8 +9832,85 @@ mod tests {
             ..CampaignSaveV1::default()
         };
         revision_ten_complete_epilogue.ensure_gameplay_defaults();
+        assert_eq!(revision_ten_complete_epilogue.schema_revision, 12);
         assert_eq!(revision_ten_complete_epilogue.ending_epilogue_progress, 4);
         revision_ten_complete_epilogue.validate().unwrap();
+    }
+
+    #[test]
+    fn cex_campaign_and_intent_scopes_are_account_isolated_and_stable() {
+        let mut first = CampaignSaveV1::default();
+        let mut second = CampaignSaveV1::default();
+        first
+            .bind_cex_economy_account("player-one", "11111111-1111-1111-1111-111111111111")
+            .unwrap();
+        second
+            .bind_cex_economy_account("player-two", "22222222-2222-2222-2222-222222222222")
+            .unwrap();
+        assert_ne!(first.campaign_id, second.campaign_id);
+        let first_scope = first.campaign_id.clone();
+        first
+            .bind_cex_economy_account("player-one", "11111111-1111-1111-1111-111111111111")
+            .unwrap();
+        assert_eq!(first.campaign_id, first_scope);
+
+        for campaign in [&mut first, &mut second] {
+            campaign
+                .record_value_event(
+                    "shared-local-event".to_string(),
+                    "shared-local-intent".to_string(),
+                    ValueEventSource::Battle,
+                    ValueSettlementPolicy::DualTrack,
+                    10,
+                )
+                .unwrap();
+        }
+        assert_ne!(
+            first.pending_economic_intents[0].intent_id,
+            second.pending_economic_intents[0].intent_id
+        );
+        assert_ne!(
+            first.pending_economic_intents[0].idempotency_key.scope,
+            second.pending_economic_intents[0].idempotency_key.scope
+        );
+        assert!(first.pending_economic_intents[0]
+            .intent_id
+            .starts_with(&first.campaign_id));
+    }
+
+    #[test]
+    fn battle_wallet_issuance_is_bounded_for_a_full_simulated_year() {
+        let mut campaign = CampaignSaveV1::default();
+        campaign
+            .bind_cex_economy_account("player-one", "11111111-1111-1111-1111-111111111111")
+            .unwrap();
+        let mut total_wallet = 0_i64;
+        for day in 1..=365_u32 {
+            campaign.world_clock.day = day;
+            for event in 0..8 {
+                campaign
+                    .record_value_event(
+                        format!("annual-battle:{day}:{event}"),
+                        format!("annual-battle-intent:{day}:{event}"),
+                        ValueEventSource::Battle,
+                        ValueSettlementPolicy::DualTrack,
+                        80,
+                    )
+                    .unwrap();
+                total_wallet += campaign.value_events.last().unwrap().wallet_credit_delta;
+            }
+            assert_eq!(campaign.wallet_reward_issued_by_day[&day], 300);
+            campaign.pending_economic_intents.clear();
+            campaign.economic_idempotency_keys.clear();
+            campaign.value_events.clear();
+        }
+        assert_eq!(total_wallet, 365 * BATTLE_WALLET_REWARD_DAILY_CAP);
+        assert_eq!(
+            CampaignSaveV1::economy_asset_semantic("trnm-soft-credit").transferability,
+            EconomyTransferability::Bound
+        );
+        campaign.ensure_gameplay_defaults();
+        campaign.validate().unwrap();
     }
 
     #[test]

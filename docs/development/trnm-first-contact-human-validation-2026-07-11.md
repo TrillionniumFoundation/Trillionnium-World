@@ -2,7 +2,10 @@
 
 Status: executable validation packet; real human results remain pending.
 
-This runbook closes the procedural part of the only outstanding P0 gate. It
+This runbook closes the procedural part of the outstanding commercial
+single-player usability gate (Gate B in
+`trnm-native-game-release-gates-v1.md`). It does not block the already-green
+native software-alpha gate. It
 does not claim that an observer or player session happened. Automated tests,
 screenshots, the facilitator and the developer cannot substitute for the
 required independent people.
