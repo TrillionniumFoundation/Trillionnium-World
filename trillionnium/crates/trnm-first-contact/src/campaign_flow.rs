@@ -3,11 +3,17 @@ use super::simulation_adapter::{
     FirstContactCommand, FirstContactRuntime, FirstContactSimulationAdapter,
 };
 use bevy::prelude::*;
-use std::path::{Path, PathBuf};
+use std::{
+    env,
+    path::{Path, PathBuf},
+    time::Duration,
+};
 use trnm_campaign_core::{
-    CampaignError, CampaignPhase, CampaignRoom, CampaignSaveV1, CampaignStore, EncounterAction,
-    InputMode, PlayerSettings, PlayerSettingsStore, QuestBranch, QuestState, SaveSlotId,
-    SaveSlotMeta, SaveSlotStore, SectId, SettlementReceiptV1,
+    CampaignError, CampaignPhase, CampaignRoom, CampaignSaveV1, CampaignStore, EconomicIntent,
+    EconomicReceipt, EconomyAccountBinding, EconomyBackend, EconomyMode, EncounterAction,
+    InputMode, OfflineLocalEconomyBackend, PlayerSettings, PlayerSettingsStore, QuestBranch,
+    QuestState, SaveSlotId, SaveSlotMeta, SaveSlotStore, SectId, SettlementReceiptV1,
+    WalletSnapshot,
 };
 use trnm_rts_sim::{BattleReplayV2, MissionSimV1, SimCheckpointStore};
 
@@ -52,6 +58,89 @@ pub(super) struct CampaignFlow {
     settings_store: PlayerSettingsStore,
     store: CampaignStore,
     checkpoint_store: SimCheckpointStore,
+}
+
+#[derive(Debug, Clone)]
+struct CexHttpEconomyBackend {
+    base_url: String,
+    entry_token: Option<String>,
+    client: reqwest::blocking::Client,
+}
+
+impl CexHttpEconomyBackend {
+    fn from_env() -> Result<Self, String> {
+        let base_url =
+            env::var("TRNM_CEX_BASE_URL").unwrap_or_else(|_| "http://127.0.0.1:8090".to_string());
+        let client = reqwest::blocking::Client::builder()
+            .connect_timeout(Duration::from_secs(2))
+            .timeout(Duration::from_secs(5))
+            .build()
+            .map_err(|error| format!("CEX HTTP client: {error}"))?;
+        Ok(Self {
+            base_url,
+            entry_token: env::var("TRNM_CEX_ENTRY_TOKEN")
+                .ok()
+                .filter(|value| !value.trim().is_empty()),
+            client,
+        })
+    }
+
+    fn request(&self, path: &str) -> reqwest::blocking::RequestBuilder {
+        let request = self
+            .client
+            .post(format!("{}{}", self.base_url.trim_end_matches('/'), path));
+        if let Some(token) = &self.entry_token {
+            request.header("x-entry-token", token)
+        } else {
+            request
+        }
+    }
+}
+
+impl EconomyBackend for CexHttpEconomyBackend {
+    fn backend_id(&self) -> &str {
+        "cex-settlement-backend"
+    }
+
+    fn execute(&self, intent: &EconomicIntent) -> Result<EconomicReceipt, String> {
+        let response = self
+            .request("/v1/trillionnium/economy/intents")
+            .json(&serde_json::json!({"intent": intent}))
+            .send()
+            .map_err(|error| format!("CEX intent transport: {error}"))?;
+        let status = response.status();
+        let body = response
+            .text()
+            .map_err(|error| format!("CEX intent response: {error}"))?;
+        if !status.is_success() {
+            return Err(format!("CEX intent HTTP {status}: {body}"));
+        }
+        serde_json::from_str(&body).map_err(|error| format!("CEX receipt decode: {error}"))
+    }
+
+    fn wallet_snapshot(
+        &self,
+        binding: &EconomyAccountBinding,
+        cursor: u64,
+    ) -> Result<Option<WalletSnapshot>, String> {
+        let response = self
+            .request("/v1/trillionnium/economy/wallet")
+            .json(&serde_json::json!({
+                "actor_id": binding.actor_id,
+                "account_id": binding.account_id,
+                "reconciliation_cursor": cursor,
+            }))
+            .send()
+            .map_err(|error| format!("CEX wallet transport: {error}"))?;
+        let status = response.status();
+        if !status.is_success() {
+            return Err(format!("CEX wallet HTTP {status}"));
+        }
+        response
+            .json::<WalletSnapshot>()
+            .map(Some)
+            .map_err(|error| format!("CEX wallet decode: {error}"))
+    }
 }
 
 impl CampaignFlow {
@@ -326,6 +415,90 @@ impl CampaignFlow {
         Ok(())
     }
 
+    fn bind_cex_from_env_if_present(save: &mut CampaignSaveV1) -> Result<(), String> {
+        let Ok(account_id) = env::var("TRNM_CEX_ACCOUNT_ID") else {
+            return Ok(());
+        };
+        if account_id.trim().is_empty() {
+            return Ok(());
+        }
+        let actor_id =
+            env::var("TRNM_CEX_ACTOR_ID").unwrap_or_else(|_| save.character.character_id.clone());
+        if save
+            .economy_account_binding
+            .as_ref()
+            .is_none_or(|binding| binding.account_id != account_id || binding.actor_id != actor_id)
+        {
+            save.bind_cex_economy_account(actor_id, account_id)
+                .map_err(|error| error.to_string())?;
+        }
+        Ok(())
+    }
+
+    pub fn reconcile_economy_now(&mut self) -> Result<String, String> {
+        let mut candidate = self.save.clone();
+        Self::bind_cex_from_env_if_present(&mut candidate)?;
+        let report = if candidate.economy_mode == EconomyMode::CexConnected {
+            let backend = CexHttpEconomyBackend::from_env()?;
+            candidate
+                .reconcile_economy(&backend, 16)
+                .map_err(|error| error.to_string())?
+        } else {
+            candidate
+                .reconcile_economy(&OfflineLocalEconomyBackend, 16)
+                .map_err(|error| error.to_string())?
+        };
+        self.store
+            .save_atomic(&candidate)
+            .map_err(|error| error.to_string())?;
+        self.save = candidate;
+        Ok(format!(
+            "ECON {:?}: applied {}, holds {}, hard-fail {}, pending {}{}",
+            self.save.economy_mode,
+            report.applied,
+            report.recoverable_holds,
+            report.hard_failures,
+            report.remaining,
+            report
+                .last_error
+                .as_ref()
+                .map(|error| format!(" | {error}"))
+                .unwrap_or_default(),
+        ))
+    }
+
+    pub fn begin_tradeable_purchase_and_reconcile(&mut self) -> Result<String, String> {
+        let mut candidate = self.save.clone();
+        Self::bind_cex_from_env_if_present(&mut candidate)?;
+        let market_account_id = env::var("TRNM_CEX_MARKET_ACCOUNT_ID")
+            .ok()
+            .filter(|value| !value.trim().is_empty());
+        let purchase_id = candidate
+            .begin_selected_tradeable_purchase_with_seller_account(market_account_id.as_deref())
+            .map_err(|error| error.to_string())?;
+        let report = if candidate.economy_mode == EconomyMode::CexConnected {
+            let backend = CexHttpEconomyBackend::from_env()?;
+            candidate
+                .reconcile_economy(&backend, 8)
+                .map_err(|error| error.to_string())?
+        } else {
+            candidate
+                .reconcile_economy(&OfflineLocalEconomyBackend, 8)
+                .map_err(|error| error.to_string())?
+        };
+        self.store
+            .save_atomic(&candidate)
+            .map_err(|error| error.to_string())?;
+        self.save = candidate;
+        Ok(format!(
+            "TRADE {purchase_id}: applied {}, pending {}, wallet {}/{}",
+            report.applied,
+            report.remaining,
+            self.save.wallet_snapshot.available_credits,
+            self.save.wallet_snapshot.reserved_credits,
+        ))
+    }
+
     pub fn start_battle(&mut self, map: &FirstContactMap) -> Result<(), String> {
         let mut candidate = self.save.clone();
         let battle_map = map.battle_seed_map()?;
@@ -475,10 +648,18 @@ pub(super) fn handle_campaign_input(
         return;
     }
     if input.just_pressed(KeyCode::F7) {
-        match flow.cycle_control_scheme() {
-            Ok(()) => flow.status = format!("Control scheme: {:?}", flow.settings.control_scheme),
-            Err(error) => flow.status = error,
-        }
+        let control = input.pressed(KeyCode::ControlLeft) || input.pressed(KeyCode::ControlRight);
+        let shift = input.pressed(KeyCode::ShiftLeft) || input.pressed(KeyCode::ShiftRight);
+        let result = if control && shift {
+            flow.begin_tradeable_purchase_and_reconcile()
+        } else if control {
+            flow.reconcile_economy_now()
+        } else {
+            flow.cycle_control_scheme()
+                .map(|()| format!("Control scheme: {:?}", flow.settings.control_scheme))
+                .map_err(|error| error.to_string())
+        };
+        flow.status = result.unwrap_or_else(|error| error);
         return;
     }
     if input.just_pressed(KeyCode::F8) {

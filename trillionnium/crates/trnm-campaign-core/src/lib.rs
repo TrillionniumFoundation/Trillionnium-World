@@ -5,12 +5,21 @@
 //! aggregate is allowed to mutate persistent RPG progression.
 
 use serde::{Deserialize, Serialize};
+use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::{
     collections::{BTreeMap, BTreeSet},
     fmt, fs,
     io::Write,
     path::{Path, PathBuf},
+};
+pub use trnm_economy_protocol::{
+    ActorRef as EconomyActorRef, AssetRef as EconomyAssetRef, EconomicIntent, EconomicIntentKind,
+    EconomicReceipt, EconomyAccountBinding, EconomyAssetClass, EconomyAssetSemantic,
+    EconomyCurrencyClass, EconomyMode, EconomyTransferability,
+    IdempotencyKey as EconomyIdempotencyKey, ReceiptProgressionClass, ReceiptStatus,
+    SettlementBackendKind, WalletSnapshot, CEX_SETTLEMENT_BACKEND_ID, OFFLINE_LOCAL_BACKEND_ID,
+    TERM_EXCHANGE_PROTOCOL_VERSION,
 };
 use trnm_rpg_core::{
     inventory_item_for as trillionnium_inventory_item_for, market_price_with_state,
@@ -1586,7 +1595,112 @@ pub struct SettlementReceiptV1 {
     pub credit_delta: i64,
     pub loot_delta: Vec<LootStack>,
     pub injury_delta_by_unit: BTreeMap<String, u8>,
+    #[serde(default)]
+    pub economic_intent_id: Option<String>,
+    #[serde(default)]
+    pub economic_receipt_id: Option<String>,
     pub duplicate: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TradeablePurchaseStage {
+    ReservePending,
+    Reserved,
+    SellerSettlementPending,
+    SellerSettled,
+    BuyerConsumePending,
+    Consumed,
+    RefundPending,
+    Refunded,
+    HardFailed,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PendingTradeablePurchase {
+    pub purchase_id: String,
+    pub item_id: String,
+    pub quantity: u16,
+    pub price_wallet_credits: i64,
+    pub buyer: EconomyAccountBinding,
+    pub seller: EconomyAccountBinding,
+    pub stage: TradeablePurchaseStage,
+    pub reserve_intent_id: String,
+    #[serde(default)]
+    pub settle_intent_id: Option<String>,
+    #[serde(default)]
+    pub consume_intent_id: Option<String>,
+    #[serde(default)]
+    pub refund_intent_id: Option<String>,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct EconomyReconciliationReport {
+    pub attempted: u16,
+    pub applied: u16,
+    pub recoverable_holds: u16,
+    pub hard_failures: u16,
+    pub remaining: usize,
+    pub last_error: Option<String>,
+}
+
+struct EconomicIntentDraft {
+    kind: EconomicIntentKind,
+    term_id: String,
+    intent_id: String,
+    binding: EconomyAccountBinding,
+    asset_id: String,
+    quantity: i64,
+    amount_credits: i64,
+    metadata: Value,
+}
+
+pub trait EconomyBackend {
+    fn backend_id(&self) -> &str;
+    fn execute(&self, intent: &EconomicIntent) -> Result<EconomicReceipt, String>;
+    fn wallet_snapshot(
+        &self,
+        _binding: &EconomyAccountBinding,
+        _cursor: u64,
+    ) -> Result<Option<WalletSnapshot>, String> {
+        Ok(None)
+    }
+}
+
+#[derive(Debug, Clone, Copy, Default)]
+pub struct OfflineLocalEconomyBackend;
+
+impl EconomyBackend for OfflineLocalEconomyBackend {
+    fn backend_id(&self) -> &str {
+        OFFLINE_LOCAL_BACKEND_ID
+    }
+
+    fn execute(&self, intent: &EconomicIntent) -> Result<EconomicReceipt, String> {
+        intent.validate()?;
+        let status = match intent.kind {
+            EconomicIntentKind::Reserve => ReceiptStatus::Reserved,
+            EconomicIntentKind::Settle => ReceiptStatus::Settled,
+            EconomicIntentKind::Consume => ReceiptStatus::Consumed,
+            EconomicIntentKind::Refund => ReceiptStatus::Refunded,
+            EconomicIntentKind::Chargeback => ReceiptStatus::SellerChargebackConsumed,
+            EconomicIntentKind::ReleaseReward | EconomicIntentKind::CompleteContract => {
+                ReceiptStatus::ApprovedRelease
+            }
+            EconomicIntentKind::Quote => ReceiptStatus::SkippedZeroPrice,
+            EconomicIntentKind::VerifyReceipt => ReceiptStatus::Duplicate,
+        };
+        let mut receipt = EconomicReceipt::from_intent(
+            format!("offline-receipt:{}", intent.intent_id),
+            intent,
+            OFFLINE_LOCAL_BACKEND_ID,
+            SettlementBackendKind::LocalTest,
+            status,
+            intent.created_at_epoch,
+        );
+        receipt.settlement_reference = Some(intent.idempotency_key.key.clone());
+        receipt.evidence = json!({"authority": "trnm-campaign-core", "offline": true});
+        Ok(receipt)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -2027,6 +2141,8 @@ impl SettlementReceiptV1 {
             credit_delta: 0,
             loot_delta: Vec::new(),
             injury_delta_by_unit: BTreeMap::new(),
+            economic_intent_id: existing.economic_intent_id.clone(),
+            economic_receipt_id: existing.economic_receipt_id.clone(),
             duplicate: true,
         }
     }
@@ -2154,6 +2270,24 @@ pub struct CampaignSaveV1 {
     #[serde(default)]
     pub active_regional_caravans: Vec<RegionalCaravanState>,
     #[serde(default)]
+    pub economy_mode: EconomyMode,
+    #[serde(default)]
+    pub economy_account_binding: Option<EconomyAccountBinding>,
+    #[serde(default)]
+    pub wallet_snapshot: WalletSnapshot,
+    #[serde(default)]
+    pub pending_economic_intents: Vec<EconomicIntent>,
+    #[serde(default)]
+    pub verified_economic_receipts: Vec<EconomicReceipt>,
+    #[serde(default)]
+    pub economic_idempotency_keys: BTreeSet<String>,
+    #[serde(default)]
+    pub economic_dead_letters: Vec<EconomicIntent>,
+    #[serde(default)]
+    pub pending_tradeable_purchases: Vec<PendingTradeablePurchase>,
+    #[serde(default)]
+    pub reconciliation_cursor: u64,
+    #[serde(default)]
     pub quest_chain: Option<QuestChainProgress>,
     #[serde(default)]
     pub world_clock: WorldClock,
@@ -2219,7 +2353,7 @@ impl Default for CampaignSaveV1 {
         let item_conditions = character_item_conditions(&character);
         Self {
             contract_version: CAMPAIGN_SAVE_CONTRACT.to_string(),
-            schema_revision: 9,
+            schema_revision: 10,
             campaign_id: "local-campaign".to_string(),
             revision: 0,
             room: CampaignRoom::MirrorSquare,
@@ -2427,6 +2561,15 @@ impl Default for CampaignSaveV1 {
             regional_market_demand: default_regional_market_demand(),
             regional_logistics: Vec::new(),
             active_regional_caravans: Vec::new(),
+            economy_mode: EconomyMode::OfflineLocal,
+            economy_account_binding: None,
+            wallet_snapshot: WalletSnapshot::default(),
+            pending_economic_intents: Vec::new(),
+            verified_economic_receipts: Vec::new(),
+            economic_idempotency_keys: BTreeSet::new(),
+            economic_dead_letters: Vec::new(),
+            pending_tradeable_purchases: Vec::new(),
+            reconciliation_cursor: 0,
             quest_chain: None,
             world_clock: WorldClock::default(),
             expedition_supplies: ExpeditionSupplyState::default(),
@@ -2443,7 +2586,7 @@ impl Default for CampaignSaveV1 {
 
 impl CampaignSaveV1 {
     pub fn ensure_gameplay_defaults(&mut self) {
-        self.schema_revision = 9;
+        self.schema_revision = 10;
         if self.active_regional_quest_id.is_none() {
             self.active_regional_quest_step = 0;
             self.active_regional_quest_runtime = None;
@@ -2579,6 +2722,31 @@ impl CampaignSaveV1 {
             caravan.integrity = caravan.integrity.min(100);
             caravan.risk = caravan.risk.min(9);
         }
+        if self.economy_mode == EconomyMode::CexConnected && self.economy_account_binding.is_none()
+        {
+            self.economy_mode = EconomyMode::OfflineLocal;
+        }
+        if let Some(binding) = &self.economy_account_binding {
+            if self.wallet_snapshot.account_id.is_empty() {
+                self.wallet_snapshot.account_id = binding.account_id.clone();
+            }
+        }
+        if self.pending_economic_intents.len() > 128 {
+            self.pending_economic_intents.truncate(128);
+        }
+        if self.verified_economic_receipts.len() > 256 {
+            let keep_from = self.verified_economic_receipts.len() - 256;
+            self.verified_economic_receipts.drain(..keep_from);
+        }
+        if self.economic_dead_letters.len() > 64 {
+            let keep_from = self.economic_dead_letters.len() - 64;
+            self.economic_dead_letters.drain(..keep_from);
+        }
+        self.economic_idempotency_keys.extend(
+            self.pending_economic_intents
+                .iter()
+                .map(|intent| intent.idempotency_key.key.clone()),
+        );
         if self.character.display_name.trim().is_empty() {
             self.apply_character_identity_name();
         }
@@ -2645,7 +2813,7 @@ impl CampaignSaveV1 {
                 self.contract_version.clone(),
             ));
         }
-        if self.schema_revision != 9 {
+        if self.schema_revision != 10 {
             return Err(CampaignError::InvalidContract(format!(
                 "unsupported campaign schema revision {}",
                 self.schema_revision
@@ -2741,6 +2909,61 @@ impl CampaignSaveV1 {
         {
             return Err(CampaignError::InvalidState(
                 "regional market or logistics state is incomplete or out of bounds".to_string(),
+            ));
+        }
+        if self.pending_economic_intents.len() > 128
+            || self.verified_economic_receipts.len() > 256
+            || self.economic_dead_letters.len() > 64
+            || self.pending_tradeable_purchases.len() > 32
+            || self
+                .pending_economic_intents
+                .iter()
+                .any(|intent| intent.validate().is_err())
+            || self.verified_economic_receipts.iter().any(|receipt| {
+                receipt.protocol_version != TERM_EXCHANGE_PROTOCOL_VERSION
+                    || receipt.progression_class != receipt.status.progression_class()
+            })
+            || self.pending_tradeable_purchases.iter().any(|purchase| {
+                purchase.quantity == 0
+                    || purchase.price_wallet_credits <= 0
+                    || purchase.item_id.trim().is_empty()
+                    || purchase.buyer.account_id.trim().is_empty()
+                    || purchase.seller.account_id.trim().is_empty()
+            })
+            || self.settlement_receipts.iter().any(|settlement| {
+                settlement
+                    .economic_receipt_id
+                    .as_ref()
+                    .is_some_and(|receipt_id| {
+                        let Some(intent_id) = settlement.economic_intent_id.as_deref() else {
+                            return true;
+                        };
+                        !self.verified_economic_receipts.iter().any(|receipt| {
+                            receipt.receipt_id == *receipt_id && receipt.intent_id == intent_id
+                        })
+                    })
+            })
+            || self.economy_mode == EconomyMode::CexConnected
+                && self.economy_account_binding.is_none()
+        {
+            return Err(CampaignError::InvalidState(
+                "economy outbox, account binding or receipt state is invalid".to_string(),
+            ));
+        }
+        let linked_economic_intent_ids = self
+            .settlement_receipts
+            .iter()
+            .filter_map(|settlement| settlement.economic_intent_id.as_deref())
+            .collect::<BTreeSet<_>>();
+        if linked_economic_intent_ids.len()
+            != self
+                .settlement_receipts
+                .iter()
+                .filter(|settlement| settlement.economic_intent_id.is_some())
+                .count()
+        {
+            return Err(CampaignError::InvalidState(
+                "battle settlement economic intent links must be one-to-one".to_string(),
             ));
         }
         if self.active_party_ids.len() != 4 {
@@ -6356,13 +6579,23 @@ impl CampaignSaveV1 {
             credit_delta,
             loot_delta: result.loot.clone(),
             injury_delta_by_unit,
+            economic_intent_id: (credit_delta > 0)
+                .then(|| format!("battle-reward:{}", result.battle_id)),
+            economic_receipt_id: None,
             duplicate: false,
         };
         self.settled_battle_ids.insert(result.battle_id.clone());
         self.settlement_receipts.push(receipt.clone());
         self.pending_battle = None;
+        self.queue_battle_reward_economy(&receipt)?;
+        if self.economy_mode == EconomyMode::OfflineLocal {
+            self.reconcile_economy(&OfflineLocalEconomyBackend, 8)?;
+        }
         self.validate()?;
-        Ok(receipt)
+        Ok(self
+            .receipt_for(&receipt.battle_id)
+            .cloned()
+            .unwrap_or(receipt))
     }
 
     pub fn receipt_for(&self, battle_id: &str) -> Option<&SettlementReceiptV1> {
@@ -7253,6 +7486,458 @@ impl CampaignStore {
     }
 }
 
+impl CampaignSaveV1 {
+    fn effective_economy_binding(&self) -> EconomyAccountBinding {
+        self.economy_account_binding
+            .clone()
+            .unwrap_or_else(|| EconomyAccountBinding {
+                actor_id: self.character.character_id.clone(),
+                account_id: "trnm-offline-local-account".to_string(),
+                binding_revision: self.revision,
+            })
+    }
+
+    pub fn bind_cex_economy_account(
+        &mut self,
+        actor_id: impl Into<String>,
+        account_id: impl Into<String>,
+    ) -> Result<(), CampaignError> {
+        let actor_id = actor_id.into();
+        let account_id = account_id.into();
+        if actor_id.trim().is_empty() || account_id.trim().is_empty() {
+            return Err(CampaignError::InvalidState(
+                "CEX actor_id and account_id are required".to_string(),
+            ));
+        }
+        self.economy_mode = EconomyMode::CexConnected;
+        self.economy_account_binding = Some(EconomyAccountBinding {
+            actor_id,
+            account_id: account_id.clone(),
+            binding_revision: self.revision,
+        });
+        self.wallet_snapshot.account_id = account_id;
+        self.revision = self.revision.saturating_add(1);
+        self.validate()
+    }
+
+    pub fn use_offline_local_economy(&mut self) {
+        self.economy_mode = EconomyMode::OfflineLocal;
+        self.economy_account_binding = None;
+        self.wallet_snapshot.account_id = "trnm-offline-local-account".to_string();
+    }
+
+    pub fn economy_asset_semantic(item_id: &str) -> EconomyAssetSemantic {
+        if item_id == "trnm-soft-credit" {
+            return EconomyAssetSemantic::soft_credit();
+        }
+        if item_id == "cex-wallet-credit" {
+            return EconomyAssetSemantic::wallet_credit();
+        }
+        if item_id.starts_with("rts-resource:") {
+            return EconomyAssetSemantic::temporary_battle_resource(item_id);
+        }
+        let tradeable = ECONOMY_ITEM_CATALOG
+            .iter()
+            .find(|item| item.id == item_id)
+            .is_some_and(|item| item.material);
+        EconomyAssetSemantic {
+            asset_id: item_id.to_string(),
+            asset_class: if tradeable {
+                EconomyAssetClass::TradeableItem
+            } else {
+                EconomyAssetClass::BoundGameplayItem
+            },
+            transferability: if tradeable {
+                EconomyTransferability::Tradeable
+            } else {
+                EconomyTransferability::Bound
+            },
+            settlement_authority: if tradeable {
+                CEX_SETTLEMENT_BACKEND_ID.to_string()
+            } else {
+                "trnm-campaign-core".to_string()
+            },
+        }
+    }
+
+    fn queue_economic_intent(&mut self, draft: EconomicIntentDraft) -> Result<bool, CampaignError> {
+        let EconomicIntentDraft {
+            kind,
+            term_id,
+            intent_id,
+            binding,
+            asset_id,
+            quantity,
+            amount_credits,
+            metadata,
+        } = draft;
+        let idempotency_key = format!("{}:{}", self.campaign_id, intent_id);
+        if self.economic_idempotency_keys.contains(&idempotency_key) {
+            return Ok(false);
+        }
+        let semantic = Self::economy_asset_semantic(&asset_id);
+        let intent = EconomicIntent {
+            protocol_version: TERM_EXCHANGE_PROTOCOL_VERSION.to_string(),
+            intent_id,
+            term_id,
+            term_version: "v1".to_string(),
+            domain: "trnm_game".to_string(),
+            kind,
+            idempotency_key: EconomyIdempotencyKey {
+                scope: self.campaign_id.clone(),
+                key: idempotency_key.clone(),
+            },
+            actors: vec![EconomyActorRef {
+                actor_id: binding.actor_id,
+                actor_kind: "trnm_player".to_string(),
+                account_id: Some(binding.account_id),
+            }],
+            assets: vec![EconomyAssetRef {
+                asset_id,
+                asset_kind: format!("{:?}", semantic.asset_class).to_ascii_lowercase(),
+                quantity,
+                unit: "credits".to_string(),
+            }],
+            amount_credits: Some(amount_credits),
+            currency: Some("wallet_credits".to_string()),
+            metadata,
+            created_at_epoch: i64::from(self.world_clock.day) * 86_400
+                + i64::from(self.world_clock.minute_of_day) * 60,
+        };
+        intent.validate().map_err(CampaignError::InvalidState)?;
+        if self.pending_economic_intents.len() >= 128 {
+            return Err(CampaignError::InvalidState(
+                "economic outbox reached its bounded capacity".to_string(),
+            ));
+        }
+        self.economic_idempotency_keys.insert(idempotency_key);
+        self.pending_economic_intents.push(intent);
+        Ok(true)
+    }
+
+    fn queue_battle_reward_economy(
+        &mut self,
+        receipt: &SettlementReceiptV1,
+    ) -> Result<(), CampaignError> {
+        if receipt.duplicate || receipt.credit_delta <= 0 {
+            return Ok(());
+        }
+        let binding = self.effective_economy_binding();
+        self.queue_economic_intent(EconomicIntentDraft {
+            kind: EconomicIntentKind::ReleaseReward,
+            term_id: "trnm_battle_reward".to_string(),
+            intent_id: format!("battle-reward:{}", receipt.battle_id),
+            binding,
+            asset_id: "cex-wallet-credit".to_string(),
+            quantity: receipt.credit_delta,
+            amount_credits: receipt.credit_delta,
+            metadata: json!({
+                "battle_id": receipt.battle_id,
+                "result_hash": receipt.result_hash,
+                "local_soft_credit_delta": receipt.credit_delta,
+            }),
+        })?;
+        Ok(())
+    }
+
+    pub fn begin_selected_tradeable_purchase(&mut self) -> Result<String, CampaignError> {
+        self.begin_selected_tradeable_purchase_with_seller_account(None)
+    }
+
+    pub fn begin_selected_tradeable_purchase_with_seller_account(
+        &mut self,
+        connected_seller_account_id: Option<&str>,
+    ) -> Result<String, CampaignError> {
+        let region_id = self.require_regional_market()?;
+        let item = ECONOMY_ITEM_CATALOG
+            .get(self.selected_shop_item_index % ECONOMY_ITEM_CATALOG.len())
+            .ok_or_else(|| CampaignError::InvalidState("shop selection is missing".to_string()))?;
+        let semantic = Self::economy_asset_semantic(item.id);
+        if semantic.transferability != EconomyTransferability::Tradeable {
+            return Err(CampaignError::InvalidState(format!(
+                "{} is bound to local gameplay and never enters CEX",
+                item.display_name
+            )));
+        }
+        let (stock, demand) = self.regional_market_state(region_id, item.id);
+        if stock == 0 {
+            return Err(CampaignError::InvalidState(format!(
+                "{} is out of regional stock",
+                item.display_name
+            )));
+        }
+        let price = market_price_with_state(item.id, self.world_clock.day, stock, demand, true)
+            .ok_or_else(|| CampaignError::InvalidState("tradeable price is missing".to_string()))?;
+        let buyer = self.effective_economy_binding();
+        let seller_account_id = match (self.economy_mode, connected_seller_account_id) {
+            (EconomyMode::CexConnected, Some(account_id)) if !account_id.trim().is_empty() => {
+                account_id.to_string()
+            }
+            (EconomyMode::CexConnected, _) => {
+                return Err(CampaignError::InvalidState(
+                    "connected trade requires a configured CEX market account".to_string(),
+                ));
+            }
+            (EconomyMode::OfflineLocal, _) => format!("offline-market:{region_id}"),
+        };
+        let seller = EconomyAccountBinding {
+            actor_id: format!("trnm-market:{region_id}"),
+            account_id: seller_account_id,
+            binding_revision: self.revision,
+        };
+        let purchase_id = format!(
+            "trade:{}:{}:{}",
+            self.campaign_id, item.id, self.reconciliation_cursor
+        );
+        let reserve_intent_id = format!("{purchase_id}:reserve");
+        self.pending_tradeable_purchases
+            .push(PendingTradeablePurchase {
+                purchase_id: purchase_id.clone(),
+                item_id: item.id.to_string(),
+                quantity: 1,
+                price_wallet_credits: price,
+                buyer: buyer.clone(),
+                seller,
+                stage: TradeablePurchaseStage::ReservePending,
+                reserve_intent_id: reserve_intent_id.clone(),
+                settle_intent_id: None,
+                consume_intent_id: None,
+                refund_intent_id: None,
+            });
+        self.queue_economic_intent(EconomicIntentDraft {
+            kind: EconomicIntentKind::Reserve,
+            term_id: "trnm_tradeable_purchase".to_string(),
+            intent_id: reserve_intent_id,
+            binding: buyer,
+            asset_id: item.id.to_string(),
+            quantity: 1,
+            amount_credits: price,
+            metadata: json!({"purchase_id": purchase_id, "stage": "reserve", "region_id": region_id}),
+        })?;
+        Ok(purchase_id)
+    }
+
+    pub fn cancel_tradeable_purchase(&mut self, purchase_id: &str) -> Result<(), CampaignError> {
+        let index = self
+            .pending_tradeable_purchases
+            .iter()
+            .position(|purchase| purchase.purchase_id == purchase_id)
+            .ok_or_else(|| {
+                CampaignError::InvalidState("tradeable purchase is missing".to_string())
+            })?;
+        let purchase = self.pending_tradeable_purchases[index].clone();
+        let (kind, binding) = if purchase.stage == TradeablePurchaseStage::Consumed {
+            (EconomicIntentKind::Chargeback, purchase.seller.clone())
+        } else {
+            (EconomicIntentKind::Refund, purchase.buyer.clone())
+        };
+        let intent_id = format!("{}:recovery", purchase.purchase_id);
+        self.pending_tradeable_purchases[index].stage = TradeablePurchaseStage::RefundPending;
+        self.pending_tradeable_purchases[index].refund_intent_id = Some(intent_id.clone());
+        self.queue_economic_intent(EconomicIntentDraft {
+            kind,
+            term_id: "trnm_tradeable_purchase_recovery".to_string(),
+            intent_id,
+            binding,
+            asset_id: purchase.item_id,
+            quantity: i64::from(purchase.quantity),
+            amount_credits: purchase.price_wallet_credits,
+            metadata: json!({"purchase_id": purchase.purchase_id, "stage": "refund_or_chargeback"}),
+        })?;
+        Ok(())
+    }
+
+    fn apply_verified_economic_receipt(
+        &mut self,
+        intent: &EconomicIntent,
+        receipt: &EconomicReceipt,
+    ) -> Result<(), CampaignError> {
+        receipt
+            .validate_for(intent)
+            .map_err(CampaignError::InvalidState)?;
+        let bound_account = self.effective_economy_binding().account_id;
+        let applies_to_bound_wallet = intent
+            .actors
+            .first()
+            .and_then(|actor| actor.account_id.as_deref())
+            == Some(bound_account.as_str());
+        let amount = intent.amount_credits.unwrap_or_default().max(0);
+        if applies_to_bound_wallet && receipt.allows_progression() {
+            match intent.kind {
+                EconomicIntentKind::ReleaseReward | EconomicIntentKind::Settle => {
+                    self.wallet_snapshot.available_credits = self
+                        .wallet_snapshot
+                        .available_credits
+                        .saturating_add(amount);
+                }
+                EconomicIntentKind::Reserve => {
+                    self.wallet_snapshot.available_credits = self
+                        .wallet_snapshot
+                        .available_credits
+                        .saturating_sub(amount);
+                    self.wallet_snapshot.reserved_credits =
+                        self.wallet_snapshot.reserved_credits.saturating_add(amount);
+                }
+                EconomicIntentKind::Consume => {
+                    self.wallet_snapshot.reserved_credits =
+                        self.wallet_snapshot.reserved_credits.saturating_sub(amount);
+                }
+                EconomicIntentKind::Refund => {
+                    self.wallet_snapshot.available_credits = self
+                        .wallet_snapshot
+                        .available_credits
+                        .saturating_add(amount);
+                    self.wallet_snapshot.reserved_credits =
+                        self.wallet_snapshot.reserved_credits.saturating_sub(amount);
+                }
+                _ => {}
+            }
+        }
+
+        if intent.term_id == "trnm_battle_reward" && receipt.allows_progression() {
+            if let Some(settlement) = self.settlement_receipts.iter_mut().find(|settlement| {
+                settlement.economic_intent_id.as_deref() == Some(intent.intent_id.as_str())
+            }) {
+                settlement.economic_receipt_id = Some(receipt.receipt_id.clone());
+            }
+        }
+
+        let Some(index) = self
+            .pending_tradeable_purchases
+            .iter()
+            .position(|purchase| {
+                purchase.reserve_intent_id == intent.intent_id
+                    || purchase.settle_intent_id.as_deref() == Some(intent.intent_id.as_str())
+                    || purchase.consume_intent_id.as_deref() == Some(intent.intent_id.as_str())
+                    || purchase.refund_intent_id.as_deref() == Some(intent.intent_id.as_str())
+            })
+        else {
+            return Ok(());
+        };
+        if !receipt.allows_progression() {
+            if receipt.progression_class == ReceiptProgressionClass::HardFail {
+                self.pending_tradeable_purchases[index].stage = TradeablePurchaseStage::HardFailed;
+            }
+            return Ok(());
+        }
+        let purchase = self.pending_tradeable_purchases[index].clone();
+        if purchase.reserve_intent_id == intent.intent_id {
+            let next_id = format!("{}:settle", purchase.purchase_id);
+            self.pending_tradeable_purchases[index].stage =
+                TradeablePurchaseStage::SellerSettlementPending;
+            self.pending_tradeable_purchases[index].settle_intent_id = Some(next_id.clone());
+            self.queue_economic_intent(EconomicIntentDraft {
+                kind: EconomicIntentKind::Settle,
+                term_id: "trnm_tradeable_purchase".to_string(),
+                intent_id: next_id,
+                binding: purchase.seller,
+                asset_id: purchase.item_id,
+                quantity: i64::from(purchase.quantity),
+                amount_credits: purchase.price_wallet_credits,
+                metadata: json!({"purchase_id": purchase.purchase_id, "stage": "seller_settlement"}),
+            })?;
+        } else if purchase.settle_intent_id.as_deref() == Some(intent.intent_id.as_str()) {
+            let next_id = format!("{}:consume", purchase.purchase_id);
+            self.pending_tradeable_purchases[index].stage =
+                TradeablePurchaseStage::BuyerConsumePending;
+            self.pending_tradeable_purchases[index].consume_intent_id = Some(next_id.clone());
+            self.queue_economic_intent(EconomicIntentDraft {
+                kind: EconomicIntentKind::Consume,
+                term_id: "trnm_tradeable_purchase".to_string(),
+                intent_id: next_id,
+                binding: purchase.buyer,
+                asset_id: purchase.item_id,
+                quantity: i64::from(purchase.quantity),
+                amount_credits: purchase.price_wallet_credits,
+                metadata: json!({"purchase_id": purchase.purchase_id, "stage": "buyer_consume"}),
+            })?;
+        } else if purchase.consume_intent_id.as_deref() == Some(intent.intent_id.as_str()) {
+            self.pending_tradeable_purchases[index].stage = TradeablePurchaseStage::Consumed;
+            merge_loot(
+                &mut self.progression.inventory,
+                &[LootStack {
+                    item_id: purchase.item_id,
+                    quantity: purchase.quantity,
+                }],
+            );
+        } else if purchase.refund_intent_id.as_deref() == Some(intent.intent_id.as_str()) {
+            self.pending_tradeable_purchases[index].stage = TradeablePurchaseStage::Refunded;
+        }
+        Ok(())
+    }
+
+    pub fn reconcile_economy<B: EconomyBackend>(
+        &mut self,
+        backend: &B,
+        max_intents: usize,
+    ) -> Result<EconomyReconciliationReport, CampaignError> {
+        let mut report = EconomyReconciliationReport::default();
+        while (report.attempted as usize) < max_intents {
+            let Some(intent) = self.pending_economic_intents.first().cloned() else {
+                break;
+            };
+            report.attempted = report.attempted.saturating_add(1);
+            let receipt = match backend.execute(&intent) {
+                Ok(receipt) => receipt,
+                Err(error) => {
+                    report.recoverable_holds = report.recoverable_holds.saturating_add(1);
+                    report.last_error = Some(error);
+                    break;
+                }
+            };
+            if let Err(error) = receipt.validate_for(&intent) {
+                report.hard_failures = report.hard_failures.saturating_add(1);
+                report.last_error = Some(error);
+                self.economic_dead_letters.push(intent);
+                self.pending_economic_intents.remove(0);
+                continue;
+            }
+            if let Some(existing) = self
+                .verified_economic_receipts
+                .iter_mut()
+                .find(|existing| existing.receipt_id == receipt.receipt_id)
+            {
+                *existing = receipt.clone();
+            } else {
+                self.verified_economic_receipts.push(receipt.clone());
+            }
+            match receipt.progression_class {
+                ReceiptProgressionClass::ProgressionAllowed
+                | ReceiptProgressionClass::TerminalSkip => {
+                    self.pending_economic_intents.remove(0);
+                    self.apply_verified_economic_receipt(&intent, &receipt)?;
+                    report.applied = report.applied.saturating_add(1);
+                }
+                ReceiptProgressionClass::RecoverableHold => {
+                    report.recoverable_holds = report.recoverable_holds.saturating_add(1);
+                    report.last_error = receipt.reason.clone();
+                    break;
+                }
+                ReceiptProgressionClass::HardFail => {
+                    self.pending_economic_intents.remove(0);
+                    self.economic_dead_letters.push(intent.clone());
+                    self.apply_verified_economic_receipt(&intent, &receipt)?;
+                    report.hard_failures = report.hard_failures.saturating_add(1);
+                }
+            }
+            self.reconciliation_cursor = self.reconciliation_cursor.saturating_add(1);
+        }
+        if let Some(binding) = self.economy_account_binding.as_ref() {
+            if let Ok(Some(snapshot)) = backend.wallet_snapshot(binding, self.reconciliation_cursor)
+            {
+                self.wallet_snapshot = snapshot;
+            }
+        }
+        if self.verified_economic_receipts.len() > 256 {
+            let keep_from = self.verified_economic_receipts.len() - 256;
+            self.verified_economic_receipts.drain(..keep_from);
+        }
+        report.remaining = self.pending_economic_intents.len();
+        self.validate()?;
+        Ok(report)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -7376,6 +8061,19 @@ mod tests {
         assert!(!receipt.duplicate);
         assert_eq!(receipt.experience_delta, 120);
         assert_eq!(receipt.credit_delta, 80);
+        let expected_economic_intent_id = format!("battle-reward:{}", receipt.battle_id);
+        assert_eq!(
+            receipt.economic_intent_id.as_deref(),
+            Some(expected_economic_intent_id.as_str())
+        );
+        let economic_receipt_id = receipt
+            .economic_receipt_id
+            .as_deref()
+            .expect("offline battle reward receipt is linked");
+        assert!(campaign.verified_economic_receipts.iter().any(|economic| {
+            economic.receipt_id == economic_receipt_id
+                && economic.intent_id == receipt.economic_intent_id.as_deref().unwrap()
+        }));
         assert_eq!(campaign.quest_state, QuestState::Completed);
         assert_eq!(campaign.party[0].veteran_rank, 1);
         assert_eq!(campaign.party[0].confirmed_kills, 2);
@@ -8582,7 +9280,7 @@ mod tests {
         let store = CampaignStore::new(directory.path().join("regional-economy.json"));
         store.save_atomic(&campaign).unwrap();
         let loaded = store.load().unwrap();
-        assert_eq!(loaded.schema_revision, 9);
+        assert_eq!(loaded.schema_revision, 10);
         assert_eq!(loaded.regional_logistics, campaign.regional_logistics);
         assert_eq!(loaded.technique_mastery, campaign.technique_mastery);
     }
@@ -8623,6 +9321,179 @@ mod tests {
             .unwrap();
         assert!(caravan.guarded_by_player);
         assert_eq!(caravan.incident.as_deref(), Some("player_escort"));
+    }
+
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    enum FaultBackend {
+        Recoverable,
+        CorruptReceipt,
+    }
+
+    impl EconomyBackend for FaultBackend {
+        fn backend_id(&self) -> &str {
+            "fault-backend"
+        }
+
+        fn execute(&self, intent: &EconomicIntent) -> Result<EconomicReceipt, String> {
+            let mut receipt = EconomicReceipt::from_intent(
+                format!("fault:{}", intent.intent_id),
+                intent,
+                "fault-backend",
+                SettlementBackendKind::LocalTest,
+                ReceiptStatus::FailedNetwork,
+                intent.created_at_epoch,
+            );
+            receipt.reason = Some("simulated transport outage".to_string());
+            if *self == Self::CorruptReceipt {
+                receipt.intent_id = "wrong-intent".to_string();
+            }
+            Ok(receipt)
+        }
+    }
+
+    #[test]
+    fn revision_ten_separates_soft_wallet_bound_tradeable_and_ephemeral_assets() {
+        let campaign = CampaignSaveV1::default();
+        assert_eq!(campaign.schema_revision, 10);
+        assert_eq!(campaign.economy_mode, EconomyMode::OfflineLocal);
+        assert_eq!(
+            CampaignSaveV1::economy_asset_semantic("trnm-soft-credit").transferability,
+            EconomyTransferability::Bound
+        );
+        assert_eq!(
+            CampaignSaveV1::economy_asset_semantic("salvaged-alloy").transferability,
+            EconomyTransferability::Tradeable
+        );
+        assert_eq!(
+            CampaignSaveV1::economy_asset_semantic("rts-resource:cyan").transferability,
+            EconomyTransferability::Ephemeral
+        );
+    }
+
+    #[test]
+    fn economy_outbox_is_exactly_once_and_fail_closed_across_reload() {
+        let mut campaign = CampaignSaveV1::default();
+        campaign
+            .bind_cex_economy_account("player-one", "account-one")
+            .unwrap();
+        let receipt = SettlementReceiptV1 {
+            contract_version: SETTLEMENT_RECEIPT_CONTRACT.to_string(),
+            battle_id: "battle-economy-1".to_string(),
+            seed_hash: "seed".to_string(),
+            result_hash: "result".to_string(),
+            campaign_revision_before: 1,
+            campaign_revision_after: 2,
+            outcome: BattleOutcome::Victory,
+            experience_delta: 10,
+            reputation_delta: 1,
+            credit_delta: 80,
+            loot_delta: Vec::new(),
+            injury_delta_by_unit: BTreeMap::new(),
+            economic_intent_id: Some("battle-reward:battle-economy-1".to_string()),
+            economic_receipt_id: None,
+            duplicate: false,
+        };
+        campaign.queue_battle_reward_economy(&receipt).unwrap();
+        campaign.queue_battle_reward_economy(&receipt).unwrap();
+        assert_eq!(campaign.pending_economic_intents.len(), 1);
+        let report = campaign
+            .reconcile_economy(&FaultBackend::Recoverable, 4)
+            .unwrap();
+        assert_eq!(report.recoverable_holds, 1);
+        assert_eq!(campaign.pending_economic_intents.len(), 1);
+        assert_eq!(campaign.wallet_snapshot.available_credits, 0);
+
+        let directory = tempdir().unwrap();
+        let store = CampaignStore::new(directory.path().join("economy.json"));
+        store.save_atomic(&campaign).unwrap();
+        let mut loaded = store.load().unwrap();
+        assert_eq!(loaded.pending_economic_intents.len(), 1);
+        let report = loaded
+            .reconcile_economy(&OfflineLocalEconomyBackend, 4)
+            .unwrap();
+        assert_eq!(report.applied, 1);
+        assert_eq!(loaded.wallet_snapshot.available_credits, 80);
+        assert!(loaded.pending_economic_intents.is_empty());
+        assert_eq!(loaded.verified_economic_receipts.len(), 2);
+        loaded
+            .queue_battle_reward_economy(&receipt)
+            .expect("duplicate queue is a no-op");
+        assert!(loaded.pending_economic_intents.is_empty());
+    }
+
+    #[test]
+    fn tradeable_purchase_runs_reserve_settle_consume_and_corrupt_receipts_dead_letter() {
+        let selected_shop_item_index = ECONOMY_ITEM_CATALOG
+            .iter()
+            .position(|item| item.material)
+            .unwrap();
+        let mut campaign = CampaignSaveV1 {
+            room: CampaignRoom::MarketWindPavilion,
+            selected_shop_item_index,
+            ..CampaignSaveV1::default()
+        };
+        let item_id = ECONOMY_ITEM_CATALOG[campaign.selected_shop_item_index]
+            .id
+            .to_string();
+        campaign.begin_selected_tradeable_purchase().unwrap();
+        let report = campaign
+            .reconcile_economy(&OfflineLocalEconomyBackend, 8)
+            .unwrap();
+        assert_eq!(report.applied, 3);
+        assert_eq!(
+            campaign.pending_tradeable_purchases[0].stage,
+            TradeablePurchaseStage::Consumed
+        );
+        assert!(campaign
+            .progression
+            .inventory
+            .iter()
+            .any(|loot| loot.item_id == item_id));
+
+        let binding = campaign.effective_economy_binding();
+        campaign
+            .queue_economic_intent(EconomicIntentDraft {
+                kind: EconomicIntentKind::ReleaseReward,
+                term_id: "corrupt_test".to_string(),
+                intent_id: "corrupt-test-intent".to_string(),
+                binding,
+                asset_id: "cex-wallet-credit".to_string(),
+                quantity: 1,
+                amount_credits: 1,
+                metadata: json!({}),
+            })
+            .unwrap();
+        let report = campaign
+            .reconcile_economy(&FaultBackend::CorruptReceipt, 1)
+            .unwrap();
+        assert_eq!(report.hard_failures, 1);
+        assert_eq!(campaign.economic_dead_letters.len(), 1);
+    }
+
+    #[test]
+    fn connected_trade_requires_an_explicit_cex_market_account() {
+        let selected_shop_item_index = ECONOMY_ITEM_CATALOG
+            .iter()
+            .position(|item| item.material)
+            .unwrap();
+        let mut campaign = CampaignSaveV1 {
+            room: CampaignRoom::MarketWindPavilion,
+            selected_shop_item_index,
+            ..CampaignSaveV1::default()
+        };
+        campaign
+            .bind_cex_economy_account("player-one", "11111111-1111-1111-1111-111111111111")
+            .unwrap();
+        assert!(campaign.begin_selected_tradeable_purchase().is_err());
+        campaign
+            .begin_selected_tradeable_purchase_with_seller_account(Some(
+                "22222222-2222-2222-2222-222222222222",
+            ))
+            .unwrap();
+        assert_eq!(
+            campaign.pending_tradeable_purchases[0].seller.account_id,
+            "22222222-2222-2222-2222-222222222222"
+        );
     }
 
     #[test]

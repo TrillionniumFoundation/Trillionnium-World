@@ -1,6 +1,6 @@
 # TRNM Release Readiness
 
-Updated date: 2026-07-11
+Updated date: 2026-07-12
 Scope: When citing this file, you must always record the current output of `git rev-parse origin/main`. Do not keep using a fixed commit hash from an older doc header as a permanent truth source.
 
 > This file is the active **release readiness truth source**.
@@ -30,7 +30,7 @@ Current major drift risks include:
 6. `/api/v0/web4/*` references are historical V0 naming. There is no corresponding Next.js route currently; effective read semantics come from `web4-frontend/lib/api-contract/*` and `web4-frontend/lib/dashboard/source.ts`.
 7. Concurrency closeout and external comparisons are still in document-consolidation phase: `docs/reports/TRNM_CONCURRENCY_BOTTLENECK_MAP_AND_8W_ROADMAP_2026-03-10.md` is the current bottleneck map and 8-week route entry, `docs/reports/TRNM_CONCURRENCY_COMPARISON_2026-03-05.md` is an external benchmark draft; both describe progress, not release proof.
 8. Trillionnium World release-review handoff gates can be green for local review while public launch remains blocked. Treat `release_review_ci_gate_green_with_public_launch_blockers` as a local review packet result, not external readiness.
-9. Trillionnium World work can drift back to old CEX or removed `trnm-world-bevy` semantics if the boundary is not checked. The only native playable client is `trillionnium/crates/trnm-first-contact`; the removed implementation is recoverable only through `docs/archive/frozen-legacy-final-index-2026-07-11.md` and Git history.
+9. Trillionnium World work can drift back to old CEX World or removed `trnm-world-bevy` semantics if the boundary is not checked. The only native playable client is `trillionnium/crates/trnm-first-contact`; CEX is now only an optional settlement backend behind `trnm-economy-protocol`, and the removed implementation is recoverable only through `docs/archive/frozen-legacy-final-index-2026-07-11.md` and Git history.
 
 ## Component Status
 
@@ -54,13 +54,13 @@ Current major drift risks include:
 - **Status**: Local release-review handoff packet is available, but public launch is still blocked on real external evidence.
 - **Game software scope**: the finite v1 checklist in `docs/development/trnm-deep-rpg-complete-rts-v1-dod.md` is a completed historical acceptance baseline, not proof that the broader deep-RPG + complete-RTS vision is 100%; this does not change the repository-wide or public-launch conclusion above.
 - **Primary local aggregate command**: `scripts/check_trillionnium_world_release_review_ci_gate.sh`.
-- **Current game boundary gate**: `scripts/check_trnm_game_product.sh` verifies the five-crate product and rejects removed World/RTS dependencies. `scripts/check_trillionnium_world_client_boundary.sh` is a historical pre-cleanup checker and grants no current product credit.
-- **Current game depth evidence**: `GAME_STATUS.md` enumerates the revision-9 branch-consequence/multi-beat-chapter/epilogue/autonomous-social/visible-caravan state and the shared worker/job-command/construction/structure, meaningful-seed, normal-growth terminal, 64-sample economy-matrix and checkpointed chunked-replay authority. The automated real-map/faction/spawn/seed matrix is regression evidence, not a public-launch or esports-balance claim.
+- **Current game boundary gate**: `scripts/check_trnm_game_product.sh` verifies the six-crate product and rejects removed World/RTS dependencies. `scripts/check_trillionnium_world_client_boundary.sh` is a historical pre-cleanup checker and grants no current product credit.
+- **Current game depth evidence**: `GAME_STATUS.md` enumerates the revision-10 branch-consequence/multi-beat-chapter/epilogue/autonomous-social/visible-caravan state, typed economic outbox/receipt/reconciliation boundary and the shared worker/job-command/construction/structure, meaningful-seed, normal-growth terminal, 64-sample economy-matrix and checkpointed chunked-replay authority. The automated real-map/faction/spawn/seed matrix is regression evidence, not a public-launch or esports-balance claim.
 - **Current aggregate artifact**: `acceptance/S6_public_launch/latest/release-review-ci-gate.json`.
 - **Contract**: `trillionnium_world_release_review_ci_gate_v1`.
 - **Expected local status while blockers remain**: `release_review_ci_gate_green_with_public_launch_blockers`.
-- **Current interpretation**: the five-crate native product is locally playable; `public_launch_ready=false` and `android_s5_real_device_claimed=false`. Historical release-review packets that credited CEX adapter readiness are stale after the legacy workspace removal and must not be cited as current green evidence.
-- **What it proves**: current product tests, deterministic E2E, release build, live desktop window and the five-crate boundary are local evidence only. The old CEX adapter gate is retired/blocked because its cached JSON did not prove the current CEX checkout builds and its World trait dependencies were removed.
+- **Current interpretation**: the six-crate native product is locally playable; `public_launch_ready=false` and `android_s5_real_device_claimed=false`. Historical release-review packets that credited the old CEX World adapter remain stale; current credit requires the game-owned v2 protocol, current CEX build and real-ledger E2E.
+- **What it proves**: current product tests, deterministic E2E, release build, live desktop window, six-crate boundary and local CEX/ledger failure tests are local evidence only. CEX no longer imports the removed World traits; this does not prove public CEX deployment, production account issuance, legal/commercial readiness or public player trading.
 - **What it does not prove**: Android S5 real-device launch/FPS/lifecycle/crash-free readiness, production/public map-pack readiness, first beta cohort evidence, commercial launch drill evidence, multi-node or live-traffic latency, or public-network live exposure.
 - **Still required before public launch readiness**: S5 Android real-device matrix, production map-pack public evidence, first beta cohort evidence, commercial launch drill evidence, multi-node/live-traffic latency evidence, and public-network live exposure evidence.
 

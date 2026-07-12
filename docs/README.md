@@ -15,6 +15,7 @@
 - Historical July World review/evidence queue: `archive/world-review-2026-07/README.md`
 - Frozen World/Bevy plans and reviews: `archive/world-bevy/README.md`
 - Term Exchange Kernel: `development/trillionnium-term-exchange-kernel-v1.md`
+- Current native game / CEX economy integration: `development/trnm-cex-economy-integration-v1.md`
 - CEX runtime plugin split for Trillionnium World: `development/trillionnium-cex-runtime-plugin-split-v1.md`
 - Repo layout: `architecture/rust-l1-repo-layout.md`
 - PoCO sequence draft: `../trillionnium/docs/protocol/poco-proof-of-consumption-v1-draft.md`

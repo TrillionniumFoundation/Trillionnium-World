@@ -40,6 +40,8 @@ Mirror Square
 | --- | --- | --- |
 | RPG/world primitives | `trnm-rpg-core` | Lightweight attributes, character/inventory vocabulary and data-driven world graph/transition rules used by the product. |
 | Campaign/save/progression | `trnm-campaign-core` | Sole authority for RPG mutation and settlement. |
+| Economic intent/receipt protocol | `trnm-economy-protocol` | Pure game-owned protocol for asset semantics, account binding, intents, receipts, backend manifest and fail-closed progression classes. |
+| CEX settlement backend | CEX `consumer-entry-api` | Optional wallet/ledger backend. It never owns RPG/RTS simulation or native presentation. |
 | Frame-order contract | `trnm-rts-protocol` | Lightweight player-order validation and deterministic stream contract. |
 | Battle simulation | `trnm-rts-sim` | Bevy-free, two-dimensional, map-aware simulation consuming `RtsFrameOrder` as its only player input. |
 | Native presentation/input | `trnm-first-contact` | Consumes `BattleSeedV1`; may only emit `BattleResultV1`. |
@@ -55,10 +57,11 @@ Mirror Square
 - `trnm_rts_sim_v16`
 - `trnm_rts_sim_checkpoint_v16`
 
-Campaign persistence remains `trnm_campaign_save_v1` with schema revision 9.
-Revision 9 adds multi-beat chapter scenes and ending epilogues plus routed,
-visible caravan entities with player interaction while preserving older save
-migration paths.
+Campaign persistence remains `trnm_campaign_save_v1` with schema revision 10.
+Revision 10 retains the revision-9 multi-beat chapter/epilogue and visible
+caravan state, and adds account binding, wallet snapshots, pending economic
+intents, verified receipts, idempotency keys, dead letters, trade lifecycle and
+reconciliation cursor while preserving older save migration paths.
 
 `BattleSeedV1` binds campaign revision, battle id, map/rules version, four
 persistent party members, spawn slots, skills, typed equipment modifiers,

@@ -9,6 +9,7 @@ authors.workspace = true
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.10"
+trnm-economy-protocol = { path = "../trnm-economy-protocol" }
 trnm-rpg-core = { path = "../trnm-rpg-core" }
 
 [dev-dependencies]

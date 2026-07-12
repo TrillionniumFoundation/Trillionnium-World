@@ -334,6 +334,16 @@ fn town_body(flow: &CampaignFlow) -> String {
             )
         }
     };
+    let body = format!(
+        "{body}\n\nECONOMY: {:?} | soft {} | wallet available {} / reserved {} | outbox {} | receipts {} | dead letters {}\nCtrl+F7 binds from TRNM_CEX_ACCOUNT_ID/TRNM_CEX_ACTOR_ID and reconciles; Ctrl+Shift+F7 starts a tradeable Reserve→Settle→Consume purchase using TRNM_CEX_MARKET_ACCOUNT_ID. RTS resources and bound items remain local authority.",
+        save.economy_mode,
+        save.progression.credits,
+        save.wallet_snapshot.available_credits,
+        save.wallet_snapshot.reserved_credits,
+        save.pending_economic_intents.len(),
+        save.verified_economic_receipts.len(),
+        save.economic_dead_letters.len(),
+    );
     if flow.settings.subtitles && !save.combat_log.is_empty() {
         let captions = save
             .combat_log

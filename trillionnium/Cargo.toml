@@ -1,5 +1,6 @@
 [workspace]
 members = [
+  "crates/trnm-economy-protocol",
   "crates/trnm-rpg-core",
   "crates/trnm-campaign-core",
   "crates/trnm-rts-protocol",

@@ -1,5 +1,10 @@
 # Trillionnium Term Exchange Kernel v1
 
+> Historical architecture baseline. The current native-game implementation is
+> `term_exchange_protocol_v2` in the Trillionnium-owned
+> `trnm-economy-protocol` crate; see `trnm-cex-economy-integration-v1.md`.
+> CEX no longer depends on the removed `trnm-world-*` crates.
+
 **Decision**: the stable economic layer is the **Term Exchange Kernel**, not CEX itself. CEX is the first settlement backend; DEX/chain settlement must plug into the same protocol later.
 
 Primary runtime manifest:
