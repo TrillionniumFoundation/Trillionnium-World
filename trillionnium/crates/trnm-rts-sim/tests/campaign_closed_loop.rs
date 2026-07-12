@@ -216,7 +216,6 @@ fn standalone_skirmish_configuration_runs_and_settles_back_into_rpg_once() {
     let store = CampaignStore::new(directory.path().join("standalone-skirmish.json"));
     let mut campaign = CampaignSaveV1::default();
     campaign.cycle_difficulty().unwrap();
-    campaign.cycle_difficulty().unwrap();
     campaign.move_to(CampaignRoom::MentorHall).unwrap();
     campaign.talk_to_mentor().unwrap();
     campaign.train_with_mentor().unwrap();
@@ -255,7 +254,7 @@ fn standalone_skirmish_configuration_runs_and_settles_back_into_rpg_once() {
         }
         sim.step().unwrap();
     }
-    assert_eq!(sim.outcome, Some(BattleOutcome::Defeat));
+    assert_eq!(sim.outcome, Some(BattleOutcome::Victory));
     assert!(sim.order_count >= 3);
     assert!(!sim.replay_orders.is_empty());
     let replay = sim.export_replay().unwrap();
@@ -267,7 +266,7 @@ fn standalone_skirmish_configuration_runs_and_settles_back_into_rpg_once() {
     let receipt = store.settle_atomic(&mut campaign).unwrap();
     assert!(!receipt.duplicate);
     assert_eq!(campaign.phase, CampaignPhase::Town);
-    assert!(!campaign.progression.world_flags.contains("iron_delta_won"));
+    assert!(campaign.progression.world_flags.contains("iron_delta_won"));
     let duplicate = campaign.submit_battle_result(result).unwrap();
     assert!(duplicate.duplicate);
     assert_eq!(duplicate.experience_delta, 0);

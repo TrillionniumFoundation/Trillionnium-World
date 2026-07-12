@@ -42,6 +42,9 @@ pub(super) struct CampaignFlow {
     pub active_slot: SaveSlotId,
     pub selected_slot: SaveSlotId,
     pub overwrite_pending: Option<SaveSlotId>,
+    pub replay_cursor_tick: u64,
+    pub replay_speed: u8,
+    pub replay_paused: bool,
     pub settings: PlayerSettings,
     slot_store: SaveSlotStore,
     settings_store: PlayerSettingsStore,
@@ -126,6 +129,9 @@ impl CampaignFlow {
             active_slot: SaveSlotId::A,
             selected_slot: SaveSlotId::A,
             overwrite_pending: None,
+            replay_cursor_tick: 0,
+            replay_speed: 1,
+            replay_paused: true,
             settings,
             slot_store,
             settings_store,
@@ -334,6 +340,7 @@ impl CampaignFlow {
         self.last_receipt = None;
         self.last_checkpoint_tick = 0;
         self.mode = CampaignMode::Battle;
+        self.shell_mode = ShellMode::Playing;
         self.status = format!(
             "BattleSeed accepted: {} deployed",
             self.save.active_mission.display_name()
@@ -392,6 +399,9 @@ impl CampaignFlow {
         let replay = BattleReplayV2::load_verified(&self.replay_path())
             .map_err(|error| format!("No verified replay for this slot: {error}"))?;
         self.shell_mode = ShellMode::ReplayBrowser;
+        self.replay_cursor_tick = 0;
+        self.replay_speed = 1;
+        self.replay_paused = true;
         self.status = format!(
             "REPLAY {} | {} chunks / {} orders | final tick {} | hash {}",
             replay.seed.map_id,
@@ -555,7 +565,24 @@ pub(super) fn handle_campaign_input(
             return;
         }
         ShellMode::ReplayBrowser => {
-            if input.just_pressed(KeyCode::Enter) {
+            if input.just_pressed(KeyCode::Space) {
+                flow.replay_paused = !flow.replay_paused;
+            } else if input.just_pressed(KeyCode::ArrowUp) {
+                flow.replay_speed = match flow.replay_speed {
+                    1 => 2,
+                    2 => 4,
+                    4 => 8,
+                    _ => 1,
+                };
+            } else if input.just_pressed(KeyCode::ArrowLeft) {
+                flow.replay_cursor_tick = flow
+                    .replay_cursor_tick
+                    .saturating_sub(60 * u64::from(flow.replay_speed));
+            } else if input.just_pressed(KeyCode::ArrowRight) {
+                flow.replay_cursor_tick = flow
+                    .replay_cursor_tick
+                    .saturating_add(60 * u64::from(flow.replay_speed));
+            } else if input.just_pressed(KeyCode::Enter) {
                 match BattleReplayV2::load_verified(&flow.replay_path())
                     .and_then(|replay| replay.replay_and_verify())
                 {
@@ -571,6 +598,41 @@ pub(super) fn handle_campaign_input(
             } else if input.just_pressed(KeyCode::Escape) {
                 flow.shell_mode = ShellMode::Title;
                 flow.status = "Replay browser closed".to_string();
+                return;
+            }
+            if !flow.replay_paused {
+                flow.replay_cursor_tick = flow
+                    .replay_cursor_tick
+                    .saturating_add(u64::from(flow.replay_speed));
+            }
+            if input.just_pressed(KeyCode::Space)
+                || input.just_pressed(KeyCode::ArrowUp)
+                || input.just_pressed(KeyCode::ArrowLeft)
+                || input.just_pressed(KeyCode::ArrowRight)
+                || !flow.replay_paused
+            {
+                match BattleReplayV2::load_verified(&flow.replay_path()).and_then(|replay| {
+                    flow.replay_cursor_tick = flow.replay_cursor_tick.min(replay.final_tick);
+                    replay
+                        .replay_until_tick(flow.replay_cursor_tick)
+                        .map(|sim| (replay.final_tick, sim))
+                }) {
+                    Ok((final_tick, sim)) => {
+                        flow.status = format!(
+                            "Replay {} at tick {}/{} | {}x | {:?} | party {} enemy {} | resources {}/{}",
+                            if flow.replay_paused { "paused" } else { "playing" },
+                            sim.tick,
+                            final_tick,
+                            flow.replay_speed,
+                            sim.phase,
+                            sim.party.iter().filter(|unit| unit.hp > 0).count(),
+                            sim.enemies.iter().filter(|unit| unit.hp > 0).count(),
+                            sim.resources_available,
+                            sim.enemy_resources_available,
+                        );
+                    }
+                    Err(error) => flow.status = error.to_string(),
+                }
             }
             return;
         }
@@ -658,8 +720,13 @@ pub(super) fn handle_campaign_input(
             )
         } else if input.just_pressed(KeyCode::KeyK) {
             (
-                Some(EncounterAction::Technique),
-                "Released a momentum-powered sect technique",
+                Some(EncounterAction::PrimaryTechnique),
+                "Released the selected primary sect technique",
+            )
+        } else if input.just_pressed(KeyCode::KeyL) {
+            (
+                Some(EncounterAction::SecondaryTechnique),
+                "Released the selected secondary sect technique and checked its combo",
             )
         } else if input.just_pressed(KeyCode::KeyI) {
             (
@@ -746,6 +813,7 @@ pub(super) fn handle_campaign_input(
         set_status(&mut flow, result, "Entered Outer Signal Road");
     } else if input.just_pressed(KeyCode::KeyT) {
         let shift = input.pressed(KeyCode::ShiftLeft) || input.pressed(KeyCode::ShiftRight);
+        let control = input.pressed(KeyCode::ControlLeft) || input.pressed(KeyCode::ControlRight);
         if shift && flow.save.room != CampaignRoom::ExpeditionGate {
             let result = flow.mutate_town(|save| save.cycle_dialogue_choice().map(|_| ()));
             set_status(&mut flow, result, "Changed the next NPC dialogue choice");
@@ -756,13 +824,21 @@ pub(super) fn handle_campaign_input(
             set_status(&mut flow, result, "Changed skirmish faction matchup");
             return;
         }
-        let regional_interactions = flow.save.current_regional_npc_interactions();
-        if flow.save.room == CampaignRoom::WorkshopGate && regional_interactions > 0 {
-            let result = flow.mutate_town(|save| save.join_regional_sect(SectId::IronWorkshop));
-            set_status(&mut flow, result, "Committed to Iron Workshop Gate");
-        } else if flow.save.room == CampaignRoom::NightWatchPost && regional_interactions > 0 {
-            let result = flow.mutate_town(|save| save.join_regional_sect(SectId::NightWatch));
-            set_status(&mut flow, result, "Committed to the Night Watch Alliance");
+        if control {
+            let sect = match flow.save.room {
+                CampaignRoom::MentorHall => Some(SectId::StreetCompass),
+                CampaignRoom::WorkshopGate => Some(SectId::IronWorkshop),
+                CampaignRoom::NightWatchPost => Some(SectId::NightWatch),
+                _ => None,
+            };
+            let result = sect
+                .ok_or_else(|| {
+                    CampaignError::InvalidState(
+                        "Ctrl+T commits only inside one of the three sect halls".to_string(),
+                    )
+                })
+                .and_then(|sect| flow.mutate_town(|save| save.join_regional_sect(sect)));
+            set_status(&mut flow, result, "Committed to the regional sect");
         } else if flow.save.room == CampaignRoom::MentorHall && !flow.save.mentor_met {
             let result = flow.mutate_town(CampaignSaveV1::talk_to_mentor);
             set_status(
@@ -880,6 +956,9 @@ pub(super) fn handle_campaign_input(
             result,
             "Completed the selected path mastery challenge",
         );
+    } else if control && shift && input.just_pressed(KeyCode::KeyB) {
+        let result = flow.mutate_town(|save| save.resolve_pending_main_story_chapter().map(|_| ()));
+        set_status(&mut flow, result, "Resolved the playable chapter scene");
     } else if shift && input.just_pressed(KeyCode::KeyB) {
         let result = flow.mutate_town(|save| save.cycle_main_story_choice().map(|_| ()));
         set_status(
@@ -895,13 +974,23 @@ pub(super) fn handle_campaign_input(
         };
         set_status(&mut flow, result, "Advanced the Cistern Relief quest chain");
     } else if input.just_pressed(KeyCode::KeyN) {
-        let result = flow
-            .mutate_town(|save| save.choose_cistern_relief_branch(QuestBranch::ReinforceCistern));
-        set_status(
-            &mut flow,
-            result,
-            "Reinforced the cistern and earned Brann's trust",
-        );
+        if flow.save.active_regional_quest_id.is_some() {
+            let result = flow.mutate_town(|save| save.advance_toward_current_task().map(|_| ()));
+            set_status(
+                &mut flow,
+                result,
+                "Walked one legal edge toward the active quest",
+            );
+        } else {
+            let result = flow.mutate_town(|save| {
+                save.choose_cistern_relief_branch(QuestBranch::ReinforceCistern)
+            });
+            set_status(
+                &mut flow,
+                result,
+                "Reinforced the cistern and earned Brann's trust",
+            );
+        }
     } else if input.just_pressed(KeyCode::KeyM) {
         let result = flow
             .mutate_town(|save| save.choose_cistern_relief_branch(QuestBranch::EvacuateFamilies));
@@ -926,6 +1015,16 @@ pub(super) fn handle_campaign_input(
     } else if input.just_pressed(KeyCode::F9) {
         let result = flow.mutate_town(|save| save.start_first_regional_quest_here().map(|_| ()));
         set_status(&mut flow, result, "Accepted a regional authored quest");
+    } else if control && input.just_pressed(KeyCode::F10) {
+        let result = flow.mutate_town(|save| {
+            save.fail_active_regional_quest("the player abandoned the route")
+                .map(|_| ())
+        });
+        set_status(
+            &mut flow,
+            result,
+            "Abandoned the active quest; its retry remains available",
+        );
     } else if input.just_pressed(KeyCode::F10) {
         let endgame = flow.save.room == CampaignRoom::ExpeditionGate
             && flow.save.active_regional_quest_id.is_none()
@@ -958,7 +1057,7 @@ pub(super) fn handle_campaign_input(
     } else if input.just_pressed(KeyCode::F11) {
         let shift = input.pressed(KeyCode::ShiftLeft) || input.pressed(KeyCode::ShiftRight);
         let control = input.pressed(KeyCode::ControlLeft) || input.pressed(KeyCode::ControlRight);
-        let result = if flow.save.room == CampaignRoom::MarketWindPavilion {
+        let result = if flow.save.current_market_region_id().is_some() {
             if control {
                 flow.mutate_town(|save| save.sell_selected_shop_item().map(|_| ()))
             } else if shift {
@@ -1055,9 +1154,82 @@ pub(super) fn settle_finished_battle(
 mod tests {
     use super::*;
     use trnm_campaign_core::{
-        BattleOutcome, CampaignDifficulty, CampaignMission, SkirmishVictoryMode,
+        BattleGridPoint, BattleOutcome, CampaignDifficulty, CampaignMission, MainStoryChapter,
+        SkirmishVictoryMode, MAIN_STORY_CHAPTERS,
+    };
+    use trnm_rpg_core::{
+        mirror_city_world_graph, quest_runtime_rule, QuestApproach, NPC_CATALOG,
+        REGIONAL_QUEST_CATALOG,
     };
     use trnm_rts_protocol::{RtsFrameOrder, RtsOrderKind, RtsOrderSource, RtsTile};
+
+    fn tap_client_key(app: &mut App, key: KeyCode, shift: bool, control: bool) {
+        {
+            let mut input = app.world_mut().resource_mut::<ButtonInput<KeyCode>>();
+            if shift {
+                input.press(KeyCode::ShiftLeft);
+            }
+            if control {
+                input.press(KeyCode::ControlLeft);
+            }
+            input.press(key);
+        }
+        app.update();
+        let mut input = app.world_mut().resource_mut::<ButtonInput<KeyCode>>();
+        input.release(key);
+        input.release(KeyCode::ShiftLeft);
+        input.release(KeyCode::ControlLeft);
+        input.clear();
+    }
+
+    fn client_room_key(room: CampaignRoom) -> (KeyCode, bool) {
+        match room {
+            CampaignRoom::MirrorSquare => (KeyCode::Digit1, false),
+            CampaignRoom::MentorHall => (KeyCode::Digit2, false),
+            CampaignRoom::ExpeditionGate => (KeyCode::Digit3, false),
+            CampaignRoom::RelayQuarter => (KeyCode::Digit4, false),
+            CampaignRoom::CisternWard => (KeyCode::Digit5, false),
+            CampaignRoom::NightWatchPost => (KeyCode::Digit6, false),
+            CampaignRoom::WorkshopGate => (KeyCode::Digit7, false),
+            CampaignRoom::MarketWindPavilion => (KeyCode::Digit8, false),
+            CampaignRoom::LanternInfirmary => (KeyCode::Digit9, false),
+            CampaignRoom::ArchiveSteps => (KeyCode::Digit0, false),
+            CampaignRoom::CaravanYard => (KeyCode::Minus, false),
+            CampaignRoom::OuterSignalRoad => (KeyCode::Equal, false),
+            CampaignRoom::GlassBasinWayhouse => (KeyCode::Digit1, true),
+            CampaignRoom::DeepRelay => (KeyCode::Digit2, true),
+            CampaignRoom::MoonBridge => (KeyCode::Digit3, true),
+            CampaignRoom::EmberOrchardEdge => (KeyCode::Digit4, true),
+            CampaignRoom::GlassReedMarsh => (KeyCode::Digit5, true),
+            CampaignRoom::BasinObservatory => (KeyCode::Digit6, true),
+            CampaignRoom::AshBeaconField => (KeyCode::Digit7, true),
+            CampaignRoom::CinderRefuge => (KeyCode::Digit8, true),
+        }
+    }
+
+    fn walk_client_to(app: &mut App, destination: &str) {
+        for _ in 0..64 {
+            let flow = app.world().resource::<CampaignFlow>();
+            if flow.save.room.id() == destination {
+                return;
+            }
+            let route = mirror_city_world_graph().shortest_route(
+                flow.save.room.id(),
+                destination,
+                &flow.save.progression.world_flags,
+            );
+            assert!(
+                route.reachable(),
+                "client route {} -> {destination} was blocked: {:?}",
+                flow.save.room.id(),
+                route.blocked_reason,
+            );
+            let next = CampaignRoom::from_id(route.path.get(1).unwrap()).unwrap();
+            let (key, shift) = client_room_key(next);
+            tap_client_key(app, key, shift, false);
+        }
+        panic!("client route did not reach {destination}");
+    }
 
     #[test]
     fn checkpoint_path_is_sibling_of_campaign_save() {
@@ -1082,6 +1254,9 @@ mod tests {
             active_slot: SaveSlotId::A,
             selected_slot: SaveSlotId::A,
             overwrite_pending: None,
+            replay_cursor_tick: 0,
+            replay_speed: 1,
+            replay_paused: true,
             settings: PlayerSettings::default(),
             slot_store,
             settings_store: PlayerSettingsStore::new("/tmp/trnm-shell-gate-settings.json"),
@@ -1124,6 +1299,9 @@ mod tests {
             active_slot: SaveSlotId::A,
             selected_slot: SaveSlotId::A,
             overwrite_pending: None,
+            replay_cursor_tick: 0,
+            replay_speed: 1,
+            replay_paused: true,
             settings: PlayerSettings::default(),
             settings_store: PlayerSettingsStore::new(root.join("settings.json")),
             store: CampaignStore::new(&save_path),
@@ -1198,6 +1376,9 @@ mod tests {
             active_slot: SaveSlotId::A,
             selected_slot: SaveSlotId::A,
             overwrite_pending: None,
+            replay_cursor_tick: 0,
+            replay_speed: 1,
+            replay_paused: true,
             settings: PlayerSettings::default(),
             settings_store: PlayerSettingsStore::new(root.join("settings.json")),
             store: CampaignStore::new(&save_path),
@@ -1249,6 +1430,240 @@ mod tests {
     }
 
     #[test]
+    fn all_authored_quest_branches_use_client_navigation_failure_combat_and_scene_keys() {
+        for approach in [
+            QuestApproach::Direct,
+            QuestApproach::Diplomatic,
+            QuestApproach::Resourceful,
+        ] {
+            let root = std::env::temp_dir().join(format!(
+                "trnm-client-authored-quests-{}-{approach:?}",
+                std::process::id()
+            ));
+            let _ = std::fs::remove_dir_all(&root);
+            std::fs::create_dir_all(&root).unwrap();
+            let slot_store = SaveSlotStore::new(&root);
+            let save_path = slot_store.path(SaveSlotId::A);
+            let mut save = CampaignSaveV1::default();
+            // The matrix begins at the post-prologue regional-RPG boundary.
+            // It never writes a room, character attribute, relationship,
+            // inventory stack, encounter result or quest node directly.
+            save.progression
+                .world_flags
+                .extend(["signal_road_secured", "outer_signal_road_open"].map(str::to_string));
+            let maps = MissionMapCatalog::load(
+                &Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../assets"),
+            )
+            .unwrap();
+            let flow = CampaignFlow {
+                save,
+                mode: CampaignMode::Town,
+                mission: None,
+                last_receipt: None,
+                status: String::new(),
+                last_checkpoint_tick: 0,
+                shell_mode: ShellMode::Playing,
+                active_slot: SaveSlotId::A,
+                selected_slot: SaveSlotId::A,
+                overwrite_pending: None,
+                replay_cursor_tick: 0,
+                replay_speed: 1,
+                replay_paused: true,
+                settings: PlayerSettings::default(),
+                settings_store: PlayerSettingsStore::new(root.join("settings.json")),
+                store: CampaignStore::new(&save_path),
+                checkpoint_store: SimCheckpointStore::new(checkpoint_path_for(&save_path)),
+                slot_store,
+            };
+            let mut app = App::new();
+            app.insert_resource(ButtonInput::<KeyCode>::default())
+                .insert_resource(maps.iron_delta.clone())
+                .insert_resource(maps)
+                .insert_resource(flow)
+                .insert_resource(FirstContactRuntime::default())
+                .insert_resource(FirstContactSimulationAdapter::default())
+                .add_systems(Update, handle_campaign_input);
+
+            for definition in REGIONAL_QUEST_CATALOG {
+                let giver = NPC_CATALOG
+                    .iter()
+                    .find(|npc| npc.id == definition.giver_npc_id)
+                    .unwrap();
+                walk_client_to(&mut app, giver.room_id);
+                let rule = quest_runtime_rule(definition.archetype);
+                let required_trust = if approach == QuestApproach::Diplomatic {
+                    rule.minimum_trust_for_diplomacy
+                } else {
+                    1
+                };
+                for _ in 0..96 {
+                    let flow = app.world().resource::<CampaignFlow>();
+                    let relationship = flow.save.npc_relationships.get(giver.id).unwrap();
+                    if relationship.interactions > 0 && relationship.trust >= required_trust {
+                        break;
+                    }
+                    let giver_is_present = flow
+                        .save
+                        .current_regional_npc()
+                        .is_some_and(|npc| npc.id == giver.id);
+                    tap_client_key(
+                        &mut app,
+                        if giver_is_present {
+                            KeyCode::KeyT
+                        } else {
+                            KeyCode::KeyW
+                        },
+                        false,
+                        false,
+                    );
+                }
+                let flow = app.world().resource::<CampaignFlow>();
+                let relationship = flow.save.npc_relationships.get(giver.id).unwrap();
+                assert!(relationship.interactions > 0);
+                assert!(relationship.trust >= required_trust);
+
+                if approach == QuestApproach::Resourceful {
+                    walk_client_to(&mut app, "market_wind_pavilion");
+                    for _ in 0..64 {
+                        if app
+                            .world()
+                            .resource::<CampaignFlow>()
+                            .save
+                            .selected_shop_item()
+                            .id
+                            == rule.resource_item_id
+                        {
+                            break;
+                        }
+                        tap_client_key(&mut app, KeyCode::F11, false, false);
+                    }
+                    assert_eq!(
+                        app.world()
+                            .resource::<CampaignFlow>()
+                            .save
+                            .selected_shop_item()
+                            .id,
+                        rule.resource_item_id
+                    );
+                    for _ in 0..rule.resource_quantity {
+                        tap_client_key(&mut app, KeyCode::F11, true, false);
+                    }
+                    walk_client_to(&mut app, giver.room_id);
+                }
+
+                tap_client_key(&mut app, KeyCode::F9, false, false);
+                assert_eq!(
+                    app.world()
+                        .resource::<CampaignFlow>()
+                        .save
+                        .active_regional_quest_id
+                        .as_deref(),
+                    Some(definition.id)
+                );
+                tap_client_key(&mut app, KeyCode::F10, false, true);
+                assert_eq!(
+                    app.world()
+                        .resource::<CampaignFlow>()
+                        .save
+                        .regional_quest_states
+                        .get(definition.id),
+                    Some(&QuestState::Failed)
+                );
+                tap_client_key(&mut app, KeyCode::F9, false, false);
+                while app
+                    .world()
+                    .resource::<CampaignFlow>()
+                    .save
+                    .active_regional_quest_runtime
+                    .as_ref()
+                    .is_some_and(|runtime| runtime.approach != approach)
+                {
+                    tap_client_key(&mut app, KeyCode::KeyR, false, false);
+                }
+
+                for _ in 0..512 {
+                    let flow = app.world().resource::<CampaignFlow>();
+                    if flow.save.active_regional_quest_id.is_none() {
+                        break;
+                    }
+                    if let Some(encounter) = flow.save.active_encounter.as_ref() {
+                        let key = if encounter.technique_cooldown == 0 && encounter.momentum >= 2 {
+                            if encounter.round.is_multiple_of(2) {
+                                KeyCode::KeyK
+                            } else {
+                                KeyCode::KeyL
+                            }
+                        } else if encounter.momentum < 2 {
+                            KeyCode::KeyR
+                        } else {
+                            KeyCode::KeyJ
+                        };
+                        tap_client_key(&mut app, key, false, false);
+                        continue;
+                    }
+                    let ready = flow.save.active_regional_quest_ready_rooms();
+                    if ready.iter().any(|room| room == flow.save.room.id()) {
+                        tap_client_key(&mut app, KeyCode::F10, false, false);
+                        continue;
+                    }
+                    if ready.is_empty() {
+                        let encounter_pending = approach == QuestApproach::Direct
+                            && definition.encounter_id.is_some_and(|encounter_id| {
+                                !flow
+                                    .save
+                                    .progression
+                                    .world_flags
+                                    .contains(&format!("{encounter_id}_cleared"))
+                            });
+                        if encounter_pending {
+                            tap_client_key(&mut app, KeyCode::F10, false, false);
+                            continue;
+                        }
+                    }
+                    let route = flow.save.current_task_route_plan();
+                    tap_client_key(
+                        &mut app,
+                        if route.path.len() > 1 {
+                            KeyCode::KeyN
+                        } else {
+                            KeyCode::F10
+                        },
+                        false,
+                        false,
+                    );
+                }
+                let flow = app.world().resource::<CampaignFlow>();
+                assert_eq!(
+                    flow.save.regional_quest_states.get(definition.id),
+                    Some(&QuestState::Completed),
+                    "{} {approach:?} did not complete through the client keys: {}",
+                    definition.id,
+                    flow.status,
+                );
+
+                if let Some(pending) = flow.save.pending_main_story_chapter {
+                    let chapter = MAIN_STORY_CHAPTERS
+                        .iter()
+                        .find(|chapter| chapter.chapter == pending)
+                        .unwrap();
+                    let room_id = chapter.room_id;
+                    let _ = flow;
+                    walk_client_to(&mut app, room_id);
+                    tap_client_key(&mut app, KeyCode::KeyB, true, true);
+                }
+            }
+            let flow = app.world().resource::<CampaignFlow>();
+            assert_eq!(
+                flow.save.main_story_chapter,
+                MainStoryChapter::ChapterComplete
+            );
+            assert!(flow.save.main_story_ending.is_some());
+            assert!(flow.save.post_ending_world_state.is_some());
+            std::fs::remove_dir_all(root).unwrap();
+        }
+    }
+
+    #[test]
     fn authored_map_score_skirmish_wins_replays_and_settles_through_real_orders() {
         let root = std::env::temp_dir().join(format!(
             "trnm-authored-skirmish-victory-{}",
@@ -1270,6 +1685,9 @@ mod tests {
             active_slot: SaveSlotId::A,
             selected_slot: SaveSlotId::A,
             overwrite_pending: None,
+            replay_cursor_tick: 0,
+            replay_speed: 1,
+            replay_paused: true,
             settings: PlayerSettings::default(),
             settings_store: PlayerSettingsStore::new(root.join("settings.json")),
             store: CampaignStore::new(&save_path),
@@ -1278,7 +1696,7 @@ mod tests {
         };
         flow.open_selected_slot_skirmish().unwrap();
         flow.save.difficulty = CampaignDifficulty::Story;
-        flow.save.skirmish_setup.starting_resources = 500;
+        flow.save.skirmish_setup.starting_resources = 300;
         flow.save.skirmish_setup.score_target = 40;
         flow.save.skirmish_setup.victory_mode = SkirmishVictoryMode::Score;
         flow.save.active_mission = trnm_campaign_core::CampaignMission::GlassBasinSkirmish;
@@ -1365,6 +1783,9 @@ mod tests {
             active_slot: SaveSlotId::A,
             selected_slot: SaveSlotId::A,
             overwrite_pending: None,
+            replay_cursor_tick: 0,
+            replay_speed: 1,
+            replay_paused: true,
             settings: PlayerSettings::default(),
             settings_store: PlayerSettingsStore::new(root.join("settings.json")),
             store: CampaignStore::new(&save_path),
@@ -1376,18 +1797,6 @@ mod tests {
         flow.save.skirmish_setup.starting_resources = 500;
         flow.save.skirmish_setup.victory_mode = SkirmishVictoryMode::Annihilation;
         flow.save.active_mission = CampaignMission::GlassBasinSkirmish;
-        for attributes in std::iter::once(&mut flow.save.character.attributes).chain(
-            flow.save
-                .party
-                .iter_mut()
-                .map(|member| &mut member.attributes),
-        ) {
-            attributes.physique = 500;
-            attributes.force = 500;
-            attributes.agility = 500;
-            attributes.insight = 500;
-            attributes.resolve = 500;
-        }
         let maps =
             MissionMapCatalog::load(&Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../assets"))
                 .unwrap();
@@ -1411,46 +1820,377 @@ mod tests {
             sim.issue_order(recon).unwrap();
             sim.step().unwrap();
         }
-        while !sim.terminal() && sim.tick < 3_600 {
-            if sim.tick.is_multiple_of(15) || sim.active_order.is_none() {
-                let subjects = sim
+        let supply_site = (-4_i16..=4)
+            .flat_map(|dy| (-4_i16..=4).map(move |dx| (dx, dy)))
+            .map(|(dx, dy)| {
+                BattleGridPoint::new(
+                    sim.seed.map.party_start.x + dx,
+                    sim.seed.map.party_start.y + dy,
+                )
+            })
+            .find(|target| {
+                sim.seed.map.passable(*target)
+                    && sim.party.iter().all(|unit| unit.position != *target)
+                    && sim
+                        .structures
+                        .iter()
+                        .all(|structure| structure.position != *target)
+            })
+            .unwrap();
+        let mut supply = RtsFrameOrder::new(
+            sim.tick as u32,
+            "player",
+            sim.party
+                .iter()
+                .map(|unit| unit.unit_id.clone())
+                .collect::<Vec<_>>(),
+            RtsOrderKind::Build,
+            RtsOrderSource::LocalInput,
+        );
+        supply.target_rule_id = Some("supply_cache".to_string());
+        supply.target_tile = Some(RtsTile::new(
+            i32::from(supply_site.x),
+            i32::from(supply_site.y),
+        ));
+        sim.issue_order(supply).unwrap();
+        while !sim.jobs.is_empty() && !sim.terminal() && sim.tick < 200 {
+            sim.step().unwrap();
+        }
+        assert!(
+            sim.supply_cap() > 0,
+            "shared construction must create real supply"
+        );
+        let mut assault_started = false;
+        while !sim.terminal() && sim.tick < trnm_rts_sim::SKIRMISH_TIME_LIMIT_TICKS {
+            let active_builder = sim
+                .jobs
+                .iter()
+                .find(|job| job.kind == trnm_rts_sim::SimJobKind::BuildStructure)
+                .and_then(|job| job.builder_id.as_deref());
+            let subjects = sim
+                .party
+                .iter()
+                .filter(|unit| unit.hp > 0 && Some(unit.unit_id.as_str()) != active_builder)
+                .map(|unit| unit.unit_id.clone())
+                .collect::<Vec<_>>();
+            let mut economy_issued = false;
+            if sim.tick.is_multiple_of(20) && !subjects.is_empty() {
+                let workshop_exists = sim.structures.iter().any(|structure| {
+                    structure.hp > 0
+                        && structure.kind == trnm_rts_sim::SimStructureKind::FieldWorkshop
+                });
+                let workshop_queued = sim.jobs.iter().any(|job| {
+                    job.kind == trnm_rts_sim::SimJobKind::BuildStructure
+                        && job.rule_id == "field_workshop"
+                });
+                let badly_wounded = sim
                     .party
                     .iter()
-                    .filter(|unit| unit.hp > 0)
-                    .map(|unit| unit.unit_id.clone())
-                    .collect::<Vec<_>>();
-                let target = sim
-                    .enemies
-                    .iter()
-                    .filter(|unit| unit.hp > 0)
-                    .min_by_key(|unit| {
-                        (unit.position.x - sim.seed.map.party_start.x).abs()
-                            + (unit.position.y - sim.seed.map.party_start.y).abs()
+                    .filter(|unit| unit.hp > 0 && unit.hp * 100 < unit.max_hp * 65)
+                    .count();
+                if sim.tick.is_multiple_of(300)
+                    && badly_wounded >= 2
+                    && sim.resources_available >= 20
+                {
+                    let mut aid = RtsFrameOrder::new(
+                        sim.tick as u32,
+                        "player",
+                        subjects.clone(),
+                        RtsOrderKind::Repair,
+                        RtsOrderSource::LocalInput,
+                    );
+                    aid.target_actor_id = Some("party_field_aid".to_string());
+                    economy_issued = sim.issue_order(aid).is_ok();
+                } else if sim.party.iter().filter(|unit| unit.hp > 0).count() >= 8
+                    && sim.researched_techs.contains("field_logistics")
+                    && sim.recon_bonus_ticks == 0
+                    && sim.tick.is_multiple_of(600)
+                    && sim.resources_available >= 25
+                {
+                    let mut recon = RtsFrameOrder::new(
+                        sim.tick as u32,
+                        "player",
+                        subjects.clone(),
+                        RtsOrderKind::Recon,
+                        RtsOrderSource::LocalInput,
+                    );
+                    recon.target_tile = Some(RtsTile::new(
+                        i32::from(sim.seed.map.objective.x),
+                        i32::from(sim.seed.map.objective.y),
+                    ));
+                    economy_issued = sim.issue_order(recon).is_ok();
+                } else if assault_started
+                    && sim.party.iter().filter(|unit| unit.hp > 0).count() >= 14
+                {
+                    // The full economy is online. Preserve resources for field
+                    // aid/recon and let the command loop prosecute the base.
+                } else if !workshop_exists && !workshop_queued && sim.resources_available >= 55 {
+                    let target = (-4_i16..=4)
+                        .flat_map(|dy| (-4_i16..=4).map(move |dx| (dx, dy)))
+                        .map(|(dx, dy)| {
+                            BattleGridPoint::new(
+                                sim.seed.map.party_start.x + dx,
+                                sim.seed.map.party_start.y + dy,
+                            )
+                        })
+                        .find(|target| {
+                            sim.seed.map.passable(*target)
+                                && sim.party.iter().all(|unit| unit.position != *target)
+                                && sim
+                                    .structures
+                                    .iter()
+                                    .all(|structure| structure.position != *target)
+                        })
+                        .unwrap();
+                    let mut build = RtsFrameOrder::new(
+                        sim.tick as u32,
+                        "player",
+                        subjects.clone(),
+                        RtsOrderKind::Build,
+                        RtsOrderSource::LocalInput,
+                    );
+                    build.target_rule_id = Some("field_workshop".to_string());
+                    build.target_tile =
+                        Some(RtsTile::new(i32::from(target.x), i32::from(target.y)));
+                    economy_issued = match sim.issue_order(build) {
+                        Ok(()) => true,
+                        Err(error) if sim.tick < 40 => {
+                            panic!("normal-attribute economy failed to start: {error}")
+                        }
+                        Err(_) => false,
+                    };
+                } else if workshop_exists
+                    && sim.jobs.is_empty()
+                    && sim.supply_used().saturating_add(2) > sim.supply_cap()
+                    && sim.resources_available >= 25
+                {
+                    let target = (-4_i16..=4)
+                        .flat_map(|dy| (-4_i16..=4).map(move |dx| (dx, dy)))
+                        .map(|(dx, dy)| {
+                            BattleGridPoint::new(
+                                sim.seed.map.party_start.x + dx,
+                                sim.seed.map.party_start.y + dy,
+                            )
+                        })
+                        .find(|target| {
+                            sim.seed.map.passable(*target)
+                                && sim.party.iter().all(|unit| unit.position != *target)
+                                && sim
+                                    .structures
+                                    .iter()
+                                    .all(|structure| structure.position != *target)
+                        })
+                        .unwrap();
+                    let mut build = RtsFrameOrder::new(
+                        sim.tick as u32,
+                        "player",
+                        subjects.clone(),
+                        RtsOrderKind::Build,
+                        RtsOrderSource::LocalInput,
+                    );
+                    build.target_rule_id = Some("supply_cache".to_string());
+                    build.target_tile =
+                        Some(RtsTile::new(i32::from(target.x), i32::from(target.y)));
+                    economy_issued = match sim.issue_order(build) {
+                        Ok(()) => true,
+                        Err(error) if sim.tick < 80 => {
+                            panic!("normal-attribute supply economy failed to start: {error}")
+                        }
+                        Err(_) => false,
+                    };
+                } else if workshop_exists
+                    && sim.jobs.is_empty()
+                    && sim.party.iter().filter(|unit| unit.hp > 0).count() < 12
+                    && sim.resources_available >= 65
+                {
+                    let mut train = RtsFrameOrder::new(
+                        sim.tick as u32,
+                        "player",
+                        subjects.clone(),
+                        RtsOrderKind::Train,
+                        RtsOrderSource::LocalInput,
+                    );
+                    train.target_rule_id = Some("mirror_warden".to_string());
+                    train.queue_id = Some(format!("standard-train-{}", sim.tick));
+                    economy_issued = match sim.issue_order(train) {
+                        Ok(()) => true,
+                        Err(error) if sim.tick < 500 => {
+                            panic!("normal-attribute roster production failed: {error}")
+                        }
+                        Err(_) => false,
+                    };
+                } else if workshop_exists
+                    && sim.jobs.is_empty()
+                    && !sim.researched_techs.contains("field_logistics")
+                {
+                    let mut research = RtsFrameOrder::new(
+                        sim.tick as u32,
+                        "player",
+                        subjects.clone(),
+                        RtsOrderKind::Research,
+                        RtsOrderSource::LocalInput,
+                    );
+                    research.target_rule_id = Some("field_logistics".to_string());
+                    research.queue_id = Some(format!("standard-research-{}", sim.tick));
+                    economy_issued = sim.issue_order(research).is_ok();
+                } else if workshop_exists
+                    && sim.jobs.is_empty()
+                    && sim.supply_used().saturating_add(2) > sim.supply_cap()
+                    && sim.resources_available >= 25
+                {
+                    let target = (-4_i16..=4)
+                        .flat_map(|dy| (-4_i16..=4).map(move |dx| (dx, dy)))
+                        .map(|(dx, dy)| {
+                            BattleGridPoint::new(
+                                sim.seed.map.party_start.x + dx,
+                                sim.seed.map.party_start.y + dy,
+                            )
+                        })
+                        .find(|target| {
+                            sim.seed.map.passable(*target)
+                                && sim.party.iter().all(|unit| unit.position != *target)
+                                && sim
+                                    .structures
+                                    .iter()
+                                    .all(|structure| structure.position != *target)
+                        })
+                        .unwrap();
+                    let mut build = RtsFrameOrder::new(
+                        sim.tick as u32,
+                        "player",
+                        subjects.clone(),
+                        RtsOrderKind::Build,
+                        RtsOrderSource::LocalInput,
+                    );
+                    build.target_rule_id = Some("supply_cache".to_string());
+                    build.target_tile =
+                        Some(RtsTile::new(i32::from(target.x), i32::from(target.y)));
+                    economy_issued = sim.issue_order(build).is_ok();
+                } else if workshop_exists
+                    && sim.jobs.is_empty()
+                    && sim.party.iter().filter(|unit| unit.hp > 0).count() < 14
+                    && sim.resources_available >= 70
+                {
+                    let mut train = RtsFrameOrder::new(
+                        sim.tick as u32,
+                        "player",
+                        subjects.clone(),
+                        RtsOrderKind::Train,
+                        RtsOrderSource::LocalInput,
+                    );
+                    train.target_rule_id = Some(
+                        if sim.party.len().is_multiple_of(2) {
+                            "field_medic"
+                        } else {
+                            "mirror_striker"
+                        }
+                        .to_string(),
+                    );
+                    train.queue_id = Some(format!("standard-train-{}", sim.tick));
+                    economy_issued = sim.issue_order(train).is_ok();
+                } else if sim.resources_available < 200 {
+                    if let Some(node) = sim.resource_nodes.iter().find(|node| node.remaining > 0) {
+                        let mut harvest = RtsFrameOrder::new(
+                            sim.tick as u32,
+                            "player",
+                            subjects.clone(),
+                            RtsOrderKind::Harvest,
+                            RtsOrderSource::LocalInput,
+                        );
+                        harvest.target_actor_id = Some(node.node_id.clone());
+                        harvest.target_tile = Some(RtsTile::new(
+                            i32::from(node.position.x),
+                            i32::from(node.position.y),
+                        ));
+                        economy_issued = sim.issue_order(harvest).is_ok();
+                    }
+                }
+            }
+            assault_started |= sim.party.iter().filter(|unit| unit.hp > 0).count() >= 12
+                && sim.researched_techs.contains("field_logistics");
+            let battle_ready = assault_started;
+            let committed_harvest = !battle_ready
+                && sim.current_order_kind() == RtsOrderKind::Harvest
+                && sim.resources_available < 200;
+            if !economy_issued
+                && !subjects.is_empty()
+                && !committed_harvest
+                && (sim.tick.is_multiple_of(15) || sim.active_order.is_none())
+            {
+                let cleanup_target = sim.enemies.iter().all(|unit| unit.hp <= 0).then(|| {
+                    sim.enemy_structures
+                        .iter()
+                        .filter(|structure| structure.hp > 0)
+                        .min_by_key(|structure| {
+                            (structure.position.x - sim.seed.map.party_start.x).abs()
+                                + (structure.position.y - sim.seed.map.party_start.y).abs()
+                        })
+                        .map(|structure| (None, structure.position))
+                });
+                let strategic_target = battle_ready.then(|| {
+                    sim.enemy_structures
+                        .iter()
+                        .filter(|structure| structure.hp > 0)
+                        .min_by_key(|structure| {
+                            let priority = match structure.kind {
+                                trnm_rts_sim::SimStructureKind::CommandPost => 0,
+                                trnm_rts_sim::SimStructureKind::FieldWorkshop => 1,
+                                trnm_rts_sim::SimStructureKind::SupplyCache => 2,
+                                _ => 3,
+                            };
+                            (priority, structure.hp)
+                        })
+                        .map(|structure| (None, structure.position))
+                });
+                let target = cleanup_target
+                    .flatten()
+                    .or_else(|| {
+                        sim.enemies
+                            .iter()
+                            .filter(|unit| {
+                                unit.hp > 0 && sim.visible_tiles.contains(&unit.position)
+                            })
+                            .min_by_key(|unit| {
+                                (unit.position.x - sim.seed.map.party_start.x).abs()
+                                    + (unit.position.y - sim.seed.map.party_start.y).abs()
+                            })
+                            .map(|unit| (Some(unit.unit_id.clone()), unit.position))
                     })
-                    .map(|unit| unit.position)
+                    .or_else(|| strategic_target.flatten())
                     .or_else(|| {
                         sim.enemy_structures
                             .iter()
-                            .find(|structure| structure.hp > 0)
-                            .map(|structure| structure.position)
-                    })
-                    .unwrap_or(sim.seed.map.objective);
-                let mut order = RtsFrameOrder::new(
-                    sim.tick as u32,
-                    "player",
-                    subjects,
-                    RtsOrderKind::AttackMove,
-                    RtsOrderSource::LocalInput,
-                );
-                order.target_tile = Some(RtsTile::new(i32::from(target.x), i32::from(target.y)));
-                sim.issue_order(order).unwrap();
+                            .find(|structure| {
+                                structure.hp > 0 && sim.visible_tiles.contains(&structure.position)
+                            })
+                            .map(|structure| {
+                                (Some(structure.structure_id.clone()), structure.position)
+                            })
+                    });
+                if let Some(target) = target {
+                    let mut order = RtsFrameOrder::new(
+                        sim.tick as u32,
+                        "player",
+                        subjects,
+                        if target.0.is_some() {
+                            RtsOrderKind::Attack
+                        } else {
+                            RtsOrderKind::AttackMove
+                        },
+                        RtsOrderSource::LocalInput,
+                    );
+                    order.target_actor_id = target.0;
+                    order.target_tile =
+                        Some(RtsTile::new(i32::from(target.1.x), i32::from(target.1.y)));
+                    sim.issue_order(order).unwrap();
+                }
             }
             sim.step().unwrap();
         }
         assert_eq!(
             sim.outcome,
             Some(BattleOutcome::Victory),
-            "tick {} party {}/{} enemies {}/{} structures {:?}",
+            "tick {} party {}/{} enemies {}/{} structures {:?} jobs {:?} player_structures {:?} res {}/{} supply {}/{} tech {:?}",
             sim.tick,
             sim.party.iter().filter(|unit| unit.hp > 0).count(),
             sim.party.len(),
@@ -1459,7 +2199,13 @@ mod tests {
             sim.enemy_structures
                 .iter()
                 .map(|structure| (&structure.structure_id, structure.hp))
+                .collect::<Vec<_>>(),
+            sim.jobs
+            , sim.structures
+                .iter()
+                .map(|structure| (&structure.structure_id, structure.kind, structure.hp))
                 .collect::<Vec<_>>()
+            , sim.resources_available, sim.resources_gathered, sim.supply_used(), sim.supply_cap(), sim.researched_techs
         );
         assert!(sim
             .enemy_structures
@@ -1467,10 +2213,28 @@ mod tests {
             .all(|structure| structure.hp <= 0));
         let replay = sim.export_replay().unwrap();
         replay.replay_and_verify().unwrap();
-        let result = sim.clone().into_result().unwrap();
-        let receipt = flow.save.submit_battle_result(result).unwrap();
+        let _ = sim;
+        let receipt = flow.complete_terminal_battle().unwrap();
         assert_eq!(receipt.outcome, BattleOutcome::Victory);
         assert!(!receipt.duplicate);
+        assert_eq!(flow.mode, CampaignMode::Debrief);
+        let mut app = App::new();
+        app.insert_resource(ButtonInput::<KeyCode>::default())
+            .insert_resource(maps.glass_basin.clone())
+            .insert_resource(maps)
+            .insert_resource(flow)
+            .insert_resource(FirstContactRuntime::default())
+            .insert_resource(FirstContactSimulationAdapter::default())
+            .add_systems(Update, handle_campaign_input);
+        app.world_mut()
+            .resource_mut::<ButtonInput<KeyCode>>()
+            .press(KeyCode::Enter);
+        app.update();
+        assert_eq!(
+            app.world().resource::<CampaignFlow>().mode,
+            CampaignMode::Town,
+            "the real client Enter path must return the settled victory to town",
+        );
         std::fs::remove_dir_all(root).unwrap();
     }
 }

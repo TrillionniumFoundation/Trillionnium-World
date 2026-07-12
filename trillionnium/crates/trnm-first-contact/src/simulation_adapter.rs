@@ -1375,14 +1375,31 @@ pub(super) fn advance_first_contact_simulation(
             let family = manifest
                 .unit(family_id)
                 .expect("dynamic unit visual family is authored");
+            let base_frame = family.atlas_index(if *alive {
+                family.idle[0]
+            } else {
+                family.disabled
+            });
+            let (image, layout, frame) = family.identity_frame.map_or_else(
+                || {
+                    (
+                        handles.units_image.clone(),
+                        handles.units_layout.clone(),
+                        base_frame,
+                    )
+                },
+                |identity| {
+                    (
+                        handles.identities_image.clone(),
+                        handles.identities_layout.clone(),
+                        identity,
+                    )
+                },
+            );
             let mut sprite = atlas_sprite(
-                handles.units_image.clone(),
-                handles.units_layout.clone(),
-                family.atlas_index(if *alive {
-                    family.idle[0]
-                } else {
-                    family.disabled
-                }),
+                image,
+                layout,
+                frame,
                 Vec2::new(
                     map.tile_size as f32 * 1.55 * family.silhouette_scale[0],
                     map.tile_size as f32 * 1.55 * family.silhouette_scale[1],
@@ -1436,10 +1453,26 @@ pub(super) fn advance_first_contact_simulation(
                 let family = manifest
                     .structure(family_id)
                     .expect("sim structure family is authored");
+                let (image, layout, frame) = family.identity_frame.map_or_else(
+                    || {
+                        (
+                            handles.world_image.clone(),
+                            handles.world_layout.clone(),
+                            family.active,
+                        )
+                    },
+                    |identity| {
+                        (
+                            handles.identities_image.clone(),
+                            handles.identities_layout.clone(),
+                            identity,
+                        )
+                    },
+                );
                 let mut sprite = atlas_sprite(
-                    handles.world_image.clone(),
-                    handles.world_layout.clone(),
-                    family.active,
+                    image,
+                    layout,
+                    frame,
                     Vec2::new(
                         map.tile_size as f32 * 2.35 * family.silhouette_scale[0],
                         map.tile_size as f32 * 2.35 * family.silhouette_scale[1],
@@ -1518,8 +1551,10 @@ pub(super) fn advance_first_contact_simulation(
         } else {
             family.idle[phase]
         };
-        if let Some(atlas) = sprite.texture_atlas.as_mut() {
-            atlas.index = family.atlas_index(column);
+        if family.identity_frame.is_none() {
+            if let Some(atlas) = sprite.texture_atlas.as_mut() {
+                atlas.index = family.atlas_index(column);
+            }
         }
         if visible {
             unit_positions.insert(unit.id.clone(), (transform.translation, selected));
@@ -1591,12 +1626,14 @@ pub(super) fn advance_first_contact_simulation(
         let family = manifest
             .structure(&structure.family)
             .expect("rendered structure family remains in atlas");
-        if let Some(atlas) = sprite.texture_atlas.as_mut() {
-            atlas.index = if structure.active && runtime.animation_phase % 6 >= 3 {
-                family.active
-            } else {
-                family.idle
-            };
+        if family.identity_frame.is_none() {
+            if let Some(atlas) = sprite.texture_atlas.as_mut() {
+                atlas.index = if structure.active && runtime.animation_phase % 6 >= 3 {
+                    family.active
+                } else {
+                    family.idle
+                };
+            }
         }
     }
     let pulse = 0.96 + (runtime.elapsed_seconds * 3.0).sin().abs() * 0.10;

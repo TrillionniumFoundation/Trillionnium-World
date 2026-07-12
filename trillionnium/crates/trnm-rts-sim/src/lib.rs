@@ -23,10 +23,11 @@ mod content;
 pub use content::*;
 
 pub const RTS_SIM_CONTRACT: &str = "trnm_rts_sim_v14";
-pub const RTS_SIM_CHECKPOINT_CONTRACT: &str = "trnm_rts_sim_checkpoint_v14";
+pub const RTS_SIM_CHECKPOINT_CONTRACT: &str = "trnm_rts_sim_checkpoint_v15";
 pub const TICKS_PER_SECOND: u64 = 10;
 pub const THREE_MINUTE_TICKS: u64 = 3 * 60 * TICKS_PER_SECOND;
 pub const FIVE_MINUTE_TICKS: u64 = 5 * 60 * TICKS_PER_SECOND;
+pub const SKIRMISH_TIME_LIMIT_TICKS: u64 = 12 * 60 * TICKS_PER_SECOND;
 pub const TEN_MINUTE_TICKS: u64 = 10 * 60 * TICKS_PER_SECOND;
 pub const FIFTEEN_MINUTE_TICKS: u64 = 15 * 60 * TICKS_PER_SECOND;
 const MOVEMENT_TILE_COST: i32 = 10_000;
@@ -153,6 +154,67 @@ fn construction_job_ready(
     })
 }
 
+fn advance_side_job_queue(jobs: &mut [SimJob], units: &[SimUnit], powered: bool) {
+    let readiness = jobs
+        .iter()
+        .map(|job| {
+            job.kind != SimJobKind::BuildStructure
+                || construction_job_ready(units, job.builder_id.as_deref(), Some(job.target))
+        })
+        .collect::<Vec<_>>();
+    for (job, ready) in jobs.iter_mut().zip(readiness) {
+        if job.kind == SimJobKind::BuildStructure && !job.paused && ready {
+            job.remaining_ticks = job.remaining_ticks.saturating_sub(1);
+        }
+    }
+    if let Some(job) = jobs
+        .iter_mut()
+        .find(|job| job.kind != SimJobKind::BuildStructure && !job.paused && powered)
+    {
+        job.remaining_ticks = job.remaining_ticks.saturating_sub(1);
+    }
+}
+
+fn advance_side_construction_worker(
+    seed: &BattleSeedV1,
+    units: &mut [SimUnit],
+    opposing_units: &[SimUnit],
+    jobs: &[SimJob],
+) {
+    let Some((builder_id, target)) = jobs
+        .iter()
+        .find(|job| job.kind == SimJobKind::BuildStructure && !job.paused)
+        .and_then(|job| Some((job.builder_id.as_deref()?, job.target)))
+    else {
+        return;
+    };
+    let Some(index) = units
+        .iter()
+        .position(|unit| unit.alive() && unit.unit_id == builder_id)
+    else {
+        return;
+    };
+    if distance(units[index].position, target) <= 1 {
+        return;
+    }
+    let occupied = units
+        .iter()
+        .chain(opposing_units)
+        .filter(|unit| unit.alive() && unit.unit_id != builder_id)
+        .map(|unit| unit.position)
+        .collect::<BTreeSet<_>>();
+    units[index].movement_budget_milli = units[index]
+        .movement_budget_milli
+        .saturating_add(units[index].move_speed_milli);
+    if units[index].movement_budget_milli < MOVEMENT_TILE_COST {
+        return;
+    }
+    if let Some(next) = next_step_toward(seed, units[index].position, target, 1, &occupied) {
+        units[index].position = next;
+        units[index].movement_budget_milli -= MOVEMENT_TILE_COST;
+    }
+}
+
 impl SimUnit {
     pub fn alive(&self) -> bool {
         self.hp > 0
@@ -186,6 +248,22 @@ pub enum SimJobKind {
     ResearchRapidMustering,
 }
 
+fn research_job_kind(rule_id: &str) -> SimJobKind {
+    match rule_id {
+        "field_logistics" => SimJobKind::ResearchLogistics,
+        "signal_optics" => SimJobKind::ResearchOptics,
+        "relay_arms" => SimJobKind::UpgradeRelayArms,
+        "field_armor" => SimJobKind::UpgradeFieldArmor,
+        "sensor_net" => SimJobKind::ResearchSensorNet,
+        "field_medicine" => SimJobKind::ResearchFieldMedicine,
+        "siege_drills" => SimJobKind::UpgradeSiegeDrills,
+        "reactive_plating" => SimJobKind::UpgradeReactivePlating,
+        "wayfinder_drills" => SimJobKind::ResearchWayfinderDrills,
+        "rapid_mustering" => SimJobKind::ResearchRapidMustering,
+        _ => SimJobKind::ResearchLogistics,
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SimJob {
     pub job_id: String,
@@ -197,10 +275,14 @@ pub struct SimJob {
     pub paused: bool,
     #[serde(default)]
     pub builder_id: Option<String>,
+    #[serde(default)]
+    pub side: AuthoritySide,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum AuthoritySide {
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AuthoritySide {
+    #[default]
     Player,
     Enemy,
 }
@@ -387,28 +469,6 @@ pub struct AiDecision {
     pub observation: AiObservation,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum EnemyJobKind {
-    Build,
-    Train,
-    Research,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct EnemyJob {
-    pub kind: EnemyJobKind,
-    pub rule_id: String,
-    pub remaining_ticks: u32,
-    pub cost: u32,
-    #[serde(default)]
-    pub builder_id: Option<String>,
-    #[serde(default)]
-    pub target: Option<BattleGridPoint>,
-    #[serde(default)]
-    pub total_ticks: u32,
-}
-
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SimReplayEntry {
     pub issued_tick: u64,
@@ -456,6 +516,12 @@ pub struct SkirmishBalanceSample {
     pub enemy_score: u32,
     pub player_hp_percent: u8,
     pub enemy_hp_percent: u8,
+    pub player_resources_gathered: u32,
+    pub player_resources_spent: u32,
+    pub enemy_resources_generated: u32,
+    pub enemy_resources_spent: u32,
+    pub player_tech_count: u8,
+    pub enemy_tech_count: u8,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -467,6 +533,103 @@ pub struct SkirmishBalanceMatrix {
     pub mirror_wins: u32,
     pub ashen_wins: u32,
     pub average_terminal_ticks: u64,
+}
+
+fn drive_balance_player_economy(sim: &mut MissionSimV1) -> Result<bool, SimError> {
+    let subjects = sim
+        .party
+        .iter()
+        .filter(|unit| unit.alive())
+        .map(|unit| unit.unit_id.clone())
+        .collect::<Vec<_>>();
+    if subjects.is_empty() {
+        return Ok(false);
+    }
+    if sim.resources_available < 200 {
+        if let Some(node) = sim.resource_nodes.iter().find(|node| node.remaining > 0) {
+            let mut order = RtsFrameOrder::new(
+                sim.tick as u32,
+                "player",
+                subjects,
+                RtsOrderKind::Harvest,
+                trnm_rts_protocol::RtsOrderSource::Replay,
+            );
+            order.target_actor_id = Some(node.node_id.clone());
+            order.target_tile = Some(trnm_rts_protocol::RtsTile::new(
+                i32::from(node.position.x),
+                i32::from(node.position.y),
+            ));
+            sim.issue_order(order)?;
+            return Ok(true);
+        }
+    }
+    let workshop_exists = sim
+        .structures
+        .iter()
+        .any(|structure| structure.alive() && structure.kind == SimStructureKind::FieldWorkshop);
+    let workshop_queued = sim
+        .jobs
+        .iter()
+        .any(|job| job.kind == SimJobKind::BuildStructure && job.rule_id == "field_workshop");
+    if !workshop_exists && !workshop_queued && sim.resources_available >= 55 {
+        let target = nearest_passable(
+            &sim.seed,
+            BattleGridPoint::new(sim.seed.map.party_start.x + 2, sim.seed.map.party_start.y),
+        )
+        .unwrap_or(sim.seed.map.party_start);
+        let mut order = RtsFrameOrder::new(
+            sim.tick as u32,
+            "player",
+            subjects.clone(),
+            RtsOrderKind::Build,
+            trnm_rts_protocol::RtsOrderSource::Replay,
+        );
+        order.target_rule_id = Some("field_workshop".to_string());
+        order.target_tile = Some(trnm_rts_protocol::RtsTile::new(
+            i32::from(target.x),
+            i32::from(target.y),
+        ));
+        if sim.issue_order(order).is_ok() {
+            return Ok(true);
+        }
+    }
+    if workshop_exists
+        && !sim.researched_techs.contains("field_logistics")
+        && !sim.jobs.iter().any(|job| job.rule_id == "field_logistics")
+        && sim.resources_available >= 35
+    {
+        let mut order = RtsFrameOrder::new(
+            sim.tick as u32,
+            "player",
+            subjects.clone(),
+            RtsOrderKind::Research,
+            trnm_rts_protocol::RtsOrderSource::Replay,
+        );
+        order.target_rule_id = Some("field_logistics".to_string());
+        order.queue_id = Some(format!("balance-research-{}", sim.tick));
+        if sim.issue_order(order).is_ok() {
+            return Ok(true);
+        }
+    }
+    if workshop_exists && sim.jobs.is_empty() {
+        if let Some(unit) = UNIT_ROSTER
+            .iter()
+            .find(|unit| unit.faction == sim.seed.skirmish.player_faction)
+        {
+            let mut order = RtsFrameOrder::new(
+                sim.tick as u32,
+                "player",
+                subjects,
+                RtsOrderKind::Train,
+                trnm_rts_protocol::RtsOrderSource::Replay,
+            );
+            order.target_rule_id = Some(unit.id.to_string());
+            order.queue_id = Some(format!("balance-train-{}", sim.tick));
+            let _ = sim.issue_order(order);
+            return Ok(true);
+        }
+    }
+    Ok(false)
 }
 
 pub fn run_skirmish_balance_matrix(
@@ -507,7 +670,12 @@ pub fn run_skirmish_balance_matrix(
         }
         let mut sim = MissionSimV1::from_seed(seed.clone())?;
         while !sim.terminal() && sim.tick < max_ticks {
-            if sim.tick.is_multiple_of(20) || sim.active_order.is_none() {
+            let economy_issued = if sim.tick.is_multiple_of(40) {
+                drive_balance_player_economy(&mut sim)?
+            } else {
+                false
+            };
+            if !economy_issued && (sim.tick.is_multiple_of(20) || sim.active_order.is_none()) {
                 let target = sim
                     .enemies
                     .iter()
@@ -583,6 +751,12 @@ pub fn run_skirmish_balance_matrix(
             enemy_score: sim.enemy_score,
             player_hp_percent: player_hp,
             enemy_hp_percent: enemy_hp,
+            player_resources_gathered: sim.resources_gathered,
+            player_resources_spent: sim.resources_spent,
+            enemy_resources_generated: sim.enemy_resources_generated,
+            enemy_resources_spent: sim.enemy_resources_spent,
+            player_tech_count: sim.researched_techs.len().min(u8::MAX as usize) as u8,
+            enemy_tech_count: sim.enemy_researched_techs.len().min(u8::MAX as usize) as u8,
         });
     }
     let [mirror, ashen] = pressure;
@@ -698,7 +872,7 @@ pub struct MissionSimV1 {
     #[serde(default)]
     pub enemy_researched_techs: BTreeSet<String>,
     #[serde(default)]
-    pub enemy_jobs: Vec<EnemyJob>,
+    pub enemy_jobs: Vec<SimJob>,
     #[serde(default)]
     pub enemy_build_order_index: u32,
     #[serde(default)]
@@ -776,11 +950,26 @@ impl MissionSimV1 {
         } else {
             RtsFaction::AshenCompact
         };
+        let enemy_roster_hp_percent = match seed.difficulty {
+            CampaignDifficulty::Story => 100,
+            CampaignDifficulty::Standard => 150,
+            CampaignDifficulty::Veteran => 300,
+        };
         let mut enemies = seed
             .map
             .enemy_spawns
             .iter()
             .enumerate()
+            .filter(|(index, _)| {
+                if !seed.skirmish.enabled {
+                    return true;
+                }
+                match seed.difficulty {
+                    CampaignDifficulty::Story => index.is_multiple_of(2),
+                    CampaignDifficulty::Standard => index % 4 != 3,
+                    CampaignDifficulty::Veteran => true,
+                }
+            })
             .map(|(index, spawn)| {
                 let roster_match = UNIT_ROSTER
                     .iter()
@@ -804,7 +993,7 @@ impl MissionSimV1 {
                         };
                         (
                             unit.role,
-                            unit.hp as i64 * 8,
+                            unit.hp as i64 * enemy_roster_hp_percent / 100,
                             unit.damage as i64,
                             2_i64 + unit.supply as i64 * 2,
                             speed,
@@ -1109,7 +1298,22 @@ impl MissionSimV1 {
             .iter()
             .map(|unit| unit.unit_id.as_str())
             .collect::<BTreeSet<_>>();
-        if expected_ids != actual_ids || self.party.len() != self.seed.party.len() {
+        let generated_roster_units_are_valid = self.party.iter().all(|unit| {
+            expected_ids.contains(unit.unit_id.as_str())
+                || (!unit.persistent
+                    && UNIT_ROSTER.iter().any(|entry| {
+                        unit.unit_id.starts_with(&format!("{}_", entry.id))
+                            && unit.role == entry.role
+                            && unit
+                                .skill_ids
+                                .iter()
+                                .any(|skill| skill == entry.ability().rule_id())
+                    }))
+        });
+        if !expected_ids.is_subset(&actual_ids)
+            || actual_ids.len() != self.party.len()
+            || !generated_roster_units_are_valid
+        {
             return Err(SimError::Integrity(
                 "simulation party does not match BattleSeed".to_string(),
             ));
@@ -1188,7 +1392,7 @@ impl MissionSimV1 {
                 )));
             }
         }
-        for job in &self.jobs {
+        for job in self.jobs.iter().chain(&self.enemy_jobs) {
             if job.remaining_ticks == 0
                 || !self.seed.map.in_bounds(job.target)
                 || !self.seed.map.passable(job.target)
@@ -1199,6 +1403,19 @@ impl MissionSimV1 {
                     job.job_id
                 )));
             }
+        }
+        if self
+            .jobs
+            .iter()
+            .any(|job| job.side != AuthoritySide::Player)
+            || self
+                .enemy_jobs
+                .iter()
+                .any(|job| job.side != AuthoritySide::Enemy)
+        {
+            return Err(SimError::Integrity(
+                "job queue authority side is inconsistent".to_string(),
+            ));
         }
         if self
             .resources_available
@@ -1346,7 +1563,7 @@ impl MissionSimV1 {
         let reserved = self
             .enemy_jobs
             .iter()
-            .filter(|job| job.kind == EnemyJobKind::Train)
+            .filter(|job| job.kind == SimJobKind::TrainRosterUnit)
             .filter_map(|job| UNIT_ROSTER.iter().find(|entry| entry.id == job.rule_id))
             .map(|entry| entry.supply)
             .fold(0_u8, u8::saturating_add);
@@ -1651,7 +1868,7 @@ impl MissionSimV1 {
                         && self.enemies.iter().all(|enemy| !enemy.alive()),
                     SimTargetRef::destroyed,
                 ),
-            RtsOrderKind::Harvest => self.resources_available >= 100,
+            RtsOrderKind::Harvest => self.resources_available >= 200,
             RtsOrderKind::Capture | RtsOrderKind::Hold => self.terminal(),
             _ => true,
         }
@@ -1666,7 +1883,7 @@ impl MissionSimV1 {
         }
         self.tick += 1;
         self.recon_bonus_ticks = self.recon_bonus_ticks.saturating_sub(1);
-        self.resolve_player_construction_worker();
+        advance_side_construction_worker(&self.seed, &mut self.party, &self.enemies, &self.jobs);
         self.process_jobs();
         self.resolve_structure_functions();
         for support in &mut self.support_units {
@@ -1700,7 +1917,12 @@ impl MissionSimV1 {
             self.active_order = None;
             self.activate_next_queued_order();
         }
-        if self.party.iter().all(|unit| !unit.alive()) || self.tick >= FIVE_MINUTE_TICKS {
+        let time_limit = if self.seed.skirmish.enabled {
+            SKIRMISH_TIME_LIMIT_TICKS
+        } else {
+            FIVE_MINUTE_TICKS
+        };
+        if self.party.iter().all(|unit| !unit.alive()) || self.tick >= time_limit {
             self.outcome = Some(BattleOutcome::Defeat);
             self.phase = BattlePhase::Complete;
             self.event_count += 1;
@@ -2177,11 +2399,49 @@ impl MissionSimV1 {
                 continue;
             }
             let attacker = &self.party[attacker_index];
-            let requested_structure = requested.and_then(|id| {
-                self.enemy_structures
-                    .iter()
-                    .position(|structure| structure.structure_id == id && structure.alive())
-            });
+            let requested_structure = requested
+                .and_then(|id| {
+                    self.enemy_structures
+                        .iter()
+                        .position(|structure| structure.structure_id == id && structure.alive())
+                })
+                .or_else(|| {
+                    let siege_capable = self.party[attacker_index]
+                        .skill_ids
+                        .iter()
+                        .find_map(|skill| UnitAbility::from_rule_id(skill))
+                        .is_some_and(|ability| {
+                            matches!(
+                                ability,
+                                UnitAbility::ArcVolley
+                                    | UnitAbility::PiercingCharge
+                                    | UnitAbility::DemolitionCharge
+                            )
+                        });
+                    (self.current_order_kind() == RtsOrderKind::AttackMove && siege_capable)
+                        .then(|| {
+                            self.enemy_structures
+                                .iter()
+                                .enumerate()
+                                .filter(|(_, structure)| structure.alive())
+                                .filter(|(_, structure)| {
+                                    distance(
+                                        self.party[attacker_index].position,
+                                        structure.position,
+                                    ) <= self.party[attacker_index].attack_range() + 1
+                                })
+                                .min_by_key(|(_, structure)| {
+                                    let priority = match structure.kind {
+                                        SimStructureKind::CommandPost => 0,
+                                        SimStructureKind::FieldWorkshop => 1,
+                                        _ => 2,
+                                    };
+                                    (priority, structure.hp)
+                                })
+                                .map(|(index, _)| index)
+                        })
+                        .flatten()
+                });
             let target_index = requested
                 .and_then(|id| {
                     self.enemies
@@ -2205,6 +2465,12 @@ impl MissionSimV1 {
                     self.enemies[target_index].position,
                 ) <= self.party[attacker_index].attack_range()
                 {
+                    let ability = self.party[attacker_index]
+                        .skill_ids
+                        .iter()
+                        .find_map(|skill| UnitAbility::from_rule_id(skill));
+                    let ability_ready =
+                        ability.is_some() && self.party[attacker_index].ability_cooldown_ticks == 0;
                     let intel_bonus = if self.recon_bonus_ticks > 0 {
                         i64::from(self.intel_level) * 2
                     } else {
@@ -2235,6 +2501,13 @@ impl MissionSimV1 {
                                 _ => 3,
                             };
                     }
+                    if ability_ready {
+                        self.activate_player_ability(
+                            attacker_index,
+                            target_index,
+                            ability.expect("ready player ability exists"),
+                        );
+                    }
                     self.event_count += 1;
                 }
             } else if let Some(structure_index) = requested_structure.or_else(|| {
@@ -2252,17 +2525,23 @@ impl MissionSimV1 {
                     self.enemy_structures[structure_index].position,
                 ) <= self.party[attacker_index].attack_range() + 1
                 {
-                    let siege_bonus = if self.party[attacker_index]
+                    let ability = self.party[attacker_index]
                         .skill_ids
                         .iter()
-                        .any(|skill| skill.contains("demolition") || skill.contains("siege"))
-                    {
-                        12
-                    } else {
-                        0
+                        .find_map(|skill| UnitAbility::from_rule_id(skill));
+                    let ability_ready =
+                        ability.is_some() && self.party[attacker_index].ability_cooldown_ticks == 0;
+                    let siege_bonus = match ability.filter(|_| ability_ready) {
+                        Some(UnitAbility::DemolitionCharge) => 55,
+                        Some(UnitAbility::PiercingCharge) => 35,
+                        Some(UnitAbility::ArcVolley) => 55,
+                        _ => 0,
                     };
                     self.enemy_structures[structure_index].hp -=
                         (self.party[attacker_index].damage + siege_bonus).max(1);
+                    if ability_ready {
+                        self.party[attacker_index].ability_cooldown_ticks = 45;
+                    }
                     self.party[attacker_index].attacks_made += 1;
                     self.event_count += 1;
                 }
@@ -2277,6 +2556,105 @@ impl MissionSimV1 {
                 self.event_count += 1;
             }
         }
+    }
+
+    fn activate_player_ability(
+        &mut self,
+        attacker_index: usize,
+        target_index: usize,
+        ability: UnitAbility,
+    ) {
+        let attacker_position = self.party[attacker_index].position;
+        self.party[attacker_index].ability_cooldown_ticks = 45;
+        match ability {
+            UnitAbility::RevealPulse => {
+                self.intel_level = self.intel_level.max(3);
+                self.recon_bonus_ticks = self.recon_bonus_ticks.max(120);
+            }
+            UnitAbility::GuardWall => {
+                for unit in &mut self.party {
+                    if unit.alive() && distance(unit.position, attacker_position) <= 3 {
+                        unit.guard_ticks = unit.guard_ticks.max(30);
+                    }
+                }
+            }
+            UnitAbility::ArcVolley => {
+                if let Some((index, _)) = self
+                    .enemies
+                    .iter()
+                    .enumerate()
+                    .filter(|(index, unit)| *index != target_index && unit.alive())
+                    .min_by_key(|(_, unit)| distance(unit.position, attacker_position))
+                {
+                    self.enemies[index].hp -= (self.party[attacker_index].damage / 2).max(1);
+                }
+            }
+            UnitAbility::FieldRepair => {
+                if let Some(structure) = self
+                    .structures
+                    .iter_mut()
+                    .filter(|structure| structure.alive())
+                    .min_by_key(|structure| distance(structure.position, attacker_position))
+                {
+                    structure.hp = (structure.hp + 60).min(structure.max_hp);
+                }
+            }
+            UnitAbility::TriageAura => {
+                for unit in &mut self.party {
+                    if unit.alive() && distance(unit.position, attacker_position) <= 3 {
+                        unit.hp = (unit.hp + 45).min(unit.max_hp);
+                    }
+                }
+            }
+            UnitAbility::SuppressionBlast => {
+                self.enemies[target_index].energy =
+                    self.enemies[target_index].energy.saturating_sub(18);
+                self.enemies[target_index].ability_cooldown_ticks = self.enemies[target_index]
+                    .ability_cooldown_ticks
+                    .saturating_add(20);
+            }
+            UnitAbility::SmokeDash => {
+                self.party[attacker_index].evasion_permille =
+                    self.party[attacker_index].evasion_permille.max(180);
+                self.party[attacker_index].movement_budget_milli = self.party[attacker_index]
+                    .movement_budget_milli
+                    .saturating_add(MOVEMENT_TILE_COST);
+            }
+            UnitAbility::RetaliationPlate => {
+                self.party[attacker_index].guard_ticks = 50;
+                self.enemies[target_index].hp -= 8;
+            }
+            UnitAbility::PiercingCharge => {
+                self.enemies[target_index].guard_ticks = 0;
+            }
+            UnitAbility::DemolitionCharge => {
+                if let Some(structure) = self
+                    .enemy_structures
+                    .iter_mut()
+                    .filter(|structure| structure.alive())
+                    .min_by_key(|structure| distance(structure.position, attacker_position))
+                {
+                    structure.hp -= 55;
+                }
+            }
+            UnitAbility::SignalJam => {
+                self.enemy_ai_budget = self.enemy_ai_budget.saturating_sub(8);
+                self.enemies[target_index].ability_cooldown_ticks = self.enemies[target_index]
+                    .ability_cooldown_ticks
+                    .saturating_add(35);
+            }
+            UnitAbility::CommandSurge => {
+                for unit in &mut self.party {
+                    if unit.alive() && distance(unit.position, attacker_position) <= 4 {
+                        unit.movement_budget_milli = unit
+                            .movement_budget_milli
+                            .saturating_add(MOVEMENT_TILE_COST / 2);
+                        unit.guard_ticks = unit.guard_ticks.max(15);
+                    }
+                }
+            }
+        }
+        self.event_count += 1;
     }
 
     fn resolve_harvest(&mut self, selected: &BTreeSet<String>, order: &RtsFrameOrder) {
@@ -2475,7 +2853,6 @@ impl MissionSimV1 {
             ));
         }
         let cost = ((base_cost * u32::from(self.seed.field_build_cost_permille)) / 1000).max(1);
-        self.spend_resources(cost, "structure construction")?;
         let selected = order
             .subject_actor_ids
             .iter()
@@ -2496,18 +2873,20 @@ impl MissionSimV1 {
             }
         }
         let duration = 45 + definition.hp / 100;
-        self.jobs.push(SimJob {
-            job_id: format!("build-{rule}-{}", self.event_count + 1),
-            kind: SimJobKind::BuildStructure,
-            rule_id: rule.to_string(),
-            remaining_ticks: duration,
-            target,
-            cost,
-            paused: false,
-            builder_id: Some(builder_id),
-        });
-        self.event_count += 1;
-        Ok(())
+        self.enqueue_side_job(
+            SimJob {
+                job_id: format!("build-{rule}-{}", self.event_count + 1),
+                kind: SimJobKind::BuildStructure,
+                rule_id: rule.to_string(),
+                remaining_ticks: duration,
+                target,
+                cost,
+                paused: false,
+                builder_id: Some(builder_id),
+                side: AuthoritySide::Player,
+            },
+            "structure construction",
+        )
     }
 
     fn resolve_recon(&mut self, order: &RtsFrameOrder) -> Result<(), SimError> {
@@ -2730,27 +3109,28 @@ impl MissionSimV1 {
                 (tech_cost, 80, "rapid mustering research")
             }
         };
-        self.spend_resources(cost, label)?;
         let target = order
             .target_tile
             .map(|tile| BattleGridPoint::new(tile.x as i16, tile.y as i16))
             .unwrap_or(self.seed.map.party_start);
-        self.jobs.push(SimJob {
-            job_id: format!(
-                "{}-{}",
-                order.queue_id.as_deref().unwrap_or("field"),
-                self.tick
-            ),
-            kind,
-            rule_id,
-            remaining_ticks: duration,
-            target,
-            cost,
-            paused: false,
-            builder_id: None,
-        });
-        self.event_count += 1;
-        Ok(())
+        self.enqueue_side_job(
+            SimJob {
+                job_id: format!(
+                    "{}-{}",
+                    order.queue_id.as_deref().unwrap_or("field"),
+                    self.tick
+                ),
+                kind,
+                rule_id,
+                remaining_ticks: duration,
+                target,
+                cost,
+                paused: false,
+                builder_id: None,
+                side: AuthoritySide::Player,
+            },
+            label,
+        )
     }
 
     fn job_index(&self, order: &RtsFrameOrder) -> Result<usize, SimError> {
@@ -2801,31 +3181,9 @@ impl MissionSimV1 {
     }
 
     fn process_jobs(&mut self) {
-        let powered = !self.low_power();
-        let build_ready = self
-            .jobs
-            .iter()
-            .map(|job| {
-                job.kind != SimJobKind::BuildStructure
-                    || construction_job_ready(
-                        &self.party,
-                        job.builder_id.as_deref(),
-                        Some(job.target),
-                    )
-            })
-            .collect::<Vec<_>>();
-        for (job, ready) in self.jobs.iter_mut().zip(build_ready) {
-            if job.kind == SimJobKind::BuildStructure && !job.paused && ready {
-                job.remaining_ticks = job.remaining_ticks.saturating_sub(1);
-            }
-        }
-        if let Some(job) = self
-            .jobs
-            .iter_mut()
-            .find(|job| job.kind != SimJobKind::BuildStructure && !job.paused && powered)
-        {
-            job.remaining_ticks = job.remaining_ticks.saturating_sub(1);
-        }
+        let powered = !self.low_power()
+            && self.side_has_structure(AuthoritySide::Player, SimStructureKind::FieldWorkshop);
+        advance_side_job_queue(&mut self.jobs, &self.party, powered);
         let completed = self
             .jobs
             .iter()
@@ -2885,24 +3243,43 @@ impl MissionSimV1 {
                         .find(|unit| unit.id == job.rule_id)
                         .expect("queued faction unit remains catalogued");
                     let position = self.unoccupied_spawn_tile(job.target);
-                    self.support_units.push(SupportUnit {
-                        unit_id: format!("{}_{}", unit.id, self.support_units.len() + 1),
-                        archetype_id: unit.id.to_string(),
+                    let max_hp = i64::from(unit.hp) * 3;
+                    self.party.push(SimUnit {
+                        unit_id: format!("{}_{}", unit.id, self.party.len() + 1),
                         role: unit.role.to_string(),
+                        persistent: false,
+                        skill_ids: vec![unit.ability().rule_id().to_string()],
                         position,
-                        hp: i64::from(unit.hp),
+                        hp: max_hp,
+                        max_hp,
                         damage: i64::from(unit.damage) + i64::from(self.upgrade_level) * 3,
-                        armor: i64::from(unit.supply),
-                        attack_range: match unit.ability() {
-                            UnitAbility::RevealPulse
-                            | UnitAbility::ArcVolley
-                            | UnitAbility::SignalJam => 5,
-                            UnitAbility::SuppressionBlast | UnitAbility::DemolitionCharge => 4,
-                            _ => 3,
+                        armor: i64::from(unit.supply) * 2,
+                        move_speed_milli: match unit.ability() {
+                            UnitAbility::SmokeDash | UnitAbility::PiercingCharge => 1_050,
+                            UnitAbility::CommandSurge | UnitAbility::SuppressionBlast => 700,
+                            _ => 850,
                         },
-                        ability_cooldown_ticks: 0,
+                        movement_budget_milli: 0,
                         attack_interval_ticks: 16 + u32::from(unit.supply) * 3,
-                        supply: unit.supply,
+                        evasion_permille: if unit.ability() == UnitAbility::SmokeDash {
+                            160
+                        } else {
+                            45
+                        },
+                        energy: 100,
+                        max_energy: 100,
+                        ability_range: 4,
+                        ability_cooldown_ticks: 0,
+                        guard_ticks: 0,
+                        attacks_made: 0,
+                        stance: RtsUnitStance::Guard,
+                        patrol_anchor: None,
+                        patrol_target: None,
+                        patrol_returning: false,
+                        cargo: 0,
+                        cargo_capacity: WORKER_CARGO_CAPACITY,
+                        confirmed_kills: 0,
+                        veteran_rank: 0,
                     });
                 }
                 SimJobKind::ResearchLogistics => {
@@ -2968,53 +3345,6 @@ impl MissionSimV1 {
                 }
             }
             self.event_count += 1;
-        }
-    }
-
-    fn resolve_player_construction_worker(&mut self) {
-        let Some((builder_id, target)) = self
-            .jobs
-            .iter()
-            .find(|job| job.kind == SimJobKind::BuildStructure && !job.paused)
-            .and_then(|job| Some((job.builder_id.clone()?, job.target)))
-        else {
-            return;
-        };
-        let Some(index) = self
-            .party
-            .iter()
-            .position(|unit| unit.alive() && unit.unit_id == builder_id)
-        else {
-            return;
-        };
-        if distance(self.party[index].position, target) <= 1 {
-            return;
-        }
-        let occupied = self
-            .party
-            .iter()
-            .chain(&self.enemies)
-            .filter(|unit| unit.alive() && unit.unit_id != builder_id)
-            .map(|unit| unit.position)
-            .collect::<BTreeSet<_>>();
-        self.party[index].movement_budget_milli = self.party[index]
-            .movement_budget_milli
-            .saturating_add(self.party[index].move_speed_milli);
-        if self.party[index].movement_budget_milli >= MOVEMENT_TILE_COST {
-            if let Some(next) =
-                next_step_toward(&self.seed, self.party[index].position, target, 1, &occupied)
-                    .or_else(|| {
-                        neighbors(self.party[index].position)
-                            .into_iter()
-                            .filter(|tile| {
-                                self.seed.map.passable(*tile) && !occupied.contains(tile)
-                            })
-                            .min_by_key(|tile| (distance(*tile, target), tile.y, tile.x))
-                    })
-            {
-                self.party[index].position = next;
-                self.party[index].movement_budget_milli -= MOVEMENT_TILE_COST;
-            }
         }
     }
 
@@ -3220,7 +3550,7 @@ impl MissionSimV1 {
                         if let Some(job) = self
                             .enemy_jobs
                             .first_mut()
-                            .filter(|job| job.kind != EnemyJobKind::Build)
+                            .filter(|job| job.kind != SimJobKind::BuildStructure)
                         {
                             job.remaining_ticks = job.remaining_ticks.saturating_sub(1);
                         }
@@ -3269,6 +3599,46 @@ impl MissionSimV1 {
         }
         self.resources_available -= cost;
         self.resources_spent = self.resources_spent.saturating_add(cost);
+        Ok(())
+    }
+
+    fn enqueue_side_job(&mut self, job: SimJob, label: &str) -> Result<(), SimError> {
+        let side = job.side;
+        if job.remaining_ticks == 0
+            || !self.seed.map.in_bounds(job.target)
+            || !self.seed.map.passable(job.target)
+        {
+            return Err(SimError::Order(format!(
+                "{label} produced an invalid side job"
+            )));
+        }
+        if job.kind == SimJobKind::BuildStructure && job.builder_id.is_none() {
+            return Err(SimError::Order(format!(
+                "{label} requires a living builder assignment"
+            )));
+        }
+        let (resources_available, resources_spent, jobs) = match side {
+            AuthoritySide::Player => (
+                &mut self.resources_available,
+                &mut self.resources_spent,
+                &mut self.jobs,
+            ),
+            AuthoritySide::Enemy => (
+                &mut self.enemy_resources_available,
+                &mut self.enemy_resources_spent,
+                &mut self.enemy_jobs,
+            ),
+        };
+        if *resources_available < job.cost {
+            return Err(SimError::Order(format!(
+                "{label} requires {} field resources",
+                job.cost
+            )));
+        }
+        *resources_available -= job.cost;
+        *resources_spent = resources_spent.saturating_add(job.cost);
+        jobs.push(job);
+        self.event_count += 1;
         Ok(())
     }
 
@@ -3426,6 +3796,12 @@ impl MissionSimV1 {
         if !self.seed.skirmish.enabled {
             return;
         }
+        advance_side_construction_worker(
+            &self.seed,
+            &mut self.enemies,
+            &self.party,
+            &self.enemy_jobs,
+        );
         let Some(command_position) = self
             .enemy_structures
             .iter()
@@ -3452,12 +3828,15 @@ impl MissionSimV1 {
         let construction_assignment = self
             .enemy_jobs
             .first()
-            .filter(|job| job.kind == EnemyJobKind::Build)
-            .and_then(|job| Some((job.builder_id.as_deref()?, job.target?)));
+            .filter(|job| job.kind == SimJobKind::BuildStructure)
+            .and_then(|job| Some((job.builder_id.as_deref()?, job.target)));
         for index in worker_indices {
             let assigned_site = construction_assignment
                 .filter(|(builder_id, _)| *builder_id == self.enemies[index].unit_id.as_str())
                 .map(|(_, target)| target);
+            if assigned_site.is_some() {
+                continue;
+            }
             let node_index = self
                 .resource_nodes
                 .iter()
@@ -3465,12 +3844,9 @@ impl MissionSimV1 {
                 .filter(|(_, node)| node.remaining > 0)
                 .min_by_key(|(_, node)| distance(self.enemies[index].position, node.position))
                 .map(|(index, _)| index);
-            let returning = assigned_site.is_none()
-                && (self.enemies[index].cargo >= self.enemies[index].cargo_capacity
-                    || (node_index.is_none() && self.enemies[index].cargo > 0));
-            let target = if let Some(site) = assigned_site {
-                site
-            } else if returning {
+            let returning = self.enemies[index].cargo >= self.enemies[index].cargo_capacity
+                || (node_index.is_none() && self.enemies[index].cargo > 0);
+            let target = if returning {
                 command_position
             } else if let Some(node_index) = node_index {
                 self.resource_nodes[node_index].position
@@ -3496,9 +3872,6 @@ impl MissionSimV1 {
                     self.enemies[index].movement_budget_milli -= MOVEMENT_TILE_COST;
                 }
                 occupied.insert(self.enemies[index].position);
-            }
-            if assigned_site.is_some() {
-                continue;
             }
             if returning
                 && distance(self.enemies[index].position, command_position) <= 1
@@ -3552,21 +3925,15 @@ impl MissionSimV1 {
             .enemies
             .iter()
             .any(|unit| unit.alive() && unit.role == "worker");
-        let build_worker_ready = self.enemy_jobs.first().is_some_and(|job| {
-            if job.kind != EnemyJobKind::Build {
-                return true;
-            }
-            construction_job_ready(&self.enemies, job.builder_id.as_deref(), job.target)
-        });
         let enemy_low_power = self.enemy_low_power();
-        if let Some(job) = self.enemy_jobs.first_mut().filter(|job| {
-            worker_alive
-                && build_worker_ready
-                && (!enemy_low_power
-                    || job.kind == EnemyJobKind::Build
-                        && matches!(job.rule_id.as_str(), "relay_generator" | "ash_beacon"))
-        }) {
-            job.remaining_ticks = job.remaining_ticks.saturating_sub(1);
+        let enemy_workshop_ready =
+            self.side_has_structure(AuthoritySide::Enemy, SimStructureKind::FieldWorkshop);
+        if worker_alive {
+            advance_side_job_queue(
+                &mut self.enemy_jobs,
+                &self.enemies,
+                !enemy_low_power && enemy_workshop_ready,
+            );
         }
         if self
             .enemy_jobs
@@ -3575,9 +3942,9 @@ impl MissionSimV1 {
         {
             let job = self.enemy_jobs.remove(0);
             match job.kind {
-                EnemyJobKind::Build => {
+                SimJobKind::BuildStructure => {
                     if let Some(kind) = SimStructureKind::from_rule_id(&job.rule_id) {
-                        let position = job.target.unwrap_or(self.seed.map.objective);
+                        let position = job.target;
                         let definition = kind.definition();
                         self.enemy_structures.push(SimStructure {
                             structure_id: format!(
@@ -3592,7 +3959,16 @@ impl MissionSimV1 {
                         });
                     }
                 }
-                EnemyJobKind::Research => {
+                SimJobKind::ResearchLogistics
+                | SimJobKind::ResearchOptics
+                | SimJobKind::UpgradeRelayArms
+                | SimJobKind::UpgradeFieldArmor
+                | SimJobKind::ResearchSensorNet
+                | SimJobKind::ResearchFieldMedicine
+                | SimJobKind::UpgradeSiegeDrills
+                | SimJobKind::UpgradeReactivePlating
+                | SimJobKind::ResearchWayfinderDrills
+                | SimJobKind::ResearchRapidMustering => {
                     self.enemy_researched_techs.insert(job.rule_id.clone());
                     match job.rule_id.as_str() {
                         "relay_arms" | "siege_drills" => {
@@ -3642,7 +4018,7 @@ impl MissionSimV1 {
                         _ => {}
                     }
                 }
-                EnemyJobKind::Train => {
+                SimJobKind::TrainRosterUnit | SimJobKind::TrainSupport | SimJobKind::TrainMedic => {
                     if let Some(unit) = UNIT_ROSTER.iter().find(|unit| unit.id == job.rule_id) {
                         let position = self.unoccupied_spawn_tile(
                             nearest_passable(
@@ -3669,8 +4045,20 @@ impl MissionSimV1 {
                             role: unit.role.to_string(),
                             persistent: false,
                             skill_ids: vec![unit.ability().rule_id().to_string()],
-                            max_hp: i64::from(unit.hp) * 8,
-                            hp: i64::from(unit.hp) * 8,
+                            max_hp: i64::from(unit.hp)
+                                * match self.seed.difficulty {
+                                    CampaignDifficulty::Story => 100,
+                                    CampaignDifficulty::Standard => 150,
+                                    CampaignDifficulty::Veteran => 300,
+                                }
+                                / 100,
+                            hp: i64::from(unit.hp)
+                                * match self.seed.difficulty {
+                                    CampaignDifficulty::Story => 100,
+                                    CampaignDifficulty::Standard => 150,
+                                    CampaignDifficulty::Veteran => 300,
+                                }
+                                / 100,
                             damage: i64::from(unit.damage) + damage_bonus,
                             armor: i64::from(unit.supply) * 2 + armor_bonus,
                             move_speed_milli: match unit.ability() {
@@ -3730,44 +4118,79 @@ impl MissionSimV1 {
         };
         let supply_deficit = self.enemy_supply_used() >= self.enemy_supply_cap();
         let power_deficit = self.enemy_low_power();
+        let workshop_missing =
+            !self.side_has_structure(AuthoritySide::Enemy, SimStructureKind::FieldWorkshop);
         let choice = self.enemy_build_order_index % 8;
-        let (kind, rule_id, cost, duration) = if power_deficit {
+        let default_unit =
+            faction_units[(self.enemy_build_order_index as usize) % faction_units.len()];
+        let default_train = || {
+            (
+                SimJobKind::TrainRosterUnit,
+                default_unit.id,
+                default_unit.cost,
+                70 + u32::from(default_unit.supply) * 10,
+            )
+        };
+        let (kind, rule_id, cost, duration) = if workshop_missing {
+            let definition = SimStructureKind::FieldWorkshop.definition();
+            (
+                SimJobKind::BuildStructure,
+                "field_workshop",
+                definition.cost,
+                60,
+            )
+        } else if power_deficit {
             let definition = SimStructureKind::from_rule_id(power_rule)
                 .expect("enemy power rule is catalogued")
                 .definition();
-            (EnemyJobKind::Build, power_rule, definition.cost, 55)
+            (SimJobKind::BuildStructure, power_rule, definition.cost, 55)
         } else if supply_deficit {
             let definition = SimStructureKind::SupplyCache.definition();
-            (EnemyJobKind::Build, "supply_cache", definition.cost, 55)
+            (
+                SimJobKind::BuildStructure,
+                "supply_cache",
+                definition.cost,
+                55,
+            )
         } else {
             match choice {
-                0 => (EnemyJobKind::Build, "supply_cache", 25, 55),
-                1 if !self.enemy_researched_techs.contains("field_logistics") => {
-                    (EnemyJobKind::Research, "field_logistics", 35, 70)
+                0 => default_train(),
+                1 if !self.enemy_researched_techs.contains("field_logistics") => (
+                    research_job_kind("field_logistics"),
+                    "field_logistics",
+                    35,
+                    70,
+                ),
+                2 if !self.side_has_structure(
+                    AuthoritySide::Enemy,
+                    SimStructureKind::from_rule_id(faction_structure)
+                        .expect("enemy faction structure is catalogued"),
+                ) =>
+                {
+                    (SimJobKind::BuildStructure, faction_structure, 55, 80)
                 }
-                2 => (EnemyJobKind::Build, faction_structure, 55, 80),
                 3 if !self.enemy_researched_techs.contains("relay_arms") => {
-                    (EnemyJobKind::Research, "relay_arms", 45, 75)
+                    (research_job_kind("relay_arms"), "relay_arms", 45, 75)
                 }
                 5 if !self.enemy_researched_techs.contains(faction_tech) => {
-                    (EnemyJobKind::Research, faction_tech, 45, 80)
+                    (research_job_kind(faction_tech), faction_tech, 45, 80)
                 }
                 6 if !self.enemy_researched_techs.contains("field_armor") => {
-                    (EnemyJobKind::Research, "field_armor", 45, 75)
+                    (research_job_kind("field_armor"), "field_armor", 45, 75)
                 }
-                _ => {
-                    let unit = faction_units
-                        [(self.enemy_build_order_index as usize) % faction_units.len()];
-                    (
-                        EnemyJobKind::Train,
-                        unit.id,
-                        unit.cost,
-                        70 + u32::from(unit.supply) * 10,
-                    )
-                }
+                _ => default_train(),
             }
         };
-        if kind == EnemyJobKind::Train {
+        if kind == SimJobKind::TrainRosterUnit {
+            let population_cap = match self.seed.difficulty {
+                CampaignDifficulty::Story => 12,
+                CampaignDifficulty::Standard => 16,
+                CampaignDifficulty::Veteran => 24,
+            };
+            if self.enemies.iter().filter(|unit| unit.alive()).count() >= population_cap {
+                self.enemy_build_order_index = self.enemy_build_order_index.saturating_add(1);
+                return;
+            }
             let required_supply = UNIT_ROSTER
                 .iter()
                 .find(|unit| unit.id == rule_id)
@@ -3778,7 +4201,7 @@ impl MissionSimV1 {
             }
         }
         if self.enemy_resources_available >= cost {
-            let builder_id = (kind == EnemyJobKind::Build)
+            let builder_id = (kind == SimJobKind::BuildStructure)
                 .then(|| {
                     self.enemies
                         .iter()
@@ -3787,7 +4210,7 @@ impl MissionSimV1 {
                         .map(|unit| unit.unit_id.clone())
                 })
                 .flatten();
-            let target = (kind == EnemyJobKind::Build).then(|| {
+            let target = (kind == SimJobKind::BuildStructure).then(|| {
                 let offset = self.enemy_structures.len() as i16;
                 nearest_passable(
                     &self.seed,
@@ -3798,19 +4221,30 @@ impl MissionSimV1 {
                 )
                 .unwrap_or(self.seed.map.objective)
             });
-            self.enemy_resources_available -= cost;
-            self.enemy_resources_spent = self.enemy_resources_spent.saturating_add(cost);
-            self.enemy_jobs.push(EnemyJob {
-                kind,
-                rule_id: rule_id.to_string(),
-                remaining_ticks: duration,
-                cost,
-                builder_id,
-                target,
-                total_ticks: duration,
-            });
-            self.enemy_build_order_index = self.enemy_build_order_index.saturating_add(1);
-            self.event_count += 1;
+            let difficulty_duration = match self.seed.difficulty {
+                CampaignDifficulty::Story => duration.saturating_mul(5),
+                CampaignDifficulty::Standard => duration.saturating_mul(4),
+                CampaignDifficulty::Veteran => duration,
+            };
+            if self
+                .enqueue_side_job(
+                    SimJob {
+                        job_id: format!("enemy-{}-{}", rule_id, self.enemy_build_order_index),
+                        kind,
+                        rule_id: rule_id.to_string(),
+                        remaining_ticks: difficulty_duration,
+                        target: target.unwrap_or(self.seed.map.objective),
+                        cost,
+                        paused: false,
+                        builder_id,
+                        side: AuthoritySide::Enemy,
+                    },
+                    "enemy AI job command",
+                )
+                .is_ok()
+            {
+                self.enemy_build_order_index = self.enemy_build_order_index.saturating_add(1);
+            }
         }
     }
 
@@ -4345,9 +4779,16 @@ impl MissionSimV1 {
             BattleOutcome::Defeat if self.tick >= 60 * TICKS_PER_SECOND => 3,
             BattleOutcome::Defeat | BattleOutcome::Withdrawal => 0,
         };
+        let seeded_party_ids = self
+            .seed
+            .party
+            .iter()
+            .map(|unit| unit.unit_id.as_str())
+            .collect::<BTreeSet<_>>();
         let units = self
             .party
             .iter()
+            .filter(|unit| seeded_party_ids.contains(unit.unit_id.as_str()))
             .map(|unit| {
                 let status = if unit.hp <= 0 {
                     if unit.persistent {
@@ -4758,6 +5199,27 @@ impl BattleReplayV2 {
             return Err(SimError::Integrity(
                 "chunked battle replay diverged from recorded snapshot".to_string(),
             ));
+        }
+        Ok(sim)
+    }
+
+    pub fn replay_until_tick(&self, requested_tick: u64) -> Result<MissionSimV1, SimError> {
+        self.validate_chunks()?;
+        let target_tick = requested_tick.min(self.final_tick);
+        let mut sim = MissionSimV1::from_seed(self.seed.clone())?;
+        for entry in self
+            .chunks
+            .iter()
+            .flat_map(|chunk| &chunk.entries)
+            .filter(|entry| entry.issued_tick <= target_tick)
+        {
+            while sim.tick < entry.issued_tick {
+                sim.step()?;
+            }
+            sim.issue_order(entry.order.clone())?;
+        }
+        while sim.tick < target_tick && !sim.terminal() {
+            sim.step()?;
         }
         Ok(sim)
     }
@@ -5269,7 +5731,9 @@ mod tests {
         for _ in 0..60 {
             sim.process_jobs();
         }
-        assert!(sim.support_units.iter().any(|unit| unit.role == "raider"));
+        assert!(sim.party.iter().any(|unit| {
+            !unit.persistent && unit.role == "raider" && unit.unit_id.starts_with("ash_runner_")
+        }));
         assert!(sim
             .issue_order(job_order(
                 &sim,
@@ -5877,7 +6341,7 @@ mod tests {
         workshop.target_rule_id = Some("field_workshop".to_string());
         sim.issue_order(workshop).unwrap();
         for _ in 0..400 {
-            sim.resolve_player_construction_worker();
+            advance_side_construction_worker(&sim.seed, &mut sim.party, &sim.enemies, &sim.jobs);
             sim.process_jobs();
             if sim.structures.iter().any(|structure| {
                 structure.kind == SimStructureKind::FieldWorkshop
@@ -5915,7 +6379,7 @@ mod tests {
         generator.target_rule_id = Some("relay_generator".to_string());
         sim.issue_order(generator.clone()).unwrap();
         for _ in 0..400 {
-            sim.resolve_player_construction_worker();
+            advance_side_construction_worker(&sim.seed, &mut sim.party, &sim.enemies, &sim.jobs);
             sim.process_jobs();
             if sim
                 .structures
@@ -5960,7 +6424,7 @@ mod tests {
         supply.target_rule_id = Some("supply_cache".to_string());
         sim.issue_order(supply).unwrap();
         for _ in 0..400 {
-            sim.resolve_player_construction_worker();
+            advance_side_construction_worker(&sim.seed, &mut sim.party, &sim.enemies, &sim.jobs);
             sim.process_jobs();
             if sim
                 .structures
@@ -6339,7 +6803,7 @@ mod tests {
         while !sim
             .enemy_jobs
             .iter()
-            .any(|job| job.kind == EnemyJobKind::Build)
+            .any(|job| job.kind == SimJobKind::BuildStructure)
             && sim.tick < 900
         {
             sim.step().unwrap();
@@ -6347,22 +6811,22 @@ mod tests {
         let job = sim
             .enemy_jobs
             .iter()
-            .find(|job| job.kind == EnemyJobKind::Build)
+            .find(|job| job.kind == SimJobKind::BuildStructure)
             .cloned()
             .unwrap();
-        assert_eq!(job.kind, EnemyJobKind::Build);
+        assert_eq!(job.kind, SimJobKind::BuildStructure);
         assert!(job.builder_id.is_some());
-        assert!(job.target.is_some());
+        assert!(sim.seed.map.in_bounds(job.target));
         let starting_ticks = job.remaining_ticks;
         sim.step().unwrap();
         if sim
             .enemy_jobs
             .iter()
-            .find(|candidate| candidate.kind == EnemyJobKind::Build)
+            .find(|candidate| candidate.kind == SimJobKind::BuildStructure)
             .is_some_and(|candidate| candidate.remaining_ticks == starting_ticks)
         {
             let builder_id = job.builder_id.as_deref().unwrap();
-            let target = job.target.unwrap();
+            let target = job.target;
             assert!(sim
                 .enemies
                 .iter()
@@ -6450,6 +6914,13 @@ mod tests {
         );
         assert!(matrix.mirror_wins > 0 && matrix.ashen_wins > 0);
         assert!(matrix.average_terminal_ticks > 0);
+        assert!(matrix.samples.iter().all(|sample| {
+            sample.player_resources_spent > 0 && sample.enemy_resources_spent > 0
+        }));
+        assert!(matrix
+            .samples
+            .iter()
+            .any(|sample| { sample.player_tech_count > 0 && sample.enemy_tech_count > 0 }));
     }
 
     #[test]

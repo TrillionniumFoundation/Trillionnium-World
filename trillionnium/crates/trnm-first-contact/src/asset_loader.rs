@@ -13,6 +13,7 @@ pub struct AtlasFile {
 pub struct AtlasFiles {
     pub units: AtlasFile,
     pub world: AtlasFile,
+    pub identities: AtlasFile,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -31,6 +32,8 @@ pub struct UnitFamily {
     pub silhouette_scale: [f32; 2],
     #[serde(default)]
     pub silhouette_rotation_degrees: f32,
+    #[serde(default)]
+    pub identity_frame: Option<usize>,
 }
 
 impl UnitFamily {
@@ -50,6 +53,8 @@ pub struct StructureFamily {
     pub silhouette_scale: [f32; 2],
     #[serde(default)]
     pub silhouette_rotation_degrees: f32,
+    #[serde(default)]
+    pub identity_frame: Option<usize>,
 }
 
 fn white_tint() -> [f32; 3] {
@@ -90,8 +95,10 @@ impl FirstContactAtlasManifest {
             || self.atlases.units.rows != 6
             || self.atlases.world.columns != 8
             || self.atlases.world.rows != 6
+            || self.atlases.identities.columns != 8
+            || self.atlases.identities.rows != 3
         {
-            return Err("First Contact atlas must be a normalized 8x6 128px grid".into());
+            return Err("First Contact atlases require normalized 128px grids".into());
         }
         if self.unit_families.len() < 18 || self.structure_families.len() < 15 {
             return Err(
@@ -121,6 +128,19 @@ impl FirstContactAtlasManifest {
             .collect::<std::collections::BTreeSet<_>>();
         if unit_identities.len() < 12 {
             return Err("the twelve roster identities require distinct runtime silhouettes".into());
+        }
+        let bitmap_unit_frames = self
+            .unit_families
+            .iter()
+            .filter_map(|family| family.identity_frame)
+            .collect::<std::collections::BTreeSet<_>>();
+        let bitmap_structure_frames = self
+            .structure_families
+            .iter()
+            .filter_map(|family| family.identity_frame)
+            .collect::<std::collections::BTreeSet<_>>();
+        if bitmap_unit_frames.len() < 12 || bitmap_structure_frames.len() < 10 {
+            return Err("twelve units and ten structures require independent bitmap frames".into());
         }
         let structure_identities = self
             .structure_families
@@ -183,6 +203,8 @@ pub struct FirstContactAtlasHandles {
     pub units_layout: Handle<TextureAtlasLayout>,
     pub world_image: Handle<Image>,
     pub world_layout: Handle<TextureAtlasLayout>,
+    pub identities_image: Handle<Image>,
+    pub identities_layout: Handle<TextureAtlasLayout>,
 }
 
 pub fn load_first_contact_atlas(path: &Path) -> Result<FirstContactAtlasManifest, String> {
@@ -209,6 +231,7 @@ pub fn register_first_contact_atlases(
 ) -> FirstContactAtlasHandles {
     let units_image = asset_server.load(manifest.atlases.units.image.clone());
     let world_image = asset_server.load(manifest.atlases.world.image.clone());
+    let identities_image = asset_server.load(manifest.atlases.identities.image.clone());
     let cell = UVec2::splat(manifest.cell_size);
     let units_layout = layouts.add(TextureAtlasLayout::from_grid(
         cell,
@@ -224,11 +247,20 @@ pub fn register_first_contact_atlases(
         None,
         None,
     ));
+    let identities_layout = layouts.add(TextureAtlasLayout::from_grid(
+        cell,
+        manifest.atlases.identities.columns,
+        manifest.atlases.identities.rows,
+        None,
+        None,
+    ));
     FirstContactAtlasHandles {
         units_image,
         units_layout,
         world_image,
         world_layout,
+        identities_image,
+        identities_layout,
     }
 }
 
@@ -244,8 +276,12 @@ mod tests {
         assert_eq!(atlas.unit_families.len(), 18);
         assert_eq!(atlas.structure_families.len(), 15);
         assert_ne!(
-            atlas.unit("mirror_wayfinder").unwrap().tint,
-            atlas.unit("ash_runner").unwrap().tint
+            atlas.unit("mirror_wayfinder").unwrap().identity_frame,
+            atlas.unit("ash_runner").unwrap().identity_frame
+        );
+        assert_ne!(
+            atlas.structure("command_post").unwrap().identity_frame,
+            atlas.structure("ash_beacon").unwrap().identity_frame
         );
         assert!(atlas.effect_frames.contains_key("selection_ring"));
         assert!(atlas.terrain_frames.contains_key("moss_basalt_ne"));

@@ -279,23 +279,31 @@ fn town_body(flow: &CampaignFlow) -> String {
             let quest = save
                 .active_regional_quest_objective()
                 .unwrap_or_else(|| "No regional quest active".to_string());
-            let commerce = match room {
-                CampaignRoom::MarketWindPavilion => format!("SHOP: {}", save.shop_selection_label()),
-                CampaignRoom::WorkshopGate => format!("RECIPE: {}", save.recipe_selection_label()),
-                _ => "F11 cycles equipped owned items outside shop/workshop rooms".to_string(),
+            let commerce = if save.current_market_region_id().is_some() {
+                format!("REGIONAL SHOP: {}", save.shop_selection_label())
+            } else if room == CampaignRoom::WorkshopGate {
+                format!("RECIPE: {}", save.recipe_selection_label())
+            } else {
+                "F11 cycles equipped owned items outside shop/workshop rooms".to_string()
             };
             let story = flow
                 .save
                 .main_story_ending
-                .map(|ending| format!("ENDING: {}", ending.label()))
+                .map(|ending| format!(
+                    "ENDING SCENE: {}\nPOST-ENDING WORLD: {}",
+                    ending.label(),
+                    flow.save.post_ending_world_state.as_deref().unwrap_or("pending")
+                ))
                 .unwrap_or_else(|| {
                     format!(
-                        "CHAPTER: {:?} | next resolution: {:?}",
-                        flow.save.main_story_chapter, flow.save.main_story_choice
+                        "CHAPTER: {:?} | pending scene: {:?} | next resolution: {:?}",
+                        flow.save.main_story_chapter,
+                        flow.save.pending_main_story_chapter,
+                        flow.save.main_story_choice
                     )
                 });
             format!(
-                "{}\n\nMIRROR CITY REGIONAL DISTRICT\n\nNPC: {}\n{}\n\nQUEST: {}\n{}\n\n{}\n{}\n\nT talks; Shift+T changes dialogue intent. F9 accepts, F10 advances graph-ready nodes, R changes Direct/Diplomatic/Resourceful resolution. W advances moving NPC schedules. Shift+K / Ctrl+Shift+K choose primary / secondary sect techniques. F11 cycles; Shift+F11 buys/crafts; Ctrl+F11 sells; F12 repairs.",
+                "{}\n\nMIRROR CITY REGIONAL DISTRICT\n\nNPC: {}\n{}\n\nQUEST: {}\n{}\n\n{}\n{}\n\nT talks; Shift+T changes dialogue intent; Ctrl+T joins the sect in a sect hall. F9 accepts, N walks one legal route edge, F10 resolves the graph-ready node, Ctrl+F10 abandons it for a retry, and R changes Direct/Diplomatic/Resourceful resolution. Shift+B selects a chapter outcome; Ctrl+Shift+B resolves it in its scene. W advances schedules. Shift+K / Ctrl+Shift+K choose techniques. F11 cycles; Shift+F11 buys/crafts; Ctrl+F11 sells; F12 repairs.",
                 room_label(room), npc, dialogue, quest, navigation, commerce, story,
             )
         }
@@ -414,7 +422,7 @@ fn shell_body(flow: &CampaignFlow) -> String {
         ),
         ShellMode::Journal => journal_body(flow),
         ShellMode::ReplayBrowser => format!(
-            "VERIFIED REPLAY BROWSER\n\n{}\n\nEnter re-runs every authoritative order and verifies the final snapshot hash. Escape returns to title.",
+            "VERIFIED REPLAY TIMELINE\n\n{}\n\nSpace play/pause | Left/Right seek | Up speed 1x/2x/4x/8x | Enter full hash verification | Escape title.",
             flow.status
         ),
         ShellMode::Playing => String::new(),

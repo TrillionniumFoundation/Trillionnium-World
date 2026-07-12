@@ -52,13 +52,13 @@ Mirror Square
 - `trnm_battle_seed_v8`
 - `trnm_battle_result_v2`
 - `trnm_settlement_receipt_v1`
-- `trnm_rts_sim_v14`
-- `trnm_rts_sim_checkpoint_v14`
+- `trnm_rts_sim_v15`
+- `trnm_rts_sim_checkpoint_v15`
 
-Campaign persistence remains `trnm_campaign_save_v1` with schema revision 7.
-Revision 7 adds branch-driven per-quest DAG navigation, explicit ending state,
-primary/secondary technique loadouts, four regional markets and deterministic
-inter-region logistics while preserving revision-6 migration paths.
+Campaign persistence remains `trnm_campaign_save_v1` with schema revision 8.
+Revision 8 adds mutually exclusive/optional route consequences, playable
+chapter scenes, post-ending state and autonomous NPC/caravan state while
+preserving revision-7 migration paths.
 
 `BattleSeedV1` binds campaign revision, battle id, map/rules version, four
 persistent party members, spawn slots, skills, typed equipment modifiers,
@@ -97,24 +97,36 @@ BattleSeed effect.
 ## Deeper RPG and symmetric skirmish authority
 
 - all fifteen regional quests own a structurally distinct typed DAG whose
-  currently reachable nodes drive route choice, plus authored approach prose,
-  real encounter execution, failure recovery and relationship/economy effects;
+  currently reachable nodes drive movement, mutually exclusive/skippable route
+  choice and persisted consequences, plus authored approach prose, real
+  encounter execution, failure recovery and relationship/economy effects;
+- a client-level 15 x 3 matrix sends the same movement, accept, approach,
+  abandon/retry, graph-resolution, shop, primary/secondary combat and chapter
+  scene keys available to a player; its post-prologue fixture writes neither
+  room, character attributes, NPC trust, inventory, encounter results nor quest
+  nodes directly;
 - the twenty-room world includes four-room Glass Basin and Ashen Fringe
   regions plus three independent chapter decisions and five ending states;
-- NPC schedules produce bounded pairwise social-event memories; persisted bond
-  and work output alter goals, production, four regional markets and logistics;
-- each sect exposes an alternating primary/secondary technique loadout with
-  separate mastery, telegraphed enemy moves and typed combat statuses;
+- NPC schedules produce bounded pairwise social-event memories; persisted bond,
+  work output and autonomous goals alter production, migration, alliances,
+  conflict, task flags, four regional markets and multi-leg caravan logistics;
+- each sect exposes freely selected primary/secondary techniques with separate
+  mastery, combo/counter rules, telegraphed enemy move trees and typed statuses;
 - both RTS sides use `SimUnit` workers, shared resource nodes, cargo return,
-  builder-bound sites, `SimStructure` buildings and one side-generic structure
-  function authority alongside power, supply, production and research jobs;
+  builder-bound sites, `SimStructure` buildings and one side-tagged `SimJob`
+  execution/structure-function authority alongside power, supply, production
+  and research prerequisites;
+- player orders and adaptive-AI build choices share resource deduction, job
+  submission, progress and construction-worker execution; strategic AI goal
+  selection remains a controller concern rather than a second job authority;
 - enemy buildings are explicit selectable attack targets; proximity cannot
   damage a base;
 - all twelve roster abilities have individual authoritative effects;
 - `trnm_battle_replay_v2` chunk-hashes up to 65,536 frame orders, migrates v1,
-  exposes a title replay browser and verifies the final snapshot hash; the
-  terminal-oriented balance gate runs four real YAML maps, both faction and
-  spawn assignments, and three gameplay-affecting seeds through live authority.
+  exposes a pause/seek/speed title replay timeline and verifies the final
+  snapshot hash; the terminal-oriented balance gate runs four real YAML maps,
+  both faction and spawn assignments, and three gameplay-affecting seeds through
+  player/enemy harvesting, spending, production, research and terminal authority.
 
 The authored map's four selected player records are presentation spawn slots;
 they are no longer hard-coded RPG character identities.
@@ -133,7 +145,7 @@ Town:
 - `5/6/7/8/9/0/-/=`: Cistern Ward, Night Watch Post, Iron Workshop Gate,
   Market Wind Pavilion, Lantern Infirmary, Archive Steps, Caravan Yard and Outer Signal Road
 - `Shift+1/2/3/4/5/6/7/8`: Glass Basin Wayhouse, Deep Relay, Moon Bridge, Ember Orchard Edge, Glass Reed Marsh, Basin Observatory, Ash Beacon Field and Cinder Refuge after their story locks open
-- `T`: talk to the scheduled NPC; `Shift+T`: cycle ask-for-work / offer-help / share-news dialogue intent
+- `T`: talk to the scheduled NPC; `Shift+T`: cycle ask-for-work / offer-help / share-news dialogue intent; `Ctrl+T`: join the sect while standing in one of the three sect halls
 - `L`: cycle Iron Guard / Wind Step / Inner Flame training path
 - `K`: buy one capped mentor training session
 - `E`: cycle Guard / Raider / Mystic typed loadouts
@@ -147,14 +159,14 @@ Town:
   growth point; `D`: cancel without spending; `O`: select origin before mentor
   commitment; `Q`: complete the selected path mastery; `V`: cycle earned titles
 - `J`: begin the Signal Road typed RPG encounter from Relay Quarter (or the
-  Gate Warden route); during it use `J/R/K/I/Esc` for attack/defend/sect-technique/item/withdraw
+  Gate Warden route); during it use `J/R/K/L/I/Esc` for attack/defend/primary-technique/secondary-technique/item/withdraw
 - `B`: start/advance Cistern Relief; at its branch use `N` to reinforce or `M`
   to evacuate; its supply step is completed at the expedition gate
 - `R` at the expedition gate: cycle immediate/rested/supplied/shortcut preparation
 - `F6` at the expedition gate: cycle Story / Standard / Veteran before acceptance
 - `F`: accept mission / deploy
-- `F9/F10`: accept and advance the authored regional quest available at the current NPC room; `R` away from the expedition gate cycles Direct/Diplomatic/Resourceful resolution
-- `T/K` in a regional mentor hall: commit to one of three sects and train its prerequisite skill tree
+- `F9/F10`: accept and advance the authored regional quest available at the current NPC room; `Ctrl+F10` abandons the active quest while preserving its retry path; `R` away from the expedition gate cycles Direct/Diplomatic/Resourceful resolution
+- `Ctrl+T` / `K` in a regional mentor hall: commit to one of three sects and train its prerequisite skill tree
 - `Shift+K` / `Ctrl+Shift+K`: select the primary / secondary sect technique
 - `F11`: cycle shop/crafting/equipment; `Shift+F11`: buy or craft; `Ctrl+F11`: sell at daily demand price; `F12`: equipment repair
 
@@ -165,7 +177,9 @@ Title/pause shell:
 - new character: `C` cycles the persistent display name; `Enter` confirms it
 - `Enter`: load/continue, then pass the resume guard before gameplay is revealed
 - `K`: open independent skirmish setup for the selected existing slot; then `M/T/Y/U/I` select map/factions/resources/victory/deterministic seed and `Enter` deploys
-- `P`: open the selected slot's last verified chunked replay browser
+- `P`: open the selected slot's last verified chunked replay browser; use
+  `Space` to pause/play, left/right to seek, up to cycle 1x/2x/4x/8x and Enter
+  for a complete hash verification
 - `F2`: low-motion mode; `F3`: hybrid/keyboard-only/mouse-only input mode
 - `F5`: subtitles/high contrast; `F7`: control-scheme profile; `F8`: live master volume for the town/battle Bevy audio sinks
 - `Esc`: resume from pause; settings are profile-scoped rather than character-scoped

@@ -627,6 +627,16 @@ pub struct QuestConditionNode {
     pub kind: QuestConditionKind,
     pub subject_id: String,
     pub quantity: u16,
+    /// Optional authored beats can be visited for extra context but never
+    /// block the branch or settlement.
+    #[serde(default)]
+    pub optional: bool,
+    /// Completing one member satisfies the route and closes its siblings.
+    #[serde(default)]
+    pub exclusive_group: Option<String>,
+    /// A durable world consequence recorded when this route is taken.
+    #[serde(default)]
+    pub consequence_flag: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
@@ -842,6 +852,9 @@ pub fn quest_condition_graph(
         kind: QuestConditionKind::SpeakToGiver,
         subject_id: definition.giver_npc_id.to_string(),
         quantity: 1,
+        optional: false,
+        exclusive_group: None,
+        consequence_flag: None,
     }];
     nodes.extend(
         definition
@@ -853,6 +866,9 @@ pub fn quest_condition_graph(
                 kind: QuestConditionKind::VisitWaypoint,
                 subject_id: (*room).to_string(),
                 quantity: 1,
+                optional: false,
+                exclusive_group: None,
+                consequence_flag: None,
             }),
     );
     let rule = quest_runtime_rule(definition.archetype);
@@ -864,6 +880,9 @@ pub fn quest_condition_graph(
                     kind: QuestConditionKind::WinEncounter,
                     subject_id: encounter.to_string(),
                     quantity: 1,
+                    optional: false,
+                    exclusive_group: None,
+                    consequence_flag: None,
                 });
             }
         }
@@ -872,12 +891,18 @@ pub fn quest_condition_graph(
             kind: QuestConditionKind::ReachTrust,
             subject_id: definition.giver_npc_id.to_string(),
             quantity: rule.minimum_trust_for_diplomacy.max(0) as u16,
+            optional: false,
+            exclusive_group: None,
+            consequence_flag: None,
         }),
         QuestApproach::Resourceful => nodes.push(QuestConditionNode {
             id: format!("{}_resource", definition.id),
             kind: QuestConditionKind::ConsumeItem,
             subject_id: rule.resource_item_id.to_string(),
             quantity: rule.resource_quantity,
+            optional: false,
+            exclusive_group: None,
+            consequence_flag: None,
         }),
     }
     nodes.push(QuestConditionNode {
@@ -890,7 +915,60 @@ pub fn quest_condition_graph(
             .unwrap_or(definition.giver_npc_id)
             .to_string(),
         quantity: 1,
+        optional: false,
+        exclusive_group: None,
+        consequence_flag: None,
     });
+    let mark_route = |nodes: &mut [QuestConditionNode], index: usize, group: &str, flag: &str| {
+        let node = nodes
+            .get_mut(index + 1)
+            .expect("authored route index is catalog validated");
+        node.exclusive_group = Some(format!("{}_{}", definition.id, group));
+        node.consequence_flag = Some(format!("quest_route_{}_{}", definition.id, flag));
+    };
+    let mark_optional = |nodes: &mut [QuestConditionNode], index: usize, flag: &str| {
+        let node = nodes
+            .get_mut(index + 1)
+            .expect("authored optional index is catalog validated");
+        node.optional = true;
+        node.consequence_flag = Some(format!("quest_optional_{}_{}", definition.id, flag));
+    };
+    match definition.id {
+        "wayfinder_oath" => mark_optional(&mut nodes, 1, "archive_vow"),
+        "broken_milestone" => {
+            mark_route(&mut nodes, 0, "investigation", "survey_marks");
+            mark_route(&mut nodes, 1, "investigation", "rival_witness");
+        }
+        "forge_commission" => mark_optional(&mut nodes, 0, "recover_mould"),
+        "lost_tooling" => mark_optional(&mut nodes, 0, "yard_testimony"),
+        "lantern_watch" => mark_optional(&mut nodes, 1, "spare_lanterns"),
+        "wanted_raider" => {
+            mark_route(&mut nodes, 0, "pincer", "ridge_trail");
+            mark_route(&mut nodes, 1, "pincer", "safehouse_tip");
+        }
+        "relay_salvage" => mark_optional(&mut nodes, 1, "rival_claim"),
+        "fever_tonic" => mark_optional(&mut nodes, 0, "market_herbs"),
+        "archive_witness" => {
+            mark_route(&mut nodes, 0, "corroboration", "watch_route");
+            mark_route(&mut nodes, 1, "corroboration", "sealed_ledger");
+        }
+        "market_debt" => {
+            mark_route(&mut nodes, 0, "mediation", "public_schedule");
+            mark_route(&mut nodes, 1, "mediation", "bonded_courier");
+        }
+        "missing_crate" => mark_optional(&mut nodes, 0, "dock_search"),
+        "night_letter" => mark_optional(&mut nodes, 0, "curfew_exception"),
+        "escort_manifest" => mark_optional(&mut nodes, 0, "captain_signature"),
+        "bandit_tracks" => {
+            mark_route(&mut nodes, 0, "encirclement", "track_ambush");
+            mark_route(&mut nodes, 1, "encirclement", "quartermaster_tip");
+        }
+        "ration_audit" => {
+            mark_route(&mut nodes, 0, "audit", "book_count");
+            mark_route(&mut nodes, 1, "audit", "physical_count");
+        }
+        _ => unreachable!("catalog validation binds every authored quest"),
+    }
     let topology = QuestGraphTopology::for_quest(definition.id)
         .expect("every authored regional quest has a bespoke topology");
     let node_ids = nodes.iter().map(|node| node.id.clone()).collect::<Vec<_>>();

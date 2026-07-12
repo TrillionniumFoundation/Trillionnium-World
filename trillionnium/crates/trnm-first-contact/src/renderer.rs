@@ -317,9 +317,25 @@ pub(super) fn spawn_first_contact_live_scene(
         } else {
             family.idle
         };
+        let (image, layout, frame) = family.identity_frame.map_or_else(
+            || {
+                (
+                    handles.world_image.clone(),
+                    handles.world_layout.clone(),
+                    frame,
+                )
+            },
+            |identity| {
+                (
+                    handles.identities_image.clone(),
+                    handles.identities_layout.clone(),
+                    identity,
+                )
+            },
+        );
         let mut sprite = atlas_sprite(
-            handles.world_image.clone(),
-            handles.world_layout.clone(),
+            image,
+            layout,
             frame,
             Vec2::new(
                 tile_size * 2.75 * family.silhouette_scale[0],
@@ -378,10 +394,26 @@ pub(super) fn spawn_first_contact_live_scene(
                 },
             ));
         }
+        let (image, layout, frame) = family.identity_frame.map_or_else(
+            || {
+                (
+                    handles.units_image.clone(),
+                    handles.units_layout.clone(),
+                    family.atlas_index(family.idle[0]),
+                )
+            },
+            |identity| {
+                (
+                    handles.identities_image.clone(),
+                    handles.identities_layout.clone(),
+                    identity,
+                )
+            },
+        );
         let mut sprite = atlas_sprite(
-            handles.units_image.clone(),
-            handles.units_layout.clone(),
-            family.atlas_index(family.idle[0]),
+            image,
+            layout,
+            frame,
             Vec2::new(
                 tile_size * 2.1 * family.silhouette_scale[0],
                 tile_size * 2.1 * family.silhouette_scale[1],

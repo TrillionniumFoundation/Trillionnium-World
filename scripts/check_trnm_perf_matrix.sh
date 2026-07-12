@@ -18,7 +18,11 @@ measure() {
 printf 'gate\tseconds\tmax_rss_kib\n' > "$output"
 measure rpg_core cargo test --manifest-path "$repo_root/trillionnium/Cargo.toml" -p trnm-rpg-core --all-targets
 measure campaign_core cargo test --manifest-path "$repo_root/trillionnium/Cargo.toml" -p trnm-campaign-core --all-targets
-measure rts_sim cargo test --manifest-path "$repo_root/trillionnium/Cargo.toml" -p trnm-rts-sim --all-targets
+# Keep the deterministic simulation suite and the campaign closed-loop
+# integration suite as separate gates. `--all-targets` already ran the latter,
+# so the old matrix measured it twice and made the `rts_sim` row conflate two
+# independently reported budgets.
+measure rts_sim cargo test --manifest-path "$repo_root/trillionnium/Cargo.toml" -p trnm-rts-sim --lib
 measure closed_loop cargo test --manifest-path "$repo_root/trillionnium/Cargo.toml" -p trnm-rts-sim --test campaign_closed_loop
 measure release_incremental_build cargo build --manifest-path "$repo_root/trillionnium/Cargo.toml" --release -p trnm-first-contact
 

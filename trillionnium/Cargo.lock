@@ -4523,6 +4523,7 @@ dependencies = [
  "serde",
  "serde_yaml",
  "trnm-campaign-core",
+ "trnm-rpg-core",
  "trnm-rts-protocol",
  "trnm-rts-sim",
 ]

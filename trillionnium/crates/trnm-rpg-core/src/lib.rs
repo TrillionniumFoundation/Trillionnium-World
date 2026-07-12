@@ -230,6 +230,8 @@ pub enum EncounterAction {
     Attack,
     Defend,
     Technique,
+    PrimaryTechnique,
+    SecondaryTechnique,
     UseItem,
     Withdraw,
 }
@@ -397,7 +399,13 @@ impl RpgEncounterState {
         if action == EncounterAction::UseItem && !item_available {
             return Err("rpg_encounter_item_missing".to_string());
         }
-        if action == EncounterAction::Technique && self.technique_cooldown > 0 {
+        let technique_action = matches!(
+            action,
+            EncounterAction::Technique
+                | EncounterAction::PrimaryTechnique
+                | EncounterAction::SecondaryTechnique
+        );
+        if technique_action && self.technique_cooldown > 0 {
             return Err("rpg_encounter_technique_cooling_down".to_string());
         }
         self.round = self.round.saturating_add(1);
@@ -429,18 +437,62 @@ impl RpgEncounterState {
                 self.momentum = (self.momentum + 2).min(5);
                 self.player_status.guarded_rounds = 2;
             }
-            EncounterAction::Technique => {
-                let active_style = self.next_technique_style();
-                let active_rank = if self.technique_chain_step.is_multiple_of(2) {
-                    self.technique_rank
-                } else {
-                    self.secondary_technique_rank
+            EncounterAction::Technique
+            | EncounterAction::PrimaryTechnique
+            | EncounterAction::SecondaryTechnique => {
+                let (active_style, active_rank, secondary_selected) = match action {
+                    EncounterAction::PrimaryTechnique => {
+                        (self.technique_style, self.technique_rank, false)
+                    }
+                    EncounterAction::SecondaryTechnique => (
+                        self.secondary_technique_style,
+                        self.secondary_technique_rank,
+                        true,
+                    ),
+                    EncounterAction::Technique => {
+                        let secondary = !self.technique_chain_step.is_multiple_of(2);
+                        (
+                            self.next_technique_style(),
+                            if secondary {
+                                self.secondary_technique_rank
+                            } else {
+                                self.technique_rank
+                            },
+                            secondary,
+                        )
+                    }
+                    _ => unreachable!(),
+                };
+                let combo_bonus =
+                    i64::from(secondary_selected && self.technique_chain_step == 1) * 12;
+                let counter_bonus = match active_style {
+                    TechniqueStyle::CompassFeint | TechniqueStyle::CompassSpiral
+                        if self.enemy_intent.contains("feint")
+                            || self.enemy_intent.contains("flanking") =>
+                    {
+                        9
+                    }
+                    TechniqueStyle::ForgeCounter | TechniqueStyle::IronReversal
+                        if self.enemy_intent.contains("break")
+                            || self.enemy_intent.contains("punish") =>
+                    {
+                        11
+                    }
+                    TechniqueStyle::NightVeil | TechniqueStyle::ShadowNeedle
+                        if self.enemy_intent.contains("brace")
+                            || self.enemy_intent.contains("guard") =>
+                    {
+                        10
+                    }
+                    _ => 0,
                 };
                 let base = 18
                     + i64::from(attributes.insight) * 2
                     + i64::from(attributes.agility)
                     + i64::from(self.momentum.max(0)) * 3
-                    + i64::from(active_rank) * 2;
+                    + i64::from(active_rank) * 2
+                    + combo_bonus
+                    + counter_bonus;
                 match active_style {
                     TechniqueStyle::CenterlineBreak => {
                         self.enemy_hp -= base + i64::from(attributes.force)
@@ -489,7 +541,7 @@ impl RpgEncounterState {
                 }
                 self.technique_cooldown = 2;
                 self.momentum = 0;
-                self.technique_chain_step = self.technique_chain_step.saturating_add(1);
+                self.technique_chain_step = if secondary_selected { 0 } else { 1 };
             }
             EncounterAction::UseItem => {
                 item_consumed = true;

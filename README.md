@@ -22,6 +22,7 @@
 - CEX is a legacy incubator/evidence adapter only. Do not use CEX web runtime as the Trillionnium World client.
 - Account/auth work for the game must land behind Trillionnium-owned APIs consumed by the current native client; CEX account code may be used as migration reference, not as the product entry.
 - Current game boundary gate: `scripts/check_trnm_game_product.sh`
+- Current native snapshot (2026-07-12): schema revision 8 and RTS/checkpoint v15; fifteen consequence-bearing quest DAGs, playable chapter/ending state, autonomous NPC/regional-caravan economy, freely selected combo/counter sect techniques, shared side-tagged RTS jobs, normal-growth Standard Annihilation, an interactive replay timeline, and a transparent 22-identity bitmap atlas. See `GAME_STATUS.md` for exact evidence and open boundaries.
 
 The cohort/commercial collection command writes `acceptance/S6_public_launch/latest/cohort-commercial-evidence-collection.json` plus `.md`, listing first-beta participant/session/feedback/signoff evidence and payment/refund/support/legal/operator/traffic drill evidence with privacy boundaries before the strict validator is run.
 
