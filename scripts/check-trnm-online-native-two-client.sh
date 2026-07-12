@@ -35,20 +35,20 @@ admin_post() {
 }
 
 create_identity() {
-  local role="$1" account player recovery session
-  account="$(admin_post /v1/accounts "$(jq -cn \
-    --arg org '00000000-0000-0000-0000-00000000ce01' --arg role "$role" \
-    '{org_id:$org,account_type:("online-native-"+$role),currency_unit:"credit",initial_balance:0}')" \
-    | jq -er .account_id)"
+  local role="$1" account player credential session invite identity
   player="$RUN_ID-$role"
-  recovery="recovery-$RUN_ID-$role-012345678901234567890123"
-  admin_post /v1/trnm/identity/register "$(jq -cn \
-    --arg player "$player" --arg account "$account" --arg recovery "$recovery" \
-    '{player_id:$player,account_id:$account,recovery_key:$recovery}')" >/dev/null
-  session="$(curl -fsS "$LEDGER_URL/v1/trnm/identity/session" \
+  credential="credential-$RUN_ID-$role-012345678901234567890123"
+  invite="$(admin_post /v1/trnm/product/registration-invites \
+    '{"lifetime_seconds":3600,"max_uses":1}' | jq -er .invite_code)"
+  identity="$(curl -fsS "$LEDGER_URL/v1/trnm/product/register" \
     -H 'content-type: application/json' --data-binary "$(jq -cn \
-      --arg player "$player" --arg recovery "$recovery" --arg device "$RUN_ID-$role-device" \
-      '{player_id:$player,recovery_key:$recovery,device_id:$device,lifetime_seconds:3600}')" \
+      --arg player "$player" --arg credential "$credential" --arg invite "$invite" \
+      '{player_id:$player,credential:$credential,invite_code:$invite}')")"
+  account="$(jq -er .account_id <<<"$identity")"
+  session="$(curl -fsS "$LEDGER_URL/v1/trnm/product/login" \
+    -H 'content-type: application/json' --data-binary "$(jq -cn \
+      --arg player "$player" --arg credential "$credential" --arg device "$RUN_ID-$role-device" \
+      '{player_id:$player,credential:$credential,device_id:$device,lifetime_seconds:3600}')" \
     | jq -er .session_token)"
   printf '%s\t%s\t%s\n' "$player" "$account" "$session"
 }
@@ -112,6 +112,8 @@ curl -fsS "$ONLINE_URL/v1/online/readiness" | jq -e '.status == "ok"' >/dev/null
 
 contract="trnm_online_authority_v2"
 build="trnm-online-authority-2026.07-v2"
+product_contract="trnm_online_product_v1"
+product_build="trnm-online-product-2026.07-v1"
 campaign="$(player_post "$HOST_SESSION" /v1/online/campaigns/connect "$(jq -cn \
   --arg protocol "$contract" --arg build "$build" --arg player "$HOST_PLAYER" \
   --arg account "$HOST_ACCOUNT" --arg slot "$RUN_ID" \
@@ -120,21 +122,34 @@ guest_campaign="$(player_post "$GUEST_SESSION" /v1/online/campaigns/connect "$(j
   --arg protocol "$contract" --arg build "$build" --arg player "$GUEST_PLAYER" \
   --arg account "$GUEST_ACCOUNT" --arg slot "$RUN_ID" \
   '{protocol_version:$protocol,build_id:$build,player_id:$player,account_id:$account,slot_key:$slot}')")"
-created="$(player_post "$HOST_SESSION" /v1/online/matches "$(jq -cn \
-  --arg protocol "$contract" --arg build "$build" \
-  --arg campaign "$(jq -er .campaign_id <<<"$campaign")" \
-  --argjson revision "$(jq -er .campaign_revision <<<"$campaign")" \
-  '{protocol_version:$protocol,build_id:$build,campaign_id:$campaign,map_id:"first_contact",expected_campaign_revision:$revision}')")"
-MATCH_ID="$(jq -er .match_id <<<"$created")"
-player_post "$GUEST_SESSION" /v1/online/matches/join "$(jq -cn \
-  --arg protocol "$contract" --arg build "$build" --arg player "$GUEST_PLAYER" \
+lobby="$(player_post "$HOST_SESSION" /v1/product/lobbies "$(jq -cn \
+  --arg protocol "$product_contract" --arg build "$product_build" --arg player "$HOST_PLAYER" \
+  --arg account "$HOST_ACCOUNT" --arg campaign "$(jq -er .campaign_id <<<"$campaign")" \
+  --arg name "$RUN_ID party" \
+  '{protocol_version:$protocol,build_id:$build,player_id:$player,account_id:$account,campaign_id:$campaign,display_name:$name,map_id:"first_contact"}')")"
+LOBBY_ID="$(jq -er .lobby_id <<<"$lobby")"
+invite="$(player_post "$HOST_SESSION" "/v1/product/lobbies/$LOBBY_ID/invites" "$(jq -cn \
+  --arg protocol "$product_contract" --arg build "$product_build" --arg player "$HOST_PLAYER" \
+  --arg account "$HOST_ACCOUNT" --arg target "$GUEST_PLAYER" \
+  '{protocol_version:$protocol,build_id:$build,player_id:$player,account_id:$account,target_player_id:$target,expected_lobby_revision:0}')")"
+lobby="$(player_post "$GUEST_SESSION" /v1/product/lobbies/invites/accept "$(jq -cn \
+  --arg protocol "$product_contract" --arg build "$product_build" --arg player "$GUEST_PLAYER" \
   --arg account "$GUEST_ACCOUNT" --arg campaign "$(jq -er .campaign_id <<<"$guest_campaign")" \
-  --arg code "$(jq -er .join_code <<<"$created")" \
-  '{protocol_version:$protocol,build_id:$build,player_id:$player,account_id:$account,campaign_id:$campaign,join_code:$code}')" >/dev/null
-player_post "$HOST_SESSION" "/v1/online/matches/$MATCH_ID/start" "$(jq -cn \
-  --arg protocol "$contract" --arg build "$build" --arg player "$HOST_PLAYER" \
+  --arg token "$(jq -er .invite_token <<<"$invite")" \
+  '{protocol_version:$protocol,build_id:$build,player_id:$player,account_id:$account,campaign_id:$campaign,invite_token:$token}')")"
+lobby="$(player_post "$HOST_SESSION" "/v1/product/lobbies/$LOBBY_ID/ready" "$(jq -cn \
+  --arg protocol "$product_contract" --arg build "$product_build" --arg player "$HOST_PLAYER" \
   --arg account "$HOST_ACCOUNT" \
-  '{protocol_version:$protocol,build_id:$build,player_id:$player,account_id:$account,expected_match_revision:0}')" >/dev/null
+  '{protocol_version:$protocol,build_id:$build,player_id:$player,account_id:$account,ready:true,expected_lobby_revision:1}')")"
+lobby="$(player_post "$GUEST_SESSION" "/v1/product/lobbies/$LOBBY_ID/ready" "$(jq -cn \
+  --arg protocol "$product_contract" --arg build "$product_build" --arg player "$GUEST_PLAYER" \
+  --arg account "$GUEST_ACCOUNT" \
+  '{protocol_version:$protocol,build_id:$build,player_id:$player,account_id:$account,ready:true,expected_lobby_revision:2}')")"
+allocation="$(player_post "$HOST_SESSION" "/v1/product/lobbies/$LOBBY_ID/queue" "$(jq -cn \
+  --arg protocol "$product_contract" --arg build "$product_build" --arg player "$HOST_PLAYER" \
+  --arg account "$HOST_ACCOUNT" \
+  '{protocol_version:$protocol,build_id:$build,player_id:$player,account_id:$account,expected_lobby_revision:3}')")"
+MATCH_ID="$(jq -er .match_view.match_id <<<"$allocation")"
 
 export DISPLAY="${TRNM_ONLINE_NATIVE_DISPLAY:-:97}"
 Xvfb "$DISPLAY" -screen 0 2560x720x24 -nolisten tcp >"$EVIDENCE/xvfb.log" 2>&1 &
@@ -184,13 +199,16 @@ capture "$HOST_WINDOW" "$EVIDENCE/host-command-ack.png"
 capture "$GUEST_WINDOW" "$EVIDENCE/guest-command-ack.png"
 
 database="$(cex_psql_stdin -Atc "select json_build_object(
+  'lobby_status',(select status from trnm_online_lobbies where lobby_id = '$LOBBY_ID'::uuid),
+  'allocations',(select count(*) from trnm_online_matchmaking_allocations where lobby_id = '$LOBBY_ID'::uuid and match_id = '$MATCH_ID'::uuid),
   'members',(select count(*) from trnm_online_match_members where match_id = '$MATCH_ID'::uuid),
   'host_commands',(select count(*) from trnm_online_commands where match_id = '$MATCH_ID'::uuid and player_id = '$HOST_PLAYER'),
   'guest_commands',(select count(*) from trnm_online_commands where match_id = '$MATCH_ID'::uuid and player_id = '$GUEST_PLAYER'),
   'fingerprinted_commands',(select count(*) from trnm_online_commands where match_id = '$MATCH_ID'::uuid and length(request_hash) = 64),
   'distinct_control_sets',(select count(distinct controlled_unit_ids) from trnm_online_match_members where match_id = '$MATCH_ID'::uuid)
 )" | jq -c .)"
-jq -e '.members == 2 and .host_commands >= 1 and .guest_commands >= 1 and
+jq -e '.lobby_status == "matched" and .allocations == 1 and
+  .members == 2 and .host_commands >= 1 and .guest_commands >= 1 and
   .fingerprinted_commands == (.host_commands + .guest_commands) and
   .distinct_control_sets == 2' <<<"$database" >/dev/null
 
@@ -199,6 +217,7 @@ jq -n --arg run_id "$RUN_ID" --arg match_id "$MATCH_ID" --arg evidence "$EVIDENC
   --argjson database "$database" \
   '{status:"passed",run_id:$run_id,match_id:$match_id,evidence:$evidence,
     native_x11_clients:2,distinct_windows:($host_window != $guest_window),
+    closed_alpha_product_lobby_flow:true,
     server_authoritative_commands:true,database:$database,
     boundary:"automated two-window native attach/input smoke; not a human multiplayer session"}' \
   | tee "$EVIDENCE/report.json"

@@ -2,7 +2,7 @@
 
 Updated: 2026-07-13
 
-This is the one-page status source for the current native RPG + real-time-strategy product. The older finite checklist in `docs/development/trnm-deep-rpg-complete-rts-v1-dod.md` is retained as a completed historical baseline, not as a claim that the broader deep-RPG + complete-RTS vision is 100%. The current local CEX economy integration and Online Authority v2 vertical slice are enumerated below; neither grants Android or public-launch credit.
+This is the one-page status source for the current native RPG + real-time-strategy product. The older finite checklist in `docs/development/trnm-deep-rpg-complete-rts-v1-dod.md` is retained as a completed historical baseline, not as a claim that the broader deep-RPG + complete-RTS vision is 100%. The current local CEX economy integration, Online Authority v2 and closed-alpha Online Product v1 slices are enumerated below; none grants Android or public-launch credit.
 
 Release denominators are separated by
 `docs/development/trnm-native-game-release-gates-v1.md`: software alpha,
@@ -68,6 +68,7 @@ The RPG layer uses only clean-room mechanics study of 白金英雄坛说. No sou
 - `trnm_rts_sim_v16` / `trnm_rts_sim_checkpoint_v16`;
 - `trnm_player_settings_v2`.
 - `trnm_online_authority_v2`, build `trnm-online-authority-2026.07-v2`.
+- `trnm_online_product_v1`, build `trnm-online-product-2026.07-v1`.
 
 ## Product shell
 
@@ -123,6 +124,16 @@ cross-host fleet or public endpoint. KMS/HSM custody and automatic key rotation
 are also pending. Offline local saves cannot be mixed with online characters.
 See `docs/development/trnm-online-authority-v2.md`.
 
+Online Product v1 adds a closed-alpha control plane without changing the
+authority boundary. Database-backed single-use registration invites create the
+ledger account and identity atomically. New credentials use Argon2id; rotation
+revokes old sessions, five failed logins create a durable temporary lock, and a
+suspended player can submit one credential-bound appeal for scoped-admin
+resolution. Private two-member lobbies own target-bound invites, optimistic
+revisions, explicit ready state and one durable `coop_vs_ai` match allocation.
+The allocated game is still the same Authority v2 server-owned simulation and
+settlement. See `docs/development/trnm-online-product-v1.md`.
+
 The client exposes local/wallet balances, pending intents, priority
 compensations, value events, verified receipts and dead letters. `Ctrl+F7`
 binds/reconciles with a player/account/device-scoped signed session from
@@ -150,13 +161,14 @@ The control profiles alter live RTS input: Classic uses Q/W/E/R for move/attack/
 
 - eight-crate unit/integration/E2E suite: 128/128 passing (41 Campaign, 19 First Contact, 13 RPG, 8 existing protocols, 31 RTS, 9 closed-loop E2E, 2 online protocol and 5 game-server tests);
 - Online Authority v2 E2E: two real CEX sessions bring separate campaigns into one match, receive disjoint unit control, reject exact-ID altered replay, sequence skip, old build and control theft, recover via authenticated command-gap replay through a real systemd restart, each gain 80 XP plus two inventory units, and each settle a server-owned 25-credit Ed25519 reward; 15/15 PostgreSQL commands have unique persisted request fingerprints and the match owns two progression events;
+- Online Product v1 final release E2E: run `online-product-1783897456-380`, lobby `c510d1e0-287f-47c6-a898-826394c3b886`, match `9f5677b3-788a-49f5-b959-8fd1d895e8a7`; proves invalid/consumed registration invite rejection, Argon2id, durable login lock, credential rotation, suspension/appeal/reactivation, stolen invite, duplicate lobby, stale revision and non-owner queue rejection, then two ready members, one allocation, full Authority v2 victory, two progression events, two Ed25519 entitlements and two 25/0 wallets;
 - network impairment E2E: the same full two-session/restart/settlement gate passes port-scoped loopback netem at 50 ms/1%, 100 ms/3% and 200 ms/5%; this is bounded local evidence, not a public-network SLO;
-- native attach smoke: two distinct X11 `trnm-first-contact` release processes use separate player sessions/windows/control sets and each produce an independently attributed fingerprinted PostgreSQL command; this is automated input evidence, not a human multiplayer session;
-- CEX full workspace: 354 passing, including the v2 Ed25519 active/tampered/unknown/revoked issuer test; 16 detached-runtime black-box probes remain explicitly ignored and `consumer-entry-api` remains 161/161. The persistent cross-process gate additionally proves new accounts, reward exactly-once, byte-identical replay across ledger/consumer restart, held-escrow refund, committed chargeback, wallet/cursor recovery and PostgreSQL uniqueness;
+- final native attach smoke: run `online-native-1783897487-24605`, match `7e7c14cc-13b6-43c7-a770-44cff29d8d7d`; two distinct release windows first traverse product registration/lobby/invite/ready/allocation, then each produce an independently attributed fingerprinted command; this is automated input evidence, not a human multiplayer session;
+- CEX full workspace: 355 passing, including Ed25519 issuer rejection and Argon2id/legacy credential migration tests; 16 detached-runtime black-box probes remain explicitly ignored and `consumer-entry-api` remains 161/161. The persistent cross-process gate additionally proves new accounts, reward exactly-once, byte-identical replay across ledger/consumer restart, held-escrow refund, committed chargeback, wallet/cursor recovery and PostgreSQL uniqueness;
 - workspace Clippy with `-D warnings`: passing;
 - product boundary: green (8 game / 12 platform / legacy working tree absent); CEX depends on `trnm-economy-protocol` and no longer depends on removed `trnm-world-api`, `trnm-world-domain` or `trnm-world-projection` crates;
 - release build and desktop installer smoke: passing;
-- current X230 warm-cache matrix after explicit `--no-run` client-harness prewarming: RPG 0.69 s / 75 MiB, Campaign 0.54 s / 75 MiB, full 19-test First Contact package 88.41 s / 117 MiB, 64-sample RTS simulation 81.58 s / 431 MiB, new-save client journey 41.80 s / 118 MiB, Standard Annihilation 78.09 s / 116 MiB, authored-map adapter 12.94 s / 117 MiB, closed loop 21.27 s / 390 MiB and incremental release build 0.87 s / 118 MiB. Every row remains below the explicit 90-second / 4-GiB bound. The former 3.41-GiB client figure was rustc/linker RSS from compiling the test harness on the first measured row, not game-runtime memory; the gate now separates compilation from runtime instead of misreporting it;
+- current X230 isolated warm-cache matrix after explicit `--no-run` client-harness prewarming: RPG 0.29 s / 83 MiB, Campaign 0.61 s / 83 MiB, full 19-test First Contact package 85.08 s / 122 MiB, 64-sample RTS simulation 69.58 s / 83 MiB, new-save client journey 42.17 s / 122 MiB, Standard Annihilation 73.95 s / 122 MiB, authored-map adapter 12.63 s / 122 MiB, closed loop 13.19 s / 83 MiB and incremental release build 0.47 s / 122 MiB. Every isolated row remains below the explicit 90-second / 4-GiB bound. A deliberately recorded non-isolated run with the always-on llvmpipe native window competing for CPU reached 91.62 s for First Contact and 92.80 s for RTS; stopping that project service restored the gate without code changes. The former 3.41-GiB client figure was rustc/linker RSS from compiling the test harness on the first measured row, not game-runtime memory; the gate now separates compilation from runtime instead of misreporting it;
 - release client service: active with a viewable native window after restart.
 - persistent CEX recovery: PostgreSQL WAL archival, a physical 8.6-GiB base
   backup, named-restore-point PITR and writable same-host promotion are proven;
@@ -171,6 +183,7 @@ The first clean release rebuild after adding the native rustls CEX client took 9
 ```bash
 scripts/check_trnm_game_product.sh
 scripts/check-trnm-online-authority-e2e.sh
+scripts/check-trnm-online-product-v1-e2e.sh
 scripts/check-trnm-online-network-chaos.sh
 scripts/check-trnm-online-native-two-client.sh
 cargo test --manifest-path trillionnium/Cargo.toml --workspace --all-targets

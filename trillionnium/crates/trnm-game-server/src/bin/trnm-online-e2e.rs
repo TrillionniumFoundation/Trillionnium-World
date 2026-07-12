@@ -330,6 +330,7 @@ fn run() -> Result<Value, String> {
     let guest = env_identity("TRNM_ONLINE_GUEST")?;
     let client = OnlineClient::new(base_url.clone())?;
     let run_id = format!("online-e2e-{}", chrono::Utc::now().timestamp_millis());
+    let slot_key = std::env::var("TRNM_ONLINE_SLOT_KEY").unwrap_or_else(|_| run_id.clone());
 
     let campaign: OnlineCampaignView = client.post(
         &host,
@@ -339,7 +340,7 @@ fn run() -> Result<Value, String> {
             build_id: ONLINE_AUTHORITY_BUILD.to_string(),
             player_id: host.player_id.clone(),
             account_id: host.account_id.clone(),
-            slot_key: run_id.clone(),
+            slot_key: slot_key.clone(),
         },
     )?;
     let guest_campaign: OnlineCampaignView = client.post(
@@ -350,43 +351,49 @@ fn run() -> Result<Value, String> {
             build_id: ONLINE_AUTHORITY_BUILD.to_string(),
             player_id: guest.player_id.clone(),
             account_id: guest.account_id.clone(),
-            slot_key: run_id.clone(),
+            slot_key,
         },
     )?;
-    let created: OnlineMatchView = client.post(
-        &host,
-        "/v1/online/matches",
-        &OnlineMatchCreateRequest {
-            protocol_version: ONLINE_AUTHORITY_PROTOCOL.to_string(),
-            build_id: ONLINE_AUTHORITY_BUILD.to_string(),
-            campaign_id: campaign.campaign_id.clone(),
-            map_id: "first_contact".to_string(),
-            expected_campaign_revision: campaign.campaign_revision,
-        },
-    )?;
-    let _: OnlineMatchView = client.post(
-        &guest,
-        "/v1/online/matches/join",
-        &OnlineMatchJoinRequest {
-            protocol_version: ONLINE_AUTHORITY_PROTOCOL.to_string(),
-            build_id: ONLINE_AUTHORITY_BUILD.to_string(),
-            player_id: guest.player_id.clone(),
-            account_id: guest.account_id.clone(),
-            campaign_id: guest_campaign.campaign_id.clone(),
-            join_code: created.join_code.clone(),
-        },
-    )?;
-    let started: OnlineMatchView = client.post(
-        &host,
-        &format!("/v1/online/matches/{}/start", created.match_id),
-        &OnlineMatchStartRequest {
-            protocol_version: ONLINE_AUTHORITY_PROTOCOL.to_string(),
-            build_id: ONLINE_AUTHORITY_BUILD.to_string(),
-            player_id: host.player_id.clone(),
-            account_id: host.account_id.clone(),
-            expected_match_revision: 0,
-        },
-    )?;
+    let (created, started) = if let Ok(match_id) = std::env::var("TRNM_ONLINE_EXISTING_MATCH_ID") {
+        let snapshot = client.snapshot(&host, &match_id)?;
+        (snapshot.view.clone(), snapshot.view)
+    } else {
+        let created: OnlineMatchView = client.post(
+            &host,
+            "/v1/online/matches",
+            &OnlineMatchCreateRequest {
+                protocol_version: ONLINE_AUTHORITY_PROTOCOL.to_string(),
+                build_id: ONLINE_AUTHORITY_BUILD.to_string(),
+                campaign_id: campaign.campaign_id.clone(),
+                map_id: "first_contact".to_string(),
+                expected_campaign_revision: campaign.campaign_revision,
+            },
+        )?;
+        let _: OnlineMatchView = client.post(
+            &guest,
+            "/v1/online/matches/join",
+            &OnlineMatchJoinRequest {
+                protocol_version: ONLINE_AUTHORITY_PROTOCOL.to_string(),
+                build_id: ONLINE_AUTHORITY_BUILD.to_string(),
+                player_id: guest.player_id.clone(),
+                account_id: guest.account_id.clone(),
+                campaign_id: guest_campaign.campaign_id.clone(),
+                join_code: created.join_code.clone(),
+            },
+        )?;
+        let started: OnlineMatchView = client.post(
+            &host,
+            &format!("/v1/online/matches/{}/start", created.match_id),
+            &OnlineMatchStartRequest {
+                protocol_version: ONLINE_AUTHORITY_PROTOCOL.to_string(),
+                build_id: ONLINE_AUTHORITY_BUILD.to_string(),
+                player_id: host.player_id.clone(),
+                account_id: host.account_id.clone(),
+                expected_match_revision: 0,
+            },
+        )?;
+        (created, started)
+    };
     if started.phase != OnlineMatchPhase::Running || started.members.len() != 2 {
         return Err("two-client match did not enter running phase".to_string());
     }

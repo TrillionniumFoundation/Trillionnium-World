@@ -9,6 +9,7 @@ use axum::{
     Json, Router,
 };
 use cex::CexClient;
+use chrono::Utc;
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use sqlx::{postgres::PgPoolOptions, PgPool, Row};
@@ -24,12 +25,16 @@ use trnm_campaign_core::{
     UnitBattleReportV1, UnitBattleStatus,
 };
 use trnm_online_protocol::{
-    validate_client_contract, OnlineAuthorityError, OnlineCampaignConnectRequest,
-    OnlineCampaignView, OnlineCommandReceipt, OnlineCommandSubmitRequest, OnlineInventoryStack,
-    OnlineMatchAccessRequest, OnlineMatchCreateRequest, OnlineMatchJoinRequest,
-    OnlineMatchMemberView, OnlineMatchPhase, OnlineMatchStartRequest, OnlineMatchView,
-    OnlineReconnectRequest, OnlineReconnectResponse, OnlineSnapshotResponse,
-    ONLINE_AUTHORITY_BUILD, ONLINE_AUTHORITY_PROTOCOL,
+    validate_client_contract, validate_product_contract, OnlineAuthorityError,
+    OnlineCampaignConnectRequest, OnlineCampaignView, OnlineCommandReceipt,
+    OnlineCommandSubmitRequest, OnlineInventoryStack, OnlineLobbyAccessRequest,
+    OnlineLobbyCreateRequest, OnlineLobbyInviteAcceptRequest, OnlineLobbyInviteReceipt,
+    OnlineLobbyInviteRequest, OnlineLobbyMemberView, OnlineLobbyQueueRequest,
+    OnlineLobbyReadyRequest, OnlineLobbyStatus, OnlineLobbyView, OnlineMatchAccessRequest,
+    OnlineMatchCreateRequest, OnlineMatchJoinRequest, OnlineMatchMemberView, OnlineMatchPhase,
+    OnlineMatchStartRequest, OnlineMatchView, OnlineMatchmakingReceipt, OnlineReconnectRequest,
+    OnlineReconnectResponse, OnlineSnapshotResponse, ONLINE_AUTHORITY_BUILD,
+    ONLINE_AUTHORITY_PROTOCOL, ONLINE_PRODUCT_BUILD, ONLINE_PRODUCT_PROTOCOL,
 };
 use trnm_rts_protocol::RtsOrderSource;
 use trnm_rts_sim::MissionSimV1;
@@ -38,6 +43,7 @@ use uuid::Uuid;
 const PLAYER_SESSION_HEADER: &str = "x-trnm-player-session";
 const MIGRATION_V1: &str = include_str!("../migrations/0001_online_authority_v1.sql");
 const MIGRATION_V2: &str = include_str!("../migrations/0002_online_authority_v2.sql");
+const MIGRATION_V3: &str = include_str!("../migrations/0003_online_product_v1.sql");
 
 #[derive(Clone)]
 pub struct AppState {
@@ -69,6 +75,10 @@ impl AppState {
             .execute(&pool)
             .await
             .map_err(|error| format!("migrate Online Authority v2 PostgreSQL: {error}"))?;
+        sqlx::raw_sql(MIGRATION_V3)
+            .execute(&pool)
+            .await
+            .map_err(|error| format!("migrate Online Product v1 PostgreSQL: {error}"))?;
         let cex = CexClient::new(
             cex_base_url,
             game_authority_token,
@@ -279,6 +289,18 @@ pub fn build_router(state: AppState) -> Router {
             "/v1/online/matches/:match_id/reconnect",
             post(reconnect_match),
         )
+        .route("/v1/product/lobbies", post(create_lobby))
+        .route("/v1/product/lobbies/:lobby_id/view", post(get_lobby))
+        .route(
+            "/v1/product/lobbies/:lobby_id/invites",
+            post(invite_to_lobby),
+        )
+        .route(
+            "/v1/product/lobbies/invites/accept",
+            post(accept_lobby_invite),
+        )
+        .route("/v1/product/lobbies/:lobby_id/ready", post(set_lobby_ready))
+        .route("/v1/product/lobbies/:lobby_id/queue", post(queue_lobby))
         .with_state(state)
 }
 
@@ -315,6 +337,10 @@ async fn readiness(State(state): State<AppState>) -> Response {
             "independent_member_progression": true,
             "inventory_event_provenance": true,
             "public_matchmaking": false,
+            "online_product_protocol": ONLINE_PRODUCT_PROTOCOL,
+            "online_product_build": ONLINE_PRODUCT_BUILD,
+            "private_lobby_invites": true,
+            "coop_vs_ai_match_allocation": true,
         })),
     )
         .into_response()
@@ -404,6 +430,486 @@ async fn connect_campaign(
             })
             .collect(),
         settled_match_count: campaign.settled_battle_ids.len(),
+    }))
+}
+
+async fn create_lobby(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(request): Json<OnlineLobbyCreateRequest>,
+) -> Result<Json<OnlineLobbyView>, ApiError> {
+    validate_product_contract(&request.protocol_version, &request.build_id)
+        .map_err(|error| api_error(StatusCode::UPGRADE_REQUIRED, error, false))?;
+    mission_for_map(&request.map_id)?;
+    if request.display_name.trim().is_empty() || request.display_name.chars().count() > 80 {
+        return Err(api_error(
+            StatusCode::BAD_REQUEST,
+            "lobby display_name must contain 1..80 characters",
+            false,
+        ));
+    }
+    let account_id = Uuid::parse_str(&request.account_id)
+        .map_err(|_| api_error(StatusCode::BAD_REQUEST, "account_id must be a UUID", false))?;
+    verify_identity(&state, &headers, &request.player_id, &request.account_id).await?;
+    let mut transaction = state.pool.begin().await.map_err(internal_db)?;
+    lock_player_lobby_scope(&mut transaction, &request.player_id).await?;
+    ensure_campaign_owner(
+        &mut transaction,
+        &request.campaign_id,
+        &request.player_id,
+        account_id,
+    )
+    .await?;
+    ensure_player_has_no_active_lobby(&mut transaction, &request.player_id).await?;
+    let lobby_id = Uuid::new_v4();
+    sqlx::query(
+        "insert into trnm_online_lobbies (
+            lobby_id, display_name, owner_player_id, owner_account_id, map_id
+         ) values ($1, $2, $3, $4, $5)",
+    )
+    .bind(lobby_id)
+    .bind(request.display_name.trim())
+    .bind(&request.player_id)
+    .bind(account_id)
+    .bind(&request.map_id)
+    .execute(&mut *transaction)
+    .await
+    .map_err(internal_db)?;
+    sqlx::query(
+        "insert into trnm_online_lobby_members (
+            lobby_id, player_id, account_id, campaign_id, member_role
+         ) values ($1, $2, $3, $4, 'owner')",
+    )
+    .bind(lobby_id)
+    .bind(&request.player_id)
+    .bind(account_id)
+    .bind(&request.campaign_id)
+    .execute(&mut *transaction)
+    .await
+    .map_err(internal_db)?;
+    transaction.commit().await.map_err(internal_db)?;
+    Ok(Json(fetch_lobby_view(&state.pool, lobby_id).await?))
+}
+
+async fn get_lobby(
+    State(state): State<AppState>,
+    Path(lobby_id): Path<Uuid>,
+    headers: HeaderMap,
+    Json(request): Json<OnlineLobbyAccessRequest>,
+) -> Result<Json<OnlineLobbyView>, ApiError> {
+    validate_product_contract(&request.protocol_version, &request.build_id)
+        .map_err(|error| api_error(StatusCode::UPGRADE_REQUIRED, error, false))?;
+    let account_id = Uuid::parse_str(&request.account_id)
+        .map_err(|_| api_error(StatusCode::BAD_REQUEST, "account_id must be a UUID", false))?;
+    verify_identity(&state, &headers, &request.player_id, &request.account_id).await?;
+    let member: bool = sqlx::query_scalar(
+        "select exists(select 1 from trnm_online_lobby_members
+         where lobby_id = $1 and player_id = $2 and account_id = $3)",
+    )
+    .bind(lobby_id)
+    .bind(&request.player_id)
+    .bind(account_id)
+    .fetch_one(&state.pool)
+    .await
+    .map_err(internal_db)?;
+    if !member {
+        return Err(api_error(
+            StatusCode::FORBIDDEN,
+            "identity is not a lobby member",
+            false,
+        ));
+    }
+    Ok(Json(fetch_lobby_view(&state.pool, lobby_id).await?))
+}
+
+async fn invite_to_lobby(
+    State(state): State<AppState>,
+    Path(lobby_id): Path<Uuid>,
+    headers: HeaderMap,
+    Json(request): Json<OnlineLobbyInviteRequest>,
+) -> Result<Json<OnlineLobbyInviteReceipt>, ApiError> {
+    validate_product_contract(&request.protocol_version, &request.build_id)
+        .map_err(|error| api_error(StatusCode::UPGRADE_REQUIRED, error, false))?;
+    if request.target_player_id == request.player_id {
+        return Err(api_error(
+            StatusCode::BAD_REQUEST,
+            "lobby owner cannot invite itself",
+            false,
+        ));
+    }
+    let account_id = Uuid::parse_str(&request.account_id)
+        .map_err(|_| api_error(StatusCode::BAD_REQUEST, "account_id must be a UUID", false))?;
+    verify_identity(&state, &headers, &request.player_id, &request.account_id).await?;
+    let mut transaction = state.pool.begin().await.map_err(internal_db)?;
+    let lobby = lock_lobby(&mut transaction, lobby_id).await?;
+    require_lobby_owner(&lobby, &request.player_id, account_id)?;
+    require_open_lobby_revision(&lobby, request.expected_lobby_revision)?;
+    let member_count: i64 =
+        sqlx::query_scalar("select count(*) from trnm_online_lobby_members where lobby_id = $1")
+            .bind(lobby_id)
+            .fetch_one(&mut *transaction)
+            .await
+            .map_err(internal_db)?;
+    if member_count != 1 {
+        return Err(api_error(
+            StatusCode::CONFLICT,
+            "lobby already has the maximum two members",
+            false,
+        ));
+    }
+    ensure_player_has_no_active_lobby(&mut transaction, &request.target_player_id).await?;
+    let invite_id = Uuid::new_v4();
+    let invite_token = format!("trnm-invite-{}", Uuid::new_v4());
+    let invite_token_hash = sha256_text(&invite_token);
+    let expires_at_epoch = Utc::now().timestamp().saturating_add(900);
+    sqlx::query(
+        "insert into trnm_online_lobby_invites (
+            invite_id, lobby_id, inviter_player_id, target_player_id,
+            invite_token_hash, expires_at
+         ) values ($1, $2, $3, $4, $5, to_timestamp($6))",
+    )
+    .bind(invite_id)
+    .bind(lobby_id)
+    .bind(&request.player_id)
+    .bind(&request.target_player_id)
+    .bind(invite_token_hash)
+    .bind(expires_at_epoch)
+    .execute(&mut *transaction)
+    .await
+    .map_err(|error| {
+        if error
+            .as_database_error()
+            .is_some_and(|db| db.is_unique_violation())
+        {
+            return api_error(
+                StatusCode::CONFLICT,
+                "target player already has a pending invite to this lobby",
+                true,
+            );
+        }
+        internal_db(error)
+    })?;
+    transaction.commit().await.map_err(internal_db)?;
+    Ok(Json(OnlineLobbyInviteReceipt {
+        lobby: fetch_lobby_view(&state.pool, lobby_id).await?,
+        invite_id: invite_id.to_string(),
+        invite_token,
+        target_player_id: request.target_player_id,
+        expires_at_epoch,
+    }))
+}
+
+async fn accept_lobby_invite(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(request): Json<OnlineLobbyInviteAcceptRequest>,
+) -> Result<Json<OnlineLobbyView>, ApiError> {
+    validate_product_contract(&request.protocol_version, &request.build_id)
+        .map_err(|error| api_error(StatusCode::UPGRADE_REQUIRED, error, false))?;
+    let account_id = Uuid::parse_str(&request.account_id)
+        .map_err(|_| api_error(StatusCode::BAD_REQUEST, "account_id must be a UUID", false))?;
+    verify_identity(&state, &headers, &request.player_id, &request.account_id).await?;
+    let mut transaction = state.pool.begin().await.map_err(internal_db)?;
+    lock_player_lobby_scope(&mut transaction, &request.player_id).await?;
+    ensure_campaign_owner(
+        &mut transaction,
+        &request.campaign_id,
+        &request.player_id,
+        account_id,
+    )
+    .await?;
+    ensure_player_has_no_active_lobby(&mut transaction, &request.player_id).await?;
+    let invite = sqlx::query(
+        "select invite_id, lobby_id, target_player_id, status,
+                extract(epoch from expires_at)::bigint as expires_at_epoch
+         from trnm_online_lobby_invites where invite_token_hash = $1 for update",
+    )
+    .bind(sha256_text(&request.invite_token))
+    .fetch_optional(&mut *transaction)
+    .await
+    .map_err(internal_db)?
+    .ok_or_else(|| api_error(StatusCode::NOT_FOUND, "lobby invite not found", false))?;
+    let lobby_id: Uuid = invite.try_get("lobby_id").map_err(internal_db)?;
+    let target_player_id: String = invite.try_get("target_player_id").map_err(internal_db)?;
+    let status: String = invite.try_get("status").map_err(internal_db)?;
+    let expires_at_epoch: i64 = invite.try_get("expires_at_epoch").map_err(internal_db)?;
+    if target_player_id != request.player_id
+        || status != "pending"
+        || expires_at_epoch <= Utc::now().timestamp()
+    {
+        return Err(api_error(
+            StatusCode::FORBIDDEN,
+            "lobby invite is expired, consumed, or belongs to another player",
+            false,
+        ));
+    }
+    let lobby = lock_lobby(&mut transaction, lobby_id).await?;
+    if lobby.try_get::<String, _>("status").map_err(internal_db)? != "open" {
+        return Err(api_error(
+            StatusCode::CONFLICT,
+            "lobby is no longer accepting members",
+            false,
+        ));
+    }
+    let member_count: i64 =
+        sqlx::query_scalar("select count(*) from trnm_online_lobby_members where lobby_id = $1")
+            .bind(lobby_id)
+            .fetch_one(&mut *transaction)
+            .await
+            .map_err(internal_db)?;
+    if member_count != 1 {
+        return Err(api_error(
+            StatusCode::CONFLICT,
+            "lobby already has the maximum two members",
+            false,
+        ));
+    }
+    sqlx::query(
+        "insert into trnm_online_lobby_members (
+            lobby_id, player_id, account_id, campaign_id, member_role
+         ) values ($1, $2, $3, $4, 'member')",
+    )
+    .bind(lobby_id)
+    .bind(&request.player_id)
+    .bind(account_id)
+    .bind(&request.campaign_id)
+    .execute(&mut *transaction)
+    .await
+    .map_err(internal_db)?;
+    sqlx::query(
+        "update trnm_online_lobby_invites set status = 'accepted', accepted_at = now()
+         where invite_id = $1",
+    )
+    .bind(
+        invite
+            .try_get::<Uuid, _>("invite_id")
+            .map_err(internal_db)?,
+    )
+    .execute(&mut *transaction)
+    .await
+    .map_err(internal_db)?;
+    sqlx::query(
+        "update trnm_online_lobbies set lobby_revision = lobby_revision + 1,
+             updated_at = now() where lobby_id = $1",
+    )
+    .bind(lobby_id)
+    .execute(&mut *transaction)
+    .await
+    .map_err(internal_db)?;
+    transaction.commit().await.map_err(internal_db)?;
+    Ok(Json(fetch_lobby_view(&state.pool, lobby_id).await?))
+}
+
+async fn set_lobby_ready(
+    State(state): State<AppState>,
+    Path(lobby_id): Path<Uuid>,
+    headers: HeaderMap,
+    Json(request): Json<OnlineLobbyReadyRequest>,
+) -> Result<Json<OnlineLobbyView>, ApiError> {
+    validate_product_contract(&request.protocol_version, &request.build_id)
+        .map_err(|error| api_error(StatusCode::UPGRADE_REQUIRED, error, false))?;
+    let account_id = Uuid::parse_str(&request.account_id)
+        .map_err(|_| api_error(StatusCode::BAD_REQUEST, "account_id must be a UUID", false))?;
+    verify_identity(&state, &headers, &request.player_id, &request.account_id).await?;
+    let mut transaction = state.pool.begin().await.map_err(internal_db)?;
+    let lobby = lock_lobby(&mut transaction, lobby_id).await?;
+    require_open_lobby_revision(&lobby, request.expected_lobby_revision)?;
+    let updated = sqlx::query(
+        "update trnm_online_lobby_members set ready = $4
+         where lobby_id = $1 and player_id = $2 and account_id = $3",
+    )
+    .bind(lobby_id)
+    .bind(&request.player_id)
+    .bind(account_id)
+    .bind(request.ready)
+    .execute(&mut *transaction)
+    .await
+    .map_err(internal_db)?;
+    if updated.rows_affected() != 1 {
+        return Err(api_error(
+            StatusCode::FORBIDDEN,
+            "identity is not a lobby member",
+            false,
+        ));
+    }
+    sqlx::query(
+        "update trnm_online_lobbies set lobby_revision = lobby_revision + 1,
+             updated_at = now() where lobby_id = $1",
+    )
+    .bind(lobby_id)
+    .execute(&mut *transaction)
+    .await
+    .map_err(internal_db)?;
+    transaction.commit().await.map_err(internal_db)?;
+    Ok(Json(fetch_lobby_view(&state.pool, lobby_id).await?))
+}
+
+async fn queue_lobby(
+    State(state): State<AppState>,
+    Path(lobby_id): Path<Uuid>,
+    headers: HeaderMap,
+    Json(request): Json<OnlineLobbyQueueRequest>,
+) -> Result<Json<OnlineMatchmakingReceipt>, ApiError> {
+    validate_product_contract(&request.protocol_version, &request.build_id)
+        .map_err(|error| api_error(StatusCode::UPGRADE_REQUIRED, error, false))?;
+    let account_id = Uuid::parse_str(&request.account_id)
+        .map_err(|_| api_error(StatusCode::BAD_REQUEST, "account_id must be a UUID", false))?;
+    verify_identity(&state, &headers, &request.player_id, &request.account_id).await?;
+    let mut transaction = state.pool.begin().await.map_err(internal_db)?;
+    let lobby = lock_lobby(&mut transaction, lobby_id).await?;
+    require_lobby_owner(&lobby, &request.player_id, account_id)?;
+    require_open_lobby_revision(&lobby, request.expected_lobby_revision)?;
+    let members = sqlx::query(
+        "select player_id, account_id, campaign_id, member_role, ready
+         from trnm_online_lobby_members where lobby_id = $1
+         order by case member_role when 'owner' then 0 else 1 end for update",
+    )
+    .bind(lobby_id)
+    .fetch_all(&mut *transaction)
+    .await
+    .map_err(internal_db)?;
+    if members.len() != 2
+        || members
+            .iter()
+            .any(|member| !member.try_get::<bool, _>("ready").unwrap_or(false))
+    {
+        return Err(api_error(
+            StatusCode::CONFLICT,
+            "coop matchmaking requires exactly two ready members",
+            true,
+        ));
+    }
+    let match_id = Uuid::new_v4();
+    let join_code = match_id.simple().to_string()[..10].to_ascii_uppercase();
+    let map_id: String = lobby.try_get("map_id").map_err(internal_db)?;
+    let host_campaign_id: String = members[0].try_get("campaign_id").map_err(internal_db)?;
+    sqlx::query(
+        "insert into trnm_online_matches (
+            match_id, campaign_id, host_player_id, host_account_id, join_code,
+            phase, build_id, map_id, rules_version
+         ) values ($1, $2, $3, $4, $5, 'waiting', $6, $7, $8)",
+    )
+    .bind(match_id)
+    .bind(&host_campaign_id)
+    .bind(
+        members[0]
+            .try_get::<String, _>("player_id")
+            .map_err(internal_db)?,
+    )
+    .bind(
+        members[0]
+            .try_get::<Uuid, _>("account_id")
+            .map_err(internal_db)?,
+    )
+    .bind(&join_code)
+    .bind(ONLINE_AUTHORITY_BUILD)
+    .bind(&map_id)
+    .bind(trnm_campaign_core::FIRST_CONTACT_RULES_VERSION)
+    .execute(&mut *transaction)
+    .await
+    .map_err(internal_db)?;
+    for (index, member) in members.iter().enumerate() {
+        sqlx::query(
+            "insert into trnm_online_match_members (
+                match_id, player_id, account_id, campaign_id, member_role
+             ) values ($1, $2, $3, $4, $5)",
+        )
+        .bind(match_id)
+        .bind(
+            member
+                .try_get::<String, _>("player_id")
+                .map_err(internal_db)?,
+        )
+        .bind(
+            member
+                .try_get::<Uuid, _>("account_id")
+                .map_err(internal_db)?,
+        )
+        .bind(
+            member
+                .try_get::<String, _>("campaign_id")
+                .map_err(internal_db)?,
+        )
+        .bind(if index == 0 { "host" } else { "coop_guest" })
+        .execute(&mut *transaction)
+        .await
+        .map_err(internal_db)?;
+    }
+    sqlx::query(
+        "update trnm_online_lobbies set status = 'queued',
+             lobby_revision = lobby_revision + 1, updated_at = now()
+         where lobby_id = $1",
+    )
+    .bind(lobby_id)
+    .execute(&mut *transaction)
+    .await
+    .map_err(internal_db)?;
+    transaction.commit().await.map_err(internal_db)?;
+
+    let started = match start_match(
+        State(state.clone()),
+        Path(match_id),
+        headers,
+        Json(OnlineMatchStartRequest {
+            protocol_version: ONLINE_AUTHORITY_PROTOCOL.to_string(),
+            build_id: ONLINE_AUTHORITY_BUILD.to_string(),
+            player_id: request.player_id.clone(),
+            account_id: request.account_id.clone(),
+            expected_match_revision: 0,
+        }),
+    )
+    .await
+    {
+        Ok(Json(view)) => view,
+        Err(error) => {
+            let mut cleanup = state.pool.begin().await.map_err(internal_db)?;
+            sqlx::query("delete from trnm_online_matches where match_id = $1")
+                .bind(match_id)
+                .execute(&mut *cleanup)
+                .await
+                .map_err(internal_db)?;
+            sqlx::query(
+                "update trnm_online_lobbies set status = 'open',
+                     lobby_revision = lobby_revision + 1, updated_at = now()
+                 where lobby_id = $1",
+            )
+            .bind(lobby_id)
+            .execute(&mut *cleanup)
+            .await
+            .map_err(internal_db)?;
+            cleanup.commit().await.map_err(internal_db)?;
+            return Err(error);
+        }
+    };
+    let allocation_id = Uuid::new_v4();
+    let mut allocation = state.pool.begin().await.map_err(internal_db)?;
+    sqlx::query(
+        "insert into trnm_online_matchmaking_allocations (
+            allocation_id, lobby_id, match_id, queue_mode, member_count
+         ) values ($1, $2, $3, 'coop_vs_ai', 2)",
+    )
+    .bind(allocation_id)
+    .bind(lobby_id)
+    .bind(match_id)
+    .execute(&mut *allocation)
+    .await
+    .map_err(internal_db)?;
+    sqlx::query(
+        "update trnm_online_lobbies set status = 'matched', match_id = $2,
+             lobby_revision = lobby_revision + 1, updated_at = now()
+         where lobby_id = $1 and status = 'queued'",
+    )
+    .bind(lobby_id)
+    .bind(match_id)
+    .execute(&mut *allocation)
+    .await
+    .map_err(internal_db)?;
+    allocation.commit().await.map_err(internal_db)?;
+    Ok(Json(OnlineMatchmakingReceipt {
+        lobby: fetch_lobby_view(&state.pool, lobby_id).await?,
+        match_view: started,
+        queue_mode: "coop_vs_ai".to_string(),
+        allocation_id: allocation_id.to_string(),
     }))
 }
 
@@ -1450,6 +1956,194 @@ async fn persist_campaign_string(
     .await
     .map_err(internal_db)?;
     Ok(())
+}
+
+async fn ensure_campaign_owner(
+    transaction: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    campaign_id: &str,
+    player_id: &str,
+    account_id: Uuid,
+) -> Result<(), ApiError> {
+    let owner = sqlx::query(
+        "select player_id, account_id from trnm_online_campaigns where campaign_id = $1",
+    )
+    .bind(campaign_id)
+    .fetch_optional(&mut **transaction)
+    .await
+    .map_err(internal_db)?
+    .ok_or_else(|| api_error(StatusCode::NOT_FOUND, "cloud campaign not found", false))?;
+    if owner
+        .try_get::<String, _>("player_id")
+        .map_err(internal_db)?
+        != player_id
+        || owner
+            .try_get::<Uuid, _>("account_id")
+            .map_err(internal_db)?
+            != account_id
+    {
+        return Err(api_error(
+            StatusCode::FORBIDDEN,
+            "cloud campaign does not belong to the authenticated player/account",
+            false,
+        ));
+    }
+    Ok(())
+}
+
+async fn lock_player_lobby_scope(
+    transaction: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    player_id: &str,
+) -> Result<(), ApiError> {
+    sqlx::query("select pg_advisory_xact_lock(hashtextextended($1, 0))")
+        .bind(format!("trnm-online-lobby:{player_id}"))
+        .execute(&mut **transaction)
+        .await
+        .map_err(internal_db)?;
+    Ok(())
+}
+
+async fn ensure_player_has_no_active_lobby(
+    transaction: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    player_id: &str,
+) -> Result<(), ApiError> {
+    let active: bool = sqlx::query_scalar(
+        "select exists(
+            select 1 from trnm_online_lobby_members m
+            join trnm_online_lobbies l on l.lobby_id = m.lobby_id
+            where m.player_id = $1 and l.status in ('open', 'queued')
+         )",
+    )
+    .bind(player_id)
+    .fetch_one(&mut **transaction)
+    .await
+    .map_err(internal_db)?;
+    if active {
+        return Err(api_error(
+            StatusCode::CONFLICT,
+            "player already belongs to an active lobby",
+            true,
+        ));
+    }
+    Ok(())
+}
+
+async fn lock_lobby(
+    transaction: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    lobby_id: Uuid,
+) -> Result<sqlx::postgres::PgRow, ApiError> {
+    sqlx::query(
+        "select owner_player_id, owner_account_id, status, lobby_revision, map_id
+         from trnm_online_lobbies where lobby_id = $1 for update",
+    )
+    .bind(lobby_id)
+    .fetch_optional(&mut **transaction)
+    .await
+    .map_err(internal_db)?
+    .ok_or_else(|| api_error(StatusCode::NOT_FOUND, "lobby not found", false))
+}
+
+fn require_lobby_owner(
+    lobby: &sqlx::postgres::PgRow,
+    player_id: &str,
+    account_id: Uuid,
+) -> Result<(), ApiError> {
+    if lobby
+        .try_get::<String, _>("owner_player_id")
+        .map_err(internal_db)?
+        != player_id
+        || lobby
+            .try_get::<Uuid, _>("owner_account_id")
+            .map_err(internal_db)?
+            != account_id
+    {
+        return Err(api_error(
+            StatusCode::FORBIDDEN,
+            "only the authenticated lobby owner may perform this operation",
+            false,
+        ));
+    }
+    Ok(())
+}
+
+fn require_open_lobby_revision(
+    lobby: &sqlx::postgres::PgRow,
+    expected_revision: u64,
+) -> Result<(), ApiError> {
+    if lobby.try_get::<String, _>("status").map_err(internal_db)? != "open" {
+        return Err(api_error(StatusCode::CONFLICT, "lobby is not open", false));
+    }
+    let revision = lobby
+        .try_get::<i64, _>("lobby_revision")
+        .map_err(internal_db)? as u64;
+    if revision != expected_revision {
+        return Err(conflict("lobby revision changed", revision));
+    }
+    Ok(())
+}
+
+async fn fetch_lobby_view(pool: &PgPool, lobby_id: Uuid) -> Result<OnlineLobbyView, ApiError> {
+    let lobby = sqlx::query(
+        "select display_name, owner_player_id, status, lobby_revision, map_id,
+                queue_mode, match_id
+         from trnm_online_lobbies where lobby_id = $1",
+    )
+    .bind(lobby_id)
+    .fetch_optional(pool)
+    .await
+    .map_err(internal_db)?
+    .ok_or_else(|| api_error(StatusCode::NOT_FOUND, "lobby not found", false))?;
+    let rows = sqlx::query(
+        "select player_id, account_id, campaign_id, member_role, ready
+         from trnm_online_lobby_members where lobby_id = $1
+         order by case member_role when 'owner' then 0 else 1 end",
+    )
+    .bind(lobby_id)
+    .fetch_all(pool)
+    .await
+    .map_err(internal_db)?;
+    let members = rows
+        .into_iter()
+        .map(|row| {
+            Ok(OnlineLobbyMemberView {
+                player_id: row.try_get("player_id").map_err(internal_db)?,
+                account_id: row
+                    .try_get::<Uuid, _>("account_id")
+                    .map_err(internal_db)?
+                    .to_string(),
+                campaign_id: row.try_get("campaign_id").map_err(internal_db)?,
+                role: row.try_get("member_role").map_err(internal_db)?,
+                ready: row.try_get("ready").map_err(internal_db)?,
+            })
+        })
+        .collect::<Result<Vec<_>, ApiError>>()?;
+    let status: String = lobby.try_get("status").map_err(internal_db)?;
+    Ok(OnlineLobbyView {
+        protocol_version: ONLINE_PRODUCT_PROTOCOL.to_string(),
+        build_id: ONLINE_PRODUCT_BUILD.to_string(),
+        lobby_id: lobby_id.to_string(),
+        display_name: lobby.try_get("display_name").map_err(internal_db)?,
+        owner_player_id: lobby.try_get("owner_player_id").map_err(internal_db)?,
+        status: match status.as_str() {
+            "open" => OnlineLobbyStatus::Open,
+            "queued" => OnlineLobbyStatus::Queued,
+            "matched" => OnlineLobbyStatus::Matched,
+            _ => OnlineLobbyStatus::Closed,
+        },
+        lobby_revision: lobby
+            .try_get::<i64, _>("lobby_revision")
+            .map_err(internal_db)? as u64,
+        map_id: lobby.try_get("map_id").map_err(internal_db)?,
+        queue_mode: lobby.try_get("queue_mode").map_err(internal_db)?,
+        members,
+        match_id: lobby
+            .try_get::<Option<Uuid>, _>("match_id")
+            .map_err(internal_db)?
+            .map(|value| value.to_string()),
+    })
+}
+
+fn sha256_text(value: &str) -> String {
+    format!("{:x}", Sha256::digest(value.as_bytes()))
 }
 
 async fn fetch_match_view(pool: &PgPool, match_id: Uuid) -> Result<OnlineMatchView, ApiError> {

@@ -4,6 +4,8 @@ use trnm_rts_protocol::RtsFrameOrder;
 
 pub const ONLINE_AUTHORITY_PROTOCOL: &str = "trnm_online_authority_v2";
 pub const ONLINE_AUTHORITY_BUILD: &str = "trnm-online-authority-2026.07-v2";
+pub const ONLINE_PRODUCT_PROTOCOL: &str = "trnm_online_product_v1";
+pub const ONLINE_PRODUCT_BUILD: &str = "trnm-online-product-2026.07-v1";
 pub const ONLINE_AUTHORITY_DEFAULT_RULES: &str = "trnm_first_contact_rules_v1";
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -173,6 +175,114 @@ pub struct OnlineReconnectResponse {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OnlineLobbyCreateRequest {
+    pub protocol_version: String,
+    pub build_id: String,
+    pub player_id: String,
+    pub account_id: String,
+    pub campaign_id: String,
+    pub display_name: String,
+    pub map_id: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OnlineLobbyAccessRequest {
+    pub protocol_version: String,
+    pub build_id: String,
+    pub player_id: String,
+    pub account_id: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OnlineLobbyInviteRequest {
+    pub protocol_version: String,
+    pub build_id: String,
+    pub player_id: String,
+    pub account_id: String,
+    pub target_player_id: String,
+    pub expected_lobby_revision: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OnlineLobbyInviteAcceptRequest {
+    pub protocol_version: String,
+    pub build_id: String,
+    pub player_id: String,
+    pub account_id: String,
+    pub campaign_id: String,
+    pub invite_token: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OnlineLobbyReadyRequest {
+    pub protocol_version: String,
+    pub build_id: String,
+    pub player_id: String,
+    pub account_id: String,
+    pub ready: bool,
+    pub expected_lobby_revision: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OnlineLobbyQueueRequest {
+    pub protocol_version: String,
+    pub build_id: String,
+    pub player_id: String,
+    pub account_id: String,
+    pub expected_lobby_revision: u64,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum OnlineLobbyStatus {
+    Open,
+    Queued,
+    Matched,
+    Closed,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OnlineLobbyMemberView {
+    pub player_id: String,
+    pub account_id: String,
+    pub campaign_id: String,
+    pub role: String,
+    pub ready: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OnlineLobbyView {
+    pub protocol_version: String,
+    pub build_id: String,
+    pub lobby_id: String,
+    pub display_name: String,
+    pub owner_player_id: String,
+    pub status: OnlineLobbyStatus,
+    pub lobby_revision: u64,
+    pub map_id: String,
+    pub queue_mode: String,
+    pub members: Vec<OnlineLobbyMemberView>,
+    pub match_id: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OnlineLobbyInviteReceipt {
+    pub lobby: OnlineLobbyView,
+    pub invite_id: String,
+    pub invite_token: String,
+    pub target_player_id: String,
+    pub expires_at_epoch: i64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OnlineMatchmakingReceipt {
+    pub lobby: OnlineLobbyView,
+    pub match_view: OnlineMatchView,
+    pub queue_mode: String,
+    pub allocation_id: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct OnlineAuthorityError {
     pub error: String,
     pub recoverable: bool,
@@ -185,6 +295,18 @@ pub fn validate_client_contract(protocol_version: &str, build_id: &str) -> Resul
     }
     if build_id != ONLINE_AUTHORITY_BUILD {
         return Err(format!("client build {build_id} is not compatible"));
+    }
+    Ok(())
+}
+
+pub fn validate_product_contract(protocol_version: &str, build_id: &str) -> Result<(), String> {
+    if protocol_version != ONLINE_PRODUCT_PROTOCOL {
+        return Err(format!(
+            "unsupported online product protocol {protocol_version}"
+        ));
+    }
+    if build_id != ONLINE_PRODUCT_BUILD {
+        return Err(format!("online product build {build_id} is not compatible"));
     }
     Ok(())
 }
