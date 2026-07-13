@@ -1,10 +1,13 @@
-use base64::{engine::general_purpose::STANDARD, Engine as _};
+use crate::signer_protocol::{
+    EntitlementSignRequest, EntitlementSignResponse, EntitlementSignerReadiness,
+    ENTITLEMENT_SIGNER_CONTRACT, ENTITLEMENT_SIGNER_ISSUER, SIGNER_AUTH_HEADER,
+};
 use chrono::{Datelike, Utc};
-use ed25519_dalek::{Signer, SigningKey};
 use reqwest::header::HeaderMap;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use std::sync::Arc;
+use sha2::{Digest, Sha256};
+use std::{sync::Arc, time::Duration};
 use trnm_campaign_core::EconomyBackend;
 use trnm_economy_protocol::{
     EconomicIntent, EconomicIntentKind, EconomicReceipt, EconomyAccountBinding,
@@ -36,8 +39,8 @@ pub struct SessionVerifyResponse {
 pub struct CexClient {
     base_url: Arc<String>,
     game_authority_token: Arc<String>,
-    entitlement_signing_key: Arc<SigningKey>,
-    entitlement_key_id: Arc<String>,
+    signer_url: Arc<String>,
+    signer_token: Arc<String>,
     async_client: reqwest::Client,
     blocking_client: reqwest::blocking::Client,
 }
@@ -46,28 +49,33 @@ impl CexClient {
     pub fn new(
         base_url: String,
         game_authority_token: String,
-        signing_seed_base64: String,
-        entitlement_key_id: String,
+        signer_url: String,
+        signer_token: String,
     ) -> Result<Self, String> {
         if game_authority_token.len() < 24 {
             return Err("TRNM_GAME_AUTHORITY_TOKEN must be at least 24 characters".to_string());
         }
-        let seed = STANDARD
-            .decode(signing_seed_base64.trim())
-            .map_err(|error| format!("decode Ed25519 entitlement seed: {error}"))?;
-        let seed: [u8; 32] = seed
-            .try_into()
-            .map_err(|_| "Ed25519 entitlement seed must contain exactly 32 bytes".to_string())?;
-        if entitlement_key_id.trim().is_empty() {
-            return Err("TRNM_ENTITLEMENT_ED25519_KEY_ID is required".to_string());
+        if signer_token.len() < 32 {
+            return Err("TRNM_ENTITLEMENT_SIGNER_TOKEN must be at least 32 characters".to_string());
         }
+        if signer_url.trim().is_empty() {
+            return Err("TRNM_ENTITLEMENT_SIGNER_URL is required".to_string());
+        }
+        let async_client = reqwest::Client::builder()
+            .timeout(Duration::from_secs(10))
+            .build()
+            .map_err(|error| format!("build asynchronous CEX/signer client: {error}"))?;
+        let blocking_client = reqwest::blocking::Client::builder()
+            .timeout(Duration::from_secs(10))
+            .build()
+            .map_err(|error| format!("build blocking CEX/signer client: {error}"))?;
         Ok(Self {
             base_url: Arc::new(base_url.trim_end_matches('/').to_string()),
             game_authority_token: Arc::new(game_authority_token),
-            entitlement_signing_key: Arc::new(SigningKey::from_bytes(&seed)),
-            entitlement_key_id: Arc::new(entitlement_key_id),
-            async_client: reqwest::Client::new(),
-            blocking_client: reqwest::blocking::Client::new(),
+            signer_url: Arc::new(signer_url.trim_end_matches('/').to_string()),
+            signer_token: Arc::new(signer_token),
+            async_client,
+            blocking_client,
         })
     }
 
@@ -81,7 +89,33 @@ impl CexClient {
         if !response.status().is_success() {
             return Err(format!("CEX readiness returned {}", response.status()));
         }
-        Ok(())
+        self.signer_readiness().await.map(|_| ())
+    }
+
+    pub async fn signer_readiness(&self) -> Result<EntitlementSignerReadiness, String> {
+        let response = self
+            .async_client
+            .get(format!("{}/v1/signer/readiness", self.signer_url))
+            .send()
+            .await
+            .map_err(|error| format!("isolated signer readiness transport: {error}"))?;
+        if !response.status().is_success() {
+            return Err(format!(
+                "isolated signer readiness returned {}",
+                response.status()
+            ));
+        }
+        let readiness = response
+            .json::<EntitlementSignerReadiness>()
+            .await
+            .map_err(|error| format!("decode isolated signer readiness: {error}"))?;
+        if readiness.status != "ok"
+            || readiness.contract_version != ENTITLEMENT_SIGNER_CONTRACT
+            || readiness.private_key_exported_to_game_server
+        {
+            return Err("isolated signer readiness failed custody contract".to_string());
+        }
+        Ok(readiness)
     }
 
     pub async fn verify_session(
@@ -153,8 +187,8 @@ impl CexClient {
             let mut entitlement = ServerSignedValueEntitlementV2 {
                 contract_version: SERVER_SIGNED_VALUE_ENTITLEMENT_V2_CONTRACT.to_string(),
                 entitlement_id: format!("trnm-online-entitlement:{}", uuid::Uuid::new_v4()),
-                issuer: "trnm-online-game-server".to_string(),
-                key_id: self.entitlement_key_id.as_ref().clone(),
+                issuer: ENTITLEMENT_SIGNER_ISSUER.to_string(),
+                key_id: String::new(),
                 signature_algorithm: "ed25519".to_string(),
                 actor_id: actor.actor_id.clone(),
                 account_id,
@@ -179,9 +213,42 @@ impl CexClient {
                 nonce: uuid::Uuid::new_v4().to_string(),
                 signature: String::new(),
             };
+            let response = self
+                .blocking_client
+                .post(format!("{}/v1/signer/sign", self.signer_url))
+                .header(SIGNER_AUTH_HEADER, self.signer_token.as_str())
+                .json(&EntitlementSignRequest {
+                    contract_version: ENTITLEMENT_SIGNER_CONTRACT.to_string(),
+                    request_id: authorized.intent_id.clone(),
+                    entitlement: entitlement.clone(),
+                })
+                .send()
+                .map_err(|error| format!("isolated signer transport: {error}"))?;
+            if !response.status().is_success() {
+                let status = response.status();
+                let body = response.text().unwrap_or_default();
+                return Err(format!(
+                    "isolated signer rejected entitlement ({status}): {body}"
+                ));
+            }
+            let signed = response
+                .json::<EntitlementSignResponse>()
+                .map_err(|error| format!("decode isolated signer response: {error}"))?;
+            if signed.contract_version != ENTITLEMENT_SIGNER_CONTRACT
+                || signed.request_id != authorized.intent_id
+                || signed.issuer != ENTITLEMENT_SIGNER_ISSUER
+                || signed.key_id.is_empty()
+                || signed.signature.is_empty()
+            {
+                return Err("isolated signer response failed binding validation".to_string());
+            }
+            entitlement.key_id = signed.key_id;
+            entitlement.signature = signed.signature;
             let payload = entitlement.signing_payload()?;
-            entitlement.signature =
-                STANDARD.encode(self.entitlement_signing_key.sign(&payload).to_bytes());
+            let request_hash = format!("{:x}", Sha256::digest(&payload));
+            if request_hash != signed.request_hash {
+                return Err("isolated signer response request hash mismatch".to_string());
+            }
             authorized.metadata[SERVER_SIGNED_VALUE_ENTITLEMENT_METADATA_KEY] =
                 serde_json::to_value(entitlement).map_err(|error| error.to_string())?;
         }

@@ -2,7 +2,7 @@
 
 Updated: 2026-07-13
 
-This is the one-page status source for the current native RPG + real-time-strategy product. The older finite checklist in `docs/development/trnm-deep-rpg-complete-rts-v1-dod.md` is retained as a completed historical baseline, not as a claim that the broader deep-RPG + complete-RTS vision is 100%. The current local CEX economy integration, Online Authority v2, Online Product v2 and Online Operations v2 slices are enumerated below; none grants Android or public-launch credit.
+This is the one-page status source for the current native RPG + real-time-strategy product. The older finite checklist in `docs/development/trnm-deep-rpg-complete-rts-v1-dod.md` is retained as a completed historical baseline, not as a claim that the broader deep-RPG + complete-RTS vision is 100%. The current local CEX economy integration, Online Authority v2, Online Product v2, Online Operations v2 and Online Production v1 slices are enumerated below; none grants Android or public-launch credit.
 
 Release denominators are separated by
 `docs/development/trnm-native-game-release-gates-v1.md`: software alpha,
@@ -69,7 +69,7 @@ The RPG layer uses only clean-room mechanics study of 白金英雄坛说. No sou
 - `trnm_player_settings_v2`.
 - `trnm_online_authority_v2`, build `trnm-online-authority-2026.07-v2`.
 - `trnm_online_product_v2`, build `trnm-online-product-2026.07-v2` (v1 private-lobby requests remain compatible).
-- `trnm_online_operations_v1`, build `trnm-online-operations-2026.07-v1`.
+- `trnm_online_production_v1`, build `trnm-online-production-2026.07-v1`; exact Operations v1/v2 protocol/build pairs remain compatible.
 
 ## Product shell
 
@@ -113,9 +113,11 @@ Restart does not return authority to the client; authenticated reconnect returns
 the full current snapshot plus a bounded persisted command-receipt gap.
 
 Positive online wallet rewards are match/result/participant-bound Ed25519
-`ServerSignedValueEntitlementV2` values. The private seed remains in a mode-600
-game-server runtime file; CEX loads only an active/revoked public issuer
-registry. The native client uses bounded same-request retries, refreshes stale
+`ServerSignedValueEntitlementV2` values. Online Production v1 removes the
+private seed from the game-server process: a separate loopback-authenticated
+signer revalidates the authoritative binding, owns the mode-600 seed and
+persists exactly-once signing receipts; CEX loads only the active/revoked public
+issuer registry. The native client uses bounded same-request retries, refreshes stale
 target ticks only after the server proves the original was not accepted, and
 still disables local simulation/settlement while attached.
 
@@ -124,10 +126,12 @@ supplies ranked solo pairing, opposing human authority, MMR and a minimum
 friend/block/report control plane. Online Operations v2 adds auditable season
 rotation/archive, a held/void-aware leaderboard, integrity-verified replay
 frames and native F9 inspection, Linux kernel-keyring login, enforcement
-appeals/SLA metrics, moderation audit and epoch-fenced same-host fleet leases. There is
-still no public beta, party queue, chat/guild, spectator product, staffed safety
-operation or cross-host/regional HA. KMS/HSM custody and automatic key rotation
-are also pending. Offline local saves cannot be mixed with online characters.
+appeals/SLA metrics, moderation audit and epoch-fenced same-host fleet leases.
+Online Production v1 adds isolated signer rotation, bounded ingress, automatic
+season transition, targeted delayed spectating, appeal escalation and explicit
+physical-host identity. There is still no public beta, party queue, chat/guild,
+staffed safety operation or cross-host/regional HA. The current signer is not
+KMS/HSM custody. Offline local saves cannot be mixed with online characters.
 
 Online Product v1 adds a closed-alpha control plane without changing the
 authority boundary. Database-backed single-use registration invites create the
@@ -176,6 +180,19 @@ continuing authority. Non-loopback binds fail closed while KMS/HSM and public
 edge security remain absent. See
 `docs/development/trnm-online-operations-v2.md`.
 
+Online Production v1 moves the entitlement private key into a separately
+hardened signer service. The game server sends an unsigned authoritative
+envelope; the signer independently enforces amount/time/battle bindings and
+stores a payload-bound receipt. Identical retries remain idempotent across
+rotation and altered retries fail 409. Key rotation changes signer and CEX
+registry state without restarting the game server. The production worker also
+enforces request-body and per-session/path request limits, defers automatic
+season transition while ranked state is active, emits one escalation per
+overdue appeal and exposes target-bound, single-use spectator grants whose
+frames remain server-time delayed. Fleet ownership now records a hashed
+physical-host ID, so two local processes cannot be counted as two hosts. See
+`docs/development/trnm-online-production-v1.md`.
+
 The client exposes local/wallet balances, pending intents, priority
 compensations, value events, verified receipts and dead letters. `Ctrl+F7`
 binds/reconciles with a player/account/device-scoped signed session from
@@ -210,10 +227,11 @@ The control profiles alter live RTS input: Classic uses Q/W/E/R for move/attack/
 - Online Operations fleet E2E: run `online-operations-fleet-1783912998-19347`, match `775c2d8e-b0b5-4a77-9f68-bcfcdd42ac37`; two live processes start with primary ownership, stop the primary, wait for heartbeat expiry, transfer once to the backup, reject routing at capacity, complete through cross-region fallback and write replay/season events with zero CEX value. This is same-host evidence, not cross-host HA;
 - Online Operations anti-collusion compatibility E2E: run `online-operations-collusion-1783916291-20971`; same-device pairing is rejected, three real ranked matches complete, the third produces a medium repeat-opponent signal, and the fourth daily pairing is rejected under Operations v2. The test backdates only synthetic event timestamps by eleven minutes between real matches to cross the ten-minute cooldown while retaining the 24-hour window;
 - Online Operations native login: run `online-operations-native-login-1783912263-3475`; real X11 text input enters player/credential fields, the credential is masked and stored through kernel-keyring stdin, a fresh process restores it without a credential environment variable, F8 removes it, the active season loads and both captures pass non-black plus structural color gates. This is automated evidence, not a human session;
-- Online Operations v2 E2E: run `online-operations-v2-1783917105-21689`, match `345594c5-4567-45fc-b82a-de687d568477`, replay `0e4a485c4b7a5a964db31192c465a494bea2e49bbae75bb02d36f410858fab0d`, report `5446de5c-a181-4b6b-8409-ae909d3f5c16`, appeal `f3a87cda-2299-4ced-ad6d-8f4176465a9c`; 31 frames and two commands pass recomputed integrity, duplicate appeal is rejected, the 72-hour queue and approval/revocation path pass, queued season rotation is rejected, and a new active season closes/audits the prior season while snapshot count exactly matches integrity-eligible rows. The match remains bound to its start season `season-ops-v2-1783916760-23578` while the post-run active season is `season-ops-v2-1783917136-9193`;
-- Online Operations v2 same-ID fencing: run `online-operations-fencing-1783917222-7306`; epoch 43 is fenced by 44, the stale process returns 503, drain routing fails closed, activate/offline are audited, and primary recovery registers epoch 45. This is same-host duplicate-process evidence, not cross-host quorum;
-- Online Operations v2 native replay: run `online-operations-native-replay-1783917137-7154`, match `345594c5-4567-45fc-b82a-de687d568477`; F9 falls back from a later cancelled ticket to the member's latest completed authoritative replay, verifies 31 frames and renders the Operations v2 state through the structural X11 hard gate;
+- final exact Online Operations v2 compatibility E2E after the Production v1 deployment: run `online-operations-v2-1783920778-1497`, match `615b682c-282d-4a4e-9f15-77106a5f2e47`, replay `80ca3d72fb038a6a2b2988c71e2764c0c994a838275a9d5432cd6bc34d529392`, report `e97d2294-562c-4f2f-8ca5-d83c9fb5403f`, appeal `b7d29c65-b17b-429c-941a-0ee44b775e25`; 31 frames and two commands pass recomputed integrity, duplicate appeal is rejected, the 72-hour queue and approval/revocation path pass, queued season rotation is rejected, and season `season-ops-v2-1783920808-22772` closes/audits the prior season while snapshot count exactly matches integrity-eligible rows;
+- final Online Operations v2 same-ID fencing compatibility: run `online-operations-fencing-1783920820-17769`; epoch 85 is fenced by 86, the stale process returns 503, drain routing fails closed, activate/offline are audited, and primary recovery registers epoch 87. This is same-host duplicate-process evidence, not cross-host quorum;
+- final Online Operations v2 native replay compatibility: run `online-operations-native-replay-1783920865-28041`, match `7cdbe7d5-29e9-4a35-9ebc-74256625bbda`, replay `afd9425314064d6f7631682e8f24e104899f269826125230bc6159016d2c014d`; F9 falls back from a later cancelled ticket to the member's latest completed authoritative replay, verifies 31 frames and renders the Operations v2 state through the structural X11 hard gate;
 - latest native Operations v2 login compatibility: run `online-operations-native-login-1783915384-21209`; text/mask/kernel-keyring/restart/forget and two rendered frames remain green after the v2 protocol upgrade;
+- final Online Production v1 E2E: run `online-production-v1-1783921848-17452`; match `40963c5b-0d5c-419b-bc31-ed24712a9749` settles two pre-rotation receipts/entitlements, signer retry is exactly-once and an altered payload returns 409, targeted spectator grant `d6654636-3d6a-428c-9bd9-08b1c0b7283d` withholds then releases the terminal frame after its 30-second server-time delay, season `season-production-1783921873-1334` defers while queued then auto-activates, and appeal `8117eb06-ea48-49fc-96cd-2b1386a9ae22` escalates once then closes. The key rotates from `trnm-online-ed25519-production-1783920029-14665` to `trnm-online-ed25519-production-1783921873-20455` without restarting the game server; post-rotation match `57411b00-de57-4333-9464-b66d3cdc8aed` writes two new-key signer receipts and two CEX entitlements. A 30/minute probe returns 429 and a 300-KiB body returns 413. Exactly one physical host is observed, so cross-host HA, public edge and KMS/HSM remain unclaimed;
 - human Operations packet is generated at `acceptance/online-operations-v2-human/latest/session-packet.json` with `pending_human_participants`, two non-developer players, one observer and automation credit false; no human completion is claimed;
 - network impairment E2E: the same full two-session/restart/settlement gate passes port-scoped loopback netem at 50 ms/1%, 100 ms/3% and 200 ms/5%; this is bounded local evidence, not a public-network SLO;
 - final native attach smoke: run `online-native-1783897487-24605`, match `7e7c14cc-13b6-43c7-a770-44cff29d8d7d`; two distinct release windows first traverse product registration/lobby/invite/ready/allocation, then each produce an independently attributed fingerprinted command; this is automated input evidence, not a human multiplayer session;
@@ -221,7 +239,7 @@ The control profiles alter live RTS input: Classic uses Q/W/E/R for move/attack/
 - workspace Clippy with `-D warnings`: passing;
 - product boundary: green (8 game / 12 platform / legacy working tree absent); CEX depends on `trnm-economy-protocol` and no longer depends on removed `trnm-world-api`, `trnm-world-domain` or `trnm-world-projection` crates;
 - release build and desktop installer smoke: passing;
-- current X230 isolated warm-cache matrix after explicit `--no-run` client-harness prewarming: RPG 1.39 s / 83 MiB, Campaign 0.60 s / 83 MiB, full 19-test First Contact package 89.57 s / 122 MiB, 64-sample RTS simulation 69.35 s / 83 MiB, new-save client journey 40.68 s / 122 MiB, Standard Annihilation 74.47 s / 122 MiB, authored-map adapter 12.72 s / 122 MiB, closed loop 13.52 s / 83 MiB and release build 49.44 s / 786 MiB. Every isolated row remains below the explicit 90-second / 4-GiB bound. The final Operations v2 non-isolated full-workspace run with the always-on llvmpipe native window competing for CPU recorded 93.67 s for First Contact, so that wall clock is not presented as passing the 90-second reference line; stopping the project window restored the isolated gate. The former 3.41-GiB client figure was rustc/linker RSS from compiling the test harness, not game-runtime memory; the gate separates compilation from runtime instead of misreporting it;
+- current X230 isolated warm-cache matrix after explicit `--no-run` client-harness prewarming: RPG 1.39 s / 83 MiB, Campaign 0.60 s / 83 MiB, full 19-test First Contact package 89.57 s / 122 MiB, 64-sample RTS simulation 69.35 s / 83 MiB, new-save client journey 40.68 s / 122 MiB, Standard Annihilation 74.47 s / 122 MiB, authored-map adapter 12.72 s / 122 MiB, closed loop 13.52 s / 83 MiB and release build 49.44 s / 786 MiB. Every isolated row remains below the explicit 90-second / 4-GiB bound. The final Production v1 non-isolated full-workspace run recorded 92.15 s for First Contact (and 76.33 s for the 32-test RTS package), so that First Contact wall clock is not presented as passing the 90-second reference line; stopping the project window restored the isolated gate. The former 3.41-GiB client figure was rustc/linker RSS from compiling the test harness, not game-runtime memory; the gate separates compilation from runtime instead of misreporting it;
 - release client service: active with a viewable native window after restart.
 - persistent CEX recovery: PostgreSQL WAL archival, a physical 8.6-GiB base
   backup, named-restore-point PITR and writable same-host promotion are proven;
@@ -243,6 +261,8 @@ scripts/check-trnm-online-operations-v1-e2e.sh
 scripts/check-trnm-online-operations-v1-fleet.sh
 scripts/check-trnm-online-operations-v1-native-login.sh
 scripts/check-trnm-online-operations-v1-anti-collusion.sh
+scripts/check-trnm-online-production-v1-e2e.sh
+scripts/prepare-trnm-online-production-v1-second-host.sh
 scripts/prepare-trnm-online-operations-v1-human-session.sh
 scripts/check-trnm-online-network-chaos.sh
 scripts/check-trnm-online-native-two-client.sh

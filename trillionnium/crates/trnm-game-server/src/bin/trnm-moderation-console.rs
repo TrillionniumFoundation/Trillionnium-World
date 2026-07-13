@@ -5,7 +5,7 @@ use trnm_online_protocol::{
     OnlineEnforcementAppealResolveRequest, OnlineEnforcementAppealView, OnlineFleetAdminRequest,
     OnlineFleetAdminView, OnlineModerationActionRequest, OnlineModerationActionView,
     OnlineModerationQueueRequest, OnlineModerationQueueView, OnlineSeasonAdminRequest,
-    OnlineSeasonAdminView,
+    OnlineSeasonAdminView, OnlineSeasonAutomationRequest, OnlineSeasonAutomationView,
 };
 
 fn required(key: &str) -> Result<String, String> {
@@ -133,6 +133,36 @@ fn run() -> Result<(), String> {
         }
         Some("season") if args.len() >= 3 => {
             let action = args[1].clone();
+            if action == "auto" && args.len() == 4 {
+                let automatic_activation = match args[3].as_str() {
+                    "on" => true,
+                    "off" => false,
+                    _ => return Err("season auto state must be on or off".to_string()),
+                };
+                let response = client
+                    .post(format!("{base_url}/v1/production/seasons/automation"))
+                    .header("x-trnm-moderator", &token)
+                    .json(&OnlineSeasonAutomationRequest {
+                        season_id: args[2].clone(),
+                        automatic_activation,
+                    })
+                    .send()
+                    .map_err(|error| error.to_string())?;
+                let status_code = response.status();
+                let body = response.text().map_err(|error| error.to_string())?;
+                if !status_code.is_success() {
+                    return Err(format!(
+                        "season automation rejected ({status_code}): {body}"
+                    ));
+                }
+                let view: OnlineSeasonAutomationView =
+                    serde_json::from_str(&body).map_err(|error| error.to_string())?;
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(&view).map_err(|error| error.to_string())?
+                );
+                return Ok(());
+            }
             let request = if action == "create" && args.len() == 7 {
                 OnlineSeasonAdminRequest {
                     action,
@@ -205,7 +235,7 @@ fn run() -> Result<(), String> {
         }
         _ => {
             return Err(
-                "usage: trnm-moderation-console list [status] | action REPORT_ID DECISION SCOPE HOURS RESOLUTION... | appeals [status] | appeal APPEAL_ID DECISION RESOLUTION... | season ... | fleet ACTION INSTANCE REASON..."
+                "usage: trnm-moderation-console list [status] | action REPORT_ID DECISION SCOPE HOURS RESOLUTION... | appeals [status] | appeal APPEAL_ID DECISION RESOLUTION... | season create/activate/close/auto ... | fleet ACTION INSTANCE REASON..."
                     .to_string(),
             );
         }

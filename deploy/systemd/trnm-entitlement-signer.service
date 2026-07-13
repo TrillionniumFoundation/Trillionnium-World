@@ -1,0 +1,19 @@
+[Unit]
+Description=TRNM Isolated Entitlement Signer v1
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/qian/.openclaw/workspace/Trillionnium
+ExecStart=/home/qian/.openclaw/workspace/Trillionnium/scripts/run-trnm-entitlement-signer.sh
+Restart=on-failure
+RestartSec=2
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=read-only
+ProtectSystem=strict
+ReadWritePaths=/home/qian/.openclaw/workspace/Trillionnium/run
+
+[Install]
+WantedBy=default.target

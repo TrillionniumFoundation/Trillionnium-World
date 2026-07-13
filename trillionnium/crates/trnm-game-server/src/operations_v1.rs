@@ -12,7 +12,6 @@ use trnm_online_protocol::{
     OnlineReplayAccessRequest, OnlineReplayCommandView, OnlineReplayFrameView,
     OnlineReplayPlaybackView, OnlineReplayReportCreateRequest, OnlineReplayView, OnlineReportView,
     OnlineSeasonAdminRequest, OnlineSeasonAdminView, OnlineSeasonView, ONLINE_OPERATIONS_BUILD,
-    ONLINE_OPERATIONS_PROTOCOL,
 };
 
 const MODERATOR_HEADER: &str = "x-trnm-moderator";
@@ -56,7 +55,7 @@ pub(super) async fn heartbeat_fleet(state: &AppState) -> Result<(), String> {
         "update trnm_online_fleet_instances set region = $2,
             public_endpoint = $3, build_id = $4, capacity = $5,
             active_matches = $6, heartbeat_at = now(),
-            lease_expires_at = now() + interval '5 seconds'
+            lease_expires_at = now() + interval '5 seconds', physical_host_id = $8
          where instance_id = $1 and instance_epoch = $7 and status <> 'offline'",
     )
     .bind(state.instance_id.as_str())
@@ -66,6 +65,7 @@ pub(super) async fn heartbeat_fleet(state: &AppState) -> Result<(), String> {
     .bind(state.capacity)
     .bind(i32::try_from(active_matches).unwrap_or(i32::MAX))
     .bind(state.instance_epoch)
+    .bind(state.physical_host_id.as_str())
     .execute(&state.pool)
     .await
     .map_err(|error| error.to_string())?;
@@ -103,7 +103,7 @@ pub(super) async fn route_fleet(
     .await
     .map_err(internal_db)?;
     let row = sqlx::query(
-        "select instance_id, region, public_endpoint, capacity, active_matches, status,
+        "select instance_id, physical_host_id, region, public_endpoint, capacity, active_matches, status,
                 extract(epoch from (now() - heartbeat_at))::bigint as heartbeat_age_seconds,
                 instance_epoch,
                 extract(epoch from (lease_expires_at - now()))::bigint as lease_remaining_seconds
@@ -127,8 +127,8 @@ pub(super) async fn route_fleet(
     })?;
     let selected = fleet_view(&row)?;
     Ok(Json(OnlineFleetRouteView {
-        protocol_version: ONLINE_OPERATIONS_PROTOCOL.to_string(),
-        build_id: ONLINE_OPERATIONS_BUILD.to_string(),
+        protocol_version: request.protocol_version,
+        build_id: request.build_id,
         cross_region_fallback: selected.region != request.preferred_region,
         selected,
         healthy_instances: u32::try_from(healthy_count).unwrap_or(u32::MAX),
@@ -138,6 +138,7 @@ pub(super) async fn route_fleet(
 fn fleet_view(row: &sqlx::postgres::PgRow) -> Result<OnlineFleetInstanceView, ApiError> {
     Ok(OnlineFleetInstanceView {
         instance_id: row.try_get("instance_id").map_err(internal_db)?,
+        physical_host_id: row.try_get("physical_host_id").map_err(internal_db)?,
         region: row.try_get("region").map_err(internal_db)?,
         public_endpoint: row.try_get("public_endpoint").map_err(internal_db)?,
         capacity: row.try_get::<i32, _>("capacity").map_err(internal_db)? as u32,
@@ -509,8 +510,8 @@ pub(super) async fn get_leaderboard(
     .map_err(internal_db)?;
     transaction.commit().await.map_err(internal_db)?;
     Ok(Json(OnlineLeaderboardView {
-        protocol_version: ONLINE_OPERATIONS_PROTOCOL.to_string(),
-        build_id: ONLINE_OPERATIONS_BUILD.to_string(),
+        protocol_version: request.protocol_version,
+        build_id: request.build_id,
         season,
         entries,
         requester: requester_row.as_ref().map(leaderboard_entry).transpose()?,
@@ -541,7 +542,7 @@ fn season_view(row: &sqlx::postgres::PgRow) -> Result<OnlineSeasonView, ApiError
     })
 }
 
-async fn archive_season(
+pub(super) async fn archive_season(
     transaction: &mut sqlx::Transaction<'_, sqlx::Postgres>,
     season_id: &str,
 ) -> Result<u64, ApiError> {
@@ -1562,6 +1563,14 @@ pub(super) async fn resolve_enforcement_appeal(
         .await
         .map_err(internal_db)?;
     }
+    sqlx::query(
+        "update trnm_online_appeal_escalations set status = 'closed', closed_at = now()
+         where appeal_id = $1 and status <> 'closed'",
+    )
+    .bind(appeal_id)
+    .execute(&mut *transaction)
+    .await
+    .map_err(internal_db)?;
     sqlx::query(
         "insert into trnm_online_moderation_audit (
             audit_id, action, target_player_id, resolution

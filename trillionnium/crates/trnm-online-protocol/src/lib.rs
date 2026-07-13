@@ -10,8 +10,10 @@ pub const ONLINE_PRODUCT_PROTOCOL: &str = "trnm_online_product_v2";
 pub const ONLINE_PRODUCT_BUILD: &str = "trnm-online-product-2026.07-v2";
 pub const ONLINE_OPERATIONS_V1_PROTOCOL: &str = "trnm_online_operations_v1";
 pub const ONLINE_OPERATIONS_V1_BUILD: &str = "trnm-online-operations-2026.07-v1";
-pub const ONLINE_OPERATIONS_PROTOCOL: &str = "trnm_online_operations_v2";
-pub const ONLINE_OPERATIONS_BUILD: &str = "trnm-online-operations-2026.07-v2";
+pub const ONLINE_OPERATIONS_V2_PROTOCOL: &str = "trnm_online_operations_v2";
+pub const ONLINE_OPERATIONS_V2_BUILD: &str = "trnm-online-operations-2026.07-v2";
+pub const ONLINE_OPERATIONS_PROTOCOL: &str = "trnm_online_production_v1";
+pub const ONLINE_OPERATIONS_BUILD: &str = "trnm-online-production-2026.07-v1";
 pub const ONLINE_AUTHORITY_DEFAULT_RULES: &str = "trnm_first_contact_rules_v1";
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -627,6 +629,96 @@ pub struct OnlineSeasonAdminView {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OnlineSeasonAutomationRequest {
+    pub season_id: String,
+    pub automatic_activation: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OnlineSeasonAutomationView {
+    pub season_id: String,
+    pub automatic_activation: bool,
+    pub automation_state: String,
+    pub deferred_reason: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OnlineSpectatorInviteCreateRequest {
+    pub protocol_version: String,
+    pub build_id: String,
+    pub player_id: String,
+    pub account_id: String,
+    pub match_id: String,
+    pub target_player_id: String,
+    pub delay_seconds: u32,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OnlineSpectatorInviteReceipt {
+    pub invite_id: String,
+    pub match_id: String,
+    pub target_player_id: String,
+    pub invite_token: String,
+    pub delay_seconds: u32,
+    pub expires_at_epoch: i64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OnlineSpectatorInviteAcceptRequest {
+    pub protocol_version: String,
+    pub build_id: String,
+    pub player_id: String,
+    pub account_id: String,
+    pub invite_token: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OnlineSpectatorGrantView {
+    pub grant_id: String,
+    pub match_id: String,
+    pub viewer_player_id: String,
+    pub delay_seconds: u32,
+    pub expires_at_epoch: i64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OnlineSpectatorPlaybackRequest {
+    pub protocol_version: String,
+    pub build_id: String,
+    pub player_id: String,
+    pub account_id: String,
+    pub grant_id: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct OnlineSpectatorPlaybackView {
+    pub grant: OnlineSpectatorGrantView,
+    pub match_phase: String,
+    pub authoritative_tick: u64,
+    pub visible_through_tick: u64,
+    pub frames: Vec<OnlineReplayFrameView>,
+    pub terminal_visible: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OnlineProductionStatusView {
+    pub protocol_version: String,
+    pub build_id: String,
+    pub signer_ready: bool,
+    pub signer_key_id: String,
+    pub signer_custody: String,
+    pub request_rate_limit_per_minute: u32,
+    pub request_body_limit_bytes: u32,
+    pub automatic_season_id: Option<String>,
+    pub pending_appeals: u32,
+    pub overdue_appeals: u32,
+    pub escalated_appeals: u32,
+    pub physical_host_id: String,
+    pub distinct_healthy_physical_hosts: u32,
+    pub public_edge_attested: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct OnlineFleetRouteRequest {
     pub protocol_version: String,
     pub build_id: String,
@@ -636,6 +728,7 @@ pub struct OnlineFleetRouteRequest {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct OnlineFleetInstanceView {
     pub instance_id: String,
+    pub physical_host_id: String,
     pub region: String,
     pub public_endpoint: String,
     pub capacity: u32,
@@ -708,10 +801,13 @@ pub fn validate_product_contract(protocol_version: &str, build_id: &str) -> Resu
 pub fn validate_operations_contract(protocol_version: &str, build_id: &str) -> Result<(), String> {
     let supported = (protocol_version == ONLINE_OPERATIONS_PROTOCOL
         && build_id == ONLINE_OPERATIONS_BUILD)
+        || (protocol_version == ONLINE_OPERATIONS_V2_PROTOCOL
+            && build_id == ONLINE_OPERATIONS_V2_BUILD)
         || (protocol_version == ONLINE_OPERATIONS_V1_PROTOCOL
             && build_id == ONLINE_OPERATIONS_V1_BUILD);
     if !supported
         && protocol_version != ONLINE_OPERATIONS_PROTOCOL
+        && protocol_version != ONLINE_OPERATIONS_V2_PROTOCOL
         && protocol_version != ONLINE_OPERATIONS_V1_PROTOCOL
     {
         return Err(format!(
@@ -749,6 +845,11 @@ mod tests {
                 .is_ok()
         );
         assert!(validate_operations_contract(ONLINE_OPERATIONS_PROTOCOL, "old-build").is_err());
+        assert!(validate_operations_contract(
+            ONLINE_OPERATIONS_V2_PROTOCOL,
+            ONLINE_OPERATIONS_V2_BUILD
+        )
+        .is_ok());
         assert!(validate_operations_contract(
             ONLINE_OPERATIONS_V1_PROTOCOL,
             ONLINE_OPERATIONS_V1_BUILD

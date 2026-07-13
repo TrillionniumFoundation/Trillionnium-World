@@ -1,7 +1,7 @@
 [Unit]
-Description=TRNM Online Authority v1 Game Server
-After=network-online.target cex-trnm-ledger.service
-Wants=network-online.target cex-trnm-ledger.service
+Description=TRNM Online Production v1 Game Server
+After=network-online.target cex-trnm-ledger.service trnm-entitlement-signer.service
+Wants=network-online.target cex-trnm-ledger.service trnm-entitlement-signer.service
 
 [Service]
 Type=simple

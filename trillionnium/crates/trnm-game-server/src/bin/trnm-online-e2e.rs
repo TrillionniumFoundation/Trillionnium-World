@@ -699,11 +699,10 @@ fn run() -> Result<Value, String> {
                             && unit["unit_id"]
                                 .as_str()
                                 .is_some_and(|unit_id| host_move_units.contains(unit_id))
-                            && ox.is_some_and(|x| {
-                                (unit["position"]["x"].as_i64().unwrap_or_default() - x).abs() <= 2
-                            })
-                            && oy.is_some_and(|y| {
-                                (unit["position"]["y"].as_i64().unwrap_or_default() - y).abs() <= 2
+                            && ox.zip(oy).is_some_and(|(x, y)| {
+                                (unit["position"]["x"].as_i64().unwrap_or_default() - x).abs()
+                                    + (unit["position"]["y"].as_i64().unwrap_or_default() - y).abs()
+                                    <= 2
                             })
                     })
                 })

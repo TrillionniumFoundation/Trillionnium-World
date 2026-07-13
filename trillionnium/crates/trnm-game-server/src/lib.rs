@@ -4,10 +4,15 @@ mod cex;
 mod map;
 mod operations_v1;
 mod product_v2;
+mod production_v1;
+pub mod signer_protocol;
 
+use axum::extract::DefaultBodyLimit;
 use axum::{
+    body::Body,
     extract::{Path, State},
-    http::{HeaderMap, StatusCode},
+    http::{HeaderMap, Request, StatusCode},
+    middleware::{self, Next},
     response::{IntoResponse, Response},
     routing::{get, post},
     Json, Router,
@@ -22,8 +27,9 @@ use std::{
     net::SocketAddr,
     path::PathBuf,
     sync::Arc,
-    time::Duration,
+    time::{Duration, Instant},
 };
+use tokio::sync::Mutex;
 use tokio::time::MissedTickBehavior;
 use trnm_campaign_core::{
     BattleMapSeedV1, BattleOutcome, BattleResultV1, BattleSeedV1, CampaignMission, CampaignSaveV1,
@@ -52,6 +58,12 @@ const MIGRATION_V3: &str = include_str!("../migrations/0003_online_product_v1.sq
 const MIGRATION_V4: &str = include_str!("../migrations/0004_online_product_v2.sql");
 const MIGRATION_V5: &str = include_str!("../migrations/0005_online_operations_v1.sql");
 const MIGRATION_V6: &str = include_str!("../migrations/0006_online_operations_v2.sql");
+const MIGRATION_V7: &str = include_str!("../migrations/0007_online_production_v1.sql");
+
+struct RateWindow {
+    started_at: Instant,
+    count: u32,
+}
 
 #[derive(Clone)]
 pub struct AppState {
@@ -62,22 +74,29 @@ pub struct AppState {
     instance_id: Arc<String>,
     region: Arc<String>,
     public_endpoint: Arc<String>,
+    physical_host_id: Arc<String>,
     capacity: i32,
     instance_epoch: i64,
+    rate_limit_per_minute: u32,
+    request_body_limit_bytes: u32,
+    rate_windows: Arc<Mutex<BTreeMap<String, RateWindow>>>,
 }
 
 pub struct AppStateConfig {
     pub database_url: String,
     pub cex_base_url: String,
     pub game_authority_token: String,
-    pub entitlement_signing_seed_base64: String,
-    pub entitlement_key_id: String,
+    pub entitlement_signer_url: String,
+    pub entitlement_signer_token: String,
     pub asset_root: PathBuf,
     pub moderator_token: String,
     pub instance_id: String,
     pub region: String,
     pub public_endpoint: String,
+    pub physical_host_id: String,
     pub capacity: i32,
+    pub rate_limit_per_minute: u32,
+    pub request_body_limit_bytes: u32,
 }
 
 impl AppState {
@@ -112,24 +131,33 @@ impl AppState {
             .execute(&pool)
             .await
             .map_err(|error| format!("migrate Online Operations v2 PostgreSQL: {error}"))?;
+        sqlx::raw_sql(MIGRATION_V7)
+            .execute(&pool)
+            .await
+            .map_err(|error| format!("migrate Online Production v1 PostgreSQL: {error}"))?;
         if config.instance_id.trim().is_empty()
             || config.region.trim().is_empty()
             || config.public_endpoint.trim().is_empty()
+            || config.physical_host_id.trim().is_empty()
             || !(1..=10_000).contains(&config.capacity)
+            || !(30..=100_000).contains(&config.rate_limit_per_minute)
+            || !(16_384..=1_048_576).contains(&config.request_body_limit_bytes)
         {
-            return Err("fleet instance, region, endpoint and capacity must be valid".to_string());
+            return Err(
+                "fleet identity, capacity and production ingress limits must be valid".to_string(),
+            );
         }
         let instance_epoch: i64 = sqlx::query_scalar(
             "insert into trnm_online_fleet_instances (
                 instance_id, region, public_endpoint, build_id, capacity, status,
-                instance_epoch, lease_expires_at
-             ) values ($1, $2, $3, $4, $5, 'active', 1, now() + interval '5 seconds')
+                instance_epoch, lease_expires_at, physical_host_id
+             ) values ($1, $2, $3, $4, $5, 'active', 1, now() + interval '5 seconds', $6)
              on conflict (instance_id) do update set region = excluded.region,
                 public_endpoint = excluded.public_endpoint, build_id = excluded.build_id,
                 capacity = excluded.capacity, status = 'active', heartbeat_at = now(),
                 lease_expires_at = now() + interval '5 seconds',
                 instance_epoch = trnm_online_fleet_instances.instance_epoch + 1,
-                drain_reason = null
+                physical_host_id = excluded.physical_host_id, drain_reason = null
              returning instance_epoch",
         )
         .bind(config.instance_id.trim())
@@ -137,14 +165,15 @@ impl AppState {
         .bind(config.public_endpoint.trim())
         .bind(trnm_online_protocol::ONLINE_OPERATIONS_BUILD)
         .bind(config.capacity)
+        .bind(config.physical_host_id.trim())
         .fetch_one(&pool)
         .await
         .map_err(|error| format!("register Online Operations fleet instance: {error}"))?;
         let cex = CexClient::new(
             config.cex_base_url,
             config.game_authority_token,
-            config.entitlement_signing_seed_base64,
-            config.entitlement_key_id,
+            config.entitlement_signer_url,
+            config.entitlement_signer_token,
         )?;
         cex.readiness().await?;
         Ok(Self {
@@ -155,8 +184,12 @@ impl AppState {
             instance_id: Arc::new(config.instance_id),
             region: Arc::new(config.region),
             public_endpoint: Arc::new(config.public_endpoint),
+            physical_host_id: Arc::new(config.physical_host_id),
             capacity: config.capacity,
             instance_epoch,
+            rate_limit_per_minute: config.rate_limit_per_minute,
+            request_body_limit_bytes: config.request_body_limit_bytes,
+            rate_windows: Arc::new(Mutex::new(BTreeMap::new())),
         })
     }
 
@@ -349,7 +382,61 @@ fn member_units(
     (units, id_map)
 }
 
+async fn production_rate_limit(
+    State(state): State<AppState>,
+    request: Request<Body>,
+    next: Next,
+) -> Response {
+    let path = request.uri().path();
+    let effective_limit = if path.ends_with("/snapshot")
+        || path.ends_with("/commands")
+        || path.ends_with("/reconnect")
+    {
+        state.rate_limit_per_minute.saturating_mul(20)
+    } else {
+        state.rate_limit_per_minute
+    };
+    let identity = request
+        .headers()
+        .get(PLAYER_SESSION_HEADER)
+        .or_else(|| request.headers().get("x-trnm-moderator"))
+        .and_then(|value| value.to_str().ok())
+        .unwrap_or("anonymous");
+    let key = format!(
+        "{:x}",
+        Sha256::digest(format!("{}:{}", identity, path).as_bytes())
+    );
+    let now = Instant::now();
+    let mut windows = state.rate_windows.lock().await;
+    if windows.len() > 20_000 {
+        windows.retain(|_, window| now.duration_since(window.started_at) < Duration::from_secs(60));
+    }
+    let window = windows.entry(key).or_insert(RateWindow {
+        started_at: now,
+        count: 0,
+    });
+    if now.duration_since(window.started_at) >= Duration::from_secs(60) {
+        window.started_at = now;
+        window.count = 0;
+    }
+    if window.count >= effective_limit {
+        drop(windows);
+        return (
+            StatusCode::TOO_MANY_REQUESTS,
+            Json(json!({
+                "error": "production request rate limit exceeded",
+                "retry_after_seconds": 60,
+            })),
+        )
+            .into_response();
+    }
+    window.count = window.count.saturating_add(1);
+    drop(windows);
+    next.run(request).await
+}
+
 pub fn build_router(state: AppState) -> Router {
+    let body_limit = state.request_body_limit_bytes as usize;
     Router::new()
         .route("/health", get(health))
         .route("/v1/online/readiness", get(readiness))
@@ -455,6 +542,31 @@ pub fn build_router(state: AppState) -> Router {
             "/v1/operations/fleet/admin",
             post(operations_v1::admin_fleet),
         )
+        .route(
+            "/v1/production/seasons/automation",
+            post(production_v1::configure_season_automation),
+        )
+        .route(
+            "/v1/production/spectators/invites",
+            post(production_v1::create_spectator_invite),
+        )
+        .route(
+            "/v1/production/spectators/invites/accept",
+            post(production_v1::accept_spectator_invite),
+        )
+        .route(
+            "/v1/production/spectators/playback",
+            post(production_v1::spectator_playback),
+        )
+        .route(
+            "/v1/production/status",
+            get(production_v1::production_status),
+        )
+        .layer(DefaultBodyLimit::max(body_limit))
+        .layer(middleware::from_fn_with_state(
+            state.clone(),
+            production_rate_limit,
+        ))
         .with_state(state)
 }
 
@@ -468,7 +580,8 @@ async fn readiness(State(state): State<AppState>) -> Response {
         .await
         .is_ok();
     let cex = state.cex.readiness().await.is_ok();
-    let ready = postgres && cex;
+    let signer = state.cex.signer_readiness().await.ok();
+    let ready = postgres && cex && signer.is_some();
     let healthy_fleet_instances = sqlx::query_scalar::<_, i64>(
         "select count(*) from trnm_online_fleet_instances
          where status = 'active' and lease_expires_at > now()",
@@ -527,7 +640,21 @@ async fn readiness(State(state): State<AppState>) -> Response {
             "operations_v2_enforcement_appeals_sla": true,
             "operations_v2_drain_and_capacity_control": true,
             "operations_v2_loopback_only_public_bind_gate": true,
-            "entitlement_key_custody": "local_mode_600_ed25519_seed_not_kms",
+            "online_production_protocol": trnm_online_protocol::ONLINE_OPERATIONS_PROTOCOL,
+            "online_production_build": trnm_online_protocol::ONLINE_OPERATIONS_BUILD,
+            "production_v1_isolated_entitlement_signer": signer.is_some(),
+            "production_v1_signer_key_id": signer.as_ref().map(|value| value.key_id.as_str()),
+            "production_v1_signer_private_key_exported_to_game_server": false,
+            "production_v1_durable_signing_receipts": true,
+            "production_v1_rate_limit_per_minute": state.rate_limit_per_minute,
+            "production_v1_request_body_limit_bytes": state.request_body_limit_bytes,
+            "production_v1_automatic_season_rotation": true,
+            "production_v1_targeted_delayed_spectating": true,
+            "production_v1_appeal_sla_escalation": true,
+            "fleet_physical_host_id": state.physical_host_id.as_str(),
+            "entitlement_key_custody": signer.as_ref().map(|value| value.custody.as_str())
+                .unwrap_or("isolated_signer_unavailable"),
+            "kms_hsm_attested": false,
             "public_edge_ddos_attested": false,
         })),
     )
@@ -1428,7 +1555,7 @@ async fn start_match(
             authoritative_tick = 0, match_revision = match_revision + 1,
             assigned_instance_id = $6, assigned_region = $7,
             assigned_instance_epoch = $8, initial_simulation_json = $4,
-            season_id = $9, updated_at = now()
+            season_id = $9, assigned_physical_host_id = $10, updated_at = now()
          where match_id = $1",
     )
     .bind(match_id)
@@ -1440,6 +1567,7 @@ async fn start_match(
     .bind(state.region.as_str())
     .bind(state.instance_epoch)
     .bind(&match_season_id)
+    .bind(state.physical_host_id.as_str())
     .execute(&mut *transaction)
     .await
     .map_err(internal_db)?;
@@ -2075,14 +2203,23 @@ pub async fn run_authority_loop(state: AppState, tick_interval: Duration) {
     let mut interval = tokio::time::interval(tick_interval);
     interval.set_missed_tick_behavior(MissedTickBehavior::Skip);
     let mut heartbeat_elapsed = Duration::from_secs(1);
+    let mut production_maintenance_elapsed = Duration::from_secs(5);
     loop {
         interval.tick().await;
         heartbeat_elapsed = heartbeat_elapsed.saturating_add(tick_interval);
+        production_maintenance_elapsed =
+            production_maintenance_elapsed.saturating_add(tick_interval);
         if heartbeat_elapsed >= Duration::from_secs(1) {
             if let Err(error) = operations_v1::heartbeat_fleet(&state).await {
                 tracing::error!(%error, "online fleet heartbeat failed closed");
             }
             heartbeat_elapsed = Duration::ZERO;
+        }
+        if production_maintenance_elapsed >= Duration::from_secs(5) {
+            if let Err(error) = production_v1::run_production_maintenance(&state).await {
+                tracing::error!(%error, "online production maintenance failed closed");
+            }
+            production_maintenance_elapsed = Duration::ZERO;
         }
         if let Err(error) = advance_running_matches(&state, 4).await {
             tracing::error!(%error, "online authority tick failed closed");
@@ -2121,7 +2258,8 @@ pub async fn advance_running_matches(state: &AppState, limit: i64) -> Result<u64
             .map_err(|error| error.to_string())?;
         let Some(row) = sqlx::query(
             "select campaign_id, phase, simulation_json, match_mode,
-                    assigned_instance_id, assigned_region, assigned_instance_epoch
+                    assigned_instance_id, assigned_region, assigned_instance_epoch,
+                    assigned_physical_host_id
              from trnm_online_matches
              where match_id = $1 for update skip locked",
         )
@@ -2148,6 +2286,9 @@ pub async fn advance_running_matches(state: &AppState, limit: i64) -> Result<u64
         let previous_epoch: i64 = row
             .try_get("assigned_instance_epoch")
             .map_err(|error| error.to_string())?;
+        let previous_physical_host: Option<String> = row
+            .try_get("assigned_physical_host_id")
+            .map_err(|error| error.to_string())?;
         if previous_instance.as_deref() != Some(state.instance_id.as_str())
             || previous_epoch != state.instance_epoch
         {
@@ -2172,12 +2313,13 @@ pub async fn advance_running_matches(state: &AppState, limit: i64) -> Result<u64
             sqlx::query(
                 "update trnm_online_matches set assigned_instance_id = $2,
                     assigned_region = $3, assigned_instance_epoch = $4,
-                    updated_at = now() where match_id = $1",
+                    assigned_physical_host_id = $5, updated_at = now() where match_id = $1",
             )
             .bind(match_id)
             .bind(state.instance_id.as_str())
             .bind(state.region.as_str())
             .bind(state.instance_epoch)
+            .bind(state.physical_host_id.as_str())
             .execute(&mut *transaction)
             .await
             .map_err(|error| error.to_string())?;
@@ -2185,8 +2327,9 @@ pub async fn advance_running_matches(state: &AppState, limit: i64) -> Result<u64
                 "insert into trnm_online_fleet_failovers (
                     failover_id, match_id, previous_instance_id, new_instance_id,
                     previous_region, new_region, reason,
-                    previous_instance_epoch, new_instance_epoch
-                 ) values ($1, $2, $3, $4, $5, $6, 'owner lease expired or epoch fenced', $7, $8)
+                    previous_instance_epoch, new_instance_epoch,
+                    previous_physical_host_id, new_physical_host_id
+                 ) values ($1, $2, $3, $4, $5, $6, 'owner lease expired or epoch fenced', $7, $8, $9, $10)
                  on conflict do nothing",
             )
             .bind(Uuid::new_v4())
@@ -2197,6 +2340,8 @@ pub async fn advance_running_matches(state: &AppState, limit: i64) -> Result<u64
             .bind(state.region.as_str())
             .bind(previous_epoch)
             .bind(state.instance_epoch)
+            .bind(&previous_physical_host)
+            .bind(state.physical_host_id.as_str())
             .execute(&mut *transaction)
             .await
             .map_err(|error| error.to_string())?;
