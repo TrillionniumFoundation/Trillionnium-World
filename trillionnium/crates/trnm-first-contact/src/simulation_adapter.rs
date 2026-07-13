@@ -2,7 +2,7 @@ use super::{
     asset_loader::{FirstContactAtlasHandles, FirstContactAtlasManifest},
     campaign_flow::CampaignFlow,
     map_loader::FirstContactMap,
-    online_authority::OnlineAuthorityClient,
+    online_authority::{OnlineAuthorityClient, OnlineClientEvent},
     renderer::{
         atlas_sprite, attach_identity_geometry, map_world_position, FirstContactCamera,
         FirstContactObjectivePulse, FirstContactSelectionRing, FirstContactStructureSprite,
@@ -715,17 +715,11 @@ pub(super) fn handle_first_contact_commands(
             order.queued = true;
             order.queue_id = Some(format!("native-online-{}", mission.tick));
         }
-        match online.submit(order.clone()) {
-            Ok((receipt, authoritative)) => {
-                flow.mission = Some(authoritative);
-                adapter.accepted_orders.push(order);
+        match online.submit(order, command.label().to_string()) {
+            Ok(()) => {
                 runtime.command = command;
-                runtime.command_feedback = format!(
-                    "ONLINE ACK seq={} rev={} {}",
-                    receipt.sequence,
-                    receipt.match_revision,
-                    command.label()
-                );
+                runtime.command_feedback =
+                    format!("ONLINE SENT: awaiting ACK for {}", command.label());
             }
             Err(error) => {
                 flow.status = format!("ONLINE FAIL-CLOSED: {error}");
@@ -1184,6 +1178,7 @@ pub(super) fn advance_first_contact_simulation(
     manifest: Res<FirstContactAtlasManifest>,
     handles: Option<Res<FirstContactAtlasHandles>>,
     mut runtime: ResMut<FirstContactRuntime>,
+    mut adapter: ResMut<FirstContactSimulationAdapter>,
     mut flow: ResMut<CampaignFlow>,
     mut online: Option<ResMut<OnlineAuthorityClient>>,
     mut units: Query<
@@ -1251,12 +1246,33 @@ pub(super) fn advance_first_contact_simulation(
     }
 
     if let Some(online) = online.as_mut() {
+        for event in online.drain_events() {
+            match event {
+                OnlineClientEvent::Snapshot(authoritative) => flow.mission = Some(*authoritative),
+                OnlineClientEvent::CommandAccepted(event) => {
+                    if let Some(authoritative) = event.mission {
+                        flow.mission = Some(*authoritative);
+                    }
+                    adapter.accepted_orders.push(event.order);
+                    runtime.command_feedback = format!(
+                        "ONLINE ACK seq={} rev={} {}",
+                        event.receipt.sequence, event.receipt.match_revision, event.label
+                    );
+                }
+                OnlineClientEvent::RefreshFailed(error) => {
+                    flow.status = format!("ONLINE SNAPSHOT DEGRADED: {error}");
+                }
+                OnlineClientEvent::CommandFailed(error) => {
+                    flow.status = format!("ONLINE FAIL-CLOSED: {error}");
+                    runtime.command_feedback = "Command held by online authority".to_string();
+                }
+            }
+        }
         online.poll_accumulator += delta;
-        if online.poll_accumulator >= 0.05 {
-            online.poll_accumulator = 0.0;
-            match online.refresh() {
-                Ok(authoritative) => flow.mission = Some(authoritative),
-                Err(error) => flow.status = format!("ONLINE FAIL-CLOSED: {error}"),
+        if online.poll_accumulator >= 0.1 {
+            online.poll_accumulator -= 0.1;
+            if let Err(error) = online.request_refresh() {
+                flow.status = format!("ONLINE FAIL-CLOSED: {error}");
             }
         }
         runtime.sim_tick_accumulator = 0.0;

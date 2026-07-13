@@ -3,6 +3,7 @@ use serde::{de::DeserializeOwned, Serialize};
 use serde_json::{json, Value};
 use std::{
     process::Command,
+    sync::Mutex,
     thread,
     time::{Duration, Instant},
 };
@@ -25,6 +26,7 @@ struct Identity {
 struct OnlineClient {
     base_url: String,
     http: Client,
+    command_ack_ms: Mutex<Vec<u64>>,
 }
 
 struct CommandSpec {
@@ -44,6 +46,7 @@ impl OnlineClient {
                 .timeout(Duration::from_secs(4))
                 .build()
                 .map_err(|error| error.to_string())?,
+            command_ack_ms: Mutex::new(Vec::new()),
         })
     }
 
@@ -58,6 +61,7 @@ impl OnlineClient {
             .post(format!("{}{}", self.base_url, path))
             .header("x-trnm-player-session", &identity.session)
             .json(body);
+        let started = Instant::now();
         let response = send_with_retry(request)?;
         let status = response.status();
         let bytes = response.bytes().map_err(|error| error.to_string())?;
@@ -67,7 +71,29 @@ impl OnlineClient {
                 String::from_utf8_lossy(&bytes)
             ));
         }
+        if path.ends_with("/commands") {
+            let elapsed_ms = u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX);
+            if let Ok(mut samples) = self.command_ack_ms.lock() {
+                samples.push(elapsed_ms);
+            }
+        }
         serde_json::from_slice(&bytes).map_err(|error| error.to_string())
+    }
+
+    fn command_ack_summary(&self) -> (Vec<u64>, u64, u64) {
+        let mut samples = self
+            .command_ack_ms
+            .lock()
+            .map(|samples| samples.clone())
+            .unwrap_or_default();
+        samples.sort_unstable();
+        if samples.is_empty() {
+            return (samples, 0, 0);
+        }
+        let p95_index = (samples.len() * 95).div_ceil(100).saturating_sub(1);
+        let p95_ms = samples[p95_index];
+        let max_ms = *samples.last().unwrap_or(&0);
+        (samples, p95_ms, max_ms)
     }
 
     fn post_status<T: Serialize>(
@@ -255,6 +281,26 @@ fn wait_for(
     Err(format!("online condition timed out after {timeout:?}"))
 }
 
+fn phase_timeout() -> Duration {
+    Duration::from_secs(
+        std::env::var("TRNM_ONLINE_E2E_PHASE_TIMEOUT_SECONDS")
+            .ok()
+            .and_then(|value| value.parse::<u64>().ok())
+            .unwrap_or(240)
+            .clamp(45, 900),
+    )
+}
+
+fn completion_timeout() -> Duration {
+    Duration::from_secs(
+        std::env::var("TRNM_ONLINE_E2E_COMPLETION_TIMEOUT_SECONDS")
+            .ok()
+            .and_then(|value| value.parse::<u64>().ok())
+            .unwrap_or(360)
+            .clamp(60, 1_200),
+    )
+}
+
 fn point(snapshot: &OnlineSnapshotResponse, key: &str) -> Result<RtsTile, String> {
     let value = snapshot
         .snapshot
@@ -398,6 +444,8 @@ fn run() -> Result<Value, String> {
         return Err("two-client match did not enter running phase".to_string());
     }
     let initial = client.snapshot(&host, &created.match_id)?;
+    let match_clock_started = Instant::now();
+    let initial_authoritative_tick = initial.view.authoritative_tick;
     let approach = point(&initial, "approach_point")?;
     let objective = point(&initial, "objective")?;
     let host_units = controlled(&initial, &host)?;
@@ -485,7 +533,12 @@ fn run() -> Result<Value, String> {
     let order_count_before = before_restart.snapshot["order_count"]
         .as_u64()
         .unwrap_or_default();
-    restart_server(&base_url)?;
+    let restart_recovery = std::env::var("TRNM_ONLINE_E2E_RESTART_SERVER")
+        .map(|value| value != "0")
+        .unwrap_or(true);
+    if restart_recovery {
+        restart_server(&base_url)?;
+    }
     let reconnected = client.reconnect(
         &guest,
         &created.match_id,
@@ -519,7 +572,7 @@ fn run() -> Result<Value, String> {
         &client,
         &host,
         &created.match_id,
-        Duration::from_secs(45),
+        phase_timeout(),
         |snapshot| snapshot.snapshot["phase"] == "contact",
     )?;
     let _ = client.submit(
@@ -564,7 +617,7 @@ fn run() -> Result<Value, String> {
         &client,
         &host,
         &created.match_id,
-        Duration::from_secs(45),
+        phase_timeout(),
         |snapshot| {
             snapshot.snapshot["phase"] == "relay"
                 && snapshot.snapshot["relay_guard_hp"].as_i64().unwrap_or(1) <= 0
@@ -588,7 +641,7 @@ fn run() -> Result<Value, String> {
             &client,
             &host,
             &created.match_id,
-            Duration::from_secs(45),
+            phase_timeout(),
             |snapshot| {
                 snapshot.snapshot["reinforcement_wave"]
                     .as_u64()
@@ -652,7 +705,7 @@ fn run() -> Result<Value, String> {
             &client,
             &host,
             &created.match_id,
-            Duration::from_secs(45),
+            phase_timeout(),
             |snapshot| {
                 snapshot.snapshot["enemies"]
                     .as_array()
@@ -683,7 +736,7 @@ fn run() -> Result<Value, String> {
             &client,
             &host,
             &created.match_id,
-            Duration::from_secs(45),
+            phase_timeout(),
             |snapshot| {
                 let ox = snapshot
                     .snapshot
@@ -726,7 +779,7 @@ fn run() -> Result<Value, String> {
         &client,
         &host,
         &created.match_id,
-        Duration::from_secs(60),
+        completion_timeout(),
         |snapshot| {
             snapshot.view.phase == OnlineMatchPhase::Complete
                 && snapshot.view.settlement_state == "settled"
@@ -759,6 +812,14 @@ fn run() -> Result<Value, String> {
             ));
         }
     }
+    let (command_ack_ms, command_ack_p95_ms, command_ack_max_ms) = client.command_ack_summary();
+    let match_wall_elapsed_ms =
+        u64::try_from(match_clock_started.elapsed().as_millis()).unwrap_or(u64::MAX);
+    let observed_match_ticks = complete
+        .view
+        .authoritative_tick
+        .saturating_sub(initial_authoritative_tick);
+    let match_tick_drift = observed_match_ticks as f64 - match_wall_elapsed_ms as f64 / 100.0;
     Ok(json!({
         "status": "passed",
         "run_id": run_id,
@@ -766,6 +827,10 @@ fn run() -> Result<Value, String> {
         "match_id": created.match_id,
         "members": complete.view.members,
         "authoritative_tick": complete.view.authoritative_tick,
+        "initial_authoritative_tick": initial_authoritative_tick,
+        "observed_match_ticks": observed_match_ticks,
+        "match_wall_elapsed_ms": match_wall_elapsed_ms,
+        "match_tick_drift": match_tick_drift,
         "next_sequence": complete.view.next_sequence,
         "seed_hash": complete.view.seed_hash,
         "snapshot_hash": complete.view.snapshot_hash,
@@ -776,11 +841,15 @@ fn run() -> Result<Value, String> {
         "sequence_regression_rejected": true,
         "cross_member_control_rejected": true,
         "old_build_rejected": true,
-        "restart_recovery": true,
+        "restart_recovery": restart_recovery,
         "authenticated_reconnect": true,
         "replayed_commands": before_restart.view.next_sequence,
         "guest_progression": true,
         "independent_cloud_campaigns": [campaign.campaign_id, guest_campaign.campaign_id],
+        "command_ack_samples": command_ack_ms.len(),
+        "command_ack_ms": command_ack_ms,
+        "command_ack_p95_ms": command_ack_p95_ms,
+        "command_ack_max_ms": command_ack_max_ms,
     }))
 }
 

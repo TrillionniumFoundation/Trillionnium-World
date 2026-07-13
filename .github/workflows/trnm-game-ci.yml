@@ -1,0 +1,105 @@
+name: trnm-game-ci
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'trillionnium/Cargo.toml'
+      - 'trillionnium/Cargo.lock'
+      - 'trillionnium/deny.toml'
+      - 'trillionnium/crates/trnm-*/**'
+      - 'assets/first_contact/**'
+      - 'deploy/systemd/trnm-*.service'
+      - 'scripts/check-trnm-online-*.sh'
+      - 'scripts/run-trnm-*.sh'
+      - 'scripts/install-trnm-game-server-systemd.sh'
+      - '.github/workflows/trnm-game-ci.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'trillionnium/Cargo.toml'
+      - 'trillionnium/Cargo.lock'
+      - 'trillionnium/deny.toml'
+      - 'trillionnium/crates/trnm-*/**'
+      - 'assets/first_contact/**'
+      - 'deploy/systemd/trnm-*.service'
+      - 'scripts/check-trnm-online-*.sh'
+      - 'scripts/run-trnm-*.sh'
+      - 'scripts/install-trnm-game-server-systemd.sh'
+      - '.github/workflows/trnm-game-ci.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trnm-game-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: never
+  CARGO_INCREMENTAL: '0'
+  RUST_BACKTRACE: '1'
+  RUST_TEST_THREADS: '1'
+
+jobs:
+  game-workspace:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: trillionnium
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - name: Install native build dependencies
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libasound2-dev libudev-dev libx11-dev libxi-dev libxkbcommon-dev libwayland-dev pkg-config
+      - name: Format
+        run: cargo fmt --all -- --check
+      - name: Test all targets
+        run: cargo test --workspace --all-targets --locked
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets --locked -- -D warnings
+      - name: Release player and online services
+        run: cargo build --release --locked -p trnm-first-contact -p trnm-game-server --bins
+      - name: Upload release artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: trnm-game-${{ github.sha }}
+          path: |
+            target/release/trnm-first-contact
+            target/release/trnm-online-product
+            target/release/trnm-game-server
+            target/release/trnm-entitlement-signer
+            trillionnium/Cargo.lock
+          if-no-files-found: error
+
+  supply-chain:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: trillionnium
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-audit,cargo-deny
+      - name: RustSec advisory gate
+        run: cargo audit --deny warnings
+      - name: Dependency policy gate
+        run: cargo deny check advisories bans licenses sources
+      - name: Preserve supply-chain reports
+        if: always()
+        run: |
+          mkdir -p ../run/ci-supply-chain
+          cargo audit --json > ../run/ci-supply-chain/cargo-audit.json || true
+          cargo deny --format json check advisories bans licenses sources > ../run/ci-supply-chain/cargo-deny.json || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: trnm-supply-chain-${{ github.sha }}
+          path: run/ci-supply-chain/**
+          if-no-files-found: error

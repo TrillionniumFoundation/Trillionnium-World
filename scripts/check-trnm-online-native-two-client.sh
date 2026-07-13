@@ -16,6 +16,7 @@ BIN="$ROOT_DIR/target/release/trnm-first-contact"
 HOST_PID=""
 GUEST_PID=""
 XVFB_PID=""
+NETEM_APPLIED=0
 mkdir -p "$EVIDENCE/host-save" "$EVIDENCE/guest-save"
 
 cleanup() {
@@ -23,7 +24,10 @@ cleanup() {
   [[ -z "$HOST_PID" ]] || kill "$HOST_PID" >/dev/null 2>&1 || true
   [[ -z "$GUEST_PID" ]] || kill "$GUEST_PID" >/dev/null 2>&1 || true
   [[ -z "$XVFB_PID" ]] || kill "$XVFB_PID" >/dev/null 2>&1 || true
-  systemctl --user unset-environment TRNM_GAME_SERVER_TICK_MS >/dev/null 2>&1 || true
+  if [[ "$NETEM_APPLIED" == "1" ]]; then
+    sudo -n "${TC:-/usr/sbin/tc}" qdisc del dev lo root >/dev/null 2>&1 || true
+  fi
+  systemctl --user unset-environment TRNM_GAME_SERVER_TICK_MS TRNM_ALLOW_ACCELERATED_TEST_CLOCK >/dev/null 2>&1 || true
   systemctl --user restart trnm-game-server.service >/dev/null 2>&1 || true
   exit "$status"
 }
@@ -88,21 +92,29 @@ wait_for_window() {
 
 capture() {
   local window_id="$1" output="$2"
+  local rendered_pixels
   for _ in $(seq 1 10); do
     if xwd -silent -id "$window_id" 2>/dev/null \
       | xwdtopnm 2>/dev/null | pnmtopng >"$output" \
       && [[ -s "$output" ]]; then
-      return 0
+      rendered_pixels="$(pngtopnm "$output" 2>/dev/null \
+        | od -An -v -tu1 \
+        | awk '{ for (i = 1; i <= NF; i++) if ($i >= 16) count++ } END { print count + 0 }')"
+      if (( rendered_pixels >= 5000 )); then
+        return 0
+      fi
     fi
     sleep 1
   done
+  echo "native window $window_id never produced a non-black rendered frame" >&2
   return 1
 }
 
 IFS=$'\t' read -r HOST_PLAYER HOST_ACCOUNT HOST_SESSION < <(create_identity host)
 IFS=$'\t' read -r GUEST_PLAYER GUEST_ACCOUNT GUEST_SESSION < <(create_identity guest)
 
-systemctl --user set-environment TRNM_GAME_SERVER_TICK_MS=200
+systemctl --user set-environment TRNM_GAME_SERVER_TICK_MS=200 \
+  TRNM_ALLOW_ACCELERATED_TEST_CLOCK=1
 systemctl --user restart trnm-game-server.service
 for _ in $(seq 1 60); do
   curl -fsS "$ONLINE_URL/v1/online/readiness" >/dev/null 2>&1 && break
@@ -151,6 +163,20 @@ allocation="$(player_post "$HOST_SESSION" "/v1/product/lobbies/$LOBBY_ID/queue" 
   '{protocol_version:$protocol,build_id:$build,player_id:$player,account_id:$account,expected_lobby_revision:3}')")"
 MATCH_ID="$(jq -er .match_view.match_id <<<"$allocation")"
 
+if [[ -n "${TRNM_NATIVE_CHAOS_LATENCY_MS:-}" ]]; then
+  TC="${TC:-/usr/sbin/tc}"
+  loss_percent="${TRNM_NATIVE_CHAOS_LOSS_PERCENT:-5}"
+  sudo -n true
+  [[ -x "$TC" ]]
+  "$TC" qdisc show dev lo | grep -q '^qdisc noqueue'
+  sudo -n "$TC" qdisc add dev lo root handle 1: prio bands 3
+  sudo -n "$TC" qdisc add dev lo parent 1:3 handle 30: netem \
+    delay "${TRNM_NATIVE_CHAOS_LATENCY_MS}ms" loss "${loss_percent}%"
+  sudo -n "$TC" filter add dev lo protocol ip parent 1:0 prio 3 u32 \
+    match ip dport 7005 0xffff flowid 1:3
+  NETEM_APPLIED=1
+fi
+
 export DISPLAY="${TRNM_ONLINE_NATIVE_DISPLAY:-:97}"
 Xvfb "$DISPLAY" -screen 0 2560x720x24 -nolisten tcp >"$EVIDENCE/xvfb.log" 2>&1 &
 XVFB_PID=$!
@@ -166,6 +192,7 @@ TRNM_CAMPAIGN_SAVE_PATH="$EVIDENCE/host-save/campaign.json" \
 TRNM_ONLINE_AUTHORITY_URL="$ONLINE_URL" TRNM_ONLINE_MATCH_ID="$MATCH_ID" \
 TRNM_CEX_ACTOR_ID="$HOST_PLAYER" TRNM_CEX_ACCOUNT_ID="$HOST_ACCOUNT" \
 TRNM_CEX_PLAYER_SESSION="$HOST_SESSION" \
+TRNM_ONLINE_FRAME_TIMING_PATH="$EVIDENCE/host-frame-timing.json" \
   "$BIN" >"$EVIDENCE/host.log" 2>&1 &
 HOST_PID=$!
 HOST_WINDOW="$(wait_for_window "$HOST_PID")"
@@ -174,9 +201,13 @@ TRNM_CAMPAIGN_SAVE_PATH="$EVIDENCE/guest-save/campaign.json" \
 TRNM_ONLINE_AUTHORITY_URL="$ONLINE_URL" TRNM_ONLINE_MATCH_ID="$MATCH_ID" \
 TRNM_CEX_ACTOR_ID="$GUEST_PLAYER" TRNM_CEX_ACCOUNT_ID="$GUEST_ACCOUNT" \
 TRNM_CEX_PLAYER_SESSION="$GUEST_SESSION" \
+TRNM_ONLINE_FRAME_TIMING_PATH="$EVIDENCE/guest-frame-timing.json" \
   "$BIN" >"$EVIDENCE/guest.log" 2>&1 &
 GUEST_PID=$!
 GUEST_WINDOW="$(wait_for_window "$GUEST_PID")"
+"$ROOT_DIR/scripts/x11_window_move.py" "$HOST_WINDOW" 0 0
+"$ROOT_DIR/scripts/x11_window_move.py" "$GUEST_WINDOW" 1280 0
+sleep 1
 
 capture "$HOST_WINDOW" "$EVIDENCE/host-attached.png"
 capture "$GUEST_WINDOW" "$EVIDENCE/guest-attached.png"
@@ -197,6 +228,18 @@ done
 [[ "${guest_commands:-0}" -ge 1 ]]
 capture "$HOST_WINDOW" "$EVIDENCE/host-command-ack.png"
 capture "$GUEST_WINDOW" "$EVIDENCE/guest-command-ack.png"
+for _ in $(seq 1 30); do
+  [[ -s "$EVIDENCE/host-frame-timing.json" && -s "$EVIDENCE/guest-frame-timing.json" ]] && break
+  sleep 0.25
+done
+host_frame_timing="$(jq -c . "$EVIDENCE/host-frame-timing.json")"
+guest_frame_timing="$(jq -c . "$EVIDENCE/guest-frame-timing.json")"
+jq -e '.frame_count >= 10 and .main_thread_updates_over_100ms == 0 and
+  .max_main_thread_update_ms <= 100 and .network_requests_on_render_thread == false' \
+  >/dev/null <<<"$host_frame_timing"
+jq -e '.frame_count >= 10 and .main_thread_updates_over_100ms == 0 and
+  .max_main_thread_update_ms <= 100 and .network_requests_on_render_thread == false' \
+  >/dev/null <<<"$guest_frame_timing"
 
 database="$(cex_psql_stdin -Atc "select json_build_object(
   'lobby_status',(select status from trnm_online_lobbies where lobby_id = '$LOBBY_ID'::uuid),
@@ -214,10 +257,12 @@ jq -e '.lobby_status == "matched" and .allocations == 1 and
 
 jq -n --arg run_id "$RUN_ID" --arg match_id "$MATCH_ID" --arg evidence "$EVIDENCE" \
   --arg host_window "$HOST_WINDOW" --arg guest_window "$GUEST_WINDOW" \
-  --argjson database "$database" \
+  --argjson database "$database" --argjson host_frame_timing "$host_frame_timing" \
+  --argjson guest_frame_timing "$guest_frame_timing" \
   '{status:"passed",run_id:$run_id,match_id:$match_id,evidence:$evidence,
     native_x11_clients:2,distinct_windows:($host_window != $guest_window),
     closed_alpha_product_lobby_flow:true,
     server_authoritative_commands:true,database:$database,
+    host_frame_timing:$host_frame_timing,guest_frame_timing:$guest_frame_timing,
     boundary:"automated two-window native attach/input smoke; not a human multiplayer session"}' \
   | tee "$EVIDENCE/report.json"

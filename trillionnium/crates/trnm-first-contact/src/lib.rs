@@ -29,7 +29,10 @@ use simulation_adapter::{
     handle_first_contact_mouse_selection, pan_first_contact_camera, FirstContactRuntime,
     FirstContactSimulationAdapter, MouseSelectionState,
 };
-use std::path::{Path, PathBuf};
+use std::{
+    path::{Path, PathBuf},
+    time::Instant,
+};
 
 pub use evidence_adapter::{FirstContactVisualAcceptance as VisualAcceptance, ObserverAnswer};
 
@@ -43,6 +46,82 @@ pub struct FirstContactLivePlugin {
     atlas: FirstContactAtlasManifest,
     campaign: CampaignFlow,
     online: Option<OnlineAuthorityClient>,
+}
+
+#[derive(Resource)]
+struct OnlineFrameTiming {
+    evidence_path: PathBuf,
+    frame_count: u64,
+    frames_over_100ms: u64,
+    max_frame_delta_ms: f64,
+    update_started_at: Option<Instant>,
+    main_thread_updates_over_100ms: u64,
+    max_main_thread_update_ms: f64,
+    write_accumulator: f32,
+}
+
+impl OnlineFrameTiming {
+    fn from_env() -> Option<Self> {
+        std::env::var_os("TRNM_ONLINE_FRAME_TIMING_PATH").map(|path| Self {
+            evidence_path: PathBuf::from(path),
+            frame_count: 0,
+            frames_over_100ms: 0,
+            max_frame_delta_ms: 0.0,
+            update_started_at: None,
+            main_thread_updates_over_100ms: 0,
+            max_main_thread_update_ms: 0.0,
+            write_accumulator: 0.0,
+        })
+    }
+}
+
+fn begin_online_frame_timing(timing: Option<ResMut<OnlineFrameTiming>>) {
+    if let Some(mut timing) = timing {
+        timing.update_started_at = Some(Instant::now());
+    }
+}
+
+fn record_online_frame_timing(time: Res<Time>, timing: Option<ResMut<OnlineFrameTiming>>) {
+    let Some(mut timing) = timing else {
+        return;
+    };
+    let delta_ms = time.delta_secs_f64() * 1_000.0;
+    timing.frame_count = timing.frame_count.saturating_add(1);
+    timing.max_frame_delta_ms = timing.max_frame_delta_ms.max(delta_ms);
+    if delta_ms > 100.0 {
+        timing.frames_over_100ms = timing.frames_over_100ms.saturating_add(1);
+    }
+    if let Some(started_at) = timing.update_started_at.take() {
+        let update_ms = started_at.elapsed().as_secs_f64() * 1_000.0;
+        timing.max_main_thread_update_ms = timing.max_main_thread_update_ms.max(update_ms);
+        if update_ms > 100.0 {
+            timing.main_thread_updates_over_100ms =
+                timing.main_thread_updates_over_100ms.saturating_add(1);
+        }
+    }
+    timing.write_accumulator += time.delta_secs();
+    if timing.write_accumulator < 0.5 {
+        return;
+    }
+    timing.write_accumulator = 0.0;
+    let report = serde_json::json!({
+        "contract_version": "trnm_online_render_frame_timing_v1",
+        "frame_count": timing.frame_count,
+        "frames_over_100ms": timing.frames_over_100ms,
+        "max_frame_delta_ms": timing.max_frame_delta_ms,
+        "main_thread_updates_over_100ms": timing.main_thread_updates_over_100ms,
+        "max_main_thread_update_ms": timing.max_main_thread_update_ms,
+        "network_requests_on_render_thread": false,
+        "network_main_thread_passed": timing.main_thread_updates_over_100ms == 0,
+        "frame_cadence_passed": timing.frames_over_100ms == 0,
+        "passed": timing.frames_over_100ms == 0 && timing.main_thread_updates_over_100ms == 0,
+    });
+    if let Some(parent) = timing.evidence_path.parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+    if let Ok(bytes) = serde_json::to_vec_pretty(&report) {
+        let _ = std::fs::write(&timing.evidence_path, bytes);
+    }
 }
 
 impl FirstContactLivePlugin {
@@ -115,6 +194,7 @@ impl Plugin for FirstContactLivePlugin {
             .add_systems(
                 Update,
                 (
+                    begin_online_frame_timing,
                     handle_campaign_input,
                     sync_first_contact_authored_map,
                     handle_first_contact_mouse_selection,
@@ -127,11 +207,15 @@ impl Plugin for FirstContactLivePlugin {
                     update_campaign_ui,
                     sync_trnm_audio,
                     animate_identity_geometry,
+                    record_online_frame_timing,
                 )
                     .chain(),
             );
         if let Some(online) = self.online.as_ref() {
             app.insert_resource(online.clone());
+            if let Some(timing) = OnlineFrameTiming::from_env() {
+                app.insert_resource(timing);
+            }
         }
     }
 }

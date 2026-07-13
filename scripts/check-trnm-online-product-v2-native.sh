@@ -26,7 +26,7 @@ cleanup() {
   for pid in "$HOST_GAME_PID" "$GUEST_GAME_PID" "$HOST_PID" "$GUEST_PID" "$XVFB_PID"; do
     [[ -z "$pid" ]] || kill "$pid" >/dev/null 2>&1 || true
   done
-  systemctl --user unset-environment TRNM_GAME_SERVER_TICK_MS >/dev/null 2>&1 || true
+  systemctl --user unset-environment TRNM_GAME_SERVER_TICK_MS TRNM_ALLOW_ACCELERATED_TEST_CLOCK >/dev/null 2>&1 || true
   systemctl --user restart trnm-game-server.service >/dev/null 2>&1 || true
   exit "$status"
 }
@@ -110,7 +110,8 @@ cex_psql_stdin -Atc "update trnm_online_solo_queue set status = 'cancelled', upd
 IFS=$'\t' read -r HOST_PLAYER HOST_CREDENTIAL < <(create_identity host)
 IFS=$'\t' read -r GUEST_PLAYER GUEST_CREDENTIAL < <(create_identity guest)
 
-systemctl --user set-environment TRNM_GAME_SERVER_TICK_MS=200
+systemctl --user set-environment TRNM_GAME_SERVER_TICK_MS=200 \
+  TRNM_ALLOW_ACCELERATED_TEST_CLOCK=1
 systemctl --user restart trnm-game-server.service
 for _ in $(seq 1 60); do
   curl -fsS "$ONLINE_URL/v1/online/readiness" >/dev/null 2>&1 && break

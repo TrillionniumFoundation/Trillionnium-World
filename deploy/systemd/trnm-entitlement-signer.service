@@ -2,13 +2,17 @@
 Description=TRNM Isolated Entitlement Signer v1
 After=network-online.target
 Wants=network-online.target
+StartLimitIntervalSec=120
+StartLimitBurst=5
 
 [Service]
 Type=simple
 WorkingDirectory=/home/qian/.openclaw/workspace/Trillionnium
 ExecStart=/home/qian/.openclaw/workspace/Trillionnium/scripts/run-trnm-entitlement-signer.sh
 Restart=on-failure
-RestartSec=2
+RestartSec=5
+TimeoutStartSec=30
+TimeoutStopSec=30
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectHome=read-only

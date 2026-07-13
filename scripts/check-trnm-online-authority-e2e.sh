@@ -38,7 +38,7 @@ create_identity() {
 }
 
 restore_runtime() {
-  systemctl --user unset-environment TRNM_GAME_SERVER_TICK_MS || true
+  systemctl --user unset-environment TRNM_GAME_SERVER_TICK_MS TRNM_ALLOW_ACCELERATED_TEST_CLOCK || true
   systemctl --user restart trnm-game-server.service || true
 }
 trap restore_runtime EXIT
@@ -46,7 +46,8 @@ trap restore_runtime EXIT
 IFS=$'\t' read -r HOST_PLAYER HOST_ACCOUNT HOST_SESSION < <(create_identity host)
 IFS=$'\t' read -r GUEST_PLAYER GUEST_ACCOUNT GUEST_SESSION < <(create_identity guest)
 
-systemctl --user set-environment TRNM_GAME_SERVER_TICK_MS="$E2E_TICK_MS"
+systemctl --user set-environment TRNM_GAME_SERVER_TICK_MS="$E2E_TICK_MS" \
+  TRNM_ALLOW_ACCELERATED_TEST_CLOCK=1
 systemctl --user restart trnm-game-server.service
 for _ in $(seq 1 60); do
   curl -fsS "$ONLINE_URL/v1/online/readiness" >/dev/null 2>&1 && break

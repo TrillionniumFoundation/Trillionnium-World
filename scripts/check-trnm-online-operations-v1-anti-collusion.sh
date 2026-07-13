@@ -15,7 +15,7 @@ MAP_ID="cinder_crown"
 
 cleanup() {
   local status=$?
-  systemctl --user unset-environment TRNM_GAME_SERVER_TICK_MS >/dev/null 2>&1 || true
+  systemctl --user unset-environment TRNM_GAME_SERVER_TICK_MS TRNM_ALLOW_ACCELERATED_TEST_CLOCK >/dev/null 2>&1 || true
   systemctl --user restart trnm-game-server.service >/dev/null 2>&1 || true
   exit "$status"
 }
@@ -71,7 +71,8 @@ cancel() {
         player_id:$player,account_id:$account}')" >/dev/null
 }
 
-systemctl --user set-environment TRNM_GAME_SERVER_TICK_MS=5
+systemctl --user set-environment TRNM_GAME_SERVER_TICK_MS=5 \
+  TRNM_ALLOW_ACCELERATED_TEST_CLOCK=1
 systemctl --user restart trnm-game-server.service
 for _ in $(seq 1 60); do curl -fsS "$ONLINE_URL/v1/online/readiness" >/dev/null 2>&1 && break; sleep 1; done
 

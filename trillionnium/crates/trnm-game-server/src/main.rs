@@ -1,6 +1,7 @@
-use std::{net::SocketAddr, path::PathBuf, time::Duration};
+use std::{net::SocketAddr, path::PathBuf};
 use trnm_game_server::{
-    build_router, run_authority_loop, validate_operations_bind_addr, AppState, AppStateConfig,
+    build_router, resolve_authority_tick_interval, run_authority_loop,
+    validate_operations_bind_addr, AppState, AppStateConfig,
 };
 
 #[tokio::main]
@@ -49,13 +50,20 @@ async fn main() {
         .unwrap_or_else(|_| "127.0.0.1:7005".to_string())
         .parse::<SocketAddr>()
         .expect("TRNM_GAME_SERVER_BIND_ADDR must be a socket address");
-    let tick_ms = std::env::var("TRNM_GAME_SERVER_TICK_MS")
-        .ok()
-        .and_then(|value| value.parse::<u64>().ok())
-        .unwrap_or(50)
-        .clamp(5, 1_000);
+    let requested_tick_ms = std::env::var("TRNM_GAME_SERVER_TICK_MS").ok().map(|value| {
+        value
+            .parse::<u64>()
+            .expect("TRNM_GAME_SERVER_TICK_MS must be an integer")
+    });
+    let allow_accelerated_test_clock =
+        std::env::var("TRNM_ALLOW_ACCELERATED_TEST_CLOCK").is_ok_and(|value| value == "1");
     validate_operations_bind_addr(bind_addr)
         .unwrap_or_else(|error| panic!("Online Operations public bind failed closed: {error}"));
+    let tick_interval = resolve_authority_tick_interval(
+        requested_tick_ms,
+        allow_accelerated_test_clock && bind_addr.ip().is_loopback(),
+    )
+    .unwrap_or_else(|error| panic!("Online Authority clock failed closed: {error}"));
 
     let state = AppState::connect(AppStateConfig {
         database_url,
@@ -72,12 +80,14 @@ async fn main() {
         capacity,
         rate_limit_per_minute,
         request_body_limit_bytes,
+        tick_interval,
+        accelerated_test_clock: allow_accelerated_test_clock,
     })
     .await
     .unwrap_or_else(|error| panic!("Online Authority startup failed closed: {error}"));
     let loop_state = state.clone();
     tokio::spawn(async move {
-        run_authority_loop(loop_state, Duration::from_millis(tick_ms)).await;
+        run_authority_loop(loop_state, tick_interval).await;
     });
     let listener = tokio::net::TcpListener::bind(bind_addr)
         .await

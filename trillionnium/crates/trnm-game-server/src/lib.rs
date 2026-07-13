@@ -26,10 +26,13 @@ use std::{
     collections::{BTreeMap, BTreeSet},
     net::SocketAddr,
     path::PathBuf,
-    sync::Arc,
+    sync::{
+        atomic::{AtomicU64, Ordering},
+        Arc, Mutex,
+    },
     time::Duration,
 };
-use tokio::time::MissedTickBehavior;
+use tokio::time::{Instant, MissedTickBehavior};
 use trnm_campaign_core::{
     BattleMapSeedV1, BattleOutcome, BattleResultV1, BattleSeedV1, CampaignMission, CampaignSaveV1,
     UnitBattleReportV1, UnitBattleStatus,
@@ -47,7 +50,7 @@ use trnm_online_protocol::{
     ONLINE_AUTHORITY_PROTOCOL, ONLINE_PRODUCT_BUILD, ONLINE_PRODUCT_PROTOCOL,
 };
 use trnm_rts_protocol::RtsOrderSource;
-use trnm_rts_sim::MissionSimV1;
+use trnm_rts_sim::{MissionSimV1, TICKS_PER_SECOND};
 use uuid::Uuid;
 
 const PLAYER_SESSION_HEADER: &str = "x-trnm-player-session";
@@ -75,6 +78,15 @@ pub struct AppState {
     instance_epoch: i64,
     rate_limit_per_minute: u32,
     request_body_limit_bytes: u32,
+    tick_interval: Duration,
+    accelerated_test_clock: bool,
+    authority_clock: Arc<AuthorityClockTelemetry>,
+}
+
+#[derive(Default)]
+struct AuthorityClockTelemetry {
+    started_at: Mutex<Option<Instant>>,
+    wake_count: AtomicU64,
 }
 
 pub struct AppStateConfig {
@@ -92,6 +104,8 @@ pub struct AppStateConfig {
     pub capacity: i32,
     pub rate_limit_per_minute: u32,
     pub request_body_limit_bytes: u32,
+    pub tick_interval: Duration,
+    pub accelerated_test_clock: bool,
 }
 
 impl AppState {
@@ -184,6 +198,9 @@ impl AppState {
             instance_epoch,
             rate_limit_per_minute: config.rate_limit_per_minute,
             request_body_limit_bytes: config.request_body_limit_bytes,
+            tick_interval: config.tick_interval,
+            accelerated_test_clock: config.accelerated_test_clock,
+            authority_clock: Arc::new(AuthorityClockTelemetry::default()),
         })
     }
 
@@ -638,6 +655,23 @@ async fn readiness(State(state): State<AppState>) -> Response {
     .fetch_one(&state.pool)
     .await
     .unwrap_or_default();
+    let active_matches = sqlx::query_scalar::<_, i64>(
+        "select count(*) from trnm_online_matches where phase = 'running'",
+    )
+    .fetch_one(&state.pool)
+    .await
+    .unwrap_or_default();
+    let authority_clock_elapsed_ms = state
+        .authority_clock
+        .started_at
+        .lock()
+        .ok()
+        .and_then(|started_at| started_at.as_ref().map(Instant::elapsed))
+        .map(|elapsed| elapsed.as_secs_f64() * 1_000.0);
+    let authority_clock_wake_count = state.authority_clock.wake_count.load(Ordering::Relaxed);
+    let authority_clock_drift_ticks = authority_clock_elapsed_ms.map(|elapsed_ms| {
+        authority_clock_wake_count as f64 - elapsed_ms / state.tick_interval.as_secs_f64() / 1_000.0
+    });
     (
         if ready {
             StatusCode::OK
@@ -652,6 +686,20 @@ async fn readiness(State(state): State<AppState>) -> Response {
             "cex_identity_and_settlement": cex,
             "server_authoritative_campaign": true,
             "server_authoritative_rts": true,
+            "tick_rate_hz": 1.0 / state.tick_interval.as_secs_f64(),
+            "simulation_ticks_per_wake": 1,
+            "simulation_design_tick_rate_hz": TICKS_PER_SECOND,
+            "tick_interval_ms": state.tick_interval.as_millis(),
+            "clock_mode": if state.accelerated_test_clock {
+                "accelerated_test_only_no_catch_up"
+            } else {
+                "real_time_no_catch_up"
+            },
+            "restart_grants_immediate_tick": false,
+            "authority_clock_elapsed_ms": authority_clock_elapsed_ms,
+            "authority_clock_wake_count": authority_clock_wake_count,
+            "authority_clock_drift_ticks": authority_clock_drift_ticks,
+            "active_matches": active_matches,
             "command_sequence_and_idempotency": true,
             "restart_recovery": true,
             "authenticated_reconnect": true,
@@ -2255,13 +2303,51 @@ async fn apply_member_progression(
     Ok(any_pending)
 }
 
+pub fn production_authority_tick_interval() -> Duration {
+    assert_eq!(1_000 % TICKS_PER_SECOND, 0);
+    Duration::from_millis(1_000 / TICKS_PER_SECOND)
+}
+
+pub fn resolve_authority_tick_interval(
+    requested_ms: Option<u64>,
+    allow_accelerated_test_clock: bool,
+) -> Result<Duration, String> {
+    let production = production_authority_tick_interval();
+    let requested = Duration::from_millis(
+        requested_ms.unwrap_or_else(|| u64::try_from(production.as_millis()).unwrap_or(100)),
+    );
+    if requested.is_zero() || requested > Duration::from_secs(1) {
+        return Err("TRNM_GAME_SERVER_TICK_MS must be between 1 and 1000".to_string());
+    }
+    if requested != production && !allow_accelerated_test_clock {
+        return Err(format!(
+            "production authority is fixed at {}ms ({}Hz); non-real-time clocks require TRNM_ALLOW_ACCELERATED_TEST_CLOCK=1",
+            production.as_millis(),
+            TICKS_PER_SECOND
+        ));
+    }
+    Ok(requested)
+}
+
 pub async fn run_authority_loop(state: AppState, tick_interval: Duration) {
-    let mut interval = tokio::time::interval(tick_interval);
+    // `interval` fires immediately. Start one complete period in the future so a
+    // restart or fleet takeover cannot grant a free tick, then skip missed
+    // deadlines rather than replaying wall-clock time as a burst of catch-up ticks.
+    let started_at = Instant::now();
+    if let Ok(mut clock_start) = state.authority_clock.started_at.lock() {
+        *clock_start = Some(started_at);
+    }
+    state.authority_clock.wake_count.store(0, Ordering::Relaxed);
+    let mut interval = tokio::time::interval_at(started_at + tick_interval, tick_interval);
     interval.set_missed_tick_behavior(MissedTickBehavior::Skip);
     let mut heartbeat_elapsed = Duration::from_secs(1);
     let mut production_maintenance_elapsed = Duration::from_secs(5);
     loop {
         interval.tick().await;
+        state
+            .authority_clock
+            .wake_count
+            .fetch_add(1, Ordering::Relaxed);
         heartbeat_elapsed = heartbeat_elapsed.saturating_add(tick_interval);
         production_maintenance_elapsed =
             production_maintenance_elapsed.saturating_add(tick_interval);
@@ -2317,7 +2403,7 @@ pub async fn advance_running_matches(state: &AppState, limit: i64) -> Result<u64
                     assigned_instance_id, assigned_region, assigned_instance_epoch,
                     assigned_physical_host_id
              from trnm_online_matches
-             where match_id = $1 for update skip locked",
+             where match_id = $1 for update",
         )
         .bind(match_id)
         .fetch_optional(&mut *transaction)
@@ -2410,10 +2496,7 @@ pub async fn advance_running_matches(state: &AppState, limit: i64) -> Result<u64
         let match_mode: String = row
             .try_get("match_mode")
             .map_err(|error| error.to_string())?;
-        for _ in 0..5 {
-            if sim.terminal() {
-                break;
-            }
+        if !sim.terminal() {
             sim.step().map_err(|error| error.to_string())?;
         }
         let snapshot_hash = sim.snapshot_hash().map_err(|error| error.to_string())?;
@@ -3032,5 +3115,27 @@ mod tests {
         assert!(validate_operations_bind_addr("[::1]:7005".parse().unwrap()).is_ok());
         assert!(validate_operations_bind_addr("0.0.0.0:7005".parse().unwrap()).is_err());
         assert!(validate_operations_bind_addr("192.0.2.10:7005".parse().unwrap()).is_err());
+    }
+
+    #[test]
+    fn production_authority_clock_is_exactly_ten_hz() {
+        let interval = production_authority_tick_interval();
+        assert_eq!(TICKS_PER_SECOND, 10);
+        assert_eq!(interval, Duration::from_millis(100));
+        assert_eq!(interval.saturating_mul(1_800), Duration::from_secs(180));
+    }
+
+    #[test]
+    fn accelerated_clock_is_explicitly_test_only() {
+        assert_eq!(
+            resolve_authority_tick_interval(None, false).unwrap(),
+            Duration::from_millis(100)
+        );
+        assert!(resolve_authority_tick_interval(Some(50), false).is_err());
+        assert_eq!(
+            resolve_authority_tick_interval(Some(20), true).unwrap(),
+            Duration::from_millis(20)
+        );
+        assert!(resolve_authority_tick_interval(Some(0), true).is_err());
     }
 }

@@ -6,6 +6,11 @@ use std::{
     io::Write,
     path::PathBuf,
     process::{Command, Stdio},
+    sync::{
+        mpsc::{self, Receiver, Sender},
+        Arc, Mutex,
+    },
+    thread,
     time::Duration,
 };
 use trnm_online_protocol::{
@@ -68,7 +73,7 @@ enum LoginField {
     SpectatorToken,
 }
 
-#[derive(Resource)]
+#[derive(Clone, Resource)]
 struct ProductShell {
     cex_url: String,
     game_url: String,
@@ -95,6 +100,41 @@ struct ProductShell {
     game_launched: bool,
     evidence_path: Option<PathBuf>,
     client: reqwest::blocking::Client,
+    network_event_tx: Sender<NetworkCompletion>,
+    network_events: Arc<Mutex<Receiver<NetworkCompletion>>>,
+    network_in_flight: bool,
+}
+
+#[derive(Debug, Clone, Copy)]
+enum ProductNetworkAction {
+    Login,
+    ConnectCampaign,
+    JoinQueue,
+    CancelQueue,
+    RefreshQueue,
+    LoadReplay,
+    AcceptSpectatorInvite,
+    LoadSpectatorPlayback,
+}
+
+impl ProductNetworkAction {
+    fn label(self) -> &'static str {
+        match self {
+            Self::Login => "login",
+            Self::ConnectCampaign => "cloud character",
+            Self::JoinQueue => "ranked queue join",
+            Self::CancelQueue => "ranked queue cancel",
+            Self::RefreshQueue => "ranked queue refresh",
+            Self::LoadReplay => "replay load",
+            Self::AcceptSpectatorInvite => "spectator grant",
+            Self::LoadSpectatorPlayback => "spectator playback",
+        }
+    }
+}
+
+struct NetworkCompletion {
+    shell: Box<ProductShell>,
+    result: Result<(), String>,
 }
 
 #[derive(Component)]
@@ -112,6 +152,7 @@ impl ProductShell {
         } else {
             "protected environment"
         };
+        let (network_event_tx, network_events) = mpsc::channel();
         let mut shell = Self {
             cex_url: env::var("TRNM_CEX_LEDGER_URL")
                 .unwrap_or_else(|_| "http://127.0.0.1:7002".to_string())
@@ -151,11 +192,54 @@ impl ProductShell {
                 .timeout(Duration::from_secs(5))
                 .build()
                 .map_err(|error| error.to_string())?,
+            network_event_tx,
+            network_events: Arc::new(Mutex::new(network_events)),
+            network_in_flight: false,
         };
         if !shell.player_id.is_empty() && shell.credential.is_empty() {
             let _ = shell.load_kernel_credential();
         }
         Ok(shell)
+    }
+
+    fn start_network_action(&mut self, action: ProductNetworkAction) -> Result<(), String> {
+        if self.network_in_flight {
+            return Err(format!(
+                "{} is still in progress; input was not queued",
+                action.label()
+            ));
+        }
+        self.network_in_flight = true;
+        self.status = format!("{} in progress…", action.label());
+        let mut background = self.clone();
+        let completion_tx = self.network_event_tx.clone();
+        if let Err(error) = thread::Builder::new()
+            .name(format!("trnm-product-{}", action.label().replace(' ', "-")))
+            .spawn(move || {
+                let result = match action {
+                    ProductNetworkAction::Login => background.login(),
+                    ProductNetworkAction::ConnectCampaign => background.connect_campaign(),
+                    ProductNetworkAction::JoinQueue => background.join_queue(),
+                    ProductNetworkAction::CancelQueue => background.cancel_queue(),
+                    ProductNetworkAction::RefreshQueue => background.refresh_queue(),
+                    ProductNetworkAction::LoadReplay => background.load_replay(),
+                    ProductNetworkAction::AcceptSpectatorInvite => {
+                        background.accept_spectator_invite()
+                    }
+                    ProductNetworkAction::LoadSpectatorPlayback => {
+                        background.load_spectator_playback()
+                    }
+                };
+                let _ = completion_tx.send(NetworkCompletion {
+                    shell: Box::new(background),
+                    result,
+                });
+            })
+        {
+            self.network_in_flight = false;
+            return Err(format!("start {} worker: {error}", action.label()));
+        }
+        Ok(())
     }
 
     fn validate_player_id(&self) -> Result<(), String> {
@@ -833,13 +917,13 @@ fn spawn_ui(mut commands: Commands) {
 
 fn handle_input(input: Res<ButtonInput<KeyCode>>, mut shell: ResMut<ProductShell>) {
     let result = if input.just_pressed(KeyCode::F1) || input.just_pressed(KeyCode::Enter) {
-        shell.login()
+        shell.start_network_action(ProductNetworkAction::Login)
     } else if input.just_pressed(KeyCode::F2) {
-        shell.connect_campaign()
+        shell.start_network_action(ProductNetworkAction::ConnectCampaign)
     } else if input.just_pressed(KeyCode::F3) {
-        shell.join_queue()
+        shell.start_network_action(ProductNetworkAction::JoinQueue)
     } else if input.just_pressed(KeyCode::F4) {
-        shell.cancel_queue()
+        shell.start_network_action(ProductNetworkAction::CancelQueue)
     } else if input.just_pressed(KeyCode::F5) {
         shell.launch_game()
     } else if input.just_pressed(KeyCode::F6) {
@@ -849,15 +933,34 @@ fn handle_input(input: Res<ButtonInput<KeyCode>>, mut shell: ResMut<ProductShell
     } else if input.just_pressed(KeyCode::F8) {
         shell.forget_kernel_credential()
     } else if input.just_pressed(KeyCode::F9) {
-        shell.load_replay()
+        shell.start_network_action(ProductNetworkAction::LoadReplay)
     } else if input.just_pressed(KeyCode::F10) {
-        shell.accept_spectator_invite()
+        shell.start_network_action(ProductNetworkAction::AcceptSpectatorInvite)
     } else if input.just_pressed(KeyCode::F11) {
-        shell.load_spectator_playback()
+        shell.start_network_action(ProductNetworkAction::LoadSpectatorPlayback)
     } else {
         return;
     };
     if let Err(error) = result {
+        shell.status = error;
+    }
+    shell.write_evidence();
+}
+
+fn pump_network_completions(mut shell: ResMut<ProductShell>) {
+    let completion = shell.network_events.lock().ok().and_then(|events| {
+        let mut latest = None;
+        while let Ok(completion) = events.try_recv() {
+            latest = Some(completion);
+        }
+        latest
+    });
+    let Some(completion) = completion else {
+        return;
+    };
+    *shell = *completion.shell;
+    shell.network_in_flight = false;
+    if let Err(error) = completion.result {
         shell.status = error;
     }
     shell.write_evidence();
@@ -966,7 +1069,10 @@ fn poll_queue(time: Res<Time>, mut shell: ResMut<ProductShell>) {
         return;
     }
     shell.poll_elapsed = 0.0;
-    if let Err(error) = shell.refresh_queue() {
+    if shell.network_in_flight {
+        return;
+    }
+    if let Err(error) = shell.start_network_action(ProductNetworkAction::RefreshQueue) {
         shell.status = error;
     }
     shell.write_evidence();
@@ -1138,7 +1244,14 @@ fn main() {
         .add_systems(Startup, spawn_ui)
         .add_systems(
             Update,
-            (handle_text_input, handle_input, poll_queue, update_ui).chain(),
+            (
+                pump_network_completions,
+                handle_text_input,
+                handle_input,
+                poll_queue,
+                update_ui,
+            )
+                .chain(),
         );
     app.run();
 }

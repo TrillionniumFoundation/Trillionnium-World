@@ -17,7 +17,7 @@ AUTHORITY_PROTOCOL="trnm_online_authority_v2"
 AUTHORITY_BUILD="trnm-online-authority-2026.07-v2"
 
 cleanup() {
-  systemctl --user unset-environment TRNM_GAME_SERVER_TICK_MS >/dev/null 2>&1 || true
+  systemctl --user unset-environment TRNM_GAME_SERVER_TICK_MS TRNM_ALLOW_ACCELERATED_TEST_CLOCK >/dev/null 2>&1 || true
   systemctl --user restart trnm-game-server.service >/dev/null 2>&1 || true
 }
 trap cleanup EXIT
@@ -127,7 +127,8 @@ admin_post /v1/trnm/product/appeals/resolve "$(jq -cn \
   '{appeal_id:$appeal,decision:"approved",resolution:"Automated closed-alpha appeal drill approved after identity ownership verification."}')" >/dev/null
 GUEST_SESSION="$(login_player "$GUEST_PLAYER" "$GUEST_NEW_CREDENTIAL" "$RUN_ID-guest-device-c")"
 
-systemctl --user set-environment TRNM_GAME_SERVER_TICK_MS=40
+systemctl --user set-environment TRNM_GAME_SERVER_TICK_MS=40 \
+  TRNM_ALLOW_ACCELERATED_TEST_CLOCK=1
 systemctl --user restart trnm-game-server.service
 for _ in $(seq 1 60); do
   curl -fsS "$ONLINE_URL/v1/online/readiness" >/dev/null 2>&1 && break

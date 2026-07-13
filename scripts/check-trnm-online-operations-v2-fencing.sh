@@ -32,6 +32,7 @@ TRNM_FLEET_INSTANCE_ID="trnm-local-primary" \
 TRNM_FLEET_REGION="local-x230" \
 TRNM_FLEET_PUBLIC_ENDPOINT="$DUPLICATE_URL" \
 TRNM_FLEET_CAPACITY=2 TRNM_GAME_SERVER_TICK_MS=20 \
+TRNM_ALLOW_ACCELERATED_TEST_CLOCK=1 \
   "$ROOT_DIR/scripts/run-trnm-game-server.sh" >"$EVIDENCE/duplicate.log" 2>&1 &
 DUPLICATE_PID=$!
 for _ in $(seq 1 60); do
