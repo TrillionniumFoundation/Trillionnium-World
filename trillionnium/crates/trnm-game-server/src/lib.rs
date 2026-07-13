@@ -98,6 +98,7 @@ const MATCH_ACTOR_COMMAND_QUEUE: usize = 64;
 const MATCH_CHECKPOINT_QUEUE: usize = 2;
 const MATCH_CHECKPOINT_INTERVAL_TICKS: u64 = 100;
 const MATCH_ACTOR_FENCE_INTERVAL: Duration = Duration::from_secs(1);
+const MAX_AUTHORITY_CLOCK_ABS_DRIFT_TICKS: f64 = 2.0;
 
 #[derive(Clone)]
 struct PublishedMatchState {
@@ -754,8 +755,6 @@ async fn readiness(State(state): State<AppState>) -> Response {
     .fetch_one(&state.pool)
     .await
     .unwrap_or(false);
-    let ready =
-        postgres && cex && signer.is_some() && signer_registry_verified && fleet_epoch_current;
     let healthy_fleet_instances = sqlx::query_scalar::query_scalar::<_, i64>(
         "select count(*) from trnm_online_fleet_instances
          where status = 'active' and lease_expires_at > now()",
@@ -781,13 +780,22 @@ async fn readiness(State(state): State<AppState>) -> Response {
     let authority_clock_drift_ticks = authority_clock_elapsed_ms.map(|elapsed_ms| {
         authority_clock_wake_count as f64 - elapsed_ms / state.tick_interval.as_secs_f64() / 1_000.0
     });
-    (
-        if ready {
-            StatusCode::OK
-        } else {
-            StatusCode::SERVICE_UNAVAILABLE
-        },
-        Json(json!({
+    let authority_clock_operational = authority_clock_is_operational(authority_clock_drift_ticks);
+    let ready = postgres
+        && cex
+        && signer.is_some()
+        && signer_registry_verified
+        && fleet_epoch_current
+        && authority_clock_operational;
+    let operational_readiness = json!({
+        "postgres": postgres,
+        "cex": cex,
+        "signer": signer.is_some(),
+        "signer_registry": signer_registry_verified,
+        "fleet_epoch": fleet_epoch_current,
+        "authority_clock": authority_clock_operational,
+    });
+    let mut readiness_body = json!({
             "status": if ready { "ok" } else { "blocked" },
             "protocol": ONLINE_AUTHORITY_PROTOCOL,
             "build_id": ONLINE_AUTHORITY_BUILD,
@@ -875,9 +883,25 @@ async fn readiness(State(state): State<AppState>) -> Response {
                 .unwrap_or("isolated_signer_unavailable"),
             "kms_hsm_attested": false,
             "public_edge_ddos_attested": false,
-        })),
+    });
+    readiness_body["authority_clock_operational"] = Value::Bool(authority_clock_operational);
+    readiness_body["authority_clock_max_abs_drift_ticks"] =
+        json!(MAX_AUTHORITY_CLOCK_ABS_DRIFT_TICKS);
+    readiness_body["operational_readiness"] = operational_readiness;
+    (
+        if ready {
+            StatusCode::OK
+        } else {
+            StatusCode::SERVICE_UNAVAILABLE
+        },
+        Json(readiness_body),
     )
         .into_response()
+}
+
+fn authority_clock_is_operational(drift_ticks: Option<f64>) -> bool {
+    drift_ticks
+        .is_some_and(|drift| drift.is_finite() && drift.abs() < MAX_AUTHORITY_CLOCK_ABS_DRIFT_TICKS)
 }
 
 async fn connect_campaign(
@@ -3994,5 +4018,16 @@ mod tests {
             Duration::from_millis(20)
         );
         assert!(resolve_authority_tick_interval(Some(0), true).is_err());
+    }
+
+    #[test]
+    fn readiness_fails_closed_on_authority_clock_degradation() {
+        assert!(authority_clock_is_operational(Some(0.0)));
+        assert!(authority_clock_is_operational(Some(1.99)));
+        assert!(authority_clock_is_operational(Some(-1.99)));
+        assert!(!authority_clock_is_operational(Some(2.0)));
+        assert!(!authority_clock_is_operational(Some(-2.0)));
+        assert!(!authority_clock_is_operational(Some(f64::NAN)));
+        assert!(!authority_clock_is_operational(None));
     }
 }
