@@ -138,7 +138,7 @@ impl OnlineClient {
         identity: &Identity,
         match_id: &str,
     ) -> Result<OnlineSnapshotResponse, String> {
-        self.post(
+        let response: OnlineSnapshotResponse = self.post(
             identity,
             &format!("/v1/online/matches/{match_id}/snapshot"),
             &OnlineMatchAccessRequest {
@@ -147,7 +147,16 @@ impl OnlineClient {
                 player_id: identity.player_id.clone(),
                 account_id: identity.account_id.clone(),
             },
-        )
+        )?;
+        if let Some(snapshot_tick) = response.snapshot.get("tick").and_then(Value::as_u64) {
+            if response.view.authoritative_tick != snapshot_tick {
+                return Err(format!(
+                    "snapshot/view authoritative tick mismatch: view={} snapshot={snapshot_tick}",
+                    response.view.authoritative_tick
+                ));
+            }
+        }
+        Ok(response)
     }
 
     fn reconnect(

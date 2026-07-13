@@ -2289,7 +2289,7 @@ async fn get_snapshot(
         apply_published_actor_view(&mut view, &published);
         serde_json::to_value(published.simulation.as_ref()).map_err(internal_serialization)?
     } else {
-        sqlx::query_scalar::query_scalar(
+        let snapshot = sqlx::query_scalar::query_scalar(
             "select simulation_json from trnm_online_matches where match_id = $1",
         )
         .bind(match_id)
@@ -2297,7 +2297,14 @@ async fn get_snapshot(
         .await
         .map_err(internal_db)?
         .flatten()
-        .unwrap_or(Value::Null)
+        .unwrap_or(Value::Null);
+        // The actor can publish terminal state and be removed between the
+        // initial view read and this fallback. Its terminal checkpoint updates
+        // the durable view and simulation atomically, so refresh the view after
+        // reading that durable simulation instead of returning a stale running
+        // view paired with the new terminal snapshot.
+        view = fetch_match_view(&state.pool, match_id).await?;
+        snapshot
     };
     Ok(Json(OnlineSnapshotResponse { view, snapshot }))
 }
