@@ -1,8 +1,11 @@
 use reqwest::blocking::Client;
 use std::{env, process::ExitCode, time::Duration};
 use trnm_online_protocol::{
-    OnlineModerationActionRequest, OnlineModerationActionView, OnlineModerationQueueRequest,
-    OnlineModerationQueueView,
+    OnlineEnforcementAppealQueueRequest, OnlineEnforcementAppealQueueView,
+    OnlineEnforcementAppealResolveRequest, OnlineEnforcementAppealView, OnlineFleetAdminRequest,
+    OnlineFleetAdminView, OnlineModerationActionRequest, OnlineModerationActionView,
+    OnlineModerationQueueRequest, OnlineModerationQueueView, OnlineSeasonAdminRequest,
+    OnlineSeasonAdminView,
 };
 
 fn required(key: &str) -> Result<String, String> {
@@ -80,9 +83,129 @@ fn run() -> Result<(), String> {
                 serde_json::to_string_pretty(&view).map_err(|error| error.to_string())?
             );
         }
+        Some("appeals") => {
+            let status = args.get(1).map(String::as_str).unwrap_or("pending");
+            let response = client
+                .post(format!("{base_url}/v1/operations/moderation/appeals"))
+                .header("x-trnm-moderator", &token)
+                .json(&OnlineEnforcementAppealQueueRequest {
+                    status: status.to_string(),
+                    limit: 100,
+                })
+                .send()
+                .map_err(|error| error.to_string())?;
+            let status_code = response.status();
+            let body = response.text().map_err(|error| error.to_string())?;
+            if !status_code.is_success() {
+                return Err(format!("appeal queue rejected ({status_code}): {body}"));
+            }
+            let view: OnlineEnforcementAppealQueueView =
+                serde_json::from_str(&body).map_err(|error| error.to_string())?;
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&view).map_err(|error| error.to_string())?
+            );
+        }
+        Some("appeal") if args.len() >= 4 => {
+            let response = client
+                .post(format!(
+                    "{base_url}/v1/operations/moderation/appeals/resolve"
+                ))
+                .header("x-trnm-moderator", &token)
+                .json(&OnlineEnforcementAppealResolveRequest {
+                    appeal_id: args[1].clone(),
+                    decision: args[2].clone(),
+                    resolution: args[3..].join(" "),
+                })
+                .send()
+                .map_err(|error| error.to_string())?;
+            let status_code = response.status();
+            let body = response.text().map_err(|error| error.to_string())?;
+            if !status_code.is_success() {
+                return Err(format!("appeal action rejected ({status_code}): {body}"));
+            }
+            let view: OnlineEnforcementAppealView =
+                serde_json::from_str(&body).map_err(|error| error.to_string())?;
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&view).map_err(|error| error.to_string())?
+            );
+        }
+        Some("season") if args.len() >= 3 => {
+            let action = args[1].clone();
+            let request = if action == "create" && args.len() == 7 {
+                OnlineSeasonAdminRequest {
+                    action,
+                    season_id: args[2].clone(),
+                    display_name: Some(args[3].clone()),
+                    rules_version: Some(args[4].clone()),
+                    starts_at_epoch: Some(
+                        args[5]
+                            .parse()
+                            .map_err(|_| "season start must be epoch seconds".to_string())?,
+                    ),
+                    ends_at_epoch: Some(
+                        args[6]
+                            .parse()
+                            .map_err(|_| "season end must be epoch seconds".to_string())?,
+                    ),
+                }
+            } else if matches!(action.as_str(), "activate" | "close") && args.len() == 3 {
+                OnlineSeasonAdminRequest {
+                    action,
+                    season_id: args[2].clone(),
+                    display_name: None,
+                    rules_version: None,
+                    starts_at_epoch: None,
+                    ends_at_epoch: None,
+                }
+            } else {
+                return Err("season usage: season create ID NAME RULES START_EPOCH END_EPOCH | season activate ID | season close ID".to_string());
+            };
+            let response = client
+                .post(format!("{base_url}/v1/operations/seasons/admin"))
+                .header("x-trnm-moderator", &token)
+                .json(&request)
+                .send()
+                .map_err(|error| error.to_string())?;
+            let status_code = response.status();
+            let body = response.text().map_err(|error| error.to_string())?;
+            if !status_code.is_success() {
+                return Err(format!("season action rejected ({status_code}): {body}"));
+            }
+            let view: OnlineSeasonAdminView =
+                serde_json::from_str(&body).map_err(|error| error.to_string())?;
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&view).map_err(|error| error.to_string())?
+            );
+        }
+        Some("fleet") if args.len() >= 4 => {
+            let response = client
+                .post(format!("{base_url}/v1/operations/fleet/admin"))
+                .header("x-trnm-moderator", &token)
+                .json(&OnlineFleetAdminRequest {
+                    action: args[1].clone(),
+                    instance_id: args[2].clone(),
+                    reason: args[3..].join(" "),
+                })
+                .send()
+                .map_err(|error| error.to_string())?;
+            let status_code = response.status();
+            let body = response.text().map_err(|error| error.to_string())?;
+            if !status_code.is_success() {
+                return Err(format!("fleet action rejected ({status_code}): {body}"));
+            }
+            let view: OnlineFleetAdminView =
+                serde_json::from_str(&body).map_err(|error| error.to_string())?;
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&view).map_err(|error| error.to_string())?
+            );
+        }
         _ => {
             return Err(
-                "usage: trnm-moderation-console list [status] | action REPORT_ID DECISION SCOPE HOURS RESOLUTION..."
+                "usage: trnm-moderation-console list [status] | action REPORT_ID DECISION SCOPE HOURS RESOLUTION... | appeals [status] | appeal APPEAL_ID DECISION RESOLUTION... | season ... | fleet ACTION INSTANCE REASON..."
                     .to_string(),
             );
         }

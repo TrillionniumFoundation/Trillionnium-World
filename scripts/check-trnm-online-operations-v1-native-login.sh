@@ -120,7 +120,8 @@ inject_text "$TYPED_WINDOW" "$CREDENTIAL"
 wait_state "$EVIDENCE/typed-state.json" LOBBY
 jq -e --arg player "$PLAYER" --arg account "$ACCOUNT" \
   '.player_id == $player and .account_id == $account and .text_login_ready == true and
-   .credential_source == "Linux kernel user keyring" and .season_id == "season-2026-prealpha-1"' \
+   .credential_source == "Linux kernel user keyring" and .season_id != null and
+   .contract == "trnm_native_online_operations_v2"' \
   "$EVIDENCE/typed-state.json" >/dev/null
 key_id="$(keyctl search @u user "trnm-online-product:$PLAYER")"
 [[ "$key_id" =~ ^[0-9]+$ ]]

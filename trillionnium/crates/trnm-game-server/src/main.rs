@@ -1,5 +1,7 @@
 use std::{net::SocketAddr, path::PathBuf, time::Duration};
-use trnm_game_server::{build_router, run_authority_loop, AppState, AppStateConfig};
+use trnm_game_server::{
+    build_router, run_authority_loop, validate_operations_bind_addr, AppState, AppStateConfig,
+};
 
 #[tokio::main]
 async fn main() {
@@ -43,6 +45,8 @@ async fn main() {
         .and_then(|value| value.parse::<u64>().ok())
         .unwrap_or(50)
         .clamp(5, 1_000);
+    validate_operations_bind_addr(bind_addr)
+        .unwrap_or_else(|error| panic!("Online Operations public bind failed closed: {error}"));
 
     let state = AppState::connect(AppStateConfig {
         database_url,
@@ -66,7 +70,7 @@ async fn main() {
     let listener = tokio::net::TcpListener::bind(bind_addr)
         .await
         .unwrap_or_else(|error| panic!("bind {bind_addr}: {error}"));
-    tracing::info!(%bind_addr, "TRNM Online Operations v1 ready");
+    tracing::info!(%bind_addr, "TRNM Online Operations v2 ready");
     axum::serve(listener, build_router(state))
         .await
         .expect("serve Online Authority");

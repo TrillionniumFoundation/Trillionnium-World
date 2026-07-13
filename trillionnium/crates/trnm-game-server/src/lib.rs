@@ -1,3 +1,5 @@
+#![recursion_limit = "256"]
+
 mod cex;
 mod map;
 mod operations_v1;
@@ -17,6 +19,7 @@ use sha2::{Digest, Sha256};
 use sqlx::{postgres::PgPoolOptions, PgPool, Row};
 use std::{
     collections::{BTreeMap, BTreeSet},
+    net::SocketAddr,
     path::PathBuf,
     sync::Arc,
     time::Duration,
@@ -48,6 +51,7 @@ const MIGRATION_V2: &str = include_str!("../migrations/0002_online_authority_v2.
 const MIGRATION_V3: &str = include_str!("../migrations/0003_online_product_v1.sql");
 const MIGRATION_V4: &str = include_str!("../migrations/0004_online_product_v2.sql");
 const MIGRATION_V5: &str = include_str!("../migrations/0005_online_operations_v1.sql");
+const MIGRATION_V6: &str = include_str!("../migrations/0006_online_operations_v2.sql");
 
 #[derive(Clone)]
 pub struct AppState {
@@ -59,6 +63,7 @@ pub struct AppState {
     region: Arc<String>,
     public_endpoint: Arc<String>,
     capacity: i32,
+    instance_epoch: i64,
 }
 
 pub struct AppStateConfig {
@@ -103,6 +108,10 @@ impl AppState {
             .execute(&pool)
             .await
             .map_err(|error| format!("migrate Online Operations v1 PostgreSQL: {error}"))?;
+        sqlx::raw_sql(MIGRATION_V6)
+            .execute(&pool)
+            .await
+            .map_err(|error| format!("migrate Online Operations v2 PostgreSQL: {error}"))?;
         if config.instance_id.trim().is_empty()
             || config.region.trim().is_empty()
             || config.public_endpoint.trim().is_empty()
@@ -110,20 +119,25 @@ impl AppState {
         {
             return Err("fleet instance, region, endpoint and capacity must be valid".to_string());
         }
-        sqlx::query(
+        let instance_epoch: i64 = sqlx::query_scalar(
             "insert into trnm_online_fleet_instances (
-                instance_id, region, public_endpoint, build_id, capacity, status
-             ) values ($1, $2, $3, $4, $5, 'active')
+                instance_id, region, public_endpoint, build_id, capacity, status,
+                instance_epoch, lease_expires_at
+             ) values ($1, $2, $3, $4, $5, 'active', 1, now() + interval '5 seconds')
              on conflict (instance_id) do update set region = excluded.region,
                 public_endpoint = excluded.public_endpoint, build_id = excluded.build_id,
-                capacity = excluded.capacity, status = 'active', heartbeat_at = now()",
+                capacity = excluded.capacity, status = 'active', heartbeat_at = now(),
+                lease_expires_at = now() + interval '5 seconds',
+                instance_epoch = trnm_online_fleet_instances.instance_epoch + 1,
+                drain_reason = null
+             returning instance_epoch",
         )
         .bind(config.instance_id.trim())
         .bind(config.region.trim())
         .bind(config.public_endpoint.trim())
         .bind(trnm_online_protocol::ONLINE_OPERATIONS_BUILD)
         .bind(config.capacity)
-        .execute(&pool)
+        .fetch_one(&pool)
         .await
         .map_err(|error| format!("register Online Operations fleet instance: {error}"))?;
         let cex = CexClient::new(
@@ -142,6 +156,7 @@ impl AppState {
             region: Arc::new(config.region),
             public_endpoint: Arc::new(config.public_endpoint),
             capacity: config.capacity,
+            instance_epoch,
         })
     }
 
@@ -151,6 +166,16 @@ impl AppState {
 }
 
 type ApiError = (StatusCode, Json<OnlineAuthorityError>);
+
+pub fn validate_operations_bind_addr(bind_addr: SocketAddr) -> Result<(), String> {
+    if !bind_addr.ip().is_loopback() {
+        return Err(
+            "public/non-loopback game-server bind is blocked until KMS/HSM custody, edge rate limiting, DDoS protection and an approved deployment attestation are implemented"
+                .to_string(),
+        );
+    }
+    Ok(())
+}
 
 fn api_error(status: StatusCode, message: impl Into<String>, recoverable: bool) -> ApiError {
     (
@@ -387,6 +412,14 @@ pub fn build_router(state: AppState) -> Router {
         )
         .route("/v1/operations/replays", post(operations_v1::get_replay))
         .route(
+            "/v1/operations/replays/playback",
+            post(operations_v1::get_replay_playback),
+        )
+        .route(
+            "/v1/operations/replays/latest/playback",
+            post(operations_v1::get_latest_replay_playback),
+        )
+        .route(
             "/v1/operations/reports/replay",
             post(operations_v1::create_replay_report),
         )
@@ -399,8 +432,28 @@ pub fn build_router(state: AppState) -> Router {
             post(operations_v1::moderate_case),
         )
         .route(
+            "/v1/operations/enforcements/appeals",
+            post(operations_v1::create_enforcement_appeal),
+        )
+        .route(
+            "/v1/operations/moderation/appeals",
+            post(operations_v1::enforcement_appeal_queue),
+        )
+        .route(
+            "/v1/operations/moderation/appeals/resolve",
+            post(operations_v1::resolve_enforcement_appeal),
+        )
+        .route(
+            "/v1/operations/seasons/admin",
+            post(operations_v1::admin_season),
+        )
+        .route(
             "/v1/operations/fleet/route",
             post(operations_v1::route_fleet),
+        )
+        .route(
+            "/v1/operations/fleet/admin",
+            post(operations_v1::admin_fleet),
         )
         .with_state(state)
 }
@@ -418,7 +471,7 @@ async fn readiness(State(state): State<AppState>) -> Response {
     let ready = postgres && cex;
     let healthy_fleet_instances = sqlx::query_scalar::<_, i64>(
         "select count(*) from trnm_online_fleet_instances
-         where status = 'active' and heartbeat_at > now() - interval '5 seconds'",
+         where status = 'active' and lease_expires_at > now()",
     )
     .fetch_one(&state.pool)
     .await
@@ -463,10 +516,19 @@ async fn readiness(State(state): State<AppState>) -> Response {
             "integrity_signal_triage": true,
             "moderation_console_and_enforcement": true,
             "fleet_instance_id": state.instance_id.as_str(),
+            "fleet_instance_epoch": state.instance_epoch,
             "fleet_region": state.region.as_str(),
             "fleet_capacity": state.capacity,
             "healthy_fleet_instances": healthy_fleet_instances,
             "cross_instance_failover": true,
+            "operations_v2_fenced_fleet_leases": true,
+            "operations_v2_replay_playback_frames": true,
+            "operations_v2_season_admin_and_archival": true,
+            "operations_v2_enforcement_appeals_sla": true,
+            "operations_v2_drain_and_capacity_control": true,
+            "operations_v2_loopback_only_public_bind_gate": true,
+            "entitlement_key_custody": "local_mode_600_ed25519_seed_not_kms",
+            "public_edge_ddos_attested": false,
         })),
     )
         .into_response()
@@ -1324,6 +1386,16 @@ async fn start_match(
     let snapshot_hash = sim
         .snapshot_hash()
         .map_err(|error| api_error(StatusCode::INTERNAL_SERVER_ERROR, error.to_string(), false))?;
+    let match_season_id = if match_mode == "ranked_pvp" {
+        Some(
+            operations_v1::active_season(&mut transaction)
+                .await
+                .map_err(|error| api_error(StatusCode::CONFLICT, error, true))?
+                .0,
+        )
+    } else {
+        None
+    };
     for (index, (campaign_id, campaign, member_seed)) in prepared.iter().enumerate() {
         let (units, id_map) = if index == 0 {
             (&host_units, &host_id_map)
@@ -1348,21 +1420,38 @@ async fn start_match(
         .map_err(internal_db)?;
         persist_campaign(&mut transaction, campaign).await?;
     }
+    let initial_simulation = serde_json::to_value(&sim).map_err(internal_serialization)?;
     sqlx::query(
         "update trnm_online_matches set
             phase = 'running', seed_hash = $2, seed_json = $3,
             simulation_json = $4, snapshot_hash = $5,
             authoritative_tick = 0, match_revision = match_revision + 1,
-            assigned_instance_id = $6, assigned_region = $7, updated_at = now()
+            assigned_instance_id = $6, assigned_region = $7,
+            assigned_instance_epoch = $8, initial_simulation_json = $4,
+            season_id = $9, updated_at = now()
          where match_id = $1",
     )
     .bind(match_id)
     .bind(&seed.seed_hash)
     .bind(serde_json::to_value(&seed).map_err(internal_serialization)?)
-    .bind(serde_json::to_value(sim).map_err(internal_serialization)?)
-    .bind(snapshot_hash)
+    .bind(&initial_simulation)
+    .bind(&snapshot_hash)
     .bind(state.instance_id.as_str())
     .bind(state.region.as_str())
+    .bind(state.instance_epoch)
+    .bind(&match_season_id)
+    .execute(&mut *transaction)
+    .await
+    .map_err(internal_db)?;
+    sqlx::query(
+        "insert into trnm_online_replay_frames (
+            match_id, tick, snapshot_hash, simulation_json, frame_kind
+         ) values ($1, 0, $2, $3, 'initial')
+         on conflict (match_id, tick) do nothing",
+    )
+    .bind(match_id)
+    .bind(&snapshot_hash)
+    .bind(initial_simulation)
     .execute(&mut *transaction)
     .await
     .map_err(internal_db)?;
@@ -2007,15 +2096,19 @@ pub async fn run_authority_loop(state: AppState, tick_interval: Duration) {
 pub async fn advance_running_matches(state: &AppState, limit: i64) -> Result<u64, String> {
     let ids = sqlx::query_scalar::<_, Uuid>(
         "select m.match_id from trnm_online_matches m
-         left join trnm_online_fleet_instances f on f.instance_id = m.assigned_instance_id
+         left join trnm_online_fleet_instances f
+           on f.instance_id = m.assigned_instance_id
+          and f.instance_epoch = m.assigned_instance_epoch
          where m.phase = 'running' and (
-            m.assigned_instance_id = $2 or m.assigned_instance_id is null
-            or f.status is distinct from 'active'
-            or f.heartbeat_at < now() - interval '3 seconds'
+            (m.assigned_instance_id = $2 and m.assigned_instance_epoch = $3)
+            or m.assigned_instance_id is null
+            or f.status is null or f.status = 'offline'
+            or f.lease_expires_at <= now()
          ) order by m.updated_at limit $1",
     )
     .bind(limit)
     .bind(state.instance_id.as_str())
+    .bind(state.instance_epoch)
     .fetch_all(&state.pool)
     .await
     .map_err(|error| error.to_string())?;
@@ -2028,7 +2121,7 @@ pub async fn advance_running_matches(state: &AppState, limit: i64) -> Result<u64
             .map_err(|error| error.to_string())?;
         let Some(row) = sqlx::query(
             "select campaign_id, phase, simulation_json, match_mode,
-                    assigned_instance_id, assigned_region
+                    assigned_instance_id, assigned_region, assigned_instance_epoch
              from trnm_online_matches
              where match_id = $1 for update skip locked",
         )
@@ -2052,14 +2145,21 @@ pub async fn advance_running_matches(state: &AppState, limit: i64) -> Result<u64
         let previous_region: Option<String> = row
             .try_get("assigned_region")
             .map_err(|error| error.to_string())?;
-        if previous_instance.as_deref() != Some(state.instance_id.as_str()) {
+        let previous_epoch: i64 = row
+            .try_get("assigned_instance_epoch")
+            .map_err(|error| error.to_string())?;
+        if previous_instance.as_deref() != Some(state.instance_id.as_str())
+            || previous_epoch != state.instance_epoch
+        {
             let previous_healthy: bool = if let Some(previous) = previous_instance.as_deref() {
                 sqlx::query_scalar(
                     "select exists(select 1 from trnm_online_fleet_instances
-                     where instance_id = $1 and status = 'active'
-                       and heartbeat_at >= now() - interval '3 seconds')",
+                     where instance_id = $1 and instance_epoch = $2
+                       and status in ('active', 'draining')
+                       and lease_expires_at > now())",
                 )
                 .bind(previous)
+                .bind(previous_epoch)
                 .fetch_one(&mut *transaction)
                 .await
                 .map_err(|error| error.to_string())?
@@ -2071,20 +2171,23 @@ pub async fn advance_running_matches(state: &AppState, limit: i64) -> Result<u64
             }
             sqlx::query(
                 "update trnm_online_matches set assigned_instance_id = $2,
-                    assigned_region = $3, updated_at = now() where match_id = $1",
+                    assigned_region = $3, assigned_instance_epoch = $4,
+                    updated_at = now() where match_id = $1",
             )
             .bind(match_id)
             .bind(state.instance_id.as_str())
             .bind(state.region.as_str())
+            .bind(state.instance_epoch)
             .execute(&mut *transaction)
             .await
             .map_err(|error| error.to_string())?;
             sqlx::query(
                 "insert into trnm_online_fleet_failovers (
                     failover_id, match_id, previous_instance_id, new_instance_id,
-                    previous_region, new_region, reason
-                 ) values ($1, $2, $3, $4, $5, $6, 'owner heartbeat expired')
-                 on conflict (match_id, previous_instance_id, new_instance_id) do nothing",
+                    previous_region, new_region, reason,
+                    previous_instance_epoch, new_instance_epoch
+                 ) values ($1, $2, $3, $4, $5, $6, 'owner lease expired or epoch fenced', $7, $8)
+                 on conflict do nothing",
             )
             .bind(Uuid::new_v4())
             .bind(match_id)
@@ -2092,6 +2195,8 @@ pub async fn advance_running_matches(state: &AppState, limit: i64) -> Result<u64
             .bind(state.instance_id.as_str())
             .bind(&previous_region)
             .bind(state.region.as_str())
+            .bind(previous_epoch)
+            .bind(state.instance_epoch)
             .execute(&mut *transaction)
             .await
             .map_err(|error| error.to_string())?;
@@ -2111,7 +2216,27 @@ pub async fn advance_running_matches(state: &AppState, limit: i64) -> Result<u64
             sim.step().map_err(|error| error.to_string())?;
         }
         let snapshot_hash = sim.snapshot_hash().map_err(|error| error.to_string())?;
-        if sim.terminal() {
+        let terminal = sim.terminal();
+        if terminal || sim.tick.is_multiple_of(100) {
+            sqlx::query(
+                "insert into trnm_online_replay_frames (
+                    match_id, tick, snapshot_hash, simulation_json, frame_kind
+                 ) values ($1, $2, $3, $4, $5)
+                 on conflict (match_id, tick) do update set
+                    snapshot_hash = excluded.snapshot_hash,
+                    simulation_json = excluded.simulation_json,
+                    frame_kind = excluded.frame_kind",
+            )
+            .bind(match_id)
+            .bind(sim.tick as i64)
+            .bind(&snapshot_hash)
+            .bind(serde_json::to_value(&sim).map_err(|error| error.to_string())?)
+            .bind(if terminal { "terminal" } else { "checkpoint" })
+            .execute(&mut *transaction)
+            .await
+            .map_err(|error| error.to_string())?;
+        }
+        if terminal {
             let mut result = sim
                 .clone()
                 .into_result()
@@ -2135,14 +2260,16 @@ pub async fn advance_running_matches(state: &AppState, limit: i64) -> Result<u64
                 match_id,
                 result.outcome,
                 &result_hash,
+                &snapshot_hash,
             )
             .await?;
             let settlement_state = if any_pending { "pending" } else { "settled" };
-            sqlx::query(
+            let updated = sqlx::query(
                 "update trnm_online_matches set phase = 'complete', simulation_json = $2,
                     result_json = $3, result_hash = $4, snapshot_hash = $5,
                     authoritative_tick = $6, settlement_state = $7, updated_at = now()
-                 where match_id = $1",
+                 where match_id = $1 and assigned_instance_id = $8
+                   and assigned_instance_epoch = $9",
             )
             .bind(match_id)
             .bind(serde_json::to_value(&sim).map_err(|error| error.to_string())?)
@@ -2151,21 +2278,33 @@ pub async fn advance_running_matches(state: &AppState, limit: i64) -> Result<u64
             .bind(snapshot_hash)
             .bind(sim.tick as i64)
             .bind(settlement_state)
+            .bind(state.instance_id.as_str())
+            .bind(state.instance_epoch)
             .execute(&mut *transaction)
             .await
             .map_err(|error| error.to_string())?;
+            if updated.rows_affected() != 1 {
+                return Err("match completion was fenced by a newer fleet epoch".to_string());
+            }
         } else {
-            sqlx::query(
+            let updated = sqlx::query(
                 "update trnm_online_matches set simulation_json = $2, snapshot_hash = $3,
-                    authoritative_tick = $4, updated_at = now() where match_id = $1",
+                    authoritative_tick = $4, updated_at = now()
+                 where match_id = $1 and assigned_instance_id = $5
+                   and assigned_instance_epoch = $6",
             )
             .bind(match_id)
             .bind(serde_json::to_value(&sim).map_err(|error| error.to_string())?)
             .bind(snapshot_hash)
             .bind(sim.tick as i64)
+            .bind(state.instance_id.as_str())
+            .bind(state.instance_epoch)
             .execute(&mut *transaction)
             .await
             .map_err(|error| error.to_string())?;
+            if updated.rows_affected() != 1 {
+                return Err("match tick was fenced by a newer fleet epoch".to_string());
+            }
         }
         transaction
             .commit()
@@ -2684,5 +2823,13 @@ mod tests {
             campaign.room,
             trnm_campaign_core::CampaignRoom::ExpeditionGate
         );
+    }
+
+    #[test]
+    fn public_bind_fails_closed_without_production_security_boundary() {
+        assert!(validate_operations_bind_addr("127.0.0.1:7005".parse().unwrap()).is_ok());
+        assert!(validate_operations_bind_addr("[::1]:7005".parse().unwrap()).is_ok());
+        assert!(validate_operations_bind_addr("0.0.0.0:7005".parse().unwrap()).is_err());
+        assert!(validate_operations_bind_addr("192.0.2.10:7005".parse().unwrap()).is_err());
     }
 }

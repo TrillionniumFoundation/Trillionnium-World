@@ -137,7 +137,7 @@ database="$(cex_psql_stdin -Atc "select json_build_object(
     and previous_instance_id='trnm-local-primary' and new_instance_id='$RUN_ID-secondary'),
   'replays',(select count(*) from trnm_online_replay_index where match_id='$MATCH_ID'::uuid),
   'season_events',(select count(*) from trnm_online_rating_events where match_id='$MATCH_ID'::uuid
-    and season_id='season-2026-prealpha-1'),
+    and season_id is not null),
   'value_entitlements',(select count(*) from trnm_value_entitlements
     where entitlement_json->>'match_id'='$MATCH_ID')
 )" | jq -c .)"

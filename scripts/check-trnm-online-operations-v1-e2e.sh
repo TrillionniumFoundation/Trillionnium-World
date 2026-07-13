@@ -39,6 +39,7 @@ leaderboard="$(curl -fsS "$ONLINE_URL/v1/operations/leaderboard" \
 jq -e --arg player "$HOST" '.season.status == "active" and .requester.player_id == $player and
   .requester.rating == 1016 and .requester.wins == 1 and .requester.matches == 1' \
   <<<"$leaderboard" >/dev/null
+ACTIVE_SEASON_ID="$(jq -er .season.season_id <<<"$leaderboard")"
 
 replay_request="$(jq -cn --arg player "$HOST" --arg account "$HOST_ACCOUNT" --arg match "$MATCH_ID" \
   '{protocol_version:"trnm_online_operations_v1",build_id:"trnm-online-operations-2026.07-v1",player_id:$player,account_id:$account,match_id:$match}')"
@@ -46,8 +47,9 @@ replay="$(curl -fsS "$ONLINE_URL/v1/operations/replays" \
   -H "x-trnm-player-session: $HOST_SESSION" -H 'content-type: application/json' \
   --data-binary "$replay_request")"
 REPLAY_HASH="$(jq -er '.replay_hash | select(length == 64)' <<<"$replay")"
-jq -e --arg match "$MATCH_ID" '.match_id == $match and .command_count >= 2 and
-  .season_id == "season-2026-prealpha-1"' <<<"$replay" >/dev/null
+jq -e --arg match "$MATCH_ID" --arg season "$ACTIVE_SEASON_ID" \
+  '.match_id == $match and .command_count >= 2 and .season_id == $season' \
+  <<<"$replay" >/dev/null
 
 report_body() {
   local replay_hash="$1"
@@ -122,8 +124,9 @@ jq -e '.season_events == 2 and .season_ratings == 2 and .replays == 1 and
 
 jq -n --arg run_id "online-operations-v1-${RUN_ID#online-product-v2-}" \
   --arg product_run "$RUN_ID" --arg match_id "$MATCH_ID" --arg report_id "$REPORT_ID" \
-  --arg replay_hash "$REPLAY_HASH" --argjson route "$route" --argjson database "$database" \
+  --arg replay_hash "$REPLAY_HASH" --arg season_id "$ACTIVE_SEASON_ID" \
+  --argjson route "$route" --argjson database "$database" \
   '{status:"passed",run_id:$run_id,product_run:$product_run,match_id:$match_id,
-    active_season:true,leaderboard:true,replay_hash:$replay_hash,replay_bound_report:true,
+    active_season:true,season_id:$season_id,leaderboard:true,replay_hash:$replay_hash,replay_bound_report:true,
     tampered_replay_rejected:true,moderation_console:true,report_id:$report_id,
     ranked_enforcement:true,route:$route,database:$database}'

@@ -8,8 +8,10 @@ pub const ONLINE_PRODUCT_V1_PROTOCOL: &str = "trnm_online_product_v1";
 pub const ONLINE_PRODUCT_V1_BUILD: &str = "trnm-online-product-2026.07-v1";
 pub const ONLINE_PRODUCT_PROTOCOL: &str = "trnm_online_product_v2";
 pub const ONLINE_PRODUCT_BUILD: &str = "trnm-online-product-2026.07-v2";
-pub const ONLINE_OPERATIONS_PROTOCOL: &str = "trnm_online_operations_v1";
-pub const ONLINE_OPERATIONS_BUILD: &str = "trnm-online-operations-2026.07-v1";
+pub const ONLINE_OPERATIONS_V1_PROTOCOL: &str = "trnm_online_operations_v1";
+pub const ONLINE_OPERATIONS_V1_BUILD: &str = "trnm-online-operations-2026.07-v1";
+pub const ONLINE_OPERATIONS_PROTOCOL: &str = "trnm_online_operations_v2";
+pub const ONLINE_OPERATIONS_BUILD: &str = "trnm-online-operations-2026.07-v2";
 pub const ONLINE_AUTHORITY_DEFAULT_RULES: &str = "trnm_first_contact_rules_v1";
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -473,6 +475,34 @@ pub struct OnlineReplayView {
     pub map_id: String,
     pub build_id: String,
     pub participant_ids: Vec<String>,
+    pub final_snapshot_hash: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct OnlineReplayFrameView {
+    pub tick: u64,
+    pub snapshot_hash: String,
+    pub frame_kind: String,
+    pub simulation: serde_json::Value,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct OnlineReplayCommandView {
+    pub sequence: u64,
+    pub player_id: String,
+    pub target_tick: u64,
+    pub request_hash: String,
+    pub accepted_snapshot_hash: String,
+    pub order: serde_json::Value,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct OnlineReplayPlaybackView {
+    pub replay: OnlineReplayView,
+    pub commands: Vec<OnlineReplayCommandView>,
+    pub frames: Vec<OnlineReplayFrameView>,
+    pub result: serde_json::Value,
+    pub integrity_verified: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -536,6 +566,67 @@ pub struct OnlineModerationActionView {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OnlineEnforcementAppealCreateRequest {
+    pub protocol_version: String,
+    pub build_id: String,
+    pub player_id: String,
+    pub account_id: String,
+    pub enforcement_id: String,
+    pub detail: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OnlineEnforcementAppealView {
+    pub appeal_id: String,
+    pub enforcement_id: String,
+    pub player_id: String,
+    pub status: String,
+    pub detail: String,
+    pub resolution: Option<String>,
+    pub created_at_epoch: i64,
+    pub due_at_epoch: i64,
+    pub overdue: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OnlineEnforcementAppealResolveRequest {
+    pub appeal_id: String,
+    pub decision: String,
+    pub resolution: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OnlineEnforcementAppealQueueRequest {
+    pub status: String,
+    pub limit: u32,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OnlineEnforcementAppealQueueView {
+    pub appeals: Vec<OnlineEnforcementAppealView>,
+    pub pending_count: u32,
+    pub overdue_count: u32,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OnlineSeasonAdminRequest {
+    pub action: String,
+    pub season_id: String,
+    pub display_name: Option<String>,
+    pub rules_version: Option<String>,
+    pub starts_at_epoch: Option<i64>,
+    pub ends_at_epoch: Option<i64>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OnlineSeasonAdminView {
+    pub audit_id: String,
+    pub season: OnlineSeasonView,
+    pub previous_active_season_id: Option<String>,
+    pub archived_entries: u32,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct OnlineFleetRouteRequest {
     pub protocol_version: String,
     pub build_id: String,
@@ -551,6 +642,8 @@ pub struct OnlineFleetInstanceView {
     pub active_matches: u32,
     pub status: String,
     pub heartbeat_age_seconds: i64,
+    pub instance_epoch: u64,
+    pub lease_remaining_seconds: i64,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -560,6 +653,21 @@ pub struct OnlineFleetRouteView {
     pub selected: OnlineFleetInstanceView,
     pub healthy_instances: u32,
     pub cross_region_fallback: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OnlineFleetAdminRequest {
+    pub instance_id: String,
+    pub action: String,
+    pub reason: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OnlineFleetAdminView {
+    pub audit_id: String,
+    pub instance_id: String,
+    pub status: String,
+    pub active_matches: u32,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -598,12 +706,19 @@ pub fn validate_product_contract(protocol_version: &str, build_id: &str) -> Resu
 }
 
 pub fn validate_operations_contract(protocol_version: &str, build_id: &str) -> Result<(), String> {
-    if protocol_version != ONLINE_OPERATIONS_PROTOCOL {
+    let supported = (protocol_version == ONLINE_OPERATIONS_PROTOCOL
+        && build_id == ONLINE_OPERATIONS_BUILD)
+        || (protocol_version == ONLINE_OPERATIONS_V1_PROTOCOL
+            && build_id == ONLINE_OPERATIONS_V1_BUILD);
+    if !supported
+        && protocol_version != ONLINE_OPERATIONS_PROTOCOL
+        && protocol_version != ONLINE_OPERATIONS_V1_PROTOCOL
+    {
         return Err(format!(
             "unsupported online operations protocol {protocol_version}"
         ));
     }
-    if build_id != ONLINE_OPERATIONS_BUILD {
+    if !supported {
         return Err(format!(
             "online operations build {build_id} is not compatible"
         ));
@@ -634,6 +749,11 @@ mod tests {
                 .is_ok()
         );
         assert!(validate_operations_contract(ONLINE_OPERATIONS_PROTOCOL, "old-build").is_err());
+        assert!(validate_operations_contract(
+            ONLINE_OPERATIONS_V1_PROTOCOL,
+            ONLINE_OPERATIONS_V1_BUILD
+        )
+        .is_ok());
     }
 
     #[test]

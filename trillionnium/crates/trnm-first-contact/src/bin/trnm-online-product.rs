@@ -10,10 +10,11 @@ use std::{
 };
 use trnm_online_protocol::{
     OnlineCampaignConnectRequest, OnlineCampaignView, OnlineLeaderboardView,
-    OnlineOperationsAccessRequest, OnlineRatingView, OnlineSoloQueueAccessRequest,
-    OnlineSoloQueueJoinRequest, OnlineSoloQueueStatus, OnlineSoloQueueView, ONLINE_AUTHORITY_BUILD,
-    ONLINE_AUTHORITY_PROTOCOL, ONLINE_OPERATIONS_BUILD, ONLINE_OPERATIONS_PROTOCOL,
-    ONLINE_PRODUCT_BUILD, ONLINE_PRODUCT_PROTOCOL,
+    OnlineOperationsAccessRequest, OnlineRatingView, OnlineReplayAccessRequest,
+    OnlineReplayPlaybackView, OnlineSoloQueueAccessRequest, OnlineSoloQueueJoinRequest,
+    OnlineSoloQueueStatus, OnlineSoloQueueView, ONLINE_AUTHORITY_BUILD, ONLINE_AUTHORITY_PROTOCOL,
+    ONLINE_OPERATIONS_BUILD, ONLINE_OPERATIONS_PROTOCOL, ONLINE_PRODUCT_BUILD,
+    ONLINE_PRODUCT_PROTOCOL,
 };
 
 #[derive(Debug, Clone, Deserialize)]
@@ -41,6 +42,9 @@ struct ProductEvidence {
     game_launched: bool,
     text_login_ready: bool,
     credential_source: String,
+    replay_hash: Option<String>,
+    replay_frame_count: Option<usize>,
+    replay_integrity_verified: bool,
     status: String,
 }
 
@@ -66,6 +70,7 @@ struct ProductShell {
     queue: Option<OnlineSoloQueueView>,
     rating: Option<OnlineRatingView>,
     leaderboard: Option<OnlineLeaderboardView>,
+    replay_summary: Option<(String, String, usize, usize)>,
     state: String,
     status: String,
     poll_elapsed: f32,
@@ -112,6 +117,7 @@ impl ProductShell {
             queue: None,
             rating: None,
             leaderboard: None,
+            replay_summary: None,
             state: "SIGNED OUT".to_string(),
             status: "Type player ID, TAB, credential; ENTER/F1 login. F6 saves to the Linux kernel keyring."
                 .to_string(),
@@ -482,12 +488,71 @@ impl ProductShell {
         Ok(())
     }
 
+    fn load_replay(&mut self) -> Result<(), String> {
+        let session = self.session()?.clone();
+        if self
+            .queue
+            .as_ref()
+            .and_then(|queue| queue.match_id.as_ref())
+            .is_none()
+        {
+            let _ = self.refresh_queue();
+        }
+        let match_id = self.queue.as_ref().and_then(|queue| queue.match_id.clone());
+        let endpoint = if match_id.is_some() {
+            "/v1/operations/replays/playback"
+        } else {
+            "/v1/operations/replays/latest/playback"
+        };
+        let request = self
+            .client
+            .post(format!("{}{}", self.game_url, endpoint))
+            .header("x-trnm-player-session", &session.session_token);
+        let response = if let Some(match_id) = match_id {
+            request.json(&OnlineReplayAccessRequest {
+                protocol_version: ONLINE_OPERATIONS_PROTOCOL.to_string(),
+                build_id: ONLINE_OPERATIONS_BUILD.to_string(),
+                player_id: session.player_id.clone(),
+                account_id: session.account_id.clone(),
+                match_id,
+            })
+        } else {
+            request.json(&OnlineOperationsAccessRequest {
+                protocol_version: ONLINE_OPERATIONS_PROTOCOL.to_string(),
+                build_id: ONLINE_OPERATIONS_BUILD.to_string(),
+                player_id: session.player_id,
+                account_id: session.account_id,
+            })
+        }
+        .send()
+        .map_err(|error| format!("replay playback transport: {error}"))?;
+        let status = response.status();
+        let body = response.text().map_err(|error| error.to_string())?;
+        if !status.is_success() {
+            return Err(format!("replay playback rejected ({status}): {body}"));
+        }
+        let playback: OnlineReplayPlaybackView = serde_json::from_str(&body)
+            .map_err(|error| format!("replay playback response: {error}"))?;
+        if !playback.integrity_verified {
+            return Err("replay playback package failed integrity verification".to_string());
+        }
+        self.replay_summary = Some((
+            playback.replay.match_id,
+            playback.replay.replay_hash,
+            playback.frames.len(),
+            playback.commands.len(),
+        ));
+        self.state = "REPLAY READY".to_string();
+        self.status = "Authoritative replay timeline verified; F9 refreshes it".to_string();
+        Ok(())
+    }
+
     fn write_evidence(&self) {
         let Some(path) = &self.evidence_path else {
             return;
         };
         let evidence = ProductEvidence {
-            contract: "trnm_native_online_operations_v1",
+            contract: "trnm_native_online_operations_v2",
             player_id: self.player_id.clone(),
             state: self.state.clone(),
             account_id: self
@@ -511,7 +576,15 @@ impl ProductShell {
                 .queue
                 .as_ref()
                 .map(|queue| format!("{:?}", queue.status)),
-            match_id: self.queue.as_ref().and_then(|queue| queue.match_id.clone()),
+            match_id: self
+                .queue
+                .as_ref()
+                .and_then(|queue| queue.match_id.clone())
+                .or_else(|| {
+                    self.replay_summary
+                        .as_ref()
+                        .map(|(match_id, _, _, _)| match_id.clone())
+                }),
             opponent_player_id: self
                 .queue
                 .as_ref()
@@ -519,6 +592,15 @@ impl ProductShell {
             game_launched: self.game_launched,
             text_login_ready: true,
             credential_source: self.credential_source.clone(),
+            replay_hash: self
+                .replay_summary
+                .as_ref()
+                .map(|(_, hash, _, _)| hash.clone()),
+            replay_frame_count: self
+                .replay_summary
+                .as_ref()
+                .map(|(_, _, frames, _)| *frames),
+            replay_integrity_verified: self.replay_summary.is_some(),
             status: self.status.clone(),
         };
         if let Ok(bytes) = serde_json::to_vec_pretty(&evidence) {
@@ -543,7 +625,7 @@ fn spawn_ui(mut commands: Commands) {
         BackgroundColor(Color::srgb(0.012, 0.025, 0.024)),
         children![
             (
-                Text::new("TRILLIONNIUM ONLINE PRODUCT v2 / OPERATIONS v1"),
+                Text::new("TRILLIONNIUM ONLINE PRODUCT v2 / OPERATIONS v2"),
                 TextFont::from_font_size(34.0),
                 TextColor(Color::srgb(0.95, 0.82, 0.42)),
             ),
@@ -565,7 +647,7 @@ fn spawn_ui(mut commands: Commands) {
                 )],
             ),
             (
-                Text::new("TAB FIELD | ENTER/F1 LOGIN | F2 CLOUD | F3 QUEUE | F4 CANCEL | F5 PLAY | F6 SAVE | F7 LOAD | F8 FORGET"),
+                Text::new("TAB FIELD | ENTER/F1 LOGIN | F2 CLOUD | F3 QUEUE | F4 CANCEL | F5 PLAY | F6 SAVE | F7 LOAD | F8 FORGET | F9 REPLAY"),
                 TextFont::from_font_size(17.0),
                 TextColor(Color::srgb(0.62, 0.88, 0.70)),
             ),
@@ -596,6 +678,8 @@ fn handle_input(input: Res<ButtonInput<KeyCode>>, mut shell: ResMut<ProductShell
         shell.load_kernel_credential()
     } else if input.just_pressed(KeyCode::F8) {
         shell.forget_kernel_credential()
+    } else if input.just_pressed(KeyCode::F9) {
+        shell.load_replay()
     } else {
         return;
     };
@@ -740,14 +824,32 @@ fn update_ui(
         .queue
         .as_ref()
         .and_then(|queue| queue.match_id.as_deref())
+        .or_else(|| {
+            shell
+                .replay_summary
+                .as_ref()
+                .map(|(match_id, _, _, _)| match_id.as_str())
+        })
         .unwrap_or("not allocated");
     let masked_credential = if shell.credential.is_empty() {
         "<empty>".to_string()
     } else {
         format!("{} chars ********", shell.credential.len())
     };
+    let replay = shell
+        .replay_summary
+        .as_ref()
+        .map(|(_, hash, frames, commands)| {
+            format!(
+                "verified {} frames / {} commands / {}…",
+                frames,
+                commands,
+                &hash[..12]
+            )
+        })
+        .unwrap_or_else(|| "not loaded".to_string());
     body.single_mut().expect("one product body").0 = format!(
-        "STATE: {}\n\nLOGIN FIELD: {}\nPLAYER: {}\nCREDENTIAL: {}\nCREDENTIAL SOURCE: {}\nACCOUNT: {}\nSESSION EXPIRY: {}\nCLOUD CHARACTER: {}\nMAP: {}\nRANKED MMR: {}\nSEASON: {}\nSEASON RANK: {}\nOPPONENT: {}\nMATCH: {}\n\nThe credential value is never rendered, logged or passed to the game process. The game receives only the scoped player session.",
+        "STATE: {}\n\nLOGIN FIELD: {}\nPLAYER: {}\nCREDENTIAL: {}\nCREDENTIAL SOURCE: {}\nACCOUNT: {}\nSESSION EXPIRY: {}\nCLOUD CHARACTER: {}\nMAP: {}\nRANKED MMR: {}\nSEASON: {}\nSEASON RANK: {}\nOPPONENT: {}\nMATCH: {}\nREPLAY: {}\n\nThe credential value is never rendered, logged or passed to the game process. The game receives only the scoped player session.",
         shell.state,
         match shell.login_field { LoginField::PlayerId => "PLAYER ID", LoginField::Credential => "CREDENTIAL" },
         if shell.player_id.is_empty() { "<type player ID>" } else { shell.player_id.as_str() },
@@ -762,6 +864,7 @@ fn update_ui(
         season_rank,
         opponent,
         match_id,
+        replay,
     );
     status.single_mut().expect("one product status").0 = shell.status.clone();
 }
