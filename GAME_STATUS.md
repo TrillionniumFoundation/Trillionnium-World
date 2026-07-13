@@ -2,7 +2,7 @@
 
 Updated: 2026-07-13
 
-This is the one-page status source for the current native RPG + real-time-strategy product. The older finite checklist in `docs/development/trnm-deep-rpg-complete-rts-v1-dod.md` is retained as a completed historical baseline, not as a claim that the broader deep-RPG + complete-RTS vision is 100%. The current local CEX economy integration, Online Authority v2 and closed-alpha Online Product v1 slices are enumerated below; none grants Android or public-launch credit.
+This is the one-page status source for the current native RPG + real-time-strategy product. The older finite checklist in `docs/development/trnm-deep-rpg-complete-rts-v1-dod.md` is retained as a completed historical baseline, not as a claim that the broader deep-RPG + complete-RTS vision is 100%. The current local CEX economy integration, Online Authority v2, Online Product v2 and Online Operations v1 slices are enumerated below; none grants Android or public-launch credit.
 
 Release denominators are separated by
 `docs/development/trnm-native-game-release-gates-v1.md`: software alpha,
@@ -69,6 +69,7 @@ The RPG layer uses only clean-room mechanics study of 白金英雄坛说. No sou
 - `trnm_player_settings_v2`.
 - `trnm_online_authority_v2`, build `trnm-online-authority-2026.07-v2`.
 - `trnm_online_product_v2`, build `trnm-online-product-2026.07-v2` (v1 private-lobby requests remain compatible).
+- `trnm_online_operations_v1`, build `trnm-online-operations-2026.07-v1`.
 
 ## Product shell
 
@@ -119,12 +120,13 @@ target ticks only after the server proves the original was not accepted, and
 still disables local simulation/settlement while attached.
 
 Online Authority v2 alone is not a public online game claim. Online Product v2
-now supplies ranked solo pairing, opposing human authority, MMR and a minimum
-friend/block/report control plane, but there is still no public beta, party
-queue, chat/guild, season/leaderboard, spectator product or cross-host fleet.
-KMS/HSM custody and automatic key rotation are also pending. Offline local
-saves cannot be mixed with online characters. See
-`docs/development/trnm-online-authority-v2.md`.
+supplies ranked solo pairing, opposing human authority, MMR and a minimum
+friend/block/report control plane. Online Operations v1 adds one active season,
+a held/void-aware leaderboard, authoritative replay indexes, Linux kernel-keyring
+login, integrity/moderation audit and a same-host multi-process fleet. There is
+still no public beta, party queue, chat/guild, spectator product, staffed safety
+operation or cross-host/regional HA. KMS/HSM custody and automatic key rotation
+are also pending. Offline local saves cannot be mixed with online characters.
 
 Online Product v1 adds a closed-alpha control plane without changing the
 authority boundary. Database-backed single-use registration invites create the
@@ -147,6 +149,19 @@ commercial policy remain open. Friends, blocks, match-bound reports and scoped
 moderator resolution are persistent. See
 `docs/development/trnm-online-product-v2.md`.
 
+Online Operations v1 makes the launcher accept native text credentials and use
+the Linux kernel user keyring without rendering/logging the secret. Ranked
+terminal state now writes an active-season rating association and a replay hash
+over result, participants and ordered command fingerprints. Replay-bound reports
+hold affected leaderboard rows; the protected moderation console persists audit,
+void/dismiss decisions and bounded ranked/online enforcement. Pairing excludes
+same-device tickets, applies a ten-minute opponent cooldown, permits no more than
+three unique mutual matches per 24 hours and signals the third. Fleet instances
+own capacity, heartbeat, region and match assignment; stale ownership can move
+once under PostgreSQL row lock with a durable failover record. This is same-host
+two-process proof, not cross-host or regional HA. See
+`docs/development/trnm-online-operations-v1.md`.
+
 The client exposes local/wallet balances, pending intents, priority
 compensations, value events, verified receipts and dead letters. `Ctrl+F7`
 binds/reconciles with a player/account/device-scoped signed session from
@@ -168,7 +183,7 @@ The control profiles alter live RTS input: Classic uses Q/W/E/R for move/attack/
 - human observation and non-developer sessions remain required for commercial usability claims and cannot be replaced by automated online E2E;
 - final composed soundtrack, richer effects and mix: pending (basic original playback is complete);
 - installer smoke across target distributions: pending;
-- public beta/commercial launch, full social/season product and multi-host networking remain blocked.
+- public beta/commercial launch, full social/season rewards, staffed safety and cross-host networking remain blocked.
 
 ## Current local evidence
 
@@ -176,14 +191,19 @@ The control profiles alter live RTS input: Classic uses Q/W/E/R for move/attack/
 - Online Authority v2 E2E: two real CEX sessions bring separate campaigns into one match, receive disjoint unit control, reject exact-ID altered replay, sequence skip, old build and control theft, recover via authenticated command-gap replay through a real systemd restart, each gain 80 XP plus two inventory units, and each settle a server-owned 25-credit Ed25519 reward; 15/15 PostgreSQL commands have unique persisted request fingerprints and the match owns two progression events;
 - Online Product v1 final release E2E: run `online-product-1783897456-380`, lobby `c510d1e0-287f-47c6-a898-826394c3b886`, match `9f5677b3-788a-49f5-b959-8fd1d895e8a7`; proves invalid/consumed registration invite rejection, Argon2id, durable login lock, credential rotation, suspension/appeal/reactivation, stolen invite, duplicate lobby, stale revision and non-owner queue rejection, then two ready members, one allocation, full Authority v2 victory, two progression events, two Ed25519 entitlements and two 25/0 wallets;
 - Online Product v2 E2E: run `online-product-v2-1783906177-12562`, lobby `5ad94f3f-a3b4-4b76-8b36-58d31b55a260`, match `5038b8a4-c411-4147-936c-71805e0367e3`; proves friend acceptance, two-sided block-aware pairing, duplicate ticket rejection, opposing human control sets, cross-control rejection, both-side commands, systemd restart, terminal 1016/984 zero-sum MMR, two rating events, two zero-delta progression provenance rows, zero CEX value entitlements and authenticated report resolution;
-- native Product v2 shell: run `online-product-native-v2-1783907721-7153`, match `5c65f668-92b0-4805-b311-00a6b4aa3016`; two distinct release product windows traverse F1 login, F2 cloud character, F3 ranked queue and F5 launch, then create two distinct release Authority windows. All four frames pass a non-black rendered-pixel hard gate after the acceptance script was tightened to reject obscured blank X11 captures. Credentials are not rendered and only scoped sessions cross into the game process; this remains automated evidence, not a human session;
+- native Product v2 compatibility shell: run `online-product-native-v2-1783912317-12205`, match `f265309d-bf97-4ad0-990c-d6eefea2561e`; two distinct release product windows traverse F1 login, F2 cloud character, F3 ranked queue and F5 launch, then create two distinct release Authority windows. All four frames pass structural rendered-pixel gates after the acceptance script was tightened to reject obscured blank X11 captures. Credentials are not rendered and only scoped sessions cross into the game process; this remains automated evidence, not a human session;
+- Online Operations v1 E2E: run `online-operations-v1-1783912615-5333`, match `c48b1745-80ce-406e-810f-798761790bad`, replay `b7ed141cf0471acf02659b9a1cc1c46cc2dfc739f4fb9470350a6c5b6b23bef2`; proves active season/leaderboard, exact replay access, tampered replay rejection, replay-bound report, leaderboard hold/void, moderator-console audit, 24-hour ranked enforcement and primary-region routing;
+- Online Operations fleet E2E: run `online-operations-fleet-1783912998-19347`, match `775c2d8e-b0b5-4a77-9f68-bcfcdd42ac37`; two live processes start with primary ownership, stop the primary, wait for heartbeat expiry, transfer once to the backup, reject routing at capacity, complete through cross-region fallback and write replay/season events with zero CEX value. This is same-host evidence, not cross-host HA;
+- Online Operations anti-collusion E2E: run `online-operations-collusion-1783911232-11662`; same-device pairing is rejected, three real ranked matches complete, the third produces a medium repeat-opponent signal, and the fourth daily pairing is rejected. The test backdates only synthetic event timestamps by eleven minutes between real matches to cross the ten-minute cooldown while retaining the 24-hour window;
+- Online Operations native login: run `online-operations-native-login-1783912263-3475`; real X11 text input enters player/credential fields, the credential is masked and stored through kernel-keyring stdin, a fresh process restores it without a credential environment variable, F8 removes it, the active season loads and both captures pass non-black plus structural color gates. This is automated evidence, not a human session;
+- human Operations packet is generated at `acceptance/online-operations-v1-human/latest/session-packet.json` with `pending_human_participants`, two non-developer players, one observer and automation credit false; no human completion is claimed;
 - network impairment E2E: the same full two-session/restart/settlement gate passes port-scoped loopback netem at 50 ms/1%, 100 ms/3% and 200 ms/5%; this is bounded local evidence, not a public-network SLO;
 - final native attach smoke: run `online-native-1783897487-24605`, match `7e7c14cc-13b6-43c7-a770-44cff29d8d7d`; two distinct release windows first traverse product registration/lobby/invite/ready/allocation, then each produce an independently attributed fingerprinted command; this is automated input evidence, not a human multiplayer session;
 - CEX full workspace: 355 passing, including Ed25519 issuer rejection and Argon2id/legacy credential migration tests; 16 detached-runtime black-box probes remain explicitly ignored and `consumer-entry-api` remains 161/161. The persistent cross-process gate additionally proves new accounts, reward exactly-once, byte-identical replay across ledger/consumer restart, held-escrow refund, committed chargeback, wallet/cursor recovery and PostgreSQL uniqueness;
 - workspace Clippy with `-D warnings`: passing;
 - product boundary: green (8 game / 12 platform / legacy working tree absent); CEX depends on `trnm-economy-protocol` and no longer depends on removed `trnm-world-api`, `trnm-world-domain` or `trnm-world-projection` crates;
 - release build and desktop installer smoke: passing;
-- current X230 isolated warm-cache matrix after explicit `--no-run` client-harness prewarming: RPG 0.91 s / 83 MiB, Campaign 0.56 s / 83 MiB, full 19-test First Contact package 85.12 s / 122 MiB, 64-sample RTS simulation 70.82 s / 83 MiB, new-save client journey 40.12 s / 122 MiB, Standard Annihilation 73.67 s / 122 MiB, authored-map adapter 12.49 s / 122 MiB, closed loop 13.20 s / 83 MiB and incremental release build 0.90 s / 122 MiB. Every isolated row remains below the explicit 90-second / 4-GiB bound. The same final full-workspace run with the always-on llvmpipe native window competing for CPU recorded 91.43 s for First Contact, so that non-isolated wall clock is not presented as passing the 90-second reference line; stopping the project window restored the isolated gate without code changes. The former 3.41-GiB client figure was rustc/linker RSS from compiling the test harness on the first measured row, not game-runtime memory; the gate separates compilation from runtime instead of misreporting it;
+- current X230 isolated warm-cache matrix after explicit `--no-run` client-harness prewarming: RPG 1.39 s / 83 MiB, Campaign 0.60 s / 83 MiB, full 19-test First Contact package 89.57 s / 122 MiB, 64-sample RTS simulation 69.35 s / 83 MiB, new-save client journey 40.68 s / 122 MiB, Standard Annihilation 74.47 s / 122 MiB, authored-map adapter 12.72 s / 122 MiB, closed loop 13.52 s / 83 MiB and release build 49.44 s / 786 MiB. Every isolated row remains below the explicit 90-second / 4-GiB bound. The final non-isolated full-workspace run with the always-on llvmpipe native window competing for CPU recorded 94.22 s for First Contact, so that wall clock is not presented as passing the 90-second reference line; stopping the project window restored the isolated gate. The former 3.41-GiB client figure was rustc/linker RSS from compiling the test harness, not game-runtime memory; the gate separates compilation from runtime instead of misreporting it;
 - release client service: active with a viewable native window after restart.
 - persistent CEX recovery: PostgreSQL WAL archival, a physical 8.6-GiB base
   backup, named-restore-point PITR and writable same-host promotion are proven;
@@ -201,6 +221,11 @@ scripts/check-trnm-online-authority-e2e.sh
 scripts/check-trnm-online-product-v1-e2e.sh
 scripts/check-trnm-online-product-v2-e2e.sh
 scripts/check-trnm-online-product-v2-native.sh
+scripts/check-trnm-online-operations-v1-e2e.sh
+scripts/check-trnm-online-operations-v1-fleet.sh
+scripts/check-trnm-online-operations-v1-native-login.sh
+scripts/check-trnm-online-operations-v1-anti-collusion.sh
+scripts/prepare-trnm-online-operations-v1-human-session.sh
 scripts/check-trnm-online-network-chaos.sh
 scripts/check-trnm-online-native-two-client.sh
 cargo test --manifest-path trillionnium/Cargo.toml --workspace --all-targets

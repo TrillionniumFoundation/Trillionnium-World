@@ -106,7 +106,9 @@ pub(super) async fn join_solo_queue(
 ) -> Result<Json<OnlineSoloQueueView>, ApiError> {
     require_v2(&request.protocol_version, &request.build_id)?;
     mission_for_map(&request.map_id)?;
-    verify_identity(&state, &headers, &request.player_id, &request.account_id).await?;
+    let verified =
+        verify_identity(&state, &headers, &request.player_id, &request.account_id).await?;
+    let device_hash = format!("{:x}", Sha256::digest(verified.device_id.as_bytes()));
     let account_id = Uuid::parse_str(&request.account_id)
         .map_err(|_| api_error(StatusCode::BAD_REQUEST, "account_id must be a UUID", false))?;
     let mut transaction = state.pool.begin().await.map_err(internal_db)?;
@@ -131,6 +133,22 @@ pub(super) async fn join_solo_queue(
     )
     .await?;
     ensure_player_has_no_active_lobby(&mut transaction, &request.player_id).await?;
+    let ranked_suspended: bool = sqlx::query_scalar(
+        "select exists(select 1 from trnm_online_enforcements
+         where player_id = $1 and scope in ('ranked', 'online') and revoked_at is null
+           and expires_at > now())",
+    )
+    .bind(&request.player_id)
+    .fetch_one(&mut *transaction)
+    .await
+    .map_err(internal_db)?;
+    if ranked_suspended {
+        return Err(api_error(
+            StatusCode::FORBIDDEN,
+            "player is suspended from ranked matchmaking",
+            false,
+        ));
+    }
     let already_queued: bool = sqlx::query_scalar(
         "select exists(select 1 from trnm_online_solo_queue
          where player_id = $1 and status = 'queued')",
@@ -148,10 +166,16 @@ pub(super) async fn join_solo_queue(
     }
     let rating = ensure_rating(&mut transaction, &request.player_id, account_id).await?;
     let candidate = sqlx::query(
-        "select q.ticket_id, q.player_id, q.account_id, q.campaign_id, q.rating_at_join
+        "select q.ticket_id, q.player_id, q.account_id, q.campaign_id, q.rating_at_join,
+                (select count(distinct repeat_event.match_id) from trnm_online_rating_events repeat_event
+                 where repeat_event.created_at > now() - interval '24 hours'
+                   and ((repeat_event.player_id = q.player_id and repeat_event.opponent_player_id = $2)
+                     or (repeat_event.player_id = $2 and repeat_event.opponent_player_id = q.player_id)))
+                as repeat_matches
          from trnm_online_solo_queue q
          where q.status = 'queued' and q.queue_mode = 'ranked_pvp' and q.map_id = $1
            and q.player_id <> $2 and abs(q.rating_at_join - $3) <= 400
+           and q.device_hash is distinct from $4
            and not exists (
              select 1 from trnm_online_blocks b
              where (b.blocker_player_id = q.player_id and b.blocked_player_id = $2)
@@ -163,11 +187,16 @@ pub(super) async fn join_solo_queue(
                and ((e.player_id = q.player_id and e.opponent_player_id = $2)
                  or (e.player_id = $2 and e.opponent_player_id = q.player_id))
            )
+           and (select count(distinct daily_event.match_id) from trnm_online_rating_events daily_event
+                where daily_event.created_at > now() - interval '24 hours'
+                  and ((daily_event.player_id = q.player_id and daily_event.opponent_player_id = $2)
+                    or (daily_event.player_id = $2 and daily_event.opponent_player_id = q.player_id))) < 3
          order by q.created_at asc for update skip locked limit 1",
     )
     .bind(&request.map_id)
     .bind(&request.player_id)
     .bind(rating)
+    .bind(&device_hash)
     .fetch_optional(&mut *transaction)
     .await
     .map_err(internal_db)?;
@@ -175,8 +204,8 @@ pub(super) async fn join_solo_queue(
     let Some(candidate) = candidate else {
         sqlx::query(
             "insert into trnm_online_solo_queue (
-                ticket_id, player_id, account_id, campaign_id, map_id, rating_at_join
-             ) values ($1, $2, $3, $4, $5, $6)",
+                ticket_id, player_id, account_id, campaign_id, map_id, rating_at_join, device_hash
+             ) values ($1, $2, $3, $4, $5, $6, $7)",
         )
         .bind(ticket_id)
         .bind(&request.player_id)
@@ -184,6 +213,7 @@ pub(super) async fn join_solo_queue(
         .bind(&request.campaign_id)
         .bind(&request.map_id)
         .bind(rating)
+        .bind(&device_hash)
         .execute(&mut *transaction)
         .await
         .map_err(internal_db)?;
@@ -196,6 +226,7 @@ pub(super) async fn join_solo_queue(
     let opponent_player_id: String = candidate.try_get("player_id").map_err(internal_db)?;
     let opponent_account_id: Uuid = candidate.try_get("account_id").map_err(internal_db)?;
     let opponent_campaign_id: String = candidate.try_get("campaign_id").map_err(internal_db)?;
+    let repeat_matches: i64 = candidate.try_get("repeat_matches").map_err(internal_db)?;
     lock_player_lobby_scope(&mut transaction, &opponent_player_id).await?;
     ensure_player_has_no_active_lobby(&mut transaction, &opponent_player_id).await?;
     let lobby_id = Uuid::new_v4();
@@ -308,8 +339,8 @@ pub(super) async fn join_solo_queue(
     sqlx::query(
         "insert into trnm_online_solo_queue (
             ticket_id, player_id, account_id, campaign_id, map_id, status,
-            rating_at_join, matched_lobby_id, match_id, opponent_player_id
-         ) values ($1, $2, $3, $4, $5, 'matched', $6, $7, $8, $9)",
+            rating_at_join, matched_lobby_id, match_id, opponent_player_id, device_hash
+         ) values ($1, $2, $3, $4, $5, 'matched', $6, $7, $8, $9, $10)",
     )
     .bind(ticket_id)
     .bind(&request.player_id)
@@ -320,9 +351,24 @@ pub(super) async fn join_solo_queue(
     .bind(lobby_id)
     .bind(match_id)
     .bind(&opponent_player_id)
+    .bind(&device_hash)
     .execute(&mut *transaction)
     .await
     .map_err(internal_db)?;
+    if repeat_matches >= 2 {
+        sqlx::query(
+            "insert into trnm_online_integrity_signals (
+                signal_id, match_id, player_ids, signal_kind, severity, evidence
+             ) values ($1, $2, $3, 'repeat_opponent', 'medium', $4)",
+        )
+        .bind(Uuid::new_v4())
+        .bind(match_id)
+        .bind(json!([request.player_id, opponent_player_id]))
+        .bind(json!({"prior_matches_24h": repeat_matches}))
+        .execute(&mut *transaction)
+        .await
+        .map_err(internal_db)?;
+    }
     transaction.commit().await.map_err(internal_db)?;
 
     let started = start_match(
@@ -747,7 +793,7 @@ async fn fetch_social(pool: &PgPool, player_id: &str) -> Result<OnlineSocialView
     })
 }
 
-fn report_view(row: &sqlx::postgres::PgRow) -> Result<OnlineReportView, ApiError> {
+pub(super) fn report_view(row: &sqlx::postgres::PgRow) -> Result<OnlineReportView, ApiError> {
     Ok(OnlineReportView {
         report_id: row
             .try_get::<Uuid, _>("report_id")

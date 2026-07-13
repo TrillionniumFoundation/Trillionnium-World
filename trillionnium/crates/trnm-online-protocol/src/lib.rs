@@ -8,6 +8,8 @@ pub const ONLINE_PRODUCT_V1_PROTOCOL: &str = "trnm_online_product_v1";
 pub const ONLINE_PRODUCT_V1_BUILD: &str = "trnm-online-product-2026.07-v1";
 pub const ONLINE_PRODUCT_PROTOCOL: &str = "trnm_online_product_v2";
 pub const ONLINE_PRODUCT_BUILD: &str = "trnm-online-product-2026.07-v2";
+pub const ONLINE_OPERATIONS_PROTOCOL: &str = "trnm_online_operations_v1";
+pub const ONLINE_OPERATIONS_BUILD: &str = "trnm-online-operations-2026.07-v1";
 pub const ONLINE_AUTHORITY_DEFAULT_RULES: &str = "trnm_first_contact_rules_v1";
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -416,6 +418,151 @@ pub struct OnlineReportView {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OnlineOperationsAccessRequest {
+    pub protocol_version: String,
+    pub build_id: String,
+    pub player_id: String,
+    pub account_id: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OnlineSeasonView {
+    pub season_id: String,
+    pub display_name: String,
+    pub status: String,
+    pub rules_version: String,
+    pub starts_at_epoch: i64,
+    pub ends_at_epoch: i64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OnlineLeaderboardEntry {
+    pub rank: u32,
+    pub player_id: String,
+    pub rating: i32,
+    pub wins: u32,
+    pub losses: u32,
+    pub matches: u32,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OnlineLeaderboardView {
+    pub protocol_version: String,
+    pub build_id: String,
+    pub season: OnlineSeasonView,
+    pub entries: Vec<OnlineLeaderboardEntry>,
+    pub requester: Option<OnlineLeaderboardEntry>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OnlineReplayAccessRequest {
+    pub protocol_version: String,
+    pub build_id: String,
+    pub player_id: String,
+    pub account_id: String,
+    pub match_id: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OnlineReplayView {
+    pub match_id: String,
+    pub season_id: Option<String>,
+    pub result_hash: String,
+    pub replay_hash: String,
+    pub command_count: u32,
+    pub map_id: String,
+    pub build_id: String,
+    pub participant_ids: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OnlineReplayReportCreateRequest {
+    pub protocol_version: String,
+    pub build_id: String,
+    pub player_id: String,
+    pub account_id: String,
+    pub target_player_id: String,
+    pub match_id: String,
+    pub replay_hash: String,
+    pub category: String,
+    pub detail: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OnlineIntegritySignalView {
+    pub signal_id: String,
+    pub match_id: Option<String>,
+    pub player_ids: Vec<String>,
+    pub signal_kind: String,
+    pub severity: String,
+    pub status: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OnlineModerationQueueRequest {
+    pub status: String,
+    pub limit: u32,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OnlineModerationCaseView {
+    pub report: OnlineReportView,
+    pub replay: Option<OnlineReplayView>,
+    pub integrity_signals: Vec<OnlineIntegritySignalView>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OnlineModerationQueueView {
+    pub cases: Vec<OnlineModerationCaseView>,
+    pub open_count: u32,
+    pub under_review_signal_count: u32,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OnlineModerationActionRequest {
+    pub report_id: String,
+    pub decision: String,
+    pub resolution: String,
+    pub enforcement_scope: Option<String>,
+    pub suspension_hours: Option<u32>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OnlineModerationActionView {
+    pub report: OnlineReportView,
+    pub audit_id: String,
+    pub enforcement_id: Option<String>,
+    pub target_player_id: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OnlineFleetRouteRequest {
+    pub protocol_version: String,
+    pub build_id: String,
+    pub preferred_region: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OnlineFleetInstanceView {
+    pub instance_id: String,
+    pub region: String,
+    pub public_endpoint: String,
+    pub capacity: u32,
+    pub active_matches: u32,
+    pub status: String,
+    pub heartbeat_age_seconds: i64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OnlineFleetRouteView {
+    pub protocol_version: String,
+    pub build_id: String,
+    pub selected: OnlineFleetInstanceView,
+    pub healthy_instances: u32,
+    pub cross_region_fallback: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct OnlineAuthorityError {
     pub error: String,
     pub recoverable: bool,
@@ -450,6 +597,20 @@ pub fn validate_product_contract(protocol_version: &str, build_id: &str) -> Resu
     Ok(())
 }
 
+pub fn validate_operations_contract(protocol_version: &str, build_id: &str) -> Result<(), String> {
+    if protocol_version != ONLINE_OPERATIONS_PROTOCOL {
+        return Err(format!(
+            "unsupported online operations protocol {protocol_version}"
+        ));
+    }
+    if build_id != ONLINE_OPERATIONS_BUILD {
+        return Err(format!(
+            "online operations build {build_id} is not compatible"
+        ));
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -468,6 +629,11 @@ mod tests {
         assert!(
             validate_product_contract(ONLINE_PRODUCT_PROTOCOL, ONLINE_PRODUCT_V1_BUILD).is_err()
         );
+        assert!(
+            validate_operations_contract(ONLINE_OPERATIONS_PROTOCOL, ONLINE_OPERATIONS_BUILD)
+                .is_ok()
+        );
+        assert!(validate_operations_contract(ONLINE_OPERATIONS_PROTOCOL, "old-build").is_err());
     }
 
     #[test]

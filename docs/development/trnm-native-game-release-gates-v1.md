@@ -70,10 +70,13 @@ Online Product v1 additionally proves a closed-alpha invite/login/rotation/
 suspension-appeal lifecycle plus private two-member lobby, ready state and
 `coop_vs_ai` allocation. Online Product v2 proves a native login/queue/launch
 shell, ranked solo pairing, opposing human authority, persistent MMR,
-friends/blocks and authenticated match-report resolution. Gate E remains
-blocked: there is no public self-registration, verified-contact recovery,
-party queue, seasons/leaderboards, chat/guild, staffed moderation, multi-region
-fleet or human multiplayer usability result.
+friends/blocks and authenticated match-report resolution. Online Operations v1
+adds native text/Linux-keyring login, one active season/leaderboard,
+authoritative replay indexes, replay-bound moderation/enforcement and same-host
+two-process heartbeat failover. Gate E remains blocked: there is no public
+self-registration, verified-contact recovery, party queue, chat/guild,
+staffed moderation, cross-host multi-region HA or human multiplayer usability
+result.
 
 ## Monetary policy
 

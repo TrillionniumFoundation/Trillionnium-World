@@ -2,6 +2,7 @@
 """Inject explicit X11 key chords into one test window using libXtst."""
 
 import ctypes
+import os
 import sys
 import time
 
@@ -32,6 +33,11 @@ def main() -> int:
     x11.XSetInputFocus(display, ctypes.c_ulong(window), 1, 0)
     x11.XFlush(display)
 
+    fast_delay = os.environ.get("TRNM_X11_KEY_DELAY")
+
+    def pause(default: float) -> None:
+        time.sleep(float(fast_delay) if fast_delay is not None else default)
+
     def keycode(name: str) -> int:
         symbol = x11.XStringToKeysym(name.encode())
         code = x11.XKeysymToKeycode(display, symbol)
@@ -40,7 +46,13 @@ def main() -> int:
         return code
 
     modifiers = {"ctrl": "Control_L", "shift": "Shift_L", "alt": "Alt_L"}
-    special = {"enter": "Return", "escape": "Escape", **{f"f{i}": f"F{i}" for i in range(1, 13)}}
+    special = {
+        "enter": "Return",
+        "escape": "Escape",
+        "tab": "Tab",
+        "backspace": "BackSpace",
+        **{f"f{i}": f"F{i}" for i in range(1, 13)},
+    }
     for chord in sys.argv[2:]:
         parts = chord.lower().split("+")
         modifier_codes = [keycode(modifiers[part]) for part in parts[:-1]]
@@ -48,17 +60,17 @@ def main() -> int:
         for code in modifier_codes:
             xtst.XTestFakeKeyEvent(display, code, True, 0)
         x11.XFlush(display)
-        time.sleep(0.25)
+        pause(0.25)
         xtst.XTestFakeKeyEvent(display, main_code, True, 0)
         x11.XFlush(display)
-        time.sleep(0.25)
+        pause(0.25)
         xtst.XTestFakeKeyEvent(display, main_code, False, 0)
         x11.XFlush(display)
-        time.sleep(0.75 if modifier_codes else 0.15)
+        pause(0.75 if modifier_codes else 0.15)
         for code in reversed(modifier_codes):
             xtst.XTestFakeKeyEvent(display, code, False, 0)
         x11.XFlush(display)
-        time.sleep(0.5)
+        pause(0.5)
     x11.XCloseDisplay(display)
     return 0
 

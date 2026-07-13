@@ -1,5 +1,5 @@
 use std::{net::SocketAddr, path::PathBuf, time::Duration};
-use trnm_game_server::{build_router, run_authority_loop, AppState};
+use trnm_game_server::{build_router, run_authority_loop, AppState, AppStateConfig};
 
 #[tokio::main]
 async fn main() {
@@ -22,6 +22,15 @@ async fn main() {
         .expect("TRNM_ENTITLEMENT_ED25519_KEY_ID is required");
     let moderator_token =
         std::env::var("TRNM_MODERATOR_TOKEN").expect("TRNM_MODERATOR_TOKEN is required");
+    let instance_id =
+        std::env::var("TRNM_FLEET_INSTANCE_ID").expect("TRNM_FLEET_INSTANCE_ID is required");
+    let region = std::env::var("TRNM_FLEET_REGION").expect("TRNM_FLEET_REGION is required");
+    let public_endpoint = std::env::var("TRNM_FLEET_PUBLIC_ENDPOINT")
+        .expect("TRNM_FLEET_PUBLIC_ENDPOINT is required");
+    let capacity = std::env::var("TRNM_FLEET_CAPACITY")
+        .expect("TRNM_FLEET_CAPACITY is required")
+        .parse::<i32>()
+        .expect("TRNM_FLEET_CAPACITY must be an integer");
     let asset_root = std::env::var_os("TRNM_ASSET_ROOT")
         .map(PathBuf::from)
         .unwrap_or_else(|| PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../../assets"));
@@ -35,15 +44,19 @@ async fn main() {
         .unwrap_or(50)
         .clamp(5, 1_000);
 
-    let state = AppState::connect(
-        &database_url,
+    let state = AppState::connect(AppStateConfig {
+        database_url,
         cex_base_url,
         game_authority_token,
         entitlement_signing_seed_base64,
         entitlement_key_id,
         asset_root,
         moderator_token,
-    )
+        instance_id,
+        region,
+        public_endpoint,
+        capacity,
+    })
     .await
     .unwrap_or_else(|error| panic!("Online Authority startup failed closed: {error}"));
     let loop_state = state.clone();
@@ -53,7 +66,7 @@ async fn main() {
     let listener = tokio::net::TcpListener::bind(bind_addr)
         .await
         .unwrap_or_else(|error| panic!("bind {bind_addr}: {error}"));
-    tracing::info!(%bind_addr, "TRNM Online Authority v2 ready");
+    tracing::info!(%bind_addr, "TRNM Online Operations v1 ready");
     axum::serve(listener, build_router(state))
         .await
         .expect("serve Online Authority");

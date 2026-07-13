@@ -1,11 +1,19 @@
 use bevy::prelude::*;
+use bevy::{input::keyboard::KeyboardInput, input::ButtonState};
 use serde::{Deserialize, Serialize};
-use std::{env, fs, path::PathBuf, process::Command, time::Duration};
+use std::{
+    env, fs,
+    io::Write,
+    path::PathBuf,
+    process::{Command, Stdio},
+    time::Duration,
+};
 use trnm_online_protocol::{
-    OnlineCampaignConnectRequest, OnlineCampaignView, OnlineRatingView,
-    OnlineSoloQueueAccessRequest, OnlineSoloQueueJoinRequest, OnlineSoloQueueStatus,
-    OnlineSoloQueueView, ONLINE_AUTHORITY_BUILD, ONLINE_AUTHORITY_PROTOCOL, ONLINE_PRODUCT_BUILD,
-    ONLINE_PRODUCT_PROTOCOL,
+    OnlineCampaignConnectRequest, OnlineCampaignView, OnlineLeaderboardView,
+    OnlineOperationsAccessRequest, OnlineRatingView, OnlineSoloQueueAccessRequest,
+    OnlineSoloQueueJoinRequest, OnlineSoloQueueStatus, OnlineSoloQueueView, ONLINE_AUTHORITY_BUILD,
+    ONLINE_AUTHORITY_PROTOCOL, ONLINE_OPERATIONS_BUILD, ONLINE_OPERATIONS_PROTOCOL,
+    ONLINE_PRODUCT_BUILD, ONLINE_PRODUCT_PROTOCOL,
 };
 
 #[derive(Debug, Clone, Deserialize)]
@@ -25,11 +33,21 @@ struct ProductEvidence {
     account_id: Option<String>,
     campaign_id: Option<String>,
     rating: Option<i32>,
+    season_id: Option<String>,
+    season_rank: Option<u32>,
     queue_status: Option<String>,
     match_id: Option<String>,
     opponent_player_id: Option<String>,
     game_launched: bool,
+    text_login_ready: bool,
+    credential_source: String,
     status: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum LoginField {
+    PlayerId,
+    Credential,
 }
 
 #[derive(Resource)]
@@ -38,6 +56,8 @@ struct ProductShell {
     game_url: String,
     player_id: String,
     credential: String,
+    credential_source: String,
+    login_field: LoginField,
     device_id: String,
     slot_key: String,
     map_id: String,
@@ -45,6 +65,7 @@ struct ProductShell {
     campaign: Option<OnlineCampaignView>,
     queue: Option<OnlineSoloQueueView>,
     rating: Option<OnlineRatingView>,
+    leaderboard: Option<OnlineLeaderboardView>,
     state: String,
     status: String,
     poll_elapsed: f32,
@@ -61,13 +82,14 @@ struct ProductStatus;
 
 impl ProductShell {
     fn from_env() -> Result<Self, String> {
-        let required = |key: &str| {
-            env::var(key)
-                .ok()
-                .filter(|value| !value.trim().is_empty())
-                .ok_or_else(|| format!("{key} is required by the native online product shell"))
+        let player_id = env::var("TRNM_PRODUCT_PLAYER_ID").unwrap_or_default();
+        let credential = env::var("TRNM_PRODUCT_CREDENTIAL").unwrap_or_default();
+        let credential_source = if credential.is_empty() {
+            "not loaded"
+        } else {
+            "protected environment"
         };
-        Ok(Self {
+        let mut shell = Self {
             cex_url: env::var("TRNM_CEX_LEDGER_URL")
                 .unwrap_or_else(|_| "http://127.0.0.1:7002".to_string())
                 .trim_end_matches('/')
@@ -76,8 +98,10 @@ impl ProductShell {
                 .unwrap_or_else(|_| "http://127.0.0.1:7005".to_string())
                 .trim_end_matches('/')
                 .to_string(),
-            player_id: required("TRNM_PRODUCT_PLAYER_ID")?,
-            credential: required("TRNM_PRODUCT_CREDENTIAL")?,
+            player_id,
+            credential,
+            credential_source: credential_source.to_string(),
+            login_field: LoginField::PlayerId,
             device_id: env::var("TRNM_PRODUCT_DEVICE_ID")
                 .unwrap_or_else(|_| "native-product-v2".to_string()),
             slot_key: env::var("TRNM_ONLINE_SLOT_KEY")
@@ -87,8 +111,9 @@ impl ProductShell {
             campaign: None,
             queue: None,
             rating: None,
+            leaderboard: None,
             state: "SIGNED OUT".to_string(),
-            status: "F1 LOGIN — credentials are read from the protected launcher environment"
+            status: "Type player ID, TAB, credential; ENTER/F1 login. F6 saves to the Linux kernel keyring."
                 .to_string(),
             poll_elapsed: 0.0,
             game_launched: false,
@@ -98,10 +123,131 @@ impl ProductShell {
                 .timeout(Duration::from_secs(5))
                 .build()
                 .map_err(|error| error.to_string())?,
-        })
+        };
+        if !shell.player_id.is_empty() && shell.credential.is_empty() {
+            let _ = shell.load_kernel_credential();
+        }
+        Ok(shell)
+    }
+
+    fn validate_player_id(&self) -> Result<(), String> {
+        if self.player_id.is_empty()
+            || self.player_id.len() > 96
+            || !self
+                .player_id
+                .bytes()
+                .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_' | b'.'))
+        {
+            return Err("player ID must be 1-96 portable ASCII characters".to_string());
+        }
+        Ok(())
+    }
+
+    fn validate_credential(&self) -> Result<(), String> {
+        if self.credential.len() < 24
+            || self.credential.len() > 512
+            || !self.credential.bytes().all(|byte| byte.is_ascii_graphic())
+        {
+            return Err("credential must be 24-512 non-space ASCII characters".to_string());
+        }
+        Ok(())
+    }
+
+    fn key_description(&self) -> Result<String, String> {
+        self.validate_player_id()?;
+        Ok(format!("trnm-online-product:{}", self.player_id))
+    }
+
+    fn key_id(&self) -> Result<Option<String>, String> {
+        let output = Command::new("keyctl")
+            .args(["search", "@u", "user", &self.key_description()?])
+            .output()
+            .map_err(|error| format!("open Linux kernel keyring: {error}"))?;
+        if !output.status.success() {
+            return Ok(None);
+        }
+        let id = String::from_utf8(output.stdout)
+            .map_err(|_| "kernel keyring returned an invalid key ID".to_string())?;
+        let id = id.trim();
+        if id.is_empty() || !id.bytes().all(|byte| byte.is_ascii_digit()) {
+            return Err("kernel keyring returned an invalid key ID".to_string());
+        }
+        Ok(Some(id.to_string()))
+    }
+
+    fn store_kernel_credential(&mut self) -> Result<(), String> {
+        self.validate_credential()?;
+        let existing = self.key_id()?;
+        let mut command = Command::new("keyctl");
+        if let Some(key_id) = existing {
+            command.args(["update", &key_id]);
+        } else {
+            command.args(["padd", "user", &self.key_description()?, "@u"]);
+        }
+        let mut child = command
+            .stdin(Stdio::piped())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+            .map_err(|error| format!("write Linux kernel keyring: {error}"))?;
+        child
+            .stdin
+            .take()
+            .ok_or_else(|| "kernel keyring stdin is unavailable".to_string())?
+            .write_all(self.credential.as_bytes())
+            .map_err(|error| format!("write Linux kernel keyring: {error}"))?;
+        if !child
+            .wait()
+            .map_err(|error| format!("wait for Linux kernel keyring: {error}"))?
+            .success()
+        {
+            return Err("Linux kernel keyring rejected the credential".to_string());
+        }
+        self.credential_source = "Linux kernel user keyring".to_string();
+        self.status = "Credential saved in the Linux kernel user keyring; F1 LOGIN".to_string();
+        Ok(())
+    }
+
+    fn load_kernel_credential(&mut self) -> Result<(), String> {
+        let key_id = self
+            .key_id()?
+            .ok_or_else(|| "no credential is stored for this player".to_string())?;
+        let output = Command::new("keyctl")
+            .args(["pipe", &key_id])
+            .output()
+            .map_err(|error| format!("read Linux kernel keyring: {error}"))?;
+        if !output.status.success() {
+            return Err("Linux kernel keyring denied credential read".to_string());
+        }
+        self.credential = String::from_utf8(output.stdout)
+            .map_err(|_| "stored credential is not valid UTF-8".to_string())?;
+        self.validate_credential()?;
+        self.credential_source = "Linux kernel user keyring".to_string();
+        self.status = "Credential restored from the Linux kernel keyring; F1 LOGIN".to_string();
+        Ok(())
+    }
+
+    fn forget_kernel_credential(&mut self) -> Result<(), String> {
+        if let Some(key_id) = self.key_id()? {
+            let status = Command::new("keyctl")
+                .args(["unlink", &key_id, "@u"])
+                .stdout(Stdio::null())
+                .stderr(Stdio::null())
+                .status()
+                .map_err(|error| format!("remove Linux kernel key: {error}"))?;
+            if !status.success() {
+                return Err("Linux kernel keyring rejected credential removal".to_string());
+            }
+        }
+        self.credential.clear();
+        self.credential_source = "not loaded".to_string();
+        self.status = "Stored credential removed; type a credential to continue".to_string();
+        Ok(())
     }
 
     fn login(&mut self) -> Result<(), String> {
+        self.validate_player_id()?;
+        self.validate_credential()?;
         let response = self
             .client
             .post(format!("{}/v1/trnm/product/login", self.cex_url))
@@ -160,6 +306,7 @@ impl ProductShell {
                 .map_err(|error| format!("cloud character response: {error}"))?,
         );
         self.refresh_rating()?;
+        self.refresh_operations()?;
         self.state = "LOBBY".to_string();
         self.status = "Cloud character ready. F3 JOIN RANKED SOLO QUEUE".to_string();
         Ok(())
@@ -188,6 +335,31 @@ impl ProductShell {
             return Err(format!("rating rejected: {}", response.status()));
         }
         self.rating = Some(response.json().map_err(|error| error.to_string())?);
+        Ok(())
+    }
+
+    fn refresh_operations(&mut self) -> Result<(), String> {
+        let session = self.session()?.clone();
+        let response = self
+            .client
+            .post(format!("{}/v1/operations/leaderboard", self.game_url))
+            .header("x-trnm-player-session", &session.session_token)
+            .json(&OnlineOperationsAccessRequest {
+                protocol_version: ONLINE_OPERATIONS_PROTOCOL.to_string(),
+                build_id: ONLINE_OPERATIONS_BUILD.to_string(),
+                player_id: session.player_id,
+                account_id: session.account_id,
+            })
+            .send()
+            .map_err(|error| format!("operations transport: {error}"))?;
+        let status = response.status();
+        let body = response.text().map_err(|error| error.to_string())?;
+        if !status.is_success() {
+            return Err(format!("operations rejected ({status}): {body}"));
+        }
+        self.leaderboard = Some(
+            serde_json::from_str(&body).map_err(|error| format!("operations response: {error}"))?,
+        );
         Ok(())
     }
 
@@ -315,7 +487,7 @@ impl ProductShell {
             return;
         };
         let evidence = ProductEvidence {
-            contract: "trnm_native_online_product_v2",
+            contract: "trnm_native_online_operations_v1",
             player_id: self.player_id.clone(),
             state: self.state.clone(),
             account_id: self
@@ -327,6 +499,14 @@ impl ProductShell {
                 .as_ref()
                 .map(|campaign| campaign.campaign_id.clone()),
             rating: self.rating.as_ref().map(|rating| rating.rating),
+            season_id: self
+                .leaderboard
+                .as_ref()
+                .map(|leaderboard| leaderboard.season.season_id.clone()),
+            season_rank: self
+                .leaderboard
+                .as_ref()
+                .and_then(|leaderboard| leaderboard.requester.as_ref().map(|entry| entry.rank)),
             queue_status: self
                 .queue
                 .as_ref()
@@ -337,6 +517,8 @@ impl ProductShell {
                 .as_ref()
                 .and_then(|queue| queue.opponent_player_id.clone()),
             game_launched: self.game_launched,
+            text_login_ready: true,
+            credential_source: self.credential_source.clone(),
             status: self.status.clone(),
         };
         if let Ok(bytes) = serde_json::to_vec_pretty(&evidence) {
@@ -361,7 +543,7 @@ fn spawn_ui(mut commands: Commands) {
         BackgroundColor(Color::srgb(0.012, 0.025, 0.024)),
         children![
             (
-                Text::new("TRILLIONNIUM ONLINE PRODUCT v2"),
+                Text::new("TRILLIONNIUM ONLINE PRODUCT v2 / OPERATIONS v1"),
                 TextFont::from_font_size(34.0),
                 TextColor(Color::srgb(0.95, 0.82, 0.42)),
             ),
@@ -383,7 +565,7 @@ fn spawn_ui(mut commands: Commands) {
                 )],
             ),
             (
-                Text::new("F1 LOGIN | F2 CLOUD CHARACTER | F3 RANKED QUEUE | F4 CANCEL | F5 PLAY"),
+                Text::new("TAB FIELD | ENTER/F1 LOGIN | F2 CLOUD | F3 QUEUE | F4 CANCEL | F5 PLAY | F6 SAVE | F7 LOAD | F8 FORGET"),
                 TextFont::from_font_size(17.0),
                 TextColor(Color::srgb(0.62, 0.88, 0.70)),
             ),
@@ -398,7 +580,7 @@ fn spawn_ui(mut commands: Commands) {
 }
 
 fn handle_input(input: Res<ButtonInput<KeyCode>>, mut shell: ResMut<ProductShell>) {
-    let result = if input.just_pressed(KeyCode::F1) {
+    let result = if input.just_pressed(KeyCode::F1) || input.just_pressed(KeyCode::Enter) {
         shell.login()
     } else if input.just_pressed(KeyCode::F2) {
         shell.connect_campaign()
@@ -408,6 +590,12 @@ fn handle_input(input: Res<ButtonInput<KeyCode>>, mut shell: ResMut<ProductShell
         shell.cancel_queue()
     } else if input.just_pressed(KeyCode::F5) {
         shell.launch_game()
+    } else if input.just_pressed(KeyCode::F6) {
+        shell.store_kernel_credential()
+    } else if input.just_pressed(KeyCode::F7) {
+        shell.load_kernel_credential()
+    } else if input.just_pressed(KeyCode::F8) {
+        shell.forget_kernel_credential()
     } else {
         return;
     };
@@ -415,6 +603,78 @@ fn handle_input(input: Res<ButtonInput<KeyCode>>, mut shell: ResMut<ProductShell
         shell.status = error;
     }
     shell.write_evidence();
+}
+
+fn handle_text_input(
+    mut keyboard_inputs: MessageReader<KeyboardInput>,
+    mut shell: ResMut<ProductShell>,
+) {
+    if shell.session.is_some() {
+        return;
+    }
+    let mut changed = false;
+    for event in keyboard_inputs.read() {
+        if event.state != ButtonState::Pressed {
+            continue;
+        }
+        match event.key_code {
+            KeyCode::Tab => {
+                shell.login_field = match shell.login_field {
+                    LoginField::PlayerId => LoginField::Credential,
+                    LoginField::Credential => LoginField::PlayerId,
+                };
+                changed = true;
+            }
+            KeyCode::Backspace => {
+                match shell.login_field {
+                    LoginField::PlayerId => {
+                        shell.player_id.pop();
+                    }
+                    LoginField::Credential => {
+                        shell.credential.pop();
+                        shell.credential_source = "typed in native window".to_string();
+                    }
+                }
+                changed = true;
+            }
+            _ => {
+                let Some(text) = event.text.as_deref() else {
+                    continue;
+                };
+                for character in text
+                    .chars()
+                    .filter(|character| character.is_ascii_graphic())
+                {
+                    match shell.login_field {
+                        LoginField::PlayerId
+                            if shell.player_id.len() < 96
+                                && (character.is_ascii_alphanumeric()
+                                    || matches!(character, '-' | '_' | '.')) =>
+                        {
+                            shell.player_id.push(character);
+                            changed = true;
+                        }
+                        LoginField::Credential if shell.credential.len() < 512 => {
+                            shell.credential.push(character);
+                            shell.credential_source = "typed in native window".to_string();
+                            changed = true;
+                        }
+                        _ => {}
+                    }
+                }
+            }
+        }
+    }
+    if changed {
+        shell.status = format!(
+            "Editing {} — TAB switches field; ENTER/F1 logs in",
+            match shell.login_field {
+                LoginField::PlayerId => "PLAYER ID",
+                LoginField::Credential => "CREDENTIAL",
+            }
+        );
+        shell.write_evidence();
+    }
 }
 
 fn poll_queue(time: Res<Time>, mut shell: ResMut<ProductShell>) {
@@ -465,20 +725,41 @@ fn update_ui(
         .as_ref()
         .and_then(|queue| queue.opponent_player_id.as_deref())
         .unwrap_or("searching / none");
+    let season = shell
+        .leaderboard
+        .as_ref()
+        .map(|leaderboard| leaderboard.season.display_name.as_str())
+        .unwrap_or("not loaded");
+    let season_rank = shell
+        .leaderboard
+        .as_ref()
+        .and_then(|leaderboard| leaderboard.requester.as_ref())
+        .map(|entry| format!("#{} / {}", entry.rank, entry.rating))
+        .unwrap_or_else(|| "unranked".to_string());
     let match_id = shell
         .queue
         .as_ref()
         .and_then(|queue| queue.match_id.as_deref())
         .unwrap_or("not allocated");
+    let masked_credential = if shell.credential.is_empty() {
+        "<empty>".to_string()
+    } else {
+        format!("{} chars ********", shell.credential.len())
+    };
     body.single_mut().expect("one product body").0 = format!(
-        "STATE: {}\n\nPLAYER: {}\nACCOUNT: {}\nSESSION EXPIRY: {}\nCLOUD CHARACTER: {}\nMAP: {}\nRANKED MMR: {}\nOPPONENT: {}\nMATCH: {}\n\nCredentials are never rendered, logged or passed to the game process. The game receives only the scoped player session.",
+        "STATE: {}\n\nLOGIN FIELD: {}\nPLAYER: {}\nCREDENTIAL: {}\nCREDENTIAL SOURCE: {}\nACCOUNT: {}\nSESSION EXPIRY: {}\nCLOUD CHARACTER: {}\nMAP: {}\nRANKED MMR: {}\nSEASON: {}\nSEASON RANK: {}\nOPPONENT: {}\nMATCH: {}\n\nThe credential value is never rendered, logged or passed to the game process. The game receives only the scoped player session.",
         shell.state,
-        shell.player_id,
+        match shell.login_field { LoginField::PlayerId => "PLAYER ID", LoginField::Credential => "CREDENTIAL" },
+        if shell.player_id.is_empty() { "<type player ID>" } else { shell.player_id.as_str() },
+        masked_credential,
+        shell.credential_source,
         account,
         session_expiry,
         campaign,
         shell.map_id,
         rating,
+        season,
+        season_rank,
         opponent,
         match_id,
     );
@@ -504,6 +785,9 @@ fn main() {
                 }),
         )
         .add_systems(Startup, spawn_ui)
-        .add_systems(Update, (handle_input, poll_queue, update_ui).chain());
+        .add_systems(
+            Update,
+            (handle_text_input, handle_input, poll_queue, update_ui).chain(),
+        );
     app.run();
 }

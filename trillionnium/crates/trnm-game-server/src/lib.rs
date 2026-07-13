@@ -1,5 +1,6 @@
 mod cex;
 mod map;
+mod operations_v1;
 mod product_v2;
 
 use axum::{
@@ -46,6 +47,7 @@ const MIGRATION_V1: &str = include_str!("../migrations/0001_online_authority_v1.
 const MIGRATION_V2: &str = include_str!("../migrations/0002_online_authority_v2.sql");
 const MIGRATION_V3: &str = include_str!("../migrations/0003_online_product_v1.sql");
 const MIGRATION_V4: &str = include_str!("../migrations/0004_online_product_v2.sql");
+const MIGRATION_V5: &str = include_str!("../migrations/0005_online_operations_v1.sql");
 
 #[derive(Clone)]
 pub struct AppState {
@@ -53,22 +55,32 @@ pub struct AppState {
     cex: CexClient,
     asset_root: Arc<PathBuf>,
     moderator_token: Arc<String>,
+    instance_id: Arc<String>,
+    region: Arc<String>,
+    public_endpoint: Arc<String>,
+    capacity: i32,
+}
+
+pub struct AppStateConfig {
+    pub database_url: String,
+    pub cex_base_url: String,
+    pub game_authority_token: String,
+    pub entitlement_signing_seed_base64: String,
+    pub entitlement_key_id: String,
+    pub asset_root: PathBuf,
+    pub moderator_token: String,
+    pub instance_id: String,
+    pub region: String,
+    pub public_endpoint: String,
+    pub capacity: i32,
 }
 
 impl AppState {
-    pub async fn connect(
-        database_url: &str,
-        cex_base_url: String,
-        game_authority_token: String,
-        entitlement_signing_seed_base64: String,
-        entitlement_key_id: String,
-        asset_root: PathBuf,
-        moderator_token: String,
-    ) -> Result<Self, String> {
+    pub async fn connect(config: AppStateConfig) -> Result<Self, String> {
         let pool = PgPoolOptions::new()
             .max_connections(8)
             .acquire_timeout(Duration::from_secs(5))
-            .connect(database_url)
+            .connect(&config.database_url)
             .await
             .map_err(|error| format!("connect Online Authority PostgreSQL: {error}"))?;
         sqlx::raw_sql(MIGRATION_V1)
@@ -87,18 +99,49 @@ impl AppState {
             .execute(&pool)
             .await
             .map_err(|error| format!("migrate Online Product v2 PostgreSQL: {error}"))?;
+        sqlx::raw_sql(MIGRATION_V5)
+            .execute(&pool)
+            .await
+            .map_err(|error| format!("migrate Online Operations v1 PostgreSQL: {error}"))?;
+        if config.instance_id.trim().is_empty()
+            || config.region.trim().is_empty()
+            || config.public_endpoint.trim().is_empty()
+            || !(1..=10_000).contains(&config.capacity)
+        {
+            return Err("fleet instance, region, endpoint and capacity must be valid".to_string());
+        }
+        sqlx::query(
+            "insert into trnm_online_fleet_instances (
+                instance_id, region, public_endpoint, build_id, capacity, status
+             ) values ($1, $2, $3, $4, $5, 'active')
+             on conflict (instance_id) do update set region = excluded.region,
+                public_endpoint = excluded.public_endpoint, build_id = excluded.build_id,
+                capacity = excluded.capacity, status = 'active', heartbeat_at = now()",
+        )
+        .bind(config.instance_id.trim())
+        .bind(config.region.trim())
+        .bind(config.public_endpoint.trim())
+        .bind(trnm_online_protocol::ONLINE_OPERATIONS_BUILD)
+        .bind(config.capacity)
+        .execute(&pool)
+        .await
+        .map_err(|error| format!("register Online Operations fleet instance: {error}"))?;
         let cex = CexClient::new(
-            cex_base_url,
-            game_authority_token,
-            entitlement_signing_seed_base64,
-            entitlement_key_id,
+            config.cex_base_url,
+            config.game_authority_token,
+            config.entitlement_signing_seed_base64,
+            config.entitlement_key_id,
         )?;
         cex.readiness().await?;
         Ok(Self {
             pool,
             cex,
-            asset_root: Arc::new(asset_root),
-            moderator_token: Arc::new(moderator_token),
+            asset_root: Arc::new(config.asset_root),
+            moderator_token: Arc::new(config.moderator_token),
+            instance_id: Arc::new(config.instance_id),
+            region: Arc::new(config.region),
+            public_endpoint: Arc::new(config.public_endpoint),
+            capacity: config.capacity,
         })
     }
 
@@ -150,7 +193,7 @@ async fn verify_identity(
     headers: &HeaderMap,
     player_id: &str,
     account_id: &str,
-) -> Result<(), ApiError> {
+) -> Result<cex::SessionVerifyResponse, ApiError> {
     let token = session_header(headers)?;
     let verified = state
         .cex
@@ -175,7 +218,7 @@ async fn verify_identity(
             false,
         ));
     }
-    Ok(())
+    Ok(verified)
 }
 
 fn hash_json<T: serde::Serialize>(value: &T) -> Result<String, ApiError> {
@@ -338,6 +381,27 @@ pub fn build_router(state: AppState) -> Router {
             "/v1/product/moderation/reports/resolve",
             post(product_v2::resolve_report),
         )
+        .route(
+            "/v1/operations/leaderboard",
+            post(operations_v1::get_leaderboard),
+        )
+        .route("/v1/operations/replays", post(operations_v1::get_replay))
+        .route(
+            "/v1/operations/reports/replay",
+            post(operations_v1::create_replay_report),
+        )
+        .route(
+            "/v1/operations/moderation/queue",
+            post(operations_v1::moderation_queue),
+        )
+        .route(
+            "/v1/operations/moderation/action",
+            post(operations_v1::moderate_case),
+        )
+        .route(
+            "/v1/operations/fleet/route",
+            post(operations_v1::route_fleet),
+        )
         .with_state(state)
 }
 
@@ -352,6 +416,13 @@ async fn readiness(State(state): State<AppState>) -> Response {
         .is_ok();
     let cex = state.cex.readiness().await.is_ok();
     let ready = postgres && cex;
+    let healthy_fleet_instances = sqlx::query_scalar::<_, i64>(
+        "select count(*) from trnm_online_fleet_instances
+         where status = 'active' and heartbeat_at > now() - interval '5 seconds'",
+    )
+    .fetch_one(&state.pool)
+    .await
+    .unwrap_or_default();
     (
         if ready {
             StatusCode::OK
@@ -383,6 +454,19 @@ async fn readiness(State(state): State<AppState>) -> Response {
             "persistent_mmr": true,
             "friends_and_blocks": true,
             "report_and_moderation_workflow": true,
+            "online_operations_protocol": trnm_online_protocol::ONLINE_OPERATIONS_PROTOCOL,
+            "online_operations_build": trnm_online_protocol::ONLINE_OPERATIONS_BUILD,
+            "native_text_login_and_kernel_keyring": true,
+            "active_season_and_leaderboard": true,
+            "authoritative_replay_index": true,
+            "replay_bound_reports": true,
+            "integrity_signal_triage": true,
+            "moderation_console_and_enforcement": true,
+            "fleet_instance_id": state.instance_id.as_str(),
+            "fleet_region": state.region.as_str(),
+            "fleet_capacity": state.capacity,
+            "healthy_fleet_instances": healthy_fleet_instances,
+            "cross_instance_failover": true,
         })),
     )
         .into_response()
@@ -1204,7 +1288,11 @@ async fn start_match(
             serde_json::from_value(campaign_value).map_err(|error| {
                 api_error(StatusCode::INTERNAL_SERVER_ERROR, error.to_string(), false)
             })?;
+        let ranked_campaign = (match_mode == "ranked_pvp").then(|| campaign.clone());
         let seed = prepare_campaign_seed(&mut campaign, &map_id, map.clone())?;
+        if let Some(original) = ranked_campaign {
+            campaign = original;
+        }
         prepared.push((campaign_id, campaign, seed));
     }
     let (host_units, host_id_map) = member_units(&prepared[0].2, "host", 0);
@@ -1265,7 +1353,7 @@ async fn start_match(
             phase = 'running', seed_hash = $2, seed_json = $3,
             simulation_json = $4, snapshot_hash = $5,
             authoritative_tick = 0, match_revision = match_revision + 1,
-            updated_at = now()
+            assigned_instance_id = $6, assigned_region = $7, updated_at = now()
          where match_id = $1",
     )
     .bind(match_id)
@@ -1273,6 +1361,8 @@ async fn start_match(
     .bind(serde_json::to_value(&seed).map_err(internal_serialization)?)
     .bind(serde_json::to_value(sim).map_err(internal_serialization)?)
     .bind(snapshot_hash)
+    .bind(state.instance_id.as_str())
+    .bind(state.region.as_str())
     .execute(&mut *transaction)
     .await
     .map_err(internal_db)?;
@@ -1895,8 +1985,16 @@ async fn apply_member_progression(
 pub async fn run_authority_loop(state: AppState, tick_interval: Duration) {
     let mut interval = tokio::time::interval(tick_interval);
     interval.set_missed_tick_behavior(MissedTickBehavior::Skip);
+    let mut heartbeat_elapsed = Duration::from_secs(1);
     loop {
         interval.tick().await;
+        heartbeat_elapsed = heartbeat_elapsed.saturating_add(tick_interval);
+        if heartbeat_elapsed >= Duration::from_secs(1) {
+            if let Err(error) = operations_v1::heartbeat_fleet(&state).await {
+                tracing::error!(%error, "online fleet heartbeat failed closed");
+            }
+            heartbeat_elapsed = Duration::ZERO;
+        }
         if let Err(error) = advance_running_matches(&state, 4).await {
             tracing::error!(%error, "online authority tick failed closed");
         }
@@ -1908,10 +2006,16 @@ pub async fn run_authority_loop(state: AppState, tick_interval: Duration) {
 
 pub async fn advance_running_matches(state: &AppState, limit: i64) -> Result<u64, String> {
     let ids = sqlx::query_scalar::<_, Uuid>(
-        "select match_id from trnm_online_matches where phase = 'running'
-         order by updated_at limit $1",
+        "select m.match_id from trnm_online_matches m
+         left join trnm_online_fleet_instances f on f.instance_id = m.assigned_instance_id
+         where m.phase = 'running' and (
+            m.assigned_instance_id = $2 or m.assigned_instance_id is null
+            or f.status is distinct from 'active'
+            or f.heartbeat_at < now() - interval '3 seconds'
+         ) order by m.updated_at limit $1",
     )
     .bind(limit)
+    .bind(state.instance_id.as_str())
     .fetch_all(&state.pool)
     .await
     .map_err(|error| error.to_string())?;
@@ -1923,7 +2027,9 @@ pub async fn advance_running_matches(state: &AppState, limit: i64) -> Result<u64
             .await
             .map_err(|error| error.to_string())?;
         let Some(row) = sqlx::query(
-            "select campaign_id, phase, simulation_json, match_mode from trnm_online_matches
+            "select campaign_id, phase, simulation_json, match_mode,
+                    assigned_instance_id, assigned_region
+             from trnm_online_matches
              where match_id = $1 for update skip locked",
         )
         .bind(match_id)
@@ -1939,6 +2045,56 @@ pub async fn advance_running_matches(state: &AppState, limit: i64) -> Result<u64
             != "running"
         {
             continue;
+        }
+        let previous_instance: Option<String> = row
+            .try_get("assigned_instance_id")
+            .map_err(|error| error.to_string())?;
+        let previous_region: Option<String> = row
+            .try_get("assigned_region")
+            .map_err(|error| error.to_string())?;
+        if previous_instance.as_deref() != Some(state.instance_id.as_str()) {
+            let previous_healthy: bool = if let Some(previous) = previous_instance.as_deref() {
+                sqlx::query_scalar(
+                    "select exists(select 1 from trnm_online_fleet_instances
+                     where instance_id = $1 and status = 'active'
+                       and heartbeat_at >= now() - interval '3 seconds')",
+                )
+                .bind(previous)
+                .fetch_one(&mut *transaction)
+                .await
+                .map_err(|error| error.to_string())?
+            } else {
+                false
+            };
+            if previous_healthy {
+                continue;
+            }
+            sqlx::query(
+                "update trnm_online_matches set assigned_instance_id = $2,
+                    assigned_region = $3, updated_at = now() where match_id = $1",
+            )
+            .bind(match_id)
+            .bind(state.instance_id.as_str())
+            .bind(state.region.as_str())
+            .execute(&mut *transaction)
+            .await
+            .map_err(|error| error.to_string())?;
+            sqlx::query(
+                "insert into trnm_online_fleet_failovers (
+                    failover_id, match_id, previous_instance_id, new_instance_id,
+                    previous_region, new_region, reason
+                 ) values ($1, $2, $3, $4, $5, $6, 'owner heartbeat expired')
+                 on conflict (match_id, previous_instance_id, new_instance_id) do nothing",
+            )
+            .bind(Uuid::new_v4())
+            .bind(match_id)
+            .bind(&previous_instance)
+            .bind(state.instance_id.as_str())
+            .bind(&previous_region)
+            .bind(state.region.as_str())
+            .execute(&mut *transaction)
+            .await
+            .map_err(|error| error.to_string())?;
         }
         let value: Value = row
             .try_get("simulation_json")
@@ -1968,6 +2124,13 @@ pub async fn advance_running_matches(state: &AppState, limit: i64) -> Result<u64
             let any_pending =
                 apply_member_progression(&mut transaction, match_id, &result, &result_hash).await?;
             product_v2::apply_ranked_result(
+                &mut transaction,
+                match_id,
+                result.outcome,
+                &result_hash,
+            )
+            .await?;
+            operations_v1::finalize_ranked_operations(
                 &mut transaction,
                 match_id,
                 result.outcome,
