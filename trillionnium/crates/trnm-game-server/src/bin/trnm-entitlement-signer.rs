@@ -69,13 +69,26 @@ async fn health() -> &'static str {
     "trnm-entitlement-signer ok"
 }
 
+fn database_pool_is_operational(
+    pool_size: u32,
+    idle_connections: usize,
+    max_connections: u32,
+) -> bool {
+    idle_connections > 0 || pool_size < max_connections
+}
+
 async fn readiness(State(state): State<SignerState>) -> impl IntoResponse {
     let postgres = sqlx::query_scalar::query_scalar::<_, i32>("select 1")
         .fetch_one(&state.pool)
         .await
         .is_ok();
     let database_pool_idle_connections = state.pool.num_idle();
-    let database_pool_saturation_healthy = database_pool_idle_connections > 0;
+    let database_pool_size = state.pool.size();
+    let database_pool_saturation_healthy = database_pool_is_operational(
+        database_pool_size,
+        database_pool_idle_connections,
+        SIGNER_DATABASE_MAX_CONNECTIONS,
+    );
     let ready = postgres && database_pool_saturation_healthy;
     (
         if ready {
@@ -92,7 +105,7 @@ async fn readiness(State(state): State<SignerState>) -> impl IntoResponse {
             postgres_receipts: postgres,
             database_pool_saturation_healthy,
             database_pool_max_connections: SIGNER_DATABASE_MAX_CONNECTIONS,
-            database_pool_size: state.pool.size(),
+            database_pool_size,
             database_pool_idle_connections,
             private_key_exported_to_game_server: false,
             provider_kind: "file_seed".to_string(),
@@ -418,4 +431,16 @@ async fn main() -> Result<(), String> {
     )
     .await
     .map_err(|error| format!("serve isolated signer: {error}"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::database_pool_is_operational;
+
+    #[test]
+    fn readiness_only_reports_saturation_at_the_pool_limit() {
+        assert!(database_pool_is_operational(1, 0, 4));
+        assert!(database_pool_is_operational(4, 1, 4));
+        assert!(!database_pool_is_operational(4, 0, 4));
+    }
 }

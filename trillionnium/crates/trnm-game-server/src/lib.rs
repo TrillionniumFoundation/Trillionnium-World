@@ -784,8 +784,11 @@ async fn readiness(State(state): State<AppState>) -> Response {
     let authority_clock_operational = authority_clock_is_operational(authority_clock_drift_ticks);
     let database_pool_size = state.pool.size();
     let database_pool_idle_connections = state.pool.num_idle();
-    let database_pool_saturation_healthy =
-        database_pool_is_operational(database_pool_idle_connections);
+    let database_pool_saturation_healthy = database_pool_is_operational(
+        database_pool_size,
+        database_pool_idle_connections,
+        GAME_SERVER_DATABASE_MAX_CONNECTIONS,
+    );
     let ready = postgres
         && cex
         && signer.is_some()
@@ -916,8 +919,12 @@ fn authority_clock_is_operational(drift_ticks: Option<f64>) -> bool {
         .is_some_and(|drift| drift.is_finite() && drift.abs() < MAX_AUTHORITY_CLOCK_ABS_DRIFT_TICKS)
 }
 
-fn database_pool_is_operational(idle_connections: usize) -> bool {
-    idle_connections > 0
+fn database_pool_is_operational(
+    pool_size: u32,
+    idle_connections: usize,
+    max_connections: u32,
+) -> bool {
+    idle_connections > 0 || pool_size < max_connections
 }
 
 async fn connect_campaign(
@@ -4049,7 +4056,8 @@ mod tests {
 
     #[test]
     fn readiness_fails_closed_on_database_pool_saturation() {
-        assert!(database_pool_is_operational(1));
-        assert!(!database_pool_is_operational(0));
+        assert!(database_pool_is_operational(1, 0, 8));
+        assert!(database_pool_is_operational(8, 1, 8));
+        assert!(!database_pool_is_operational(8, 0, 8));
     }
 }
