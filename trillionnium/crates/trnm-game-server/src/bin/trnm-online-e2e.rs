@@ -80,6 +80,24 @@ impl OnlineClient {
         serde_json::from_slice(&bytes).map_err(|error| error.to_string())
     }
 
+    fn tick_interval_ms(&self) -> Result<f64, String> {
+        let response = send_with_retry(
+            self.http
+                .get(format!("{}/v1/online/readiness", self.base_url)),
+        )?;
+        let status = response.status();
+        let value = response
+            .json::<Value>()
+            .map_err(|error| error.to_string())?;
+        if !status.is_success() {
+            return Err(format!("readiness returned {status}: {value}"));
+        }
+        value["tick_interval_ms"]
+            .as_f64()
+            .filter(|interval| *interval > 0.0)
+            .ok_or_else(|| "readiness did not expose a valid tick_interval_ms".to_string())
+    }
+
     fn command_ack_summary(&self) -> (Vec<u64>, u64, u64) {
         let mut samples = self
             .command_ack_ms
@@ -375,6 +393,7 @@ fn run() -> Result<Value, String> {
     let host = env_identity("TRNM_ONLINE_HOST")?;
     let guest = env_identity("TRNM_ONLINE_GUEST")?;
     let client = OnlineClient::new(base_url.clone())?;
+    let tick_interval_ms = client.tick_interval_ms()?;
     let run_id = format!("online-e2e-{}", chrono::Utc::now().timestamp_millis());
     let slot_key = std::env::var("TRNM_ONLINE_SLOT_KEY").unwrap_or_else(|_| run_id.clone());
 
@@ -775,16 +794,49 @@ fn run() -> Result<Value, String> {
         )?;
     }
 
-    let complete = wait_for(
+    // Stop the realtime clock when the actor publishes its terminal simulation,
+    // not after PostgreSQL progression/value settlement and the next HTTP poll.
+    // The latter is useful end-to-end latency evidence, but it is not simulation
+    // clock drift and previously added several non-simulation ticks to this gate.
+    let terminal = wait_for(
         &client,
         &host,
         &created.match_id,
         completion_timeout(),
-        |snapshot| {
-            snapshot.view.phase == OnlineMatchPhase::Complete
-                && snapshot.view.settlement_state == "settled"
-        },
+        |snapshot| snapshot.snapshot["phase"] == "complete",
     )?;
+    let match_wall_elapsed_ms =
+        u64::try_from(match_clock_started.elapsed().as_millis()).unwrap_or(u64::MAX);
+    let observed_match_ticks = terminal
+        .view
+        .authoritative_tick
+        .saturating_sub(initial_authoritative_tick);
+    let match_tick_drift =
+        observed_match_ticks as f64 - match_wall_elapsed_ms as f64 / tick_interval_ms;
+    let complete = if terminal.view.phase == OnlineMatchPhase::Complete
+        && terminal.view.settlement_state == "settled"
+    {
+        terminal
+    } else {
+        wait_for(
+            &client,
+            &host,
+            &created.match_id,
+            completion_timeout(),
+            |snapshot| {
+                snapshot.view.phase == OnlineMatchPhase::Complete
+                    && snapshot.view.settlement_state == "settled"
+            },
+        )?
+    };
+    let terminal_duplicate: OnlineCommandReceipt = client.post(
+        &host,
+        &format!("/v1/online/matches/{}/commands", created.match_id),
+        &first_request,
+    )?;
+    if !terminal_duplicate.duplicate || terminal_duplicate.sequence != first.sequence {
+        return Err("terminal exact duplicate did not return the durable receipt".to_string());
+    }
     if complete.snapshot["outcome"] != "victory" {
         return Err(format!(
             "authoritative battle completed without victory: {}",
@@ -813,13 +865,8 @@ fn run() -> Result<Value, String> {
         }
     }
     let (command_ack_ms, command_ack_p95_ms, command_ack_max_ms) = client.command_ack_summary();
-    let match_wall_elapsed_ms =
+    let settlement_observation_wall_elapsed_ms =
         u64::try_from(match_clock_started.elapsed().as_millis()).unwrap_or(u64::MAX);
-    let observed_match_ticks = complete
-        .view
-        .authoritative_tick
-        .saturating_sub(initial_authoritative_tick);
-    let match_tick_drift = observed_match_ticks as f64 - match_wall_elapsed_ms as f64 / 100.0;
     Ok(json!({
         "status": "passed",
         "run_id": run_id,
@@ -830,13 +877,16 @@ fn run() -> Result<Value, String> {
         "initial_authoritative_tick": initial_authoritative_tick,
         "observed_match_ticks": observed_match_ticks,
         "match_wall_elapsed_ms": match_wall_elapsed_ms,
+        "tick_interval_ms": tick_interval_ms,
         "match_tick_drift": match_tick_drift,
+        "settlement_observation_wall_elapsed_ms": settlement_observation_wall_elapsed_ms,
         "next_sequence": complete.view.next_sequence,
         "seed_hash": complete.view.seed_hash,
         "snapshot_hash": complete.view.snapshot_hash,
         "result_hash": complete.view.result_hash,
         "settlement_state": complete.view.settlement_state,
         "duplicate_command_exactly_once": true,
+        "terminal_duplicate_command_exactly_once": true,
         "tampered_duplicate_rejected": true,
         "sequence_regression_rejected": true,
         "cross_member_control_rejected": true,

@@ -93,7 +93,38 @@ async fn main() {
         .await
         .unwrap_or_else(|error| panic!("bind {bind_addr}: {error}"));
     tracing::info!(%bind_addr, "TRNM Online Production v2 ready");
+    let shutdown_state = state.clone();
     axum::serve(listener, build_router(state))
+        .with_graceful_shutdown(async move {
+            shutdown_signal().await;
+            if let Err(error) = shutdown_state.graceful_shutdown().await {
+                tracing::error!(%error, "Online Authority graceful shutdown failed closed");
+            }
+        })
         .await
         .expect("serve Online Authority");
+}
+
+async fn shutdown_signal() {
+    let ctrl_c = async {
+        tokio::signal::ctrl_c()
+            .await
+            .expect("install Ctrl-C shutdown handler");
+    };
+
+    #[cfg(unix)]
+    let terminate = async {
+        tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
+            .expect("install SIGTERM shutdown handler")
+            .recv()
+            .await;
+    };
+
+    #[cfg(not(unix))]
+    let terminate = std::future::pending::<()>();
+
+    tokio::select! {
+        _ = ctrl_c => {},
+        _ = terminate => {},
+    }
 }

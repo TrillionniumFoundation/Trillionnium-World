@@ -17,6 +17,7 @@ HOST_PID=""
 GUEST_PID=""
 XVFB_PID=""
 NETEM_APPLIED=0
+MATCH_ID=""
 mkdir -p "$EVIDENCE/host-save" "$EVIDENCE/guest-save"
 
 cleanup() {
@@ -26,6 +27,14 @@ cleanup() {
   [[ -z "$XVFB_PID" ]] || kill "$XVFB_PID" >/dev/null 2>&1 || true
   if [[ "$NETEM_APPLIED" == "1" ]]; then
     sudo -n "${TC:-/usr/sbin/tc}" qdisc del dev lo root >/dev/null 2>&1 || true
+  fi
+  if [[ -n "$MATCH_ID" ]]; then
+    cex_psql_stdin -c "
+      update trnm_online_matches
+      set phase='failed_closed', settlement_state='failed_closed',
+          failure_reason='native render/network smoke completed without settlement',
+          updated_at=now()
+      where match_id='$MATCH_ID'::uuid and phase='running'" >/dev/null 2>&1 || true
   fi
   systemctl --user unset-environment TRNM_GAME_SERVER_TICK_MS TRNM_ALLOW_ACCELERATED_TEST_CLOCK >/dev/null 2>&1 || true
   systemctl --user restart trnm-game-server.service >/dev/null 2>&1 || true
@@ -107,6 +116,18 @@ capture() {
     sleep 1
   done
   echo "native window $window_id never produced a non-black rendered frame" >&2
+  return 1
+}
+
+wait_for_frame_timing() {
+  local path="$1"
+  for _ in $(seq 1 120); do
+    if [[ -s "$path" ]] && jq -e '.frame_count >= 10' "$path" >/dev/null 2>&1; then
+      return 0
+    fi
+    sleep 0.25
+  done
+  echo "native client did not produce ten post-warmup frame samples: $path" >&2
   return 1
 }
 
@@ -196,6 +217,22 @@ TRNM_ONLINE_FRAME_TIMING_PATH="$EVIDENCE/host-frame-timing.json" \
   "$BIN" >"$EVIDENCE/host.log" 2>&1 &
 HOST_PID=$!
 HOST_WINDOW="$(wait_for_window "$HOST_PID")"
+"$ROOT_DIR/scripts/x11_window_move.py" "$HOST_WINDOW" 0 0
+sleep 1
+
+capture "$HOST_WINDOW" "$EVIDENCE/host-attached.png"
+"$ROOT_DIR/scripts/x11_key_inject.py" "$HOST_WINDOW" q
+for _ in $(seq 1 30); do
+  host_commands="$(cex_psql_stdin -Atc "select count(*) from trnm_online_commands where match_id = '$MATCH_ID'::uuid and player_id = '$HOST_PLAYER'")"
+  [[ "$host_commands" -ge 1 ]] && break
+  sleep 1
+done
+[[ "${host_commands:-0}" -ge 1 ]]
+capture "$HOST_WINDOW" "$EVIDENCE/host-command-ack.png"
+wait_for_frame_timing "$EVIDENCE/host-frame-timing.json"
+kill "$HOST_PID" >/dev/null 2>&1 || true
+wait "$HOST_PID" 2>/dev/null || true
+HOST_PID=""
 
 TRNM_CAMPAIGN_SAVE_PATH="$EVIDENCE/guest-save/campaign.json" \
 TRNM_ONLINE_AUTHORITY_URL="$ONLINE_URL" TRNM_ONLINE_MATCH_ID="$MATCH_ID" \
@@ -205,20 +242,9 @@ TRNM_ONLINE_FRAME_TIMING_PATH="$EVIDENCE/guest-frame-timing.json" \
   "$BIN" >"$EVIDENCE/guest.log" 2>&1 &
 GUEST_PID=$!
 GUEST_WINDOW="$(wait_for_window "$GUEST_PID")"
-"$ROOT_DIR/scripts/x11_window_move.py" "$HOST_WINDOW" 0 0
-"$ROOT_DIR/scripts/x11_window_move.py" "$GUEST_WINDOW" 1280 0
+"$ROOT_DIR/scripts/x11_window_move.py" "$GUEST_WINDOW" 0 0
 sleep 1
-
-capture "$HOST_WINDOW" "$EVIDENCE/host-attached.png"
 capture "$GUEST_WINDOW" "$EVIDENCE/guest-attached.png"
-"$ROOT_DIR/scripts/x11_key_inject.py" "$HOST_WINDOW" q
-for _ in $(seq 1 30); do
-  host_commands="$(cex_psql_stdin -Atc "select count(*) from trnm_online_commands where match_id = '$MATCH_ID'::uuid and player_id = '$HOST_PLAYER'")"
-  [[ "$host_commands" -ge 1 ]] && break
-  sleep 1
-done
-[[ "${host_commands:-0}" -ge 1 ]]
-
 "$ROOT_DIR/scripts/x11_key_inject.py" "$GUEST_WINDOW" q
 for _ in $(seq 1 30); do
   guest_commands="$(cex_psql_stdin -Atc "select count(*) from trnm_online_commands where match_id = '$MATCH_ID'::uuid and player_id = '$GUEST_PLAYER'")"
@@ -226,12 +252,8 @@ for _ in $(seq 1 30); do
   sleep 1
 done
 [[ "${guest_commands:-0}" -ge 1 ]]
-capture "$HOST_WINDOW" "$EVIDENCE/host-command-ack.png"
 capture "$GUEST_WINDOW" "$EVIDENCE/guest-command-ack.png"
-for _ in $(seq 1 30); do
-  [[ -s "$EVIDENCE/host-frame-timing.json" && -s "$EVIDENCE/guest-frame-timing.json" ]] && break
-  sleep 0.25
-done
+wait_for_frame_timing "$EVIDENCE/guest-frame-timing.json"
 host_frame_timing="$(jq -c . "$EVIDENCE/host-frame-timing.json")"
 guest_frame_timing="$(jq -c . "$EVIDENCE/guest-frame-timing.json")"
 jq -e '.frame_count >= 10 and .main_thread_updates_over_100ms == 0 and
@@ -261,8 +283,9 @@ jq -n --arg run_id "$RUN_ID" --arg match_id "$MATCH_ID" --arg evidence "$EVIDENC
   --argjson guest_frame_timing "$guest_frame_timing" \
   '{status:"passed",run_id:$run_id,match_id:$match_id,evidence:$evidence,
     native_x11_clients:2,distinct_windows:($host_window != $guest_window),
+    client_execution_model:"sequential_on_single_evidence_host_models_separate_player_devices",
     closed_alpha_product_lobby_flow:true,
     server_authoritative_commands:true,database:$database,
     host_frame_timing:$host_frame_timing,guest_frame_timing:$guest_frame_timing,
-    boundary:"automated two-window native attach/input smoke; not a human multiplayer session"}' \
+    boundary:"automated two-process native attach/input smoke measured sequentially on one evidence host; not a human multiplayer session"}' \
   | tee "$EVIDENCE/report.json"

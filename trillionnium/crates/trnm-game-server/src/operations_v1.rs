@@ -46,9 +46,11 @@ fn require_moderator(state: &AppState, headers: &HeaderMap) -> Result<(), ApiErr
 pub(super) async fn heartbeat_fleet(state: &AppState) -> Result<(), String> {
     let active_matches: i64 = sqlx::query_scalar::query_scalar(
         "select count(*) from trnm_online_matches
-         where phase = 'running' and assigned_instance_id = $1",
+         where phase = 'running' and assigned_instance_id = $1
+           and assigned_instance_epoch = $2",
     )
     .bind(state.instance_id.as_str())
+    .bind(state.instance_epoch)
     .fetch_one(&state.pool)
     .await
     .map_err(|error| error.to_string())?;

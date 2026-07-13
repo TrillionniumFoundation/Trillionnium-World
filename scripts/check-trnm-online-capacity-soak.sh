@@ -174,5 +174,5 @@ jq -s \
     )
   }' "${report_files[@]}" >"$EVIDENCE/summary.json"
 
-jq -e '.passed == true' "$EVIDENCE/summary.json" >/dev/null
 cat "$EVIDENCE/summary.json"
+jq -e '.passed == true' "$EVIDENCE/summary.json" >/dev/null

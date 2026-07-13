@@ -51,6 +51,9 @@ pub struct FirstContactLivePlugin {
 #[derive(Resource)]
 struct OnlineFrameTiming {
     evidence_path: PathBuf,
+    warmup_started_at: Instant,
+    warmup_seconds: f64,
+    measurement_started_at: Option<Instant>,
     frame_count: u64,
     frames_over_100ms: u64,
     max_frame_delta_ms: f64,
@@ -64,6 +67,12 @@ impl OnlineFrameTiming {
     fn from_env() -> Option<Self> {
         std::env::var_os("TRNM_ONLINE_FRAME_TIMING_PATH").map(|path| Self {
             evidence_path: PathBuf::from(path),
+            warmup_started_at: Instant::now(),
+            warmup_seconds: std::env::var("TRNM_ONLINE_FRAME_TIMING_WARMUP_SECONDS")
+                .ok()
+                .and_then(|value| value.parse().ok())
+                .unwrap_or(5.0),
+            measurement_started_at: None,
             frame_count: 0,
             frames_over_100ms: 0,
             max_frame_delta_ms: 0.0,
@@ -85,6 +94,15 @@ fn record_online_frame_timing(time: Res<Time>, timing: Option<ResMut<OnlineFrame
     let Some(mut timing) = timing else {
         return;
     };
+    if timing.warmup_started_at.elapsed().as_secs_f64() < timing.warmup_seconds {
+        timing.update_started_at = None;
+        return;
+    }
+    if timing.measurement_started_at.is_none() {
+        timing.measurement_started_at = Some(Instant::now());
+        timing.update_started_at = None;
+        return;
+    }
     let delta_ms = time.delta_secs_f64() * 1_000.0;
     timing.frame_count = timing.frame_count.saturating_add(1);
     timing.max_frame_delta_ms = timing.max_frame_delta_ms.max(delta_ms);
@@ -106,6 +124,10 @@ fn record_online_frame_timing(time: Res<Time>, timing: Option<ResMut<OnlineFrame
     timing.write_accumulator = 0.0;
     let report = serde_json::json!({
         "contract_version": "trnm_online_render_frame_timing_v1",
+        "warmup_seconds": timing.warmup_seconds,
+        "measurement_elapsed_ms": timing.measurement_started_at
+            .map(|started| started.elapsed().as_secs_f64() * 1_000.0)
+            .unwrap_or_default(),
         "frame_count": timing.frame_count,
         "frames_over_100ms": timing.frames_over_100ms,
         "max_frame_delta_ms": timing.max_frame_delta_ms,
@@ -213,9 +235,9 @@ impl Plugin for FirstContactLivePlugin {
             );
         if let Some(online) = self.online.as_ref() {
             app.insert_resource(online.clone());
-            if let Some(timing) = OnlineFrameTiming::from_env() {
-                app.insert_resource(timing);
-            }
+        }
+        if let Some(timing) = OnlineFrameTiming::from_env() {
+            app.insert_resource(timing);
         }
     }
 }
@@ -230,7 +252,13 @@ pub fn build_first_contact_live_bevy_app(low_spec: bool) -> Result<App, String> 
     let asset_root = default_first_contact_asset_root();
     let plugin = FirstContactLivePlugin::load(&asset_root)?;
     let mut app = App::new();
-    if low_spec {
+    if plugin.online.is_some() || std::env::var_os("TRNM_ONLINE_FRAME_TIMING_PATH").is_some() {
+        // Online play must keep presenting while network work happens on its
+        // worker, even on low-spec machines. Reactive desktop mode can sleep
+        // for 250 ms without input and is unsuitable for a live RTS client.
+        // Evidence-only offline runs use the same continuous production loop.
+        app.insert_resource(bevy::winit::WinitSettings::continuous());
+    } else if low_spec {
         app.insert_resource(bevy::winit::WinitSettings::desktop_app());
     }
     app.insert_resource(ClearColor(Color::srgb(0.015, 0.026, 0.024)))

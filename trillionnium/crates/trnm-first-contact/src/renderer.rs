@@ -227,6 +227,10 @@ pub(super) fn spawn_first_contact_live_scene(
 
     commands.spawn((
         Camera2d,
+        // This client is authored as nearest-neighbour pixel art. Four-sample
+        // MSAA adds no useful detail, but multiplies the render-target cost and
+        // pushed software/X11 fallback rendering above 250 ms per frame.
+        Msaa::Off,
         Projection::Orthographic(OrthographicProjection {
             scale: FIRST_CONTACT_CAMERA_SCALE,
             ..OrthographicProjection::default_2d()
