@@ -4,7 +4,9 @@ use trnm_online_protocol::{
     OnlineEnforcementAppealQueueRequest, OnlineEnforcementAppealQueueView,
     OnlineEnforcementAppealResolveRequest, OnlineEnforcementAppealView, OnlineFleetAdminRequest,
     OnlineFleetAdminView, OnlineModerationActionRequest, OnlineModerationActionView,
-    OnlineModerationQueueRequest, OnlineModerationQueueView, OnlineSeasonAdminRequest,
+    OnlineModerationCaseClaimRequest, OnlineModerationCaseClaimView, OnlineModerationQueueRequest,
+    OnlineModerationQueueView, OnlineModerationShiftAccessRequest,
+    OnlineModerationShiftStartRequest, OnlineModerationShiftView, OnlineSeasonAdminRequest,
     OnlineSeasonAdminView, OnlineSeasonAutomationRequest, OnlineSeasonAutomationView,
 };
 
@@ -233,9 +235,88 @@ fn run() -> Result<(), String> {
                 serde_json::to_string_pretty(&view).map_err(|error| error.to_string())?
             );
         }
+        Some("shift") if args.get(1).map(String::as_str) == Some("start") && args.len() >= 5 => {
+            let duration_minutes = args[3]
+                .parse::<u32>()
+                .map_err(|_| "shift duration must be integer minutes".to_string())?;
+            let response = client
+                .post(format!("{base_url}/v1/production/moderation/shifts/start"))
+                .header("x-trnm-moderator", &token)
+                .json(&OnlineModerationShiftStartRequest {
+                    moderator_id: args[2].clone(),
+                    duration_minutes,
+                    note: args[4..].join(" "),
+                })
+                .send()
+                .map_err(|error| error.to_string())?;
+            let status_code = response.status();
+            let body = response.text().map_err(|error| error.to_string())?;
+            if !status_code.is_success() {
+                return Err(format!("shift start rejected ({status_code}): {body}"));
+            }
+            let view: OnlineModerationShiftView =
+                serde_json::from_str(&body).map_err(|error| error.to_string())?;
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&view).map_err(|error| error.to_string())?
+            );
+        }
+        Some("shift")
+            if matches!(args.get(1).map(String::as_str), Some("heartbeat" | "close"))
+                && args.len() >= 5 =>
+        {
+            let action = args[1].as_str();
+            let response = client
+                .post(format!(
+                    "{base_url}/v1/production/moderation/shifts/{action}"
+                ))
+                .header("x-trnm-moderator", &token)
+                .json(&OnlineModerationShiftAccessRequest {
+                    shift_id: args[2].clone(),
+                    moderator_id: args[3].clone(),
+                    note: args[4..].join(" "),
+                })
+                .send()
+                .map_err(|error| error.to_string())?;
+            let status_code = response.status();
+            let body = response.text().map_err(|error| error.to_string())?;
+            if !status_code.is_success() {
+                return Err(format!("shift {action} rejected ({status_code}): {body}"));
+            }
+            let view: OnlineModerationShiftView =
+                serde_json::from_str(&body).map_err(|error| error.to_string())?;
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&view).map_err(|error| error.to_string())?
+            );
+        }
+        Some("claim") if args.len() == 5 => {
+            let response = client
+                .post(format!("{base_url}/v1/production/moderation/claims"))
+                .header("x-trnm-moderator", &token)
+                .json(&OnlineModerationCaseClaimRequest {
+                    shift_id: args[1].clone(),
+                    moderator_id: args[2].clone(),
+                    case_kind: args[3].clone(),
+                    case_id: args[4].clone(),
+                })
+                .send()
+                .map_err(|error| error.to_string())?;
+            let status_code = response.status();
+            let body = response.text().map_err(|error| error.to_string())?;
+            if !status_code.is_success() {
+                return Err(format!("case claim rejected ({status_code}): {body}"));
+            }
+            let view: OnlineModerationCaseClaimView =
+                serde_json::from_str(&body).map_err(|error| error.to_string())?;
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&view).map_err(|error| error.to_string())?
+            );
+        }
         _ => {
             return Err(
-                "usage: trnm-moderation-console list [status] | action REPORT_ID DECISION SCOPE HOURS RESOLUTION... | appeals [status] | appeal APPEAL_ID DECISION RESOLUTION... | season create/activate/close/auto ... | fleet ACTION INSTANCE REASON..."
+                "usage: trnm-moderation-console list [status] | action REPORT_ID DECISION SCOPE HOURS RESOLUTION... | appeals [status] | appeal APPEAL_ID DECISION RESOLUTION... | season create/activate/close/auto ... | fleet ACTION INSTANCE REASON... | shift start MODERATOR MINUTES NOTE... | shift heartbeat/close SHIFT MODERATOR NOTE... | claim SHIFT MODERATOR KIND CASE"
                     .to_string(),
             );
         }

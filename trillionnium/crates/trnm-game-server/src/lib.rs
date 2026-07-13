@@ -27,9 +27,8 @@ use std::{
     net::SocketAddr,
     path::PathBuf,
     sync::Arc,
-    time::{Duration, Instant},
+    time::Duration,
 };
-use tokio::sync::Mutex;
 use tokio::time::MissedTickBehavior;
 use trnm_campaign_core::{
     BattleMapSeedV1, BattleOutcome, BattleResultV1, BattleSeedV1, CampaignMission, CampaignSaveV1,
@@ -59,11 +58,8 @@ const MIGRATION_V4: &str = include_str!("../migrations/0004_online_product_v2.sq
 const MIGRATION_V5: &str = include_str!("../migrations/0005_online_operations_v1.sql");
 const MIGRATION_V6: &str = include_str!("../migrations/0006_online_operations_v2.sql");
 const MIGRATION_V7: &str = include_str!("../migrations/0007_online_production_v1.sql");
-
-struct RateWindow {
-    started_at: Instant,
-    count: u32,
-}
+const MIGRATION_V8: &str = include_str!("../migrations/0008_online_production_v2.sql");
+const MIGRATION_ADVISORY_LOCK: i64 = 0x5452_4e4d_4f4e_4c49;
 
 #[derive(Clone)]
 pub struct AppState {
@@ -79,7 +75,6 @@ pub struct AppState {
     instance_epoch: i64,
     rate_limit_per_minute: u32,
     request_body_limit_bytes: u32,
-    rate_windows: Arc<Mutex<BTreeMap<String, RateWindow>>>,
 }
 
 pub struct AppStateConfig {
@@ -107,34 +102,34 @@ impl AppState {
             .connect(&config.database_url)
             .await
             .map_err(|error| format!("connect Online Authority PostgreSQL: {error}"))?;
-        sqlx::raw_sql(MIGRATION_V1)
-            .execute(&pool)
+        let mut migrations = pool
+            .begin()
             .await
-            .map_err(|error| format!("migrate Online Authority PostgreSQL: {error}"))?;
-        sqlx::raw_sql(MIGRATION_V2)
-            .execute(&pool)
+            .map_err(|error| format!("begin Online Production migrations: {error}"))?;
+        sqlx::query("select pg_advisory_xact_lock($1)")
+            .bind(MIGRATION_ADVISORY_LOCK)
+            .execute(&mut *migrations)
             .await
-            .map_err(|error| format!("migrate Online Authority v2 PostgreSQL: {error}"))?;
-        sqlx::raw_sql(MIGRATION_V3)
-            .execute(&pool)
+            .map_err(|error| format!("lock Online Production migrations: {error}"))?;
+        for (label, sql) in [
+            ("Online Authority", MIGRATION_V1),
+            ("Online Authority v2", MIGRATION_V2),
+            ("Online Product v1", MIGRATION_V3),
+            ("Online Product v2", MIGRATION_V4),
+            ("Online Operations v1", MIGRATION_V5),
+            ("Online Operations v2", MIGRATION_V6),
+            ("Online Production v1", MIGRATION_V7),
+            ("Online Production v2", MIGRATION_V8),
+        ] {
+            sqlx::raw_sql(sql)
+                .execute(&mut *migrations)
+                .await
+                .map_err(|error| format!("migrate {label} PostgreSQL: {error}"))?;
+        }
+        migrations
+            .commit()
             .await
-            .map_err(|error| format!("migrate Online Product v1 PostgreSQL: {error}"))?;
-        sqlx::raw_sql(MIGRATION_V4)
-            .execute(&pool)
-            .await
-            .map_err(|error| format!("migrate Online Product v2 PostgreSQL: {error}"))?;
-        sqlx::raw_sql(MIGRATION_V5)
-            .execute(&pool)
-            .await
-            .map_err(|error| format!("migrate Online Operations v1 PostgreSQL: {error}"))?;
-        sqlx::raw_sql(MIGRATION_V6)
-            .execute(&pool)
-            .await
-            .map_err(|error| format!("migrate Online Operations v2 PostgreSQL: {error}"))?;
-        sqlx::raw_sql(MIGRATION_V7)
-            .execute(&pool)
-            .await
-            .map_err(|error| format!("migrate Online Production v1 PostgreSQL: {error}"))?;
+            .map_err(|error| format!("commit Online Production migrations: {error}"))?;
         if config.instance_id.trim().is_empty()
             || config.region.trim().is_empty()
             || config.public_endpoint.trim().is_empty()
@@ -189,7 +184,6 @@ impl AppState {
             instance_epoch,
             rate_limit_per_minute: config.rate_limit_per_minute,
             request_body_limit_bytes: config.request_body_limit_bytes,
-            rate_windows: Arc::new(Mutex::new(BTreeMap::new())),
         })
     }
 
@@ -388,6 +382,9 @@ async fn production_rate_limit(
     next: Next,
 ) -> Response {
     let path = request.uri().path();
+    if path == "/health" {
+        return next.run(request).await;
+    }
     let effective_limit = if path.ends_with("/snapshot")
         || path.ends_with("/commands")
         || path.ends_with("/reconnect")
@@ -402,25 +399,54 @@ async fn production_rate_limit(
         .or_else(|| request.headers().get("x-trnm-moderator"))
         .and_then(|value| value.to_str().ok())
         .unwrap_or("anonymous");
+    let endpoint_class = path.split('/').take(5).collect::<Vec<_>>().join("/");
+    let request_class = if effective_limit == state.rate_limit_per_minute {
+        "control"
+    } else {
+        "data"
+    };
     let key = format!(
         "{:x}",
-        Sha256::digest(format!("{}:{}", identity, path).as_bytes())
+        Sha256::digest(format!("{}:{}:{}", identity, request.method(), endpoint_class).as_bytes())
     );
-    let now = Instant::now();
-    let mut windows = state.rate_windows.lock().await;
-    if windows.len() > 20_000 {
-        windows.retain(|_, window| now.duration_since(window.started_at) < Duration::from_secs(60));
-    }
-    let window = windows.entry(key).or_insert(RateWindow {
-        started_at: now,
-        count: 0,
-    });
-    if now.duration_since(window.started_at) >= Duration::from_secs(60) {
-        window.started_at = now;
-        window.count = 0;
-    }
-    if window.count >= effective_limit {
-        drop(windows);
+    let count = sqlx::query_scalar::<_, i64>(
+        "insert into trnm_online_admission_windows (
+            bucket_key, window_started_at, request_class, request_count,
+            rejection_count, last_instance_id
+         ) values ($1, date_trunc('minute', now()), $2, 1, 0, $3)
+         on conflict (bucket_key, window_started_at) do update set
+            request_count = trnm_online_admission_windows.request_count + 1,
+            last_instance_id = excluded.last_instance_id, updated_at = now()
+         returning request_count",
+    )
+    .bind(&key)
+    .bind(request_class)
+    .bind(state.instance_id.as_str())
+    .fetch_one(&state.pool)
+    .await;
+    let count = match count {
+        Ok(value) => value,
+        Err(error) => {
+            tracing::error!(%error, "distributed admission failed closed");
+            return (
+                StatusCode::SERVICE_UNAVAILABLE,
+                Json(json!({"error": "distributed admission is unavailable"})),
+            )
+                .into_response();
+        }
+    };
+    if count > i64::from(effective_limit) {
+        if let Err(error) = sqlx::query(
+            "update trnm_online_admission_windows set
+                rejection_count = rejection_count + 1, updated_at = now()
+             where bucket_key = $1 and window_started_at = date_trunc('minute', now())",
+        )
+        .bind(&key)
+        .execute(&state.pool)
+        .await
+        {
+            tracing::error!(%error, "distributed admission rejection audit failed");
+        }
         return (
             StatusCode::TOO_MANY_REQUESTS,
             Json(json!({
@@ -430,8 +456,6 @@ async fn production_rate_limit(
         )
             .into_response();
     }
-    window.count = window.count.saturating_add(1);
-    drop(windows);
     next.run(request).await
 }
 
@@ -559,6 +583,30 @@ pub fn build_router(state: AppState) -> Router {
             post(production_v1::spectator_playback),
         )
         .route(
+            "/v1/production/player/status",
+            post(production_v1::player_production_status),
+        )
+        .route(
+            "/v1/production/host-attestation",
+            post(production_v1::host_attestation),
+        )
+        .route(
+            "/v1/production/moderation/shifts/start",
+            post(production_v1::start_moderation_shift),
+        )
+        .route(
+            "/v1/production/moderation/shifts/heartbeat",
+            post(production_v1::heartbeat_moderation_shift),
+        )
+        .route(
+            "/v1/production/moderation/claims",
+            post(production_v1::claim_moderation_case),
+        )
+        .route(
+            "/v1/production/moderation/shifts/close",
+            post(production_v1::close_moderation_shift),
+        )
+        .route(
             "/v1/production/status",
             get(production_v1::production_status),
         )
@@ -581,7 +629,8 @@ async fn readiness(State(state): State<AppState>) -> Response {
         .is_ok();
     let cex = state.cex.readiness().await.is_ok();
     let signer = state.cex.signer_readiness().await.ok();
-    let ready = postgres && cex && signer.is_some();
+    let signer_registry_verified = state.cex.signer_attestation().await.is_ok();
+    let ready = postgres && cex && signer.is_some() && signer_registry_verified;
     let healthy_fleet_instances = sqlx::query_scalar::<_, i64>(
         "select count(*) from trnm_online_fleet_instances
          where status = 'active' and lease_expires_at > now()",
@@ -651,6 +700,13 @@ async fn readiness(State(state): State<AppState>) -> Response {
             "production_v1_automatic_season_rotation": true,
             "production_v1_targeted_delayed_spectating": true,
             "production_v1_appeal_sla_escalation": true,
+            "production_v2_distributed_admission": true,
+            "production_v2_capacity_sampling": true,
+            "production_v2_signer_key_possession": true,
+            "production_v2_signer_registry_verified": signer_registry_verified,
+            "production_v2_player_season_spectator_status": true,
+            "production_v2_moderation_shift_ownership": true,
+            "production_v2_host_challenge_evidence": true,
             "fleet_physical_host_id": state.physical_host_id.as_str(),
             "entitlement_key_custody": signer.as_ref().map(|value| value.custody.as_str())
                 .unwrap_or("isolated_signer_unavailable"),

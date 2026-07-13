@@ -1367,6 +1367,14 @@ pub(super) async fn moderate_case(
     .execute(&mut *transaction)
     .await
     .map_err(internal_db)?;
+    sqlx::query(
+        "update trnm_online_moderation_case_claims set status = 'resolved', resolved_at = now()
+         where case_kind = 'report' and case_id = $1 and status = 'claimed'",
+    )
+    .bind(report_id)
+    .execute(&mut *transaction)
+    .await
+    .map_err(internal_db)?;
     transaction.commit().await.map_err(internal_db)?;
     Ok(Json(OnlineModerationActionView {
         report: super::product_v2::report_view(&row)?,
@@ -1566,6 +1574,14 @@ pub(super) async fn resolve_enforcement_appeal(
     sqlx::query(
         "update trnm_online_appeal_escalations set status = 'closed', closed_at = now()
          where appeal_id = $1 and status <> 'closed'",
+    )
+    .bind(appeal_id)
+    .execute(&mut *transaction)
+    .await
+    .map_err(internal_db)?;
+    sqlx::query(
+        "update trnm_online_moderation_case_claims set status = 'resolved', resolved_at = now()
+         where case_kind = 'appeal' and case_id = $1 and status = 'claimed'",
     )
     .bind(appeal_id)
     .execute(&mut *transaction)

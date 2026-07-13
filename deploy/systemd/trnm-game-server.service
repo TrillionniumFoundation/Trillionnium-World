@@ -1,5 +1,5 @@
 [Unit]
-Description=TRNM Online Production v1 Game Server
+Description=TRNM Online Production v2 Game Server
 After=network-online.target cex-trnm-ledger.service trnm-entitlement-signer.service
 Wants=network-online.target cex-trnm-ledger.service trnm-entitlement-signer.service
 

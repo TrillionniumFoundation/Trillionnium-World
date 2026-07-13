@@ -10,9 +10,12 @@ use std::{
 };
 use trnm_online_protocol::{
     OnlineCampaignConnectRequest, OnlineCampaignView, OnlineLeaderboardView,
-    OnlineOperationsAccessRequest, OnlineRatingView, OnlineReplayAccessRequest,
+    OnlineOperationsAccessRequest, OnlineProductionPlayerStatusRequest,
+    OnlineProductionPlayerStatusView, OnlineRatingView, OnlineReplayAccessRequest,
     OnlineReplayPlaybackView, OnlineSoloQueueAccessRequest, OnlineSoloQueueJoinRequest,
-    OnlineSoloQueueStatus, OnlineSoloQueueView, ONLINE_AUTHORITY_BUILD, ONLINE_AUTHORITY_PROTOCOL,
+    OnlineSoloQueueStatus, OnlineSoloQueueView, OnlineSpectatorGrantView,
+    OnlineSpectatorInviteAcceptRequest, OnlineSpectatorPlaybackRequest,
+    OnlineSpectatorPlaybackView, ONLINE_AUTHORITY_BUILD, ONLINE_AUTHORITY_PROTOCOL,
     ONLINE_OPERATIONS_BUILD, ONLINE_OPERATIONS_PROTOCOL, ONLINE_PRODUCT_BUILD,
     ONLINE_PRODUCT_PROTOCOL,
 };
@@ -45,6 +48,16 @@ struct ProductEvidence {
     replay_hash: Option<String>,
     replay_frame_count: Option<usize>,
     replay_integrity_verified: bool,
+    production_protocol: Option<String>,
+    season_ends_at_epoch: Option<i64>,
+    admission_state: Option<String>,
+    signer_provider_kind: Option<String>,
+    signer_registry_verified: bool,
+    spectator_grant_id: Option<String>,
+    spectator_match_id: Option<String>,
+    spectator_frame_count: Option<usize>,
+    spectator_visible_through_tick: Option<u64>,
+    spectator_terminal_visible: bool,
     status: String,
 }
 
@@ -52,6 +65,7 @@ struct ProductEvidence {
 enum LoginField {
     PlayerId,
     Credential,
+    SpectatorToken,
 }
 
 #[derive(Resource)]
@@ -60,6 +74,7 @@ struct ProductShell {
     game_url: String,
     player_id: String,
     credential: String,
+    spectator_token: String,
     credential_source: String,
     login_field: LoginField,
     device_id: String,
@@ -71,6 +86,9 @@ struct ProductShell {
     rating: Option<OnlineRatingView>,
     leaderboard: Option<OnlineLeaderboardView>,
     replay_summary: Option<(String, String, usize, usize)>,
+    production_status: Option<OnlineProductionPlayerStatusView>,
+    spectator_grant: Option<OnlineSpectatorGrantView>,
+    spectator_playback: Option<OnlineSpectatorPlaybackView>,
     state: String,
     status: String,
     poll_elapsed: f32,
@@ -105,6 +123,7 @@ impl ProductShell {
                 .to_string(),
             player_id,
             credential,
+            spectator_token: env::var("TRNM_PRODUCT_SPECTATOR_INVITE_TOKEN").unwrap_or_default(),
             credential_source: credential_source.to_string(),
             login_field: LoginField::PlayerId,
             device_id: env::var("TRNM_PRODUCT_DEVICE_ID")
@@ -118,6 +137,9 @@ impl ProductShell {
             rating: None,
             leaderboard: None,
             replay_summary: None,
+            production_status: None,
+            spectator_grant: None,
+            spectator_playback: None,
             state: "SIGNED OUT".to_string(),
             status: "Type player ID, TAB, credential; ENTER/F1 login. F6 saves to the Linux kernel keyring."
                 .to_string(),
@@ -313,6 +335,7 @@ impl ProductShell {
         );
         self.refresh_rating()?;
         self.refresh_operations()?;
+        self.refresh_production_status()?;
         self.state = "LOBBY".to_string();
         self.status = "Cloud character ready. F3 JOIN RANKED SOLO QUEUE".to_string();
         Ok(())
@@ -366,6 +389,113 @@ impl ProductShell {
         self.leaderboard = Some(
             serde_json::from_str(&body).map_err(|error| format!("operations response: {error}"))?,
         );
+        Ok(())
+    }
+
+    fn refresh_production_status(&mut self) -> Result<(), String> {
+        let session = self.session()?.clone();
+        let response = self
+            .client
+            .post(format!("{}/v1/production/player/status", self.game_url))
+            .header("x-trnm-player-session", &session.session_token)
+            .json(&OnlineProductionPlayerStatusRequest {
+                protocol_version: ONLINE_OPERATIONS_PROTOCOL.to_string(),
+                build_id: ONLINE_OPERATIONS_BUILD.to_string(),
+                player_id: session.player_id,
+                account_id: session.account_id,
+            })
+            .send()
+            .map_err(|error| format!("production status transport: {error}"))?;
+        let status = response.status();
+        let body = response.text().map_err(|error| error.to_string())?;
+        if !status.is_success() {
+            return Err(format!("production status rejected ({status}): {body}"));
+        }
+        self.production_status = Some(
+            serde_json::from_str(&body)
+                .map_err(|error| format!("production status response: {error}"))?,
+        );
+        Ok(())
+    }
+
+    fn accept_spectator_invite(&mut self) -> Result<(), String> {
+        let session = self.session()?.clone();
+        if self.spectator_token.len() != 96
+            || !self
+                .spectator_token
+                .bytes()
+                .all(|byte| byte.is_ascii_hexdigit())
+        {
+            return Err("type or load a 96-character spectator token first".to_string());
+        }
+        let response = self
+            .client
+            .post(format!(
+                "{}/v1/production/spectators/invites/accept",
+                self.game_url
+            ))
+            .header("x-trnm-player-session", &session.session_token)
+            .json(&OnlineSpectatorInviteAcceptRequest {
+                protocol_version: ONLINE_OPERATIONS_PROTOCOL.to_string(),
+                build_id: ONLINE_OPERATIONS_BUILD.to_string(),
+                player_id: session.player_id,
+                account_id: session.account_id,
+                invite_token: self.spectator_token.clone(),
+            })
+            .send()
+            .map_err(|error| format!("spectator invite transport: {error}"))?;
+        let status = response.status();
+        let body = response.text().map_err(|error| error.to_string())?;
+        if !status.is_success() {
+            return Err(format!("spectator invite rejected ({status}): {body}"));
+        }
+        self.spectator_grant = Some(
+            serde_json::from_str(&body)
+                .map_err(|error| format!("spectator grant response: {error}"))?,
+        );
+        self.spectator_token.clear();
+        self.state = "SPECTATOR GRANTED".to_string();
+        self.status =
+            "Read-only delayed grant accepted. F11 loads eligible authority frames.".to_string();
+        self.refresh_production_status()?;
+        Ok(())
+    }
+
+    fn load_spectator_playback(&mut self) -> Result<(), String> {
+        let session = self.session()?.clone();
+        let grant = self
+            .spectator_grant
+            .as_ref()
+            .ok_or_else(|| "F10 must accept a spectator grant first".to_string())?;
+        let response = self
+            .client
+            .post(format!(
+                "{}/v1/production/spectators/playback",
+                self.game_url
+            ))
+            .header("x-trnm-player-session", &session.session_token)
+            .json(&OnlineSpectatorPlaybackRequest {
+                protocol_version: ONLINE_OPERATIONS_PROTOCOL.to_string(),
+                build_id: ONLINE_OPERATIONS_BUILD.to_string(),
+                player_id: session.player_id,
+                account_id: session.account_id,
+                grant_id: grant.grant_id.clone(),
+            })
+            .send()
+            .map_err(|error| format!("spectator playback transport: {error}"))?;
+        let status = response.status();
+        let body = response.text().map_err(|error| error.to_string())?;
+        if !status.is_success() {
+            return Err(format!("spectator playback rejected ({status}): {body}"));
+        }
+        let playback: OnlineSpectatorPlaybackView = serde_json::from_str(&body)
+            .map_err(|error| format!("spectator playback response: {error}"))?;
+        self.state = "DELAYED SPECTATOR".to_string();
+        self.status = format!(
+            "Visible through tick {} of {}; terminal visible={}",
+            playback.visible_through_tick, playback.authoritative_tick, playback.terminal_visible
+        );
+        self.spectator_playback = Some(playback);
         Ok(())
     }
 
@@ -601,6 +731,46 @@ impl ProductShell {
                 .as_ref()
                 .map(|(_, _, frames, _)| *frames),
             replay_integrity_verified: self.replay_summary.is_some(),
+            production_protocol: self
+                .production_status
+                .as_ref()
+                .map(|status| status.protocol_version.clone()),
+            season_ends_at_epoch: self
+                .production_status
+                .as_ref()
+                .and_then(|status| status.active_season_ends_at_epoch),
+            admission_state: self
+                .production_status
+                .as_ref()
+                .map(|status| status.admission_state.clone()),
+            signer_provider_kind: self
+                .production_status
+                .as_ref()
+                .map(|status| status.signer_provider_kind.clone()),
+            signer_registry_verified: self
+                .production_status
+                .as_ref()
+                .is_some_and(|status| status.signer_registry_verified),
+            spectator_grant_id: self
+                .spectator_grant
+                .as_ref()
+                .map(|grant| grant.grant_id.clone()),
+            spectator_match_id: self
+                .spectator_grant
+                .as_ref()
+                .map(|grant| grant.match_id.clone()),
+            spectator_frame_count: self
+                .spectator_playback
+                .as_ref()
+                .map(|playback| playback.frames.len()),
+            spectator_visible_through_tick: self
+                .spectator_playback
+                .as_ref()
+                .map(|playback| playback.visible_through_tick),
+            spectator_terminal_visible: self
+                .spectator_playback
+                .as_ref()
+                .is_some_and(|playback| playback.terminal_visible),
             status: self.status.clone(),
         };
         if let Ok(bytes) = serde_json::to_vec_pretty(&evidence) {
@@ -625,7 +795,7 @@ fn spawn_ui(mut commands: Commands) {
         BackgroundColor(Color::srgb(0.012, 0.025, 0.024)),
         children![
             (
-                Text::new("TRILLIONNIUM ONLINE PRODUCT v2 / OPERATIONS v2"),
+                Text::new("TRILLIONNIUM ONLINE PRODUCT / PRODUCTION v2"),
                 TextFont::from_font_size(34.0),
                 TextColor(Color::srgb(0.95, 0.82, 0.42)),
             ),
@@ -642,13 +812,13 @@ fn spawn_ui(mut commands: Commands) {
                 children![(
                     Text::new("Loading native product shell..."),
                     ProductBody,
-                    TextFont::from_font_size(20.0),
+                    TextFont::from_font_size(16.0),
                     TextColor(Color::srgb(0.88, 0.92, 0.78)),
                 )],
             ),
             (
-                Text::new("TAB FIELD | ENTER/F1 LOGIN | F2 CLOUD | F3 QUEUE | F4 CANCEL | F5 PLAY | F6 SAVE | F7 LOAD | F8 FORGET | F9 REPLAY"),
-                TextFont::from_font_size(17.0),
+                Text::new("TAB FIELD | F1 LOGIN | F2 CLOUD | F3 QUEUE | F4 CANCEL | F5 PLAY | F6 SAVE | F7 LOAD | F8 FORGET\nF9 REPLAY | F10 ACCEPT WATCH | F11 LOAD DELAYED WATCH"),
+                TextFont::from_font_size(14.0),
                 TextColor(Color::srgb(0.62, 0.88, 0.70)),
             ),
             (
@@ -680,6 +850,10 @@ fn handle_input(input: Res<ButtonInput<KeyCode>>, mut shell: ResMut<ProductShell
         shell.forget_kernel_credential()
     } else if input.just_pressed(KeyCode::F9) {
         shell.load_replay()
+    } else if input.just_pressed(KeyCode::F10) {
+        shell.accept_spectator_invite()
+    } else if input.just_pressed(KeyCode::F11) {
+        shell.load_spectator_playback()
     } else {
         return;
     };
@@ -693,9 +867,6 @@ fn handle_text_input(
     mut keyboard_inputs: MessageReader<KeyboardInput>,
     mut shell: ResMut<ProductShell>,
 ) {
-    if shell.session.is_some() {
-        return;
-    }
     let mut changed = false;
     for event in keyboard_inputs.read() {
         if event.state != ButtonState::Pressed {
@@ -705,18 +876,32 @@ fn handle_text_input(
             KeyCode::Tab => {
                 shell.login_field = match shell.login_field {
                     LoginField::PlayerId => LoginField::Credential,
-                    LoginField::Credential => LoginField::PlayerId,
+                    LoginField::Credential => LoginField::SpectatorToken,
+                    LoginField::SpectatorToken => {
+                        if shell.session.is_some() {
+                            LoginField::SpectatorToken
+                        } else {
+                            LoginField::PlayerId
+                        }
+                    }
                 };
                 changed = true;
             }
             KeyCode::Backspace => {
                 match shell.login_field {
                     LoginField::PlayerId => {
-                        shell.player_id.pop();
+                        if shell.session.is_none() {
+                            shell.player_id.pop();
+                        }
                     }
                     LoginField::Credential => {
-                        shell.credential.pop();
-                        shell.credential_source = "typed in native window".to_string();
+                        if shell.session.is_none() {
+                            shell.credential.pop();
+                            shell.credential_source = "typed in native window".to_string();
+                        }
+                    }
+                    LoginField::SpectatorToken => {
+                        shell.spectator_token.pop();
                     }
                 }
                 changed = true;
@@ -731,16 +916,26 @@ fn handle_text_input(
                 {
                     match shell.login_field {
                         LoginField::PlayerId
-                            if shell.player_id.len() < 96
+                            if shell.session.is_none()
+                                && shell.player_id.len() < 96
                                 && (character.is_ascii_alphanumeric()
                                     || matches!(character, '-' | '_' | '.')) =>
                         {
                             shell.player_id.push(character);
                             changed = true;
                         }
-                        LoginField::Credential if shell.credential.len() < 512 => {
+                        LoginField::Credential
+                            if shell.session.is_none() && shell.credential.len() < 512 =>
+                        {
                             shell.credential.push(character);
                             shell.credential_source = "typed in native window".to_string();
+                            changed = true;
+                        }
+                        LoginField::SpectatorToken
+                            if shell.spectator_token.len() < 96
+                                && character.is_ascii_hexdigit() =>
+                        {
+                            shell.spectator_token.push(character);
                             changed = true;
                         }
                         _ => {}
@@ -755,6 +950,7 @@ fn handle_text_input(
             match shell.login_field {
                 LoginField::PlayerId => "PLAYER ID",
                 LoginField::Credential => "CREDENTIAL",
+                LoginField::SpectatorToken => "SPECTATOR TOKEN",
             }
         );
         shell.write_evidence();
@@ -848,23 +1044,75 @@ fn update_ui(
             )
         })
         .unwrap_or_else(|| "not loaded".to_string());
+    let production = shell
+        .production_status
+        .as_ref()
+        .map(|status| {
+            format!(
+                "{} / {} / {} / signer={} registry={} / hosts={}",
+                status.protocol_version,
+                status.region,
+                status.admission_state,
+                status.signer_provider_kind,
+                status.signer_registry_verified,
+                status.distinct_healthy_physical_hosts
+            )
+        })
+        .unwrap_or_else(|| "not loaded".to_string());
+    let season_end = shell
+        .production_status
+        .as_ref()
+        .and_then(|status| status.active_season_ends_at_epoch)
+        .map(|value| value.to_string())
+        .unwrap_or_else(|| "—".to_string());
+    let spectator_token = if shell.spectator_token.is_empty() {
+        "<empty>".to_string()
+    } else {
+        format!("{} chars ********", shell.spectator_token.len())
+    };
+    let spectator = shell
+        .spectator_playback
+        .as_ref()
+        .map(|playback| {
+            format!(
+                "{} frames / visible {} of {} / terminal={}",
+                playback.frames.len(),
+                playback.visible_through_tick,
+                playback.authoritative_tick,
+                playback.terminal_visible
+            )
+        })
+        .or_else(|| {
+            shell.spectator_grant.as_ref().map(|grant| {
+                format!(
+                    "grant {}… / {}s delay",
+                    &grant.grant_id[..8],
+                    grant.delay_seconds
+                )
+            })
+        })
+        .unwrap_or_else(|| "not granted".to_string());
     body.single_mut().expect("one product body").0 = format!(
-        "STATE: {}\n\nLOGIN FIELD: {}\nPLAYER: {}\nCREDENTIAL: {}\nCREDENTIAL SOURCE: {}\nACCOUNT: {}\nSESSION EXPIRY: {}\nCLOUD CHARACTER: {}\nMAP: {}\nRANKED MMR: {}\nSEASON: {}\nSEASON RANK: {}\nOPPONENT: {}\nMATCH: {}\nREPLAY: {}\n\nThe credential value is never rendered, logged or passed to the game process. The game receives only the scoped player session.",
+        "STATE: {}\nLOGIN FIELD: {}\nPLAYER: {}\nCREDENTIAL: {}\nCREDENTIAL SOURCE: {}\nSPECTATOR TOKEN: {}\nACCOUNT: {}\nSESSION EXPIRY: {}\nCLOUD CHARACTER: {}\nMAP: {}\nRANKED MMR: {}\nSEASON: {}\nSEASON END: {}\nSEASON RANK: {}\nPRODUCTION: {}\nOPPONENT: {}\nMATCH: {}\nREPLAY: {}\nSPECTATOR: {}",
         shell.state,
-        match shell.login_field { LoginField::PlayerId => "PLAYER ID", LoginField::Credential => "CREDENTIAL" },
+        match shell.login_field { LoginField::PlayerId => "PLAYER ID", LoginField::Credential => "CREDENTIAL", LoginField::SpectatorToken => "SPECTATOR TOKEN" },
         if shell.player_id.is_empty() { "<type player ID>" } else { shell.player_id.as_str() },
         masked_credential,
         shell.credential_source,
+        spectator_token,
         account,
         session_expiry,
         campaign,
         shell.map_id,
         rating,
         season,
+        season_end,
         season_rank,
+        production,
         opponent,
         match_id,
         replay,
+        spectator,
     );
     status.single_mut().expect("one product status").0 = shell.status.clone();
 }
@@ -879,7 +1127,7 @@ fn main() {
                 .set(ImagePlugin::default_nearest())
                 .set(WindowPlugin {
                     primary_window: Some(Window {
-                        title: "Trillionnium — Online Product v2".to_string(),
+                        title: "Trillionnium — Online Product v2 / Production v2".to_string(),
                         resolution: (1180, 720).into(),
                         resizable: true,
                         ..default()

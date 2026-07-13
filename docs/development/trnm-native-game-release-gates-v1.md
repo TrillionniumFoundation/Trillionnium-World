@@ -74,12 +74,13 @@ friends/blocks and authenticated match-report resolution. Online Operations v2
 adds native text/Linux-keyring login, auditable season rotation/archive,
 integrity-verified replay frames/F9 inspection, replay-bound moderation,
 enforcement appeals/SLA observability and epoch-fenced same-host fleet leases.
-Online Production v1 removes private key material from the game process,
-supports audited external-signer key rotation, adds bounded ingress, automatic
-idle-only season transition, targeted delayed spectating, appeal escalation and
-physical-host-aware ownership. These remain local closed-alpha controls: the
-current signer is file-backed, not KMS/HSM, and exactly one physical host is
-healthy.
+Online Production v1 removes private key material from the game process and
+supports audited signer rotation. Online Production v2 adds signed
+signer-possession/CEX-registry convergence, PostgreSQL-distributed admission,
+serialized concurrent startup migrations, capacity samples, durable moderation
+shifts, host challenge evidence and a native delayed-spectator view. These
+remain local closed-alpha controls: the current signer is file-backed, not
+KMS/HSM, and exactly one physical host is healthy.
 Gate E remains blocked: there is no public
 self-registration, verified-contact recovery, party queue, chat/guild,
 staffed moderation, KMS/HSM, public edge/DDoS evidence, cross-host multi-region

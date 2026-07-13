@@ -224,10 +224,11 @@ for _ in $(seq 1 60); do
   curl -fsS http://127.0.0.1:7007/health >/dev/null 2>&1 && break
   sleep 0.25
 done
-for _ in $(seq 1 29); do
-  [[ "$(curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:7007/health)" == "200" ]]
+PROBE_PATH="/v1/production/rate-probe/$RUN_ID"
+for _ in $(seq 1 30); do
+  [[ "$(curl -sS -o /dev/null -w '%{http_code}' "http://127.0.0.1:7007$PROBE_PATH")" == "404" ]]
 done
-rate_limited_status="$(curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:7007/health)"
+rate_limited_status="$(curl -sS -o /dev/null -w '%{http_code}' "http://127.0.0.1:7007$PROBE_PATH")"
 [[ "$rate_limited_status" == "429" ]]
 body_file="$EVIDENCE/oversize.json"
 head -c 300000 /dev/zero | tr '\0' x >"$body_file"
@@ -269,7 +270,7 @@ game_private_env_count="$(tr '\0' '\n' </proc/"$GAME_PID"/environ | \
 production_status="$(curl -fsS "$ONLINE_URL/v1/production/status" \
   -H "x-trnm-moderator: $MODERATOR_TOKEN")"
 jq -e --arg key "$NEW_KEY_ID" --arg season "$SEASON_ID" \
-  '.protocol_version == "trnm_online_production_v1" and .signer_ready == true and
+  '.protocol_version == "trnm_online_production_v2" and .signer_ready == true and
    .signer_key_id == $key and .automatic_season_id == null and
    .distinct_healthy_physical_hosts == 1 and .public_edge_attested == false' \
   <<<"$production_status" >/dev/null

@@ -918,6 +918,7 @@ pub(super) async fn resolve_report(
     }
     let report_id = Uuid::parse_str(&request.report_id)
         .map_err(|_| api_error(StatusCode::BAD_REQUEST, "report_id must be a UUID", false))?;
+    let mut transaction = state.pool.begin().await.map_err(internal_db)?;
     let row = sqlx::query(
         "update trnm_online_reports set status = $2, resolution = $3, resolved_at = now()
          where report_id = $1 and status = 'open'
@@ -927,10 +928,19 @@ pub(super) async fn resolve_report(
     .bind(report_id)
     .bind(&request.decision)
     .bind(request.resolution.trim())
-    .fetch_optional(&state.pool)
+    .fetch_optional(&mut *transaction)
     .await
     .map_err(internal_db)?
     .ok_or_else(|| api_error(StatusCode::CONFLICT, "report is not open", false))?;
+    sqlx::query(
+        "update trnm_online_moderation_case_claims set status = 'resolved', resolved_at = now()
+         where case_kind = 'report' and case_id = $1 and status = 'claimed'",
+    )
+    .bind(report_id)
+    .execute(&mut *transaction)
+    .await
+    .map_err(internal_db)?;
+    transaction.commit().await.map_err(internal_db)?;
     Ok(Json(report_view(&row)?))
 }
 

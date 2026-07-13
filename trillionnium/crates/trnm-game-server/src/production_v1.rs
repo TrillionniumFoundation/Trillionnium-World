@@ -2,6 +2,10 @@ use super::*;
 use axum::http::HeaderValue;
 use chrono::{DateTime, Utc};
 use trnm_online_protocol::{
+    OnlineHostAttestationRequest, OnlineHostAttestationView, OnlineModerationCaseClaimRequest,
+    OnlineModerationCaseClaimView, OnlineModerationShiftAccessRequest,
+    OnlineModerationShiftStartRequest, OnlineModerationShiftView,
+    OnlineProductionPlayerStatusRequest, OnlineProductionPlayerStatusView,
     OnlineProductionStatusView, OnlineReplayFrameView, OnlineSeasonAutomationRequest,
     OnlineSeasonAutomationView, OnlineSpectatorGrantView, OnlineSpectatorInviteAcceptRequest,
     OnlineSpectatorInviteCreateRequest, OnlineSpectatorInviteReceipt,
@@ -12,10 +16,10 @@ use trnm_online_protocol::{
 const MODERATOR_HEADER: &str = "x-trnm-moderator";
 
 fn require_production(protocol: &str, build: &str) -> Result<(), ApiError> {
-    if protocol != ONLINE_OPERATIONS_PROTOCOL || build != ONLINE_OPERATIONS_BUILD {
+    if trnm_online_protocol::validate_production_contract(protocol, build).is_err() {
         return Err(api_error(
             StatusCode::UPGRADE_REQUIRED,
-            "Online Production endpoint requires the exact Production v1 protocol/build",
+            "Online Production endpoint requires a supported exact protocol/build pair",
             false,
         ));
     }
@@ -402,11 +406,462 @@ pub(super) async fn spectator_playback(
     }))
 }
 
+async fn moderation_shift_view(
+    state: &AppState,
+    shift_id: Uuid,
+) -> Result<OnlineModerationShiftView, ApiError> {
+    let row = sqlx::query(
+        "select shift_id, moderator_id, status, starts_at, ends_at,
+                last_heartbeat_at, note,
+                (select count(*) from trnm_online_moderation_case_claims claim
+                  where claim.shift_id = shift.shift_id and claim.status = 'claimed') as open_claims,
+                (select count(*) from trnm_online_moderation_case_claims claim
+                  where claim.shift_id = shift.shift_id and claim.status = 'resolved') as resolved_claims
+           from trnm_online_moderation_shifts shift where shift_id = $1",
+    )
+    .bind(shift_id)
+    .fetch_optional(&state.pool)
+    .await
+    .map_err(internal_db)?
+    .ok_or_else(|| api_error(StatusCode::NOT_FOUND, "moderation shift does not exist", false))?;
+    Ok(OnlineModerationShiftView {
+        shift_id: row
+            .try_get::<Uuid, _>("shift_id")
+            .map_err(internal_db)?
+            .to_string(),
+        moderator_id: row.try_get("moderator_id").map_err(internal_db)?,
+        status: row.try_get("status").map_err(internal_db)?,
+        starts_at_epoch: row
+            .try_get::<DateTime<Utc>, _>("starts_at")
+            .map_err(internal_db)?
+            .timestamp(),
+        ends_at_epoch: row
+            .try_get::<DateTime<Utc>, _>("ends_at")
+            .map_err(internal_db)?
+            .timestamp(),
+        last_heartbeat_epoch: row
+            .try_get::<DateTime<Utc>, _>("last_heartbeat_at")
+            .map_err(internal_db)?
+            .timestamp(),
+        open_claims: u32::try_from(row.try_get::<i64, _>("open_claims").map_err(internal_db)?)
+            .unwrap_or(u32::MAX),
+        resolved_claims: u32::try_from(
+            row.try_get::<i64, _>("resolved_claims")
+                .map_err(internal_db)?,
+        )
+        .unwrap_or(u32::MAX),
+        note: row.try_get("note").map_err(internal_db)?,
+    })
+}
+
+fn validate_moderator_id(moderator_id: &str) -> bool {
+    !moderator_id.is_empty()
+        && moderator_id.len() <= 96
+        && moderator_id
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_' | b'.'))
+}
+
+pub(super) async fn start_moderation_shift(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(request): Json<OnlineModerationShiftStartRequest>,
+) -> Result<(StatusCode, Json<OnlineModerationShiftView>), ApiError> {
+    require_moderator(&state, &headers)?;
+    if !validate_moderator_id(&request.moderator_id)
+        || !(15..=480).contains(&request.duration_minutes)
+        || request.note.trim().is_empty()
+        || request.note.len() > 500
+    {
+        return Err(api_error(
+            StatusCode::BAD_REQUEST,
+            "moderation shift identity, duration or note is invalid",
+            false,
+        ));
+    }
+    sqlx::query(
+        "update trnm_online_moderation_shifts set status = 'expired', closed_at = now(),
+            close_note = 'expired by Production v2 maintenance on new shift start'
+         where status = 'active' and (
+            ends_at <= now() or last_heartbeat_at < now() - interval '5 minutes')",
+    )
+    .execute(&state.pool)
+    .await
+    .map_err(internal_db)?;
+    let shift_id = Uuid::new_v4();
+    sqlx::query(
+        "insert into trnm_online_moderation_shifts (
+            shift_id, moderator_id, ends_at, note
+         ) values ($1, $2, now() + make_interval(mins => $3), $4)",
+    )
+    .bind(shift_id)
+    .bind(&request.moderator_id)
+    .bind(request.duration_minutes as i32)
+    .bind(request.note.trim())
+    .execute(&state.pool)
+    .await
+    .map_err(|db| {
+        if db
+            .as_database_error()
+            .is_some_and(|database| database.is_unique_violation())
+        {
+            api_error(
+                StatusCode::CONFLICT,
+                "moderator already owns an active shift",
+                false,
+            )
+        } else {
+            internal_db(db)
+        }
+    })?;
+    Ok((
+        StatusCode::CREATED,
+        Json(moderation_shift_view(&state, shift_id).await?),
+    ))
+}
+
+pub(super) async fn heartbeat_moderation_shift(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(request): Json<OnlineModerationShiftAccessRequest>,
+) -> Result<Json<OnlineModerationShiftView>, ApiError> {
+    require_moderator(&state, &headers)?;
+    let shift_id = Uuid::parse_str(&request.shift_id)
+        .map_err(|_| api_error(StatusCode::BAD_REQUEST, "shift_id must be a UUID", false))?;
+    if !validate_moderator_id(&request.moderator_id) || request.note.len() > 500 {
+        return Err(api_error(
+            StatusCode::BAD_REQUEST,
+            "moderation shift heartbeat identity or note is invalid",
+            false,
+        ));
+    }
+    let updated = sqlx::query(
+        "update trnm_online_moderation_shifts set last_heartbeat_at = now(),
+            note = case when $3 = '' then note else $3 end
+         where shift_id = $1 and moderator_id = $2 and status = 'active'
+           and ends_at > now()",
+    )
+    .bind(shift_id)
+    .bind(&request.moderator_id)
+    .bind(request.note.trim())
+    .execute(&state.pool)
+    .await
+    .map_err(internal_db)?;
+    if updated.rows_affected() != 1 {
+        return Err(api_error(
+            StatusCode::CONFLICT,
+            "moderation shift is not active or does not belong to this moderator",
+            false,
+        ));
+    }
+    Ok(Json(moderation_shift_view(&state, shift_id).await?))
+}
+
+pub(super) async fn claim_moderation_case(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(request): Json<OnlineModerationCaseClaimRequest>,
+) -> Result<(StatusCode, Json<OnlineModerationCaseClaimView>), ApiError> {
+    require_moderator(&state, &headers)?;
+    let shift_id = Uuid::parse_str(&request.shift_id)
+        .map_err(|_| api_error(StatusCode::BAD_REQUEST, "shift_id must be a UUID", false))?;
+    let case_id = Uuid::parse_str(&request.case_id)
+        .map_err(|_| api_error(StatusCode::BAD_REQUEST, "case_id must be a UUID", false))?;
+    if !validate_moderator_id(&request.moderator_id)
+        || !matches!(request.case_kind.as_str(), "report" | "appeal")
+    {
+        return Err(api_error(
+            StatusCode::BAD_REQUEST,
+            "moderation claim identity or case kind is invalid",
+            false,
+        ));
+    }
+    let active_shift: bool = sqlx::query_scalar(
+        "select exists(select 1 from trnm_online_moderation_shifts
+          where shift_id = $1 and moderator_id = $2 and status = 'active'
+            and ends_at > now() and last_heartbeat_at > now() - interval '2 minutes')",
+    )
+    .bind(shift_id)
+    .bind(&request.moderator_id)
+    .fetch_one(&state.pool)
+    .await
+    .map_err(internal_db)?;
+    let case_open: bool = if request.case_kind == "report" {
+        sqlx::query_scalar(
+            "select exists(select 1 from trnm_online_reports where report_id = $1 and status = 'open')",
+        )
+        .bind(case_id)
+        .fetch_one(&state.pool)
+        .await
+        .map_err(internal_db)?
+    } else {
+        sqlx::query_scalar(
+            "select exists(select 1 from trnm_online_enforcement_appeals where appeal_id = $1 and status = 'pending')",
+        )
+        .bind(case_id)
+        .fetch_one(&state.pool)
+        .await
+        .map_err(internal_db)?
+    };
+    if !active_shift || !case_open {
+        return Err(api_error(
+            StatusCode::CONFLICT,
+            "an active fresh shift and an unresolved case are required",
+            false,
+        ));
+    }
+    let claim_id = Uuid::new_v4();
+    sqlx::query(
+        "insert into trnm_online_moderation_case_claims (
+            claim_id, shift_id, case_kind, case_id
+         ) values ($1, $2, $3, $4)",
+    )
+    .bind(claim_id)
+    .bind(shift_id)
+    .bind(&request.case_kind)
+    .bind(case_id)
+    .execute(&state.pool)
+    .await
+    .map_err(|db| {
+        if db
+            .as_database_error()
+            .is_some_and(|database| database.is_unique_violation())
+        {
+            api_error(
+                StatusCode::CONFLICT,
+                "moderation case is already claimed",
+                false,
+            )
+        } else {
+            internal_db(db)
+        }
+    })?;
+    Ok((
+        StatusCode::CREATED,
+        Json(OnlineModerationCaseClaimView {
+            claim_id: claim_id.to_string(),
+            shift_id: shift_id.to_string(),
+            case_kind: request.case_kind,
+            case_id: case_id.to_string(),
+            status: "claimed".to_string(),
+            claimed_at_epoch: Utc::now().timestamp(),
+            resolved_at_epoch: None,
+        }),
+    ))
+}
+
+pub(super) async fn close_moderation_shift(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(request): Json<OnlineModerationShiftAccessRequest>,
+) -> Result<Json<OnlineModerationShiftView>, ApiError> {
+    require_moderator(&state, &headers)?;
+    let shift_id = Uuid::parse_str(&request.shift_id)
+        .map_err(|_| api_error(StatusCode::BAD_REQUEST, "shift_id must be a UUID", false))?;
+    if !validate_moderator_id(&request.moderator_id)
+        || request.note.trim().is_empty()
+        || request.note.len() > 500
+    {
+        return Err(api_error(
+            StatusCode::BAD_REQUEST,
+            "moderation shift close identity or note is invalid",
+            false,
+        ));
+    }
+    let open_claims: i64 = sqlx::query_scalar(
+        "select count(*) from trnm_online_moderation_case_claims
+         where shift_id = $1 and status = 'claimed'",
+    )
+    .bind(shift_id)
+    .fetch_one(&state.pool)
+    .await
+    .map_err(internal_db)?;
+    if open_claims != 0 {
+        return Err(api_error(
+            StatusCode::CONFLICT,
+            "moderation shift cannot close with unresolved claims",
+            false,
+        ));
+    }
+    let updated = sqlx::query(
+        "update trnm_online_moderation_shifts set status = 'closed',
+            closed_at = now(), close_note = $3
+         where shift_id = $1 and moderator_id = $2 and status = 'active'",
+    )
+    .bind(shift_id)
+    .bind(&request.moderator_id)
+    .bind(request.note.trim())
+    .execute(&state.pool)
+    .await
+    .map_err(internal_db)?;
+    if updated.rows_affected() != 1 {
+        return Err(api_error(
+            StatusCode::CONFLICT,
+            "moderation shift is not active or does not belong to this moderator",
+            false,
+        ));
+    }
+    Ok(Json(moderation_shift_view(&state, shift_id).await?))
+}
+
+pub(super) async fn host_attestation(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(request): Json<OnlineHostAttestationRequest>,
+) -> Result<Json<OnlineHostAttestationView>, ApiError> {
+    require_moderator(&state, &headers)?;
+    require_production(&request.protocol_version, &request.build_id)?;
+    if !(32..=128).contains(&request.challenge.len())
+        || !request
+            .challenge
+            .bytes()
+            .all(|byte| byte.is_ascii_graphic())
+    {
+        return Err(api_error(
+            StatusCode::BAD_REQUEST,
+            "host attestation challenge is invalid",
+            false,
+        ));
+    }
+    let observed_at_epoch = Utc::now().timestamp();
+    let evidence_hash = format!(
+        "{:x}",
+        Sha256::digest(
+            format!(
+                "{}:{}:{}:{}:{}:{}:{}",
+                request.protocol_version,
+                request.build_id,
+                state.instance_id,
+                state.instance_epoch,
+                state.physical_host_id,
+                request.challenge,
+                observed_at_epoch
+            )
+            .as_bytes()
+        )
+    );
+    sqlx::query(
+        "insert into trnm_online_host_attestation_audit (
+            attestation_id, instance_id, instance_epoch, physical_host_id,
+            region, challenge_hash, evidence_hash
+         ) values ($1, $2, $3, $4, $5, $6, $7)",
+    )
+    .bind(Uuid::new_v4())
+    .bind(state.instance_id.as_str())
+    .bind(state.instance_epoch)
+    .bind(state.physical_host_id.as_str())
+    .bind(state.region.as_str())
+    .bind(format!(
+        "{:x}",
+        Sha256::digest(request.challenge.as_bytes())
+    ))
+    .bind(&evidence_hash)
+    .execute(&state.pool)
+    .await
+    .map_err(internal_db)?;
+    Ok(Json(OnlineHostAttestationView {
+        protocol_version: request.protocol_version,
+        build_id: request.build_id,
+        instance_id: state.instance_id.as_ref().clone(),
+        instance_epoch: state.instance_epoch,
+        physical_host_id: state.physical_host_id.as_ref().clone(),
+        region: state.region.as_ref().clone(),
+        challenge: request.challenge,
+        observed_at_epoch,
+        evidence_hash,
+        boundary: "durable live-instance challenge; not hardware identity or cross-host quorum"
+            .to_string(),
+    }))
+}
+
+pub(super) async fn player_production_status(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(request): Json<OnlineProductionPlayerStatusRequest>,
+) -> Result<Json<OnlineProductionPlayerStatusView>, ApiError> {
+    require_production(&request.protocol_version, &request.build_id)?;
+    verify_identity(&state, &headers, &request.player_id, &request.account_id).await?;
+    let signer = state
+        .cex
+        .signer_attestation()
+        .await
+        .map_err(|message| api_error(StatusCode::SERVICE_UNAVAILABLE, message, true))?;
+    let active_season =
+        sqlx::query("select season_id, ends_at from trnm_online_seasons where status = 'active'")
+            .fetch_optional(&state.pool)
+            .await
+            .map_err(internal_db)?;
+    let automatic_season_id: Option<String> = sqlx::query_scalar(
+        "select season_id from trnm_online_seasons
+         where status = 'scheduled' and automatic_activation order by starts_at limit 1",
+    )
+    .fetch_optional(&state.pool)
+    .await
+    .map_err(internal_db)?;
+    let active_matches: i64 = sqlx::query_scalar(
+        "select count(*) from trnm_online_matches where phase in ('created', 'running')",
+    )
+    .fetch_one(&state.pool)
+    .await
+    .map_err(internal_db)?;
+    let active_spectator_grants: i64 = sqlx::query_scalar(
+        "select count(*) from trnm_online_spectator_grants
+         where viewer_player_id = $1 and viewer_account_id = $2::uuid and expires_at > now()",
+    )
+    .bind(&request.player_id)
+    .bind(&request.account_id)
+    .fetch_one(&state.pool)
+    .await
+    .map_err(internal_db)?;
+    let distinct_hosts: i64 = sqlx::query_scalar(
+        "select count(distinct physical_host_id) from trnm_online_fleet_instances
+         where status in ('active', 'draining') and lease_expires_at > now()",
+    )
+    .fetch_one(&state.pool)
+    .await
+    .map_err(internal_db)?;
+    Ok(Json(OnlineProductionPlayerStatusView {
+        protocol_version: request.protocol_version,
+        build_id: request.build_id,
+        active_season_id: active_season
+            .as_ref()
+            .and_then(|row| row.try_get("season_id").ok()),
+        active_season_ends_at_epoch: active_season.as_ref().and_then(|row| {
+            row.try_get::<DateTime<Utc>, _>("ends_at")
+                .ok()
+                .map(|value| value.timestamp())
+        }),
+        automatic_season_id,
+        region: state.region.as_ref().clone(),
+        fleet_capacity: state.capacity as u32,
+        active_matches: u32::try_from(active_matches).unwrap_or(u32::MAX),
+        admission_state: if active_matches < i64::from(state.capacity) {
+            "accepting".to_string()
+        } else {
+            "capacity_limited".to_string()
+        },
+        admission_limit_per_minute: state.rate_limit_per_minute,
+        active_spectator_grants: u32::try_from(active_spectator_grants).unwrap_or(u32::MAX),
+        signer_key_id: signer.key_id,
+        signer_provider_kind: signer.provider_kind,
+        signer_registry_verified: true,
+        distinct_healthy_physical_hosts: u32::try_from(distinct_hosts).unwrap_or(u32::MAX),
+        cross_host_failover_attested: false,
+        public_edge_attested: false,
+        kms_hsm_attested: false,
+    }))
+}
+
 pub(super) async fn production_status(
     State(state): State<AppState>,
     headers: HeaderMap,
 ) -> Result<Json<OnlineProductionStatusView>, ApiError> {
     require_moderator(&state, &headers)?;
+    let signer_attestation = state
+        .cex
+        .signer_attestation()
+        .await
+        .map_err(|message| api_error(StatusCode::SERVICE_UNAVAILABLE, message, true))?;
     let signer = state
         .cex
         .signer_readiness()
@@ -445,6 +900,30 @@ pub(super) async fn production_status(
     .fetch_one(&state.pool)
     .await
     .map_err(internal_db)?;
+    let admission = sqlx::query(
+        "select coalesce(sum(request_count), 0)::bigint as requests,
+                coalesce(sum(rejection_count), 0)::bigint as rejections
+           from trnm_online_admission_windows
+          where window_started_at >= date_trunc('minute', now()) - interval '1 minute'",
+    )
+    .fetch_one(&state.pool)
+    .await
+    .map_err(internal_db)?;
+    let recent_capacity_samples: i64 = sqlx::query_scalar(
+        "select count(*) from trnm_online_capacity_samples
+         where sampled_at > now() - interval '1 minute'",
+    )
+    .fetch_one(&state.pool)
+    .await
+    .map_err(internal_db)?;
+    let active_moderation_shifts: i64 = sqlx::query_scalar(
+        "select count(*) from trnm_online_moderation_shifts
+         where status = 'active' and ends_at > now()
+           and last_heartbeat_at > now() - interval '5 minutes'",
+    )
+    .fetch_one(&state.pool)
+    .await
+    .map_err(internal_db)?;
     Ok(Json(OnlineProductionStatusView {
         protocol_version: ONLINE_OPERATIONS_PROTOCOL.to_string(),
         build_id: ONLINE_OPERATIONS_BUILD.to_string(),
@@ -460,6 +939,25 @@ pub(super) async fn production_status(
         physical_host_id: state.physical_host_id.as_ref().clone(),
         distinct_healthy_physical_hosts: distinct_hosts as u32,
         public_edge_attested: false,
+        distributed_admission: true,
+        current_admission_requests: u32::try_from(
+            admission
+                .try_get::<i64, _>("requests")
+                .map_err(internal_db)?,
+        )
+        .unwrap_or(u32::MAX),
+        current_admission_rejections: u32::try_from(
+            admission
+                .try_get::<i64, _>("rejections")
+                .map_err(internal_db)?,
+        )
+        .unwrap_or(u32::MAX),
+        recent_capacity_samples: u32::try_from(recent_capacity_samples).unwrap_or(u32::MAX),
+        active_moderation_shifts: u32::try_from(active_moderation_shifts).unwrap_or(u32::MAX),
+        signer_provider_kind: signer_attestation.provider_kind,
+        signer_registry_verified: true,
+        kms_hsm_attested: false,
+        cross_host_failover_attested: false,
     }))
 }
 
@@ -472,6 +970,72 @@ pub(super) async fn run_production_maintenance(state: &AppState) -> Result<(), S
              from trnm_online_enforcement_appeals
             where status = 'pending' and due_at < now()
          on conflict (appeal_id) do nothing",
+    )
+    .execute(&state.pool)
+    .await
+    .map_err(|error| error.to_string())?;
+    sqlx::query(
+        "update trnm_online_moderation_shifts set status = 'expired', closed_at = now(),
+            close_note = 'shift expired without a fresh heartbeat'
+         where status = 'active' and (
+            ends_at <= now() or last_heartbeat_at < now() - interval '5 minutes')",
+    )
+    .execute(&state.pool)
+    .await
+    .map_err(|error| error.to_string())?;
+    let active_matches: i64 = sqlx::query_scalar(
+        "select count(*) from trnm_online_matches
+         where phase in ('created', 'running') and assigned_instance_id = $1
+           and assigned_instance_epoch = $2",
+    )
+    .bind(state.instance_id.as_str())
+    .bind(state.instance_epoch)
+    .fetch_one(&state.pool)
+    .await
+    .map_err(|error| error.to_string())?;
+    let admission = sqlx::query(
+        "select coalesce(sum(request_count), 0)::bigint as requests,
+                coalesce(sum(rejection_count), 0)::bigint as rejections
+           from trnm_online_admission_windows
+          where window_started_at = date_trunc('minute', now())
+            and last_instance_id = $1",
+    )
+    .bind(state.instance_id.as_str())
+    .fetch_one(&state.pool)
+    .await
+    .map_err(|error| error.to_string())?;
+    sqlx::query(
+        "insert into trnm_online_capacity_samples (
+            sample_id, instance_id, instance_epoch, physical_host_id, region,
+            active_matches, fleet_capacity, admission_requests, admission_rejections
+         ) values ($1, $2, $3, $4, $5, $6, $7, $8, $9)",
+    )
+    .bind(Uuid::new_v4())
+    .bind(state.instance_id.as_str())
+    .bind(state.instance_epoch)
+    .bind(state.physical_host_id.as_str())
+    .bind(state.region.as_str())
+    .bind(i32::try_from(active_matches).unwrap_or(i32::MAX))
+    .bind(state.capacity)
+    .bind(admission.try_get::<i64, _>("requests").unwrap_or_default())
+    .bind(
+        admission
+            .try_get::<i64, _>("rejections")
+            .unwrap_or_default(),
+    )
+    .execute(&state.pool)
+    .await
+    .map_err(|error| error.to_string())?;
+    sqlx::query(
+        "delete from trnm_online_admission_windows
+          where window_started_at < now() - interval '10 minutes'",
+    )
+    .execute(&state.pool)
+    .await
+    .map_err(|error| error.to_string())?;
+    sqlx::query(
+        "delete from trnm_online_capacity_samples
+          where sampled_at < now() - interval '24 hours'",
     )
     .execute(&state.pool)
     .await

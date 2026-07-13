@@ -12,8 +12,10 @@ pub const ONLINE_OPERATIONS_V1_PROTOCOL: &str = "trnm_online_operations_v1";
 pub const ONLINE_OPERATIONS_V1_BUILD: &str = "trnm-online-operations-2026.07-v1";
 pub const ONLINE_OPERATIONS_V2_PROTOCOL: &str = "trnm_online_operations_v2";
 pub const ONLINE_OPERATIONS_V2_BUILD: &str = "trnm-online-operations-2026.07-v2";
-pub const ONLINE_OPERATIONS_PROTOCOL: &str = "trnm_online_production_v1";
-pub const ONLINE_OPERATIONS_BUILD: &str = "trnm-online-production-2026.07-v1";
+pub const ONLINE_PRODUCTION_V1_PROTOCOL: &str = "trnm_online_production_v1";
+pub const ONLINE_PRODUCTION_V1_BUILD: &str = "trnm-online-production-2026.07-v1";
+pub const ONLINE_OPERATIONS_PROTOCOL: &str = "trnm_online_production_v2";
+pub const ONLINE_OPERATIONS_BUILD: &str = "trnm-online-production-2026.07-v2";
 pub const ONLINE_AUTHORITY_DEFAULT_RULES: &str = "trnm_first_contact_rules_v1";
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -716,6 +718,112 @@ pub struct OnlineProductionStatusView {
     pub physical_host_id: String,
     pub distinct_healthy_physical_hosts: u32,
     pub public_edge_attested: bool,
+    pub distributed_admission: bool,
+    pub current_admission_requests: u32,
+    pub current_admission_rejections: u32,
+    pub recent_capacity_samples: u32,
+    pub active_moderation_shifts: u32,
+    pub signer_provider_kind: String,
+    pub signer_registry_verified: bool,
+    pub kms_hsm_attested: bool,
+    pub cross_host_failover_attested: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OnlineProductionPlayerStatusRequest {
+    pub protocol_version: String,
+    pub build_id: String,
+    pub player_id: String,
+    pub account_id: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OnlineProductionPlayerStatusView {
+    pub protocol_version: String,
+    pub build_id: String,
+    pub active_season_id: Option<String>,
+    pub active_season_ends_at_epoch: Option<i64>,
+    pub automatic_season_id: Option<String>,
+    pub region: String,
+    pub fleet_capacity: u32,
+    pub active_matches: u32,
+    pub admission_state: String,
+    pub admission_limit_per_minute: u32,
+    pub active_spectator_grants: u32,
+    pub signer_key_id: String,
+    pub signer_provider_kind: String,
+    pub signer_registry_verified: bool,
+    pub distinct_healthy_physical_hosts: u32,
+    pub cross_host_failover_attested: bool,
+    pub public_edge_attested: bool,
+    pub kms_hsm_attested: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OnlineHostAttestationRequest {
+    pub protocol_version: String,
+    pub build_id: String,
+    pub challenge: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OnlineHostAttestationView {
+    pub protocol_version: String,
+    pub build_id: String,
+    pub instance_id: String,
+    pub instance_epoch: i64,
+    pub physical_host_id: String,
+    pub region: String,
+    pub challenge: String,
+    pub observed_at_epoch: i64,
+    pub evidence_hash: String,
+    pub boundary: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OnlineModerationShiftStartRequest {
+    pub moderator_id: String,
+    pub duration_minutes: u32,
+    pub note: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OnlineModerationShiftAccessRequest {
+    pub shift_id: String,
+    pub moderator_id: String,
+    pub note: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OnlineModerationCaseClaimRequest {
+    pub shift_id: String,
+    pub moderator_id: String,
+    pub case_kind: String,
+    pub case_id: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OnlineModerationCaseClaimView {
+    pub claim_id: String,
+    pub shift_id: String,
+    pub case_kind: String,
+    pub case_id: String,
+    pub status: String,
+    pub claimed_at_epoch: i64,
+    pub resolved_at_epoch: Option<i64>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OnlineModerationShiftView {
+    pub shift_id: String,
+    pub moderator_id: String,
+    pub status: String,
+    pub starts_at_epoch: i64,
+    pub ends_at_epoch: i64,
+    pub last_heartbeat_epoch: i64,
+    pub open_claims: u32,
+    pub resolved_claims: u32,
+    pub note: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -801,12 +909,15 @@ pub fn validate_product_contract(protocol_version: &str, build_id: &str) -> Resu
 pub fn validate_operations_contract(protocol_version: &str, build_id: &str) -> Result<(), String> {
     let supported = (protocol_version == ONLINE_OPERATIONS_PROTOCOL
         && build_id == ONLINE_OPERATIONS_BUILD)
+        || (protocol_version == ONLINE_PRODUCTION_V1_PROTOCOL
+            && build_id == ONLINE_PRODUCTION_V1_BUILD)
         || (protocol_version == ONLINE_OPERATIONS_V2_PROTOCOL
             && build_id == ONLINE_OPERATIONS_V2_BUILD)
         || (protocol_version == ONLINE_OPERATIONS_V1_PROTOCOL
             && build_id == ONLINE_OPERATIONS_V1_BUILD);
     if !supported
         && protocol_version != ONLINE_OPERATIONS_PROTOCOL
+        && protocol_version != ONLINE_PRODUCTION_V1_PROTOCOL
         && protocol_version != ONLINE_OPERATIONS_V2_PROTOCOL
         && protocol_version != ONLINE_OPERATIONS_V1_PROTOCOL
     {
@@ -820,6 +931,17 @@ pub fn validate_operations_contract(protocol_version: &str, build_id: &str) -> R
         ));
     }
     Ok(())
+}
+
+pub fn validate_production_contract(protocol_version: &str, build_id: &str) -> Result<(), String> {
+    if (protocol_version == ONLINE_OPERATIONS_PROTOCOL && build_id == ONLINE_OPERATIONS_BUILD)
+        || (protocol_version == ONLINE_PRODUCTION_V1_PROTOCOL
+            && build_id == ONLINE_PRODUCTION_V1_BUILD)
+    {
+        Ok(())
+    } else {
+        Err("unsupported Online Production protocol/build pair".to_string())
+    }
 }
 
 #[cfg(test)]
@@ -855,6 +977,20 @@ mod tests {
             ONLINE_OPERATIONS_V1_BUILD
         )
         .is_ok());
+        assert!(
+            validate_production_contract(ONLINE_OPERATIONS_PROTOCOL, ONLINE_OPERATIONS_BUILD)
+                .is_ok()
+        );
+        assert!(validate_production_contract(
+            ONLINE_PRODUCTION_V1_PROTOCOL,
+            ONLINE_PRODUCTION_V1_BUILD
+        )
+        .is_ok());
+        assert!(validate_production_contract(
+            ONLINE_PRODUCTION_V1_PROTOCOL,
+            ONLINE_OPERATIONS_BUILD
+        )
+        .is_err());
     }
 
     #[test]

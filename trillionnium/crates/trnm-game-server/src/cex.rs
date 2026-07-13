@@ -1,8 +1,12 @@
 use crate::signer_protocol::{
-    EntitlementSignRequest, EntitlementSignResponse, EntitlementSignerReadiness,
-    ENTITLEMENT_SIGNER_CONTRACT, ENTITLEMENT_SIGNER_ISSUER, SIGNER_AUTH_HEADER,
+    EntitlementIssuerKeyStatusRequest, EntitlementIssuerKeyStatusResponse, EntitlementSignRequest,
+    EntitlementSignResponse, EntitlementSignerAttestationRequest,
+    EntitlementSignerAttestationResponse, EntitlementSignerReadiness, ENTITLEMENT_SIGNER_CONTRACT,
+    ENTITLEMENT_SIGNER_ISSUER, SIGNER_AUTH_HEADER,
 };
+use base64::{engine::general_purpose::STANDARD, Engine as _};
 use chrono::{Datelike, Utc};
+use ed25519_dalek::{Signature, Verifier, VerifyingKey};
 use reqwest::header::HeaderMap;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -89,7 +93,7 @@ impl CexClient {
         if !response.status().is_success() {
             return Err(format!("CEX readiness returned {}", response.status()));
         }
-        self.signer_readiness().await.map(|_| ())
+        self.signer_attestation().await.map(|_| ())
     }
 
     pub async fn signer_readiness(&self) -> Result<EntitlementSignerReadiness, String> {
@@ -116,6 +120,95 @@ impl CexClient {
             return Err("isolated signer readiness failed custody contract".to_string());
         }
         Ok(readiness)
+    }
+
+    pub async fn signer_attestation(&self) -> Result<EntitlementSignerAttestationResponse, String> {
+        let challenge = format!("trnm-signer-registry-check:{}", uuid::Uuid::new_v4());
+        let response = self
+            .async_client
+            .post(format!("{}/v1/signer/attest", self.signer_url))
+            .header(SIGNER_AUTH_HEADER, self.signer_token.as_str())
+            .json(&EntitlementSignerAttestationRequest {
+                contract_version: ENTITLEMENT_SIGNER_CONTRACT.to_string(),
+                challenge: challenge.clone(),
+            })
+            .send()
+            .await
+            .map_err(|error| format!("isolated signer attestation transport: {error}"))?;
+        if !response.status().is_success() {
+            return Err(format!(
+                "isolated signer attestation returned {}",
+                response.status()
+            ));
+        }
+        let attestation = response
+            .json::<EntitlementSignerAttestationResponse>()
+            .await
+            .map_err(|error| format!("decode isolated signer attestation: {error}"))?;
+        let now = Utc::now().timestamp();
+        if attestation.contract_version != ENTITLEMENT_SIGNER_CONTRACT
+            || attestation.challenge != challenge
+            || attestation.issuer != ENTITLEMENT_SIGNER_ISSUER
+            || attestation.observed_at_epoch > now.saturating_add(5)
+            || attestation.observed_at_epoch < now.saturating_sub(15)
+            || attestation.expires_at_epoch <= now
+            || attestation.expires_at_epoch > attestation.observed_at_epoch.saturating_add(30)
+        {
+            return Err("isolated signer attestation binding is invalid".to_string());
+        }
+        let public_key = STANDARD
+            .decode(&attestation.public_key_base64)
+            .map_err(|error| format!("decode signer attestation public key: {error}"))?;
+        let public_key: [u8; 32] = public_key
+            .try_into()
+            .map_err(|_| "signer attestation public key must contain 32 bytes".to_string())?;
+        if format!("{:x}", Sha256::digest(public_key)) != attestation.public_key_sha256 {
+            return Err("signer attestation public-key fingerprint mismatch".to_string());
+        }
+        let signature = STANDARD
+            .decode(&attestation.signature)
+            .map_err(|error| format!("decode signer attestation signature: {error}"))?;
+        let signature = Signature::from_slice(&signature)
+            .map_err(|error| format!("decode signer Ed25519 signature: {error}"))?;
+        let verifying_key = VerifyingKey::from_bytes(&public_key)
+            .map_err(|error| format!("decode signer Ed25519 public key: {error}"))?;
+        let payload = attestation.signing_payload()?;
+        verifying_key
+            .verify(&payload, &signature)
+            .map_err(|_| "signer key-possession attestation signature failed".to_string())?;
+
+        let registry = self
+            .async_client
+            .post(format!(
+                "{}/v1/trnm/economy/issuer-keys/status",
+                self.base_url
+            ))
+            .header("x-trnm-game-authority", self.game_authority_token.as_str())
+            .json(&EntitlementIssuerKeyStatusRequest {
+                key_id: attestation.key_id.clone(),
+            })
+            .send()
+            .await
+            .map_err(|error| format!("CEX issuer registry status transport: {error}"))?;
+        if !registry.status().is_success() {
+            return Err(format!(
+                "CEX issuer registry rejected signer key ({})",
+                registry.status()
+            ));
+        }
+        let registry = registry
+            .json::<EntitlementIssuerKeyStatusResponse>()
+            .await
+            .map_err(|error| format!("decode CEX issuer registry status: {error}"))?;
+        if registry.key_id != attestation.key_id
+            || registry.issuer != attestation.issuer
+            || registry.status != "active"
+            || registry.signature_algorithm != "ed25519"
+            || registry.public_key_sha256 != attestation.public_key_sha256
+        {
+            return Err("signer key is not the active CEX registry key".to_string());
+        }
+        Ok(attestation)
     }
 
     pub async fn verify_session(

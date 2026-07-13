@@ -82,7 +82,7 @@ async fn main() {
     let listener = tokio::net::TcpListener::bind(bind_addr)
         .await
         .unwrap_or_else(|error| panic!("bind {bind_addr}: {error}"));
-    tracing::info!(%bind_addr, "TRNM Online Production v1 ready");
+    tracing::info!(%bind_addr, "TRNM Online Production v2 ready");
     axum::serve(listener, build_router(state))
         .await
         .expect("serve Online Authority");

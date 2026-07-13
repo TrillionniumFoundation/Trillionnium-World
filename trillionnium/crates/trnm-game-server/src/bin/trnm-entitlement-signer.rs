@@ -17,8 +17,9 @@ use trnm_economy_protocol::{
     SERVER_SIGNED_VALUE_ENTITLEMENT_V2_CONTRACT,
 };
 use trnm_game_server::signer_protocol::{
-    EntitlementSignRequest, EntitlementSignResponse, EntitlementSignerReadiness,
-    ENTITLEMENT_SIGNER_CONTRACT, ENTITLEMENT_SIGNER_ISSUER, SIGNER_AUTH_HEADER,
+    EntitlementSignRequest, EntitlementSignResponse, EntitlementSignerAttestationRequest,
+    EntitlementSignerAttestationResponse, EntitlementSignerReadiness, ENTITLEMENT_SIGNER_CONTRACT,
+    ENTITLEMENT_SIGNER_ISSUER, SIGNER_AUTH_HEADER,
 };
 
 const SIGNER_MIGRATION: &str = r#"
@@ -85,8 +86,55 @@ async fn readiness(State(state): State<SignerState>) -> impl IntoResponse {
             custody: "isolated_process_mode_600_seed_not_kms_hsm".to_string(),
             postgres_receipts: postgres,
             private_key_exported_to_game_server: false,
+            provider_kind: "file_seed".to_string(),
+            public_key_base64: STANDARD.encode(state.signing_key.verifying_key().to_bytes()),
+            public_key_sha256: format!(
+                "{:x}",
+                Sha256::digest(state.signing_key.verifying_key().to_bytes())
+            ),
+            key_non_exportable: false,
+            external_provider_attested: false,
         }),
     )
+}
+
+async fn attest_signer(
+    State(state): State<SignerState>,
+    headers: HeaderMap,
+    Json(request): Json<EntitlementSignerAttestationRequest>,
+) -> Result<Json<EntitlementSignerAttestationResponse>, ApiError> {
+    require_auth(&state, &headers)?;
+    if request.contract_version != ENTITLEMENT_SIGNER_CONTRACT
+        || !(32..=128).contains(&request.challenge.len())
+        || !request
+            .challenge
+            .bytes()
+            .all(|byte| byte.is_ascii_graphic())
+    {
+        return Err(error(
+            StatusCode::BAD_REQUEST,
+            "signer attestation challenge is invalid",
+        ));
+    }
+    let observed_at_epoch = Utc::now().timestamp();
+    let public_key = state.signing_key.verifying_key().to_bytes();
+    let mut response = EntitlementSignerAttestationResponse {
+        contract_version: ENTITLEMENT_SIGNER_CONTRACT.to_string(),
+        challenge: request.challenge,
+        key_id: state.key_id.as_ref().clone(),
+        issuer: ENTITLEMENT_SIGNER_ISSUER.to_string(),
+        provider_kind: "file_seed".to_string(),
+        public_key_base64: STANDARD.encode(public_key),
+        public_key_sha256: format!("{:x}", Sha256::digest(public_key)),
+        observed_at_epoch,
+        expires_at_epoch: observed_at_epoch.saturating_add(30),
+        signature: String::new(),
+    };
+    let payload = response
+        .signing_payload()
+        .map_err(|message| error(StatusCode::INTERNAL_SERVER_ERROR, message))?;
+    response.signature = STANDARD.encode(state.signing_key.sign(&payload).to_bytes());
+    Ok(Json(response))
 }
 
 fn validate_request_identity(request: &EntitlementSignRequest) -> Result<(), ApiError> {
@@ -354,6 +402,7 @@ async fn main() -> Result<(), String> {
         Router::new()
             .route("/health", get(health))
             .route("/v1/signer/readiness", get(readiness))
+            .route("/v1/signer/attest", post(attest_signer))
             .route("/v1/signer/sign", post(sign_entitlement))
             .layer(DefaultBodyLimit::max(64 * 1024))
             .with_state(state),
