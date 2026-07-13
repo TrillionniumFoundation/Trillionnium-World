@@ -23,6 +23,7 @@ use trnm_game_server::signer_protocol::{
     ENTITLEMENT_SIGNER_ISSUER, SIGNER_AUTH_HEADER,
 };
 
+const SIGNER_DATABASE_MAX_CONNECTIONS: u32 = 4;
 const SIGNER_MIGRATION: &str = r#"
 create table if not exists trnm_entitlement_signing_receipts (
     request_id text primary key,
@@ -73,19 +74,26 @@ async fn readiness(State(state): State<SignerState>) -> impl IntoResponse {
         .fetch_one(&state.pool)
         .await
         .is_ok();
+    let database_pool_idle_connections = state.pool.num_idle();
+    let database_pool_saturation_healthy = database_pool_idle_connections > 0;
+    let ready = postgres && database_pool_saturation_healthy;
     (
-        if postgres {
+        if ready {
             StatusCode::OK
         } else {
             StatusCode::SERVICE_UNAVAILABLE
         },
         Json(EntitlementSignerReadiness {
-            status: if postgres { "ok" } else { "blocked" }.to_string(),
+            status: if ready { "ok" } else { "blocked" }.to_string(),
             contract_version: ENTITLEMENT_SIGNER_CONTRACT.to_string(),
             key_id: state.key_id.as_ref().clone(),
             issuer: ENTITLEMENT_SIGNER_ISSUER.to_string(),
             custody: "isolated_process_mode_600_seed_not_kms_hsm".to_string(),
             postgres_receipts: postgres,
+            database_pool_saturation_healthy,
+            database_pool_max_connections: SIGNER_DATABASE_MAX_CONNECTIONS,
+            database_pool_size: state.pool.size(),
+            database_pool_idle_connections,
             private_key_exported_to_game_server: false,
             provider_kind: "file_seed".to_string(),
             public_key_base64: STANDARD.encode(state.signing_key.verifying_key().to_bytes()),
@@ -379,7 +387,7 @@ async fn main() -> Result<(), String> {
         return Err("isolated signer only permits loopback bind".to_string());
     }
     let pool = PgPoolOptions::new()
-        .max_connections(4)
+        .max_connections(SIGNER_DATABASE_MAX_CONNECTIONS)
         .acquire_timeout(Duration::from_secs(5))
         .connect(&database_url)
         .await

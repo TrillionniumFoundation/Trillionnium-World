@@ -55,6 +55,8 @@ jobs:
           components: rustfmt, clippy
       - name: Install native build dependencies
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libasound2-dev libudev-dev libx11-dev libxi-dev libxkbcommon-dev libwayland-dev pkg-config
+      - name: Resource budget contract
+        run: ../scripts/check-trnm-online-resource-budgets.sh
       - name: Format
         run: cargo fmt --all -- --check
       - name: Test all targets

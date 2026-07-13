@@ -116,6 +116,7 @@ impl CexClient {
         if readiness.status != "ok"
             || readiness.contract_version != ENTITLEMENT_SIGNER_CONTRACT
             || readiness.private_key_exported_to_game_server
+            || !readiness.database_pool_saturation_healthy
         {
             return Err("isolated signer readiness failed custody contract".to_string());
         }

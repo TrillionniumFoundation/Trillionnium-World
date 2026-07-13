@@ -99,6 +99,7 @@ const MATCH_CHECKPOINT_QUEUE: usize = 2;
 const MATCH_CHECKPOINT_INTERVAL_TICKS: u64 = 100;
 const MATCH_ACTOR_FENCE_INTERVAL: Duration = Duration::from_secs(1);
 const MAX_AUTHORITY_CLOCK_ABS_DRIFT_TICKS: f64 = 2.0;
+const GAME_SERVER_DATABASE_MAX_CONNECTIONS: u32 = 8;
 
 #[derive(Clone)]
 struct PublishedMatchState {
@@ -161,7 +162,7 @@ pub struct AppStateConfig {
 impl AppState {
     pub async fn connect(config: AppStateConfig) -> Result<Self, String> {
         let pool = PgPoolOptions::new()
-            .max_connections(8)
+            .max_connections(GAME_SERVER_DATABASE_MAX_CONNECTIONS)
             .acquire_timeout(Duration::from_secs(5))
             .connect(&config.database_url)
             .await
@@ -781,12 +782,17 @@ async fn readiness(State(state): State<AppState>) -> Response {
         authority_clock_wake_count as f64 - elapsed_ms / state.tick_interval.as_secs_f64() / 1_000.0
     });
     let authority_clock_operational = authority_clock_is_operational(authority_clock_drift_ticks);
+    let database_pool_size = state.pool.size();
+    let database_pool_idle_connections = state.pool.num_idle();
+    let database_pool_saturation_healthy =
+        database_pool_is_operational(database_pool_idle_connections);
     let ready = postgres
         && cex
         && signer.is_some()
         && signer_registry_verified
         && fleet_epoch_current
-        && authority_clock_operational;
+        && authority_clock_operational
+        && database_pool_saturation_healthy;
     let operational_readiness = json!({
         "postgres": postgres,
         "cex": cex,
@@ -794,6 +800,7 @@ async fn readiness(State(state): State<AppState>) -> Response {
         "signer_registry": signer_registry_verified,
         "fleet_epoch": fleet_epoch_current,
         "authority_clock": authority_clock_operational,
+        "database_pool": database_pool_saturation_healthy,
     });
     let mut readiness_body = json!({
             "status": if ready { "ok" } else { "blocked" },
@@ -888,6 +895,11 @@ async fn readiness(State(state): State<AppState>) -> Response {
     readiness_body["authority_clock_max_abs_drift_ticks"] =
         json!(MAX_AUTHORITY_CLOCK_ABS_DRIFT_TICKS);
     readiness_body["operational_readiness"] = operational_readiness;
+    readiness_body["database_pool_saturation_healthy"] =
+        Value::Bool(database_pool_saturation_healthy);
+    readiness_body["database_pool_max_connections"] = json!(GAME_SERVER_DATABASE_MAX_CONNECTIONS);
+    readiness_body["database_pool_size"] = json!(database_pool_size);
+    readiness_body["database_pool_idle_connections"] = json!(database_pool_idle_connections);
     (
         if ready {
             StatusCode::OK
@@ -902,6 +914,10 @@ async fn readiness(State(state): State<AppState>) -> Response {
 fn authority_clock_is_operational(drift_ticks: Option<f64>) -> bool {
     drift_ticks
         .is_some_and(|drift| drift.is_finite() && drift.abs() < MAX_AUTHORITY_CLOCK_ABS_DRIFT_TICKS)
+}
+
+fn database_pool_is_operational(idle_connections: usize) -> bool {
+    idle_connections > 0
 }
 
 async fn connect_campaign(
@@ -4029,5 +4045,11 @@ mod tests {
         assert!(!authority_clock_is_operational(Some(-2.0)));
         assert!(!authority_clock_is_operational(Some(f64::NAN)));
         assert!(!authority_clock_is_operational(None));
+    }
+
+    #[test]
+    fn readiness_fails_closed_on_database_pool_saturation() {
+        assert!(database_pool_is_operational(1));
+        assert!(!database_pool_is_operational(0));
     }
 }

@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+
+require_line() {
+  local file="$1" line="$2"
+  if ! grep -Fqx -- "$line" "$file"; then
+    echo "missing resource budget in ${file#$ROOT_DIR/}: $line" >&2
+    exit 1
+  fi
+}
+
+game_unit="$ROOT_DIR/deploy/systemd/trnm-game-server.service"
+signer_unit="$ROOT_DIR/deploy/systemd/trnm-entitlement-signer.service"
+for setting in CPUAccounting=true CPUWeight=200 CPUQuota=200% \
+  MemoryAccounting=true MemoryHigh=384M MemoryMax=512M MemorySwapMax=128M \
+  IOAccounting=true IOWeight=200 TasksAccounting=true TasksMax=256; do
+  require_line "$game_unit" "$setting"
+done
+for setting in CPUAccounting=true CPUWeight=100 CPUQuota=50% \
+  MemoryAccounting=true MemoryHigh=64M MemoryMax=96M MemorySwapMax=32M \
+  IOAccounting=true IOWeight=100 TasksAccounting=true TasksMax=128; do
+  require_line "$signer_unit" "$setting"
+done
+
+capacity_script="$ROOT_DIR/scripts/check-trnm-online-capacity-soak.sh"
+bash -n "$capacity_script"
+for setting in 'CPUQuota=300%' 'MemoryHigh=1536M' 'MemoryMax=2048M' \
+  'MemorySwapMax=512M' 'TasksMax=512' 'TRNM_CAPACITY_MIN_AVAILABLE_MIB:-3072'; do
+  rg -Fq -- "$setting" "$capacity_script"
+done
+rg -q 'GAME_SERVER_DATABASE_MAX_CONNECTIONS: u32 = 8' \
+  "$ROOT_DIR/trillionnium/crates/trnm-game-server/src/lib.rs"
+rg -q 'SIGNER_DATABASE_MAX_CONNECTIONS: u32 = 4' \
+  "$ROOT_DIR/trillionnium/crates/trnm-game-server/src/bin/trnm-entitlement-signer.rs"
+
+installed=false
+if [[ "${TRNM_REQUIRE_INSTALLED_RESOURCE_BUDGETS:-0}" == 1 ]]; then
+  installed=true
+  [[ "$(systemctl --user show trnm-game-server.service -p CPUQuotaPerSecUSec --value)" == 2s ]]
+  [[ "$(systemctl --user show trnm-game-server.service -p MemoryHigh --value)" == 402653184 ]]
+  [[ "$(systemctl --user show trnm-game-server.service -p MemoryMax --value)" == 536870912 ]]
+  [[ "$(systemctl --user show trnm-entitlement-signer.service -p CPUQuotaPerSecUSec --value)" == 500ms ]]
+  [[ "$(systemctl --user show trnm-entitlement-signer.service -p MemoryHigh --value)" == 67108864 ]]
+  [[ "$(systemctl --user show trnm-entitlement-signer.service -p MemoryMax --value)" == 100663296 ]]
+  probe="$(TRNM_CAPACITY_SCOPE_PROBE=1 "$capacity_script")"
+  jq -e '.status == "passed"
+    and .memory_high_bytes == 1610612736
+    and .memory_max_bytes == 2147483648
+    and .memory_swap_max_bytes == 536870912
+    and .cpu_max == "300000 100000"
+    and .tasks_max == 512' >/dev/null <<<"$probe"
+fi
+
+jq -n --argjson installed "$installed" \
+  '{status:"passed",game_server_pool_max:8,signer_pool_max:4,
+    game_server_memory_max_mib:512,capacity_harness_memory_max_mib:2048,
+    capacity_harness_min_available_memory_mib:3072,
+    systemd_unit_budgets:true,installed_runtime_verified:$installed}'

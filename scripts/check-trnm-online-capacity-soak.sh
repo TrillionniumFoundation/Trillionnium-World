@@ -1,6 +1,34 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+SCRIPT_PATH="$(realpath "${BASH_SOURCE[0]}")"
+if [[ "${TRNM_CAPACITY_RESOURCE_SCOPE_ACTIVE:-0}" != 1 ]]; then
+  exec systemd-run --user --scope --collect --quiet --expand-environment=no \
+    --description='TRNM bounded online capacity harness' \
+    -p CPUAccounting=true -p CPUWeight=100 -p CPUQuota=300% \
+    -p MemoryAccounting=true -p MemoryHigh=1536M -p MemoryMax=2048M \
+    -p MemorySwapMax=512M -p IOAccounting=true -p IOWeight=100 \
+    -p TasksAccounting=true -p TasksMax=512 \
+    env TRNM_CAPACITY_RESOURCE_SCOPE_ACTIVE=1 "$SCRIPT_PATH" "$@"
+fi
+
+RESOURCE_CGROUP="$(awk -F: '$1 == "0" {print $3}' /proc/self/cgroup)"
+RESOURCE_CGROUP_ROOT="/sys/fs/cgroup$RESOURCE_CGROUP"
+if [[ "${TRNM_CAPACITY_SCOPE_PROBE:-0}" == 1 ]]; then
+  jq -n \
+    --arg cgroup "$RESOURCE_CGROUP" \
+    --arg memory_high "$(<"$RESOURCE_CGROUP_ROOT/memory.high")" \
+    --arg memory_max "$(<"$RESOURCE_CGROUP_ROOT/memory.max")" \
+    --arg memory_swap_max "$(<"$RESOURCE_CGROUP_ROOT/memory.swap.max")" \
+    --arg cpu_max "$(<"$RESOURCE_CGROUP_ROOT/cpu.max")" \
+    --arg tasks_max "$(<"$RESOURCE_CGROUP_ROOT/pids.max")" \
+    '{status:"passed",cgroup:$cgroup,memory_high_bytes:($memory_high|tonumber),
+      memory_max_bytes:($memory_max|tonumber),
+      memory_swap_max_bytes:($memory_swap_max|tonumber),cpu_max:$cpu_max,
+      tasks_max:($tasks_max|tonumber)}'
+  exit 0
+fi
+
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CEX_ROOT="${CEX_PROJECT_ROOT:-$ROOT_DIR/../CEX}"
 # shellcheck source=/dev/null
@@ -12,6 +40,7 @@ ONLINE_URL="${TRNM_GAME_SERVER_URL:-http://127.0.0.1:7005}"
 ADMIN_TOKEN="${LEDGER_ADMIN_TOKEN:-${IDENTITY_ADMIN_TOKEN:?identity admin token required}}"
 CONCURRENCY="${TRNM_CAPACITY_CONCURRENCY:-4}"
 DURATION_SECONDS="${TRNM_CAPACITY_DURATION_SECONDS:-7200}"
+MIN_AVAILABLE_MIB="${TRNM_CAPACITY_MIN_AVAILABLE_MIB:-3072}"
 RUN_ID="capacity-$(date +%s)-${RANDOM}"
 EVIDENCE="$ROOT_DIR/run/online-capacity/$RUN_ID"
 mkdir -p "$EVIDENCE"
@@ -24,10 +53,29 @@ if ! [[ "$DURATION_SECONDS" =~ ^[1-9][0-9]*$ ]]; then
   echo "TRNM_CAPACITY_DURATION_SECONDS must be a positive integer" >&2
   exit 2
 fi
+if ! [[ "$MIN_AVAILABLE_MIB" =~ ^[1-9][0-9]*$ ]]; then
+  echo "TRNM_CAPACITY_MIN_AVAILABLE_MIB must be a positive integer" >&2
+  exit 2
+fi
 if [[ ! -x "$ROOT_DIR/target/release/trnm-online-e2e" ]]; then
   echo "missing release trnm-online-e2e binary" >&2
   exit 2
 fi
+
+available_memory_mib() {
+  awk '/^MemAvailable:/ {print int($2 / 1024)}' /proc/meminfo
+}
+
+require_host_memory_headroom() {
+  local available
+  available="$(available_memory_mib)"
+  if (( available < MIN_AVAILABLE_MIB )); then
+    echo "capacity harness requires ${MIN_AVAILABLE_MIB} MiB available; observed ${available} MiB" >&2
+    return 1
+  fi
+}
+
+require_host_memory_headroom
 
 cleanup() {
   local status=$?
@@ -85,6 +133,10 @@ wave=0
 failures=0
 
 while (( $(date +%s) < deadline_epoch )); do
+  if ! require_host_memory_headroom; then
+    failures=$((failures + 1))
+    break
+  fi
   wave=$((wave + 1))
   pids=()
   reports=()
@@ -144,7 +196,10 @@ jq -s \
   --argjson waves "$wave" \
   --argjson failures "$failures" \
   --argjson restarts_before "$server_restarts_before" \
-  --argjson restarts_after "$server_restarts_after" '
+  --argjson restarts_after "$server_restarts_after" \
+  --arg resource_cgroup "$RESOURCE_CGROUP" \
+  --argjson resource_memory_max_bytes "$(<"$RESOURCE_CGROUP_ROOT/memory.max")" \
+  --argjson minimum_host_available_memory_mib "$MIN_AVAILABLE_MIB" '
   ([.[].command_ack_ms[]] | sort) as $acks |
   ([.[].match_tick_drift | if . < 0 then -. else . end] | max) as $max_abs_drift |
   (($acks | length) * 95 / 100 | ceil | . - 1) as $p95_index |
@@ -158,6 +213,10 @@ jq -s \
     unique_matches: ([.[].match_id] | unique | length),
     failures: $failures,
     server_restarts: ($restarts_after - $restarts_before),
+    bounded_resource_scope: true,
+    resource_cgroup: $resource_cgroup,
+    resource_memory_max_bytes: $resource_memory_max_bytes,
+    minimum_host_available_memory_mib: $minimum_host_available_memory_mib,
     all_settled: all(.settlement_state == "settled"),
     command_ack_samples: ($acks | length),
     command_ack_p95_ms: $acks[$p95_index],
