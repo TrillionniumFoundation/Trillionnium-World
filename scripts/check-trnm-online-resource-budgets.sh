@@ -26,7 +26,7 @@ done
 
 capacity_script="$ROOT_DIR/scripts/check-trnm-online-capacity-soak.sh"
 bash -n "$capacity_script"
-for setting in 'CPUQuota=300%' 'MemoryHigh=1536M' 'MemoryMax=2048M' \
+for setting in 'CPUQuota=150%' 'MemoryHigh=1536M' 'MemoryMax=2048M' \
   'MemorySwapMax=512M' 'TasksMax=512' 'TRNM_CAPACITY_MIN_AVAILABLE_MIB:-3072'; do
   rg -Fq -- "$setting" "$capacity_script"
 done
@@ -49,7 +49,7 @@ if [[ "${TRNM_REQUIRE_INSTALLED_RESOURCE_BUDGETS:-0}" == 1 ]]; then
     and .memory_high_bytes == 1610612736
     and .memory_max_bytes == 2147483648
     and .memory_swap_max_bytes == 536870912
-    and .cpu_max == "300000 100000"
+    and .cpu_max == "150000 100000"
     and .tasks_max == 512' >/dev/null <<<"$probe"
 fi
 
