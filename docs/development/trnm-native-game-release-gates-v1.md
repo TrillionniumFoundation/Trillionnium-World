@@ -68,9 +68,12 @@ None of those gaps may be relabeled green from the local vertical-slice evidence
 
 Online Product v1 additionally proves a closed-alpha invite/login/rotation/
 suspension-appeal lifecycle plus private two-member lobby, ready state and
-`coop_vs_ai` allocation. Gate E remains blocked: there is no public discovery,
-solo pairing, PvP/MMR, social/moderation product, multi-region fleet, staffed
-support, verified-contact recovery or human multiplayer usability result.
+`coop_vs_ai` allocation. Online Product v2 proves a native login/queue/launch
+shell, ranked solo pairing, opposing human authority, persistent MMR,
+friends/blocks and authenticated match-report resolution. Gate E remains
+blocked: there is no public self-registration, verified-contact recovery,
+party queue, seasons/leaderboards, chat/guild, staffed moderation, multi-region
+fleet or human multiplayer usability result.
 
 ## Monetary policy
 

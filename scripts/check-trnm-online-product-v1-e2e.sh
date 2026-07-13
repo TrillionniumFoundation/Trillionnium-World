@@ -134,7 +134,7 @@ for _ in $(seq 1 60); do
   sleep 1
 done
 curl -fsS "$ONLINE_URL/v1/online/readiness" | jq -e \
-  '.status == "ok" and .online_product_protocol == "trnm_online_product_v1"' >/dev/null
+  '.status == "ok" and .online_product_protocol == "trnm_online_product_v2"' >/dev/null
 
 connect_campaign() {
   local session="$1" player="$2" account="$3"

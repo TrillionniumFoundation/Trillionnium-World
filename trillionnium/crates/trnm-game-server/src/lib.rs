@@ -1,5 +1,6 @@
 mod cex;
 mod map;
+mod product_v2;
 
 use axum::{
     extract::{Path, State},
@@ -44,12 +45,14 @@ const PLAYER_SESSION_HEADER: &str = "x-trnm-player-session";
 const MIGRATION_V1: &str = include_str!("../migrations/0001_online_authority_v1.sql");
 const MIGRATION_V2: &str = include_str!("../migrations/0002_online_authority_v2.sql");
 const MIGRATION_V3: &str = include_str!("../migrations/0003_online_product_v1.sql");
+const MIGRATION_V4: &str = include_str!("../migrations/0004_online_product_v2.sql");
 
 #[derive(Clone)]
 pub struct AppState {
     pool: PgPool,
     cex: CexClient,
     asset_root: Arc<PathBuf>,
+    moderator_token: Arc<String>,
 }
 
 impl AppState {
@@ -60,6 +63,7 @@ impl AppState {
         entitlement_signing_seed_base64: String,
         entitlement_key_id: String,
         asset_root: PathBuf,
+        moderator_token: String,
     ) -> Result<Self, String> {
         let pool = PgPoolOptions::new()
             .max_connections(8)
@@ -79,6 +83,10 @@ impl AppState {
             .execute(&pool)
             .await
             .map_err(|error| format!("migrate Online Product v1 PostgreSQL: {error}"))?;
+        sqlx::raw_sql(MIGRATION_V4)
+            .execute(&pool)
+            .await
+            .map_err(|error| format!("migrate Online Product v2 PostgreSQL: {error}"))?;
         let cex = CexClient::new(
             cex_base_url,
             game_authority_token,
@@ -90,6 +98,7 @@ impl AppState {
             pool,
             cex,
             asset_root: Arc::new(asset_root),
+            moderator_token: Arc::new(moderator_token),
         })
     }
 
@@ -301,6 +310,34 @@ pub fn build_router(state: AppState) -> Router {
         )
         .route("/v1/product/lobbies/:lobby_id/ready", post(set_lobby_ready))
         .route("/v1/product/lobbies/:lobby_id/queue", post(queue_lobby))
+        .route(
+            "/v1/product/solo-queue/join",
+            post(product_v2::join_solo_queue),
+        )
+        .route(
+            "/v1/product/solo-queue/status",
+            post(product_v2::get_solo_queue),
+        )
+        .route(
+            "/v1/product/solo-queue/cancel",
+            post(product_v2::cancel_solo_queue),
+        )
+        .route("/v1/product/rating", post(product_v2::get_rating))
+        .route(
+            "/v1/product/social/friends/request",
+            post(product_v2::request_friend),
+        )
+        .route(
+            "/v1/product/social/friends/resolve",
+            post(product_v2::resolve_friend),
+        )
+        .route("/v1/product/social/block", post(product_v2::set_block))
+        .route("/v1/product/social/view", post(product_v2::get_social))
+        .route("/v1/product/reports", post(product_v2::create_report))
+        .route(
+            "/v1/product/moderation/reports/resolve",
+            post(product_v2::resolve_report),
+        )
         .with_state(state)
 }
 
@@ -333,14 +370,19 @@ async fn readiness(State(state): State<AppState>) -> Response {
             "restart_recovery": true,
             "authenticated_reconnect": true,
             "bounded_command_replay": 256,
-            "mode": "two-client independent-campaign coop vs authoritative AI",
+            "mode": "private coop plus ranked head-to-head authoritative PvP",
             "independent_member_progression": true,
             "inventory_event_provenance": true,
-            "public_matchmaking": false,
+            "public_matchmaking": true,
             "online_product_protocol": ONLINE_PRODUCT_PROTOCOL,
             "online_product_build": ONLINE_PRODUCT_BUILD,
             "private_lobby_invites": true,
             "coop_vs_ai_match_allocation": true,
+            "ranked_solo_queue": true,
+            "authoritative_pvp": true,
+            "persistent_mmr": true,
+            "friends_and_blocks": true,
+            "report_and_moderation_workflow": true,
         })),
     )
         .into_response()
@@ -544,6 +586,23 @@ async fn invite_to_lobby(
     let lobby = lock_lobby(&mut transaction, lobby_id).await?;
     require_lobby_owner(&lobby, &request.player_id, account_id)?;
     require_open_lobby_revision(&lobby, request.expected_lobby_revision)?;
+    let blocked: bool = sqlx::query_scalar(
+        "select exists(select 1 from trnm_online_blocks
+         where (blocker_player_id = $1 and blocked_player_id = $2)
+            or (blocker_player_id = $2 and blocked_player_id = $1))",
+    )
+    .bind(&request.player_id)
+    .bind(&request.target_player_id)
+    .fetch_one(&mut *transaction)
+    .await
+    .map_err(internal_db)?;
+    if blocked {
+        return Err(api_error(
+            StatusCode::FORBIDDEN,
+            "lobby invitation is blocked by a player safety rule",
+            false,
+        ));
+    }
     let member_count: i64 =
         sqlx::query_scalar("select count(*) from trnm_online_lobby_members where lobby_id = $1")
             .bind(lobby_id)
@@ -1061,7 +1120,8 @@ async fn start_match(
         .map_err(|_| api_error(StatusCode::BAD_REQUEST, "account_id must be a UUID", false))?;
     let mut transaction = state.pool.begin().await.map_err(internal_db)?;
     let match_row = sqlx::query(
-        "select campaign_id, host_player_id, host_account_id, phase, map_id, match_revision
+        "select campaign_id, host_player_id, host_account_id, phase, map_id, match_revision,
+                match_mode
          from trnm_online_matches where match_id = $1 for update",
     )
     .bind(match_id)
@@ -1104,6 +1164,7 @@ async fn start_match(
         ));
     }
     let map_id: String = match_row.try_get("map_id").map_err(internal_db)?;
+    let match_mode: String = match_row.try_get("match_mode").map_err(internal_db)?;
     let map = map::load_authoritative_map(&state.asset_root, &map_id)
         .map_err(|error| api_error(StatusCode::BAD_REQUEST, error, false))?;
     let member_rows = sqlx::query(
@@ -1160,8 +1221,18 @@ async fn start_match(
         .map_err(|error| api_error(StatusCode::INTERNAL_SERVER_ERROR, error.to_string(), false))?;
     seed.validate()
         .map_err(|error| api_error(StatusCode::INTERNAL_SERVER_ERROR, error.to_string(), false))?;
-    let sim = MissionSimV1::from_seed(seed.clone())
+    let mut sim = MissionSimV1::from_seed(seed.clone())
         .map_err(|error| api_error(StatusCode::INTERNAL_SERVER_ERROR, error.to_string(), false))?;
+    if match_mode == "ranked_pvp" {
+        let guest_control = guest_units
+            .iter()
+            .map(|unit| unit.unit_id.clone())
+            .collect::<BTreeSet<_>>();
+        sim.enable_human_enemy_authority(&guest_control)
+            .map_err(|error| {
+                api_error(StatusCode::INTERNAL_SERVER_ERROR, error.to_string(), false)
+            })?;
+    }
     let snapshot_hash = sim
         .snapshot_hash()
         .map_err(|error| api_error(StatusCode::INTERNAL_SERVER_ERROR, error.to_string(), false))?;
@@ -1225,7 +1296,7 @@ async fn submit_command(
     let mut transaction = state.pool.begin().await.map_err(internal_db)?;
     let match_row = sqlx::query(
         "select phase, match_revision, authoritative_tick, next_sequence,
-                simulation_json, snapshot_hash
+                simulation_json, snapshot_hash, match_mode
          from trnm_online_matches where match_id = $1 for update",
     )
     .bind(match_id)
@@ -1234,7 +1305,7 @@ async fn submit_command(
     .map_err(internal_db)?
     .ok_or_else(|| api_error(StatusCode::NOT_FOUND, "match not found", false))?;
     let member = sqlx::query(
-        "select controlled_unit_ids from trnm_online_match_members
+        "select controlled_unit_ids, member_role from trnm_online_match_members
          where match_id = $1 and player_id = $2 and account_id = $3",
     )
     .bind(match_id)
@@ -1342,8 +1413,14 @@ async fn submit_command(
     let sim_value: Value = match_row.try_get("simulation_json").map_err(internal_db)?;
     let mut sim: MissionSimV1 =
         serde_json::from_value(sim_value).map_err(internal_serialization)?;
+    let match_mode: String = match_row.try_get("match_mode").map_err(internal_db)?;
+    let member_role: String = member.try_get("member_role").map_err(internal_db)?;
     let mut order = request.order;
-    order.player_id = "player".to_string();
+    order.player_id = if match_mode == "ranked_pvp" && member_role == "coop_guest" {
+        "enemy-player".to_string()
+    } else {
+        "player".to_string()
+    };
     order.frame = u32::try_from(request.target_tick).map_err(|_| {
         api_error(
             StatusCode::BAD_REQUEST,
@@ -1352,7 +1429,15 @@ async fn submit_command(
         )
     })?;
     order.source = RtsOrderSource::LocalInput;
-    let merged_with_active_coop_order = order.queued
+    if match_mode == "ranked_pvp" && order.kind == trnm_rts_protocol::RtsOrderKind::Extract {
+        return Err(api_error(
+            StatusCode::UNPROCESSABLE_ENTITY,
+            "ranked PvP does not allow withdrawal",
+            false,
+        ));
+    }
+    let merged_with_active_coop_order = match_mode == "coop_vs_ai"
+        && order.queued
         && sim.active_order.as_ref().is_some_and(|active| {
             active.kind == order.kind
                 && active.target_tile == order.target_tile
@@ -1369,6 +1454,11 @@ async fn submit_command(
             .extend(order.subject_actor_ids.clone());
         active.subject_actor_ids.sort();
         active.subject_actor_ids.dedup();
+    } else if match_mode == "ranked_pvp" && member_role == "coop_guest" {
+        sim.issue_human_enemy_order(order.clone())
+            .map_err(|error| {
+                api_error(StatusCode::UNPROCESSABLE_ENTITY, error.to_string(), false)
+            })?;
     } else {
         sim.issue_order(order.clone()).map_err(|error| {
             api_error(StatusCode::UNPROCESSABLE_ENTITY, error.to_string(), false)
@@ -1577,8 +1667,15 @@ async fn apply_member_progression(
     combined_result: &BattleResultV1,
     combined_result_hash: &str,
 ) -> Result<bool, String> {
+    let match_mode: String =
+        sqlx::query_scalar("select match_mode from trnm_online_matches where match_id = $1")
+            .bind(match_id)
+            .fetch_one(&mut **transaction)
+            .await
+            .map_err(|error| error.to_string())?;
     let members = sqlx::query(
-        "select player_id, account_id, campaign_id, settlement_seed_json, unit_id_map
+        "select player_id, account_id, campaign_id, member_role,
+                settlement_seed_json, unit_id_map
          from trnm_online_match_members where match_id = $1 order by member_role for update",
     )
     .bind(match_id)
@@ -1602,6 +1699,9 @@ async fn apply_member_progression(
     for member in members {
         let player_id: String = member
             .try_get("player_id")
+            .map_err(|error| error.to_string())?;
+        let member_role: String = member
+            .try_get("member_role")
             .map_err(|error| error.to_string())?;
         let account_id: Uuid = member
             .try_get("account_id")
@@ -1633,8 +1733,36 @@ async fn apply_member_progression(
         .map_err(|error| error.to_string())?;
         let mut campaign: CampaignSaveV1 =
             serde_json::from_value(campaign_value).map_err(|error| error.to_string())?;
+        if match_mode == "ranked_pvp" {
+            sqlx::query(
+                "insert into trnm_online_progression_events (
+                    event_id, match_id, player_id, account_id, campaign_id, result_hash,
+                    experience_delta, reputation_delta, inventory_delta, campaign_revision
+                 ) values ($1, $2, $3, $4, $5, $6, 0, 0, '[]'::jsonb, $7)",
+            )
+            .bind(format!("online-progression:{match_id}:{player_id}"))
+            .bind(match_id)
+            .bind(&player_id)
+            .bind(account_id)
+            .bind(&campaign_id)
+            .bind(combined_result_hash)
+            .bind(campaign.revision as i64)
+            .execute(&mut **transaction)
+            .await
+            .map_err(|error| error.to_string())?;
+            continue;
+        }
         let experience_before = campaign.progression.experience;
         let reputation_before = campaign.character.attributes.reputation;
+        let member_outcome = if match_mode == "ranked_pvp" && member_role == "coop_guest" {
+            match combined_result.outcome {
+                BattleOutcome::Victory => BattleOutcome::Defeat,
+                BattleOutcome::Defeat => BattleOutcome::Victory,
+                BattleOutcome::Withdrawal => BattleOutcome::Defeat,
+            }
+        } else {
+            combined_result.outcome
+        };
         let mut unit_reports = Vec::with_capacity(settlement_seed.party.len());
         for seeded_unit in &settlement_seed.party {
             let combined_id = id_map
@@ -1660,18 +1788,49 @@ async fn apply_member_progression(
                     veteran_rank: seeded_unit.veteran_rank,
                     confirmed_kills: 0,
                 });
+            let mut report = report;
+            if match_mode == "ranked_pvp" {
+                report.experience_gained = if member_outcome == BattleOutcome::Victory {
+                    25
+                } else {
+                    5
+                };
+            }
             unit_reports.push(report);
         }
         let member_result = BattleResultV1 {
             contract_version: combined_result.contract_version.clone(),
             battle_id: settlement_seed.battle_id.clone(),
             seed_hash: settlement_seed.seed_hash.clone(),
-            outcome: combined_result.outcome,
+            outcome: member_outcome,
             units: unit_reports,
-            loot: combined_result.loot.clone(),
-            resource_delta: combined_result.resource_delta,
-            reputation_delta: combined_result.reputation_delta,
-            world_flags: combined_result.world_flags.clone(),
+            loot: if match_mode == "ranked_pvp" {
+                Vec::new()
+            } else {
+                combined_result.loot.clone()
+            },
+            resource_delta: if match_mode == "ranked_pvp" {
+                0
+            } else {
+                combined_result.resource_delta
+            },
+            reputation_delta: if match_mode == "ranked_pvp" {
+                i32::from(member_outcome == BattleOutcome::Victory)
+            } else {
+                combined_result.reputation_delta
+            },
+            world_flags: if match_mode == "ranked_pvp" {
+                vec![format!(
+                    "ranked_pvp_{}",
+                    if member_outcome == BattleOutcome::Victory {
+                        "won"
+                    } else {
+                        "lost"
+                    }
+                )]
+            } else {
+                combined_result.world_flags.clone()
+            },
             elapsed_ticks: combined_result.elapsed_ticks,
             final_snapshot_hash: combined_result.final_snapshot_hash.clone(),
         };
@@ -1764,7 +1923,7 @@ pub async fn advance_running_matches(state: &AppState, limit: i64) -> Result<u64
             .await
             .map_err(|error| error.to_string())?;
         let Some(row) = sqlx::query(
-            "select campaign_id, phase, simulation_json from trnm_online_matches
+            "select campaign_id, phase, simulation_json, match_mode from trnm_online_matches
              where match_id = $1 for update skip locked",
         )
         .bind(match_id)
@@ -1786,6 +1945,9 @@ pub async fn advance_running_matches(state: &AppState, limit: i64) -> Result<u64
             .map_err(|error| error.to_string())?;
         let mut sim: MissionSimV1 =
             serde_json::from_value(value).map_err(|error| error.to_string())?;
+        let match_mode: String = row
+            .try_get("match_mode")
+            .map_err(|error| error.to_string())?;
         for _ in 0..5 {
             if sim.terminal() {
                 break;
@@ -1798,13 +1960,20 @@ pub async fn advance_running_matches(state: &AppState, limit: i64) -> Result<u64
                 .clone()
                 .into_result()
                 .map_err(|error| error.to_string())?;
-            if result.outcome == BattleOutcome::Victory {
+            if result.outcome == BattleOutcome::Victory && match_mode != "ranked_pvp" {
                 // Match completion value is server policy, never a client field.
                 result.resource_delta = result.resource_delta.max(25);
             }
             let result_hash = result.computed_hash().map_err(|error| error.to_string())?;
             let any_pending =
                 apply_member_progression(&mut transaction, match_id, &result, &result_hash).await?;
+            product_v2::apply_ranked_result(
+                &mut transaction,
+                match_id,
+                result.outcome,
+                &result_hash,
+            )
+            .await?;
             let settlement_state = if any_pending { "pending" } else { "settled" };
             sqlx::query(
                 "update trnm_online_matches set phase = 'complete', simulation_json = $2,
@@ -2148,7 +2317,7 @@ fn sha256_text(value: &str) -> String {
 
 async fn fetch_match_view(pool: &PgPool, match_id: Uuid) -> Result<OnlineMatchView, ApiError> {
     let row = sqlx::query(
-        "select match_id, join_code, phase, build_id, map_id, rules_version, seed_hash,
+        "select match_id, join_code, phase, build_id, map_id, match_mode, rules_version, seed_hash,
                 snapshot_hash, authoritative_tick, next_sequence, match_revision,
                 result_hash, settlement_state
          from trnm_online_matches where match_id = $1",
@@ -2220,6 +2389,7 @@ async fn fetch_match_view(pool: &PgPool, match_id: Uuid) -> Result<OnlineMatchVi
             .try_get::<i64, _>("next_sequence")
             .map_err(internal_db)? as u64,
         map_id: row.try_get("map_id").map_err(internal_db)?,
+        match_mode: row.try_get("match_mode").map_err(internal_db)?,
         rules_version: row.try_get("rules_version").map_err(internal_db)?,
         seed_hash: row.try_get("seed_hash").map_err(internal_db)?,
         snapshot_hash: row.try_get("snapshot_hash").map_err(internal_db)?,
@@ -2292,6 +2462,25 @@ mod tests {
             "first_contact"
         );
         assert!(mission_for_map("../../secret").is_err());
+    }
+
+    #[test]
+    fn authority_materializes_base_and_overlay_maps() {
+        let assets = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../../assets");
+        for map_id in [
+            "first_contact",
+            "iron_delta",
+            "night_watch_crossing",
+            "glass_basin",
+            "ember_orchard",
+            "salt_marsh",
+            "cinder_crown",
+        ] {
+            let map = map::load_authoritative_map(&assets, map_id)
+                .unwrap_or_else(|error| panic!("{map_id}: {error}"));
+            assert_eq!((map.width, map.height), (40, 24));
+            assert!(!map.enemy_spawns.is_empty());
+        }
     }
 
     #[test]

@@ -996,10 +996,16 @@ pub struct MissionSimV1 {
     pub tile_reservations: Vec<TileReservation>,
     pub active_order: Option<RtsFrameOrder>,
     #[serde(default)]
+    pub human_enemy_authority: bool,
+    #[serde(default)]
+    pub enemy_active_order: Option<RtsFrameOrder>,
+    #[serde(default)]
     pub queued_orders: VecDeque<RtsFrameOrder>,
     #[serde(default)]
     pub control_groups: BTreeMap<String, BTreeSet<String>>,
     pub last_order_frame: Option<u32>,
+    #[serde(default)]
+    pub enemy_last_order_frame: Option<u32>,
     pub order_count: u32,
     pub distinct_order_kinds: BTreeSet<String>,
     #[serde(default)]
@@ -1322,9 +1328,12 @@ impl MissionSimV1 {
             move_intents: BTreeMap::new(),
             tile_reservations: Vec::new(),
             active_order: None,
+            human_enemy_authority: false,
+            enemy_active_order: None,
             queued_orders: VecDeque::new(),
             control_groups: BTreeMap::new(),
             last_order_frame: None,
+            enemy_last_order_frame: None,
             order_count: 0,
             distinct_order_kinds: BTreeSet::new(),
             replay_orders: Vec::new(),
@@ -1490,11 +1499,20 @@ impl MissionSimV1 {
             .iter()
             .map(|unit| unit.unit_id.as_str())
             .collect::<BTreeSet<_>>();
-        let actual_ids = self
+        let party_ids = self
             .party
             .iter()
             .map(|unit| unit.unit_id.as_str())
             .collect::<BTreeSet<_>>();
+        let actual_ids = if self.human_enemy_authority {
+            self.party
+                .iter()
+                .chain(&self.enemies)
+                .map(|unit| unit.unit_id.as_str())
+                .collect::<BTreeSet<_>>()
+        } else {
+            party_ids.clone()
+        };
         let generated_roster_units_are_valid = self.party.iter().all(|unit| {
             expected_ids.contains(unit.unit_id.as_str())
                 || (!unit.persistent
@@ -1508,7 +1526,9 @@ impl MissionSimV1 {
                     }))
         });
         if !expected_ids.is_subset(&actual_ids)
-            || actual_ids.len() != self.party.len()
+            || (!self.human_enemy_authority && actual_ids.len() != self.party.len())
+            || (self.human_enemy_authority
+                && actual_ids.len() != self.party.len() + self.enemies.len())
             || !generated_roster_units_are_valid
         {
             return Err(SimError::Integrity(
@@ -1626,6 +1646,9 @@ impl MissionSimV1 {
             ));
         }
         if let Some(order) = &self.active_order {
+            order.validate().map_err(SimError::Order)?;
+        }
+        if let Some(order) = &self.enemy_active_order {
             order.validate().map_err(SimError::Order)?;
         }
         for order in &self.queued_orders {
@@ -1955,6 +1978,154 @@ impl MissionSimV1 {
         Ok(())
     }
 
+    pub fn enable_human_enemy_authority(
+        &mut self,
+        enemy_unit_ids: &BTreeSet<String>,
+    ) -> Result<(), SimError> {
+        self.validate()?;
+        if enemy_unit_ids.is_empty()
+            || !enemy_unit_ids.iter().all(|unit_id| {
+                self.party
+                    .iter()
+                    .any(|unit| &unit.unit_id == unit_id && unit.alive())
+            })
+        {
+            return Err(SimError::Order(
+                "human enemy control set must contain seeded living party units".to_string(),
+            ));
+        }
+        let mut retained = Vec::new();
+        let mut human_enemies = Vec::new();
+        for unit in self.party.drain(..) {
+            if enemy_unit_ids.contains(&unit.unit_id) {
+                human_enemies.push(unit);
+            } else {
+                retained.push(unit);
+            }
+        }
+        if retained.is_empty() {
+            return Err(SimError::Order(
+                "ranked PvP requires at least one unit on each side".to_string(),
+            ));
+        }
+        for (index, unit) in human_enemies.iter_mut().enumerate() {
+            let requested = self
+                .seed
+                .map
+                .enemy_spawns
+                .get(index)
+                .map(|spawn| spawn.position)
+                .unwrap_or(self.seed.map.objective);
+            unit.position = nearest_passable(&self.seed, requested).unwrap_or(requested);
+            unit.stance = RtsUnitStance::Guard;
+            unit.patrol_anchor = None;
+            unit.patrol_target = None;
+            unit.patrol_returning = false;
+            unit.movement_budget_milli = 0;
+        }
+        self.party = retained;
+        self.enemies = human_enemies;
+        self.human_enemy_authority = true;
+        self.enemy_active_order = None;
+        self.enemy_last_order_frame = None;
+        self.enemy_structures.clear();
+        self.enemy_jobs.clear();
+        self.enemy_ai_history.clear();
+        self.control_groups.clear();
+        self.assign_control_group(
+            "1",
+            self.party.iter().map(|unit| unit.unit_id.clone()).collect(),
+        );
+        self.refresh_visibility();
+        self.validate()
+    }
+
+    pub fn issue_human_enemy_order(&mut self, order: RtsFrameOrder) -> Result<(), SimError> {
+        self.validate()?;
+        if !self.human_enemy_authority {
+            return Err(SimError::Order(
+                "simulation has no human enemy authority".to_string(),
+            ));
+        }
+        if self.terminal() {
+            return Err(SimError::InvalidState(
+                "cannot issue an order to a terminal battle".to_string(),
+            ));
+        }
+        order.validate().map_err(SimError::Order)?;
+        if self
+            .enemy_last_order_frame
+            .is_some_and(|previous| order.frame < previous)
+        {
+            return Err(SimError::Order("enemy order frame regression".to_string()));
+        }
+        let living = self
+            .enemies
+            .iter()
+            .filter(|unit| unit.alive())
+            .map(|unit| unit.unit_id.as_str())
+            .collect::<BTreeSet<_>>();
+        let subjects = order
+            .subject_actor_ids
+            .iter()
+            .map(String::as_str)
+            .collect::<BTreeSet<_>>();
+        if subjects.is_empty() || !subjects.is_subset(&living) {
+            return Err(SimError::Order(
+                "enemy order subjects must be living human-controlled units".to_string(),
+            ));
+        }
+        if !matches!(
+            order.kind,
+            RtsOrderKind::Move
+                | RtsOrderKind::AttackMove
+                | RtsOrderKind::Attack
+                | RtsOrderKind::FocusFire
+                | RtsOrderKind::Hold
+                | RtsOrderKind::Stop
+        ) {
+            return Err(SimError::Order(
+                "ranked PvP enemy authority currently accepts move/attack/hold/stop orders"
+                    .to_string(),
+            ));
+        }
+        if let Some(tile) = order.target_tile {
+            let target = BattleGridPoint::new(tile.x as i16, tile.y as i16);
+            if !self.seed.map.in_bounds(target) || !self.seed.map.passable(target) {
+                return Err(SimError::Order(
+                    "enemy order target tile is blocked or outside the map".to_string(),
+                ));
+            }
+        }
+        if matches!(order.kind, RtsOrderKind::Attack | RtsOrderKind::FocusFire)
+            && order.target_actor_id.as_deref().is_some_and(|target| {
+                !self
+                    .party
+                    .iter()
+                    .any(|unit| unit.unit_id == target && unit.alive())
+            })
+        {
+            return Err(SimError::Order(
+                "human enemy attack target is not alive".to_string(),
+            ));
+        }
+        if order.kind == RtsOrderKind::Stop {
+            self.enemy_active_order = None;
+        } else {
+            self.enemy_active_order = Some(order.clone());
+        }
+        self.enemy_last_order_frame = Some(order.frame);
+        self.order_count = self.order_count.saturating_add(1);
+        self.distinct_order_kinds
+            .insert(format!("enemy:{}", order.kind.as_str()));
+        self.replay_orders.push(SimReplayEntry {
+            issued_tick: self.tick,
+            order,
+        });
+        self.event_count = self.event_count.saturating_add(1);
+        Ok(())
+    }
+
     pub fn control_group_members(&self, group_id: &str) -> Vec<String> {
         self.control_groups
             .get(group_id)
@@ -2071,6 +2242,142 @@ impl MissionSimV1 {
         }
     }
 
+    fn move_human_enemies_toward(
+        &mut self,
+        selected: &BTreeSet<String>,
+        target: BattleGridPoint,
+        stop_range: i16,
+    ) {
+        let mut occupied = self
+            .party
+            .iter()
+            .chain(&self.enemies)
+            .filter(|unit| unit.alive())
+            .map(|unit| unit.position)
+            .collect::<BTreeSet<_>>();
+        for index in 0..self.enemies.len() {
+            if !self.enemies[index].alive() || !selected.contains(&self.enemies[index].unit_id) {
+                continue;
+            }
+            self.enemies[index].movement_budget_milli += self.enemies[index].move_speed_milli;
+            if self.enemies[index].movement_budget_milli < MOVEMENT_TILE_COST {
+                continue;
+            }
+            occupied.remove(&self.enemies[index].position);
+            if let Some(next) = next_step_toward(
+                &self.seed,
+                self.enemies[index].position,
+                target,
+                stop_range,
+                &occupied,
+            ) {
+                self.enemies[index].position = next;
+                self.enemies[index].movement_budget_milli -= MOVEMENT_TILE_COST;
+            }
+            occupied.insert(self.enemies[index].position);
+        }
+    }
+
+    fn human_enemy_attack(&mut self, selected: &BTreeSet<String>, requested: Option<&str>) {
+        for attacker_index in 0..self.enemies.len() {
+            if !self.enemies[attacker_index].alive()
+                || !selected.contains(&self.enemies[attacker_index].unit_id)
+                || !self
+                    .tick
+                    .is_multiple_of(self.enemies[attacker_index].attack_interval_ticks as u64)
+            {
+                continue;
+            }
+            let target_index = requested
+                .and_then(|id| {
+                    self.party
+                        .iter()
+                        .position(|unit| unit.unit_id == id && unit.alive())
+                })
+                .or_else(|| {
+                    self.party
+                        .iter()
+                        .enumerate()
+                        .filter(|(_, unit)| unit.alive())
+                        .min_by_key(|(_, unit)| {
+                            distance(self.enemies[attacker_index].position, unit.position)
+                        })
+                        .map(|(index, _)| index)
+                });
+            let Some(target_index) = target_index else {
+                continue;
+            };
+            if distance(
+                self.enemies[attacker_index].position,
+                self.party[target_index].position,
+            ) > self.enemies[attacker_index].attack_range()
+            {
+                continue;
+            }
+            let damage =
+                (self.enemies[attacker_index].damage - self.party[target_index].armor).max(1);
+            let was_alive = self.party[target_index].alive();
+            if !deterministic_evade(
+                self.tick,
+                target_index + 97 + simulation_salt(&self.seed) as usize,
+                self.party[target_index].evasion_permille,
+            ) {
+                self.party[target_index].hp -= damage;
+            }
+            self.enemies[attacker_index].attacks_made += 1;
+            if was_alive && !self.party[target_index].alive() {
+                self.enemy_score = self.enemy_score.saturating_add(100);
+                self.enemies[attacker_index].confirmed_kills = self.enemies[attacker_index]
+                    .confirmed_kills
+                    .saturating_add(1);
+            }
+            self.event_count = self.event_count.saturating_add(1);
+        }
+    }
+
+    fn resolve_human_enemy_order(&mut self) {
+        let Some(order) = self.enemy_active_order.clone() else {
+            return;
+        };
+        let selected = order
+            .subject_actor_ids
+            .iter()
+            .cloned()
+            .collect::<BTreeSet<_>>();
+        match order.kind {
+            RtsOrderKind::Move | RtsOrderKind::AttackMove => {
+                if let Some(tile) = order.target_tile {
+                    self.move_human_enemies_toward(
+                        &selected,
+                        BattleGridPoint::new(tile.x as i16, tile.y as i16),
+                        0,
+                    );
+                }
+                if order.kind == RtsOrderKind::AttackMove {
+                    self.human_enemy_attack(&selected, order.target_actor_id.as_deref());
+                }
+            }
+            RtsOrderKind::Attack | RtsOrderKind::FocusFire => {
+                let target = order
+                    .target_actor_id
+                    .as_deref()
+                    .and_then(|id| {
+                        self.party
+                            .iter()
+                            .find(|unit| unit.unit_id == id && unit.alive())
+                    })
+                    .or_else(|| self.party.iter().find(|unit| unit.alive()))
+                    .map(|unit| unit.position);
+                if let Some(target) = target {
+                    self.move_human_enemies_toward(&selected, target, 1);
+                }
+                self.human_enemy_attack(&selected, order.target_actor_id.as_deref());
+            }
+            RtsOrderKind::Hold | RtsOrderKind::Stop => {}
+            _ => unreachable!("human enemy order kinds are validated at submission"),
+        }
+    }
+
     pub fn step(&mut self) -> Result<(), SimError> {
         self.validate()?;
         if self.terminal() {
@@ -2100,10 +2407,14 @@ impl MissionSimV1 {
         self.resolve_player_order();
         self.resolve_stance_fire();
         self.update_phase();
-        self.refresh_enemy_ai_plan();
-        self.resolve_enemy_workers();
-        self.resolve_enemy_economy();
-        self.resolve_enemy_ai();
+        if self.human_enemy_authority {
+            self.resolve_human_enemy_order();
+        } else {
+            self.refresh_enemy_ai_plan();
+            self.resolve_enemy_workers();
+            self.resolve_enemy_economy();
+            self.resolve_enemy_ai();
+        }
         self.resolve_support_fire();
         self.resolve_relay_pressure();
         self.resolve_mission_objective();
@@ -2119,8 +2430,27 @@ impl MissionSimV1 {
         } else {
             FIVE_MINUTE_TICKS
         };
-        if self.party.iter().all(|unit| !unit.alive()) || self.tick >= time_limit {
+        if self.party.iter().all(|unit| !unit.alive()) {
             self.outcome = Some(BattleOutcome::Defeat);
+            self.phase = BattlePhase::Complete;
+            self.event_count += 1;
+        } else if self.human_enemy_authority && self.enemies.iter().all(|unit| !unit.alive()) {
+            self.outcome = Some(BattleOutcome::Victory);
+            self.phase = BattlePhase::Complete;
+            self.event_count += 1;
+        } else if self.tick >= time_limit {
+            let player_hp: i64 = self.party.iter().map(|unit| unit.hp.max(0)).sum();
+            let enemy_hp: i64 = self.enemies.iter().map(|unit| unit.hp.max(0)).sum();
+            self.outcome = Some(
+                if self.human_enemy_authority
+                    && (player_hp > enemy_hp
+                        || (player_hp == enemy_hp && self.player_score > self.enemy_score))
+                {
+                    BattleOutcome::Victory
+                } else {
+                    BattleOutcome::Defeat
+                },
+            );
             self.phase = BattlePhase::Complete;
             self.event_count += 1;
         } else if self.seed.skirmish.enabled {
@@ -4747,7 +5077,8 @@ impl MissionSimV1 {
     }
 
     fn resolve_relay_pressure(&mut self) {
-        if self.current_objective_kind() != Some(ObjectiveKind::Destroy)
+        if self.human_enemy_authority
+            || self.current_objective_kind() != Some(ObjectiveKind::Destroy)
             || self.relay_guard_hp <= 0
             || !self.tick.is_multiple_of(24)
         {
@@ -4902,6 +5233,12 @@ impl MissionSimV1 {
         let units = self
             .party
             .iter()
+            .chain(
+                self.human_enemy_authority
+                    .then_some(&self.enemies)
+                    .into_iter()
+                    .flatten(),
+            )
             .filter(|unit| seeded_party_ids.contains(unit.unit_id.as_str()))
             .map(|unit| {
                 let status = if unit.hp <= 0 {
@@ -7303,5 +7640,41 @@ mod tests {
             first.snapshot_hash().unwrap(),
             second.snapshot_hash().unwrap()
         );
+    }
+
+    #[test]
+    fn ranked_pvp_gives_each_human_an_opposing_authority_side() {
+        let mut sim = MissionSimV1::from_seed(seed()).unwrap();
+        let guest_ids = sim
+            .party
+            .iter()
+            .skip(2)
+            .map(|unit| unit.unit_id.clone())
+            .collect::<BTreeSet<_>>();
+        sim.enable_human_enemy_authority(&guest_ids).unwrap();
+        assert!(sim.human_enemy_authority);
+        assert_eq!(sim.party.len(), 2);
+        assert_eq!(sim.enemies.len(), 2);
+        let guest_target = sim.party[0].unit_id.clone();
+        let guest_subjects = sim
+            .enemies
+            .iter()
+            .map(|unit| unit.unit_id.clone())
+            .collect::<Vec<_>>();
+        let mut guest_order = RtsFrameOrder::new(
+            1,
+            "enemy-player",
+            guest_subjects,
+            RtsOrderKind::Attack,
+            RtsOrderSource::LocalInput,
+        );
+        guest_order.target_actor_id = Some(guest_target);
+        sim.issue_human_enemy_order(guest_order).unwrap();
+        for _ in 0..20 {
+            sim.step().unwrap();
+        }
+        assert!(sim.enemy_last_order_frame.is_some());
+        assert!(sim.distinct_order_kinds.contains("enemy:attack"));
+        assert!(sim.validate().is_ok());
     }
 }

@@ -4,8 +4,10 @@ use trnm_rts_protocol::RtsFrameOrder;
 
 pub const ONLINE_AUTHORITY_PROTOCOL: &str = "trnm_online_authority_v2";
 pub const ONLINE_AUTHORITY_BUILD: &str = "trnm-online-authority-2026.07-v2";
-pub const ONLINE_PRODUCT_PROTOCOL: &str = "trnm_online_product_v1";
-pub const ONLINE_PRODUCT_BUILD: &str = "trnm-online-product-2026.07-v1";
+pub const ONLINE_PRODUCT_V1_PROTOCOL: &str = "trnm_online_product_v1";
+pub const ONLINE_PRODUCT_V1_BUILD: &str = "trnm-online-product-2026.07-v1";
+pub const ONLINE_PRODUCT_PROTOCOL: &str = "trnm_online_product_v2";
+pub const ONLINE_PRODUCT_BUILD: &str = "trnm-online-product-2026.07-v2";
 pub const ONLINE_AUTHORITY_DEFAULT_RULES: &str = "trnm_first_contact_rules_v1";
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -126,6 +128,7 @@ pub struct OnlineMatchView {
     pub authoritative_tick: u64,
     pub next_sequence: u64,
     pub map_id: String,
+    pub match_mode: String,
     pub rules_version: String,
     pub seed_hash: String,
     pub snapshot_hash: String,
@@ -283,6 +286,136 @@ pub struct OnlineMatchmakingReceipt {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OnlineSoloQueueJoinRequest {
+    pub protocol_version: String,
+    pub build_id: String,
+    pub player_id: String,
+    pub account_id: String,
+    pub campaign_id: String,
+    pub map_id: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OnlineSoloQueueAccessRequest {
+    pub protocol_version: String,
+    pub build_id: String,
+    pub player_id: String,
+    pub account_id: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum OnlineSoloQueueStatus {
+    Queued,
+    Matched,
+    Cancelled,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OnlineSoloQueueView {
+    pub protocol_version: String,
+    pub build_id: String,
+    pub ticket_id: String,
+    pub player_id: String,
+    pub status: OnlineSoloQueueStatus,
+    pub queue_mode: String,
+    pub map_id: String,
+    pub rating: i32,
+    pub matched_lobby_id: Option<String>,
+    pub match_id: Option<String>,
+    pub opponent_player_id: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OnlineRatingView {
+    pub protocol_version: String,
+    pub build_id: String,
+    pub player_id: String,
+    pub rating: i32,
+    pub wins: u32,
+    pub losses: u32,
+    pub provisional_matches: u32,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OnlineFriendRequest {
+    pub protocol_version: String,
+    pub build_id: String,
+    pub player_id: String,
+    pub account_id: String,
+    pub target_player_id: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OnlineFriendResolveRequest {
+    pub protocol_version: String,
+    pub build_id: String,
+    pub player_id: String,
+    pub account_id: String,
+    pub requester_player_id: String,
+    pub accept: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OnlineBlockRequest {
+    pub protocol_version: String,
+    pub build_id: String,
+    pub player_id: String,
+    pub account_id: String,
+    pub target_player_id: String,
+    pub blocked: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OnlineSocialAccessRequest {
+    pub protocol_version: String,
+    pub build_id: String,
+    pub player_id: String,
+    pub account_id: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OnlineSocialView {
+    pub protocol_version: String,
+    pub build_id: String,
+    pub player_id: String,
+    pub friends: Vec<String>,
+    pub incoming_requests: Vec<String>,
+    pub outgoing_requests: Vec<String>,
+    pub blocked_players: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OnlineReportCreateRequest {
+    pub protocol_version: String,
+    pub build_id: String,
+    pub player_id: String,
+    pub account_id: String,
+    pub target_player_id: String,
+    pub match_id: String,
+    pub category: String,
+    pub detail: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OnlineReportResolveRequest {
+    pub report_id: String,
+    pub decision: String,
+    pub resolution: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OnlineReportView {
+    pub report_id: String,
+    pub reporter_player_id: String,
+    pub target_player_id: String,
+    pub match_id: String,
+    pub category: String,
+    pub status: String,
+    pub resolution: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct OnlineAuthorityError {
     pub error: String,
     pub recoverable: bool,
@@ -300,12 +433,18 @@ pub fn validate_client_contract(protocol_version: &str, build_id: &str) -> Resul
 }
 
 pub fn validate_product_contract(protocol_version: &str, build_id: &str) -> Result<(), String> {
-    if protocol_version != ONLINE_PRODUCT_PROTOCOL {
+    let supported = (protocol_version == ONLINE_PRODUCT_PROTOCOL
+        && build_id == ONLINE_PRODUCT_BUILD)
+        || (protocol_version == ONLINE_PRODUCT_V1_PROTOCOL && build_id == ONLINE_PRODUCT_V1_BUILD);
+    if !supported
+        && protocol_version != ONLINE_PRODUCT_PROTOCOL
+        && protocol_version != ONLINE_PRODUCT_V1_PROTOCOL
+    {
         return Err(format!(
             "unsupported online product protocol {protocol_version}"
         ));
     }
-    if build_id != ONLINE_PRODUCT_BUILD {
+    if !supported {
         return Err(format!("online product build {build_id} is not compatible"));
     }
     Ok(())
@@ -322,6 +461,13 @@ mod tests {
         );
         assert!(validate_client_contract("v0", ONLINE_AUTHORITY_BUILD).is_err());
         assert!(validate_client_contract(ONLINE_AUTHORITY_PROTOCOL, "old-build").is_err());
+        assert!(validate_product_contract(ONLINE_PRODUCT_PROTOCOL, ONLINE_PRODUCT_BUILD).is_ok());
+        assert!(
+            validate_product_contract(ONLINE_PRODUCT_V1_PROTOCOL, ONLINE_PRODUCT_V1_BUILD).is_ok()
+        );
+        assert!(
+            validate_product_contract(ONLINE_PRODUCT_PROTOCOL, ONLINE_PRODUCT_V1_BUILD).is_err()
+        );
     }
 
     #[test]

@@ -698,12 +698,9 @@ pub(super) fn handle_first_contact_commands(
         let actor_ids = mission
             .party
             .iter()
-            .enumerate()
-            .filter(|(index, unit)| {
-                unit.alive()
-                    && (runtime.selected_slots.is_empty() || runtime.selected_slots.contains(index))
-            })
-            .map(|(_, unit)| unit.unit_id.clone())
+            .chain(&mission.enemies)
+            .filter(|unit| unit.alive() && online.controls(&unit.unit_id))
+            .map(|unit| unit.unit_id.clone())
             .collect::<Vec<_>>();
         let mut order = frame_order_for_command(
             &map,
@@ -1289,8 +1286,21 @@ pub(super) fn advance_first_contact_simulation(
         runtime.visible_enemy_count = mission.visible_enemy_count();
         runtime.contact_hp = mission.relay_guard_percent() as f32;
         runtime.objective_progress = mission.capture_percent() as f32;
-        runtime.victory = mission.outcome == Some(BattleOutcome::Victory);
-        runtime.defeat = mission.outcome == Some(BattleOutcome::Defeat);
+        let ranked_guest = online
+            .as_ref()
+            .is_some_and(|authority| authority.ranked_pvp_guest());
+        runtime.victory = mission.outcome
+            == Some(if ranked_guest {
+                BattleOutcome::Defeat
+            } else {
+                BattleOutcome::Victory
+            });
+        runtime.defeat = mission.outcome
+            == Some(if ranked_guest {
+                BattleOutcome::Victory
+            } else {
+                BattleOutcome::Defeat
+            });
         runtime.withdrawal = mission.outcome == Some(BattleOutcome::Withdrawal);
         runtime.credits = mission.resources_available;
         runtime.intel_level = mission.intel_level;

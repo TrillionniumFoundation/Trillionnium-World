@@ -2,7 +2,7 @@
 
 **TRNM** is a Rust-native Layer 1 focused on **Decentralized AI Compute** (PoCO).
 
-- Active game workspace: `trillionnium/Cargo.toml` (6 product crates only)
+- Active game workspace: `trillionnium/Cargo.toml` (8 product crates only)
 - Current one-page game status: `GAME_STATUS.md`
 - Platform workspace: `trillionnium/crates/platform/Cargo.toml`
 - Removed legacy-game index: `docs/archive/frozen-legacy-final-index-2026-07-11.md`
@@ -22,7 +22,7 @@
 - CEX is an optional settlement backend behind the Trillionnium-owned `trnm-economy-protocol`; never use the CEX Web/Matrix World shell as the native game client.
 - The native client owns account binding, economic outbox/reconciliation UI and gameplay state. CEX owns wallet/ledger settlement and verified receipts through `/v1/trillionnium/economy/*`.
 - Current game boundary gate: `scripts/check_trnm_game_product.sh`
-- Current native snapshot (2026-07-13): schema revision 12, Term Exchange protocol v2, RTS/checkpoint v16, Online Authority v2 and closed-alpha Online Product v1; the bounded two-player co-op slice now includes single-use registration invites, Argon2id login/rotation, suspension appeal, private lobby/invite/ready, durable `coop_vs_ai` allocation, independent cloud progression, Ed25519 match entitlements and authenticated reconnect. See `GAME_STATUS.md` for exact evidence and open boundaries; public discovery/PvP/MMR/social systems and player listings remain release-gated.
+- Current native snapshot (2026-07-13): schema revision 12, Term Exchange protocol v2, RTS/checkpoint v16, Online Authority v2 and Online Product v2. The closed-alpha path includes invite accounts, Argon2id login/rotation, private `coop_vs_ai`, ranked solo pairing, real opposing human authority, persistent MMR, friends/blocks/report intake and a native login/queue/launch shell. See `GAME_STATUS.md` for exact evidence and open boundaries; public beta, seasons/chat/guild, multi-host fleet, staffed safety and player listings remain release-gated.
 
 The cohort/commercial collection command writes `acceptance/S6_public_launch/latest/cohort-commercial-evidence-collection.json` plus `.md`, listing first-beta participant/session/feedback/signoff evidence and payment/refund/support/legal/operator/traffic drill evidence with privacy boundaries before the strict validator is run.
 

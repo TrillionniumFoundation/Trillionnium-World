@@ -20,6 +20,8 @@ async fn main() {
             .expect("TRNM_ENTITLEMENT_ED25519_PRIVATE_KEY_BASE64 is required");
     let entitlement_key_id = std::env::var("TRNM_ENTITLEMENT_ED25519_KEY_ID")
         .expect("TRNM_ENTITLEMENT_ED25519_KEY_ID is required");
+    let moderator_token =
+        std::env::var("TRNM_MODERATOR_TOKEN").expect("TRNM_MODERATOR_TOKEN is required");
     let asset_root = std::env::var_os("TRNM_ASSET_ROOT")
         .map(PathBuf::from)
         .unwrap_or_else(|| PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../../assets"));
@@ -40,6 +42,7 @@ async fn main() {
         entitlement_signing_seed_base64,
         entitlement_key_id,
         asset_root,
+        moderator_token,
     )
     .await
     .unwrap_or_else(|error| panic!("Online Authority startup failed closed: {error}"));

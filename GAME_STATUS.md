@@ -68,7 +68,7 @@ The RPG layer uses only clean-room mechanics study of 白金英雄坛说. No sou
 - `trnm_rts_sim_v16` / `trnm_rts_sim_checkpoint_v16`;
 - `trnm_player_settings_v2`.
 - `trnm_online_authority_v2`, build `trnm-online-authority-2026.07-v2`.
-- `trnm_online_product_v1`, build `trnm-online-product-2026.07-v1`.
+- `trnm_online_product_v2`, build `trnm-online-product-2026.07-v2` (v1 private-lobby requests remain compatible).
 
 ## Product shell
 
@@ -118,11 +118,13 @@ registry. The native client uses bounded same-request retries, refreshes stale
 target ticks only after the server proves the original was not accepted, and
 still disables local simulation/settlement while attached.
 
-This v2 is not a public online game claim. There is no matchmaking, lobby
-browser, party service, chat, friends, guild, MMR, season, spectator product,
-cross-host fleet or public endpoint. KMS/HSM custody and automatic key rotation
-are also pending. Offline local saves cannot be mixed with online characters.
-See `docs/development/trnm-online-authority-v2.md`.
+Online Authority v2 alone is not a public online game claim. Online Product v2
+now supplies ranked solo pairing, opposing human authority, MMR and a minimum
+friend/block/report control plane, but there is still no public beta, party
+queue, chat/guild, season/leaderboard, spectator product or cross-host fleet.
+KMS/HSM custody and automatic key rotation are also pending. Offline local
+saves cannot be mixed with online characters. See
+`docs/development/trnm-online-authority-v2.md`.
 
 Online Product v1 adds a closed-alpha control plane without changing the
 authority boundary. Database-backed single-use registration invites create the
@@ -133,6 +135,17 @@ resolution. Private two-member lobbies own target-bound invites, optimistic
 revisions, explicit ready state and one durable `coop_vs_ai` match allocation.
 The allocated game is still the same Authority v2 server-owned simulation and
 settlement. See `docs/development/trnm-online-product-v1.md`.
+
+Online Product v2 adds a native Bevy product shell and ranked head-to-head
+authority. F1 logs in with a protected launcher credential, F2 connects the
+cloud character, F3 joins solo queue and F5 launches the scoped game client.
+Pairing is rating-banded, block-aware, repeat-opponent-cooled and ticket-expired.
+The second member commands a real opposing simulation side; AI is disabled for
+ranked matches. Terminal MMR is a two-row, result-hash-bound, zero-sum event.
+Ranked play intentionally grants no campaign or CEX value while collusion and
+commercial policy remain open. Friends, blocks, match-bound reports and scoped
+moderator resolution are persistent. See
+`docs/development/trnm-online-product-v2.md`.
 
 The client exposes local/wallet balances, pending intents, priority
 compensations, value events, verified receipts and dead letters. `Ctrl+F7`
@@ -155,20 +168,22 @@ The control profiles alter live RTS input: Classic uses Q/W/E/R for move/attack/
 - human observation and non-developer sessions remain required for commercial usability claims and cannot be replaced by automated online E2E;
 - final composed soundtrack, richer effects and mix: pending (basic original playback is complete);
 - installer smoke across target distributions: pending;
-- public beta/commercial launch, matchmaking/social product and multi-host networking remain blocked.
+- public beta/commercial launch, full social/season product and multi-host networking remain blocked.
 
 ## Current local evidence
 
-- eight-crate unit/integration/E2E suite: 128/128 passing (41 Campaign, 19 First Contact, 13 RPG, 8 existing protocols, 31 RTS, 9 closed-loop E2E, 2 online protocol and 5 game-server tests);
+- eight-crate unit/integration/E2E suite: 130/130 passing (41 Campaign, 19 First Contact, 13 RPG, 8 existing protocols, 32 RTS, 9 closed-loop E2E, 2 online protocol and 6 game-server tests);
 - Online Authority v2 E2E: two real CEX sessions bring separate campaigns into one match, receive disjoint unit control, reject exact-ID altered replay, sequence skip, old build and control theft, recover via authenticated command-gap replay through a real systemd restart, each gain 80 XP plus two inventory units, and each settle a server-owned 25-credit Ed25519 reward; 15/15 PostgreSQL commands have unique persisted request fingerprints and the match owns two progression events;
 - Online Product v1 final release E2E: run `online-product-1783897456-380`, lobby `c510d1e0-287f-47c6-a898-826394c3b886`, match `9f5677b3-788a-49f5-b959-8fd1d895e8a7`; proves invalid/consumed registration invite rejection, Argon2id, durable login lock, credential rotation, suspension/appeal/reactivation, stolen invite, duplicate lobby, stale revision and non-owner queue rejection, then two ready members, one allocation, full Authority v2 victory, two progression events, two Ed25519 entitlements and two 25/0 wallets;
+- Online Product v2 E2E: run `online-product-v2-1783906177-12562`, lobby `5ad94f3f-a3b4-4b76-8b36-58d31b55a260`, match `5038b8a4-c411-4147-936c-71805e0367e3`; proves friend acceptance, two-sided block-aware pairing, duplicate ticket rejection, opposing human control sets, cross-control rejection, both-side commands, systemd restart, terminal 1016/984 zero-sum MMR, two rating events, two zero-delta progression provenance rows, zero CEX value entitlements and authenticated report resolution;
+- native Product v2 shell: run `online-product-native-v2-1783907721-7153`, match `5c65f668-92b0-4805-b311-00a6b4aa3016`; two distinct release product windows traverse F1 login, F2 cloud character, F3 ranked queue and F5 launch, then create two distinct release Authority windows. All four frames pass a non-black rendered-pixel hard gate after the acceptance script was tightened to reject obscured blank X11 captures. Credentials are not rendered and only scoped sessions cross into the game process; this remains automated evidence, not a human session;
 - network impairment E2E: the same full two-session/restart/settlement gate passes port-scoped loopback netem at 50 ms/1%, 100 ms/3% and 200 ms/5%; this is bounded local evidence, not a public-network SLO;
 - final native attach smoke: run `online-native-1783897487-24605`, match `7e7c14cc-13b6-43c7-a770-44cff29d8d7d`; two distinct release windows first traverse product registration/lobby/invite/ready/allocation, then each produce an independently attributed fingerprinted command; this is automated input evidence, not a human multiplayer session;
 - CEX full workspace: 355 passing, including Ed25519 issuer rejection and Argon2id/legacy credential migration tests; 16 detached-runtime black-box probes remain explicitly ignored and `consumer-entry-api` remains 161/161. The persistent cross-process gate additionally proves new accounts, reward exactly-once, byte-identical replay across ledger/consumer restart, held-escrow refund, committed chargeback, wallet/cursor recovery and PostgreSQL uniqueness;
 - workspace Clippy with `-D warnings`: passing;
 - product boundary: green (8 game / 12 platform / legacy working tree absent); CEX depends on `trnm-economy-protocol` and no longer depends on removed `trnm-world-api`, `trnm-world-domain` or `trnm-world-projection` crates;
 - release build and desktop installer smoke: passing;
-- current X230 isolated warm-cache matrix after explicit `--no-run` client-harness prewarming: RPG 0.29 s / 83 MiB, Campaign 0.61 s / 83 MiB, full 19-test First Contact package 85.08 s / 122 MiB, 64-sample RTS simulation 69.58 s / 83 MiB, new-save client journey 42.17 s / 122 MiB, Standard Annihilation 73.95 s / 122 MiB, authored-map adapter 12.63 s / 122 MiB, closed loop 13.19 s / 83 MiB and incremental release build 0.47 s / 122 MiB. Every isolated row remains below the explicit 90-second / 4-GiB bound. A deliberately recorded non-isolated run with the always-on llvmpipe native window competing for CPU reached 91.62 s for First Contact and 92.80 s for RTS; stopping that project service restored the gate without code changes. The former 3.41-GiB client figure was rustc/linker RSS from compiling the test harness on the first measured row, not game-runtime memory; the gate now separates compilation from runtime instead of misreporting it;
+- current X230 isolated warm-cache matrix after explicit `--no-run` client-harness prewarming: RPG 0.91 s / 83 MiB, Campaign 0.56 s / 83 MiB, full 19-test First Contact package 85.12 s / 122 MiB, 64-sample RTS simulation 70.82 s / 83 MiB, new-save client journey 40.12 s / 122 MiB, Standard Annihilation 73.67 s / 122 MiB, authored-map adapter 12.49 s / 122 MiB, closed loop 13.20 s / 83 MiB and incremental release build 0.90 s / 122 MiB. Every isolated row remains below the explicit 90-second / 4-GiB bound. The same final full-workspace run with the always-on llvmpipe native window competing for CPU recorded 91.43 s for First Contact, so that non-isolated wall clock is not presented as passing the 90-second reference line; stopping the project window restored the isolated gate without code changes. The former 3.41-GiB client figure was rustc/linker RSS from compiling the test harness on the first measured row, not game-runtime memory; the gate separates compilation from runtime instead of misreporting it;
 - release client service: active with a viewable native window after restart.
 - persistent CEX recovery: PostgreSQL WAL archival, a physical 8.6-GiB base
   backup, named-restore-point PITR and writable same-host promotion are proven;
@@ -184,6 +199,8 @@ The first clean release rebuild after adding the native rustls CEX client took 9
 scripts/check_trnm_game_product.sh
 scripts/check-trnm-online-authority-e2e.sh
 scripts/check-trnm-online-product-v1-e2e.sh
+scripts/check-trnm-online-product-v2-e2e.sh
+scripts/check-trnm-online-product-v2-native.sh
 scripts/check-trnm-online-network-chaos.sh
 scripts/check-trnm-online-native-two-client.sh
 cargo test --manifest-path trillionnium/Cargo.toml --workspace --all-targets

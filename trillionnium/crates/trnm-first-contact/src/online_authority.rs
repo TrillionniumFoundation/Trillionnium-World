@@ -15,12 +15,21 @@ pub(super) struct OnlineAuthorityClient {
     account_id: String,
     player_session: String,
     controlled_unit_ids: BTreeSet<String>,
+    ranked_pvp_guest: bool,
     view: OnlineSnapshotResponse,
     client: reqwest::blocking::Client,
     pub poll_accumulator: f32,
 }
 
 impl OnlineAuthorityClient {
+    pub fn controls(&self, unit_id: &str) -> bool {
+        self.controlled_unit_ids.contains(unit_id)
+    }
+
+    pub fn ranked_pvp_guest(&self) -> bool {
+        self.ranked_pvp_guest
+    }
+
     pub fn from_env() -> Result<Option<(Self, MissionSimV1)>, String> {
         let Some(base_url) = env::var("TRNM_ONLINE_AUTHORITY_URL")
             .ok()
@@ -45,16 +54,14 @@ impl OnlineAuthorityClient {
             &account_id,
             &player_session,
         )?;
-        let controlled_unit_ids = view
+        let member = view
             .view
             .members
             .iter()
             .find(|member| member.player_id == player_id && member.account_id == account_id)
-            .ok_or_else(|| "online match does not contain this player/account".to_string())?
-            .controlled_unit_ids
-            .iter()
-            .cloned()
-            .collect();
+            .ok_or_else(|| "online match does not contain this player/account".to_string())?;
+        let controlled_unit_ids = member.controlled_unit_ids.iter().cloned().collect();
+        let ranked_pvp_guest = view.view.match_mode == "ranked_pvp" && member.role == "coop_guest";
         let mission = decode_mission(&view)?;
         Ok(Some((
             Self {
@@ -64,6 +71,7 @@ impl OnlineAuthorityClient {
                 account_id,
                 player_session,
                 controlled_unit_ids,
+                ranked_pvp_guest,
                 view,
                 client,
                 poll_accumulator: 0.0,
