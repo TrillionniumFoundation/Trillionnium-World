@@ -18,9 +18,17 @@ resolver = "2"
 edition = "2021"
 license = "LicenseRef-Trillionnium-Internal"
 authors = ["Trillionnium Contributors"]
+publish = false
 
 [workspace.metadata.trnm]
 lane = "game-product"
 canonical_binary = "trnm-first-contact"
 canonical_map = "../assets/first_contact/maps/first_contact.yaml"
 platform_workspace = "crates/platform/Cargo.toml"
+
+[patch.crates-io]
+# wayland-scanner 0.31.10 is the current upstream release but constrains
+# quick-xml to the vulnerable 0.39 line. This local compatibility patch widens
+# that build-time dependency and adapts the one changed parser API until
+# upstream publishes a release.
+wayland-scanner = { path = "vendor/wayland-scanner" }

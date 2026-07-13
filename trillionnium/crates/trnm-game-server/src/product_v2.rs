@@ -1,5 +1,6 @@
 use super::*;
 use axum::http::HeaderValue;
+use sqlx::row::Row;
 use trnm_online_protocol::{
     OnlineBlockRequest, OnlineFriendRequest, OnlineFriendResolveRequest, OnlineRatingView,
     OnlineReportCreateRequest, OnlineReportResolveRequest, OnlineReportView,
@@ -21,11 +22,11 @@ fn require_v2(protocol: &str, build: &str) -> Result<(), ApiError> {
 }
 
 async fn ensure_rating(
-    transaction: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    transaction: &mut sqlx::transaction::Transaction<'_, sqlx_postgres::Postgres>,
     player_id: &str,
     account_id: Uuid,
 ) -> Result<i32, ApiError> {
-    sqlx::query(
+    sqlx::query::query(
         "insert into trnm_online_ratings (player_id, account_id)
          values ($1, $2) on conflict (player_id) do nothing",
     )
@@ -34,7 +35,7 @@ async fn ensure_rating(
     .execute(&mut **transaction)
     .await
     .map_err(internal_db)?;
-    let row = sqlx::query(
+    let row = sqlx::query::query(
         "select account_id, rating from trnm_online_ratings where player_id = $1 for update",
     )
     .bind(player_id)
@@ -51,7 +52,7 @@ async fn ensure_rating(
     row.try_get("rating").map_err(internal_db)
 }
 
-fn queue_view_from_row(row: &sqlx::postgres::PgRow) -> Result<OnlineSoloQueueView, ApiError> {
+fn queue_view_from_row(row: &sqlx_postgres::PgRow) -> Result<OnlineSoloQueueView, ApiError> {
     let status: String = row.try_get("status").map_err(internal_db)?;
     Ok(OnlineSoloQueueView {
         protocol_version: ONLINE_PRODUCT_PROTOCOL.to_string(),
@@ -85,7 +86,7 @@ async fn fetch_latest_ticket(
     pool: &PgPool,
     player_id: &str,
 ) -> Result<OnlineSoloQueueView, ApiError> {
-    let row = sqlx::query(
+    let row = sqlx::query::query(
         "select ticket_id, player_id, status, queue_mode, map_id, rating_at_join,
                 matched_lobby_id, match_id, opponent_player_id
          from trnm_online_solo_queue where player_id = $1
@@ -112,13 +113,13 @@ pub(super) async fn join_solo_queue(
     let account_id = Uuid::parse_str(&request.account_id)
         .map_err(|_| api_error(StatusCode::BAD_REQUEST, "account_id must be a UUID", false))?;
     let mut transaction = state.pool.begin().await.map_err(internal_db)?;
-    sqlx::query("select pg_advisory_xact_lock(hashtextextended($1, 0))")
+    sqlx::query::query("select pg_advisory_xact_lock(hashtextextended($1, 0))")
         .bind(format!("trnm-ranked-pvp:{}", request.map_id))
         .execute(&mut *transaction)
         .await
         .map_err(internal_db)?;
     lock_player_lobby_scope(&mut transaction, &request.player_id).await?;
-    sqlx::query(
+    sqlx::query::query(
         "update trnm_online_solo_queue set status = 'cancelled', updated_at = now()
          where status = 'queued' and created_at < now() - interval '15 minutes'",
     )
@@ -133,7 +134,7 @@ pub(super) async fn join_solo_queue(
     )
     .await?;
     ensure_player_has_no_active_lobby(&mut transaction, &request.player_id).await?;
-    let ranked_suspended: bool = sqlx::query_scalar(
+    let ranked_suspended: bool = sqlx::query_scalar::query_scalar(
         "select exists(select 1 from trnm_online_enforcements
          where player_id = $1 and scope in ('ranked', 'online') and revoked_at is null
            and expires_at > now())",
@@ -149,7 +150,7 @@ pub(super) async fn join_solo_queue(
             false,
         ));
     }
-    let already_queued: bool = sqlx::query_scalar(
+    let already_queued: bool = sqlx::query_scalar::query_scalar(
         "select exists(select 1 from trnm_online_solo_queue
          where player_id = $1 and status = 'queued')",
     )
@@ -165,7 +166,7 @@ pub(super) async fn join_solo_queue(
         ));
     }
     let rating = ensure_rating(&mut transaction, &request.player_id, account_id).await?;
-    let candidate = sqlx::query(
+    let candidate = sqlx::query::query(
         "select q.ticket_id, q.player_id, q.account_id, q.campaign_id, q.rating_at_join,
                 (select count(distinct repeat_event.match_id) from trnm_online_rating_events repeat_event
                  where repeat_event.created_at > now() - interval '24 hours'
@@ -202,7 +203,7 @@ pub(super) async fn join_solo_queue(
     .map_err(internal_db)?;
     let ticket_id = Uuid::new_v4();
     let Some(candidate) = candidate else {
-        sqlx::query(
+        sqlx::query::query(
             "insert into trnm_online_solo_queue (
                 ticket_id, player_id, account_id, campaign_id, map_id, rating_at_join, device_hash
              ) values ($1, $2, $3, $4, $5, $6, $7)",
@@ -233,7 +234,7 @@ pub(super) async fn join_solo_queue(
     let match_id = Uuid::new_v4();
     let allocation_id = Uuid::new_v4();
     let join_code = match_id.simple().to_string()[..10].to_ascii_uppercase();
-    sqlx::query(
+    sqlx::query::query(
         "insert into trnm_online_lobbies (
             lobby_id, display_name, owner_player_id, owner_account_id, status,
             lobby_revision, map_id, queue_mode
@@ -261,7 +262,7 @@ pub(super) async fn join_solo_queue(
             "member",
         ),
     ] {
-        sqlx::query(
+        sqlx::query::query(
             "insert into trnm_online_lobby_members (
                 lobby_id, player_id, account_id, campaign_id, member_role, ready
              ) values ($1, $2, $3, $4, $5, true)",
@@ -275,7 +276,7 @@ pub(super) async fn join_solo_queue(
         .await
         .map_err(internal_db)?;
     }
-    sqlx::query(
+    sqlx::query::query(
         "insert into trnm_online_matches (
             match_id, campaign_id, host_player_id, host_account_id, join_code,
             phase, build_id, map_id, rules_version, match_mode
@@ -306,7 +307,7 @@ pub(super) async fn join_solo_queue(
             "coop_guest",
         ),
     ] {
-        sqlx::query(
+        sqlx::query::query(
             "insert into trnm_online_match_members (
                 match_id, player_id, account_id, campaign_id, member_role
              ) values ($1, $2, $3, $4, $5)",
@@ -320,7 +321,7 @@ pub(super) async fn join_solo_queue(
         .await
         .map_err(internal_db)?;
     }
-    sqlx::query(
+    sqlx::query::query(
         "update trnm_online_solo_queue set status = 'matched', matched_lobby_id = $2,
             match_id = $3, opponent_player_id = $4, updated_at = now()
          where ticket_id = $1",
@@ -336,7 +337,7 @@ pub(super) async fn join_solo_queue(
     .execute(&mut *transaction)
     .await
     .map_err(internal_db)?;
-    sqlx::query(
+    sqlx::query::query(
         "insert into trnm_online_solo_queue (
             ticket_id, player_id, account_id, campaign_id, map_id, status,
             rating_at_join, matched_lobby_id, match_id, opponent_player_id, device_hash
@@ -356,7 +357,7 @@ pub(super) async fn join_solo_queue(
     .await
     .map_err(internal_db)?;
     if repeat_matches >= 2 {
-        sqlx::query(
+        sqlx::query::query(
             "insert into trnm_online_integrity_signals (
                 signal_id, match_id, player_ids, signal_kind, severity, evidence
              ) values ($1, $2, $3, 'repeat_opponent', 'medium', $4)",
@@ -386,7 +387,7 @@ pub(super) async fn join_solo_queue(
     .await;
     if let Err(error) = started {
         let mut cleanup = state.pool.begin().await.map_err(internal_db)?;
-        sqlx::query(
+        sqlx::query::query(
             "update trnm_online_solo_queue set status = 'cancelled',
                 matched_lobby_id = null, match_id = null, opponent_player_id = null,
                 updated_at = now() where match_id = $1",
@@ -395,12 +396,12 @@ pub(super) async fn join_solo_queue(
         .execute(&mut *cleanup)
         .await
         .map_err(internal_db)?;
-        sqlx::query("delete from trnm_online_matches where match_id = $1")
+        sqlx::query::query("delete from trnm_online_matches where match_id = $1")
             .bind(match_id)
             .execute(&mut *cleanup)
             .await
             .map_err(internal_db)?;
-        sqlx::query("delete from trnm_online_lobbies where lobby_id = $1")
+        sqlx::query::query("delete from trnm_online_lobbies where lobby_id = $1")
             .bind(lobby_id)
             .execute(&mut *cleanup)
             .await
@@ -409,7 +410,7 @@ pub(super) async fn join_solo_queue(
         return Err(error);
     }
     let mut allocated = state.pool.begin().await.map_err(internal_db)?;
-    sqlx::query(
+    sqlx::query::query(
         "insert into trnm_online_matchmaking_allocations (
             allocation_id, lobby_id, match_id, queue_mode, member_count
          ) values ($1, $2, $3, 'ranked_pvp', 2)",
@@ -420,7 +421,7 @@ pub(super) async fn join_solo_queue(
     .execute(&mut *allocated)
     .await
     .map_err(internal_db)?;
-    sqlx::query(
+    sqlx::query::query(
         "update trnm_online_lobbies set status = 'matched', match_id = $2,
             lobby_revision = lobby_revision + 1, updated_at = now() where lobby_id = $1",
     )
@@ -454,7 +455,7 @@ pub(super) async fn cancel_solo_queue(
 ) -> Result<Json<OnlineSoloQueueView>, ApiError> {
     require_v2(&request.protocol_version, &request.build_id)?;
     verify_identity(&state, &headers, &request.player_id, &request.account_id).await?;
-    let changed = sqlx::query(
+    let changed = sqlx::query::query(
         "update trnm_online_solo_queue set status = 'cancelled', updated_at = now()
          where ticket_id = (
              select ticket_id from trnm_online_solo_queue
@@ -488,7 +489,7 @@ pub(super) async fn get_rating(
         .map_err(|_| api_error(StatusCode::BAD_REQUEST, "account_id must be a UUID", false))?;
     let mut transaction = state.pool.begin().await.map_err(internal_db)?;
     ensure_rating(&mut transaction, &request.player_id, account_id).await?;
-    let row = sqlx::query(
+    let row = sqlx::query::query(
         "select rating, wins, losses, provisional_matches from trnm_online_ratings
          where player_id = $1",
     )
@@ -511,10 +512,10 @@ pub(super) async fn get_rating(
 }
 
 async fn verify_social_target(
-    transaction: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    transaction: &mut sqlx::transaction::Transaction<'_, sqlx_postgres::Postgres>,
     player_id: &str,
 ) -> Result<(), ApiError> {
-    let exists: bool = sqlx::query_scalar(
+    let exists: bool = sqlx::query_scalar::query_scalar(
         "select exists(select 1 from trnm_online_campaigns where player_id = $1)",
     )
     .bind(player_id)
@@ -532,7 +533,7 @@ async fn verify_social_target(
 }
 
 async fn lock_social_pair(
-    transaction: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    transaction: &mut sqlx::transaction::Transaction<'_, sqlx_postgres::Postgres>,
     left: &str,
     right: &str,
 ) -> Result<(), ApiError> {
@@ -541,7 +542,7 @@ async fn lock_social_pair(
     } else {
         format!("{right}:{left}")
     };
-    sqlx::query("select pg_advisory_xact_lock(hashtextextended($1, 0))")
+    sqlx::query::query("select pg_advisory_xact_lock(hashtextextended($1, 0))")
         .bind(format!("trnm-social:{pair}"))
         .execute(&mut **transaction)
         .await
@@ -550,11 +551,11 @@ async fn lock_social_pair(
 }
 
 async fn ensure_not_blocked(
-    transaction: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    transaction: &mut sqlx::transaction::Transaction<'_, sqlx_postgres::Postgres>,
     left: &str,
     right: &str,
 ) -> Result<(), ApiError> {
-    let blocked: bool = sqlx::query_scalar(
+    let blocked: bool = sqlx::query_scalar::query_scalar(
         "select exists(select 1 from trnm_online_blocks
          where (blocker_player_id = $1 and blocked_player_id = $2)
             or (blocker_player_id = $2 and blocked_player_id = $1))",
@@ -602,7 +603,7 @@ pub(super) async fn request_friend(
         &request.target_player_id,
     )
     .await?;
-    let exists: bool = sqlx::query_scalar(
+    let exists: bool = sqlx::query_scalar::query_scalar(
         "select exists(select 1 from trnm_online_friendships
          where (requester_player_id = $1 and target_player_id = $2)
             or (requester_player_id = $2 and target_player_id = $1))",
@@ -619,7 +620,7 @@ pub(super) async fn request_friend(
             false,
         ));
     }
-    sqlx::query(
+    sqlx::query::query(
         "insert into trnm_online_friendships (requester_player_id, target_player_id)
          values ($1, $2)",
     )
@@ -644,7 +645,7 @@ pub(super) async fn resolve_friend(
     } else {
         "rejected"
     };
-    let updated = sqlx::query(
+    let updated = sqlx::query::query(
         "update trnm_online_friendships set status = $3, updated_at = now()
          where requester_player_id = $1 and target_player_id = $2 and status = 'pending'",
     )
@@ -687,7 +688,7 @@ pub(super) async fn set_block(
     .await?;
     verify_social_target(&mut transaction, &request.target_player_id).await?;
     if request.blocked {
-        sqlx::query(
+        sqlx::query::query(
             "insert into trnm_online_blocks (blocker_player_id, blocked_player_id)
              values ($1, $2) on conflict do nothing",
         )
@@ -696,7 +697,7 @@ pub(super) async fn set_block(
         .execute(&mut *transaction)
         .await
         .map_err(internal_db)?;
-        sqlx::query(
+        sqlx::query::query(
             "update trnm_online_friendships set status = 'rejected', updated_at = now()
              where status in ('pending', 'accepted') and
                ((requester_player_id = $1 and target_player_id = $2)
@@ -707,7 +708,7 @@ pub(super) async fn set_block(
         .execute(&mut *transaction)
         .await
         .map_err(internal_db)?;
-        sqlx::query(
+        sqlx::query::query(
             "update trnm_online_lobby_invites set status = 'revoked'
              where status = 'pending' and
                ((inviter_player_id = $1 and target_player_id = $2)
@@ -719,7 +720,7 @@ pub(super) async fn set_block(
         .await
         .map_err(internal_db)?;
     } else {
-        sqlx::query(
+        sqlx::query::query(
             "delete from trnm_online_blocks where blocker_player_id = $1 and blocked_player_id = $2",
         )
         .bind(&request.player_id)
@@ -743,7 +744,7 @@ pub(super) async fn get_social(
 }
 
 async fn fetch_social(pool: &PgPool, player_id: &str) -> Result<OnlineSocialView, ApiError> {
-    let friendship_rows = sqlx::query(
+    let friendship_rows = sqlx::query::query(
         "select requester_player_id, target_player_id, status
          from trnm_online_friendships
          where requester_player_id = $1 or target_player_id = $1",
@@ -771,7 +772,7 @@ async fn fetch_social(pool: &PgPool, player_id: &str) -> Result<OnlineSocialView
             outgoing.push(target);
         }
     }
-    let blocked_players = sqlx::query_scalar::<_, String>(
+    let blocked_players = sqlx::query_scalar::query_scalar::<_, String>(
         "select blocked_player_id from trnm_online_blocks
          where blocker_player_id = $1 order by blocked_player_id",
     )
@@ -793,7 +794,7 @@ async fn fetch_social(pool: &PgPool, player_id: &str) -> Result<OnlineSocialView
     })
 }
 
-pub(super) fn report_view(row: &sqlx::postgres::PgRow) -> Result<OnlineReportView, ApiError> {
+pub(super) fn report_view(row: &sqlx_postgres::PgRow) -> Result<OnlineReportView, ApiError> {
     Ok(OnlineReportView {
         report_id: row
             .try_get::<Uuid, _>("report_id")
@@ -834,7 +835,7 @@ pub(super) async fn create_report(
         .map_err(|_| api_error(StatusCode::BAD_REQUEST, "account_id must be a UUID", false))?;
     let match_id = Uuid::parse_str(&request.match_id)
         .map_err(|_| api_error(StatusCode::BAD_REQUEST, "match_id must be a UUID", false))?;
-    let valid_pair: bool = sqlx::query_scalar(
+    let valid_pair: bool = sqlx::query_scalar::query_scalar(
         "select exists(
             select 1 from trnm_online_match_members reporter
             join trnm_online_match_members target on target.match_id = reporter.match_id
@@ -857,7 +858,7 @@ pub(super) async fn create_report(
         ));
     }
     let report_id = Uuid::new_v4();
-    let row = sqlx::query(
+    let row = sqlx::query::query(
         "insert into trnm_online_reports (
             report_id, reporter_player_id, target_player_id, match_id, category, detail
          ) values ($1, $2, $3, $4, $5, $6)
@@ -919,7 +920,7 @@ pub(super) async fn resolve_report(
     let report_id = Uuid::parse_str(&request.report_id)
         .map_err(|_| api_error(StatusCode::BAD_REQUEST, "report_id must be a UUID", false))?;
     let mut transaction = state.pool.begin().await.map_err(internal_db)?;
-    let row = sqlx::query(
+    let row = sqlx::query::query(
         "update trnm_online_reports set status = $2, resolution = $3, resolved_at = now()
          where report_id = $1 and status = 'open'
          returning report_id, reporter_player_id, target_player_id, match_id,
@@ -932,7 +933,7 @@ pub(super) async fn resolve_report(
     .await
     .map_err(internal_db)?
     .ok_or_else(|| api_error(StatusCode::CONFLICT, "report is not open", false))?;
-    sqlx::query(
+    sqlx::query::query(
         "update trnm_online_moderation_case_claims set status = 'resolved', resolved_at = now()
          where case_kind = 'report' and case_id = $1 and status = 'claimed'",
     )
@@ -945,21 +946,22 @@ pub(super) async fn resolve_report(
 }
 
 pub(super) async fn apply_ranked_result(
-    transaction: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    transaction: &mut sqlx::transaction::Transaction<'_, sqlx_postgres::Postgres>,
     match_id: Uuid,
     outcome: BattleOutcome,
     result_hash: &str,
 ) -> Result<(), String> {
-    let mode: String =
-        sqlx::query_scalar("select match_mode from trnm_online_matches where match_id = $1")
-            .bind(match_id)
-            .fetch_one(&mut **transaction)
-            .await
-            .map_err(|error| error.to_string())?;
+    let mode: String = sqlx::query_scalar::query_scalar(
+        "select match_mode from trnm_online_matches where match_id = $1",
+    )
+    .bind(match_id)
+    .fetch_one(&mut **transaction)
+    .await
+    .map_err(|error| error.to_string())?;
     if mode != "ranked_pvp" {
         return Ok(());
     }
-    let members = sqlx::query(
+    let members = sqlx::query::query(
         "select player_id, account_id, member_role from trnm_online_match_members
          where match_id = $1 order by case member_role when 'host' then 0 else 1 end",
     )
@@ -977,7 +979,7 @@ pub(super) async fn apply_ranked_result(
         .try_get::<String, _>("player_id")
         .map_err(|error| error.to_string())?;
     for member in &members {
-        sqlx::query(
+        sqlx::query::query(
             "insert into trnm_online_ratings (player_id, account_id) values ($1, $2)
              on conflict (player_id) do nothing",
         )
@@ -995,7 +997,7 @@ pub(super) async fn apply_ranked_result(
         .await
         .map_err(|error| error.to_string())?;
     }
-    let ratings = sqlx::query(
+    let ratings = sqlx::query::query(
         "select player_id, rating from trnm_online_ratings
          where player_id = any($1) order by player_id for update",
     )
@@ -1027,7 +1029,7 @@ pub(super) async fn apply_ranked_result(
         (&guest, &host, !host_won, guest_rating, guest_delta),
     ] {
         let rating_after = (rating_before + delta).clamp(0, 5000);
-        sqlx::query(
+        sqlx::query::query(
             "update trnm_online_ratings set rating = $2,
                 wins = wins + case when $3 then 1 else 0 end,
                 losses = losses + case when $3 then 0 else 1 end,
@@ -1040,7 +1042,7 @@ pub(super) async fn apply_ranked_result(
         .execute(&mut **transaction)
         .await
         .map_err(|error| error.to_string())?;
-        sqlx::query(
+        sqlx::query::query(
             "insert into trnm_online_rating_events (
                 event_id, match_id, player_id, opponent_player_id, result,
                 rating_before, rating_after, rating_delta, result_hash

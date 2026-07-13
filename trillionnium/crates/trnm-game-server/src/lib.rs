@@ -21,7 +21,8 @@ use cex::CexClient;
 use chrono::Utc;
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
-use sqlx::{postgres::PgPoolOptions, PgPool, Row};
+use sqlx::row::Row;
+use sqlx_postgres::{PgPool, PgPoolOptions};
 use std::{
     collections::{BTreeMap, BTreeSet},
     net::SocketAddr,
@@ -120,7 +121,7 @@ impl AppState {
             .begin()
             .await
             .map_err(|error| format!("begin Online Production migrations: {error}"))?;
-        sqlx::query("select pg_advisory_xact_lock($1)")
+        sqlx::query::query("select pg_advisory_xact_lock($1)")
             .bind(MIGRATION_ADVISORY_LOCK)
             .execute(&mut *migrations)
             .await
@@ -135,7 +136,7 @@ impl AppState {
             ("Online Production v1", MIGRATION_V7),
             ("Online Production v2", MIGRATION_V8),
         ] {
-            sqlx::raw_sql(sql)
+            sqlx::raw_sql::raw_sql(sql)
                 .execute(&mut *migrations)
                 .await
                 .map_err(|error| format!("migrate {label} PostgreSQL: {error}"))?;
@@ -156,7 +157,7 @@ impl AppState {
                 "fleet identity, capacity and production ingress limits must be valid".to_string(),
             );
         }
-        let instance_epoch: i64 = sqlx::query_scalar(
+        let instance_epoch: i64 = sqlx::query_scalar::query_scalar(
             "insert into trnm_online_fleet_instances (
                 instance_id, region, public_endpoint, build_id, capacity, status,
                 instance_epoch, lease_expires_at, physical_host_id
@@ -426,7 +427,7 @@ async fn production_rate_limit(
         "{:x}",
         Sha256::digest(format!("{}:{}:{}", identity, request.method(), endpoint_class).as_bytes())
     );
-    let count = sqlx::query_scalar::<_, i64>(
+    let count = sqlx::query_scalar::query_scalar::<_, i64>(
         "insert into trnm_online_admission_windows (
             bucket_key, window_started_at, request_class, request_count,
             rejection_count, last_instance_id
@@ -453,7 +454,7 @@ async fn production_rate_limit(
         }
     };
     if count > i64::from(effective_limit) {
-        if let Err(error) = sqlx::query(
+        if let Err(error) = sqlx::query::query(
             "update trnm_online_admission_windows set
                 rejection_count = rejection_count + 1, updated_at = now()
              where bucket_key = $1 and window_started_at = date_trunc('minute', now())",
@@ -640,7 +641,7 @@ async fn health() -> &'static str {
 }
 
 async fn readiness(State(state): State<AppState>) -> Response {
-    let postgres = sqlx::query_scalar::<_, i32>("select 1")
+    let postgres = sqlx::query_scalar::query_scalar::<_, i32>("select 1")
         .fetch_one(&state.pool)
         .await
         .is_ok();
@@ -648,14 +649,14 @@ async fn readiness(State(state): State<AppState>) -> Response {
     let signer = state.cex.signer_readiness().await.ok();
     let signer_registry_verified = state.cex.signer_attestation().await.is_ok();
     let ready = postgres && cex && signer.is_some() && signer_registry_verified;
-    let healthy_fleet_instances = sqlx::query_scalar::<_, i64>(
+    let healthy_fleet_instances = sqlx::query_scalar::query_scalar::<_, i64>(
         "select count(*) from trnm_online_fleet_instances
          where status = 'active' and lease_expires_at > now()",
     )
     .fetch_one(&state.pool)
     .await
     .unwrap_or_default();
-    let active_matches = sqlx::query_scalar::<_, i64>(
+    let active_matches = sqlx::query_scalar::query_scalar::<_, i64>(
         "select count(*) from trnm_online_matches where phase = 'running'",
     )
     .fetch_one(&state.pool)
@@ -777,7 +778,7 @@ async fn connect_campaign(
         .map_err(|_| api_error(StatusCode::BAD_REQUEST, "account_id must be a UUID", false))?;
     verify_identity(&state, &headers, &request.player_id, &request.account_id).await?;
 
-    if let Some(row) = sqlx::query(
+    if let Some(row) = sqlx::query::query(
         "select campaign_id, player_id, account_id, slot_key, campaign_revision,
                 schema_revision, state_hash, campaign_json
          from trnm_online_campaigns where account_id = $1 and slot_key = $2",
@@ -810,7 +811,7 @@ async fn connect_campaign(
     let state_hash = hash_json(&campaign)?;
     let campaign_json = serde_json::to_value(&campaign)
         .map_err(|error| api_error(StatusCode::INTERNAL_SERVER_ERROR, error.to_string(), false))?;
-    sqlx::query(
+    sqlx::query::query(
         "insert into trnm_online_campaigns (
             campaign_id, player_id, account_id, slot_key, campaign_revision,
             schema_revision, state_hash, campaign_json
@@ -881,7 +882,7 @@ async fn create_lobby(
     .await?;
     ensure_player_has_no_active_lobby(&mut transaction, &request.player_id).await?;
     let lobby_id = Uuid::new_v4();
-    sqlx::query(
+    sqlx::query::query(
         "insert into trnm_online_lobbies (
             lobby_id, display_name, owner_player_id, owner_account_id, map_id
          ) values ($1, $2, $3, $4, $5)",
@@ -894,7 +895,7 @@ async fn create_lobby(
     .execute(&mut *transaction)
     .await
     .map_err(internal_db)?;
-    sqlx::query(
+    sqlx::query::query(
         "insert into trnm_online_lobby_members (
             lobby_id, player_id, account_id, campaign_id, member_role
          ) values ($1, $2, $3, $4, 'owner')",
@@ -921,7 +922,7 @@ async fn get_lobby(
     let account_id = Uuid::parse_str(&request.account_id)
         .map_err(|_| api_error(StatusCode::BAD_REQUEST, "account_id must be a UUID", false))?;
     verify_identity(&state, &headers, &request.player_id, &request.account_id).await?;
-    let member: bool = sqlx::query_scalar(
+    let member: bool = sqlx::query_scalar::query_scalar(
         "select exists(select 1 from trnm_online_lobby_members
          where lobby_id = $1 and player_id = $2 and account_id = $3)",
     )
@@ -963,7 +964,7 @@ async fn invite_to_lobby(
     let lobby = lock_lobby(&mut transaction, lobby_id).await?;
     require_lobby_owner(&lobby, &request.player_id, account_id)?;
     require_open_lobby_revision(&lobby, request.expected_lobby_revision)?;
-    let blocked: bool = sqlx::query_scalar(
+    let blocked: bool = sqlx::query_scalar::query_scalar(
         "select exists(select 1 from trnm_online_blocks
          where (blocker_player_id = $1 and blocked_player_id = $2)
             or (blocker_player_id = $2 and blocked_player_id = $1))",
@@ -980,12 +981,13 @@ async fn invite_to_lobby(
             false,
         ));
     }
-    let member_count: i64 =
-        sqlx::query_scalar("select count(*) from trnm_online_lobby_members where lobby_id = $1")
-            .bind(lobby_id)
-            .fetch_one(&mut *transaction)
-            .await
-            .map_err(internal_db)?;
+    let member_count: i64 = sqlx::query_scalar::query_scalar(
+        "select count(*) from trnm_online_lobby_members where lobby_id = $1",
+    )
+    .bind(lobby_id)
+    .fetch_one(&mut *transaction)
+    .await
+    .map_err(internal_db)?;
     if member_count != 1 {
         return Err(api_error(
             StatusCode::CONFLICT,
@@ -998,7 +1000,7 @@ async fn invite_to_lobby(
     let invite_token = format!("trnm-invite-{}", Uuid::new_v4());
     let invite_token_hash = sha256_text(&invite_token);
     let expires_at_epoch = Utc::now().timestamp().saturating_add(900);
-    sqlx::query(
+    sqlx::query::query(
         "insert into trnm_online_lobby_invites (
             invite_id, lobby_id, inviter_player_id, target_player_id,
             invite_token_hash, expires_at
@@ -1055,7 +1057,7 @@ async fn accept_lobby_invite(
     )
     .await?;
     ensure_player_has_no_active_lobby(&mut transaction, &request.player_id).await?;
-    let invite = sqlx::query(
+    let invite = sqlx::query::query(
         "select invite_id, lobby_id, target_player_id, status,
                 extract(epoch from expires_at)::bigint as expires_at_epoch
          from trnm_online_lobby_invites where invite_token_hash = $1 for update",
@@ -1087,12 +1089,13 @@ async fn accept_lobby_invite(
             false,
         ));
     }
-    let member_count: i64 =
-        sqlx::query_scalar("select count(*) from trnm_online_lobby_members where lobby_id = $1")
-            .bind(lobby_id)
-            .fetch_one(&mut *transaction)
-            .await
-            .map_err(internal_db)?;
+    let member_count: i64 = sqlx::query_scalar::query_scalar(
+        "select count(*) from trnm_online_lobby_members where lobby_id = $1",
+    )
+    .bind(lobby_id)
+    .fetch_one(&mut *transaction)
+    .await
+    .map_err(internal_db)?;
     if member_count != 1 {
         return Err(api_error(
             StatusCode::CONFLICT,
@@ -1100,7 +1103,7 @@ async fn accept_lobby_invite(
             false,
         ));
     }
-    sqlx::query(
+    sqlx::query::query(
         "insert into trnm_online_lobby_members (
             lobby_id, player_id, account_id, campaign_id, member_role
          ) values ($1, $2, $3, $4, 'member')",
@@ -1112,7 +1115,7 @@ async fn accept_lobby_invite(
     .execute(&mut *transaction)
     .await
     .map_err(internal_db)?;
-    sqlx::query(
+    sqlx::query::query(
         "update trnm_online_lobby_invites set status = 'accepted', accepted_at = now()
          where invite_id = $1",
     )
@@ -1124,7 +1127,7 @@ async fn accept_lobby_invite(
     .execute(&mut *transaction)
     .await
     .map_err(internal_db)?;
-    sqlx::query(
+    sqlx::query::query(
         "update trnm_online_lobbies set lobby_revision = lobby_revision + 1,
              updated_at = now() where lobby_id = $1",
     )
@@ -1150,7 +1153,7 @@ async fn set_lobby_ready(
     let mut transaction = state.pool.begin().await.map_err(internal_db)?;
     let lobby = lock_lobby(&mut transaction, lobby_id).await?;
     require_open_lobby_revision(&lobby, request.expected_lobby_revision)?;
-    let updated = sqlx::query(
+    let updated = sqlx::query::query(
         "update trnm_online_lobby_members set ready = $4
          where lobby_id = $1 and player_id = $2 and account_id = $3",
     )
@@ -1168,7 +1171,7 @@ async fn set_lobby_ready(
             false,
         ));
     }
-    sqlx::query(
+    sqlx::query::query(
         "update trnm_online_lobbies set lobby_revision = lobby_revision + 1,
              updated_at = now() where lobby_id = $1",
     )
@@ -1195,7 +1198,7 @@ async fn queue_lobby(
     let lobby = lock_lobby(&mut transaction, lobby_id).await?;
     require_lobby_owner(&lobby, &request.player_id, account_id)?;
     require_open_lobby_revision(&lobby, request.expected_lobby_revision)?;
-    let members = sqlx::query(
+    let members = sqlx::query::query(
         "select player_id, account_id, campaign_id, member_role, ready
          from trnm_online_lobby_members where lobby_id = $1
          order by case member_role when 'owner' then 0 else 1 end for update",
@@ -1219,7 +1222,7 @@ async fn queue_lobby(
     let join_code = match_id.simple().to_string()[..10].to_ascii_uppercase();
     let map_id: String = lobby.try_get("map_id").map_err(internal_db)?;
     let host_campaign_id: String = members[0].try_get("campaign_id").map_err(internal_db)?;
-    sqlx::query(
+    sqlx::query::query(
         "insert into trnm_online_matches (
             match_id, campaign_id, host_player_id, host_account_id, join_code,
             phase, build_id, map_id, rules_version
@@ -1245,7 +1248,7 @@ async fn queue_lobby(
     .await
     .map_err(internal_db)?;
     for (index, member) in members.iter().enumerate() {
-        sqlx::query(
+        sqlx::query::query(
             "insert into trnm_online_match_members (
                 match_id, player_id, account_id, campaign_id, member_role
              ) values ($1, $2, $3, $4, $5)",
@@ -1271,7 +1274,7 @@ async fn queue_lobby(
         .await
         .map_err(internal_db)?;
     }
-    sqlx::query(
+    sqlx::query::query(
         "update trnm_online_lobbies set status = 'queued',
              lobby_revision = lobby_revision + 1, updated_at = now()
          where lobby_id = $1",
@@ -1299,12 +1302,12 @@ async fn queue_lobby(
         Ok(Json(view)) => view,
         Err(error) => {
             let mut cleanup = state.pool.begin().await.map_err(internal_db)?;
-            sqlx::query("delete from trnm_online_matches where match_id = $1")
+            sqlx::query::query("delete from trnm_online_matches where match_id = $1")
                 .bind(match_id)
                 .execute(&mut *cleanup)
                 .await
                 .map_err(internal_db)?;
-            sqlx::query(
+            sqlx::query::query(
                 "update trnm_online_lobbies set status = 'open',
                      lobby_revision = lobby_revision + 1, updated_at = now()
                  where lobby_id = $1",
@@ -1319,7 +1322,7 @@ async fn queue_lobby(
     };
     let allocation_id = Uuid::new_v4();
     let mut allocation = state.pool.begin().await.map_err(internal_db)?;
-    sqlx::query(
+    sqlx::query::query(
         "insert into trnm_online_matchmaking_allocations (
             allocation_id, lobby_id, match_id, queue_mode, member_count
          ) values ($1, $2, $3, 'coop_vs_ai', 2)",
@@ -1330,7 +1333,7 @@ async fn queue_lobby(
     .execute(&mut *allocation)
     .await
     .map_err(internal_db)?;
-    sqlx::query(
+    sqlx::query::query(
         "update trnm_online_lobbies set status = 'matched', match_id = $2,
              lobby_revision = lobby_revision + 1, updated_at = now()
          where lobby_id = $1 and status = 'queued'",
@@ -1357,7 +1360,7 @@ async fn create_match(
     validate_client_contract(&request.protocol_version, &request.build_id)
         .map_err(|error| api_error(StatusCode::UPGRADE_REQUIRED, error, false))?;
     mission_for_map(&request.map_id)?;
-    let campaign_row = sqlx::query(
+    let campaign_row = sqlx::query::query(
         "select player_id, account_id, campaign_revision from trnm_online_campaigns
          where campaign_id = $1",
     )
@@ -1379,7 +1382,7 @@ async fn create_match(
     let match_id = Uuid::new_v4();
     let join_code = match_id.simple().to_string()[..10].to_ascii_uppercase();
     let mut transaction = state.pool.begin().await.map_err(internal_db)?;
-    sqlx::query(
+    sqlx::query::query(
         "insert into trnm_online_matches (
             match_id, campaign_id, host_player_id, host_account_id, join_code,
             phase, build_id, map_id, rules_version
@@ -1396,7 +1399,7 @@ async fn create_match(
     .execute(&mut *transaction)
     .await
     .map_err(internal_db)?;
-    sqlx::query(
+    sqlx::query::query(
         "insert into trnm_online_match_members (
             match_id, player_id, account_id, campaign_id, member_role
          ) values ($1, $2, $3, $4, 'host')",
@@ -1423,7 +1426,7 @@ async fn join_match(
         .map_err(|_| api_error(StatusCode::BAD_REQUEST, "account_id must be a UUID", false))?;
     verify_identity(&state, &headers, &request.player_id, &request.account_id).await?;
     let mut transaction = state.pool.begin().await.map_err(internal_db)?;
-    let campaign_owner = sqlx::query(
+    let campaign_owner = sqlx::query::query(
         "select player_id, account_id from trnm_online_campaigns where campaign_id = $1",
     )
     .bind(&request.campaign_id)
@@ -1440,7 +1443,7 @@ async fn join_match(
             false,
         ));
     }
-    let row = sqlx::query(
+    let row = sqlx::query::query(
         "select match_id, phase from trnm_online_matches where join_code = $1 for update",
     )
     .bind(request.join_code.to_ascii_uppercase())
@@ -1457,7 +1460,7 @@ async fn join_match(
             false,
         ));
     }
-    sqlx::query(
+    sqlx::query::query(
         "insert into trnm_online_match_members (
             match_id, player_id, account_id, campaign_id, member_role
          ) values ($1, $2, $3, $4, 'coop_guest')",
@@ -1496,7 +1499,7 @@ async fn start_match(
     let account_id = Uuid::parse_str(&request.account_id)
         .map_err(|_| api_error(StatusCode::BAD_REQUEST, "account_id must be a UUID", false))?;
     let mut transaction = state.pool.begin().await.map_err(internal_db)?;
-    let match_row = sqlx::query(
+    let match_row = sqlx::query::query(
         "select campaign_id, host_player_id, host_account_id, phase, map_id, match_revision,
                 match_mode
          from trnm_online_matches where match_id = $1 for update",
@@ -1527,12 +1530,13 @@ async fn start_match(
     if revision as u64 != request.expected_match_revision {
         return Err(conflict("match revision changed", revision as u64));
     }
-    let member_count: i64 =
-        sqlx::query_scalar("select count(*) from trnm_online_match_members where match_id = $1")
-            .bind(match_id)
-            .fetch_one(&mut *transaction)
-            .await
-            .map_err(internal_db)?;
+    let member_count: i64 = sqlx::query_scalar::query_scalar(
+        "select count(*) from trnm_online_match_members where match_id = $1",
+    )
+    .bind(match_id)
+    .fetch_one(&mut *transaction)
+    .await
+    .map_err(internal_db)?;
     if member_count != 2 {
         return Err(api_error(
             StatusCode::CONFLICT,
@@ -1544,7 +1548,7 @@ async fn start_match(
     let match_mode: String = match_row.try_get("match_mode").map_err(internal_db)?;
     let map = map::load_authoritative_map(&state.asset_root, &map_id)
         .map_err(|error| api_error(StatusCode::BAD_REQUEST, error, false))?;
-    let member_rows = sqlx::query(
+    let member_rows = sqlx::query::query(
         "select player_id, account_id, member_role, campaign_id
          from trnm_online_match_members where match_id = $1
          order by case member_role when 'host' then 0 else 1 end for update",
@@ -1570,7 +1574,7 @@ async fn start_match(
                 false,
             )
         })?;
-        let campaign_value: Value = sqlx::query_scalar(
+        let campaign_value: Value = sqlx::query_scalar::query_scalar(
             "select campaign_json from trnm_online_campaigns where campaign_id = $1 for update",
         )
         .bind(&campaign_id)
@@ -1633,7 +1637,7 @@ async fn start_match(
         } else {
             (&guest_units, &guest_id_map)
         };
-        sqlx::query(
+        sqlx::query::query(
             "update trnm_online_match_members set controlled_unit_ids = $2,
                 settlement_seed_json = $3, unit_id_map = $4
              where match_id = $1 and campaign_id = $5",
@@ -1652,7 +1656,7 @@ async fn start_match(
         persist_campaign(&mut transaction, campaign).await?;
     }
     let initial_simulation = serde_json::to_value(&sim).map_err(internal_serialization)?;
-    sqlx::query(
+    sqlx::query::query(
         "update trnm_online_matches set
             phase = 'running', seed_hash = $2, seed_json = $3,
             simulation_json = $4, snapshot_hash = $5,
@@ -1675,7 +1679,7 @@ async fn start_match(
     .execute(&mut *transaction)
     .await
     .map_err(internal_db)?;
-    sqlx::query(
+    sqlx::query::query(
         "insert into trnm_online_replay_frames (
             match_id, tick, snapshot_hash, simulation_json, frame_kind
          ) values ($1, 0, $2, $3, 'initial')
@@ -1705,7 +1709,7 @@ async fn submit_command(
         .map_err(|_| api_error(StatusCode::BAD_REQUEST, "account_id must be a UUID", false))?;
     let request_hash = hash_json(&request)?;
     let mut transaction = state.pool.begin().await.map_err(internal_db)?;
-    let match_row = sqlx::query(
+    let match_row = sqlx::query::query(
         "select phase, match_revision, authoritative_tick, next_sequence,
                 simulation_json, snapshot_hash, match_mode
          from trnm_online_matches where match_id = $1 for update",
@@ -1715,7 +1719,7 @@ async fn submit_command(
     .await
     .map_err(internal_db)?
     .ok_or_else(|| api_error(StatusCode::NOT_FOUND, "match not found", false))?;
-    let member = sqlx::query(
+    let member = sqlx::query::query(
         "select controlled_unit_ids, member_role from trnm_online_match_members
          where match_id = $1 and player_id = $2 and account_id = $3",
     )
@@ -1732,7 +1736,7 @@ async fn submit_command(
             false,
         )
     })?;
-    if let Some(row) = sqlx::query(
+    if let Some(row) = sqlx::query::query(
         "select sequence, player_id, request_hash, accepted_match_revision,
                 accepted_snapshot_hash, target_tick
          from trnm_online_commands where match_id = $1 and command_id = $2",
@@ -1879,7 +1883,7 @@ async fn submit_command(
         .snapshot_hash()
         .map_err(|error| api_error(StatusCode::INTERNAL_SERVER_ERROR, error.to_string(), false))?;
     let accepted_revision = revision.saturating_add(1);
-    sqlx::query(
+    sqlx::query::query(
         "insert into trnm_online_commands (
             match_id, sequence, command_id, player_id, request_hash, target_tick,
             order_json, accepted_snapshot_hash, accepted_match_revision
@@ -1897,7 +1901,7 @@ async fn submit_command(
     .execute(&mut *transaction)
     .await
     .map_err(internal_db)?;
-    sqlx::query(
+    sqlx::query::query(
         "update trnm_online_matches set simulation_json = $2, snapshot_hash = $3,
             next_sequence = next_sequence + 1, match_revision = $4, updated_at = now()
          where match_id = $1",
@@ -1933,7 +1937,7 @@ async fn get_snapshot(
     verify_identity(&state, &headers, &request.player_id, &request.account_id).await?;
     let account_id = Uuid::parse_str(&request.account_id)
         .map_err(|_| api_error(StatusCode::BAD_REQUEST, "account_id must be a UUID", false))?;
-    let member: i64 = sqlx::query_scalar(
+    let member: i64 = sqlx::query_scalar::query_scalar(
         "select count(*) from trnm_online_match_members
          where match_id = $1 and player_id = $2 and account_id = $3",
     )
@@ -1950,13 +1954,14 @@ async fn get_snapshot(
             false,
         ));
     }
-    let snapshot: Option<Value> =
-        sqlx::query_scalar("select simulation_json from trnm_online_matches where match_id = $1")
-            .bind(match_id)
-            .fetch_optional(&state.pool)
-            .await
-            .map_err(internal_db)?
-            .flatten();
+    let snapshot: Option<Value> = sqlx::query_scalar::query_scalar(
+        "select simulation_json from trnm_online_matches where match_id = $1",
+    )
+    .bind(match_id)
+    .fetch_optional(&state.pool)
+    .await
+    .map_err(internal_db)?
+    .flatten();
     Ok(Json(OnlineSnapshotResponse {
         view: fetch_match_view(&state.pool, match_id).await?,
         snapshot: snapshot.unwrap_or(Value::Null),
@@ -1975,7 +1980,7 @@ async fn reconnect_match(
     let account_id = Uuid::parse_str(&request.account_id)
         .map_err(|_| api_error(StatusCode::BAD_REQUEST, "account_id must be a UUID", false))?;
     let mut transaction = state.pool.begin().await.map_err(internal_db)?;
-    let member = sqlx::query(
+    let member = sqlx::query::query(
         "select reconnect_count from trnm_online_match_members
          where match_id = $1 and player_id = $2 and account_id = $3 for update",
     )
@@ -1992,7 +1997,7 @@ async fn reconnect_match(
             false,
         )
     })?;
-    let match_row = sqlx::query(
+    let match_row = sqlx::query::query(
         "select simulation_json, snapshot_hash, next_sequence, match_revision
          from trnm_online_matches where match_id = $1 for share",
     )
@@ -2014,7 +2019,7 @@ async fn reconnect_match(
         ));
     }
     let snapshot_hash: String = match_row.try_get("snapshot_hash").map_err(internal_db)?;
-    let command_rows = sqlx::query(
+    let command_rows = sqlx::query::query(
         "select sequence, command_id, target_tick, accepted_match_revision,
                 accepted_snapshot_hash
          from trnm_online_commands
@@ -2047,7 +2052,7 @@ async fn reconnect_match(
         .try_get::<i64, _>("reconnect_count")
         .map_err(internal_db)? as u64
         + 1;
-    sqlx::query(
+    sqlx::query::query(
         "update trnm_online_match_members set reconnect_count = $4,
             last_acknowledged_sequence = $5, last_snapshot_hash = $6, last_seen_at = now()
          where match_id = $1 and player_id = $2 and account_id = $3",
@@ -2073,18 +2078,19 @@ async fn reconnect_match(
 }
 
 async fn apply_member_progression(
-    transaction: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    transaction: &mut sqlx::transaction::Transaction<'_, sqlx_postgres::Postgres>,
     match_id: Uuid,
     combined_result: &BattleResultV1,
     combined_result_hash: &str,
 ) -> Result<bool, String> {
-    let match_mode: String =
-        sqlx::query_scalar("select match_mode from trnm_online_matches where match_id = $1")
-            .bind(match_id)
-            .fetch_one(&mut **transaction)
-            .await
-            .map_err(|error| error.to_string())?;
-    let members = sqlx::query(
+    let match_mode: String = sqlx::query_scalar::query_scalar(
+        "select match_mode from trnm_online_matches where match_id = $1",
+    )
+    .bind(match_id)
+    .fetch_one(&mut **transaction)
+    .await
+    .map_err(|error| error.to_string())?;
+    let members = sqlx::query::query(
         "select player_id, account_id, campaign_id, member_role,
                 settlement_seed_json, unit_id_map
          from trnm_online_match_members where match_id = $1 order by member_role for update",
@@ -2135,7 +2141,7 @@ async fn apply_member_progression(
             .map_err(|error| error.to_string())?;
         let id_map: BTreeMap<String, String> =
             serde_json::from_value(id_map_value).map_err(|error| error.to_string())?;
-        let campaign_value: Value = sqlx::query_scalar(
+        let campaign_value: Value = sqlx::query_scalar::query_scalar(
             "select campaign_json from trnm_online_campaigns where campaign_id = $1 for update",
         )
         .bind(&campaign_id)
@@ -2145,7 +2151,7 @@ async fn apply_member_progression(
         let mut campaign: CampaignSaveV1 =
             serde_json::from_value(campaign_value).map_err(|error| error.to_string())?;
         if match_mode == "ranked_pvp" {
-            sqlx::query(
+            sqlx::query::query(
                 "insert into trnm_online_progression_events (
                     event_id, match_id, player_id, account_id, campaign_id, result_hash,
                     experience_delta, reputation_delta, inventory_delta, campaign_revision
@@ -2278,7 +2284,7 @@ async fn apply_member_progression(
         persist_campaign_string(transaction, &campaign)
             .await
             .map_err(|error| error.1 .0.error.clone())?;
-        sqlx::query(
+        sqlx::query::query(
             "insert into trnm_online_progression_events (
                 event_id, match_id, player_id, account_id, campaign_id, result_hash,
                 experience_delta, reputation_delta, inventory_delta, campaign_revision
@@ -2373,7 +2379,7 @@ pub async fn run_authority_loop(state: AppState, tick_interval: Duration) {
 }
 
 pub async fn advance_running_matches(state: &AppState, limit: i64) -> Result<u64, String> {
-    let ids = sqlx::query_scalar::<_, Uuid>(
+    let ids = sqlx::query_scalar::query_scalar::<_, Uuid>(
         "select m.match_id from trnm_online_matches m
          left join trnm_online_fleet_instances f
            on f.instance_id = m.assigned_instance_id
@@ -2398,7 +2404,7 @@ pub async fn advance_running_matches(state: &AppState, limit: i64) -> Result<u64
             .begin()
             .await
             .map_err(|error| error.to_string())?;
-        let Some(row) = sqlx::query(
+        let Some(row) = sqlx::query::query(
             "select campaign_id, phase, simulation_json, match_mode,
                     assigned_instance_id, assigned_region, assigned_instance_epoch,
                     assigned_physical_host_id
@@ -2435,7 +2441,7 @@ pub async fn advance_running_matches(state: &AppState, limit: i64) -> Result<u64
             || previous_epoch != state.instance_epoch
         {
             let previous_healthy: bool = if let Some(previous) = previous_instance.as_deref() {
-                sqlx::query_scalar(
+                sqlx::query_scalar::query_scalar(
                     "select exists(select 1 from trnm_online_fleet_instances
                      where instance_id = $1 and instance_epoch = $2
                        and status in ('active', 'draining')
@@ -2452,7 +2458,7 @@ pub async fn advance_running_matches(state: &AppState, limit: i64) -> Result<u64
             if previous_healthy {
                 continue;
             }
-            sqlx::query(
+            sqlx::query::query(
                 "update trnm_online_matches set assigned_instance_id = $2,
                     assigned_region = $3, assigned_instance_epoch = $4,
                     assigned_physical_host_id = $5, updated_at = now() where match_id = $1",
@@ -2465,7 +2471,7 @@ pub async fn advance_running_matches(state: &AppState, limit: i64) -> Result<u64
             .execute(&mut *transaction)
             .await
             .map_err(|error| error.to_string())?;
-            sqlx::query(
+            sqlx::query::query(
                 "insert into trnm_online_fleet_failovers (
                     failover_id, match_id, previous_instance_id, new_instance_id,
                     previous_region, new_region, reason,
@@ -2502,7 +2508,7 @@ pub async fn advance_running_matches(state: &AppState, limit: i64) -> Result<u64
         let snapshot_hash = sim.snapshot_hash().map_err(|error| error.to_string())?;
         let terminal = sim.terminal();
         if terminal || sim.tick.is_multiple_of(100) {
-            sqlx::query(
+            sqlx::query::query(
                 "insert into trnm_online_replay_frames (
                     match_id, tick, snapshot_hash, simulation_json, frame_kind
                  ) values ($1, $2, $3, $4, $5)
@@ -2548,7 +2554,7 @@ pub async fn advance_running_matches(state: &AppState, limit: i64) -> Result<u64
             )
             .await?;
             let settlement_state = if any_pending { "pending" } else { "settled" };
-            let updated = sqlx::query(
+            let updated = sqlx::query::query(
                 "update trnm_online_matches set phase = 'complete', simulation_json = $2,
                     result_json = $3, result_hash = $4, snapshot_hash = $5,
                     authoritative_tick = $6, settlement_state = $7, updated_at = now()
@@ -2571,7 +2577,7 @@ pub async fn advance_running_matches(state: &AppState, limit: i64) -> Result<u64
                 return Err("match completion was fenced by a newer fleet epoch".to_string());
             }
         } else {
-            let updated = sqlx::query(
+            let updated = sqlx::query::query(
                 "update trnm_online_matches set simulation_json = $2, snapshot_hash = $3,
                     authoritative_tick = $4, updated_at = now()
                  where match_id = $1 and assigned_instance_id = $5
@@ -2600,7 +2606,7 @@ pub async fn advance_running_matches(state: &AppState, limit: i64) -> Result<u64
 }
 
 pub async fn settle_pending_matches(state: &AppState, limit: i64) -> Result<u64, String> {
-    let ids = sqlx::query_scalar::<_, Uuid>(
+    let ids = sqlx::query_scalar::query_scalar::<_, Uuid>(
         "select match_id from trnm_online_matches where settlement_state = 'pending'
          order by updated_at limit $1",
     )
@@ -2615,7 +2621,7 @@ pub async fn settle_pending_matches(state: &AppState, limit: i64) -> Result<u64,
             .begin()
             .await
             .map_err(|error| error.to_string())?;
-        let Some(row) = sqlx::query(
+        let Some(row) = sqlx::query::query(
             "select settlement_state from trnm_online_matches
              where match_id = $1 for update skip locked",
         )
@@ -2633,7 +2639,7 @@ pub async fn settle_pending_matches(state: &AppState, limit: i64) -> Result<u64,
         {
             continue;
         }
-        let campaign_ids = sqlx::query_scalar::<_, Option<String>>(
+        let campaign_ids = sqlx::query_scalar::query_scalar::<_, Option<String>>(
             "select campaign_id from trnm_online_match_members where match_id = $1
              order by member_role",
         )
@@ -2645,7 +2651,7 @@ pub async fn settle_pending_matches(state: &AppState, limit: i64) -> Result<u64,
         for campaign_id in campaign_ids {
             let campaign_id = campaign_id
                 .ok_or_else(|| "pending member settlement has no cloud campaign".to_string())?;
-            let value: Value = sqlx::query_scalar(
+            let value: Value = sqlx::query_scalar::query_scalar(
                 "select campaign_json from trnm_online_campaigns where campaign_id = $1 for update",
             )
             .bind(&campaign_id)
@@ -2668,7 +2674,7 @@ pub async fn settle_pending_matches(state: &AppState, limit: i64) -> Result<u64,
         } else {
             "pending"
         };
-        sqlx::query(
+        sqlx::query::query(
             "update trnm_online_matches set settlement_state = $2, updated_at = now()
              where match_id = $1",
         )
@@ -2686,18 +2692,18 @@ pub async fn settle_pending_matches(state: &AppState, limit: i64) -> Result<u64,
 }
 
 async fn persist_campaign(
-    transaction: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    transaction: &mut sqlx::transaction::Transaction<'_, sqlx_postgres::Postgres>,
     campaign: &CampaignSaveV1,
 ) -> Result<(), ApiError> {
     persist_campaign_string(transaction, campaign).await
 }
 
 async fn persist_campaign_string(
-    transaction: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    transaction: &mut sqlx::transaction::Transaction<'_, sqlx_postgres::Postgres>,
     campaign: &CampaignSaveV1,
 ) -> Result<(), ApiError> {
     let state_hash = hash_json(campaign)?;
-    sqlx::query(
+    sqlx::query::query(
         "update trnm_online_campaigns set campaign_revision = $2, schema_revision = $3,
             state_hash = $4, campaign_json = $5, updated_at = now()
          where campaign_id = $1",
@@ -2714,12 +2720,12 @@ async fn persist_campaign_string(
 }
 
 async fn ensure_campaign_owner(
-    transaction: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    transaction: &mut sqlx::transaction::Transaction<'_, sqlx_postgres::Postgres>,
     campaign_id: &str,
     player_id: &str,
     account_id: Uuid,
 ) -> Result<(), ApiError> {
-    let owner = sqlx::query(
+    let owner = sqlx::query::query(
         "select player_id, account_id from trnm_online_campaigns where campaign_id = $1",
     )
     .bind(campaign_id)
@@ -2746,10 +2752,10 @@ async fn ensure_campaign_owner(
 }
 
 async fn lock_player_lobby_scope(
-    transaction: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    transaction: &mut sqlx::transaction::Transaction<'_, sqlx_postgres::Postgres>,
     player_id: &str,
 ) -> Result<(), ApiError> {
-    sqlx::query("select pg_advisory_xact_lock(hashtextextended($1, 0))")
+    sqlx::query::query("select pg_advisory_xact_lock(hashtextextended($1, 0))")
         .bind(format!("trnm-online-lobby:{player_id}"))
         .execute(&mut **transaction)
         .await
@@ -2758,10 +2764,10 @@ async fn lock_player_lobby_scope(
 }
 
 async fn ensure_player_has_no_active_lobby(
-    transaction: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    transaction: &mut sqlx::transaction::Transaction<'_, sqlx_postgres::Postgres>,
     player_id: &str,
 ) -> Result<(), ApiError> {
-    let active: bool = sqlx::query_scalar(
+    let active: bool = sqlx::query_scalar::query_scalar(
         "select exists(
             select 1 from trnm_online_lobby_members m
             join trnm_online_lobbies l on l.lobby_id = m.lobby_id
@@ -2783,10 +2789,10 @@ async fn ensure_player_has_no_active_lobby(
 }
 
 async fn lock_lobby(
-    transaction: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    transaction: &mut sqlx::transaction::Transaction<'_, sqlx_postgres::Postgres>,
     lobby_id: Uuid,
-) -> Result<sqlx::postgres::PgRow, ApiError> {
-    sqlx::query(
+) -> Result<sqlx_postgres::PgRow, ApiError> {
+    sqlx::query::query(
         "select owner_player_id, owner_account_id, status, lobby_revision, map_id
          from trnm_online_lobbies where lobby_id = $1 for update",
     )
@@ -2798,7 +2804,7 @@ async fn lock_lobby(
 }
 
 fn require_lobby_owner(
-    lobby: &sqlx::postgres::PgRow,
+    lobby: &sqlx_postgres::PgRow,
     player_id: &str,
     account_id: Uuid,
 ) -> Result<(), ApiError> {
@@ -2821,7 +2827,7 @@ fn require_lobby_owner(
 }
 
 fn require_open_lobby_revision(
-    lobby: &sqlx::postgres::PgRow,
+    lobby: &sqlx_postgres::PgRow,
     expected_revision: u64,
 ) -> Result<(), ApiError> {
     if lobby.try_get::<String, _>("status").map_err(internal_db)? != "open" {
@@ -2837,7 +2843,7 @@ fn require_open_lobby_revision(
 }
 
 async fn fetch_lobby_view(pool: &PgPool, lobby_id: Uuid) -> Result<OnlineLobbyView, ApiError> {
-    let lobby = sqlx::query(
+    let lobby = sqlx::query::query(
         "select display_name, owner_player_id, status, lobby_revision, map_id,
                 queue_mode, match_id
          from trnm_online_lobbies where lobby_id = $1",
@@ -2847,7 +2853,7 @@ async fn fetch_lobby_view(pool: &PgPool, lobby_id: Uuid) -> Result<OnlineLobbyVi
     .await
     .map_err(internal_db)?
     .ok_or_else(|| api_error(StatusCode::NOT_FOUND, "lobby not found", false))?;
-    let rows = sqlx::query(
+    let rows = sqlx::query::query(
         "select player_id, account_id, campaign_id, member_role, ready
          from trnm_online_lobby_members where lobby_id = $1
          order by case member_role when 'owner' then 0 else 1 end",
@@ -2902,7 +2908,7 @@ fn sha256_text(value: &str) -> String {
 }
 
 async fn fetch_match_view(pool: &PgPool, match_id: Uuid) -> Result<OnlineMatchView, ApiError> {
-    let row = sqlx::query(
+    let row = sqlx::query::query(
         "select match_id, join_code, phase, build_id, map_id, match_mode, rules_version, seed_hash,
                 snapshot_hash, authoritative_tick, next_sequence, match_revision,
                 result_hash, settlement_state
@@ -2913,7 +2919,7 @@ async fn fetch_match_view(pool: &PgPool, match_id: Uuid) -> Result<OnlineMatchVi
     .await
     .map_err(internal_db)?
     .ok_or_else(|| api_error(StatusCode::NOT_FOUND, "match not found", false))?;
-    let member_rows = sqlx::query(
+    let member_rows = sqlx::query::query(
         "select m.player_id, m.account_id, m.campaign_id, m.member_role,
                 m.controlled_unit_ids, c.campaign_revision, c.campaign_json
          from trnm_online_match_members m
@@ -2985,7 +2991,7 @@ async fn fetch_match_view(pool: &PgPool, match_id: Uuid) -> Result<OnlineMatchVi
     })
 }
 
-fn campaign_view_from_row(row: &sqlx::postgres::PgRow) -> Result<OnlineCampaignView, ApiError> {
+fn campaign_view_from_row(row: &sqlx_postgres::PgRow) -> Result<OnlineCampaignView, ApiError> {
     let campaign_value: Value = row.try_get("campaign_json").map_err(internal_db)?;
     let campaign: CampaignSaveV1 =
         serde_json::from_value(campaign_value).map_err(internal_serialization)?;

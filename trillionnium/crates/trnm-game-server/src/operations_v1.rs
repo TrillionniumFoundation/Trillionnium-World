@@ -1,6 +1,7 @@
 use super::*;
 use axum::http::HeaderValue;
 use chrono::{DateTime, Utc};
+use sqlx::row::Row;
 use trnm_online_protocol::{
     OnlineEnforcementAppealCreateRequest, OnlineEnforcementAppealQueueRequest,
     OnlineEnforcementAppealQueueView, OnlineEnforcementAppealResolveRequest,
@@ -43,7 +44,7 @@ fn require_moderator(state: &AppState, headers: &HeaderMap) -> Result<(), ApiErr
 }
 
 pub(super) async fn heartbeat_fleet(state: &AppState) -> Result<(), String> {
-    let active_matches: i64 = sqlx::query_scalar(
+    let active_matches: i64 = sqlx::query_scalar::query_scalar(
         "select count(*) from trnm_online_matches
          where phase = 'running' and assigned_instance_id = $1",
     )
@@ -51,7 +52,7 @@ pub(super) async fn heartbeat_fleet(state: &AppState) -> Result<(), String> {
     .fetch_one(&state.pool)
     .await
     .map_err(|error| error.to_string())?;
-    let updated = sqlx::query(
+    let updated = sqlx::query::query(
         "update trnm_online_fleet_instances set region = $2,
             public_endpoint = $3, build_id = $4, capacity = $5,
             active_matches = $6, heartbeat_at = now(),
@@ -94,7 +95,7 @@ pub(super) async fn route_fleet(
             true,
         )
     })?;
-    let healthy_count: i64 = sqlx::query_scalar(
+    let healthy_count: i64 = sqlx::query_scalar::query_scalar(
         "select count(*) from trnm_online_fleet_instances
          where status = 'active' and lease_expires_at > now()
            and active_matches < capacity",
@@ -102,7 +103,7 @@ pub(super) async fn route_fleet(
     .fetch_one(&state.pool)
     .await
     .map_err(internal_db)?;
-    let row = sqlx::query(
+    let row = sqlx::query::query(
         "select instance_id, physical_host_id, region, public_endpoint, capacity, active_matches, status,
                 extract(epoch from (now() - heartbeat_at))::bigint as heartbeat_age_seconds,
                 instance_epoch,
@@ -135,7 +136,7 @@ pub(super) async fn route_fleet(
     }))
 }
 
-fn fleet_view(row: &sqlx::postgres::PgRow) -> Result<OnlineFleetInstanceView, ApiError> {
+fn fleet_view(row: &sqlx_postgres::PgRow) -> Result<OnlineFleetInstanceView, ApiError> {
     Ok(OnlineFleetInstanceView {
         instance_id: row.try_get("instance_id").map_err(internal_db)?,
         physical_host_id: row.try_get("physical_host_id").map_err(internal_db)?,
@@ -174,7 +175,7 @@ pub(super) async fn admin_fleet(
         ));
     }
     let mut transaction = state.pool.begin().await.map_err(internal_db)?;
-    let active_matches: i64 = sqlx::query_scalar(
+    let active_matches: i64 = sqlx::query_scalar::query_scalar(
         "select count(*) from trnm_online_matches
          where phase = 'running' and assigned_instance_id = $1",
     )
@@ -195,7 +196,7 @@ pub(super) async fn admin_fleet(
         "offline" => "offline",
         _ => unreachable!(),
     };
-    let updated = sqlx::query(
+    let updated = sqlx::query::query(
         "update trnm_online_fleet_instances set status = $2,
             drain_reason = case when $2 = 'active' then null else $3 end
          where instance_id = $1",
@@ -214,7 +215,7 @@ pub(super) async fn admin_fleet(
         ));
     }
     let audit_id = Uuid::new_v4();
-    sqlx::query(
+    sqlx::query::query(
         "insert into trnm_online_fleet_admin_audit (
             audit_id, instance_id, action, reason
          ) values ($1, $2, $3, $4)",
@@ -236,9 +237,9 @@ pub(super) async fn admin_fleet(
 }
 
 pub(super) async fn active_season(
-    transaction: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    transaction: &mut sqlx::transaction::Transaction<'_, sqlx_postgres::Postgres>,
 ) -> Result<(String, OnlineSeasonView), String> {
-    let row = sqlx::query(
+    let row = sqlx::query::query(
         "select season_id, display_name, status, rules_version, starts_at, ends_at
          from trnm_online_seasons where status = 'active' and starts_at <= now()
            and ends_at > now() for update",
@@ -272,13 +273,13 @@ pub(super) async fn active_season(
 }
 
 pub(super) async fn finalize_ranked_operations(
-    transaction: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    transaction: &mut sqlx::transaction::Transaction<'_, sqlx_postgres::Postgres>,
     match_id: Uuid,
     outcome: BattleOutcome,
     result_hash: &str,
     final_snapshot_hash: &str,
 ) -> Result<(), String> {
-    let match_row = sqlx::query(
+    let match_row = sqlx::query::query(
         "select match_mode, map_id, season_id from trnm_online_matches where match_id = $1",
     )
     .bind(match_id)
@@ -296,7 +297,7 @@ pub(super) async fn finalize_ranked_operations(
         .try_get::<Option<String>, _>("season_id")
         .map_err(|error| error.to_string())?
         .ok_or_else(|| "ranked match is missing its start-bound season".to_string())?;
-    let members = sqlx::query(
+    let members = sqlx::query::query(
         "select player_id, account_id, member_role from trnm_online_match_members
          where match_id = $1 order by case member_role when 'host' then 0 else 1 end",
     )
@@ -314,7 +315,7 @@ pub(super) async fn finalize_ranked_operations(
         .try_get("player_id")
         .map_err(|error| error.to_string())?;
     let participants = vec![host.clone(), guest.clone()];
-    let command_rows = sqlx::query(
+    let command_rows = sqlx::query::query(
         "select sequence, command_id, request_hash from trnm_online_commands
          where match_id = $1 order by sequence, command_id",
     )
@@ -347,7 +348,7 @@ pub(super) async fn finalize_ranked_operations(
     let map_id: String = match_row
         .try_get("map_id")
         .map_err(|error| error.to_string())?;
-    sqlx::query(
+    sqlx::query::query(
         "insert into trnm_online_replay_index (
             match_id, season_id, result_hash, replay_hash, command_count,
             map_id, build_id, participant_ids, final_snapshot_hash
@@ -367,7 +368,7 @@ pub(super) async fn finalize_ranked_operations(
     .await
     .map_err(|error| error.to_string())?;
 
-    let high_signal: bool = sqlx::query_scalar(
+    let high_signal: bool = sqlx::query_scalar::query_scalar(
         "select exists(select 1 from trnm_online_integrity_signals
          where match_id = $1 and status = 'open' and severity = 'high')",
     )
@@ -376,7 +377,7 @@ pub(super) async fn finalize_ranked_operations(
     .await
     .map_err(|error| error.to_string())?;
     let integrity_state = if high_signal { "under_review" } else { "clear" };
-    sqlx::query(
+    sqlx::query::query(
         "update trnm_online_rating_events set season_id = $2, integrity_state = $3
          where match_id = $1",
     )
@@ -388,7 +389,7 @@ pub(super) async fn finalize_ranked_operations(
     .map_err(|error| error.to_string())?;
 
     for member in &members {
-        sqlx::query(
+        sqlx::query::query(
             "insert into trnm_online_season_ratings (season_id, player_id, account_id)
              values ($1, $2, $3) on conflict (season_id, player_id) do nothing",
         )
@@ -407,7 +408,7 @@ pub(super) async fn finalize_ranked_operations(
         .await
         .map_err(|error| error.to_string())?;
     }
-    let ratings = sqlx::query(
+    let ratings = sqlx::query::query(
         "select player_id, rating from trnm_online_season_ratings
          where season_id = $1 and player_id = any($2) order by player_id for update",
     )
@@ -443,7 +444,7 @@ pub(super) async fn finalize_ranked_operations(
         } else {
             (before + delta).clamp(0, 5000)
         };
-        sqlx::query(
+        sqlx::query::query(
             "update trnm_online_season_ratings set rating = $3,
                 wins = wins + case when $4 and not $5 then 1 else 0 end,
                 losses = losses + case when not $4 and not $5 then 1 else 0 end,
@@ -473,7 +474,7 @@ pub(super) async fn get_leaderboard(
     let (season_id, season) = active_season(&mut transaction)
         .await
         .map_err(|error| api_error(StatusCode::CONFLICT, error, false))?;
-    let rows = sqlx::query(
+    let rows = sqlx::query::query(
         "select rank, player_id, rating, wins, losses, matches from (
             select rank() over (order by rating desc, wins desc, player_id) as rank,
                    player_id, rating, wins, losses, matches
@@ -492,7 +493,7 @@ pub(super) async fn get_leaderboard(
         .iter()
         .map(leaderboard_entry)
         .collect::<Result<Vec<_>, _>>()?;
-    let requester_row = sqlx::query(
+    let requester_row = sqlx::query::query(
         "select rank, player_id, rating, wins, losses, matches from (
             select rank() over (order by rating desc, wins desc, player_id) as rank,
                    player_id, rating, wins, losses, matches
@@ -518,7 +519,7 @@ pub(super) async fn get_leaderboard(
     }))
 }
 
-fn leaderboard_entry(row: &sqlx::postgres::PgRow) -> Result<OnlineLeaderboardEntry, ApiError> {
+fn leaderboard_entry(row: &sqlx_postgres::PgRow) -> Result<OnlineLeaderboardEntry, ApiError> {
     Ok(OnlineLeaderboardEntry {
         rank: row.try_get::<i64, _>("rank").map_err(internal_db)? as u32,
         player_id: row.try_get("player_id").map_err(internal_db)?,
@@ -529,7 +530,7 @@ fn leaderboard_entry(row: &sqlx::postgres::PgRow) -> Result<OnlineLeaderboardEnt
     })
 }
 
-fn season_view(row: &sqlx::postgres::PgRow) -> Result<OnlineSeasonView, ApiError> {
+fn season_view(row: &sqlx_postgres::PgRow) -> Result<OnlineSeasonView, ApiError> {
     let starts_at: DateTime<Utc> = row.try_get("starts_at").map_err(internal_db)?;
     let ends_at: DateTime<Utc> = row.try_get("ends_at").map_err(internal_db)?;
     Ok(OnlineSeasonView {
@@ -543,10 +544,10 @@ fn season_view(row: &sqlx::postgres::PgRow) -> Result<OnlineSeasonView, ApiError
 }
 
 pub(super) async fn archive_season(
-    transaction: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    transaction: &mut sqlx::transaction::Transaction<'_, sqlx_postgres::Postgres>,
     season_id: &str,
 ) -> Result<u64, ApiError> {
-    let result = sqlx::query(
+    let result = sqlx::query::query(
         "insert into trnm_online_season_snapshots (
             season_id, player_id, final_rank, rating, wins, losses, matches
          ) select season_id, player_id,
@@ -588,11 +589,11 @@ pub(super) async fn admin_season(
         ));
     }
     let mut transaction = state.pool.begin().await.map_err(internal_db)?;
-    sqlx::query("select pg_advisory_xact_lock(hashtext('trnm-online-season-admin'))")
+    sqlx::query::query("select pg_advisory_xact_lock(hashtext('trnm-online-season-admin'))")
         .execute(&mut *transaction)
         .await
         .map_err(internal_db)?;
-    let previous_active_season_id: Option<String> = sqlx::query_scalar(
+    let previous_active_season_id: Option<String> = sqlx::query_scalar::query_scalar(
         "select season_id from trnm_online_seasons where status = 'active' for update",
     )
     .fetch_optional(&mut *transaction)
@@ -622,7 +623,7 @@ pub(super) async fn admin_season(
                     false,
                 ));
             }
-            sqlx::query(
+            sqlx::query::query(
                 "insert into trnm_online_seasons (
                     season_id, display_name, status, rules_version, starts_at, ends_at
                  ) values ($1, $2, 'scheduled', $3, $4, $5)",
@@ -646,7 +647,7 @@ pub(super) async fn admin_season(
             })?;
         }
         "activate" => {
-            let ranked_busy: bool = sqlx::query_scalar(
+            let ranked_busy: bool = sqlx::query_scalar::query_scalar(
                 "select exists(
                     select 1 from trnm_online_matches
                      where match_mode = 'ranked_pvp' and phase in ('created', 'running')
@@ -671,7 +672,7 @@ pub(super) async fn admin_season(
                     false,
                 ));
             }
-            let target_valid: bool = sqlx::query_scalar(
+            let target_valid: bool = sqlx::query_scalar::query_scalar(
                 "select exists(select 1 from trnm_online_seasons
                  where season_id = $1 and status = 'scheduled' and ends_at > now())",
             )
@@ -688,7 +689,7 @@ pub(super) async fn admin_season(
             }
             if let Some(previous) = previous_active_season_id.as_deref() {
                 archived_entries = archive_season(&mut transaction, previous).await?;
-                sqlx::query(
+                sqlx::query::query(
                     "update trnm_online_seasons set status = 'closed',
                         ends_at = greatest(starts_at + interval '1 second', now())
                      where season_id = $1 and status = 'active'",
@@ -698,7 +699,7 @@ pub(super) async fn admin_season(
                 .await
                 .map_err(internal_db)?;
             }
-            sqlx::query(
+            sqlx::query::query(
                 "update trnm_online_seasons set status = 'active', starts_at = now()
                  where season_id = $1 and status = 'scheduled'",
             )
@@ -708,7 +709,7 @@ pub(super) async fn admin_season(
             .map_err(internal_db)?;
         }
         "close" => {
-            let ranked_busy: bool = sqlx::query_scalar(
+            let ranked_busy: bool = sqlx::query_scalar::query_scalar(
                 "select exists(
                     select 1 from trnm_online_matches
                      where match_mode = 'ranked_pvp' and phase in ('created', 'running')
@@ -734,7 +735,7 @@ pub(super) async fn admin_season(
                 ));
             }
             archived_entries = archive_season(&mut transaction, &request.season_id).await?;
-            sqlx::query(
+            sqlx::query::query(
                 "update trnm_online_seasons set status = 'closed',
                     ends_at = greatest(starts_at + interval '1 second', now())
                  where season_id = $1 and status = 'active'",
@@ -747,7 +748,7 @@ pub(super) async fn admin_season(
         _ => unreachable!(),
     }
     let audit_id = Uuid::new_v4();
-    sqlx::query(
+    sqlx::query::query(
         "insert into trnm_online_season_admin_audit (
             audit_id, action, season_id, previous_active_season_id, detail
          ) values ($1, $2, $3, $4, $5)",
@@ -760,7 +761,7 @@ pub(super) async fn admin_season(
     .execute(&mut *transaction)
     .await
     .map_err(internal_db)?;
-    let row = sqlx::query(
+    let row = sqlx::query::query(
         "select season_id, display_name, status, rules_version, starts_at, ends_at
          from trnm_online_seasons where season_id = $1",
     )
@@ -778,7 +779,7 @@ pub(super) async fn admin_season(
     }))
 }
 
-fn replay_view(row: &sqlx::postgres::PgRow) -> Result<OnlineReplayView, ApiError> {
+fn replay_view(row: &sqlx_postgres::PgRow) -> Result<OnlineReplayView, ApiError> {
     Ok(OnlineReplayView {
         match_id: row
             .try_get::<Uuid, _>("match_id")
@@ -802,7 +803,7 @@ fn replay_view(row: &sqlx::postgres::PgRow) -> Result<OnlineReplayView, ApiError
 }
 
 async fn fetch_replay(pool: &PgPool, match_id: Uuid) -> Result<OnlineReplayView, ApiError> {
-    let row = sqlx::query(
+    let row = sqlx::query::query(
         "select match_id, season_id, result_hash, replay_hash, command_count,
                 map_id, build_id, participant_ids, final_snapshot_hash
          from trnm_online_replay_index where match_id = $1",
@@ -824,7 +825,7 @@ pub(super) async fn get_replay(
     verify_identity(&state, &headers, &request.player_id, &request.account_id).await?;
     let match_id = Uuid::parse_str(&request.match_id)
         .map_err(|_| api_error(StatusCode::BAD_REQUEST, "match_id must be a UUID", false))?;
-    let member: bool = sqlx::query_scalar(
+    let member: bool = sqlx::query_scalar::query_scalar(
         "select exists(select 1 from trnm_online_match_members
          where match_id = $1 and player_id = $2 and account_id = $3)",
     )
@@ -858,7 +859,7 @@ pub(super) async fn get_replay_playback(
         .map_err(|_| api_error(StatusCode::BAD_REQUEST, "match_id must be a UUID", false))?;
     let account_id = Uuid::parse_str(&request.account_id)
         .map_err(|_| api_error(StatusCode::BAD_REQUEST, "account_id must be a UUID", false))?;
-    let member: bool = sqlx::query_scalar(
+    let member: bool = sqlx::query_scalar::query_scalar(
         "select exists(select 1 from trnm_online_match_members
          where match_id = $1 and player_id = $2 and account_id = $3)",
     )
@@ -883,7 +884,7 @@ pub(super) async fn get_replay_playback(
             false,
         ));
     }
-    let command_rows = sqlx::query(
+    let command_rows = sqlx::query::query(
         "select sequence, command_id, player_id, request_hash, target_tick,
                 order_json, accepted_snapshot_hash
          from trnm_online_commands where match_id = $1 order by sequence, command_id
@@ -940,7 +941,7 @@ pub(super) async fn get_replay_playback(
             })
         })
         .collect::<Result<Vec<_>, ApiError>>()?;
-    let frame_rows = sqlx::query(
+    let frame_rows = sqlx::query::query(
         "select tick, snapshot_hash, simulation_json, frame_kind
          from trnm_online_replay_frames where match_id = $1 order by tick limit 513",
     )
@@ -966,7 +967,7 @@ pub(super) async fn get_replay_playback(
             })
         })
         .collect::<Result<Vec<_>, ApiError>>()?;
-    let result: Value = sqlx::query_scalar::<_, Option<Value>>(
+    let result: Value = sqlx::query_scalar::query_scalar::<_, Option<Value>>(
         "select result_json from trnm_online_matches where match_id = $1 and phase = 'complete'",
     )
     .bind(match_id)
@@ -1010,7 +1011,7 @@ pub(super) async fn get_latest_replay_playback(
     verify_identity(&state, &headers, &request.player_id, &request.account_id).await?;
     let account_id = Uuid::parse_str(&request.account_id)
         .map_err(|_| api_error(StatusCode::BAD_REQUEST, "account_id must be a UUID", false))?;
-    let match_id: Uuid = sqlx::query_scalar(
+    let match_id: Uuid = sqlx::query_scalar::query_scalar(
         "select replay.match_id from trnm_online_replay_index replay
          join trnm_online_match_members member on member.match_id = replay.match_id
          where member.player_id = $1 and member.account_id = $2
@@ -1073,7 +1074,7 @@ pub(super) async fn create_replay_report(
             false,
         ));
     }
-    let pair: bool = sqlx::query_scalar(
+    let pair: bool = sqlx::query_scalar::query_scalar(
         "select exists(select 1 from trnm_online_match_members reporter
          join trnm_online_match_members target on target.match_id = reporter.match_id
          where reporter.match_id = $1 and reporter.player_id = $2 and reporter.account_id = $3
@@ -1095,7 +1096,7 @@ pub(super) async fn create_replay_report(
     }
     let mut transaction = state.pool.begin().await.map_err(internal_db)?;
     let signal_id = Uuid::new_v4();
-    sqlx::query(
+    sqlx::query::query(
         "insert into trnm_online_integrity_signals (
             signal_id, match_id, player_ids, signal_kind, severity, evidence
          ) values ($1, $2, $3, 'manual_review', 'high', $4)",
@@ -1108,7 +1109,7 @@ pub(super) async fn create_replay_report(
     .await
     .map_err(internal_db)?;
     let report_id = Uuid::new_v4();
-    let row = sqlx::query(
+    let row = sqlx::query::query(
         "insert into trnm_online_reports (
             report_id, reporter_player_id, target_player_id, match_id, category,
             detail, replay_hash, season_id, integrity_signal_id
@@ -1136,7 +1137,7 @@ pub(super) async fn create_replay_report(
         }
         internal_db(error)
     })?;
-    sqlx::query(
+    sqlx::query::query(
         "update trnm_online_rating_events set integrity_state = 'under_review'
          where match_id = $1 and integrity_state = 'clear'",
     )
@@ -1151,7 +1152,7 @@ pub(super) async fn create_replay_report(
     ))
 }
 
-fn integrity_view(row: &sqlx::postgres::PgRow) -> Result<OnlineIntegritySignalView, ApiError> {
+fn integrity_view(row: &sqlx_postgres::PgRow) -> Result<OnlineIntegritySignalView, ApiError> {
     Ok(OnlineIntegritySignalView {
         signal_id: row
             .try_get::<Uuid, _>("signal_id")
@@ -1173,7 +1174,7 @@ fn integrity_view(row: &sqlx::postgres::PgRow) -> Result<OnlineIntegritySignalVi
 
 async fn moderation_case(
     pool: &PgPool,
-    report_row: &sqlx::postgres::PgRow,
+    report_row: &sqlx_postgres::PgRow,
 ) -> Result<OnlineModerationCaseView, ApiError> {
     let report = super::product_v2::report_view(report_row)?;
     let match_id = Uuid::parse_str(&report.match_id).map_err(|_| {
@@ -1184,7 +1185,7 @@ async fn moderation_case(
         )
     })?;
     let replay = fetch_replay(pool, match_id).await.ok();
-    let signal_rows = sqlx::query(
+    let signal_rows = sqlx::query::query(
         "select signal_id, match_id, player_ids, signal_kind, severity, status
          from trnm_online_integrity_signals where match_id = $1 order by created_at",
     )
@@ -1219,7 +1220,7 @@ pub(super) async fn moderation_queue(
             false,
         ));
     }
-    let rows = sqlx::query(
+    let rows = sqlx::query::query(
         "select report_id, reporter_player_id, target_player_id, match_id,
                 category, status, resolution
          from trnm_online_reports where status = $1 order by created_at limit $2",
@@ -1233,12 +1234,13 @@ pub(super) async fn moderation_queue(
     for row in &rows {
         cases.push(moderation_case(&state.pool, row).await?);
     }
-    let open_count: i64 =
-        sqlx::query_scalar("select count(*) from trnm_online_reports where status = 'open'")
-            .fetch_one(&state.pool)
-            .await
-            .map_err(internal_db)?;
-    let signal_count: i64 = sqlx::query_scalar(
+    let open_count: i64 = sqlx::query_scalar::query_scalar(
+        "select count(*) from trnm_online_reports where status = 'open'",
+    )
+    .fetch_one(&state.pool)
+    .await
+    .map_err(internal_db)?;
+    let signal_count: i64 = sqlx::query_scalar::query_scalar(
         "select count(*) from trnm_online_integrity_signals where status = 'open'",
     )
     .fetch_one(&state.pool)
@@ -1272,7 +1274,7 @@ pub(super) async fn moderate_case(
     let report_id = Uuid::parse_str(&request.report_id)
         .map_err(|_| api_error(StatusCode::BAD_REQUEST, "report_id must be a UUID", false))?;
     let mut transaction = state.pool.begin().await.map_err(internal_db)?;
-    let row = sqlx::query(
+    let row = sqlx::query::query(
         "update trnm_online_reports set status = $2, resolution = $3, resolved_at = now()
          where report_id = $1 and status = 'open'
          returning report_id, reporter_player_id, target_player_id, match_id,
@@ -1288,7 +1290,7 @@ pub(super) async fn moderate_case(
     let target_player_id: String = row.try_get("target_player_id").map_err(internal_db)?;
     let signal_id: Option<Uuid> = row.try_get("integrity_signal_id").map_err(internal_db)?;
     if let Some(signal_id) = signal_id {
-        sqlx::query(
+        sqlx::query::query(
             "update trnm_online_integrity_signals set status = $2, resolved_at = now()
              where signal_id = $1 and status = 'open'",
         )
@@ -1304,7 +1306,7 @@ pub(super) async fn moderate_case(
         .await
         .map_err(internal_db)?;
     }
-    sqlx::query(
+    sqlx::query::query(
         "update trnm_online_rating_events set integrity_state = $2
          where match_id = $1 and integrity_state = 'under_review'",
     )
@@ -1331,7 +1333,7 @@ pub(super) async fn moderate_case(
                 ));
             }
             let enforcement_id = Uuid::new_v4();
-            sqlx::query(
+            sqlx::query::query(
                 "insert into trnm_online_enforcements (
                     enforcement_id, player_id, scope, reason, source_report_id, expires_at
                  ) values ($1, $2, $3, $4, $5,
@@ -1354,7 +1356,7 @@ pub(super) async fn moderate_case(
         None
     };
     let audit_id = Uuid::new_v4();
-    sqlx::query(
+    sqlx::query::query(
         "insert into trnm_online_moderation_audit (
             audit_id, report_id, action, target_player_id, resolution
          ) values ($1, $2, $3, $4, $5)",
@@ -1367,7 +1369,7 @@ pub(super) async fn moderate_case(
     .execute(&mut *transaction)
     .await
     .map_err(internal_db)?;
-    sqlx::query(
+    sqlx::query::query(
         "update trnm_online_moderation_case_claims set status = 'resolved', resolved_at = now()
          where case_kind = 'report' and case_id = $1 and status = 'claimed'",
     )
@@ -1384,7 +1386,7 @@ pub(super) async fn moderate_case(
     }))
 }
 
-fn appeal_view(row: &sqlx::postgres::PgRow) -> Result<OnlineEnforcementAppealView, ApiError> {
+fn appeal_view(row: &sqlx_postgres::PgRow) -> Result<OnlineEnforcementAppealView, ApiError> {
     let created_at: DateTime<Utc> = row.try_get("created_at").map_err(internal_db)?;
     let due_at: DateTime<Utc> = row.try_get("due_at").map_err(internal_db)?;
     let status: String = row.try_get("status").map_err(internal_db)?;
@@ -1430,7 +1432,7 @@ pub(super) async fn create_enforcement_appeal(
     })?;
     let account_id = Uuid::parse_str(&request.account_id)
         .map_err(|_| api_error(StatusCode::BAD_REQUEST, "account_id must be a UUID", false))?;
-    let owned: bool = sqlx::query_scalar(
+    let owned: bool = sqlx::query_scalar::query_scalar(
         "select exists(select 1 from trnm_online_enforcements
          where enforcement_id = $1 and player_id = $2 and revoked_at is null
            and expires_at > now())",
@@ -1447,7 +1449,7 @@ pub(super) async fn create_enforcement_appeal(
             false,
         ));
     }
-    let row = sqlx::query(
+    let row = sqlx::query::query(
         "insert into trnm_online_enforcement_appeals (
             appeal_id, enforcement_id, player_id, account_id, detail
          ) values ($1, $2, $3, $4, $5)
@@ -1493,7 +1495,7 @@ pub(super) async fn enforcement_appeal_queue(
             false,
         ));
     }
-    let rows = sqlx::query(
+    let rows = sqlx::query::query(
         "select appeal_id, enforcement_id, player_id, status, detail,
                 resolution, created_at, due_at
          from trnm_online_enforcement_appeals where status = $1
@@ -1504,13 +1506,13 @@ pub(super) async fn enforcement_appeal_queue(
     .fetch_all(&state.pool)
     .await
     .map_err(internal_db)?;
-    let pending_count: i64 = sqlx::query_scalar(
+    let pending_count: i64 = sqlx::query_scalar::query_scalar(
         "select count(*) from trnm_online_enforcement_appeals where status = 'pending'",
     )
     .fetch_one(&state.pool)
     .await
     .map_err(internal_db)?;
-    let overdue_count: i64 = sqlx::query_scalar(
+    let overdue_count: i64 = sqlx::query_scalar::query_scalar(
         "select count(*) from trnm_online_enforcement_appeals
          where status = 'pending' and due_at < now()",
     )
@@ -1545,7 +1547,7 @@ pub(super) async fn resolve_enforcement_appeal(
     let appeal_id = Uuid::parse_str(&request.appeal_id)
         .map_err(|_| api_error(StatusCode::BAD_REQUEST, "appeal_id must be a UUID", false))?;
     let mut transaction = state.pool.begin().await.map_err(internal_db)?;
-    let row = sqlx::query(
+    let row = sqlx::query::query(
         "update trnm_online_enforcement_appeals set status = $2, resolution = $3,
                 resolved_at = now()
          where appeal_id = $1 and status = 'pending'
@@ -1562,7 +1564,7 @@ pub(super) async fn resolve_enforcement_appeal(
     let enforcement_id: Uuid = row.try_get("enforcement_id").map_err(internal_db)?;
     let player_id: String = row.try_get("player_id").map_err(internal_db)?;
     if request.decision == "approved" {
-        sqlx::query(
+        sqlx::query::query(
             "update trnm_online_enforcements set revoked_at = now()
              where enforcement_id = $1 and revoked_at is null",
         )
@@ -1571,7 +1573,7 @@ pub(super) async fn resolve_enforcement_appeal(
         .await
         .map_err(internal_db)?;
     }
-    sqlx::query(
+    sqlx::query::query(
         "update trnm_online_appeal_escalations set status = 'closed', closed_at = now()
          where appeal_id = $1 and status <> 'closed'",
     )
@@ -1579,7 +1581,7 @@ pub(super) async fn resolve_enforcement_appeal(
     .execute(&mut *transaction)
     .await
     .map_err(internal_db)?;
-    sqlx::query(
+    sqlx::query::query(
         "update trnm_online_moderation_case_claims set status = 'resolved', resolved_at = now()
          where case_kind = 'appeal' and case_id = $1 and status = 'claimed'",
     )
@@ -1587,7 +1589,7 @@ pub(super) async fn resolve_enforcement_appeal(
     .execute(&mut *transaction)
     .await
     .map_err(internal_db)?;
-    sqlx::query(
+    sqlx::query::query(
         "insert into trnm_online_moderation_audit (
             audit_id, action, target_player_id, resolution
          ) values ($1, $2, $3, $4)",

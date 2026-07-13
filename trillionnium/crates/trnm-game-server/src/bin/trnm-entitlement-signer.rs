@@ -10,7 +10,8 @@ use chrono::Utc;
 use ed25519_dalek::{Signer, SigningKey};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
-use sqlx::{postgres::PgPoolOptions, PgPool, Row};
+use sqlx::row::Row;
+use sqlx_postgres::{PgPool, PgPoolOptions};
 use std::{net::SocketAddr, path::Path, sync::Arc, time::Duration};
 use trnm_economy_protocol::{
     ServerSignedValueEntitlementV2, ValueEntitlementSource,
@@ -68,7 +69,7 @@ async fn health() -> &'static str {
 }
 
 async fn readiness(State(state): State<SignerState>) -> impl IntoResponse {
-    let postgres = sqlx::query_scalar::<_, i32>("select 1")
+    let postgres = sqlx::query_scalar::query_scalar::<_, i32>("select 1")
         .fetch_one(&state.pool)
         .await
         .is_ok();
@@ -186,7 +187,7 @@ fn validate_request(request: &EntitlementSignRequest) -> Result<(), ApiError> {
 
 fn response_from_row(
     request_id: &str,
-    row: &sqlx::postgres::PgRow,
+    row: &sqlx_postgres::PgRow,
     duplicate: bool,
 ) -> Result<EntitlementSignResponse, ApiError> {
     Ok(EntitlementSignResponse {
@@ -218,7 +219,7 @@ async fn sign_entitlement(
 ) -> Result<Json<EntitlementSignResponse>, ApiError> {
     require_auth(&state, &headers)?;
     validate_request_identity(&request)?;
-    if let Some(row) = sqlx::query(
+    if let Some(row) = sqlx::query::query(
         "select request_hash, signing_receipt_hash, key_id, issuer, signature, entitlement_json
          from trnm_entitlement_signing_receipts where request_id = $1",
     )
@@ -261,7 +262,7 @@ async fn sign_entitlement(
         )
     );
     request.entitlement.signature = signature.clone();
-    let inserted = sqlx::query(
+    let inserted = sqlx::query::query(
         "insert into trnm_entitlement_signing_receipts (
             request_id, request_hash, signing_receipt_hash, key_id, issuer,
             signature, entitlement_json
@@ -282,7 +283,7 @@ async fn sign_entitlement(
     .await
     .map_err(|db| error(StatusCode::INTERNAL_SERVER_ERROR, db.to_string()))?;
     if inserted.rows_affected() != 1 {
-        let row = sqlx::query(
+        let row = sqlx::query::query(
             "select request_hash, signing_receipt_hash, key_id, issuer, signature
              from trnm_entitlement_signing_receipts where request_id = $1",
         )
@@ -383,7 +384,7 @@ async fn main() -> Result<(), String> {
         .connect(&database_url)
         .await
         .map_err(|error| format!("connect signer PostgreSQL: {error}"))?;
-    sqlx::raw_sql(SIGNER_MIGRATION)
+    sqlx::raw_sql::raw_sql(SIGNER_MIGRATION)
         .execute(&pool)
         .await
         .map_err(|error| format!("migrate signer receipts: {error}"))?;

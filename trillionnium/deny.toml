@@ -1,5 +1,9 @@
 [advisories]
 yanked = "deny"
+# No maintained ttf-parser-compatible replacement exists in the current
+# winit/Bevy graph. This is an unmaintained notice, not a vulnerability; keep
+# it as the only reviewed exception until the Bevy upgrade replaces the graph.
+ignore = ["RUSTSEC-2026-0192"]
 
 [licenses]
 confidence-threshold = 0.8
@@ -10,17 +14,22 @@ allow = [
   "BSD-3-Clause",
   "BSL-1.0",
   "CC0-1.0",
+  "CDLA-Permissive-2.0",
   "ISC",
   "MIT",
+  "MIT-0",
   "MPL-2.0",
   "Unicode-3.0",
-  "Unicode-DFS-2016",
   "Zlib",
 ]
+
+[licenses.private]
+ignore = true
 
 [bans]
 multiple-versions = "warn"
 wildcards = "deny"
+allow-wildcard-paths = true
 highlight = "all"
 
 [sources]

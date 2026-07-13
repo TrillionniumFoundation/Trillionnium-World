@@ -61,7 +61,7 @@ pub(super) async fn configure_season_automation(
         ));
     }
     let mut transaction = state.pool.begin().await.map_err(internal_db)?;
-    sqlx::query("select pg_advisory_xact_lock(hashtext('trnm-online-season-admin'))")
+    sqlx::query::query("select pg_advisory_xact_lock(hashtext('trnm-online-season-admin'))")
         .execute(&mut *transaction)
         .await
         .map_err(internal_db)?;
@@ -70,7 +70,7 @@ pub(super) async fn configure_season_automation(
     } else {
         "manual"
     };
-    let updated = sqlx::query(
+    let updated = sqlx::query::query(
         "update trnm_online_seasons set automatic_activation = $2,
             automation_state = $3, automation_deferred_reason = null,
             last_automation_attempt_at = null
@@ -89,7 +89,7 @@ pub(super) async fn configure_season_automation(
             false,
         ));
     }
-    sqlx::query(
+    sqlx::query::query(
         "insert into trnm_online_season_automation_audit (
             audit_id, season_id, action, detail
          ) values ($1, $2, 'configure', $3)",
@@ -130,7 +130,7 @@ pub(super) async fn create_spectator_invite(
         .map_err(|_| api_error(StatusCode::BAD_REQUEST, "match_id must be a UUID", false))?;
     let account_id = Uuid::parse_str(&request.account_id)
         .map_err(|_| api_error(StatusCode::BAD_REQUEST, "account_id must be a UUID", false))?;
-    let creator_member: bool = sqlx::query_scalar(
+    let creator_member: bool = sqlx::query_scalar::query_scalar(
         "select exists(select 1 from trnm_online_match_members
          where match_id = $1 and player_id = $2 and account_id = $3)",
     )
@@ -140,14 +140,14 @@ pub(super) async fn create_spectator_invite(
     .fetch_one(&state.pool)
     .await
     .map_err(internal_db)?;
-    let target_exists: bool = sqlx::query_scalar(
+    let target_exists: bool = sqlx::query_scalar::query_scalar(
         "select exists(select 1 from trnm_online_campaigns where player_id = $1)",
     )
     .bind(&request.target_player_id)
     .fetch_one(&state.pool)
     .await
     .map_err(internal_db)?;
-    let target_is_member: bool = sqlx::query_scalar(
+    let target_is_member: bool = sqlx::query_scalar::query_scalar(
         "select exists(select 1 from trnm_online_match_members
          where match_id = $1 and player_id = $2)",
     )
@@ -172,7 +172,7 @@ pub(super) async fn create_spectator_invite(
     );
     let token_hash = format!("{:x}", Sha256::digest(invite_token.as_bytes()));
     let expires_at = Utc::now() + chrono::Duration::minutes(15);
-    sqlx::query(
+    sqlx::query::query(
         "insert into trnm_online_spectator_invites (
             invite_id, match_id, creator_player_id, target_player_id,
             token_hash, delay_seconds, expires_at
@@ -224,7 +224,7 @@ pub(super) async fn accept_spectator_invite(
         .map_err(|_| api_error(StatusCode::BAD_REQUEST, "account_id must be a UUID", false))?;
     let token_hash = format!("{:x}", Sha256::digest(request.invite_token.as_bytes()));
     let mut transaction = state.pool.begin().await.map_err(internal_db)?;
-    let row = sqlx::query(
+    let row = sqlx::query::query(
         "select invite_id, match_id, target_player_id, delay_seconds
          from trnm_online_spectator_invites
          where token_hash = $1 and expires_at > now() and consumed_at is null
@@ -250,7 +250,7 @@ pub(super) async fn accept_spectator_invite(
             false,
         ));
     }
-    let already_member: bool = sqlx::query_scalar(
+    let already_member: bool = sqlx::query_scalar::query_scalar(
         "select exists(select 1 from trnm_online_match_members
          where match_id = $1 and player_id = $2)",
     )
@@ -270,7 +270,7 @@ pub(super) async fn accept_spectator_invite(
     let delay_seconds: i32 = row.try_get("delay_seconds").map_err(internal_db)?;
     let grant_id = Uuid::new_v4();
     let expires_at = Utc::now() + chrono::Duration::hours(4);
-    sqlx::query(
+    sqlx::query::query(
         "insert into trnm_online_spectator_grants (
             grant_id, invite_id, match_id, viewer_player_id, viewer_account_id,
             delay_seconds, expires_at
@@ -299,7 +299,7 @@ pub(super) async fn accept_spectator_invite(
             internal_db(db)
         }
     })?;
-    sqlx::query(
+    sqlx::query::query(
         "update trnm_online_spectator_invites set consumed_at = now()
          where invite_id = $1 and consumed_at is null",
     )
@@ -331,7 +331,7 @@ pub(super) async fn spectator_playback(
         .map_err(|_| api_error(StatusCode::BAD_REQUEST, "grant_id must be a UUID", false))?;
     let account_id = Uuid::parse_str(&request.account_id)
         .map_err(|_| api_error(StatusCode::BAD_REQUEST, "account_id must be a UUID", false))?;
-    let row = sqlx::query(
+    let row = sqlx::query::query(
         "select grant_id, match_id, viewer_player_id, delay_seconds, expires_at
          from trnm_online_spectator_grants
          where grant_id = $1 and viewer_player_id = $2 and viewer_account_id = $3
@@ -347,14 +347,14 @@ pub(super) async fn spectator_playback(
     let match_id: Uuid = row.try_get("match_id").map_err(internal_db)?;
     let delay_seconds: i32 = row.try_get("delay_seconds").map_err(internal_db)?;
     let expires_at: DateTime<Utc> = row.try_get("expires_at").map_err(internal_db)?;
-    let match_row = sqlx::query(
+    let match_row = sqlx::query::query(
         "select phase, authoritative_tick from trnm_online_matches where match_id = $1",
     )
     .bind(match_id)
     .fetch_one(&state.pool)
     .await
     .map_err(internal_db)?;
-    let frame_rows = sqlx::query(
+    let frame_rows = sqlx::query::query(
         "select tick, snapshot_hash, simulation_json, frame_kind
          from trnm_online_replay_frames
          where match_id = $1
@@ -410,7 +410,7 @@ async fn moderation_shift_view(
     state: &AppState,
     shift_id: Uuid,
 ) -> Result<OnlineModerationShiftView, ApiError> {
-    let row = sqlx::query(
+    let row = sqlx::query::query(
         "select shift_id, moderator_id, status, starts_at, ends_at,
                 last_heartbeat_at, note,
                 (select count(*) from trnm_online_moderation_case_claims claim
@@ -479,7 +479,7 @@ pub(super) async fn start_moderation_shift(
             false,
         ));
     }
-    sqlx::query(
+    sqlx::query::query(
         "update trnm_online_moderation_shifts set status = 'expired', closed_at = now(),
             close_note = 'expired by Production v2 maintenance on new shift start'
          where status = 'active' and (
@@ -489,7 +489,7 @@ pub(super) async fn start_moderation_shift(
     .await
     .map_err(internal_db)?;
     let shift_id = Uuid::new_v4();
-    sqlx::query(
+    sqlx::query::query(
         "insert into trnm_online_moderation_shifts (
             shift_id, moderator_id, ends_at, note
          ) values ($1, $2, now() + make_interval(mins => $3), $4)",
@@ -535,7 +535,7 @@ pub(super) async fn heartbeat_moderation_shift(
             false,
         ));
     }
-    let updated = sqlx::query(
+    let updated = sqlx::query::query(
         "update trnm_online_moderation_shifts set last_heartbeat_at = now(),
             note = case when $3 = '' then note else $3 end
          where shift_id = $1 and moderator_id = $2 and status = 'active'
@@ -576,7 +576,7 @@ pub(super) async fn claim_moderation_case(
             false,
         ));
     }
-    let active_shift: bool = sqlx::query_scalar(
+    let active_shift: bool = sqlx::query_scalar::query_scalar(
         "select exists(select 1 from trnm_online_moderation_shifts
           where shift_id = $1 and moderator_id = $2 and status = 'active'
             and ends_at > now() and last_heartbeat_at > now() - interval '2 minutes')",
@@ -587,7 +587,7 @@ pub(super) async fn claim_moderation_case(
     .await
     .map_err(internal_db)?;
     let case_open: bool = if request.case_kind == "report" {
-        sqlx::query_scalar(
+        sqlx::query_scalar::query_scalar(
             "select exists(select 1 from trnm_online_reports where report_id = $1 and status = 'open')",
         )
         .bind(case_id)
@@ -595,7 +595,7 @@ pub(super) async fn claim_moderation_case(
         .await
         .map_err(internal_db)?
     } else {
-        sqlx::query_scalar(
+        sqlx::query_scalar::query_scalar(
             "select exists(select 1 from trnm_online_enforcement_appeals where appeal_id = $1 and status = 'pending')",
         )
         .bind(case_id)
@@ -611,7 +611,7 @@ pub(super) async fn claim_moderation_case(
         ));
     }
     let claim_id = Uuid::new_v4();
-    sqlx::query(
+    sqlx::query::query(
         "insert into trnm_online_moderation_case_claims (
             claim_id, shift_id, case_kind, case_id
          ) values ($1, $2, $3, $4)",
@@ -668,7 +668,7 @@ pub(super) async fn close_moderation_shift(
             false,
         ));
     }
-    let open_claims: i64 = sqlx::query_scalar(
+    let open_claims: i64 = sqlx::query_scalar::query_scalar(
         "select count(*) from trnm_online_moderation_case_claims
          where shift_id = $1 and status = 'claimed'",
     )
@@ -683,7 +683,7 @@ pub(super) async fn close_moderation_shift(
             false,
         ));
     }
-    let updated = sqlx::query(
+    let updated = sqlx::query::query(
         "update trnm_online_moderation_shifts set status = 'closed',
             closed_at = now(), close_note = $3
          where shift_id = $1 and moderator_id = $2 and status = 'active'",
@@ -740,7 +740,7 @@ pub(super) async fn host_attestation(
             .as_bytes()
         )
     );
-    sqlx::query(
+    sqlx::query::query(
         "insert into trnm_online_host_attestation_audit (
             attestation_id, instance_id, instance_epoch, physical_host_id,
             region, challenge_hash, evidence_hash
@@ -786,25 +786,26 @@ pub(super) async fn player_production_status(
         .signer_attestation()
         .await
         .map_err(|message| api_error(StatusCode::SERVICE_UNAVAILABLE, message, true))?;
-    let active_season =
-        sqlx::query("select season_id, ends_at from trnm_online_seasons where status = 'active'")
-            .fetch_optional(&state.pool)
-            .await
-            .map_err(internal_db)?;
-    let automatic_season_id: Option<String> = sqlx::query_scalar(
+    let active_season = sqlx::query::query(
+        "select season_id, ends_at from trnm_online_seasons where status = 'active'",
+    )
+    .fetch_optional(&state.pool)
+    .await
+    .map_err(internal_db)?;
+    let automatic_season_id: Option<String> = sqlx::query_scalar::query_scalar(
         "select season_id from trnm_online_seasons
          where status = 'scheduled' and automatic_activation order by starts_at limit 1",
     )
     .fetch_optional(&state.pool)
     .await
     .map_err(internal_db)?;
-    let active_matches: i64 = sqlx::query_scalar(
+    let active_matches: i64 = sqlx::query_scalar::query_scalar(
         "select count(*) from trnm_online_matches where phase in ('created', 'running')",
     )
     .fetch_one(&state.pool)
     .await
     .map_err(internal_db)?;
-    let active_spectator_grants: i64 = sqlx::query_scalar(
+    let active_spectator_grants: i64 = sqlx::query_scalar::query_scalar(
         "select count(*) from trnm_online_spectator_grants
          where viewer_player_id = $1 and viewer_account_id = $2::uuid and expires_at > now()",
     )
@@ -813,7 +814,7 @@ pub(super) async fn player_production_status(
     .fetch_one(&state.pool)
     .await
     .map_err(internal_db)?;
-    let distinct_hosts: i64 = sqlx::query_scalar(
+    let distinct_hosts: i64 = sqlx::query_scalar::query_scalar(
         "select count(distinct physical_host_id) from trnm_online_fleet_instances
          where status in ('active', 'draining') and lease_expires_at > now()",
     )
@@ -867,40 +868,40 @@ pub(super) async fn production_status(
         .signer_readiness()
         .await
         .map_err(|message| api_error(StatusCode::SERVICE_UNAVAILABLE, message, true))?;
-    let automatic_season_id: Option<String> = sqlx::query_scalar(
+    let automatic_season_id: Option<String> = sqlx::query_scalar::query_scalar(
         "select season_id from trnm_online_seasons
          where status = 'scheduled' and automatic_activation order by starts_at limit 1",
     )
     .fetch_optional(&state.pool)
     .await
     .map_err(internal_db)?;
-    let pending_appeals: i64 = sqlx::query_scalar(
+    let pending_appeals: i64 = sqlx::query_scalar::query_scalar(
         "select count(*) from trnm_online_enforcement_appeals where status = 'pending'",
     )
     .fetch_one(&state.pool)
     .await
     .map_err(internal_db)?;
-    let overdue_appeals: i64 = sqlx::query_scalar(
+    let overdue_appeals: i64 = sqlx::query_scalar::query_scalar(
         "select count(*) from trnm_online_enforcement_appeals
          where status = 'pending' and due_at < now()",
     )
     .fetch_one(&state.pool)
     .await
     .map_err(internal_db)?;
-    let escalated_appeals: i64 = sqlx::query_scalar(
+    let escalated_appeals: i64 = sqlx::query_scalar::query_scalar(
         "select count(*) from trnm_online_appeal_escalations where status = 'open'",
     )
     .fetch_one(&state.pool)
     .await
     .map_err(internal_db)?;
-    let distinct_hosts: i64 = sqlx::query_scalar(
+    let distinct_hosts: i64 = sqlx::query_scalar::query_scalar(
         "select count(distinct physical_host_id) from trnm_online_fleet_instances
          where status in ('active', 'draining') and lease_expires_at > now()",
     )
     .fetch_one(&state.pool)
     .await
     .map_err(internal_db)?;
-    let admission = sqlx::query(
+    let admission = sqlx::query::query(
         "select coalesce(sum(request_count), 0)::bigint as requests,
                 coalesce(sum(rejection_count), 0)::bigint as rejections
            from trnm_online_admission_windows
@@ -909,14 +910,14 @@ pub(super) async fn production_status(
     .fetch_one(&state.pool)
     .await
     .map_err(internal_db)?;
-    let recent_capacity_samples: i64 = sqlx::query_scalar(
+    let recent_capacity_samples: i64 = sqlx::query_scalar::query_scalar(
         "select count(*) from trnm_online_capacity_samples
          where sampled_at > now() - interval '1 minute'",
     )
     .fetch_one(&state.pool)
     .await
     .map_err(internal_db)?;
-    let active_moderation_shifts: i64 = sqlx::query_scalar(
+    let active_moderation_shifts: i64 = sqlx::query_scalar::query_scalar(
         "select count(*) from trnm_online_moderation_shifts
          where status = 'active' and ends_at > now()
            and last_heartbeat_at > now() - interval '5 minutes'",
@@ -962,7 +963,7 @@ pub(super) async fn production_status(
 }
 
 pub(super) async fn run_production_maintenance(state: &AppState) -> Result<(), String> {
-    sqlx::query(
+    sqlx::query::query(
         "insert into trnm_online_appeal_escalations (
             escalation_id, appeal_id, escalation_kind, detail
          ) select gen_random_uuid(), appeal_id, 'sla_overdue',
@@ -974,7 +975,7 @@ pub(super) async fn run_production_maintenance(state: &AppState) -> Result<(), S
     .execute(&state.pool)
     .await
     .map_err(|error| error.to_string())?;
-    sqlx::query(
+    sqlx::query::query(
         "update trnm_online_moderation_shifts set status = 'expired', closed_at = now(),
             close_note = 'shift expired without a fresh heartbeat'
          where status = 'active' and (
@@ -983,7 +984,7 @@ pub(super) async fn run_production_maintenance(state: &AppState) -> Result<(), S
     .execute(&state.pool)
     .await
     .map_err(|error| error.to_string())?;
-    let active_matches: i64 = sqlx::query_scalar(
+    let active_matches: i64 = sqlx::query_scalar::query_scalar(
         "select count(*) from trnm_online_matches
          where phase in ('created', 'running') and assigned_instance_id = $1
            and assigned_instance_epoch = $2",
@@ -993,7 +994,7 @@ pub(super) async fn run_production_maintenance(state: &AppState) -> Result<(), S
     .fetch_one(&state.pool)
     .await
     .map_err(|error| error.to_string())?;
-    let admission = sqlx::query(
+    let admission = sqlx::query::query(
         "select coalesce(sum(request_count), 0)::bigint as requests,
                 coalesce(sum(rejection_count), 0)::bigint as rejections
            from trnm_online_admission_windows
@@ -1004,7 +1005,7 @@ pub(super) async fn run_production_maintenance(state: &AppState) -> Result<(), S
     .fetch_one(&state.pool)
     .await
     .map_err(|error| error.to_string())?;
-    sqlx::query(
+    sqlx::query::query(
         "insert into trnm_online_capacity_samples (
             sample_id, instance_id, instance_epoch, physical_host_id, region,
             active_matches, fleet_capacity, admission_requests, admission_rejections
@@ -1026,14 +1027,14 @@ pub(super) async fn run_production_maintenance(state: &AppState) -> Result<(), S
     .execute(&state.pool)
     .await
     .map_err(|error| error.to_string())?;
-    sqlx::query(
+    sqlx::query::query(
         "delete from trnm_online_admission_windows
           where window_started_at < now() - interval '10 minutes'",
     )
     .execute(&state.pool)
     .await
     .map_err(|error| error.to_string())?;
-    sqlx::query(
+    sqlx::query::query(
         "delete from trnm_online_capacity_samples
           where sampled_at < now() - interval '24 hours'",
     )
@@ -1049,7 +1050,7 @@ async fn run_season_automation(state: &AppState) -> Result<(), String> {
         .begin()
         .await
         .map_err(|error| error.to_string())?;
-    let locked: bool = sqlx::query_scalar(
+    let locked: bool = sqlx::query_scalar::query_scalar(
         "select pg_try_advisory_xact_lock(hashtext('trnm-online-season-admin'))",
     )
     .fetch_one(&mut *transaction)
@@ -1058,7 +1059,7 @@ async fn run_season_automation(state: &AppState) -> Result<(), String> {
     if !locked {
         return Ok(());
     }
-    let Some(target) = sqlx::query(
+    let Some(target) = sqlx::query::query(
         "select season_id from trnm_online_seasons
          where status = 'scheduled' and automatic_activation
            and starts_at <= now() and ends_at > now()
@@ -1073,7 +1074,7 @@ async fn run_season_automation(state: &AppState) -> Result<(), String> {
     let season_id: String = target
         .try_get("season_id")
         .map_err(|error| error.to_string())?;
-    let ranked_busy: bool = sqlx::query_scalar(
+    let ranked_busy: bool = sqlx::query_scalar::query_scalar(
         "select exists(
             select 1 from trnm_online_matches
              where match_mode = 'ranked_pvp' and phase in ('created', 'running')
@@ -1085,7 +1086,7 @@ async fn run_season_automation(state: &AppState) -> Result<(), String> {
     .await
     .map_err(|error| error.to_string())?;
     if ranked_busy {
-        let updated = sqlx::query(
+        let updated = sqlx::query::query(
             "update trnm_online_seasons set automation_state = 'deferred',
                 automation_deferred_reason = 'ranked queue or match is active',
                 last_automation_attempt_at = now()
@@ -1098,7 +1099,7 @@ async fn run_season_automation(state: &AppState) -> Result<(), String> {
         .await
         .map_err(|error| error.to_string())?;
         if updated.rows_affected() == 1 {
-            sqlx::query(
+            sqlx::query::query(
                 "insert into trnm_online_season_automation_audit (
                     audit_id, season_id, action, detail
                  ) values ($1, $2, 'deferred', $3)",
@@ -1116,7 +1117,7 @@ async fn run_season_automation(state: &AppState) -> Result<(), String> {
             .map_err(|error| error.to_string())?;
         return Ok(());
     }
-    let previous_active: Option<String> = sqlx::query_scalar(
+    let previous_active: Option<String> = sqlx::query_scalar::query_scalar(
         "select season_id from trnm_online_seasons where status = 'active' for update",
     )
     .fetch_optional(&mut *transaction)
@@ -1127,7 +1128,7 @@ async fn run_season_automation(state: &AppState) -> Result<(), String> {
         archived_entries = operations_v1::archive_season(&mut transaction, previous)
             .await
             .map_err(|error| error.1 .0.error)?;
-        sqlx::query(
+        sqlx::query::query(
             "update trnm_online_seasons set status = 'closed',
                 ends_at = greatest(starts_at + interval '1 second', now())
              where season_id = $1 and status = 'active'",
@@ -1137,7 +1138,7 @@ async fn run_season_automation(state: &AppState) -> Result<(), String> {
         .await
         .map_err(|error| error.to_string())?;
     }
-    sqlx::query(
+    sqlx::query::query(
         "update trnm_online_seasons set status = 'active',
             automation_state = 'activated', automation_deferred_reason = null,
             last_automation_attempt_at = now()
@@ -1147,7 +1148,7 @@ async fn run_season_automation(state: &AppState) -> Result<(), String> {
     .execute(&mut *transaction)
     .await
     .map_err(|error| error.to_string())?;
-    sqlx::query(
+    sqlx::query::query(
         "insert into trnm_online_season_automation_audit (
             audit_id, season_id, action, previous_active_season_id, detail
          ) values ($1, $2, 'activate', $3, $4)",

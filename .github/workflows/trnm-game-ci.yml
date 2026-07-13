@@ -68,10 +68,10 @@ jobs:
         with:
           name: trnm-game-${{ github.sha }}
           path: |
-            target/release/trnm-first-contact
-            target/release/trnm-online-product
-            target/release/trnm-game-server
-            target/release/trnm-entitlement-signer
+            trillionnium/target/release/trnm-first-contact
+            trillionnium/target/release/trnm-online-product
+            trillionnium/target/release/trnm-game-server
+            trillionnium/target/release/trnm-entitlement-signer
             trillionnium/Cargo.lock
           if-no-files-found: error
 
@@ -88,14 +88,16 @@ jobs:
         with:
           tool: cargo-audit,cargo-deny
       - name: RustSec advisory gate
-        run: cargo audit --deny warnings
+        # Current Bevy/winit has no maintained replacement for ttf-parser;
+        # every vulnerability and unsoundness advisory remains denied.
+        run: cargo audit --deny warnings --ignore RUSTSEC-2026-0192
       - name: Dependency policy gate
         run: cargo deny check advisories bans licenses sources
       - name: Preserve supply-chain reports
         if: always()
         run: |
           mkdir -p ../run/ci-supply-chain
-          cargo audit --json > ../run/ci-supply-chain/cargo-audit.json || true
+          cargo audit --json --ignore RUSTSEC-2026-0192 > ../run/ci-supply-chain/cargo-audit.json || true
           cargo deny --format json check advisories bans licenses sources > ../run/ci-supply-chain/cargo-deny.json || true
       - uses: actions/upload-artifact@v4
         if: always()
