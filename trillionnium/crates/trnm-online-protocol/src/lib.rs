@@ -1,9 +1,13 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::collections::BTreeMap;
 use trnm_rts_protocol::RtsFrameOrder;
 
-pub const ONLINE_AUTHORITY_PROTOCOL: &str = "trnm_online_authority_v2";
-pub const ONLINE_AUTHORITY_BUILD: &str = "trnm-online-authority-2026.07-v2";
+pub const ONLINE_AUTHORITY_V2_PROTOCOL: &str = "trnm_online_authority_v2";
+pub const ONLINE_AUTHORITY_V2_BUILD: &str = "trnm-online-authority-2026.07-v2";
+pub const ONLINE_AUTHORITY_PROTOCOL: &str = "trnm_online_authority_v3";
+pub const ONLINE_AUTHORITY_BUILD: &str = "trnm-online-authority-2026.07-v3";
+pub const ONLINE_STREAM_PROTOCOL: &str = "trnm-online-stream-v1";
 pub const ONLINE_PRODUCT_V1_PROTOCOL: &str = "trnm_online_product_v1";
 pub const ONLINE_PRODUCT_V1_BUILD: &str = "trnm-online-product-2026.07-v1";
 pub const ONLINE_PRODUCT_PROTOCOL: &str = "trnm_online_product_v2";
@@ -101,6 +105,8 @@ pub struct OnlineReconnectRequest {
     pub account_id: String,
     pub last_acknowledged_sequence: u64,
     pub last_snapshot_hash: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub next_receipt_sequence: Option<u64>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -123,6 +129,8 @@ pub struct OnlineMatchMemberView {
     pub level: u32,
     pub experience: u64,
     pub inventory_count: u64,
+    #[serde(default)]
+    pub next_input_sequence: u64,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -152,9 +160,17 @@ pub struct OnlineCommandSubmitRequest {
     pub player_id: String,
     pub account_id: String,
     pub command_id: String,
+    /// Legacy v2 client-predicted global sequence. V3 authority assigns the
+    /// global order and uses `input_sequence` for the per-player cursor.
     pub sequence: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub input_sequence: Option<u64>,
     pub expected_match_revision: u64,
+    /// Legacy v2 order frame. V3 applies immediately at the authoritative
+    /// server tick and records the client's observed tick separately.
     pub target_tick: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub client_observed_tick: Option<u64>,
     pub order: RtsFrameOrder,
 }
 
@@ -162,10 +178,20 @@ pub struct OnlineCommandSubmitRequest {
 pub struct OnlineCommandReceipt {
     pub protocol_version: String,
     pub match_id: String,
+    #[serde(default)]
+    pub player_id: String,
     pub command_id: String,
+    /// Server-assigned total order. Retains the v2 field name for replay and
+    /// rolling compatibility.
     pub sequence: u64,
+    #[serde(default)]
+    pub input_sequence: u64,
     pub duplicate: bool,
+    /// V3: the authoritative tick at which the command was applied. Legacy
+    /// V2 receipts retain their historical requested-target semantics.
     pub accepted_tick: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub client_observed_tick: Option<u64>,
     pub match_revision: u64,
     pub snapshot_hash: String,
 }
@@ -183,6 +209,109 @@ pub struct OnlineReconnectResponse {
     pub replayed_commands: Vec<OnlineCommandReceipt>,
     pub reconnect_count: u64,
     pub full_snapshot_required: bool,
+    #[serde(default)]
+    pub replay_from_sequence: u64,
+    #[serde(default)]
+    pub next_receipt_sequence: u64,
+    #[serde(default)]
+    pub replay_truncated: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OnlineStreamConnectRequest {
+    pub protocol_version: String,
+    pub build_id: String,
+    pub player_id: String,
+    pub account_id: String,
+    #[serde(default)]
+    pub next_receipt_sequence: u64,
+    #[serde(default)]
+    pub last_snapshot_hash: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OnlineSnapshotDelta {
+    pub base_snapshot_hash: String,
+    pub snapshot_hash: String,
+    pub base_tick: u64,
+    pub authoritative_tick: u64,
+    pub changed_fields: BTreeMap<String, Value>,
+    pub removed_fields: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "message_type", rename_all = "snake_case")]
+pub enum OnlineStreamServerMessage {
+    FullSnapshot {
+        actor_generation: String,
+        state_sequence: u64,
+        next_receipt_sequence: u64,
+        view: OnlineMatchView,
+        snapshot: Value,
+    },
+    SnapshotDelta {
+        actor_generation: String,
+        state_sequence: u64,
+        base_state_sequence: u64,
+        view: OnlineMatchView,
+        delta: OnlineSnapshotDelta,
+    },
+    ResyncRequired {
+        actor_generation: String,
+        reason: String,
+    },
+}
+
+pub fn build_snapshot_delta(
+    base: &Value,
+    next: &Value,
+    base_snapshot_hash: String,
+    snapshot_hash: String,
+    base_tick: u64,
+    authoritative_tick: u64,
+) -> Option<OnlineSnapshotDelta> {
+    let (Value::Object(base), Value::Object(next)) = (base, next) else {
+        return None;
+    };
+    let changed_fields = next
+        .iter()
+        .filter(|(key, value)| base.get(*key) != Some(*value))
+        .map(|(key, value)| (key.clone(), value.clone()))
+        .collect();
+    let removed_fields = base
+        .keys()
+        .filter(|key| !next.contains_key(*key))
+        .cloned()
+        .collect();
+    Some(OnlineSnapshotDelta {
+        base_snapshot_hash,
+        snapshot_hash,
+        base_tick,
+        authoritative_tick,
+        changed_fields,
+        removed_fields,
+    })
+}
+
+pub fn apply_snapshot_delta(
+    snapshot: &mut Value,
+    current_snapshot_hash: &str,
+    current_tick: u64,
+    delta: &OnlineSnapshotDelta,
+) -> Result<(), String> {
+    if current_snapshot_hash != delta.base_snapshot_hash || current_tick != delta.base_tick {
+        return Err("online snapshot delta base cursor mismatch".to_string());
+    }
+    let Value::Object(object) = snapshot else {
+        return Err("online snapshot delta requires an object base".to_string());
+    };
+    for key in &delta.removed_fields {
+        object.remove(key);
+    }
+    for (key, value) in &delta.changed_fields {
+        object.insert(key.clone(), value.clone());
+    }
+    Ok(())
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -879,10 +1008,17 @@ pub struct OnlineAuthorityError {
 }
 
 pub fn validate_client_contract(protocol_version: &str, build_id: &str) -> Result<(), String> {
-    if protocol_version != ONLINE_AUTHORITY_PROTOCOL {
+    let supported = (protocol_version == ONLINE_AUTHORITY_PROTOCOL
+        && build_id == ONLINE_AUTHORITY_BUILD)
+        || (protocol_version == ONLINE_AUTHORITY_V2_PROTOCOL
+            && build_id == ONLINE_AUTHORITY_V2_BUILD);
+    if !supported
+        && protocol_version != ONLINE_AUTHORITY_PROTOCOL
+        && protocol_version != ONLINE_AUTHORITY_V2_PROTOCOL
+    {
         return Err(format!("unsupported online protocol {protocol_version}"));
     }
-    if build_id != ONLINE_AUTHORITY_BUILD {
+    if !supported {
         return Err(format!("client build {build_id} is not compatible"));
     }
     Ok(())
@@ -953,6 +1089,13 @@ mod tests {
         assert!(
             validate_client_contract(ONLINE_AUTHORITY_PROTOCOL, ONLINE_AUTHORITY_BUILD).is_ok()
         );
+        assert!(
+            validate_client_contract(ONLINE_AUTHORITY_V2_PROTOCOL, ONLINE_AUTHORITY_V2_BUILD)
+                .is_ok()
+        );
+        assert!(
+            validate_client_contract(ONLINE_AUTHORITY_V2_PROTOCOL, ONLINE_AUTHORITY_BUILD).is_err()
+        );
         assert!(validate_client_contract("v0", ONLINE_AUTHORITY_BUILD).is_err());
         assert!(validate_client_contract(ONLINE_AUTHORITY_PROTOCOL, "old-build").is_err());
         assert!(validate_product_contract(ONLINE_PRODUCT_PROTOCOL, ONLINE_PRODUCT_BUILD).is_ok());
@@ -1006,6 +1149,52 @@ mod tests {
         assert_eq!(
             serde_json::from_slice::<OnlineCampaignConnectRequest>(&encoded).unwrap(),
             request
+        );
+    }
+
+    #[test]
+    fn top_level_snapshot_delta_round_trips_exactly() {
+        let base = serde_json::json!({
+            "tick": 10,
+            "seed": {"map": "first_contact"},
+            "party": [{"id": "hero", "x": 1}],
+            "obsolete": true
+        });
+        let next = serde_json::json!({
+            "tick": 11,
+            "seed": {"map": "first_contact"},
+            "party": [{"id": "hero", "x": 2}],
+            "phase": "contact"
+        });
+        let delta = build_snapshot_delta(
+            &base,
+            &next,
+            "base-hash".to_string(),
+            "next-hash".to_string(),
+            10,
+            11,
+        )
+        .unwrap();
+        assert!(!delta.changed_fields.contains_key("seed"));
+        assert_eq!(delta.removed_fields, vec!["obsolete"]);
+
+        let mut applied = base;
+        apply_snapshot_delta(&mut applied, "base-hash", 10, &delta).unwrap();
+        assert_eq!(applied, next);
+        assert!(apply_snapshot_delta(&mut applied, "wrong-hash", 11, &delta).is_err());
+    }
+
+    #[test]
+    fn stream_messages_are_explicitly_tagged() {
+        let message = OnlineStreamServerMessage::ResyncRequired {
+            actor_generation: "actor-a".to_string(),
+            reason: "base_hash_mismatch".to_string(),
+        };
+        let encoded = serde_json::to_value(&message).unwrap();
+        assert_eq!(encoded["message_type"], "resync_required");
+        assert_eq!(
+            serde_json::from_value::<OnlineStreamServerMessage>(encoded).unwrap(),
+            message
         );
     }
 }

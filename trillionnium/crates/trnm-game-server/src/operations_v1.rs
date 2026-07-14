@@ -47,10 +47,11 @@ pub(super) async fn heartbeat_fleet(state: &AppState) -> Result<(), String> {
     let active_matches: i64 = sqlx::query_scalar::query_scalar(
         "select count(*) from trnm_online_matches
          where phase = 'running' and assigned_instance_id = $1
-           and assigned_instance_epoch = $2",
+           and assigned_instance_epoch = $2 and assigned_physical_host_id = $3",
     )
     .bind(state.instance_id.as_str())
     .bind(state.instance_epoch)
+    .bind(state.physical_host_id.as_str())
     .fetch_one(&state.pool)
     .await
     .map_err(|error| error.to_string())?;
@@ -59,7 +60,8 @@ pub(super) async fn heartbeat_fleet(state: &AppState) -> Result<(), String> {
             public_endpoint = $3, build_id = $4, capacity = $5,
             active_matches = $6, heartbeat_at = now(),
             lease_expires_at = now() + interval '5 seconds', physical_host_id = $8
-         where instance_id = $1 and instance_epoch = $7 and status <> 'offline'",
+         where instance_id = $1 and instance_epoch = $7
+           and physical_host_id = $8 and status <> 'offline'",
     )
     .bind(state.instance_id.as_str())
     .bind(state.region.as_str())
@@ -274,6 +276,10 @@ pub(super) async fn active_season(
     ))
 }
 
+fn season_rating_after(host_rating: i32, guest_rating: i32, host_won: bool) -> (i32, i32) {
+    super::product_v2::coupled_elo_after(host_rating, guest_rating, host_won)
+}
+
 pub(super) async fn finalize_ranked_operations(
     transaction: &mut sqlx::transaction::Transaction<'_, sqlx_postgres::Postgres>,
     match_id: Uuid,
@@ -378,6 +384,9 @@ pub(super) async fn finalize_ranked_operations(
     .fetch_one(&mut **transaction)
     .await
     .map_err(|error| error.to_string())?;
+    // Integrity review quarantines the affected players from leaderboard reads, but the global
+    // and season projections must still apply the same result atomically. TODO(rating-ledger):
+    // actioned/voided history needs versioned projection replay before it can claim rollback.
     let integrity_state = if high_signal { "under_review" } else { "clear" };
     sqlx::query::query(
         "update trnm_online_rating_events set season_id = $2, integrity_state = $3
@@ -435,29 +444,22 @@ pub(super) async fn finalize_ranked_operations(
         .get(&guest)
         .ok_or_else(|| "guest season rating is missing".to_string())?;
     let host_won = outcome == BattleOutcome::Victory;
-    let expected_host = 1.0 / (1.0 + 10_f64.powf((guest_before - host_before) as f64 / 400.0));
-    let host_delta = (32.0 * (if host_won { 1.0 } else { 0.0 } - expected_host)).round() as i32;
-    for (player, won, before, delta) in [
-        (&host, host_won, host_before, host_delta),
-        (&guest, !host_won, guest_before, -host_delta),
+    let (host_after, guest_after) = season_rating_after(host_before, guest_before, host_won);
+    for (player, won, after) in [
+        (&host, host_won, host_after),
+        (&guest, !host_won, guest_after),
     ] {
-        let after = if high_signal {
-            before
-        } else {
-            (before + delta).clamp(0, 5000)
-        };
         sqlx::query::query(
             "update trnm_online_season_ratings set rating = $3,
-                wins = wins + case when $4 and not $5 then 1 else 0 end,
-                losses = losses + case when not $4 and not $5 then 1 else 0 end,
-                matches = matches + case when $5 then 0 else 1 end, updated_at = now()
+                wins = wins + case when $4 then 1 else 0 end,
+                losses = losses + case when $4 then 0 else 1 end,
+                matches = matches + 1, updated_at = now()
              where season_id = $1 and player_id = $2",
         )
         .bind(&season_id)
         .bind(player)
         .bind(after)
         .bind(won)
-        .bind(high_signal)
         .execute(&mut **transaction)
         .await
         .map_err(|error| error.to_string())?;
@@ -649,17 +651,11 @@ pub(super) async fn admin_season(
             })?;
         }
         "activate" => {
-            let ranked_busy: bool = sqlx::query_scalar::query_scalar(
-                "select exists(
-                    select 1 from trnm_online_matches
-                     where match_mode = 'ranked_pvp' and phase in ('created', 'running')
-                    union all
-                    select 1 from trnm_online_solo_queue where status = 'queued'
-                 )",
-            )
-            .fetch_one(&mut *transaction)
-            .await
-            .map_err(internal_db)?;
+            let ranked_busy: bool =
+                sqlx::query_scalar::query_scalar(super::product_v2::RANKED_SEASON_BUSY_SQL)
+                    .fetch_one(&mut *transaction)
+                    .await
+                    .map_err(internal_db)?;
             if ranked_busy {
                 return Err(api_error(
                     StatusCode::CONFLICT,
@@ -711,17 +707,11 @@ pub(super) async fn admin_season(
             .map_err(internal_db)?;
         }
         "close" => {
-            let ranked_busy: bool = sqlx::query_scalar::query_scalar(
-                "select exists(
-                    select 1 from trnm_online_matches
-                     where match_mode = 'ranked_pvp' and phase in ('created', 'running')
-                    union all
-                    select 1 from trnm_online_solo_queue where status = 'queued'
-                 )",
-            )
-            .fetch_one(&mut *transaction)
-            .await
-            .map_err(internal_db)?;
+            let ranked_busy: bool =
+                sqlx::query_scalar::query_scalar(super::product_v2::RANKED_SEASON_BUSY_SQL)
+                    .fetch_one(&mut *transaction)
+                    .await
+                    .map_err(internal_db)?;
             if ranked_busy {
                 return Err(api_error(
                     StatusCode::CONFLICT,
@@ -1605,4 +1595,26 @@ pub(super) async fn resolve_enforcement_appeal(
     .map_err(internal_db)?;
     transaction.commit().await.map_err(internal_db)?;
     Ok(Json(appeal_view(&row)?))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::season_rating_after;
+
+    #[test]
+    fn season_rating_projection_always_uses_the_global_coupled_result() {
+        for (host, guest, host_won) in [
+            (1000, 1000, true),
+            (1000, 1000, false),
+            (1000, 2000, true),
+            (4999, 5000, true),
+            (1, 0, false),
+        ] {
+            assert_eq!(
+                season_rating_after(host, guest, host_won),
+                super::super::product_v2::coupled_elo_after(host, guest, host_won),
+            );
+        }
+        assert_eq!(season_rating_after(1000, 1000, true), (1016, 984));
+    }
 }

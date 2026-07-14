@@ -1,6 +1,6 @@
 # TRNM Online Product v2
 
-Updated: 2026-07-13
+Updated: 2026-07-14
 
 ## Contract and scope
 
@@ -8,7 +8,8 @@ Online Product v2 is the first local ranked multiplayer product slice. Its
 control-plane contract is `trnm_online_product_v2`, build
 `trnm-online-product-2026.07-v2`; v1 private-lobby requests remain accepted for
 closed-alpha compatibility. Authority commands remain version-pinned to
-Online Authority v2.
+the current Online Authority v3 exact protocol/build pair. The exact Authority
+v2 pair remains accepted during the rolling-compatibility window.
 
 This is not a public-beta or commercial-release claim. It is a local,
 PostgreSQL-persistent, two-player ranked PvP slice with a native product shell.
@@ -22,11 +23,12 @@ ten minutes. Unmatched tickets expire after fifteen minutes. Duplicate active
 tickets fail closed.
 
 Pairing creates two audit-linked tickets, a `ranked_pvp` lobby, one durable
-allocation and one Authority v2 match. The simulation moves the second
-player's seeded units to a real opposing authority side, disables enemy AI and
-accepts separate control-set-checked commands for both humans. Cross-side unit
-theft, withdrawal and non-member access fail closed. Server restart retains
-the simulation and command state.
+allocation and one authoritative match. Current native launches use Authority
+v3, while the exact v2 pair remains available for rolling compatibility. The
+simulation moves the second player's seeded units to a real opposing authority
+side, disables enemy AI and accepts separate control-set-checked commands for
+both humans. Cross-side unit theft, withdrawal and non-member access fail
+closed. Server restart retains the simulation and command state.
 
 Ranked terminal state writes two immutable rating events. Initial MMR is 1000,
 the current K factor is 32, and each event stores before/after/delta plus the

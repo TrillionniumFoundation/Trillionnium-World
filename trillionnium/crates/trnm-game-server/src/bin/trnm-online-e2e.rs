@@ -2,19 +2,28 @@ use reqwest::blocking::Client;
 use serde::{de::DeserializeOwned, Serialize};
 use serde_json::{json, Value};
 use std::{
+    net::TcpStream,
     process::Command,
-    sync::Mutex,
+    sync::{Arc, Barrier, Mutex},
     thread,
     time::{Duration, Instant},
 };
 use trnm_online_protocol::{
-    OnlineCampaignConnectRequest, OnlineCampaignView, OnlineCommandReceipt,
+    apply_snapshot_delta, OnlineCampaignConnectRequest, OnlineCampaignView, OnlineCommandReceipt,
     OnlineCommandSubmitRequest, OnlineMatchAccessRequest, OnlineMatchCreateRequest,
     OnlineMatchJoinRequest, OnlineMatchPhase, OnlineMatchStartRequest, OnlineMatchView,
     OnlineReconnectRequest, OnlineReconnectResponse, OnlineSnapshotResponse,
-    ONLINE_AUTHORITY_BUILD, ONLINE_AUTHORITY_PROTOCOL,
+    OnlineStreamConnectRequest, OnlineStreamServerMessage, ONLINE_AUTHORITY_BUILD,
+    ONLINE_AUTHORITY_PROTOCOL, ONLINE_STREAM_PROTOCOL,
 };
 use trnm_rts_protocol::{RtsFrameOrder, RtsOrderKind, RtsOrderSource, RtsTile};
+use trnm_rts_sim::MissionSimV1;
+use tungstenite::{
+    client::IntoClientRequest,
+    http::{header::SEC_WEBSOCKET_PROTOCOL, HeaderValue},
+    stream::MaybeTlsStream,
+    Message, WebSocket,
+};
 
 #[derive(Clone)]
 struct Identity {
@@ -35,6 +44,249 @@ struct CommandSpec {
     subjects: Vec<String>,
     target: RtsTile,
     queued: bool,
+}
+
+struct StreamSmokeCursor {
+    actor_generation: String,
+    state_sequence: u64,
+    snapshot_hash: String,
+    authoritative_tick: u64,
+    snapshot: Value,
+}
+
+fn connect_stream_smoke(
+    client: &OnlineClient,
+    identity: &Identity,
+    match_id: &str,
+    snapshot: &OnlineSnapshotResponse,
+) -> Result<(WebSocket<MaybeTlsStream<TcpStream>>, StreamSmokeCursor, u64), String> {
+    let mut url = reqwest::Url::parse(&client.base_url)
+        .map_err(|error| format!("state stream URL: {error}"))?;
+    if url.scheme() != "http" {
+        return Err(
+            "online E2E state stream currently requires a local HTTP authority".to_string(),
+        );
+    }
+    url.set_scheme("ws")
+        .map_err(|()| "state stream URL scheme".to_string())?;
+    let base_path = url.path().trim_end_matches('/').to_string();
+    url.set_path(&format!("{base_path}/v1/online/matches/{match_id}/stream"));
+    url.set_query(None);
+    url.set_fragment(None);
+    let connect = OnlineStreamConnectRequest {
+        protocol_version: ONLINE_STREAM_PROTOCOL.to_string(),
+        build_id: ONLINE_AUTHORITY_BUILD.to_string(),
+        player_id: identity.player_id.clone(),
+        account_id: identity.account_id.clone(),
+        next_receipt_sequence: snapshot.view.next_sequence,
+        last_snapshot_hash: snapshot.view.snapshot_hash.clone(),
+    };
+    url.query_pairs_mut()
+        .append_pair("protocol_version", &connect.protocol_version)
+        .append_pair("build_id", &connect.build_id)
+        .append_pair("player_id", &connect.player_id)
+        .append_pair("account_id", &connect.account_id)
+        .append_pair(
+            "next_receipt_sequence",
+            &connect.next_receipt_sequence.to_string(),
+        )
+        .append_pair("last_snapshot_hash", &connect.last_snapshot_hash);
+    if url.as_str().contains(&identity.session) {
+        return Err("state stream URL leaked the player session".to_string());
+    }
+    let mut request = url
+        .as_str()
+        .into_client_request()
+        .map_err(|error| format!("state stream request: {error}"))?;
+    request.headers_mut().insert(
+        "x-trnm-player-session",
+        HeaderValue::from_str(&identity.session)
+            .map_err(|error| format!("state stream session header: {error}"))?,
+    );
+    request.headers_mut().insert(
+        SEC_WEBSOCKET_PROTOCOL,
+        HeaderValue::from_static(ONLINE_STREAM_PROTOCOL),
+    );
+    let (mut socket, response) = tungstenite::client::connect_with_config(request, None, 0)
+        .map_err(|error| format!("connect state stream: {error}"))?;
+    if response
+        .headers()
+        .get(SEC_WEBSOCKET_PROTOCOL)
+        .and_then(|value| value.to_str().ok())
+        != Some(ONLINE_STREAM_PROTOCOL)
+    {
+        return Err("state stream server selected an unexpected subprotocol".to_string());
+    }
+    match socket.get_mut() {
+        MaybeTlsStream::Plain(stream) => stream
+            .set_read_timeout(Some(Duration::from_secs(5)))
+            .map_err(|error| format!("state stream read timeout: {error}"))?,
+        _ => return Err("online E2E state stream received an unexpected TLS socket".to_string()),
+    }
+    let (cursor, next_sequence) = read_initial_stream_snapshot(&mut socket, match_id)?;
+    Ok((socket, cursor, next_sequence))
+}
+
+fn read_initial_stream_snapshot(
+    socket: &mut WebSocket<MaybeTlsStream<TcpStream>>,
+    match_id: &str,
+) -> Result<(StreamSmokeCursor, u64), String> {
+    loop {
+        match socket
+            .read()
+            .map_err(|error| format!("read initial state stream snapshot: {error}"))?
+        {
+            Message::Text(text) => {
+                let message = serde_json::from_str::<OnlineStreamServerMessage>(&text)
+                    .map_err(|error| format!("decode initial state stream snapshot: {error}"))?;
+                if let OnlineStreamServerMessage::FullSnapshot {
+                    actor_generation,
+                    state_sequence,
+                    next_receipt_sequence,
+                    view,
+                    snapshot,
+                } = message
+                {
+                    if view.match_id != match_id || next_receipt_sequence != view.next_sequence {
+                        return Err("initial state stream authority cursor mismatch".to_string());
+                    }
+                    validate_stream_smoke_snapshot(&view, &snapshot)?;
+                    return Ok((
+                        StreamSmokeCursor {
+                            actor_generation,
+                            state_sequence,
+                            snapshot_hash: view.snapshot_hash,
+                            authoritative_tick: view.authoritative_tick,
+                            snapshot,
+                        },
+                        view.next_sequence,
+                    ));
+                }
+                return Err("state stream did not begin with a full snapshot".to_string());
+            }
+            Message::Ping(_) => socket
+                .flush()
+                .map_err(|error| format!("flush state stream pong: {error}"))?,
+            Message::Pong(_) => {}
+            other => return Err(format!("unexpected initial state stream frame: {other:?}")),
+        }
+    }
+}
+
+fn wait_for_stream_total_order(
+    socket: &mut WebSocket<MaybeTlsStream<TcpStream>>,
+    cursor: &mut StreamSmokeCursor,
+    match_id: &str,
+    expected_next_sequence: u64,
+) -> Result<(), String> {
+    let mut saw_delta = false;
+    for _ in 0..256 {
+        match socket
+            .read()
+            .map_err(|error| format!("read state stream update: {error}"))?
+        {
+            Message::Text(text) => {
+                let message = serde_json::from_str::<OnlineStreamServerMessage>(&text)
+                    .map_err(|error| format!("decode state stream update: {error}"))?;
+                let next_sequence = match message {
+                    OnlineStreamServerMessage::FullSnapshot {
+                        actor_generation,
+                        state_sequence,
+                        next_receipt_sequence,
+                        view,
+                        snapshot,
+                    } => {
+                        if actor_generation != cursor.actor_generation
+                            || state_sequence < cursor.state_sequence
+                            || view.match_id != match_id
+                            || next_receipt_sequence != view.next_sequence
+                        {
+                            return Err("state stream full snapshot cursor regressed".to_string());
+                        }
+                        validate_stream_smoke_snapshot(&view, &snapshot)?;
+                        cursor.state_sequence = state_sequence;
+                        cursor.snapshot_hash = view.snapshot_hash.clone();
+                        cursor.authoritative_tick = view.authoritative_tick;
+                        cursor.snapshot = snapshot;
+                        view.next_sequence
+                    }
+                    OnlineStreamServerMessage::SnapshotDelta {
+                        actor_generation,
+                        state_sequence,
+                        base_state_sequence,
+                        view,
+                        delta,
+                    } => {
+                        saw_delta = true;
+                        if actor_generation != cursor.actor_generation
+                            || base_state_sequence != cursor.state_sequence
+                            || state_sequence <= base_state_sequence
+                            || view.match_id != match_id
+                        {
+                            return Err("state stream delta cursor mismatch".to_string());
+                        }
+                        apply_snapshot_delta(
+                            &mut cursor.snapshot,
+                            &cursor.snapshot_hash,
+                            cursor.authoritative_tick,
+                            &delta,
+                        )?;
+                        validate_stream_smoke_snapshot(&view, &cursor.snapshot)?;
+                        cursor.state_sequence = state_sequence;
+                        cursor.snapshot_hash = delta.snapshot_hash;
+                        cursor.authoritative_tick = delta.authoritative_tick;
+                        view.next_sequence
+                    }
+                    OnlineStreamServerMessage::ResyncRequired { reason, .. } => {
+                        return Err(format!("state stream requested resync: {reason}"));
+                    }
+                };
+                if next_sequence >= expected_next_sequence && saw_delta {
+                    return Ok(());
+                }
+            }
+            Message::Ping(_) => socket
+                .flush()
+                .map_err(|error| format!("flush state stream pong: {error}"))?,
+            Message::Pong(_) => {}
+            Message::Close(frame) => {
+                return Err(format!(
+                    "state stream closed before command update: {frame:?}"
+                ));
+            }
+            other => return Err(format!("unexpected state stream frame: {other:?}")),
+        }
+    }
+    Err("state stream did not reach the expected total-order cursor".to_string())
+}
+
+fn validate_stream_smoke_snapshot(view: &OnlineMatchView, snapshot: &Value) -> Result<(), String> {
+    if view.protocol_version != ONLINE_AUTHORITY_PROTOCOL || view.build_id != ONLINE_AUTHORITY_BUILD
+    {
+        return Err("state stream authority contract mismatch".to_string());
+    }
+    let simulation = serde_json::from_value::<MissionSimV1>(snapshot.clone())
+        .map_err(|error| format!("state stream mission decode: {error}"))?;
+    if simulation.tick != view.authoritative_tick
+        || simulation
+            .snapshot_hash()
+            .map_err(|error| format!("state stream mission hash: {error}"))?
+            != view.snapshot_hash
+    {
+        return Err("state stream mission snapshot hash/tick mismatch".to_string());
+    }
+    Ok(())
+}
+
+fn summarize_milliseconds(mut samples: Vec<u64>) -> (Vec<u64>, u64, u64) {
+    samples.sort_unstable();
+    if samples.is_empty() {
+        return (samples, 0, 0);
+    }
+    let p95_index = (samples.len() * 95).div_ceil(100).saturating_sub(1);
+    let p95_ms = samples[p95_index];
+    let max_ms = *samples.last().unwrap_or(&0);
+    (samples, p95_ms, max_ms)
 }
 
 impl OnlineClient {
@@ -99,19 +351,12 @@ impl OnlineClient {
     }
 
     fn command_ack_summary(&self) -> (Vec<u64>, u64, u64) {
-        let mut samples = self
+        let samples = self
             .command_ack_ms
             .lock()
             .map(|samples| samples.clone())
             .unwrap_or_default();
-        samples.sort_unstable();
-        if samples.is_empty() {
-            return (samples, 0, 0);
-        }
-        let p95_index = (samples.len() * 95).div_ceil(100).saturating_sub(1);
-        let p95_ms = samples[p95_index];
-        let max_ms = *samples.last().unwrap_or(&0);
-        (samples, p95_ms, max_ms)
+        summarize_milliseconds(samples)
     }
 
     fn post_status<T: Serialize>(
@@ -176,6 +421,7 @@ impl OnlineClient {
                 account_id: identity.account_id.clone(),
                 last_acknowledged_sequence,
                 last_snapshot_hash,
+                next_receipt_sequence: Some(last_acknowledged_sequence),
             },
         )
     }
@@ -187,16 +433,14 @@ impl OnlineClient {
         snapshot: &OnlineSnapshotResponse,
         spec: CommandSpec,
     ) -> Result<(OnlineCommandReceipt, OnlineCommandSubmitRequest), String> {
-        let last_frame = snapshot
-            .snapshot
-            .get("last_order_frame")
-            .and_then(Value::as_u64)
-            .unwrap_or_default();
-        let target_tick = snapshot
+        let target_tick = snapshot.view.authoritative_tick;
+        let input_sequence = snapshot
             .view
-            .authoritative_tick
-            .saturating_add(40)
-            .max(last_frame.saturating_add(1));
+            .members
+            .iter()
+            .find(|member| member.player_id == identity.player_id)
+            .map(|member| member.next_input_sequence)
+            .ok_or_else(|| "snapshot is missing the submitting member".to_string())?;
         let mut order = RtsFrameOrder::new(
             u32::try_from(target_tick).map_err(|_| "target tick overflow".to_string())?,
             &identity.player_id,
@@ -225,27 +469,27 @@ impl OnlineClient {
             account_id: identity.account_id.clone(),
             command_id: spec.command_id,
             sequence: snapshot.view.next_sequence,
+            input_sequence: Some(input_sequence),
             expected_match_revision: snapshot.view.match_revision,
             target_tick,
+            client_observed_tick: Some(snapshot.view.authoritative_tick),
             order,
         };
         let path = format!("/v1/online/matches/{match_id}/commands");
         let receipt = match self.post(identity, &path, &request) {
             Ok(receipt) => receipt,
-            Err(error) if error.contains("target_tick is outside the authoritative window") => {
+            Err(error) if error.contains("expected player input sequence") => {
                 let fresh = self.snapshot(identity, match_id)?;
-                let last_frame = fresh
-                    .snapshot
-                    .get("last_order_frame")
-                    .and_then(Value::as_u64)
-                    .unwrap_or_default();
                 request.sequence = fresh.view.next_sequence;
-                request.expected_match_revision = fresh.view.match_revision;
-                request.target_tick = fresh
+                request.input_sequence = fresh
                     .view
-                    .authoritative_tick
-                    .saturating_add(80)
-                    .max(last_frame.saturating_add(1));
+                    .members
+                    .iter()
+                    .find(|member| member.player_id == identity.player_id)
+                    .map(|member| member.next_input_sequence);
+                request.expected_match_revision = fresh.view.match_revision;
+                request.target_tick = fresh.view.authoritative_tick;
+                request.client_observed_tick = Some(fresh.view.authoritative_tick);
                 request.order.frame = u32::try_from(request.target_tick)
                     .map_err(|_| "target tick overflow".to_string())?;
                 self.post(identity, &path, &request)?
@@ -401,7 +645,7 @@ fn run() -> Result<Value, String> {
         .unwrap_or_else(|_| "http://127.0.0.1:7005".to_string());
     let host = env_identity("TRNM_ONLINE_HOST")?;
     let guest = env_identity("TRNM_ONLINE_GUEST")?;
-    let client = OnlineClient::new(base_url.clone())?;
+    let client = Arc::new(OnlineClient::new(base_url.clone())?);
     let tick_interval_ms = client.tick_interval_ms()?;
     let run_id = format!("online-e2e-{}", chrono::Utc::now().timestamp_millis());
     let slot_key = std::env::var("TRNM_ONLINE_SLOT_KEY").unwrap_or_else(|_| run_id.clone());
@@ -472,30 +716,204 @@ fn run() -> Result<Value, String> {
         return Err("two-client match did not enter running phase".to_string());
     }
     let initial = client.snapshot(&host, &created.match_id)?;
+    let initial_guest = client.snapshot(&guest, &created.match_id)?;
+    if initial.view.match_revision != initial_guest.view.match_revision {
+        return Err("initial two-player snapshots did not share one match revision".to_string());
+    }
     let match_clock_started = Instant::now();
     let initial_authoritative_tick = initial.view.authoritative_tick;
     let approach = point(&initial, "approach_point")?;
     let objective = point(&initial, "objective")?;
     let host_units = controlled(&initial, &host)?;
+    let guest_units = controlled(&initial_guest, &guest)?;
+    let (mut state_stream, mut state_stream_cursor, streamed_initial_sequence) =
+        connect_stream_smoke(&client, &host, &created.match_id, &initial)?;
+    if streamed_initial_sequence != initial.view.next_sequence {
+        return Err(
+            "state stream initial total-order cursor diverged from HTTP snapshot".to_string(),
+        );
+    }
 
-    let (first, first_request) = client.submit(
-        &host,
+    let websocket_authoritative_effect_started = Instant::now();
+    let host_submit = {
+        let client = Arc::clone(&client);
+        let host = host.clone();
+        let match_id = created.match_id.clone();
+        let snapshot = initial.clone();
+        let command_id = format!("{run_id}-host-move");
+        let subjects = host_units.clone();
+        thread::spawn(move || {
+            client.submit(
+                &host,
+                &match_id,
+                &snapshot,
+                CommandSpec {
+                    command_id,
+                    kind: RtsOrderKind::Move,
+                    subjects,
+                    target: approach,
+                    queued: true,
+                },
+            )
+        })
+    };
+    let guest_submit = {
+        let client = Arc::clone(&client);
+        let guest = guest.clone();
+        let match_id = created.match_id.clone();
+        let snapshot = initial_guest;
+        let command_id = format!("{run_id}-guest-concurrent-move");
+        thread::spawn(move || {
+            client.submit(
+                &guest,
+                &match_id,
+                &snapshot,
+                CommandSpec {
+                    command_id,
+                    kind: RtsOrderKind::Move,
+                    subjects: guest_units,
+                    target: approach,
+                    queued: true,
+                },
+            )
+        })
+    };
+    let (first, first_request) = host_submit
+        .join()
+        .map_err(|_| "host concurrent submit panicked".to_string())??;
+    let (guest_concurrent, _) = guest_submit
+        .join()
+        .map_err(|_| "guest concurrent submit panicked".to_string())??;
+    let mut total_orders = [first.sequence, guest_concurrent.sequence];
+    total_orders.sort_unstable();
+    if total_orders[1] != total_orders[0].saturating_add(1)
+        || first.input_sequence != 0
+        || guest_concurrent.input_sequence != 0
+    {
+        return Err("two-player concurrent input did not receive independent input cursors and contiguous server total order".to_string());
+    }
+    wait_for_stream_total_order(
+        &mut state_stream,
+        &mut state_stream_cursor,
         &created.match_id,
-        &initial,
-        CommandSpec {
-            command_id: format!("{run_id}-host-move"),
-            kind: RtsOrderKind::Move,
-            subjects: host_units.clone(),
-            target: approach,
-            queued: false,
-        },
+        total_orders[1].saturating_add(1),
     )?;
+    let websocket_authoritative_effect_ms =
+        u64::try_from(websocket_authoritative_effect_started.elapsed().as_millis())
+            .unwrap_or(u64::MAX);
+    let websocket_authoritative_effect_sample_count =
+        std::env::var("TRNM_ONLINE_E2E_EFFECT_SAMPLES")
+            .ok()
+            .and_then(|value| value.parse::<usize>().ok())
+            .unwrap_or(20);
+    let mut websocket_authoritative_effect_samples_ms =
+        Vec::with_capacity(websocket_authoritative_effect_sample_count);
+    for sample in 0..websocket_authoritative_effect_sample_count {
+        let effect_snapshot = client.snapshot(&host, &created.match_id)?;
+        let effect_started = Instant::now();
+        let (receipt, _) = client.submit(
+            &host,
+            &created.match_id,
+            &effect_snapshot,
+            CommandSpec {
+                command_id: format!("{run_id}-effect-sample-{sample}"),
+                kind: RtsOrderKind::Move,
+                subjects: host_units.clone(),
+                target: approach,
+                queued: false,
+            },
+        )?;
+        wait_for_stream_total_order(
+            &mut state_stream,
+            &mut state_stream_cursor,
+            &created.match_id,
+            receipt.sequence.saturating_add(1),
+        )?;
+        websocket_authoritative_effect_samples_ms
+            .push(u64::try_from(effect_started.elapsed().as_millis()).unwrap_or(u64::MAX));
+    }
+    let (
+        websocket_authoritative_effect_samples_ms,
+        websocket_authoritative_effect_p95_ms,
+        websocket_authoritative_effect_max_ms,
+    ) = summarize_milliseconds(websocket_authoritative_effect_samples_ms);
+    if let Some(maximum_p95_ms) = std::env::var("TRNM_ONLINE_E2E_MAX_EFFECT_P95_MS")
+        .ok()
+        .and_then(|value| value.parse::<u64>().ok())
+    {
+        if websocket_authoritative_effect_p95_ms > maximum_p95_ms {
+            return Err(format!(
+                "WebSocket authoritative effect p95 {}ms exceeded {}ms",
+                websocket_authoritative_effect_p95_ms, maximum_p95_ms
+            ));
+        }
+    }
+    let _ = state_stream.close(None);
+    let reconnect_command_race_rounds = 32_u64;
+    let mut reconnect_cursor = 0_u64;
+    let mut reconnect_hash = "stale-race-snapshot".to_string();
+    for round in 0..reconnect_command_race_rounds {
+        let command_snapshot = client.snapshot(&host, &created.match_id)?;
+        let barrier = Arc::new(Barrier::new(2));
+        let race_command_id = format!("{run_id}-reconnect-race-{round}");
+        let command_thread = {
+            let client = Arc::clone(&client);
+            let host = host.clone();
+            let match_id = created.match_id.clone();
+            let barrier = Arc::clone(&barrier);
+            let subjects = host_units.clone();
+            thread::spawn(move || {
+                barrier.wait();
+                client.submit(
+                    &host,
+                    &match_id,
+                    &command_snapshot,
+                    CommandSpec {
+                        command_id: race_command_id,
+                        kind: RtsOrderKind::Move,
+                        subjects,
+                        target: approach,
+                        queued: true,
+                    },
+                )
+            })
+        };
+        let reconnect_thread = {
+            let client = Arc::clone(&client);
+            let guest = guest.clone();
+            let match_id = created.match_id.clone();
+            let barrier = Arc::clone(&barrier);
+            let last_snapshot_hash = reconnect_hash.clone();
+            thread::spawn(move || {
+                barrier.wait();
+                client.reconnect(&guest, &match_id, reconnect_cursor, last_snapshot_hash)
+            })
+        };
+        command_thread
+            .join()
+            .map_err(|_| "reconnect race command panicked".to_string())??;
+        let raced_reconnect = reconnect_thread
+            .join()
+            .map_err(|_| "reconnect race request panicked".to_string())??;
+        if raced_reconnect.next_receipt_sequence < reconnect_cursor
+            || raced_reconnect.view.next_sequence < raced_reconnect.next_receipt_sequence
+        {
+            return Err(
+                "reconnect race returned a regressed or impossible replay cursor".to_string(),
+            );
+        }
+        reconnect_cursor = raced_reconnect.next_receipt_sequence;
+        reconnect_hash = raced_reconnect.view.snapshot_hash;
+    }
     let duplicate: OnlineCommandReceipt = client.post(
         &host,
         &format!("/v1/online/matches/{}/commands", created.match_id),
         &first_request,
     )?;
-    if !duplicate.duplicate || duplicate.sequence != first.sequence {
+    if !duplicate.duplicate
+        || duplicate.sequence != first.sequence
+        || duplicate.input_sequence != first.input_sequence
+    {
         return Err("duplicate command did not return the stored receipt".to_string());
     }
     let mut tampered_duplicate = first_request.clone();
@@ -512,7 +930,7 @@ fn run() -> Result<Value, String> {
     }
     let mut skipped = first_request.clone();
     skipped.command_id = format!("{run_id}-sequence-skip");
-    skipped.sequence = skipped.sequence.saturating_add(2);
+    skipped.input_sequence = skipped.input_sequence.map(|value| value.saturating_add(2));
     skipped.expected_match_revision = first.match_revision;
     let (status, _) = client.post_status(
         &host,
@@ -521,7 +939,7 @@ fn run() -> Result<Value, String> {
     )?;
     if status != 409 {
         return Err(format!(
-            "sequence skip returned HTTP {status}, expected 409"
+            "input sequence skip returned HTTP {status}, expected 409"
         ));
     }
     let after_first = client.snapshot(&guest, &created.match_id)?;
@@ -530,8 +948,15 @@ fn run() -> Result<Value, String> {
     theft.account_id = guest.account_id.clone();
     theft.command_id = format!("{run_id}-control-theft");
     theft.sequence = after_first.view.next_sequence;
+    theft.input_sequence = after_first
+        .view
+        .members
+        .iter()
+        .find(|member| member.player_id == guest.player_id)
+        .map(|member| member.next_input_sequence);
     theft.expected_match_revision = after_first.view.match_revision;
-    theft.target_tick = after_first.view.authoritative_tick.saturating_add(180);
+    theft.target_tick = after_first.view.authoritative_tick;
+    theft.client_observed_tick = Some(after_first.view.authoritative_tick);
     theft.order.frame = u32::try_from(theft.target_tick)
         .map_err(|_| "control-theft target tick overflow".to_string())?;
     theft.order.subject_actor_ids = host_units.clone();
@@ -573,9 +998,11 @@ fn run() -> Result<Value, String> {
         0,
         "stale-client-snapshot".to_string(),
     )?;
-    if reconnected.reconnect_count != 1
+    if reconnected.reconnect_count < reconnect_command_race_rounds.saturating_add(1)
         || !reconnected.full_snapshot_required
         || reconnected.replayed_commands.len() != before_restart.view.next_sequence as usize
+        || reconnected.replay_truncated
+        || reconnected.next_receipt_sequence != before_restart.view.next_sequence
     {
         return Err(
             "authenticated reconnect did not replay the authoritative command gap".to_string(),
@@ -898,6 +1325,15 @@ fn run() -> Result<Value, String> {
         "terminal_duplicate_command_exactly_once": true,
         "tampered_duplicate_rejected": true,
         "sequence_regression_rejected": true,
+        "concurrent_player_input_sequences": true,
+        "concurrent_server_total_orders": total_orders,
+        "websocket_full_delta_verified": true,
+        "websocket_authoritative_effect_ms": websocket_authoritative_effect_ms,
+        "websocket_authoritative_effect_sample_scope": "command_submit_start_to_hash_verified_stream_total_order",
+        "websocket_authoritative_effect_samples_ms": websocket_authoritative_effect_samples_ms,
+        "websocket_authoritative_effect_p95_ms": websocket_authoritative_effect_p95_ms,
+        "websocket_authoritative_effect_max_ms": websocket_authoritative_effect_max_ms,
+        "reconnect_command_race_rounds": reconnect_command_race_rounds,
         "cross_member_control_rejected": true,
         "old_build_rejected": true,
         "restart_recovery": restart_recovery,

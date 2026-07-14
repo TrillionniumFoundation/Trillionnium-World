@@ -3,7 +3,8 @@ use super::{
     map_loader::FirstContactMap,
     simulation_adapter::{
         command_key_for_scheme, production_options, structure_options, technology_options,
-        FirstContactCommand, FirstContactRuntime,
+        FirstContactCommand, FirstContactCommandIntent, FirstContactCommandIntents,
+        FirstContactRuntime,
     },
     view_math::world_to_minimap,
 };
@@ -37,8 +38,30 @@ pub(super) struct FirstContactCommandKey {
 #[derive(Component)]
 pub(super) struct FirstContactRadarPlayerMarker;
 
+fn command_card_palette(interaction: Interaction, recommended: bool) -> (Color, Color) {
+    match interaction {
+        Interaction::Pressed => (
+            Color::srgba(0.28, 0.52, 0.30, 1.0),
+            Color::srgb(0.90, 1.0, 0.65),
+        ),
+        Interaction::Hovered => (
+            Color::srgba(0.18, 0.38, 0.30, 1.0),
+            Color::srgb(0.72, 1.0, 0.58),
+        ),
+        Interaction::None if recommended => (
+            Color::srgba(0.14, 0.30, 0.24, 0.98),
+            Color::srgb(0.58, 0.96, 0.48),
+        ),
+        Interaction::None => (
+            Color::srgba(0.055, 0.085, 0.082, 0.96),
+            Color::srgb(0.22, 0.33, 0.31),
+        ),
+    }
+}
+
 fn command_card(command: FirstContactCommand, key: &str, label: &str) -> impl Bundle {
     (
+        Button,
         Node {
             width: px(86),
             height: px(70),
@@ -65,6 +88,21 @@ fn command_card(command: FirstContactCommand, key: &str, label: &str) -> impl Bu
             ),
         ],
     )
+}
+
+pub(super) fn handle_first_contact_command_card_interactions(
+    flow: Res<CampaignFlow>,
+    mut intents: ResMut<FirstContactCommandIntents>,
+    cards: Query<(&Interaction, &FirstContactCommandCard), Changed<Interaction>>,
+) {
+    if !flow.in_battle() || !flow.mouse_gameplay_enabled() {
+        return;
+    }
+    for (interaction, card) in &cards {
+        if *interaction == Interaction::Pressed {
+            intents.push(FirstContactCommandIntent::command(card.command));
+        }
+    }
 }
 
 fn radar_panel() -> impl Bundle {
@@ -384,6 +422,7 @@ pub(super) fn update_first_contact_hud(
     >,
     mut cards: Query<(
         &FirstContactCommandCard,
+        &Interaction,
         &mut BackgroundColor,
         &mut BorderColor,
     )>,
@@ -521,18 +560,11 @@ pub(super) fn update_first_contact_hud(
     for mut text in &mut clocks {
         text.0 = format!("{minutes:02}:{seconds:02}");
     }
-    for (card, mut background, mut border) in &mut cards {
-        let selected = card.command == runtime.recommended_command();
-        background.0 = if selected {
-            Color::srgba(0.14, 0.30, 0.24, 0.98)
-        } else {
-            Color::srgba(0.055, 0.085, 0.082, 0.96)
-        };
-        *border = BorderColor::all(if selected {
-            Color::srgb(0.58, 0.96, 0.48)
-        } else {
-            Color::srgb(0.22, 0.33, 0.31)
-        });
+    for (card, interaction, mut background, mut border) in &mut cards {
+        let (background_color, border_color) =
+            command_card_palette(*interaction, card.command == runtime.recommended_command());
+        background.0 = background_color;
+        *border = BorderColor::all(border_color);
     }
     let world_width = map.width as f32 * map.tile_size as f32;
     let world_height = map.height as f32 * map.tile_size as f32;
@@ -544,5 +576,37 @@ pub(super) fn update_first_contact_hud(
     for mut marker in &mut radar_markers {
         marker.left = px(8.0 + minimap.x);
         marker.bottom = px(8.0 + minimap.y);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn command_cards_are_interactive_buttons() {
+        let mut world = World::new();
+        let entity = world
+            .spawn(command_card(FirstContactCommand::Move, "Q", "MOVE"))
+            .id();
+        assert!(world.get::<Button>(entity).is_some());
+        assert_eq!(world.get::<Interaction>(entity), Some(&Interaction::None));
+        assert_eq!(
+            world
+                .get::<FirstContactCommandCard>(entity)
+                .map(|card| card.command),
+            Some(FirstContactCommand::Move)
+        );
+    }
+
+    #[test]
+    fn command_card_palette_distinguishes_hover_press_and_recommendation() {
+        let normal = command_card_palette(Interaction::None, false);
+        let recommended = command_card_palette(Interaction::None, true);
+        let hovered = command_card_palette(Interaction::Hovered, false);
+        let pressed = command_card_palette(Interaction::Pressed, false);
+        assert_ne!(normal, recommended);
+        assert_ne!(recommended, hovered);
+        assert_ne!(hovered, pressed);
     }
 }

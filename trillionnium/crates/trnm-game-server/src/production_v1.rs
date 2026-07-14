@@ -800,8 +800,12 @@ pub(super) async fn player_production_status(
     .await
     .map_err(internal_db)?;
     let active_matches: i64 = sqlx::query_scalar::query_scalar(
-        "select count(*) from trnm_online_matches where phase in ('created', 'running')",
+        "select count(*) from trnm_online_matches
+         where phase = 'running' and assigned_instance_id = $1
+           and assigned_instance_epoch = $2",
     )
+    .bind(state.instance_id.as_str())
+    .bind(state.instance_epoch)
     .fetch_one(&state.pool)
     .await
     .map_err(internal_db)?;
@@ -963,6 +967,7 @@ pub(super) async fn production_status(
 }
 
 pub(super) async fn run_production_maintenance(state: &AppState) -> Result<(), String> {
+    expire_stale_solo_queue_tickets(state).await?;
     sqlx::query::query(
         "insert into trnm_online_appeal_escalations (
             escalation_id, appeal_id, escalation_kind, detail
@@ -986,7 +991,7 @@ pub(super) async fn run_production_maintenance(state: &AppState) -> Result<(), S
     .map_err(|error| error.to_string())?;
     let active_matches: i64 = sqlx::query_scalar::query_scalar(
         "select count(*) from trnm_online_matches
-         where phase in ('created', 'running') and assigned_instance_id = $1
+         where phase = 'running' and assigned_instance_id = $1
            and assigned_instance_epoch = $2",
     )
     .bind(state.instance_id.as_str())
@@ -1044,6 +1049,29 @@ pub(super) async fn run_production_maintenance(state: &AppState) -> Result<(), S
     run_season_automation(state).await
 }
 
+async fn expire_stale_solo_queue_tickets(state: &AppState) -> Result<(), String> {
+    let mut transaction = state
+        .pool
+        .begin()
+        .await
+        .map_err(|error| error.to_string())?;
+    let leader: bool =
+        sqlx::query_scalar::query_scalar(super::product_v2::SOLO_QUEUE_EXPIRY_ADVISORY_LOCK_SQL)
+            .fetch_one(&mut *transaction)
+            .await
+            .map_err(|error| error.to_string())?;
+    if leader {
+        sqlx::query::query(super::product_v2::EXPIRE_STALE_SOLO_QUEUE_TICKETS_SQL)
+            .execute(&mut *transaction)
+            .await
+            .map_err(|error| error.to_string())?;
+    }
+    transaction
+        .commit()
+        .await
+        .map_err(|error| error.to_string())
+}
+
 async fn run_season_automation(state: &AppState) -> Result<(), String> {
     let mut transaction = state
         .pool
@@ -1074,17 +1102,11 @@ async fn run_season_automation(state: &AppState) -> Result<(), String> {
     let season_id: String = target
         .try_get("season_id")
         .map_err(|error| error.to_string())?;
-    let ranked_busy: bool = sqlx::query_scalar::query_scalar(
-        "select exists(
-            select 1 from trnm_online_matches
-             where match_mode = 'ranked_pvp' and phase in ('created', 'running')
-            union all
-            select 1 from trnm_online_solo_queue where status = 'queued'
-         )",
-    )
-    .fetch_one(&mut *transaction)
-    .await
-    .map_err(|error| error.to_string())?;
+    let ranked_busy: bool =
+        sqlx::query_scalar::query_scalar(super::product_v2::RANKED_SEASON_BUSY_SQL)
+            .fetch_one(&mut *transaction)
+            .await
+            .map_err(|error| error.to_string())?;
     if ranked_busy {
         let updated = sqlx::query::query(
             "update trnm_online_seasons set automation_state = 'deferred',
@@ -1127,7 +1149,7 @@ async fn run_season_automation(state: &AppState) -> Result<(), String> {
     if let Some(previous) = previous_active.as_deref() {
         archived_entries = operations_v1::archive_season(&mut transaction, previous)
             .await
-            .map_err(|error| error.1 .0.error)?;
+            .map_err(|error| error.body.error)?;
         sqlx::query::query(
             "update trnm_online_seasons set status = 'closed',
                 ends_at = greatest(starts_at + interval '1 second', now())

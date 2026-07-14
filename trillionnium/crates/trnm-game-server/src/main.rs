@@ -4,6 +4,14 @@ use trnm_game_server::{
     validate_operations_bind_addr, AppState, AppStateConfig,
 };
 
+const JOURNAL_FATAL_EXIT_CODE: i32 = 70;
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum ShutdownCause {
+    Operator,
+    JournalFatal,
+}
+
 #[tokio::main]
 async fn main() {
     tracing_subscriber::fmt()
@@ -46,6 +54,9 @@ async fn main() {
     let asset_root = std::env::var_os("TRNM_ASSET_ROOT")
         .map(PathBuf::from)
         .unwrap_or_else(|| PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../../assets"));
+    let published_tick_journal_dir = std::env::var_os("TRNM_PUBLISHED_TICK_JOURNAL_DIR")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from("run/trnm-game-server/published-ticks"));
     let bind_addr = std::env::var("TRNM_GAME_SERVER_BIND_ADDR")
         .unwrap_or_else(|_| "127.0.0.1:7005".to_string())
         .parse::<SocketAddr>()
@@ -64,14 +75,20 @@ async fn main() {
         allow_accelerated_test_clock && bind_addr.ip().is_loopback(),
     )
     .unwrap_or_else(|error| panic!("Online Authority clock failed closed: {error}"));
+    // Bind before claiming a new fleet epoch. A local port conflict must not
+    // fence a healthy authority process and then fail startup itself.
+    let listener = tokio::net::TcpListener::bind(bind_addr)
+        .await
+        .unwrap_or_else(|error| panic!("bind {bind_addr}: {error}"));
 
-    let state = AppState::connect(AppStateConfig {
+    let state = match AppState::connect(AppStateConfig {
         database_url,
         cex_base_url,
         game_authority_token,
         entitlement_signer_url,
         entitlement_signer_token,
         asset_root,
+        published_tick_journal_dir,
         moderator_token,
         instance_id,
         region,
@@ -84,28 +101,89 @@ async fn main() {
         accelerated_test_clock: allow_accelerated_test_clock,
     })
     .await
-    .unwrap_or_else(|error| panic!("Online Authority startup failed closed: {error}"));
+    {
+        Ok(state) => state,
+        Err(error) => {
+            // A startup journal fsync may be stuck in spawn_blocking. Exiting
+            // directly avoids Tokio runtime teardown waiting forever for that
+            // uninterruptible operation; the supervisor restarts from the
+            // durable high-water evidence.
+            tracing::error!(%error, "Online Authority startup failed closed");
+            std::process::exit(JOURNAL_FATAL_EXIT_CODE);
+        }
+    };
+    let mut journal_fatal = state.journal_fatal_shutdown();
     let loop_state = state.clone();
     tokio::spawn(async move {
         run_authority_loop(loop_state, tick_interval).await;
     });
-    let listener = tokio::net::TcpListener::bind(bind_addr)
-        .await
-        .unwrap_or_else(|error| panic!("bind {bind_addr}: {error}"));
-    tracing::info!(%bind_addr, "TRNM Online Production v2 ready");
-    let shutdown_state = state.clone();
-    axum::serve(listener, build_router(state))
-        .with_graceful_shutdown(async move {
-            shutdown_signal().await;
-            if let Err(error) = shutdown_state.graceful_shutdown().await {
-                tracing::error!(%error, "Online Authority graceful shutdown failed closed");
-            }
-        })
-        .await
-        .expect("serve Online Authority");
+    tracing::info!(%bind_addr, "TRNM Online Authority v3 / Production v2 ready");
+    let (http_shutdown_tx, http_shutdown_rx) = tokio::sync::oneshot::channel();
+    let server_state = state.clone();
+    let mut server = tokio::spawn(async move {
+        axum::serve(listener, build_router(server_state))
+            .with_graceful_shutdown(async move {
+                let _ = http_shutdown_rx.await;
+            })
+            .await
+    });
+    let shutdown_cause = shutdown_signal(&mut journal_fatal).await;
+    // First make every command path return a recoverable 503, then trigger
+    // Axum's accept/connection drain, and only then ask match actors to flush.
+    // Requests that were already accepted during SIGTERM cannot dead-letter a
+    // real client intent as a non-recoverable conflict.
+    state.begin_draining().await;
+    let _ = http_shutdown_tx.send(());
+    tokio::task::yield_now().await;
+    let mut service_failed = false;
+    if let Err(error) = state.graceful_shutdown().await {
+        tracing::error!(%error, "Online Authority graceful shutdown failed closed");
+        service_failed = true;
+    }
+    match tokio::time::timeout(std::time::Duration::from_secs(12), &mut server).await {
+        Ok(Ok(Ok(()))) => {}
+        Ok(Ok(Err(error))) => {
+            tracing::error!(%error, "serve Online Authority failed");
+            service_failed = true;
+        }
+        Ok(Err(error)) => {
+            tracing::error!(%error, "Online Authority server task failed");
+            service_failed = true;
+        }
+        Err(_) => {
+            tracing::error!("HTTP graceful drain exceeded its hard timeout; cancelling server");
+            server.abort();
+            let _ = tokio::time::timeout(std::time::Duration::from_secs(1), server).await;
+            service_failed = true;
+        }
+    }
+    let journal_failed_closed = *journal_fatal.borrow();
+    if let Some(exit_code) =
+        shutdown_exit_code(shutdown_cause, journal_failed_closed, service_failed)
+    {
+        tracing::error!(
+            exit_code,
+            "Online Authority is exiting without Tokio runtime teardown"
+        );
+        std::process::exit(exit_code);
+    }
 }
 
-async fn shutdown_signal() {
+fn shutdown_exit_code(
+    cause: ShutdownCause,
+    journal_failed_closed: bool,
+    service_failed: bool,
+) -> Option<i32> {
+    if cause == ShutdownCause::JournalFatal || journal_failed_closed {
+        Some(JOURNAL_FATAL_EXIT_CODE)
+    } else if service_failed {
+        Some(1)
+    } else {
+        None
+    }
+}
+
+async fn shutdown_signal(journal_fatal: &mut tokio::sync::watch::Receiver<bool>) -> ShutdownCause {
     let ctrl_c = async {
         tokio::signal::ctrl_c()
             .await
@@ -123,8 +201,40 @@ async fn shutdown_signal() {
     #[cfg(not(unix))]
     let terminate = std::future::pending::<()>();
 
+    let journal_failed = async {
+        if !*journal_fatal.borrow() {
+            let _ = journal_fatal.changed().await;
+        }
+    };
+
     tokio::select! {
-        _ = ctrl_c => {},
-        _ = terminate => {},
+        _ = ctrl_c => ShutdownCause::Operator,
+        _ = terminate => ShutdownCause::Operator,
+        _ = journal_failed => ShutdownCause::JournalFatal,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{shutdown_exit_code, ShutdownCause, JOURNAL_FATAL_EXIT_CODE};
+
+    #[test]
+    fn journal_poison_always_selects_direct_nonzero_exit() {
+        assert_eq!(
+            shutdown_exit_code(ShutdownCause::JournalFatal, false, false),
+            Some(JOURNAL_FATAL_EXIT_CODE)
+        );
+        assert_eq!(
+            shutdown_exit_code(ShutdownCause::Operator, true, false),
+            Some(JOURNAL_FATAL_EXIT_CODE)
+        );
+        assert_eq!(
+            shutdown_exit_code(ShutdownCause::Operator, false, false),
+            None
+        );
+        assert_eq!(
+            shutdown_exit_code(ShutdownCause::Operator, false, true),
+            Some(1)
+        );
     }
 }

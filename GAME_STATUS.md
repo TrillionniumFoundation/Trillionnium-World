@@ -1,8 +1,8 @@
 # TRNM Game Status
 
-Updated: 2026-07-13
+Updated: 2026-07-14
 
-This is the one-page status source for the current native RPG + real-time-strategy product. The older finite checklist in `docs/development/trnm-deep-rpg-complete-rts-v1-dod.md` is retained as a completed historical baseline, not as a claim that the broader deep-RPG + complete-RTS vision is 100%. The current local CEX economy integration, Online Authority v2, Online Product v2, Online Operations v2 and Online Production v2 slices are enumerated below; none grants Android or public-launch credit.
+This is the one-page status source for the current native RPG + real-time-strategy product. The older finite checklist in `docs/development/trnm-deep-rpg-complete-rts-v1-dod.md` is retained as a completed historical baseline, not as a claim that the broader deep-RPG + complete-RTS vision is 100%. The current local CEX economy integration, Online Authority v3 with exact-v2 rolling compatibility, Online Product v2, Online Operations v2 and Online Production v2 slices are enumerated below; none grants Android or public-launch credit.
 
 Release denominators are separated by
 `docs/development/trnm-native-game-release-gates-v1.md`: software alpha,
@@ -67,7 +67,7 @@ The RPG layer uses only clean-room mechanics study of 白金英雄坛说. No sou
 - `trnm_settlement_receipt_v1`;
 - `trnm_rts_sim_v16` / `trnm_rts_sim_checkpoint_v16`;
 - `trnm_player_settings_v2`.
-- `trnm_online_authority_v2`, build `trnm-online-authority-2026.07-v2`.
+- `trnm_online_authority_v3`, build `trnm-online-authority-2026.07-v3`; exact `trnm_online_authority_v2` / `trnm-online-authority-2026.07-v2` remains accepted during the rolling-compatibility window.
 - `trnm_online_product_v2`, build `trnm-online-product-2026.07-v2` (v1 private-lobby requests remain compatible).
 - `trnm_online_production_v2`, build `trnm-online-production-2026.07-v2`; exact Production v1 and Operations v1/v2 protocol/build pairs remain compatible.
 
@@ -76,8 +76,20 @@ The RPG layer uses only clean-room mechanics study of 白金英雄坛说. No sou
 - title NEW/LOAD/CONTINUE, independent slots, corrupt-slot isolation and resume guard;
 - authoritative pause, journal, progressive guide and character identity confirmation;
 - low motion, input mode, three control-scheme profiles, subtitles/high contrast and live master-volume control;
+- the current source implements real Bevy command/campaign buttons and shared
+  keyboard, command-card and right-click intents. `MouseOnly` can traverse the
+  authored new/continue -> character -> mentor/training -> equipment -> gate ->
+  mission -> RTS -> debrief loop and can issue RTS move/attack/harvest orders;
+- map transitions now retire the prior map's scoped terrain, resources,
+  landmarks, structures, units, selection/objective and transient render
+  entities before rebuilding from the selected YAML. Automated coverage checks
+  all ten maps for IDs, coordinates, camera/objective state and stale entities;
 - desktop installer assets under `packaging/` and `scripts/install_trnm_desktop.sh`;
 - deterministic performance matrix at `scripts/check_trnm_perf_matrix.sh`.
+
+These MouseOnly and map-lifecycle statements are source and automated-test
+facts. Real-window pointer feel, hit targets, five-second observers and an
+unguided non-developer session have not yet passed.
 
 Revision 12 separates local soft credits, CEX wallet credits, bound items,
 tradeable items and ephemeral RTS resources. It persists account binding,
@@ -103,25 +115,56 @@ Connected campaign and intent identifiers are deterministically scoped by the
 bound CEX account, so different players' default local save names cannot
 collide in the global idempotency ledger.
 
-Online Authority v2 is a bounded network vertical slice. Two distinct CEX
+Online Authority v3 is a bounded realtime network vertical slice. Two distinct CEX
 player sessions bring separate PostgreSQL campaigns into one co-op match
 against the deterministic AI. The server owns both campaign JSON documents,
 authored-map seed, `MissionSimV1`, tick, member-to-unit control sets, command
-sequence/idempotency, snapshots, terminal result and per-member settlement.
+idempotency, per-player input cursors, a shared server total order, snapshots,
+terminal result and per-member settlement. V3 commands apply at the current
+authoritative tick. A session-header-authenticated WebSocket sends hash-checked
+full snapshots and top-level deltas; the native client verifies actor generation,
+state/base sequence, tick and decoded `MissionSimV1` hash before publishing state.
 Each member receives an independently persisted XP/inventory provenance event.
 Restart does not return authority to the client; authenticated reconnect returns
-the full current snapshot plus a bounded persisted command-receipt gap.
+the full current snapshot plus a bounded, continuity-checked persisted
+command-receipt gap. The native client writes each exact command attempt to a
+mode-600, atomically replaced, process-locked journal before its bounded worker
+queue and retries the same request after recoverable transport failures.
+
+The current source also separates authority simulation cadence from command
+PostgreSQL persistence. Actor-side validation feeds one bounded per-match
+persistence worker with at most one durable command in flight; uncommitted
+speculative state remains private while the old public cursor is frozen. Durable
+commit releases the current command lane only after the host-local journal has
+acknowledged tick/hash/phase/global/revision/per-member cursors, and only then
+returns the command receipt. Failed or duplicate persistence reloads the durable
+authority and deterministically replays autonomous ticks to the private safe
+high-water instead of publishing a rollback. Terminal receipts additionally
+wait for the exact terminal checkpoint/result transaction, terminal journal ACK
+and a durable publication-ack row binding generation/epoch, terminal tick/hash
+and every authority cursor; database `complete` alone cannot acknowledge a
+duplicate. Startup compaction revalidates the terminal simulation, result,
+settlement, member cursors and marker before deleting the host-local record.
+Journal/database operations, checkpoint barriers and worker joins are bounded;
+uncertain journal durability poisons readiness, and SIGTERM stops command/HTTP
+admission before actor flush. One physical host is restricted to one authority
+process and one canonical journal root. Clock readiness is a recent rolling
+cadence/freshness gate that self-heals after a transient recovered stall but
+still fails sustained slow cadence. This source has unit/integration coverage,
+but has not yet been promoted to the running service or validated by the
+required PostgreSQL kill/rollback and post-change 100-ms database-RTT drills.
 
 Positive online wallet rewards are match/result/participant-bound Ed25519
 `ServerSignedValueEntitlementV2` values. Online Production v1 removes the
 private seed from the game-server process: a separate loopback-authenticated
 signer revalidates the authoritative binding, owns the mode-600 seed and
 persists exactly-once signing receipts; CEX loads only the active/revoked public
-issuer registry. The native client uses bounded same-request retries, refreshes stale
-target ticks only after the server proves the original was not accepted, and
-still disables local simulation/settlement while attached.
+issuer registry. Exact Authority v2 requests remain accepted for rolling
+compatibility, but their future `target_tick` value was request metadata rather
+than a delayed execution queue. The attached native V3 client still disables
+local simulation and settlement.
 
-Online Authority v2 alone is not a public online game claim. Online Product v2
+Online Authority v3 alone is not a public online game claim. Online Product v2
 supplies ranked solo pairing, opposing human authority, MMR and a minimum
 friend/block/report control plane. Online Operations v2 adds auditable season
 rotation/archive, a held/void-aware leaderboard, integrity-verified replay
@@ -142,7 +185,7 @@ revokes old sessions, five failed logins create a durable temporary lock, and a
 suspended player can submit one credential-bound appeal for scoped-admin
 resolution. Private two-member lobbies own target-bound invites, optimistic
 revisions, explicit ready state and one durable `coop_vs_ai` match allocation.
-The allocated game is still the same Authority v2 server-owned simulation and
+The allocated game is still the same protocol-neutral server-owned simulation and
 settlement. See `docs/development/trnm-online-product-v1.md`.
 
 Online Product v2 adds a native Bevy product shell and ranked head-to-head
@@ -164,9 +207,10 @@ hold affected leaderboard rows; the protected moderation console persists audit,
 void/dismiss decisions and bounded ranked/online enforcement. Pairing excludes
 same-device tickets, applies a ten-minute opponent cooldown, permits no more than
 three unique mutual matches per 24 hours and signals the third. Fleet instances
-own capacity, heartbeat, region and match assignment; stale ownership can move
-once under PostgreSQL row lock with a durable failover record. This is same-host
-two-process proof, not cross-host or regional HA. See
+own capacity, heartbeat, region and match assignment. The current host-local
+publication journal permits one authority process per physical host and blocks
+active-match cross-host takeover; database fencing therefore does not yet
+establish cross-host or regional HA. See
 `docs/development/trnm-online-operations-v1.md`.
 
 Online Operations v2 turns the replay index into a member-authorized playback
@@ -177,8 +221,9 @@ and archives only integrity-clear ranks. Enforcement appeals are authenticated,
 one-per-enforcement, due within 72 hours and can revoke the enforcement through
 an audited moderator decision. Fleet ownership now binds both instance ID and a
 monotonic epoch; five-second leases, fenced tick writes, drain/activate/offline
-controls and epoch-aware failover prevent an older same-ID process from
-continuing authority. Non-loopback binds fail closed while KMS/HSM and public
+controls plus the host-local journal lock prevent an older same-ID process from
+continuing authority. Cross-host active-match transfer remains blocked until
+the publication log is replicated. Non-loopback binds fail closed while KMS/HSM and public
 edge security remain absent. See
 `docs/development/trnm-online-operations-v2.md`.
 
@@ -221,6 +266,14 @@ The native client has a real buffered audio pipeline with two project-owned proc
 
 The control profiles alter live RTS input: Classic uses Q/W/E/R for move/attack/harvest/hold, Left Handed uses A/S/D/F, and Arrow Grid uses the four arrow keys (with WASD camera pan). They are not display-only labels.
 
+The game-server release tooling now requires a clean Git snapshot, uses an
+isolated build target by default, binds the binary and source manifests into a
+strictly checked bundle, rejects unsafe links/modes/unexpected files and promotes
+an accepted bundle atomically inside the release root. Runtime selection fails
+closed when an explicit selector is invalid. Its mocked shell contract passes;
+these are provenance controls, not a cryptographic signature or evidence that
+the current Authority v3 source has been bundled, promoted or deployed.
+
 ## Completion wording and later scopes
 
 - the 2026-07-11 finite v1 checklist is a completed historical acceptance baseline;
@@ -232,8 +285,26 @@ The control profiles alter live RTS input: Classic uses Q/W/E/R for move/attack/
 
 ## Current local evidence
 
-- eight-crate unit/integration/E2E suite: 131/131 passing (41 Campaign, 19 First Contact, 13 RPG, 8 existing protocols, 32 RTS, 9 closed-loop E2E, 2 online protocol and 7 game-server tests);
-- Online Authority v2 E2E: two real CEX sessions bring separate campaigns into one match, receive disjoint unit control, reject exact-ID altered replay, sequence skip, old build and control theft, recover via authenticated command-gap replay through a real systemd restart, each gain 80 XP plus two inventory units, and each settle a server-owned 25-credit Ed25519 reward; 15/15 PostgreSQL commands have unique persisted request fingerprints and the match owns two progression events;
+- current feature-branch source: the locked eight-crate workspace/all-targets
+  test suite passes. The first strict workspace/all-targets Clippy run exposed
+  one incomplete test initialization; after that fixture was corrected, the
+  full strict Clippy rerun passed. Workspace format and diff checks also pass.
+  This verifies source integration, not the running service;
+- current P0 source coverage includes bounded asynchronous Authority command
+  persistence, single-host durable published-tick high-water recovery, ten-map
+  render lifecycle replacement, RTS and campaign `MouseOnly` intent paths, and
+  the immutable-release shell contract. None of these new source paths has yet
+  received its post-promotion runtime/fault/human acceptance credit;
+- historical Online Authority v2 E2E: two real CEX sessions bring separate campaigns into one match, receive disjoint unit control, reject exact-ID altered replay, sequence skip, old build and control theft, recover via authenticated command-gap replay through a real systemd restart, each gain 80 XP plus two inventory units, and each settle a server-owned 25-credit Ed25519 reward; 15/15 PostgreSQL commands have unique persisted request fingerprints and the match owns two progression events;
+- Stage 0 four-match endurance evidence `run/online-capacity/capacity-1783972489-528/summary.json`: 7,306 seconds, 32 waves, 128/128 unique settled matches, 2,176 ACKs at p95 39 ms/max 160 ms, maximum absolute tick drift 0.70, 0 process restarts/OOM/database crash signals and 122 newly archived WAL segments with 0 new archive failures. This closes the two-hour gate only; a clean independent 24-hour run remains required;
+- Authority v3 baseline E2E `online-e2e-1783987972505`, match `999291c0-3be7-44e9-97fa-e1f36a9217d0`: 68 commands, two members submitting from one revision with independent input cursor 0/0 and contiguous server order 0/1, 32 command/reconnect races, real systemd restart/recovery, WebSocket Full/Delta and decoded hash/tick verification, 20 authoritative-effect samples at p95 24 ms/max 26 ms, 70 ACK samples at p95 24 ms/max 30 ms, zero sequence/cursor mismatch and complete two-member progression/settlement;
+- post-terminal-consistency E2E `online-e2e-1783991413209`, match `cd21bbf6-eec3-4c76-a251-7b183b4da344`: terminal state is withheld until the atomic terminal checkpoint and durable phase/result/settlement view agree, then consumed through the real WebSocket before actor-generation shutdown; all 68 commands, 32 reconnect/command races, restart recovery, exact terminal duplicate, two progression rows and settlement pass with effect p95 21 ms/max 60 ms and ACK p95 28 ms/max 38 ms;
+- Authority v3 impaired-network E2E `online-e2e-1783988354933`, match `3699c5eb-9fda-4808-adc7-2e6fda02e723`: port-scoped loopback netem applies 50 ms each way and 1% configured loss; 20 command-submit-to-hash-verified-stream samples pass the 300-ms hard gate at p95 256 ms/max 364 ms, 70 ACK samples report p95 140 ms/max 460 ms, accelerated-clock drift is -0.85 tick, all 68 commands remain fingerprinted/input-sequenced with zero duplicates or member-cursor mismatch, and the match settles. This is 100-ms RTT laboratory evidence, not public Internet or injected-PostgreSQL-latency evidence;
+- pre-refactor injected-PostgreSQL-latency decision run `run/online-latency/pg-rtt100-1783989631-2381685/decision.json`: netem was installed only after the match entered `running` and applied 50 ms in each direction solely to the database proxy; packet counters increased by 7,190 during the 20-effect window. The match still completed and settled all 68 unique commands, but effect p95/max degraded to 3,158/3,416 ms, ACK p95/p99 to 2,748/3,137 ms, actor drift reached 848.48 ticks and all 181 active-actor samples failed the clock gate. It triggered the now-implemented asynchronous source tranche, but remains the latest database-RTT black-box result and therefore remains a failing realtime result until the same profile is rerun against a promoted build;
+- exact-v2 rollback writer probe `run/rollback-probe-v2/v2-rollback-probe-1783986957-24731/`: preserved v2 server/E2E binaries run on an isolated fleet instance against the applied V10 schema and complete match `3a310649-15a1-4af5-9d67-ecf74da4f286`; the compatibility trigger fills all 15 legacy input sequences, host/guest cursors are 9/6, total order is 0..14 with zero duplicates, and settlement/progression succeed without restarting the live v3 service;
+- rolling v2-client-to-v3-server probe `run/rolling-v2-client-v3-server/v2-client-v3-server-1783988764-10407/`: the preserved v2 E2E client connects to the current v3 server and completes match `f24539f9-bfcf-4858-886d-e531edaf55dd` in 2,220 ticks with all 15 commands, reconnect/idempotency/control gates, V10 cursor invariants, two progression rows and two signed entitlements intact; cleanup restores the v3 100-ms service with zero active matches;
+- the two exact-v2 probes cover completed old-writer and old-client operation, not live ownership transfer of an already-running v2 match to a v3 actor; deployments must drain v2-owned matches until that cross-version generation handoff has its own recovery matrix;
+- Authority v3 native network smoke `online-native-1783988480-31652`, match `d276ec26-20d7-4bd9-b4cf-a09777496cfc`: two sequential release X11 client processes attach through Product v2 under 100-ms RTT/1% configured loss, write independently attributed authoritative commands and retain distinct control sets; both frame reports have zero main-thread updates or frames above 100 ms. It is automated two-process evidence on one host, not a human multiplayer session;
 - Online Product v1 final release E2E: run `online-product-1783897456-380`, lobby `c510d1e0-287f-47c6-a898-826394c3b886`, match `9f5677b3-788a-49f5-b959-8fd1d895e8a7`; proves invalid/consumed registration invite rejection, Argon2id, durable login lock, credential rotation, suspension/appeal/reactivation, stolen invite, duplicate lobby, stale revision and non-owner queue rejection, then two ready members, one allocation, full Authority v2 victory, two progression events, two Ed25519 entitlements and two 25/0 wallets;
 - Online Product v2 E2E: run `online-product-v2-1783906177-12562`, lobby `5ad94f3f-a3b4-4b76-8b36-58d31b55a260`, match `5038b8a4-c411-4147-936c-71805e0367e3`; proves friend acceptance, two-sided block-aware pairing, duplicate ticket rejection, opposing human control sets, cross-control rejection, both-side commands, systemd restart, terminal 1016/984 zero-sum MMR, two rating events, two zero-delta progression provenance rows, zero CEX value entitlements and authenticated report resolution;
 - native Product v2 compatibility shell: run `online-product-native-v2-1783912317-12205`, match `f265309d-bf97-4ad0-990c-d6eefea2561e`; two distinct release product windows traverse F1 login, F2 cloud character, F3 ranked queue and F5 launch, then create two distinct release Authority windows. All four frames pass structural rendered-pixel gates after the acceptance script was tightened to reject obscured blank X11 captures. Credentials are not rendered and only scoped sessions cross into the game process; this remains automated evidence, not a human session;
@@ -248,10 +319,10 @@ The control profiles alter live RTS input: Classic uses Q/W/E/R for move/attack/
 - final Online Production v1 E2E: run `online-production-v1-1783921848-17452`; match `40963c5b-0d5c-419b-bc31-ed24712a9749` settles two pre-rotation receipts/entitlements, signer retry is exactly-once and an altered payload returns 409, targeted spectator grant `d6654636-3d6a-428c-9bd9-08b1c0b7283d` withholds then releases the terminal frame after its 30-second server-time delay, season `season-production-1783921873-1334` defers while queued then auto-activates, and appeal `8117eb06-ea48-49fc-96cd-2b1386a9ae22` escalates once then closes. The key rotates from `trnm-online-ed25519-production-1783920029-14665` to `trnm-online-ed25519-production-1783921873-20455` without restarting the game server; post-rotation match `57411b00-de57-4333-9464-b66d3cdc8aed` writes two new-key signer receipts and two CEX entitlements. A 30/minute probe returns 429 and a 300-KiB body returns 413. Exactly one physical host is observed, so cross-host HA, public edge and KMS/HSM remain unclaimed;
 - final Online Production v2 E2E: run `online-production-v2-1783925971-3957`, with nested Production v1 compatibility `online-production-v1-1783925971-22023` and post-rotation match `a72233fc-8946-4eed-b3df-282b60137c47`; a signed challenge proves possession of key `trnm-online-ed25519-production-1783925994-9823` and exact active CEX-registry fingerprint convergence. Fifteen requests through each of two concurrently started instances share one PostgreSQL admission window and the thirty-first returns 429; both instances produce capacity samples after serialized migration startup. The native F10/F11 window accepts single-use spectator grant `5aca414f-f4e3-4083-94a6-4dc4bb57bf8a`, clears the token, renders delayed terminal playback and passes structural/manual image review. Shift `b8d97efa-c542-4c32-bd90-310e00454688` claims appeal `0c423437-cd44-4c15-b460-7846057f8d08`, rejects duplicate claim and unresolved close, then closes after resolution. Exact Operations v2 compatibility `online-operations-v2-1783926608-5566` and same-ID fencing `online-operations-fencing-1783926651-27567` remain green. Exactly one physical host and provider `file_seed` are reported; humans, cross-host HA, KMS/HSM, public edge and real staffing remain unclaimed;
 - human Operations packet is generated at `acceptance/online-operations-v2-human/latest/session-packet.json` with `pending_human_participants`, two non-developer players, one observer and automation credit false; no human completion is claimed. The Production v2 external packet at `acceptance/online-production-v2-external/latest/packet.json` separately keeps second-host, KMS/HSM, public-edge and staffed-safety gates pending with automation credit false;
-- network impairment E2E: the same full two-session/restart/settlement gate passes port-scoped loopback netem at 50 ms/1%, 100 ms/3% and 200 ms/5%; this is bounded local evidence, not a public-network SLO;
-- final native attach smoke: run `online-native-1783897487-24605`, match `7e7c14cc-13b6-43c7-a770-44cff29d8d7d`; two distinct release windows first traverse product registration/lobby/invite/ready/allocation, then each produce an independently attributed fingerprinted command; this is automated input evidence, not a human multiplayer session;
+- historical Authority v2 network impairment E2E passes port-scoped loopback netem at 50 ms/1%, 100 ms/3% and 200 ms/5%; those runs remain compatibility evidence, while the current v3 hash-verified effect measurements are reported separately above;
+- historical native attach smoke `online-native-1783897487-24605`, match `7e7c14cc-13b6-43c7-a770-44cff29d8d7d`; two release windows traverse product registration/lobby/invite/ready/allocation, then each produce an independently attributed fingerprinted command; this remains automated input evidence, not a human multiplayer session;
 - CEX full workspace: 356 passing, including Ed25519 issuer rejection, active issuer fingerprint authorization and Argon2id/legacy credential migration tests; 16 detached-runtime black-box probes remain explicitly ignored and `consumer-entry-api` remains 161/161. The persistent cross-process gate additionally proves new accounts, reward exactly-once, byte-identical replay across ledger/consumer restart, held-escrow refund, committed chargeback, wallet/cursor recovery and PostgreSQL uniqueness;
-- workspace Clippy with `-D warnings`: passing;
+- workspace/all-targets Clippy with `-D warnings`: passing after the test-fixture correction noted above;
 - product boundary: green (8 game / 12 platform / legacy working tree absent); CEX depends on `trnm-economy-protocol` and no longer depends on removed `trnm-world-api`, `trnm-world-domain` or `trnm-world-projection` crates;
 - release build and desktop installer smoke: passing;
 - current X230 isolated warm-cache matrix after explicit `--no-run` client-harness prewarming: RPG 1.39 s / 83 MiB, Campaign 0.60 s / 83 MiB, full 19-test First Contact package 89.57 s / 122 MiB, 64-sample RTS simulation 69.35 s / 83 MiB, new-save client journey 40.68 s / 122 MiB, Standard Annihilation 74.47 s / 122 MiB, authored-map adapter 12.72 s / 122 MiB, closed loop 13.52 s / 83 MiB and release build 49.44 s / 786 MiB. Every isolated row remains below the explicit 90-second / 4-GiB bound. The final Production v2 non-isolated full-workspace run recorded 99.30 s for First Contact (and 78.15 s for the 32-test RTS package), so that First Contact wall clock is not presented as passing the 90-second reference line; stopping the project window restores the isolated gate. The former 3.41-GiB client figure was rustc/linker RSS from compiling the test harness, not game-runtime memory; the gate separates compilation from runtime instead of misreporting it;
@@ -283,8 +354,9 @@ scripts/prepare-trnm-online-production-v2-external-gates.sh
 scripts/prepare-trnm-online-operations-v1-human-session.sh
 scripts/check-trnm-online-network-chaos.sh
 scripts/check-trnm-online-native-two-client.sh
-cargo test --manifest-path trillionnium/Cargo.toml --workspace --all-targets
-cargo clippy --manifest-path trillionnium/Cargo.toml --workspace --all-targets -- -D warnings
+cargo test --manifest-path trillionnium/Cargo.toml --workspace --all-targets --locked
+cargo clippy --manifest-path trillionnium/Cargo.toml --workspace --all-targets --locked -- -D warnings
+scripts/check-trnm-game-server-release-contract.sh
 scripts/check_trnm_perf_matrix.sh
 cargo build --manifest-path trillionnium/Cargo.toml --release -p trnm-first-contact
 ```

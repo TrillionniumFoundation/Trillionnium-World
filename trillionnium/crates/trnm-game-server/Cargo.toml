@@ -7,10 +7,11 @@ authors.workspace = true
 publish.workspace = true
 
 [dependencies]
-axum = { version = "0.7", features = ["macros"] }
+axum = { version = "0.7", features = ["macros", "ws"] }
 base64 = "0.22"
 chrono = { version = "0.4", features = ["serde"] }
 ed25519-dalek = "2"
+futures-util = "0.3"
 reqwest = { version = "0.12", default-features = false, features = ["blocking", "json", "rustls-tls"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
@@ -28,3 +29,4 @@ trnm-economy-protocol = { path = "../trnm-economy-protocol" }
 trnm-online-protocol = { path = "../trnm-online-protocol" }
 trnm-rts-protocol = { path = "../trnm-rts-protocol" }
 trnm-rts-sim = { path = "../trnm-rts-sim" }
+tungstenite = { version = "=0.24.0", default-features = false, features = ["handshake"] }

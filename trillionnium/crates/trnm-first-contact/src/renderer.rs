@@ -1,6 +1,7 @@
 use super::{
     asset_loader::{register_first_contact_atlases, FirstContactAtlasManifest},
     map_loader::FirstContactMap,
+    simulation_adapter::FirstContactTransient,
 };
 use crate::view_math::ViewportSpec;
 use bevy::prelude::*;
@@ -10,11 +11,14 @@ pub(super) const FIRST_CONTACT_CAMERA_SCALE: f32 = 0.74;
 #[derive(Component)]
 pub(super) struct FirstContactCamera;
 
+/// Marks every top-level visual whose lifetime is tied to the authored map.
+///
+/// Runtime units and structures predate this marker, so the map replacement
+/// system also removes those component types explicitly. New authored visuals
+/// should always carry this marker so a map change cannot leave decorations or
+/// effects from the previous battlefield behind.
 #[derive(Component)]
-pub(super) struct FirstContactTerrainTile {
-    x: usize,
-    y: usize,
-}
+pub(super) struct FirstContactMapScoped;
 
 #[derive(Component)]
 pub(super) struct FirstContactUnitSprite {
@@ -209,7 +213,7 @@ fn transition_frame_name(map: &FirstContactMap, x: usize, y: usize) -> Option<&'
     }
 }
 
-pub(super) fn spawn_first_contact_live_scene(
+pub(super) fn prepare_first_contact_live_scene(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     mut layouts: ResMut<Assets<TextureAtlasLayout>>,
@@ -238,7 +242,17 @@ pub(super) fn spawn_first_contact_live_scene(
         Transform::from_translation(authored_camera_translation(&map, viewport_size)),
         FirstContactCamera,
     ));
+}
 
+pub(super) fn spawn_first_contact_authored_map(
+    mut commands: Commands,
+    map: Res<FirstContactMap>,
+    manifest: Res<FirstContactAtlasManifest>,
+    handles: Res<super::asset_loader::FirstContactAtlasHandles>,
+) {
+    if !map.is_changed() {
+        return;
+    }
     let tile_size = map.tile_size as f32;
     for y in 0..map.height as usize {
         for x in 0..map.width as usize {
@@ -262,7 +276,7 @@ pub(super) fn spawn_first_contact_live_scene(
                     y as i32,
                     -20.0 + height * 0.05,
                 )),
-                FirstContactTerrainTile { x, y },
+                FirstContactMapScoped,
             ));
             if let Some(transition_name) = transition_frame_name(&map, x, y) {
                 let transition = *manifest
@@ -279,6 +293,7 @@ pub(super) fn spawn_first_contact_live_scene(
                     Transform::from_translation(map_world_position(
                         &map, x as i32, y as i32, -19.8,
                     )),
+                    FirstContactMapScoped,
                 ));
             }
             if height >= 2.0
@@ -300,6 +315,7 @@ pub(super) fn spawn_first_contact_live_scene(
                         Vec2::splat(tile_size * 1.5),
                     ),
                     Transform::from_translation(position),
+                    FirstContactMapScoped,
                 ));
             }
         }
@@ -321,6 +337,7 @@ pub(super) fn spawn_first_contact_live_scene(
                 Vec2::new(tile_size * 2.2, tile_size * 1.25),
             ),
             Transform::from_translation(map_world_position(&map, x, y, 1.0)),
+            FirstContactMapScoped,
         ));
     }
 
@@ -334,6 +351,7 @@ pub(super) fn spawn_first_contact_live_scene(
                 Vec2::splat(tile_size * 1.9),
             ),
             Transform::from_translation(map_world_position(&map, resource.x, resource.y, 3.0)),
+            FirstContactMapScoped,
         ));
     }
 
@@ -350,6 +368,7 @@ pub(super) fn spawn_first_contact_live_scene(
                 Vec2::splat(tile_size * 2.35),
             ),
             Transform::from_translation(map_world_position(&map, landmark.x, landmark.y, 4.0)),
+            FirstContactMapScoped,
         ));
         if landmark.id == map.objective.id {
             entity.insert(FirstContactObjectivePulse);
@@ -411,6 +430,7 @@ pub(super) fn spawn_first_contact_live_scene(
                     family: structure.family.clone(),
                     active: structure.active,
                 },
+                FirstContactMapScoped,
             ))
             .id();
         attach_identity_geometry(
@@ -440,6 +460,7 @@ pub(super) fn spawn_first_contact_live_scene(
                 FirstContactSelectionRing {
                     unit_id: unit.id.clone(),
                 },
+                FirstContactMapScoped,
             ));
         }
         let (image, layout, frame) = family.identity_frame.map_or_else(
@@ -482,6 +503,7 @@ pub(super) fn spawn_first_contact_live_scene(
                     family: unit.family.clone(),
                     owner: unit.owner.clone(),
                 },
+                FirstContactMapScoped,
             ))
             .id();
         attach_identity_geometry(
@@ -508,44 +530,43 @@ pub(super) fn spawn_first_contact_live_scene(
             7.0,
         )),
         FirstContactObjectivePulse,
+        FirstContactMapScoped,
     ));
 }
 
 #[allow(clippy::type_complexity)]
 pub(super) fn sync_first_contact_authored_map(
+    mut commands: Commands,
     map: Res<FirstContactMap>,
-    manifest: Res<FirstContactAtlasManifest>,
-    handles: Option<Res<super::asset_loader::FirstContactAtlasHandles>>,
     windows: Query<&Window>,
-    mut terrain: Query<(&mut Sprite, &mut Transform, &FirstContactTerrainTile)>,
+    map_entities: Query<
+        Entity,
+        Or<(
+            With<FirstContactMapScoped>,
+            With<FirstContactUnitSprite>,
+            With<FirstContactStructureSprite>,
+            With<FirstContactTransient>,
+        )>,
+    >,
     mut cameras: Query<
         &mut Transform,
-        (With<FirstContactCamera>, Without<FirstContactTerrainTile>),
-    >,
-    mut pulses: Query<
-        &mut Transform,
         (
-            With<FirstContactObjectivePulse>,
-            Without<FirstContactCamera>,
-            Without<FirstContactTerrainTile>,
+            With<FirstContactCamera>,
+            Without<FirstContactMapScoped>,
+            Without<FirstContactUnitSprite>,
+            Without<FirstContactStructureSprite>,
         ),
     >,
 ) {
     if !map.is_changed() {
         return;
     }
-    let Some(handles) = handles else {
-        return;
-    };
-    for (mut sprite, mut transform, tile) in &mut terrain {
-        let key = map.terrain_at(tile.x, tile.y).unwrap_or('g');
-        let frame_name = terrain_frame_name(key, (tile.x + tile.y) % 2 == 1);
-        if let Some(atlas) = sprite.texture_atlas.as_mut() {
-            atlas.index = manifest.terrain_frames[frame_name];
-            atlas.layout = handles.world_layout.clone();
-        }
-        sprite.image = handles.world_image.clone();
-        transform.translation = map_world_position(&map, tile.x as i32, tile.y as i32, -20.0);
+    // The authored battlefield is a single lifecycle unit. Rebuilding it is
+    // deliberately simpler and safer than trying to diff decorative entities
+    // which do not have simulation identities. Unit and structure filters also
+    // catch runtime-spawned visuals from the previous battle.
+    for entity in &map_entities {
+        commands.entity(entity).despawn();
     }
     let viewport_size = windows
         .single()
@@ -554,16 +575,145 @@ pub(super) fn sync_first_contact_authored_map(
     for mut camera in &mut cameras {
         camera.translation = authored_camera_translation(&map, viewport_size);
     }
-    for mut pulse in &mut pulses {
-        pulse.translation = map_world_position(&map, map.objective.x, map.objective.y, 7.0);
-    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::map_loader::load_first_contact_map;
-    use std::path::Path;
+    use crate::{
+        asset_loader::{load_first_contact_atlas, FirstContactAtlasHandles},
+        map_loader::{load_first_contact_map, MissionMapCatalog},
+    };
+    use std::{
+        collections::{BTreeMap, BTreeSet},
+        path::Path,
+    };
+
+    fn authored_visual_count(map: &FirstContactMap) -> usize {
+        let mut count = map.width as usize * map.height as usize;
+        for y in 0..map.height as usize {
+            for x in 0..map.width as usize {
+                count += usize::from(transition_frame_name(map, x, y).is_some());
+                let height = map.height_at(x, y);
+                count += usize::from(
+                    height >= 2
+                        && y + 1 < map.height as usize
+                        && map.height_at(x, y + 1) < 2
+                        && x % 2 == 0,
+                );
+            }
+        }
+        count
+            + map.chokepoints.len()
+            + map.resources.len()
+            + map.landmarks.len()
+            + map.structures.len()
+            + map.units.len()
+            + map.units.iter().filter(|unit| unit.selected).count()
+            + 1 // capture pulse
+    }
+
+    fn dummy_atlas_handles() -> FirstContactAtlasHandles {
+        FirstContactAtlasHandles {
+            units_image: Handle::default(),
+            units_layout: Handle::default(),
+            world_image: Handle::default(),
+            world_layout: Handle::default(),
+            identities_image: Handle::default(),
+            identities_layout: Handle::default(),
+        }
+    }
+
+    fn map_scoped_count(world: &mut World) -> usize {
+        let mut query = world.query_filtered::<Entity, With<FirstContactMapScoped>>();
+        query.iter(world).count()
+    }
+
+    fn identity_geometry_count(world: &mut World) -> usize {
+        let mut query = world.query_filtered::<Entity, With<IdentityMotion>>();
+        query.iter(world).count()
+    }
+
+    fn unit_ids(world: &mut World) -> BTreeSet<String> {
+        let mut query = world.query::<&FirstContactUnitSprite>();
+        query.iter(world).map(|unit| unit.id.clone()).collect()
+    }
+
+    fn structure_ids(world: &mut World) -> BTreeSet<String> {
+        let mut query = world.query::<&FirstContactStructureSprite>();
+        query
+            .iter(world)
+            .map(|structure| structure.id.clone())
+            .collect()
+    }
+
+    fn assert_rendered_map(world: &mut World, map: &FirstContactMap, camera: Entity) {
+        assert_eq!(map_scoped_count(world), authored_visual_count(map));
+        assert_eq!(
+            identity_geometry_count(world),
+            (map.units.len() + map.structures.len()) * 2
+        );
+
+        let rendered_units = {
+            let mut query = world.query::<(&FirstContactUnitSprite, &Transform)>();
+            query
+                .iter(world)
+                .map(|(unit, transform)| (unit.id.clone(), transform.translation))
+                .collect::<BTreeMap<_, _>>()
+        };
+        assert_eq!(
+            rendered_units.keys().cloned().collect::<BTreeSet<_>>(),
+            map.units
+                .iter()
+                .map(|unit| unit.id.clone())
+                .collect::<BTreeSet<_>>()
+        );
+        for unit in &map.units {
+            assert_eq!(
+                rendered_units[&unit.id],
+                map_world_position(map, unit.x, unit.y, 8.0),
+                "unit {} did not move to map {} coordinates",
+                unit.id,
+                map.id
+            );
+        }
+
+        let rendered_structures = {
+            let mut query = world.query::<(&FirstContactStructureSprite, &Transform)>();
+            query
+                .iter(world)
+                .map(|(structure, transform)| (structure.id.clone(), transform.translation))
+                .collect::<BTreeMap<_, _>>()
+        };
+        assert_eq!(
+            rendered_structures.keys().cloned().collect::<BTreeSet<_>>(),
+            map.structures
+                .iter()
+                .map(|structure| structure.id.clone())
+                .collect::<BTreeSet<_>>()
+        );
+        for structure in &map.structures {
+            assert_eq!(
+                rendered_structures[&structure.id],
+                map_world_position(map, structure.x, structure.y, 5.0),
+                "structure {} did not move to map {} coordinates",
+                structure.id,
+                map.id
+            );
+        }
+
+        let expected_camera = authored_camera_translation(map, Vec2::new(1280.0, 720.0));
+        assert_eq!(
+            world.get::<Transform>(camera).unwrap().translation,
+            expected_camera
+        );
+
+        let expected_capture = map_world_position(map, map.objective.x, map.objective.y, 7.0);
+        let mut pulses = world.query_filtered::<&Transform, With<FirstContactObjectivePulse>>();
+        assert!(pulses
+            .iter(world)
+            .any(|transform| transform.translation == expected_capture));
+    }
 
     #[test]
     fn initial_camera_consumes_the_authored_map_start() {
@@ -583,5 +733,71 @@ mod tests {
         assert!(translation.x + viewport_half_size.x <= map_half_size.x + f32::EPSILON);
         assert!(translation.y - viewport_half_size.y >= -map_half_size.y - f32::EPSILON);
         assert!(translation.y + viewport_half_size.y <= map_half_size.y + f32::EPSILON);
+    }
+
+    #[test]
+    fn replacing_the_map_rebuilds_every_authored_visual_without_stale_entities() {
+        let asset_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../assets");
+        let maps = MissionMapCatalog::load(&asset_root).expect("authored maps load");
+        let manifest = load_first_contact_atlas(&asset_root.join("first_contact/atlas.yaml"))
+            .expect("authored atlas loads");
+        let first = maps.first_contact.clone();
+        let replacements = vec![
+            maps.cinder_crown.clone(),
+            maps.aftershock_patrol.clone(),
+            maps.convoy_exodus.clone(),
+            maps.mirror_siege.clone(),
+            maps.iron_delta.clone(),
+            maps.night_watch_crossing.clone(),
+            maps.glass_basin.clone(),
+            maps.ember_orchard.clone(),
+            maps.salt_marsh.clone(),
+        ];
+
+        let mut app = App::new();
+        app.insert_resource(first.clone())
+            .insert_resource(manifest)
+            .insert_resource(dummy_atlas_handles())
+            .add_systems(
+                Update,
+                (
+                    sync_first_contact_authored_map,
+                    spawn_first_contact_authored_map,
+                )
+                    .chain(),
+            );
+        let camera = app
+            .world_mut()
+            .spawn((Transform::default(), FirstContactCamera))
+            .id();
+
+        app.update();
+        assert_rendered_map(app.world_mut(), &first, camera);
+
+        // These emulate visuals created by the simulation during a battle.
+        // They are intentionally unmarked to verify the compatibility cleanup
+        // for runtime units and structures as well as authored decorations.
+        app.world_mut().spawn(FirstContactUnitSprite {
+            id: "stale_runtime_unit".into(),
+            family: "sentinel".into(),
+            owner: "player".into(),
+        });
+        app.world_mut().spawn(FirstContactStructureSprite {
+            id: "stale_runtime_structure".into(),
+            family: "command_post".into(),
+            active: true,
+        });
+
+        for (index, replacement) in replacements.iter().enumerate() {
+            app.insert_resource(replacement.clone());
+            app.update();
+            assert_rendered_map(app.world_mut(), replacement, camera);
+
+            if index == 0 {
+                assert!(!unit_ids(app.world_mut()).contains("contact_scout"));
+                assert!(!unit_ids(app.world_mut()).contains("stale_runtime_unit"));
+                assert!(!structure_ids(app.world_mut()).contains("stale_runtime_structure"));
+            }
+        }
     }
 }

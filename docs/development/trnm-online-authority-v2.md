@@ -1,6 +1,12 @@
 # TRNM Online Authority v2
 
-Updated: 2026-07-13
+Updated: 2026-07-14
+
+> Historical compatibility contract. Online Authority v3 is the current
+> realtime authority; see `docs/development/trnm-online-authority-v3.md`. The
+> exact v2 protocol/build pair remains accepted during the rolling-compatibility
+> window. This document describes v2 behavior and is not a claim that v2 owns
+> the v3 state stream, per-player input sequencing or durable client journal.
 
 ## Scope
 

@@ -6,6 +6,7 @@ mod evidence_adapter;
 mod hud;
 mod map_loader;
 mod online_authority;
+mod online_command_journal;
 mod renderer;
 mod simulation_adapter;
 mod view_math;
@@ -14,20 +15,25 @@ use asset_loader::{load_first_contact_atlas, FirstContactAtlasManifest};
 use audio::{spawn_trnm_audio, sync_trnm_audio, validate_trnm_audio_assets};
 use bevy::prelude::*;
 use campaign_flow::{
-    handle_campaign_input, settle_finished_battle, CampaignFlow, CampaignMode, ShellMode,
+    handle_campaign_input, handle_campaign_ui_intents, settle_finished_battle, CampaignFlow,
+    CampaignMode, CampaignUiIntents, ShellMode,
 };
-use campaign_ui::{spawn_campaign_ui, update_campaign_ui};
+use campaign_ui::{collect_campaign_ui_intents, spawn_campaign_ui, update_campaign_ui};
 use evidence_adapter::FirstContactVisualAcceptance;
-use hud::{spawn_first_contact_hud, update_first_contact_hud};
+use hud::{
+    handle_first_contact_command_card_interactions, spawn_first_contact_hud,
+    update_first_contact_hud,
+};
 use map_loader::{FirstContactMap, MissionMapCatalog};
 use online_authority::OnlineAuthorityClient;
 use renderer::{
-    animate_identity_geometry, spawn_first_contact_live_scene, sync_first_contact_authored_map,
+    animate_identity_geometry, prepare_first_contact_live_scene, spawn_first_contact_authored_map,
+    sync_first_contact_authored_map,
 };
 use simulation_adapter::{
     advance_first_contact_simulation, expire_first_contact_feedback, handle_first_contact_commands,
-    handle_first_contact_mouse_selection, pan_first_contact_camera, FirstContactRuntime,
-    FirstContactSimulationAdapter, MouseSelectionState,
+    handle_first_contact_mouse_selection, pan_first_contact_camera, FirstContactCommandIntents,
+    FirstContactRuntime, FirstContactSimulationAdapter, MouseSelectionState,
 };
 use std::{
     path::{Path, PathBuf},
@@ -201,12 +207,14 @@ impl Plugin for FirstContactLivePlugin {
             .insert_resource(self.campaign.clone())
             .insert_resource(runtime)
             .init_resource::<FirstContactSimulationAdapter>()
+            .init_resource::<FirstContactCommandIntents>()
+            .init_resource::<CampaignUiIntents>()
             .init_resource::<MouseSelectionState>()
             .init_resource::<FirstContactVisualAcceptance>()
             .add_systems(
                 Startup,
                 (
-                    spawn_first_contact_live_scene,
+                    prepare_first_contact_live_scene,
                     spawn_first_contact_hud,
                     spawn_campaign_ui,
                     spawn_trnm_audio,
@@ -217,9 +225,13 @@ impl Plugin for FirstContactLivePlugin {
                 Update,
                 (
                     begin_online_frame_timing,
+                    collect_campaign_ui_intents,
                     handle_campaign_input,
+                    handle_campaign_ui_intents,
                     sync_first_contact_authored_map,
+                    spawn_first_contact_authored_map,
                     handle_first_contact_mouse_selection,
+                    handle_first_contact_command_card_interactions,
                     handle_first_contact_commands,
                     advance_first_contact_simulation,
                     settle_finished_battle,

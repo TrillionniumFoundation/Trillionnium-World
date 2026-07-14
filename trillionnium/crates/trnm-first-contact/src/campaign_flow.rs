@@ -38,6 +38,47 @@ pub(super) enum ShellMode {
     ReplayBrowser,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum CampaignUiIntent {
+    SelectSlot(SaveSlotId),
+    CreateCampaign,
+    ContinueCampaign,
+    CycleCharacterName,
+    ConfirmCharacter,
+    ResumeCampaign,
+    ReturnToTitle,
+    Travel(CampaignRoom),
+    TalkToMentor,
+    TrainWithMentor,
+    CycleLoadout,
+    CyclePreparation,
+    AcceptMission,
+    DeployMission,
+    OpenJournal,
+    CloseJournal,
+    Encounter(EncounterAction),
+    ReturnToTown,
+}
+
+#[derive(Resource, Debug, Default)]
+pub(super) struct CampaignUiIntents(Vec<CampaignUiIntent>);
+
+impl CampaignUiIntents {
+    pub(super) fn push(&mut self, intent: CampaignUiIntent) {
+        self.0.push(intent);
+    }
+
+    pub(super) fn take_first(&mut self) -> Option<CampaignUiIntent> {
+        let first = self.0.first().copied();
+        self.0.clear();
+        first
+    }
+
+    fn has_pending(&self) -> bool {
+        !self.0.is_empty()
+    }
+}
+
 #[derive(Resource, Debug, Clone)]
 pub(super) struct CampaignFlow {
     pub save: CampaignSaveV1,
@@ -671,14 +712,206 @@ fn set_status(flow: &mut CampaignFlow, result: Result<(), CampaignError>, succes
     };
 }
 
-pub(super) fn handle_campaign_input(
-    input: Res<ButtonInput<KeyCode>>,
+fn deploy_current_mission(
+    map: &mut FirstContactMap,
+    maps: &MissionMapCatalog,
+    flow: &mut CampaignFlow,
+    runtime: &mut FirstContactRuntime,
+    adapter: &mut FirstContactSimulationAdapter,
+) {
+    *map = maps.for_mission(flow.save.active_mission).clone();
+    match flow.start_battle(map) {
+        Ok(()) => {
+            runtime.reset_for_battle(map);
+            adapter.accepted_orders.clear();
+            flow.shell_mode = ShellMode::Playing;
+        }
+        Err(error) => flow.status = error,
+    }
+}
+
+fn apply_campaign_ui_intent(
+    intent: CampaignUiIntent,
+    map: &mut FirstContactMap,
+    maps: &MissionMapCatalog,
+    flow: &mut CampaignFlow,
+    runtime: &mut FirstContactRuntime,
+    adapter: &mut FirstContactSimulationAdapter,
+) {
+    match intent {
+        CampaignUiIntent::SelectSlot(slot) if flow.shell_mode == ShellMode::Title => {
+            flow.selected_slot = slot;
+            flow.overwrite_pending = None;
+            flow.status = format!("Selected save slot {}", slot.label());
+        }
+        CampaignUiIntent::CreateCampaign if flow.shell_mode == ShellMode::Title => {
+            if let Err(error) = flow.create_selected_slot() {
+                flow.status = error;
+            }
+        }
+        CampaignUiIntent::ContinueCampaign if flow.shell_mode == ShellMode::Title => {
+            if let Err(error) = flow.load_selected_slot() {
+                flow.status = error;
+            }
+        }
+        CampaignUiIntent::CycleCharacterName if flow.shell_mode == ShellMode::CharacterCreate => {
+            let result = flow.mutate_town(|save| save.cycle_character_identity().map(|_| ()));
+            set_status(flow, result, "Changed the persistent character name");
+        }
+        CampaignUiIntent::ConfirmCharacter if flow.shell_mode == ShellMode::CharacterCreate => {
+            let result = flow.mutate_town(CampaignSaveV1::confirm_character_identity);
+            match result {
+                Ok(()) => {
+                    flow.shell_mode = ShellMode::Playing;
+                    flow.status = format!(
+                        "Character identity confirmed: {}",
+                        flow.save.character.display_name
+                    );
+                }
+                Err(error) => flow.status = error.to_string(),
+            }
+        }
+        CampaignUiIntent::ResumeCampaign
+            if matches!(flow.shell_mode, ShellMode::ResumeGuard | ShellMode::Paused) =>
+        {
+            flow.shell_mode = ShellMode::Playing;
+            flow.status = format!("Slot {} resumed", flow.active_slot.label());
+        }
+        CampaignUiIntent::ReturnToTitle => {
+            flow.shell_mode = ShellMode::Title;
+            flow.status = "Title menu opened; active state remains atomically saved".to_string();
+        }
+        CampaignUiIntent::Travel(room)
+            if flow.shell_mode == ShellMode::Playing && flow.mode == CampaignMode::Town =>
+        {
+            let result = flow.mutate_town(|save| save.move_to(room));
+            set_status(flow, result, &format!("Entered {}", room.id()));
+        }
+        CampaignUiIntent::TalkToMentor
+            if flow.shell_mode == ShellMode::Playing && flow.mode == CampaignMode::Town =>
+        {
+            let result = flow.mutate_town(CampaignSaveV1::talk_to_mentor);
+            set_status(
+                flow,
+                result,
+                "Street Compass Sifu offered the First Contact task",
+            );
+        }
+        CampaignUiIntent::TrainWithMentor
+            if flow.shell_mode == ShellMode::Playing && flow.mode == CampaignMode::Town =>
+        {
+            let result = flow.mutate_town(CampaignSaveV1::train_with_mentor);
+            set_status(flow, result, "Completed paid mentor training");
+        }
+        CampaignUiIntent::CycleLoadout
+            if flow.shell_mode == ShellMode::Playing && flow.mode == CampaignMode::Town =>
+        {
+            let result = flow.mutate_town(CampaignSaveV1::cycle_loadout);
+            set_status(flow, result, "Changed typed equipment loadout");
+        }
+        CampaignUiIntent::CyclePreparation
+            if flow.shell_mode == ShellMode::Playing && flow.mode == CampaignMode::Town =>
+        {
+            let result = flow.mutate_town(|save| save.cycle_expedition_preparation().map(|_| ()));
+            set_status(flow, result, "Changed expedition preparation");
+        }
+        CampaignUiIntent::AcceptMission
+            if flow.shell_mode == ShellMode::Playing && flow.mode == CampaignMode::Town =>
+        {
+            let result = flow.mutate_town(CampaignSaveV1::accept_first_contact_quest);
+            set_status(flow, result, "Accepted the current campaign mission");
+        }
+        CampaignUiIntent::DeployMission
+            if flow.shell_mode == ShellMode::Playing && flow.mode == CampaignMode::Town =>
+        {
+            deploy_current_mission(map, maps, flow, runtime, adapter);
+        }
+        CampaignUiIntent::OpenJournal
+            if flow.shell_mode == ShellMode::Playing && flow.mode == CampaignMode::Town =>
+        {
+            flow.shell_mode = ShellMode::Journal;
+            flow.status = "Campaign journal opened from authoritative state".to_string();
+        }
+        CampaignUiIntent::CloseJournal if flow.shell_mode == ShellMode::Journal => {
+            flow.shell_mode = ShellMode::Playing;
+            flow.status = "Campaign journal closed".to_string();
+        }
+        CampaignUiIntent::Encounter(action)
+            if flow.shell_mode == ShellMode::Playing
+                && flow.mode == CampaignMode::Town
+                && flow.save.active_encounter.is_some() =>
+        {
+            let result =
+                flow.mutate_town(|save| save.act_in_signal_road_encounter(action).map(|_| ()));
+            set_status(flow, result, "Resolved one authoritative encounter action");
+        }
+        CampaignUiIntent::ReturnToTown
+            if flow.shell_mode == ShellMode::Playing && flow.mode == CampaignMode::Debrief =>
+        {
+            flow.mode = CampaignMode::Town;
+            flow.last_receipt = None;
+            flow.status = "Returned to Mirror Square; campaign save is current".to_string();
+        }
+        _ => {
+            flow.status =
+                "That mouse action is no longer available in the current state".to_string();
+        }
+    }
+}
+
+pub(super) fn handle_campaign_ui_intents(
+    mut intents: ResMut<CampaignUiIntents>,
     mut map: ResMut<FirstContactMap>,
     maps: Res<MissionMapCatalog>,
     mut flow: ResMut<CampaignFlow>,
     mut runtime: ResMut<FirstContactRuntime>,
     mut adapter: ResMut<FirstContactSimulationAdapter>,
 ) {
+    let Some(intent) = intents.take_first() else {
+        return;
+    };
+    if flow.settings.input_mode == InputMode::KeyboardOnly {
+        flow.status = "Mouse actions are disabled by the KeyboardOnly input profile".to_string();
+        return;
+    }
+    apply_campaign_ui_intent(
+        intent,
+        &mut map,
+        &maps,
+        &mut flow,
+        &mut runtime,
+        &mut adapter,
+    );
+}
+
+pub(super) fn handle_campaign_input(
+    input: Res<ButtonInput<KeyCode>>,
+    ui_intents: Option<Res<CampaignUiIntents>>,
+    mut map: ResMut<FirstContactMap>,
+    maps: Res<MissionMapCatalog>,
+    mut flow: ResMut<CampaignFlow>,
+    mut runtime: ResMut<FirstContactRuntime>,
+    mut adapter: ResMut<FirstContactSimulationAdapter>,
+) {
+    // A physical click and a key can land in the same update while running the
+    // Hybrid profile. The explicit UI intent wins so one frame can never
+    // advance the authoritative campaign twice.
+    if ui_intents.is_some_and(|intents| intents.has_pending()) {
+        return;
+    }
+    if flow.settings.input_mode == InputMode::MouseOnly {
+        let control = input.pressed(KeyCode::ControlLeft) || input.pressed(KeyCode::ControlRight);
+        let shift = input.pressed(KeyCode::ShiftLeft) || input.pressed(KeyCode::ShiftRight);
+        let alt = input.pressed(KeyCode::AltLeft) || input.pressed(KeyCode::AltRight);
+        let accessibility_shortcut = input.just_pressed(KeyCode::F2)
+            || input.just_pressed(KeyCode::F3)
+            || input.just_pressed(KeyCode::F5)
+            || (input.just_pressed(KeyCode::F7) && !control && !shift && !alt)
+            || (input.just_pressed(KeyCode::F8) && !control && !shift);
+        if !accessibility_shortcut {
+            return;
+        }
+    }
     if input.just_pressed(KeyCode::F1) {
         flow.shell_mode = ShellMode::Title;
         flow.status = "Title menu opened; active state remains atomically saved".to_string();
@@ -806,15 +1039,7 @@ pub(super) fn handle_campaign_input(
                     flow.mutate_town(|save| save.cycle_skirmish_simulation_seed().map(|_| ()));
                 set_status(&mut flow, result, "Changed standalone deterministic seed");
             } else if input.just_pressed(KeyCode::Enter) {
-                *map = maps.for_mission(flow.save.active_mission).clone();
-                match flow.start_battle(&map) {
-                    Ok(()) => {
-                        runtime.reset_for_battle(&map);
-                        adapter.accepted_orders.clear();
-                        flow.shell_mode = ShellMode::Playing;
-                    }
-                    Err(error) => flow.status = error,
-                }
+                deploy_current_mission(&mut map, &maps, &mut flow, &mut runtime, &mut adapter);
             } else if input.just_pressed(KeyCode::Escape) {
                 flow.shell_mode = ShellMode::Title;
                 flow.status = "Standalone skirmish setup canceled".to_string();
@@ -1402,14 +1627,7 @@ pub(super) fn handle_campaign_input(
                 "Accepted campaign mission; press F to deploy",
             );
         } else if flow.save.quest_state == QuestState::Accepted {
-            *map = maps.for_mission(flow.save.active_mission).clone();
-            match flow.start_battle(&map) {
-                Ok(()) => {
-                    runtime.reset_for_battle(&map);
-                    adapter.accepted_orders.clear();
-                }
-                Err(error) => flow.status = error,
-            }
+            deploy_current_mission(&mut map, &maps, &mut flow, &mut runtime, &mut adapter);
         } else {
             flow.status = "The First Contact mission is not ready for deployment".to_string();
         }
@@ -1843,6 +2061,244 @@ mod tests {
         flow.settings.input_mode = InputMode::MouseOnly;
         assert!(!flow.keyboard_gameplay_enabled());
         assert!(flow.mouse_gameplay_enabled());
+    }
+
+    #[test]
+    fn mouse_only_primary_actions_reach_the_authoritative_rts_deployment() {
+        let nonce = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let root = std::env::temp_dir().join(format!(
+            "trnm-mouse-campaign-shell-{}-{nonce}",
+            std::process::id()
+        ));
+        std::fs::create_dir_all(&root).unwrap();
+        let slot_store = SaveSlotStore::new(&root);
+        let save_path = slot_store.path(SaveSlotId::A);
+        let maps =
+            MissionMapCatalog::load(&Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../assets"))
+                .unwrap();
+        let map = maps.first_contact.clone();
+        let settings = PlayerSettings {
+            input_mode: InputMode::MouseOnly,
+            ..PlayerSettings::default()
+        };
+        let flow = CampaignFlow {
+            save: CampaignSaveV1::default(),
+            mode: CampaignMode::Town,
+            mission: None,
+            last_receipt: None,
+            status: String::new(),
+            last_checkpoint_tick: 0,
+            shell_mode: ShellMode::Title,
+            active_slot: SaveSlotId::A,
+            selected_slot: SaveSlotId::A,
+            overwrite_pending: None,
+            replay_cursor_tick: 0,
+            replay_speed: 1,
+            replay_paused: true,
+            replay_camera_x: 0,
+            replay_camera_y: 0,
+            settings,
+            settings_store: PlayerSettingsStore::new(root.join("settings.json")),
+            store: CampaignStore::new(&save_path),
+            checkpoint_store: SimCheckpointStore::new(checkpoint_path_for(&save_path)),
+            slot_store,
+        };
+        let mut app = App::new();
+        app.insert_resource(ButtonInput::<KeyCode>::default())
+            .insert_resource(CampaignUiIntents::default())
+            .insert_resource(map)
+            .insert_resource(maps)
+            .insert_resource(flow)
+            .insert_resource(FirstContactRuntime::default())
+            .insert_resource(FirstContactSimulationAdapter::default())
+            .add_systems(
+                Update,
+                (handle_campaign_input, handle_campaign_ui_intents).chain(),
+            );
+
+        let click = |app: &mut App, expected: CampaignUiIntent| {
+            let spec = {
+                let flow = app.world().resource::<CampaignFlow>();
+                crate::campaign_ui::campaign_action_specs(flow)
+                    .into_iter()
+                    .find(|spec| spec.intent == expected)
+                    .unwrap_or_else(|| panic!("mouse action {expected:?} was not presented"))
+            };
+            assert!(
+                spec.enabled,
+                "mouse action was presented disabled: {spec:?}"
+            );
+            app.world_mut()
+                .resource_mut::<CampaignUiIntents>()
+                .push(expected);
+            app.update();
+        };
+
+        click(&mut app, CampaignUiIntent::CreateCampaign);
+        assert_eq!(
+            app.world().resource::<CampaignFlow>().shell_mode,
+            ShellMode::CharacterCreate
+        );
+        click(&mut app, CampaignUiIntent::CycleCharacterName);
+        click(&mut app, CampaignUiIntent::ConfirmCharacter);
+        assert_eq!(
+            app.world().resource::<CampaignFlow>().save.room,
+            CampaignRoom::MirrorSquare
+        );
+
+        // Ordinary keys cannot advance a MouseOnly shell.
+        tap_client_key(&mut app, KeyCode::Digit2, false, false);
+        assert_eq!(
+            app.world().resource::<CampaignFlow>().save.room,
+            CampaignRoom::MirrorSquare
+        );
+
+        click(&mut app, CampaignUiIntent::Travel(CampaignRoom::MentorHall));
+        click(&mut app, CampaignUiIntent::TalkToMentor);
+        click(&mut app, CampaignUiIntent::TrainWithMentor);
+        click(&mut app, CampaignUiIntent::CycleLoadout);
+        click(
+            &mut app,
+            CampaignUiIntent::Travel(CampaignRoom::ExpeditionGate),
+        );
+        click(&mut app, CampaignUiIntent::AcceptMission);
+        click(&mut app, CampaignUiIntent::DeployMission);
+
+        let flow = app.world().resource::<CampaignFlow>();
+        assert_eq!(flow.settings.input_mode, InputMode::MouseOnly);
+        assert_eq!(flow.mode, CampaignMode::Battle);
+        assert_eq!(flow.shell_mode, ShellMode::Playing);
+        assert!(flow.mission.is_some());
+        drop(app);
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn queued_mouse_intent_wins_over_same_frame_hybrid_key() {
+        let nonce = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let root = std::env::temp_dir().join(format!(
+            "trnm-hybrid-campaign-priority-{}-{nonce}",
+            std::process::id()
+        ));
+        std::fs::create_dir_all(&root).unwrap();
+        let slot_store = SaveSlotStore::new(&root);
+        let save_path = slot_store.path(SaveSlotId::A);
+        let mut save = CampaignSaveV1::default();
+        save.move_to(CampaignRoom::MentorHall).unwrap();
+        save.talk_to_mentor().unwrap();
+        let maps =
+            MissionMapCatalog::load(&Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../assets"))
+                .unwrap();
+        let map = maps.first_contact.clone();
+        let flow = CampaignFlow {
+            save,
+            mode: CampaignMode::Town,
+            mission: None,
+            last_receipt: None,
+            status: String::new(),
+            last_checkpoint_tick: 0,
+            shell_mode: ShellMode::Playing,
+            active_slot: SaveSlotId::A,
+            selected_slot: SaveSlotId::A,
+            overwrite_pending: None,
+            replay_cursor_tick: 0,
+            replay_speed: 1,
+            replay_paused: true,
+            replay_camera_x: 0,
+            replay_camera_y: 0,
+            settings: PlayerSettings::default(),
+            settings_store: PlayerSettingsStore::new(root.join("settings.json")),
+            store: CampaignStore::new(&save_path),
+            checkpoint_store: SimCheckpointStore::new(checkpoint_path_for(&save_path)),
+            slot_store,
+        };
+        let mut app = App::new();
+        app.insert_resource(ButtonInput::<KeyCode>::default())
+            .insert_resource(CampaignUiIntents::default())
+            .insert_resource(map)
+            .insert_resource(maps)
+            .insert_resource(flow)
+            .insert_resource(FirstContactRuntime::default())
+            .insert_resource(FirstContactSimulationAdapter::default())
+            .add_systems(
+                Update,
+                (handle_campaign_input, handle_campaign_ui_intents).chain(),
+            );
+        app.world_mut()
+            .resource_mut::<CampaignUiIntents>()
+            .push(CampaignUiIntent::TrainWithMentor);
+        app.world_mut()
+            .resource_mut::<ButtonInput<KeyCode>>()
+            .press(KeyCode::KeyK);
+        app.update();
+        assert_eq!(
+            app.world()
+                .resource::<CampaignFlow>()
+                .save
+                .progression
+                .mentor_training_sessions,
+            1,
+            "one frame must not apply both the key and the mouse intent"
+        );
+        drop(app);
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn debrief_and_keyboard_only_states_expose_correct_button_availability() {
+        let save_path = PathBuf::from("/tmp/trnm-campaign-action-state.json");
+        let mut flow = CampaignFlow {
+            save: CampaignSaveV1::default(),
+            mode: CampaignMode::Debrief,
+            mission: None,
+            last_receipt: None,
+            status: String::new(),
+            last_checkpoint_tick: 0,
+            shell_mode: ShellMode::Playing,
+            active_slot: SaveSlotId::A,
+            selected_slot: SaveSlotId::A,
+            overwrite_pending: None,
+            replay_cursor_tick: 0,
+            replay_speed: 1,
+            replay_paused: true,
+            replay_camera_x: 0,
+            replay_camera_y: 0,
+            settings: PlayerSettings::default(),
+            slot_store: SaveSlotStore::new("/tmp/trnm-campaign-action-state"),
+            settings_store: PlayerSettingsStore::new("/tmp/trnm-action-settings.json"),
+            store: CampaignStore::new(&save_path),
+            checkpoint_store: SimCheckpointStore::new(checkpoint_path_for(&save_path)),
+        };
+        flow.settings.input_mode = InputMode::MouseOnly;
+        let specs = crate::campaign_ui::campaign_action_specs(&flow);
+        assert_eq!(specs.len(), 1);
+        assert_eq!(specs[0].intent, CampaignUiIntent::ReturnToTown);
+        assert!(specs[0].enabled);
+
+        let maps =
+            MissionMapCatalog::load(&Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../assets"))
+                .unwrap();
+        let mut map = maps.first_contact.clone();
+        apply_campaign_ui_intent(
+            CampaignUiIntent::ReturnToTown,
+            &mut map,
+            &maps,
+            &mut flow,
+            &mut FirstContactRuntime::default(),
+            &mut FirstContactSimulationAdapter::default(),
+        );
+        assert_eq!(flow.mode, CampaignMode::Town);
+
+        flow.settings.input_mode = InputMode::KeyboardOnly;
+        assert!(crate::campaign_ui::campaign_action_specs(&flow)
+            .iter()
+            .all(|spec| !spec.enabled));
     }
 
     #[test]

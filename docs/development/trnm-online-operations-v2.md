@@ -1,11 +1,15 @@
 # TRNM Online Operations v2
 
+Updated: 2026-07-14
+
 Status: implemented locally, automated release evidence green, external human
 and cross-host production gates still blocked.
 
-Operations v2 extends Authority v2 and Product v1/v2. Its current contract is
-`trnm_online_operations_v2`, build `trnm-online-operations-2026.07-v2`.
-Operations v1 requests remain accepted only with the exact v1 protocol/build.
+Operations v2 extends the current Authority v3 and Product v1/v2. The exact
+Authority v2 pair remains accepted during the rolling-compatibility window.
+The Operations contract itself remains `trnm_online_operations_v2`, build
+`trnm-online-operations-2026.07-v2`; Operations v1 requests remain accepted only
+with the exact v1 protocol/build.
 
 ## Fenced fleet leases
 
@@ -13,13 +17,25 @@ Every server registration increments a durable `instance_epoch`. Heartbeats
 renew a five-second lease only when the process still owns that epoch. Match
 ownership stores both instance ID and epoch; tick and terminal writes require
 both. A replacement process with the same instance ID therefore fences the
-older process instead of sharing authority. Expired owners transfer under a
-PostgreSQL row lock and write an epoch-aware failover audit.
+older process instead of sharing authority. An expired owner may transfer under
+a PostgreSQL row lock only on the same physical host, where the replacement
+must also acquire the process-lifetime publication-journal lock. A separate
+host-identity lock prevents the same physical-host identity from opening two
+different journal roots; deployments must configure one canonical journal
+directory per host. Physical-host mismatch is rejected even when instance ID
+and epoch happen to match. Active-match cross-host transfer fails closed until
+that journal is replicated with RPO=0.
 
 Fleet routing excludes expired, draining, offline and full instances. The
 moderator control plane can drain, reactivate or offline a zero-match instance,
-with a durable audit. This is same-host process evidence; cross-host fencing,
+with a durable audit. This is same-host replacement infrastructure; cross-host
 quorum and regional HA are not claimed.
+
+Process SIGTERM enters an application drain before actor shutdown: new command
+admission returns a recoverable 503 with `Retry-After`, the HTTP listener stops
+accepting connections, and only then are bounded checkpoint barriers and worker
+joins used to flush actors. A worker that exceeds its deadline is aborted and
+the actor is removed from readiness rather than allowing overlapping authority.
 
 ## Replay playback
 

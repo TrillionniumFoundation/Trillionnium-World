@@ -1,7 +1,14 @@
-use super::campaign_flow::{CampaignFlow, CampaignMode, ShellMode};
+use super::campaign_flow::{
+    CampaignFlow, CampaignMode, CampaignUiIntent, CampaignUiIntents, ShellMode,
+};
 use bevy::prelude::*;
 use bevy::window::RequestRedraw;
-use trnm_campaign_core::{CampaignRoom, MasteryChallenge, QuestState};
+use trnm_campaign_core::{
+    CampaignGuideStep, CampaignRoom, EncounterAction, InputMode, MasteryChallenge, QuestState,
+    SaveSlotId,
+};
+
+const CAMPAIGN_ACTION_BUTTON_COUNT: usize = 6;
 
 #[derive(Component)]
 pub(super) struct CampaignOverlayRoot;
@@ -19,7 +26,57 @@ pub(super) struct CampaignBody;
 pub(super) struct CampaignActions;
 
 #[derive(Component)]
+pub(super) struct CampaignPrimaryActions;
+
+#[derive(Component, Debug)]
+pub(super) struct CampaignActionButton {
+    slot: usize,
+    intent: Option<CampaignUiIntent>,
+    enabled: bool,
+}
+
+#[derive(Component)]
+pub(super) struct CampaignActionButtonLabel {
+    slot: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(super) struct CampaignActionSpec {
+    pub(super) label: String,
+    pub(super) intent: CampaignUiIntent,
+    pub(super) enabled: bool,
+}
+
+#[derive(Component)]
 pub(super) struct CampaignStatus;
+
+fn campaign_action_button(slot: usize) -> impl Bundle {
+    (
+        Button,
+        Node {
+            min_width: px(150),
+            height: px(46),
+            padding: UiRect::axes(px(16), px(8)),
+            border: UiRect::all(px(2)),
+            align_items: AlignItems::Center,
+            justify_content: JustifyContent::Center,
+            ..default()
+        },
+        BackgroundColor(Color::srgba(0.055, 0.085, 0.082, 0.96)),
+        BorderColor::all(Color::srgb(0.22, 0.33, 0.31)),
+        CampaignActionButton {
+            slot,
+            intent: None,
+            enabled: false,
+        },
+        children![(
+            Text::new(String::new()),
+            CampaignActionButtonLabel { slot },
+            TextFont::from_font_size(15.0),
+            TextColor(Color::srgb(0.88, 0.92, 0.78)),
+        )],
+    )
+}
 
 fn spawn_campaign_ui_root(commands: &mut Commands) {
     commands.spawn((
@@ -69,6 +126,25 @@ fn spawn_campaign_ui_root(commands: &mut Commands) {
                 CampaignActions,
                 TextFont::from_font_size(18.0),
                 TextColor(Color::srgb(0.62, 0.88, 0.70)),
+            ),
+            (
+                Node {
+                    width: px(820),
+                    flex_wrap: FlexWrap::Wrap,
+                    justify_content: JustifyContent::Center,
+                    row_gap: px(10),
+                    column_gap: px(10),
+                    ..default()
+                },
+                CampaignPrimaryActions,
+                children![
+                    campaign_action_button(0),
+                    campaign_action_button(1),
+                    campaign_action_button(2),
+                    campaign_action_button(3),
+                    campaign_action_button(4),
+                    campaign_action_button(5),
+                ],
             ),
             (
                 Text::new("Campaign ready"),
@@ -496,6 +572,213 @@ fn debrief_body(flow: &CampaignFlow) -> String {
     )
 }
 
+fn action_spec(label: impl Into<String>, intent: CampaignUiIntent) -> CampaignActionSpec {
+    CampaignActionSpec {
+        label: label.into(),
+        intent,
+        enabled: true,
+    }
+}
+
+pub(super) fn campaign_action_specs(flow: &CampaignFlow) -> Vec<CampaignActionSpec> {
+    let mut specs = match flow.shell_mode {
+        ShellMode::Title => {
+            let metadata = flow.slot_metadata();
+            let selected = metadata.iter().find(|meta| meta.slot == flow.selected_slot);
+            let can_continue = selected.is_some_and(|meta| meta.exists && meta.valid);
+            let mut slots = SaveSlotId::ALL
+                .into_iter()
+                .map(|slot| CampaignActionSpec {
+                    label: format!(
+                        "{} SLOT {}",
+                        if slot == flow.selected_slot {
+                            "SELECTED"
+                        } else {
+                            "SELECT"
+                        },
+                        slot.label()
+                    ),
+                    intent: CampaignUiIntent::SelectSlot(slot),
+                    enabled: slot != flow.selected_slot,
+                })
+                .collect::<Vec<_>>();
+            slots.push(action_spec(
+                if flow.overwrite_pending == Some(flow.selected_slot) {
+                    format!("CONFIRM OVERWRITE SLOT {}", flow.selected_slot.label())
+                } else {
+                    format!("NEW CAMPAIGN — SLOT {}", flow.selected_slot.label())
+                },
+                CampaignUiIntent::CreateCampaign,
+            ));
+            slots.push(CampaignActionSpec {
+                label: format!("CONTINUE SLOT {}", flow.selected_slot.label()),
+                intent: CampaignUiIntent::ContinueCampaign,
+                enabled: can_continue,
+            });
+            slots
+        }
+        ShellMode::CharacterCreate => vec![
+            action_spec("CYCLE NAME", CampaignUiIntent::CycleCharacterName),
+            action_spec("CONFIRM CHARACTER", CampaignUiIntent::ConfirmCharacter),
+            action_spec("BACK TO TITLE", CampaignUiIntent::ReturnToTitle),
+        ],
+        ShellMode::ResumeGuard => vec![
+            action_spec("RESUME CAMPAIGN", CampaignUiIntent::ResumeCampaign),
+            action_spec("BACK TO TITLE", CampaignUiIntent::ReturnToTitle),
+        ],
+        ShellMode::Paused => vec![
+            action_spec("RESUME", CampaignUiIntent::ResumeCampaign),
+            action_spec("SAVE & RETURN TO TITLE", CampaignUiIntent::ReturnToTitle),
+        ],
+        ShellMode::Journal => vec![action_spec("CLOSE JOURNAL", CampaignUiIntent::CloseJournal)],
+        ShellMode::SkirmishSetup | ShellMode::ReplayBrowser => vec![action_spec(
+            "BACK TO TITLE",
+            CampaignUiIntent::ReturnToTitle,
+        )],
+        ShellMode::Playing if flow.mode == CampaignMode::Debrief => vec![action_spec(
+            "RETURN TO MIRROR SQUARE",
+            CampaignUiIntent::ReturnToTown,
+        )],
+        ShellMode::Playing if flow.mode == CampaignMode::Battle => Vec::new(),
+        ShellMode::Playing if flow.save.active_encounter.is_some() => vec![
+            action_spec(
+                "ATTACK",
+                CampaignUiIntent::Encounter(EncounterAction::Attack),
+            ),
+            action_spec(
+                "DEFEND",
+                CampaignUiIntent::Encounter(EncounterAction::Defend),
+            ),
+            action_spec(
+                "PRIMARY TECHNIQUE",
+                CampaignUiIntent::Encounter(EncounterAction::PrimaryTechnique),
+            ),
+            action_spec(
+                "USE TONIC",
+                CampaignUiIntent::Encounter(EncounterAction::UseItem),
+            ),
+            action_spec(
+                "WITHDRAW",
+                CampaignUiIntent::Encounter(EncounterAction::Withdraw),
+            ),
+        ],
+        ShellMode::Playing => match flow.save.current_guide_step() {
+            CampaignGuideStep::MeetMentor if flow.save.room != CampaignRoom::MentorHall => {
+                vec![action_spec(
+                    "TRAVEL TO MENTOR HALL",
+                    CampaignUiIntent::Travel(CampaignRoom::MentorHall),
+                )]
+            }
+            CampaignGuideStep::MeetMentor => vec![action_spec(
+                "TALK TO STREET COMPASS SIFU",
+                CampaignUiIntent::TalkToMentor,
+            )],
+            CampaignGuideStep::TrainWithMentor if flow.save.room != CampaignRoom::MentorHall => {
+                vec![action_spec(
+                    "RETURN TO MENTOR HALL",
+                    CampaignUiIntent::Travel(CampaignRoom::MentorHall),
+                )]
+            }
+            CampaignGuideStep::TrainWithMentor => vec![action_spec(
+                "COMPLETE MENTOR TRAINING",
+                CampaignUiIntent::TrainWithMentor,
+            )],
+            CampaignGuideStep::EquipWeapon => vec![action_spec(
+                "EQUIP STARTER LOADOUT",
+                CampaignUiIntent::CycleLoadout,
+            )],
+            CampaignGuideStep::ReachExpeditionGate => vec![action_spec(
+                "TRAVEL TO EXPEDITION GATE",
+                CampaignUiIntent::Travel(CampaignRoom::ExpeditionGate),
+            )],
+            CampaignGuideStep::AcceptMission if flow.save.room != CampaignRoom::ExpeditionGate => {
+                vec![action_spec(
+                    "TRAVEL TO EXPEDITION GATE",
+                    CampaignUiIntent::Travel(CampaignRoom::ExpeditionGate),
+                )]
+            }
+            CampaignGuideStep::AcceptMission => vec![
+                action_spec("ACCEPT MISSION", CampaignUiIntent::AcceptMission),
+                action_spec("CHANGE PREPARATION", CampaignUiIntent::CyclePreparation),
+                action_spec("CHANGE LOADOUT", CampaignUiIntent::CycleLoadout),
+            ],
+            CampaignGuideStep::DeployMission => vec![
+                action_spec("DEPLOY TO RTS", CampaignUiIntent::DeployMission),
+                action_spec("CHANGE PREPARATION", CampaignUiIntent::CyclePreparation),
+                action_spec("CHANGE LOADOUT", CampaignUiIntent::CycleLoadout),
+                action_spec("OPEN JOURNAL", CampaignUiIntent::OpenJournal),
+            ],
+            CampaignGuideStep::ReadJournal => vec![action_spec(
+                "OPEN CAMPAIGN JOURNAL",
+                CampaignUiIntent::OpenJournal,
+            )],
+        },
+    };
+    if flow.settings.input_mode == InputMode::KeyboardOnly {
+        for spec in &mut specs {
+            spec.enabled = false;
+        }
+    }
+    specs.truncate(CAMPAIGN_ACTION_BUTTON_COUNT);
+    specs
+}
+
+fn campaign_action_palette(
+    interaction: Interaction,
+    enabled: bool,
+    high_contrast: bool,
+) -> (Color, Color, Color) {
+    if !enabled {
+        return (
+            Color::srgba(0.035, 0.045, 0.043, 0.82),
+            Color::srgb(0.14, 0.18, 0.17),
+            Color::srgb(0.36, 0.40, 0.38),
+        );
+    }
+    match interaction {
+        Interaction::Pressed => (
+            Color::srgba(0.34, 0.55, 0.22, 1.0),
+            Color::srgb(1.0, 0.93, 0.45),
+            Color::WHITE,
+        ),
+        Interaction::Hovered => (
+            Color::srgba(0.18, 0.38, 0.30, 1.0),
+            Color::srgb(0.72, 1.0, 0.58),
+            if high_contrast {
+                Color::WHITE
+            } else {
+                Color::srgb(0.95, 0.98, 0.76)
+            },
+        ),
+        Interaction::None => (
+            Color::srgba(0.075, 0.13, 0.11, 0.98),
+            if high_contrast {
+                Color::WHITE
+            } else {
+                Color::srgb(0.31, 0.62, 0.47)
+            },
+            if high_contrast {
+                Color::WHITE
+            } else {
+                Color::srgb(0.88, 0.92, 0.78)
+            },
+        ),
+    }
+}
+
+pub(super) fn collect_campaign_ui_intents(
+    mut intents: ResMut<CampaignUiIntents>,
+    buttons: Query<(&Interaction, &CampaignActionButton), Changed<Interaction>>,
+) {
+    for (interaction, button) in &buttons {
+        if *interaction == Interaction::Pressed && button.enabled {
+            if let Some(intent) = button.intent {
+                intents.push(intent);
+            }
+        }
+    }
+}
+
 #[allow(clippy::too_many_arguments, clippy::type_complexity)]
 pub(super) fn update_campaign_ui(
     flow: Res<CampaignFlow>,
@@ -532,6 +815,14 @@ pub(super) fn update_campaign_ui(
             Without<CampaignStatus>,
         ),
     >,
+    mut action_buttons: Query<(
+        &mut Node,
+        &mut CampaignActionButton,
+        &Interaction,
+        &mut BackgroundColor,
+        &mut BorderColor,
+    )>,
+    mut action_labels: Query<(&CampaignActionButtonLabel, &mut Text, &mut TextColor)>,
     mut statuses: Query<
         (&mut Text, &mut TextColor),
         (
@@ -549,6 +840,7 @@ pub(super) fn update_campaign_ui(
     redraw.write(RequestRedraw);
     let shell_visible = flow.shell_mode != ShellMode::Playing;
     let hidden = flow.mode == CampaignMode::Battle && !shell_visible;
+    let action_specs = campaign_action_specs(&flow);
     for mut background in &mut roots {
         background.0 = if hidden {
             Color::NONE
@@ -609,7 +901,10 @@ pub(super) fn update_campaign_ui(
         };
     }
     for (mut action, mut color) in &mut actions {
-        action.0 = if flow.shell_mode == ShellMode::Title {
+        action.0 = if flow.settings.input_mode == InputMode::MouseOnly {
+            "MOUSE-ONLY: choose an available action below; disabled actions are visibly muted."
+                .to_string()
+        } else if flow.shell_mode == ShellMode::Title {
             "1/2/3 SLOT | N NEW | ENTER LOAD | K SKIRMISH | P REPLAY | F2 MOTION | F3 INPUT | F5 SUBTITLE/CONTRAST | F7 CONTROLS | F8 AUDIO".to_string()
         } else if flow.shell_mode == ShellMode::CharacterCreate {
             "C CYCLE NAME | ENTER CONFIRM | ESC TITLE".to_string()
@@ -656,6 +951,35 @@ pub(super) fn update_campaign_ui(
             }
         };
     }
+    for (mut node, mut button, interaction, mut background, mut border) in &mut action_buttons {
+        let Some(spec) = action_specs.get(button.slot).filter(|_| !hidden) else {
+            node.display = Display::None;
+            button.intent = None;
+            button.enabled = false;
+            continue;
+        };
+        node.display = Display::Flex;
+        button.intent = Some(spec.intent);
+        button.enabled = spec.enabled;
+        let (background_color, border_color, _) =
+            campaign_action_palette(*interaction, spec.enabled, flow.settings.high_contrast);
+        background.0 = background_color;
+        *border = BorderColor::all(border_color);
+    }
+    for (label, mut text, mut color) in &mut action_labels {
+        if let Some(spec) = action_specs.get(label.slot).filter(|_| !hidden) {
+            text.0 = spec.label.clone();
+            let (_, _, text_color) = campaign_action_palette(
+                Interaction::None,
+                spec.enabled,
+                flow.settings.high_contrast,
+            );
+            color.0 = text_color;
+        } else {
+            text.0.clear();
+            color.0 = Color::NONE;
+        }
+    }
     for (mut status, mut color) in &mut statuses {
         status.0 = flow.status.clone();
         color.0 = if hidden {
@@ -667,5 +991,61 @@ pub(super) fn update_campaign_ui(
                 Color::srgb(0.72, 0.80, 0.76)
             }
         };
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn campaign_action_is_a_real_button_and_emits_only_when_enabled() {
+        let mut app = App::new();
+        app.init_resource::<CampaignUiIntents>()
+            .add_systems(Update, collect_campaign_ui_intents);
+        let entity = app.world_mut().spawn(campaign_action_button(0)).id();
+        assert!(app.world().get::<Button>(entity).is_some());
+        {
+            let mut button = app
+                .world_mut()
+                .get_mut::<CampaignActionButton>(entity)
+                .unwrap();
+            button.intent = Some(CampaignUiIntent::ConfirmCharacter);
+            button.enabled = false;
+        }
+        *app.world_mut().get_mut::<Interaction>(entity).unwrap() = Interaction::Pressed;
+        app.update();
+        assert_eq!(
+            app.world_mut()
+                .resource_mut::<CampaignUiIntents>()
+                .take_first(),
+            None
+        );
+
+        *app.world_mut().get_mut::<Interaction>(entity).unwrap() = Interaction::None;
+        app.update();
+        app.world_mut()
+            .get_mut::<CampaignActionButton>(entity)
+            .unwrap()
+            .enabled = true;
+        *app.world_mut().get_mut::<Interaction>(entity).unwrap() = Interaction::Pressed;
+        app.update();
+        assert_eq!(
+            app.world_mut()
+                .resource_mut::<CampaignUiIntents>()
+                .take_first(),
+            Some(CampaignUiIntent::ConfirmCharacter)
+        );
+    }
+
+    #[test]
+    fn campaign_action_palette_distinguishes_disabled_hover_and_press() {
+        let disabled = campaign_action_palette(Interaction::None, false, false);
+        let normal = campaign_action_palette(Interaction::None, true, false);
+        let hovered = campaign_action_palette(Interaction::Hovered, true, false);
+        let pressed = campaign_action_palette(Interaction::Pressed, true, false);
+        assert_ne!(disabled, normal);
+        assert_ne!(normal, hovered);
+        assert_ne!(hovered, pressed);
     }
 }

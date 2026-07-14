@@ -9,6 +9,57 @@ use trnm_online_protocol::{
 };
 
 const MODERATOR_HEADER: &str = "x-trnm-moderator";
+const RATING_MIN: i32 = 0;
+const RATING_MAX: i32 = 5000;
+const ELO_K_FACTOR: f64 = 32.0;
+pub(super) const SOLO_QUEUE_EXPIRY_ADVISORY_LOCK_SQL: &str =
+    "select pg_try_advisory_xact_lock(hashtext('trnm-online-solo-queue-expiry'))";
+// TODO(trnm-db-migrate): add a created_at partial index for queued tickets once the
+// checksummed migration runner owns online index rollout.
+pub(super) const EXPIRE_STALE_SOLO_QUEUE_TICKETS_SQL: &str = "with stale_ticket as (
+        select ticket_id from trnm_online_solo_queue
+         where status = 'queued' and created_at < now() - interval '15 minutes'
+         for update skip locked limit 256
+     )
+     update trnm_online_solo_queue ticket
+        set status = 'cancelled', updated_at = now()
+       from stale_ticket
+      where ticket.ticket_id = stale_ticket.ticket_id and ticket.status = 'queued'";
+const EXPIRE_PLAYER_STALE_SOLO_QUEUE_TICKET_SQL: &str =
+    "update trnm_online_solo_queue set status = 'cancelled', updated_at = now()
+     where player_id = $1 and status = 'queued'
+       and created_at < now() - interval '15 minutes'";
+pub(super) const RANKED_SEASON_BUSY_SQL: &str = "select exists(
+        select 1 from trnm_online_matches
+         where match_mode = 'ranked_pvp' and phase in ('waiting', 'running')
+        union all
+        select 1 from trnm_online_solo_queue where status = 'queued'
+     )";
+
+fn uncapped_elo_host_delta(host_rating: i32, guest_rating: i32, host_won: bool) -> i32 {
+    let rating_gap = f64::from(guest_rating) - f64::from(host_rating);
+    let expected_host = 1.0 / (1.0 + 10_f64.powf(rating_gap / 400.0));
+    (ELO_K_FACTOR * (if host_won { 1.0 } else { 0.0 } - expected_host)).round() as i32
+}
+
+pub(super) fn coupled_elo_after(host_rating: i32, guest_rating: i32, host_won: bool) -> (i32, i32) {
+    let uncapped_host_delta = uncapped_elo_host_delta(host_rating, guest_rating, host_won);
+    let requested_transfer = uncapped_host_delta.unsigned_abs() as i32;
+    let (winner_rating, loser_rating) = if host_won {
+        (host_rating, guest_rating)
+    } else {
+        (guest_rating, host_rating)
+    };
+    let transfer = requested_transfer
+        .min((RATING_MAX - winner_rating).max(0))
+        .min((loser_rating - RATING_MIN).max(0));
+
+    if host_won {
+        (host_rating + transfer, guest_rating - transfer)
+    } else {
+        (host_rating - transfer, guest_rating + transfer)
+    }
+}
 
 fn require_v2(protocol: &str, build: &str) -> Result<(), ApiError> {
     if protocol != ONLINE_PRODUCT_PROTOCOL || build != ONLINE_PRODUCT_BUILD {
@@ -119,13 +170,11 @@ pub(super) async fn join_solo_queue(
         .await
         .map_err(internal_db)?;
     lock_player_lobby_scope(&mut transaction, &request.player_id).await?;
-    sqlx::query::query(
-        "update trnm_online_solo_queue set status = 'cancelled', updated_at = now()
-         where status = 'queued' and created_at < now() - interval '15 minutes'",
-    )
-    .execute(&mut *transaction)
-    .await
-    .map_err(internal_db)?;
+    sqlx::query::query(EXPIRE_PLAYER_STALE_SOLO_QUEUE_TICKET_SQL)
+        .bind(&request.player_id)
+        .execute(&mut *transaction)
+        .await
+        .map_err(internal_db)?;
     ensure_campaign_owner(
         &mut transaction,
         &request.campaign_id,
@@ -175,6 +224,7 @@ pub(super) async fn join_solo_queue(
                 as repeat_matches
          from trnm_online_solo_queue q
          where q.status = 'queued' and q.queue_mode = 'ranked_pvp' and q.map_id = $1
+           and q.created_at >= now() - interval '15 minutes'
            and q.player_id <> $2 and abs(q.rating_at_join - $3) <= 400
            and q.device_hash is distinct from $4
            and not exists (
@@ -1021,14 +1071,11 @@ pub(super) async fn apply_ranked_result(
         .get(&guest)
         .ok_or_else(|| "guest rating is missing".to_string())?;
     let host_won = outcome == BattleOutcome::Victory;
-    let expected_host = 1.0 / (1.0 + 10_f64.powf((guest_rating - host_rating) as f64 / 400.0));
-    let host_delta = (32.0 * (if host_won { 1.0 } else { 0.0 } - expected_host)).round() as i32;
-    let guest_delta = -host_delta;
-    for (player, opponent, won, rating_before, delta) in [
-        (&host, &guest, host_won, host_rating, host_delta),
-        (&guest, &host, !host_won, guest_rating, guest_delta),
+    let (host_after, guest_after) = coupled_elo_after(host_rating, guest_rating, host_won);
+    for (player, opponent, won, rating_before, rating_after) in [
+        (&host, &guest, host_won, host_rating, host_after),
+        (&guest, &host, !host_won, guest_rating, guest_after),
     ] {
-        let rating_after = (rating_before + delta).clamp(0, 5000);
         sqlx::query::query(
             "update trnm_online_ratings set rating = $2,
                 wins = wins + case when $3 then 1 else 0 end,
@@ -1062,4 +1109,118 @@ pub(super) async fn apply_ranked_result(
         .map_err(|error| error.to_string())?;
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        coupled_elo_after, uncapped_elo_host_delta, EXPIRE_PLAYER_STALE_SOLO_QUEUE_TICKET_SQL,
+        EXPIRE_STALE_SOLO_QUEUE_TICKETS_SQL, RANKED_SEASON_BUSY_SQL, RATING_MAX, RATING_MIN,
+        SOLO_QUEUE_EXPIRY_ADVISORY_LOCK_SQL,
+    };
+
+    #[test]
+    fn ranked_season_busy_states_match_the_database_contract() {
+        assert!(RANKED_SEASON_BUSY_SQL.contains("phase in ('waiting', 'running')"));
+        assert!(!RANKED_SEASON_BUSY_SQL.contains("'created'"));
+        assert!(RANKED_SEASON_BUSY_SQL.contains("status = 'queued'"));
+        assert!(!RANKED_SEASON_BUSY_SQL.contains("status = 'matched'"));
+        assert!(!RANKED_SEASON_BUSY_SQL.contains("status = 'cancelled'"));
+    }
+
+    #[test]
+    fn solo_queue_expiry_only_transitions_stale_queued_tickets() {
+        assert!(SOLO_QUEUE_EXPIRY_ADVISORY_LOCK_SQL.contains("pg_try_advisory_xact_lock"));
+        assert!(EXPIRE_STALE_SOLO_QUEUE_TICKETS_SQL.contains("for update skip locked limit 256"));
+        assert!(EXPIRE_STALE_SOLO_QUEUE_TICKETS_SQL.contains("set status = 'cancelled'"));
+        assert!(EXPIRE_STALE_SOLO_QUEUE_TICKETS_SQL.contains("status = 'queued'"));
+        assert!(EXPIRE_STALE_SOLO_QUEUE_TICKETS_SQL.contains("interval '15 minutes'"));
+        assert!(!EXPIRE_STALE_SOLO_QUEUE_TICKETS_SQL.contains("status = 'matched'"));
+        assert!(EXPIRE_PLAYER_STALE_SOLO_QUEUE_TICKET_SQL.contains("player_id = $1"));
+        assert!(EXPIRE_PLAYER_STALE_SOLO_QUEUE_TICKET_SQL.contains("status = 'queued'"));
+        assert!(!EXPIRE_PLAYER_STALE_SOLO_QUEUE_TICKET_SQL.contains("status = 'matched'"));
+    }
+
+    #[test]
+    fn coupled_elo_matches_normal_strong_weak_and_boundary_examples() {
+        assert_eq!(coupled_elo_after(1000, 1000, true), (1016, 984));
+        assert_eq!(coupled_elo_after(1000, 1000, false), (984, 1016));
+        assert_eq!(coupled_elo_after(1000, 2000, true), (1032, 1968));
+        assert_eq!(coupled_elo_after(2000, 1000, false), (1968, 1032));
+        assert_eq!(coupled_elo_after(4999, 5000, true), (5000, 4999));
+        assert_eq!(coupled_elo_after(1, 0, false), (0, 1));
+    }
+
+    #[test]
+    fn uncapped_elo_gap_does_not_overflow_for_untrusted_i32_values() {
+        assert_eq!(uncapped_elo_host_delta(i32::MIN, i32::MAX, true), 32);
+        assert_eq!(uncapped_elo_host_delta(i32::MAX, i32::MIN, false), -32);
+    }
+
+    fn assert_coupled_properties(host_before: i32, guest_before: i32, host_won: bool) {
+        let (host_after, guest_after) = coupled_elo_after(host_before, guest_before, host_won);
+
+        assert!((RATING_MIN..=RATING_MAX).contains(&host_after));
+        assert!((RATING_MIN..=RATING_MAX).contains(&guest_after));
+        assert_eq!(
+            host_after + guest_after,
+            host_before + guest_before,
+            "ratings must remain zero-sum: host={host_before}, guest={guest_before}, host_won={host_won}",
+        );
+        let actual_transfer = (host_after - host_before).unsigned_abs();
+        let requested_transfer =
+            uncapped_elo_host_delta(host_before, guest_before, host_won).unsigned_abs();
+        assert!(actual_transfer <= requested_transfer);
+        if host_won {
+            assert!(host_after >= host_before);
+            assert!(guest_after <= guest_before);
+            assert_eq!(host_after - host_before, guest_before - guest_after);
+        } else {
+            assert!(host_after <= host_before);
+            assert!(guest_after >= guest_before);
+            assert_eq!(host_before - host_after, guest_after - guest_before);
+        }
+    }
+
+    #[test]
+    fn coupled_elo_preserves_bounds_and_sum_at_rating_edges() {
+        const BOUNDARIES: [i32; 8] = [0, 1, 15, 16, 1000, 4984, 4999, 5000];
+
+        for host_before in BOUNDARIES {
+            for guest_before in BOUNDARIES {
+                assert_coupled_properties(host_before, guest_before, true);
+                assert_coupled_properties(host_before, guest_before, false);
+            }
+        }
+    }
+
+    #[test]
+    fn coupled_elo_limits_transfer_by_both_players_boundaries() {
+        assert_eq!(coupled_elo_after(5000, 1000, true), (5000, 1000));
+        assert_eq!(coupled_elo_after(1000, 0, true), (1000, 0));
+        assert_eq!(coupled_elo_after(1000, 5000, false), (1000, 5000));
+        assert_eq!(coupled_elo_after(0, 1000, false), (0, 1000));
+
+        let (host_after, guest_after) = coupled_elo_after(4984, 15, true);
+        assert_eq!(host_after - 4984, 15 - guest_after);
+        assert!((host_after - 4984) <= 15);
+        assert!((host_after - 4984) <= 16);
+    }
+
+    #[test]
+    fn coupled_elo_randomized_properties_hold() {
+        let mut state = 0x6a09_e667_f3bc_c909_u64;
+        for _ in 0..100_000 {
+            state = state
+                .wrapping_mul(6_364_136_223_846_793_005)
+                .wrapping_add(1_442_695_040_888_963_407);
+            let host_before = (state % 5001) as i32;
+            state = state
+                .wrapping_mul(6_364_136_223_846_793_005)
+                .wrapping_add(1_442_695_040_888_963_407);
+            let guest_before = (state % 5001) as i32;
+            let host_won = state & (1 << 63) != 0;
+            assert_coupled_properties(host_before, guest_before, host_won);
+        }
+    }
 }

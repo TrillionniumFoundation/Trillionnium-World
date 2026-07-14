@@ -17,8 +17,11 @@ HOST_PID=""
 GUEST_PID=""
 XVFB_PID=""
 NETEM_APPLIED=0
+CHAOS_RTT_MS="${TRNM_NATIVE_CHAOS_RTT_MS:-}"
+CHAOS_LOSS_PERCENT="${TRNM_NATIVE_CHAOS_LOSS_PERCENT:-0}"
 MATCH_ID=""
-mkdir -p "$EVIDENCE/host-save" "$EVIDENCE/guest-save"
+mkdir -p "$EVIDENCE/host-save" "$EVIDENCE/guest-save" \
+  "$EVIDENCE/host-journal" "$EVIDENCE/guest-journal"
 
 cleanup() {
   local status=$?
@@ -37,6 +40,7 @@ cleanup() {
       where match_id='$MATCH_ID'::uuid and phase='running'" >/dev/null 2>&1 || true
   fi
   systemctl --user unset-environment TRNM_GAME_SERVER_TICK_MS TRNM_ALLOW_ACCELERATED_TEST_CLOCK >/dev/null 2>&1 || true
+  systemctl --user reset-failed trnm-game-server.service >/dev/null 2>&1 || true
   systemctl --user restart trnm-game-server.service >/dev/null 2>&1 || true
   exit "$status"
 }
@@ -134,6 +138,7 @@ wait_for_frame_timing() {
 IFS=$'\t' read -r HOST_PLAYER HOST_ACCOUNT HOST_SESSION < <(create_identity host)
 IFS=$'\t' read -r GUEST_PLAYER GUEST_ACCOUNT GUEST_SESSION < <(create_identity guest)
 
+systemctl --user reset-failed trnm-game-server.service
 systemctl --user set-environment TRNM_GAME_SERVER_TICK_MS=200 \
   TRNM_ALLOW_ACCELERATED_TEST_CLOCK=1
 systemctl --user restart trnm-game-server.service
@@ -143,10 +148,10 @@ for _ in $(seq 1 60); do
 done
 curl -fsS "$ONLINE_URL/v1/online/readiness" | jq -e '.status == "ok"' >/dev/null
 
-contract="trnm_online_authority_v2"
-build="trnm-online-authority-2026.07-v2"
-product_contract="trnm_online_product_v1"
-product_build="trnm-online-product-2026.07-v1"
+contract="trnm_online_authority_v3"
+build="trnm-online-authority-2026.07-v3"
+product_contract="trnm_online_product_v2"
+product_build="trnm-online-product-2026.07-v2"
 campaign="$(player_post "$HOST_SESSION" /v1/online/campaigns/connect "$(jq -cn \
   --arg protocol "$contract" --arg build "$build" --arg player "$HOST_PLAYER" \
   --arg account "$HOST_ACCOUNT" --arg slot "$RUN_ID" \
@@ -184,18 +189,30 @@ allocation="$(player_post "$HOST_SESSION" "/v1/product/lobbies/$LOBBY_ID/queue" 
   '{protocol_version:$protocol,build_id:$build,player_id:$player,account_id:$account,expected_lobby_revision:3}')")"
 MATCH_ID="$(jq -er .match_view.match_id <<<"$allocation")"
 
-if [[ -n "${TRNM_NATIVE_CHAOS_LATENCY_MS:-}" ]]; then
+if [[ -n "$CHAOS_RTT_MS" || -n "${TRNM_NATIVE_CHAOS_LATENCY_MS:-}" ]]; then
   TC="${TC:-/usr/sbin/tc}"
-  loss_percent="${TRNM_NATIVE_CHAOS_LOSS_PERCENT:-5}"
+  jq -en --arg value "$CHAOS_LOSS_PERCENT" \
+    '($value | tonumber) >= 0 and ($value | tonumber) <= 100' >/dev/null
+  if [[ -n "$CHAOS_RTT_MS" ]]; then
+    [[ "$CHAOS_RTT_MS" =~ ^[0-9]+$ ]] && (( CHAOS_RTT_MS > 0 ))
+    one_way_delay_ms=$(( (CHAOS_RTT_MS + 1) / 2 ))
+  else
+    [[ "${TRNM_NATIVE_CHAOS_LATENCY_MS}" =~ ^[0-9]+$ ]] \
+      && (( TRNM_NATIVE_CHAOS_LATENCY_MS > 0 ))
+    one_way_delay_ms="${TRNM_NATIVE_CHAOS_LATENCY_MS}"
+    CHAOS_RTT_MS=$(( one_way_delay_ms * 2 ))
+  fi
   sudo -n true
   [[ -x "$TC" ]]
   "$TC" qdisc show dev lo | grep -q '^qdisc noqueue'
   sudo -n "$TC" qdisc add dev lo root handle 1: prio bands 3
+  NETEM_APPLIED=1
   sudo -n "$TC" qdisc add dev lo parent 1:3 handle 30: netem \
-    delay "${TRNM_NATIVE_CHAOS_LATENCY_MS}ms" loss "${loss_percent}%"
+    delay "${one_way_delay_ms}ms" loss "${CHAOS_LOSS_PERCENT}%"
   sudo -n "$TC" filter add dev lo protocol ip parent 1:0 prio 3 u32 \
     match ip dport 7005 0xffff flowid 1:3
-  NETEM_APPLIED=1
+  sudo -n "$TC" filter add dev lo protocol ip parent 1:0 prio 4 u32 \
+    match ip sport 7005 0xffff flowid 1:3
 fi
 
 export DISPLAY="${TRNM_ONLINE_NATIVE_DISPLAY:-:97}"
@@ -213,6 +230,7 @@ TRNM_CAMPAIGN_SAVE_PATH="$EVIDENCE/host-save/campaign.json" \
 TRNM_ONLINE_AUTHORITY_URL="$ONLINE_URL" TRNM_ONLINE_MATCH_ID="$MATCH_ID" \
 TRNM_CEX_ACTOR_ID="$HOST_PLAYER" TRNM_CEX_ACCOUNT_ID="$HOST_ACCOUNT" \
 TRNM_CEX_PLAYER_SESSION="$HOST_SESSION" \
+TRNM_ONLINE_COMMAND_JOURNAL_PATH="$EVIDENCE/host-journal/journal.json" \
 TRNM_ONLINE_FRAME_TIMING_PATH="$EVIDENCE/host-frame-timing.json" \
   "$BIN" >"$EVIDENCE/host.log" 2>&1 &
 HOST_PID=$!
@@ -238,6 +256,7 @@ TRNM_CAMPAIGN_SAVE_PATH="$EVIDENCE/guest-save/campaign.json" \
 TRNM_ONLINE_AUTHORITY_URL="$ONLINE_URL" TRNM_ONLINE_MATCH_ID="$MATCH_ID" \
 TRNM_CEX_ACTOR_ID="$GUEST_PLAYER" TRNM_CEX_ACCOUNT_ID="$GUEST_ACCOUNT" \
 TRNM_CEX_PLAYER_SESSION="$GUEST_SESSION" \
+TRNM_ONLINE_COMMAND_JOURNAL_PATH="$EVIDENCE/guest-journal/journal.json" \
 TRNM_ONLINE_FRAME_TIMING_PATH="$EVIDENCE/guest-frame-timing.json" \
   "$BIN" >"$EVIDENCE/guest.log" 2>&1 &
 GUEST_PID=$!
@@ -263,6 +282,33 @@ jq -e '.frame_count >= 10 and .main_thread_updates_over_100ms == 0 and
   .max_main_thread_update_ms <= 100 and .network_requests_on_render_thread == false' \
   >/dev/null <<<"$guest_frame_timing"
 
+for journal in "$EVIDENCE/host-journal/journal.json" \
+  "$EVIDENCE/guest-journal/journal.json"; do
+  for _ in $(seq 1 40); do
+    [[ -s "$journal" ]] \
+      && jq -e '.pending_exact_attempts | length == 0' "$journal" >/dev/null 2>&1 \
+      && break
+    sleep 0.25
+  done
+  [[ -s "$journal" ]]
+  [[ "$(stat -c '%a' "$(dirname "$journal")")" == "700" ]]
+  [[ "$(stat -c '%a' "$journal")" == "600" ]]
+  [[ "$(stat -c '%a' "$(dirname "$journal")/.$(basename "$journal").lock")" == "600" ]]
+  jq -e '.contract_version == "trnm_online_command_journal_v1" and
+    (.pending_exact_attempts | length == 0) and
+    (.rejected_exact_attempts | length == 0)' "$journal" >/dev/null
+done
+! grep -Fq -- "$HOST_SESSION" "$EVIDENCE/host-journal/journal.json"
+! grep -Fq -- "$GUEST_SESSION" "$EVIDENCE/guest-journal/journal.json"
+journal_evidence="$(jq -cn \
+  --arg host_directory_mode "$(stat -c '%a' "$EVIDENCE/host-journal")" \
+  --arg host_file_mode "$(stat -c '%a' "$EVIDENCE/host-journal/journal.json")" \
+  --arg guest_directory_mode "$(stat -c '%a' "$EVIDENCE/guest-journal")" \
+  --arg guest_file_mode "$(stat -c '%a' "$EVIDENCE/guest-journal/journal.json")" \
+  '{host_directory_mode:$host_directory_mode,host_file_mode:$host_file_mode,
+    guest_directory_mode:$guest_directory_mode,guest_file_mode:$guest_file_mode,
+    pending_after_ack:0,rejected_after_ack:0,credentials_absent:true}')"
+
 database="$(cex_psql_stdin -Atc "select json_build_object(
   'lobby_status',(select status from trnm_online_lobbies where lobby_id = '$LOBBY_ID'::uuid),
   'allocations',(select count(*) from trnm_online_matchmaking_allocations where lobby_id = '$LOBBY_ID'::uuid and match_id = '$MATCH_ID'::uuid),
@@ -279,13 +325,21 @@ jq -e '.lobby_status == "matched" and .allocations == 1 and
 
 jq -n --arg run_id "$RUN_ID" --arg match_id "$MATCH_ID" --arg evidence "$EVIDENCE" \
   --arg host_window "$HOST_WINDOW" --arg guest_window "$GUEST_WINDOW" \
+  --arg authority_protocol "$contract" --arg authority_build "$build" \
+  --arg product_protocol "$product_contract" --arg product_build "$product_build" \
+  --arg chaos_rtt_ms "$CHAOS_RTT_MS" --arg chaos_loss_percent "$CHAOS_LOSS_PERCENT" \
   --argjson database "$database" --argjson host_frame_timing "$host_frame_timing" \
   --argjson guest_frame_timing "$guest_frame_timing" \
+  --argjson journal_evidence "$journal_evidence" \
   '{status:"passed",run_id:$run_id,match_id:$match_id,evidence:$evidence,
+    authority_protocol:$authority_protocol,authority_build:$authority_build,
+    product_protocol:$product_protocol,product_build:$product_build,
+    network_chaos:{rtt_ms:($chaos_rtt_ms | if length == 0 then 0 else tonumber end),loss_percent:($chaos_loss_percent|tonumber)},
     native_x11_clients:2,distinct_windows:($host_window != $guest_window),
     client_execution_model:"sequential_on_single_evidence_host_models_separate_player_devices",
     closed_alpha_product_lobby_flow:true,
     server_authoritative_commands:true,database:$database,
+    durable_command_journal:$journal_evidence,
     host_frame_timing:$host_frame_timing,guest_frame_timing:$guest_frame_timing,
     boundary:"automated two-process native attach/input smoke measured sequentially on one evidence host; not a human multiplayer session"}' \
   | tee "$EVIDENCE/report.json"
