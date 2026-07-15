@@ -489,9 +489,9 @@ wait_for_test_readiness() {
         and .match_actor_clocks_operational == true
         and .published_tick_journal_operational == true
         and .latest_cold_witness_sentinel_query_healthy == true
-        and .latest_cold_witness_sentinel_healthy == true
+        and .latest_cold_witness_sentinel_operational == true
         and .cold_witness_database_summary_query_healthy == true
-        and .local_tombstone_counts_exact == true
+        and .local_tombstone_counts_operational == true
         and .local_tombstone_seal_operational == true
         and .operational_readiness.local_cold_witness_seal == true
         and .published_tick_terminal_orphan_recovery_operational == true
@@ -511,9 +511,9 @@ wait_for_production_readiness() {
         .status == "ok"
         and .authority_clock_operational == true
         and .latest_cold_witness_sentinel_query_healthy == true
-        and .latest_cold_witness_sentinel_healthy == true
+        and .latest_cold_witness_sentinel_operational == true
         and .cold_witness_database_summary_query_healthy == true
-        and .local_tombstone_counts_exact == true
+        and .local_tombstone_counts_operational == true
         and .local_tombstone_seal_operational == true
         and .operational_readiness.local_cold_witness_seal == true
       ' \
@@ -2115,9 +2115,9 @@ write_decision() {
       and (.body.authority_clock_drift_ticks | fabs) < 2
       and (.body.max_actor_clock_abs_drift_ticks | fabs) < 2
       and .body.latest_cold_witness_sentinel_query_healthy == true
-      and .body.latest_cold_witness_sentinel_healthy == true
+      and .body.latest_cold_witness_sentinel_operational == true
       and .body.cold_witness_database_summary_query_healthy == true
-      and .body.local_tombstone_counts_exact == true
+      and .body.local_tombstone_counts_operational == true
       and .body.local_tombstone_seal_operational == true
       and .body.operational_readiness.local_cold_witness_seal == true
       and .body.published_tick_terminal_orphan_recovery_operational == true)

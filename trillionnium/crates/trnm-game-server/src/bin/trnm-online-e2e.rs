@@ -924,9 +924,9 @@ fn run() -> Result<Value, String> {
             &effect_snapshot,
             CommandSpec {
                 command_id: format!("{run_id}-effect-sample-{sample}"),
-                kind: RtsOrderKind::Move,
+                kind: RtsOrderKind::AttackMove,
                 subjects: host_units.clone(),
-                target: approach,
+                target: objective,
                 queued: false,
             },
         )?;
@@ -982,10 +982,10 @@ fn run() -> Result<Value, String> {
                     &command_snapshot,
                     CommandSpec {
                         command_id: race_command_id,
-                        kind: RtsOrderKind::Move,
+                        kind: RtsOrderKind::AttackMove,
                         subjects,
-                        target: approach,
-                        queued: true,
+                        target: objective,
+                        queued: false,
                     },
                 )
             })

@@ -399,8 +399,10 @@ case "$url" in
       published_tick_journal_operational:true,
       latest_cold_witness_sentinel_query_healthy:true,
       latest_cold_witness_sentinel_healthy:true,
+      latest_cold_witness_sentinel_operational:true,
       cold_witness_database_summary_query_healthy:true,
       local_tombstone_counts_exact:true,
+      local_tombstone_counts_operational:true,
       local_tombstone_seal_operational:true,
       operational_readiness:{local_cold_witness_seal:true},
       published_tick_terminal_orphan_recovery_operational:true}
