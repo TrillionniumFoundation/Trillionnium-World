@@ -146,6 +146,14 @@ validate_profile_evidence() {
       (.authoritative_effect_p95_ms | nonnegative_finite) and
       (.authoritative_effect_max_ms | nonnegative_finite) and
       (.max_absolute_match_tick_drift | nonnegative_finite) and
+      (.max_client_terminal_observation_tick_skew |
+        nonnegative_finite and . < 20) and
+      (.max_actor_clock_cumulative_abs_drift_ticks |
+        nonnegative_finite and . < 2) and
+      .actor_clock_drift_gate_source ==
+        "server_readiness_cumulative_actor_clock" and
+      .thresholds.max_actor_clock_cumulative_abs_drift_ticks_exclusive == 2 and
+      .thresholds.max_client_terminal_observation_tick_skew_exclusive == 20 and
       .postgres_log_capture_succeeded == true and
       .journal_warning_or_error_count == 0 and
       .postgres_crash_signature_count == 0 and
@@ -167,7 +175,9 @@ validate_profile_evidence() {
       .wal.archived_delta > 0 and .wal.after.archiver_recovered == true and
       .operational_samples.count > 0 and
       .operational_samples.all_healthy == true and
-      .operational_samples.failed_samples == 0
+      .operational_samples.failed_samples == 0 and
+      (.operational_samples.maximum_actor_clock_cumulative_abs_drift_ticks |
+        nonnegative_finite and . < 2)
     )
   ' "$evidence_file" >/dev/null
 }
@@ -178,13 +188,16 @@ profile_source_binding() {
 }
 
 run_self_test() (
-  local fixture_root valid short failed null_effect not_final duplicate
+  local fixture_root valid short failed null_effect bad_actor_drift
+  local bad_terminal_skew not_final duplicate
   fixture_root="$(mktemp -d /tmp/trnm-capacity-matrix-self-test.XXXXXX)"
   trap 'rm -rf -- "$fixture_root"' EXIT
   valid="$fixture_root/valid.json"
   short="$fixture_root/short.json"
   failed="$fixture_root/failed.json"
   null_effect="$fixture_root/null-effect.json"
+  bad_actor_drift="$fixture_root/bad-actor-drift.json"
+  bad_terminal_skew="$fixture_root/bad-terminal-skew.json"
   not_final="$fixture_root/not-final.json"
   duplicate="$fixture_root/duplicate.json"
   jq -n --arg run_id capacity-1-4 '
@@ -201,7 +214,13 @@ run_self_test() (
       active_run_matches_final:0,command_ack_samples:4,command_ack_p95_ms:10,
       command_ack_max_ms:12,authoritative_effect_samples:20,
       authoritative_effect_p95_ms:20,authoritative_effect_max_ms:25,
-      max_absolute_match_tick_drift:0.5,postgres_log_capture_succeeded:true,
+      max_absolute_match_tick_drift:10.5,
+      max_client_terminal_observation_tick_skew:10.5,
+      max_actor_clock_cumulative_abs_drift_ticks:0.5,
+      actor_clock_drift_gate_source:"server_readiness_cumulative_actor_clock",
+      thresholds:{max_actor_clock_cumulative_abs_drift_ticks_exclusive:2,
+        max_client_terminal_observation_tick_skew_exclusive:20},
+      postgres_log_capture_succeeded:true,
       journal_warning_or_error_count:0,postgres_crash_signature_count:0,
       host_oom_kills:0,resource_cgroup:"/formal.scope",
       resource_memory_max_bytes:2147483648,minimum_host_available_memory_mib:3072,
@@ -213,24 +232,34 @@ run_self_test() (
       cgroup_oom_kills:{game_server:0,signer:0,ledger:0,consumer:0,harness:0},
       postgres:{restart_delta:0,after:{running:true,oom_killed:false}},
       wal:{failed_delta:0,archived_delta:1,after:{archiver_recovered:true}},
-      operational_samples:{count:2,all_healthy:true,failed_samples:0}
+      operational_samples:{count:2,all_healthy:true,failed_samples:0,
+        maximum_actor_clock_cumulative_abs_drift_ticks:0.5}
     }
   ' >"$valid"
   validate_profile_evidence "$valid" 4 7200 capacity-1-4
   jq '.actual_duration_seconds=7199' "$valid" >"$short"
   jq '.passed=false' "$valid" >"$failed"
   jq '.authoritative_effect_p95_ms=null' "$valid" >"$null_effect"
+  jq '.max_actor_clock_cumulative_abs_drift_ticks=2
+    | .operational_samples.maximum_actor_clock_cumulative_abs_drift_ticks=2' \
+    "$valid" >"$bad_actor_drift"
+  jq '.max_client_terminal_observation_tick_skew=20' \
+    "$valid" >"$bad_terminal_skew"
   jq '.decision_final=false | .cleanup_restored=false' "$valid" >"$not_final"
   { cat "$valid"; cat "$valid"; } >"$duplicate"
   ! validate_profile_evidence "$short" 4 7200 capacity-1-4
   ! validate_profile_evidence "$failed" 4 7200 capacity-1-4
   ! validate_profile_evidence "$null_effect" 4 7200 capacity-1-4
+  ! validate_profile_evidence "$bad_actor_drift" 4 7200 capacity-1-4
+  ! validate_profile_evidence "$bad_terminal_skew" 4 7200 capacity-1-4
   ! validate_profile_evidence "$not_final" 4 7200 capacity-1-4
   ! validate_profile_evidence "$valid" 8 7200 capacity-1-4
   ! validate_profile_evidence "$duplicate" 4 7200 capacity-1-4
   jq -n '{status:"passed",contract_version:"trnm_online_capacity_matrix_self_test_v1",
     formal_evidence:false,valid_fixture_accepted:true,short_fixture_rejected:true,
     failed_fixture_rejected:true,null_effect_fixture_rejected:true,
+    actor_cumulative_drift_fixture_rejected:true,
+    terminal_observation_skew_fixture_rejected:true,
     unfinished_cleanup_fixture_rejected:true,profile_mismatch_rejected:true,
     multiple_json_values_rejected:true}'
 )
@@ -447,6 +476,8 @@ jq -s \
       command_ack_samples,command_ack_p95_ms,command_ack_max_ms,
       authoritative_effect_samples,authoritative_effect_p95_ms,
       authoritative_effect_max_ms,max_absolute_match_tick_drift,
+      max_client_terminal_observation_tick_skew,
+      max_actor_clock_cumulative_abs_drift_ticks,
       source,passed,cleanup_restored,decision_final}),
     measured_capacity:(map(.concurrency)|max),
     capacity_claim:"highest fully validated requested local formal profile"

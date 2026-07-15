@@ -27,6 +27,8 @@ readonly FORMAL_MIN_DATABASE_CONNECTIONS=1
 readonly FORMAL_MAX_DATABASE_CONNECTIONS=40
 readonly FORMAL_MIN_MONITOR_INTERVAL_SECONDS=1
 readonly FORMAL_MAX_MONITOR_INTERVAL_SECONDS=10
+readonly MAX_ACTOR_CLOCK_CUMULATIVE_ABS_DRIFT_TICKS=2
+readonly MAX_CLIENT_TERMINAL_OBSERVATION_SKEW_TICKS=20
 readonly CURL_CONNECT_TIMEOUT_SECONDS=5
 readonly CURL_REQUEST_TIMEOUT_SECONDS=30
 readonly EXTERNAL_COMMAND_TIMEOUT_SECONDS=30
@@ -148,11 +150,15 @@ validate_resource_scope() {
   local memory_high memory_max memory_swap_max cpu_max tasks_max scope_unit
   scope_unit="${RESOURCE_CGROUP##*/}"
   [[ -n "$RESOURCE_CGROUP" && "$RESOURCE_CGROUP" != / \
-      && "$scope_unit" =~ ^trnm-capacity-[0-9]{8}T[0-9]{6}-[0-9]+\.scope$ \
+      && "$scope_unit" =~ ^trnm-capacity-[0-9]{8}T[0-9]{6}-[0-9]+\.(scope|service)$ \
       && -d "$RESOURCE_CGROUP_ROOT" \
       && "$(systemctl --user show "$scope_unit" -p ControlGroup --value)" == \
         "$RESOURCE_CGROUP" ]] \
     || early_fail "formal evidence is not running in a dedicated cgroup"
+  if [[ "$scope_unit" == *.service ]]; then
+    [[ "$(systemctl --user show "$scope_unit" -p KillMode --value)" == mixed ]] \
+      || early_fail "durable capacity service must reserve SIGTERM for harness cleanup"
+  fi
   for controller_file in memory.high memory.max memory.swap.max cpu.max pids.max \
     memory.events; do
     [[ -r "$RESOURCE_CGROUP_ROOT/$controller_file" ]] \
@@ -717,14 +723,25 @@ wal_runtime() {
     from pg_stat_archiver" -At
 }
 
+online_readiness_body() {
+  bounded_curl 10 "$ONLINE_URL/v1/online/readiness"
+}
+
 online_readiness_matches_capacity() {
-  local readiness
-  readiness="$(bounded_curl 10 \
-    "$ONLINE_URL/v1/online/readiness" 2>/dev/null || true)"
-  jq -e --argjson capacity "$CONCURRENCY" '
+  local readiness="${1:-}"
+  if [[ -z "$readiness" ]]; then
+    readiness="$(online_readiness_body 2>/dev/null || true)"
+  fi
+  jq -e --argjson capacity "$CONCURRENCY" \
+    --argjson cumulative_drift_limit \
+      "$MAX_ACTOR_CLOCK_CUMULATIVE_ABS_DRIFT_TICKS" '
     .status == "ok" and .clock_mode == "real_time_no_catch_up" and
     .tick_rate_hz == 10 and .fleet_capacity == $capacity and
     .authority_clock_operational == true and
+    .match_actor_clocks_operational == true and
+    (.max_actor_clock_abs_drift_ticks | type == "number" and isfinite) and
+    (.max_actor_clock_cumulative_abs_drift_ticks |
+      type == "number" and isfinite and fabs < $cumulative_drift_limit) and
     .database_pool_saturation_healthy == true' >/dev/null 2>&1 <<<"$readiness"
 }
 
@@ -1107,8 +1124,10 @@ manager_variable_matches() {
 }
 
 cleanup() {
-  local status=$? cleanup_failed=false restored_process restored_selector_request
-  local restored_readiness restored_pid restored=false final_tmp
+  local status=$? original_status restored_process restored_selector_request
+  local cleanup_failed=false restored_readiness restored_pid restored=false
+  local final_tmp cleanup_record_tmp game_server_ready=false
+  original_status="$status"
   trap - EXIT
   trap '' INT TERM HUP
   CLEANUP_DEADLINE=$((SECONDS + CLEANUP_TOTAL_TIMEOUT_SECONDS))
@@ -1179,6 +1198,30 @@ cleanup() {
     status=1
   fi
   [[ "$cleanup_failed" == false ]] && restored=true
+  jq -e '.status == "ok"' >/dev/null 2>&1 <<<"${restored_readiness:-}" \
+    && game_server_ready=true
+  cleanup_record_tmp="$EVIDENCE/.cleanup.json.tmp.$$"
+  if jq -n --argjson original_status "$original_status" \
+      --argjson cleanup_restored "$restored" \
+      --argjson mutation_started "$MUTATION_STARTED" \
+      --argjson original_service_active "$ORIGINAL_SERVICE_ACTIVE" \
+      --argjson game_server_ready "$game_server_ready" \
+      --argjson workload_summary_ready "$WORKLOAD_SUMMARY_READY" \
+      '{contract_version:"trnm_online_capacity_cleanup_v1",
+        original_workload_status:$original_status,
+        cleanup_restored:$cleanup_restored,
+        mutation_started:($mutation_started == 1),
+        original_service_active:($original_service_active == 1),
+        game_server_ready:$game_server_ready,
+        workload_summary_ready:($workload_summary_ready == 1)}' \
+      >"$cleanup_record_tmp" \
+      && chmod 0600 "$cleanup_record_tmp" \
+      && mv -f -- "$cleanup_record_tmp" "$EVIDENCE/cleanup.json"; then
+    :
+  else
+    rm -f -- "$cleanup_record_tmp"
+    status=1
+  fi
   if [[ "$WORKLOAD_SUMMARY_READY" == 1 \
       && -f "$EVIDENCE/workload-summary.json" ]]; then
     final_tmp="$EVIDENCE/.summary.json.tmp.$$"
@@ -1423,10 +1466,29 @@ jq -n \
 
 operational_check() {
   local available active_connections current_host_oom postgres healthy reason
+  local online_readiness actor_window_drift actor_cumulative_drift
+  local actor_publish_stale active_match_actors warming_match_actor_clocks
   available="$(available_memory_mib)"
   active_connections="$(database_active_connections 2>/dev/null || printf 999)"
   current_host_oom="$(host_oom_kills)"
   postgres="$(postgres_runtime 2>/dev/null || printf '{"restart_count":-1,"oom_killed":true,"running":false}')"
+  online_readiness="$(online_readiness_body 2>/dev/null || printf '{}')"
+  actor_window_drift="$(jq -er \
+    '.max_actor_clock_abs_drift_ticks | select(type == "number" and isfinite)' \
+    <<<"$online_readiness" 2>/dev/null || printf 999)"
+  actor_cumulative_drift="$(jq -er \
+    '.max_actor_clock_cumulative_abs_drift_ticks |
+      select(type == "number" and isfinite)' \
+    <<<"$online_readiness" 2>/dev/null || printf 999)"
+  actor_publish_stale="$(jq -er \
+    '.max_actor_publish_stale_ms | select(type == "number" and isfinite)' \
+    <<<"$online_readiness" 2>/dev/null || printf 999999)"
+  active_match_actors="$(jq -er \
+    '.active_match_actors | select(type == "number" and isfinite and . >= 0)' \
+    <<<"$online_readiness" 2>/dev/null || printf 999)"
+  warming_match_actor_clocks="$(jq -er \
+    '.warming_match_actor_clocks | select(type == "number" and isfinite and . >= 0)' \
+    <<<"$online_readiness" 2>/dev/null || printf 999)"
   healthy=true
   reason=""
   if (( available < MIN_AVAILABLE_MIB )); then
@@ -1472,15 +1534,27 @@ operational_check() {
     healthy=false
     reason+="harness_oom;"
   fi
-  online_readiness_matches_capacity || { healthy=false; reason+="game_readiness;"; }
+  online_readiness_matches_capacity "$online_readiness" \
+    || { healthy=false; reason+="game_readiness_or_actor_cumulative_drift;"; }
   ledger_readiness_is_operational || { healthy=false; reason+="ledger_readiness;"; }
   signer_readiness_is_operational || { healthy=false; reason+="signer_readiness;"; }
   jq -cn --argjson sampled_epoch "$(date +%s)" \
     --argjson available_memory_mib "$available" \
     --argjson database_active_connections "$active_connections" \
+    --argjson max_actor_clock_abs_drift_ticks "$actor_window_drift" \
+    --argjson max_actor_clock_cumulative_abs_drift_ticks "$actor_cumulative_drift" \
+    --argjson max_actor_publish_stale_ms "$actor_publish_stale" \
+    --argjson active_match_actors "$active_match_actors" \
+    --argjson warming_match_actor_clocks "$warming_match_actor_clocks" \
     --argjson healthy "$healthy" --arg reason "$reason" \
     '{sampled_epoch:$sampled_epoch,available_memory_mib:$available_memory_mib,
       database_active_connections:$database_active_connections,
+      max_actor_clock_abs_drift_ticks:$max_actor_clock_abs_drift_ticks,
+      max_actor_clock_cumulative_abs_drift_ticks:
+        $max_actor_clock_cumulative_abs_drift_ticks,
+      max_actor_publish_stale_ms:$max_actor_publish_stale_ms,
+      active_match_actors:$active_match_actors,
+      warming_match_actor_clocks:$warming_match_actor_clocks,
       healthy:$healthy,reason:$reason}' >>"$SAMPLES"
   [[ "$healthy" == true ]]
 }
@@ -1729,6 +1803,13 @@ samples_summary="$(jq -s '{count:length,
   all_healthy:all(.healthy == true),
   minimum_available_memory_mib:(map(.available_memory_mib)|min),
   maximum_database_active_connections:(map(.database_active_connections)|max),
+  maximum_actor_clock_window_abs_drift_ticks:
+    (map(.max_actor_clock_abs_drift_ticks | fabs)|max),
+  maximum_actor_clock_cumulative_abs_drift_ticks:
+    (map(.max_actor_clock_cumulative_abs_drift_ticks | fabs)|max),
+  maximum_actor_publish_stale_ms:(map(.max_actor_publish_stale_ms)|max),
+  maximum_active_match_actors:(map(.active_match_actors)|max),
+  warmup_sample_count:(map(select(.warming_match_actor_clocks > 0))|length),
   failed_samples:(map(select(.healthy == false))|length)}' "$SAMPLES")"
 service_restarts="$(jq -n \
   --argjson game "$((restarts_after[trnm-game-server.service] - restarts_before[trnm-game-server.service]))" \
@@ -1783,7 +1864,11 @@ jq -s \
   --arg release_dir "$RELEASE_DIR" \
   --arg release_manifest_sha256 "$RELEASE_MANIFEST_SHA256" \
   --argjson resource_memory_max_bytes "$(<"$RESOURCE_CGROUP_ROOT/memory.max")" \
-  --argjson minimum_host_available_memory_mib "$MIN_AVAILABLE_MIB" '
+  --argjson minimum_host_available_memory_mib "$MIN_AVAILABLE_MIB" \
+  --argjson actor_cumulative_drift_limit \
+    "$MAX_ACTOR_CLOCK_CUMULATIVE_ABS_DRIFT_TICKS" \
+  --argjson client_terminal_skew_limit \
+    "$MAX_CLIENT_TERMINAL_OBSERVATION_SKEW_TICKS" '
   def finite_number: type == "number" and isfinite;
   def finite_nonnegative: finite_number and . >= 0;
   def valid_report:
@@ -1804,7 +1889,7 @@ jq -s \
   (all(.[]; valid_report)) as $report_schema_valid |
   ([.[].command_ack_ms[]] | sort) as $acks |
   ([.[].websocket_authoritative_effect_samples_ms[]] | sort) as $effects |
-  ([.[].match_tick_drift | fabs] | max) as $max_abs_drift |
+  ([.[].match_tick_drift | fabs] | max) as $max_client_terminal_skew |
   (($acks | length) * 95 / 100 | ceil | . - 1) as $ack_p95_index |
   (($effects | length) * 95 / 100 | ceil | . - 1) as $effect_p95_index |
   ($service_restarts | [.[]] | add) as $service_restart_total |
@@ -1842,7 +1927,18 @@ jq -s \
     minimum_host_available_memory_mib:$minimum_host_available_memory_mib,
     all_settled:all(.settlement_state == "settled"),
     command_ack_samples:($acks|length),command_ack_p95_ms:$acks[$ack_p95_index],
-    command_ack_max_ms:($acks|max),max_absolute_match_tick_drift:$max_abs_drift,
+    command_ack_max_ms:($acks|max),
+    max_absolute_match_tick_drift:$max_client_terminal_skew,
+    max_client_terminal_observation_tick_skew:$max_client_terminal_skew,
+    max_actor_clock_cumulative_abs_drift_ticks:
+      $operational_samples.maximum_actor_clock_cumulative_abs_drift_ticks,
+    actor_clock_drift_gate_source:"server_readiness_cumulative_actor_clock",
+    thresholds:{
+      max_actor_clock_cumulative_abs_drift_ticks_exclusive:
+        $actor_cumulative_drift_limit,
+      max_client_terminal_observation_tick_skew_exclusive:
+        $client_terminal_skew_limit
+    },
     authoritative_effect_samples:($effects|length),
     authoritative_effect_p95_ms:$effects[$effect_p95_index],
     authoritative_effect_max_ms:($effects|max),
@@ -1866,7 +1962,10 @@ jq -s \
       all(.settlement_state == "settled") and
       ($acks|length) > 0 and ($effects|length) > 0 and
       $acks[$ack_p95_index] < 250 and
-      $effects[$effect_p95_index] <= 300 and $max_abs_drift < 2.0
+      $effects[$effect_p95_index] <= 300 and
+      $operational_samples.maximum_actor_clock_cumulative_abs_drift_ticks
+        < $actor_cumulative_drift_limit and
+      $max_client_terminal_skew < $client_terminal_skew_limit
     )
   }' "${report_files[@]}" >"$EVIDENCE/workload-summary.json"
 
