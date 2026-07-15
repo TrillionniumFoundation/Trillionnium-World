@@ -257,7 +257,18 @@ async fn serve_state_stream(
                     break;
                 }
                 let mut next = published.borrow_and_update().clone();
-                let mut next_view = if next.match_revision != view.match_revision
+                let mut next_view = if running_publication_can_reuse_stream_view(
+                    &current,
+                    &next,
+                    &view,
+                ) {
+                    // The actor exposes this tuple only after the command RPC
+                    // and host journal have both acknowledged it. During the
+                    // running phase every other view field is immutable, so a
+                    // second PostgreSQL alignment query would add WAN RTT
+                    // without strengthening the publication barrier.
+                    view.clone()
+                } else if next.match_revision != view.match_revision
                     || !published_authority_matches_view(&next, &view)
                 {
                     let aligned = aligned_published_stream_view(
@@ -309,6 +320,29 @@ async fn serve_state_stream(
     }
     let _ = timeout(STREAM_SEND_TIMEOUT, outbound.close()).await;
     Ok(())
+}
+
+pub(super) fn running_publication_can_reuse_stream_view(
+    current: &PublishedMatchState,
+    next: &PublishedMatchState,
+    view: &OnlineMatchView,
+) -> bool {
+    current.phase == trnm_online_protocol::OnlineMatchPhase::Running
+        && next.phase == trnm_online_protocol::OnlineMatchPhase::Running
+        && view.phase == trnm_online_protocol::OnlineMatchPhase::Running
+        && next.result_hash.is_none()
+        && next.settlement_state == "not_ready"
+        && next.state_sequence > current.state_sequence
+        && next.simulation.tick >= current.simulation.tick
+        && next.next_sequence >= current.next_sequence
+        && next.match_revision >= current.match_revision
+        && next.match_revision >= view.match_revision
+        && next.next_input_sequences.len() == view.members.len()
+        && next.next_input_sequences.keys().all(|player_id| {
+            view.members
+                .iter()
+                .any(|member| member.player_id == *player_id)
+        })
 }
 
 async fn send_state_update(

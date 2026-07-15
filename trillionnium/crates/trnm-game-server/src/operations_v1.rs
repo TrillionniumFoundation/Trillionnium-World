@@ -95,50 +95,38 @@ fn require_moderator(state: &AppState, headers: &HeaderMap) -> Result<(), ApiErr
 }
 
 pub(super) async fn heartbeat_fleet(state: &AppState) -> Result<(), String> {
-    let mut transaction = state
-        .pool
-        .begin()
-        .await
-        .map_err(|error| error.to_string())?;
-    require_database_host_authority(&mut transaction, &state.database_host_authority).await?;
-    let active_matches: i64 = sqlx::query_scalar::query_scalar(
-        "select count(*) from trnm_online_matches
-         where phase = 'running' and assigned_instance_id = $1
-           and assigned_instance_epoch = $2 and assigned_physical_host_id = $3",
+    if !state.database_host_authority.is_healthy() {
+        return Err("PostgreSQL host authority is fail-closed".to_string());
+    }
+    let identity = &state.database_host_authority.identity;
+    let updated = sqlx::query_scalar::query_scalar::<_, bool>(
+        "select public.trnm_online_heartbeat_fleet_v1(
+            $1, $2, $3, $4, $5, $6, $7, $8,
+            $9, $10, $11, $12, $13, $14, $15, $16
+         )",
     )
     .bind(state.instance_id.as_str())
     .bind(state.instance_epoch)
     .bind(state.physical_host_id.as_str())
-    .fetch_one(&mut *transaction)
-    .await
-    .map_err(|error| error.to_string())?;
-    let updated = sqlx::query::query(
-        "update trnm_online_fleet_instances set region = $2,
-            public_endpoint = $3, build_id = $4, capacity = $5,
-            active_matches = $6, heartbeat_at = now(),
-            lease_expires_at = now() + interval '5 seconds', physical_host_id = $8
-         where instance_id = $1 and instance_epoch = $7
-           and physical_host_id = $8 and status <> 'offline'",
-    )
-    .bind(state.instance_id.as_str())
     .bind(state.region.as_str())
     .bind(state.public_endpoint.as_str())
     .bind(ONLINE_OPERATIONS_BUILD)
     .bind(state.capacity)
-    .bind(i32::try_from(active_matches).unwrap_or(i32::MAX))
-    .bind(state.instance_epoch)
-    .bind(state.physical_host_id.as_str())
-    .execute(&mut *transaction)
+    .bind(identity.owner_nonce)
+    .bind(&identity.application_name)
+    .bind(identity.backend_pid)
+    .bind(identity.backend_started_at)
+    .bind(&identity.database_system_identifier)
+    .bind(identity.database_timeline_id)
+    .bind(identity.database_postmaster_started_at)
+    .bind(identity.leader_lock_key)
+    .bind(identity.barrier_lock_key)
+    .fetch_one(&state.pool)
     .await
     .map_err(|error| error.to_string())?;
-    if updated.rows_affected() != 1 {
+    if !updated {
         return Err("fleet instance epoch was fenced by a newer process".to_string());
     }
-    require_database_host_authority(&mut transaction, &state.database_host_authority).await?;
-    transaction
-        .commit()
-        .await
-        .map_err(|error| error.to_string())?;
     Ok(())
 }
 

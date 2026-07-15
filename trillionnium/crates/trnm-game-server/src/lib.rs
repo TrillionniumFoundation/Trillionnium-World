@@ -81,6 +81,7 @@ const MIGRATION_V12: &str = include_str!("../migrations/0012_online_terminal_sta
 const MIGRATION_V13: &str =
     include_str!("../migrations/0013_online_failed_closed_abandonment_v1.sql");
 const MIGRATION_V14: &str = include_str!("../migrations/0014_online_command_commit_rpc_v1.sql");
+const MIGRATION_V15: &str = include_str!("../migrations/0015_online_realtime_hot_path_v1.sql");
 const MIGRATION_ADVISORY_LOCK: i64 = 0x5452_4e4d_4f4e_4c49;
 const MIGRATION_LEDGER_DDL: &str =
     "create table if not exists public.trnm_online_schema_migrations (
@@ -841,9 +842,15 @@ struct CommandReceiptPublicationBarrier<'a> {
 struct ActorCommandEnvelope {
     request: OnlineCommandSubmitRequest,
     request_hash: String,
+    admission: ActorCommandAdmission,
     controlled_unit_ids: BTreeSet<String>,
     member_role: String,
     response: oneshot::Sender<Result<OnlineCommandReceipt, ApiError>>,
+}
+
+struct ActorCommandAdmission {
+    bucket_key: String,
+    limit: i64,
 }
 
 #[derive(Clone)]
@@ -865,6 +872,7 @@ struct PreparedActorCommand {
 struct ActorCommandPersistence {
     request: OnlineCommandSubmitRequest,
     request_hash: String,
+    admission: ActorCommandAdmission,
     order: trnm_rts_protocol::RtsFrameOrder,
     post_simulation: Value,
     snapshot_hash: String,
@@ -1446,6 +1454,7 @@ async fn run_database_migrations(connection: &mut PgConnection) -> Result<(), St
             MIGRATION_V13,
         ),
         (14, "0014_online_command_commit_rpc_v1", MIGRATION_V14),
+        (15, "0015_online_realtime_hot_path_v1", MIGRATION_V15),
     ] {
         let checksum = migration_checksum_sha256(sql);
         let recorded = sqlx::query::query(
@@ -5888,6 +5897,13 @@ fn member_units(
     (units, id_map)
 }
 
+fn distributed_admission_bucket_key(identity: &str, method: &str, endpoint_class: &str) -> String {
+    format!(
+        "{:x}",
+        Sha256::digest(format!("{identity}:{method}:{endpoint_class}").as_bytes())
+    )
+}
+
 async fn production_rate_limit(
     State(state): State<AppState>,
     request: Request<Body>,
@@ -5899,6 +5915,24 @@ async fn production_rate_limit(
         return next.run(request).await;
     }
     let command_request = path.ends_with("/commands");
+    if command_request {
+        // A valid running command commits its distributed admission counter in
+        // the same V15 PostgreSQL statement as the command event. Keeping the
+        // generic admission write here would force two protocol round trips
+        // before the authoritative effect can be streamed.
+        let response = next.run(request).await;
+        let total_ms = u64::try_from(request_started.elapsed().as_millis()).unwrap_or(u64::MAX);
+        if total_ms > 300 {
+            tracing::warn!(
+                total_ms,
+                admission_ms = 0_u64,
+                handler_ms = total_ms,
+                status = response.status().as_u16(),
+                "slow online command request"
+            );
+        }
+        return response;
+    }
     let effective_limit = if path.ends_with("/snapshot")
         || path.ends_with("/commands")
         || path.ends_with("/reconnect")
@@ -5920,10 +5954,8 @@ async fn production_rate_limit(
     } else {
         "data"
     };
-    let key = format!(
-        "{:x}",
-        Sha256::digest(format!("{}:{}:{}", identity, request.method(), endpoint_class).as_bytes())
-    );
+    let key =
+        distributed_admission_bucket_key(identity, request.method().as_str(), &endpoint_class);
     let admission_started = Instant::now();
     let count = sqlx::query_scalar::query_scalar::<_, i64>(
         "insert into trnm_online_admission_windows (
@@ -5941,6 +5973,14 @@ async fn production_rate_limit(
     .fetch_one(&state.pool)
     .await;
     let admission_ms = u64::try_from(admission_started.elapsed().as_millis()).unwrap_or(u64::MAX);
+    if admission_ms > 300 {
+        tracing::warn!(
+            admission_ms,
+            request_class,
+            endpoint_class,
+            "slow distributed admission commit"
+        );
+    }
     let count = match count {
         Ok(value) => value,
         Err(error) => {
@@ -5973,18 +6013,7 @@ async fn production_rate_limit(
         )
             .into_response();
     }
-    let response = next.run(request).await;
-    let total_ms = u64::try_from(request_started.elapsed().as_millis()).unwrap_or(u64::MAX);
-    if command_request && total_ms > 300 {
-        tracing::warn!(
-            total_ms,
-            admission_ms,
-            handler_ms = total_ms.saturating_sub(admission_ms),
-            status = response.status().as_u16(),
-            "slow online command request"
-        );
-    }
-    response
+    next.run(request).await
 }
 
 pub fn build_router(state: AppState) -> Router {
@@ -7705,6 +7734,14 @@ async fn submit_command(
     validate_client_contract(&request.protocol_version, &request.build_id)
         .map_err(|error| api_error(StatusCode::UPGRADE_REQUIRED, error, false))?;
     validate_command_id(&request.command_id)?;
+    let admission = ActorCommandAdmission {
+        bucket_key: distributed_admission_bucket_key(
+            session_header(&headers)?,
+            "POST",
+            &format!("/v1/online/matches/{match_id}"),
+        ),
+        limit: i64::from(state.rate_limit_per_minute.saturating_mul(20)),
+    };
     let identity_started = Instant::now();
     verify_identity(&state, &headers, &request.player_id, &request.account_id).await?;
     let identity_ms = u64::try_from(identity_started.elapsed().as_millis()).unwrap_or(u64::MAX);
@@ -7800,6 +7837,7 @@ async fn submit_command(
         actor.commands.send(ActorCommandEnvelope {
             request,
             request_hash,
+            admission,
             controlled_unit_ids: controlled,
             member_role,
             response: response_tx,
@@ -8023,6 +8061,7 @@ fn prepare_actor_command(
     loaded: &LoadedMatchActor,
     request: OnlineCommandSubmitRequest,
     request_hash: String,
+    admission: ActorCommandAdmission,
     controlled_unit_ids: &BTreeSet<String>,
     member_role: &str,
 ) -> Result<PreparedActorCommand, ApiError> {
@@ -8139,6 +8178,7 @@ fn prepare_actor_command(
         persistence: ActorCommandPersistence {
             request,
             request_hash,
+            admission,
             order,
             post_simulation,
             snapshot_hash,
@@ -8172,10 +8212,10 @@ async fn persist_actor_command(
     // event plus both cursors atomically or changes nothing.
     let database_started = Instant::now();
     let row = sqlx::query::query(
-        "select * from public.trnm_online_commit_actor_command_v1(
+        "select * from public.trnm_online_commit_actor_command_v2(
             $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
             $11, $12, $13, $14, $15, $16, $17, $18, $19, $20,
-            $21, $22, $23, $24, $25
+            $21, $22, $23, $24, $25, $26, $27
          )",
     )
     .bind(match_id)
@@ -8203,6 +8243,8 @@ async fn persist_actor_command(
     .bind(identity.database_postmaster_started_at)
     .bind(identity.leader_lock_key)
     .bind(identity.barrier_lock_key)
+    .bind(&job.admission.bucket_key)
+    .bind(job.admission.limit)
     .fetch_one(&state.pool)
     .await;
     let database_ms = u64::try_from(database_started.elapsed().as_millis()).unwrap_or(u64::MAX);
@@ -8228,6 +8270,13 @@ async fn persist_actor_command(
     }
     if outcome == "match_not_running" {
         return Err(conflict("match is not running", durable_revision));
+    }
+    if outcome == "rate_limited" {
+        return Err(api_error(
+            StatusCode::TOO_MANY_REQUESTS,
+            "production request rate limit exceeded",
+            true,
+        ));
     }
     if outcome == "duplicate_publication_pending" {
         return Err(api_error(
@@ -11879,6 +11928,7 @@ async fn run_match_actor(state: AppState, match_id: Uuid, initialized: Initializ
                 let ActorCommandEnvelope {
                     request,
                     request_hash,
+                    admission,
                     controlled_unit_ids,
                     member_role,
                     response,
@@ -11897,6 +11947,7 @@ async fn run_match_actor(state: AppState, match_id: Uuid, initialized: Initializ
                     &loaded,
                     request,
                     request_hash,
+                    admission,
                     &controlled_unit_ids,
                     &member_role,
                 ) {
@@ -12092,65 +12143,41 @@ async fn persist_actor_checkpoint(
 ) -> Result<(), String> {
     let simulation_json =
         serde_json::to_value(&job.simulation).map_err(|error| error.to_string())?;
-    let mut transaction = state
-        .pool
-        .begin()
-        .await
-        .map_err(|error| error.to_string())?;
-    lock_current_fleet_epoch(&mut transaction, state, true).await?;
-    sqlx::query::query(
-        "insert into trnm_online_replay_frames (
-            match_id, tick, snapshot_hash, simulation_json, frame_kind
-         ) values ($1, $2, $3, $4, 'checkpoint')
-         on conflict (match_id, tick) do update set
-            snapshot_hash = excluded.snapshot_hash,
-            simulation_json = excluded.simulation_json,
-            frame_kind = excluded.frame_kind",
+    if !state.database_host_authority.is_healthy() {
+        return Err("PostgreSQL host authority is fail-closed".to_string());
+    }
+    let identity = &state.database_host_authority.identity;
+    let persisted = sqlx::query_scalar::query_scalar::<_, bool>(
+        "select public.trnm_online_checkpoint_actor_v1(
+            $1, $2, $3, $4, $5, $6, $7, $8, $9,
+            $10, $11, $12, $13, $14, $15, $16, $17, $18
+         )",
     )
     .bind(match_id)
     .bind(job.simulation.tick as i64)
     .bind(&job.snapshot_hash)
     .bind(&simulation_json)
-    .execute(&mut *transaction)
-    .await
-    .map_err(|error| error.to_string())?;
-    let updated = sqlx::query::query(
-        "update trnm_online_matches set simulation_json = $2, snapshot_hash = $3,
-            authoritative_tick = $4, checkpoint_sequence = $5, updated_at = now()
-         where match_id = $1 and phase = 'running'
-           and assigned_instance_id = $6 and assigned_instance_epoch = $7
-           and assigned_physical_host_id = $9
-           and terminal_stage_snapshot_hash is null
-           and checkpoint_sequence <= $5 and next_sequence >= $5
-           and match_revision >= $8
-           and exists (
-             select 1 from trnm_online_fleet_instances f
-             where f.instance_id = $6 and f.instance_epoch = $7
-               and f.physical_host_id = $9
-               and f.status in ('active', 'draining')
-               and f.lease_expires_at > now()
-           )",
-    )
-    .bind(match_id)
-    .bind(simulation_json)
-    .bind(&job.snapshot_hash)
-    .bind(job.simulation.tick as i64)
     .bind(job.next_sequence as i64)
+    .bind(job.match_revision as i64)
     .bind(state.instance_id.as_str())
     .bind(state.instance_epoch)
-    .bind(job.match_revision as i64)
     .bind(state.physical_host_id.as_str())
-    .execute(&mut *transaction)
+    .bind(identity.owner_nonce)
+    .bind(&identity.application_name)
+    .bind(identity.backend_pid)
+    .bind(identity.backend_started_at)
+    .bind(&identity.database_system_identifier)
+    .bind(identity.database_timeline_id)
+    .bind(identity.database_postmaster_started_at)
+    .bind(identity.leader_lock_key)
+    .bind(identity.barrier_lock_key)
+    .fetch_one(&state.pool)
     .await
     .map_err(|error| error.to_string())?;
-    if updated.rows_affected() != 1 {
+    if !persisted {
         return Err("checkpoint was fenced or superseded".to_string());
     }
-    lock_current_fleet_epoch_for_commit(&mut transaction, state, true).await?;
-    transaction
-        .commit()
-        .await
-        .map_err(|error| error.to_string())
+    Ok(())
 }
 
 fn staged_terminal_authority_from_row(
@@ -14795,6 +14822,44 @@ mod tests {
     }
 
     #[test]
+    fn v15_realtime_hot_path_collapses_admission_heartbeat_and_checkpoint_round_trips() {
+        let sql = MIGRATION_V15
+            .split_whitespace()
+            .collect::<Vec<_>>()
+            .join(" ");
+        assert!(
+            sql.contains("create or replace function public.trnm_online_commit_actor_command_v2")
+        );
+        assert!(sql.contains("insert into public.trnm_online_admission_windows"));
+        assert!(sql.contains("from public.trnm_online_commit_actor_command_v1"));
+        assert!(
+            sql.find("insert into public.trnm_online_admission_windows")
+                .unwrap()
+                < sql
+                    .find("from public.trnm_online_commit_actor_command_v1")
+                    .unwrap()
+        );
+        assert!(sql.contains("result_outcome := 'rate_limited'"));
+        assert!(sql.contains("barrier_lock.pid = pg_catalog.pg_backend_pid()"));
+        assert!(sql.contains("barrier_lock.mode = 'ShareLock'"));
+        assert!(sql.contains("create or replace function public.trnm_online_heartbeat_fleet_v1"));
+        assert!(sql.contains("create or replace function public.trnm_online_checkpoint_actor_v1"));
+        assert!(sql.contains("from public.trnm_online_fleet_instances fleet"));
+        assert!(sql.contains("from public.trnm_online_matches match"));
+        assert!(sql.contains("for share;"));
+        assert!(sql.contains("for update;"));
+        assert!(!sql.contains("commit;"));
+
+        let command =
+            distributed_admission_bucket_key("session-a", "POST", "/v1/online/matches/match-a");
+        assert_eq!(command.len(), 64);
+        assert_ne!(
+            command,
+            distributed_admission_bucket_key("session-a", "GET", "/v1/online/matches/match-a")
+        );
+    }
+
+    #[test]
     fn v13_cold_witness_history_is_restrictive_immutable_and_monotonic() {
         let sql = MIGRATION_V13
             .split_whitespace()
@@ -15788,6 +15853,21 @@ mod tests {
         };
         assert!(published_cursor_is_within_durable_view(&published, &view));
         assert!(stream::published_stream_view_is_aligned(&published, &view));
+        let mut next = published.clone();
+        next.state_sequence = next.state_sequence.saturating_add(1);
+        next.next_sequence = next.next_sequence.saturating_add(1);
+        next.match_revision = next.match_revision.saturating_add(1);
+        next.next_input_sequences = Arc::new(BTreeMap::from([
+            ("player-a".to_string(), 4),
+            ("player-b".to_string(), 2),
+        ]));
+        assert!(stream::running_publication_can_reuse_stream_view(
+            &published, &next, &view
+        ));
+        next.phase = OnlineMatchPhase::Complete;
+        assert!(!stream::running_publication_can_reuse_stream_view(
+            &published, &next, &view
+        ));
         view.next_sequence = 3;
         assert!(!published_cursor_is_within_durable_view(&published, &view));
         assert!(!stream::published_stream_view_is_aligned(&published, &view));
