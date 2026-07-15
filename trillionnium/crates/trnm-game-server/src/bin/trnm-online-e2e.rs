@@ -52,6 +52,13 @@ struct CommandSpec {
     queued: bool,
 }
 
+#[derive(Clone, Copy)]
+struct ObjectiveMove {
+    target: RtsTile,
+    kind: RtsOrderKind,
+    require_all_arrived: bool,
+}
+
 struct StreamSmokeCursor {
     actor_generation: String,
     state_sequence: u64,
@@ -459,7 +466,7 @@ impl OnlineClient {
                 break serde_json::from_value::<OnlineSnapshotResponse>(body)
                     .map_err(|error| error.to_string())?;
             }
-            if snapshot_response_is_recoverable(status, &body)
+            if publication_transition_is_recoverable(status, &body)
                 && retry_started.elapsed() < SNAPSHOT_RECOVERABLE_RETRY_TIMEOUT
             {
                 // The Authority advertises Retry-After: 1 while a running
@@ -492,19 +499,33 @@ impl OnlineClient {
         last_acknowledged_sequence: u64,
         last_snapshot_hash: String,
     ) -> Result<OnlineReconnectResponse, String> {
-        self.post(
-            identity,
-            &format!("/v1/online/matches/{match_id}/reconnect"),
-            &OnlineReconnectRequest {
-                protocol_version: ONLINE_AUTHORITY_PROTOCOL.to_string(),
-                build_id: ONLINE_AUTHORITY_BUILD.to_string(),
-                player_id: identity.player_id.clone(),
-                account_id: identity.account_id.clone(),
-                last_acknowledged_sequence,
-                last_snapshot_hash,
-                next_receipt_sequence: Some(last_acknowledged_sequence),
-            },
-        )
+        let path = format!("/v1/online/matches/{match_id}/reconnect");
+        let request = OnlineReconnectRequest {
+            protocol_version: ONLINE_AUTHORITY_PROTOCOL.to_string(),
+            build_id: ONLINE_AUTHORITY_BUILD.to_string(),
+            player_id: identity.player_id.clone(),
+            account_id: identity.account_id.clone(),
+            last_acknowledged_sequence,
+            last_snapshot_hash,
+            next_receipt_sequence: Some(last_acknowledged_sequence),
+        };
+        let retry_started = Instant::now();
+        loop {
+            let (status, body) = self.post_status(identity, &path, &request)?;
+            if (200..300).contains(&status) {
+                return serde_json::from_value(body).map_err(|error| error.to_string());
+            }
+            if publication_transition_is_recoverable(status, &body)
+                && retry_started.elapsed() < SNAPSHOT_RECOVERABLE_RETRY_TIMEOUT
+            {
+                thread::sleep(SNAPSHOT_RECOVERABLE_RETRY_INTERVAL);
+                continue;
+            }
+            let status = reqwest::StatusCode::from_u16(status)
+                .map(|status| status.to_string())
+                .unwrap_or_else(|_| status.to_string());
+            return Err(format!("POST {path} returned {status}: {body}"));
+        }
     }
 
     fn submit(
@@ -581,7 +602,7 @@ impl OnlineClient {
     }
 }
 
-fn snapshot_response_is_recoverable(status: u16, body: &Value) -> bool {
+fn publication_transition_is_recoverable(status: u16, body: &Value) -> bool {
     status == reqwest::StatusCode::SERVICE_UNAVAILABLE.as_u16()
         && body["recoverable"].as_bool() == Some(true)
 }
@@ -717,18 +738,282 @@ fn controlled(
         .collect())
 }
 
-fn select_capture_squad<'a>(
+fn select_largest_living_squad_prefer_guest<'a>(
     host: &'a Identity,
     host_units: Vec<String>,
     guest: &'a Identity,
     guest_units: Vec<String>,
 ) -> Option<(&'a Identity, Vec<String>)> {
-    let selected = if guest_units.len() > host_units.len() {
+    let selected = if guest_units.len() >= host_units.len() {
         (guest, guest_units)
     } else {
         (host, host_units)
     };
     (!selected.1.is_empty()).then_some(selected)
+}
+
+fn first_living_enemy_target(snapshot: &Value) -> Option<(String, RtsTile)> {
+    let enemy = snapshot["enemies"]
+        .as_array()?
+        .iter()
+        .find(|enemy| enemy["hp"].as_i64().unwrap_or_default() > 0)?;
+    let enemy_id = enemy["unit_id"].as_str()?.to_string();
+    let x = i32::try_from(enemy["position"]["x"].as_i64()?).ok()?;
+    let y = i32::try_from(enemy["position"]["y"].as_i64()?).ok()?;
+    Some((enemy_id, RtsTile::new(x, y)))
+}
+
+fn enemy_is_alive(snapshot: &Value, enemy_id: &str) -> bool {
+    snapshot["enemies"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .any(|enemy| {
+            enemy["unit_id"].as_str() == Some(enemy_id)
+                && enemy["hp"].as_i64().unwrap_or_default() > 0
+        })
+}
+
+fn living_selected_count(snapshot: &Value, selected: &std::collections::BTreeSet<String>) -> usize {
+    snapshot["party"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter(|unit| unit["hp"].as_i64().unwrap_or_default() > 0)
+        .filter_map(|unit| unit["unit_id"].as_str())
+        .filter(|unit_id| selected.contains(*unit_id))
+        .count()
+}
+
+fn selected_signature_ability_ready(
+    snapshot: &Value,
+    selected: &std::collections::BTreeSet<String>,
+) -> bool {
+    snapshot["party"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter(|unit| unit["hp"].as_i64().unwrap_or_default() > 0)
+        .filter(|unit| {
+            unit["unit_id"]
+                .as_str()
+                .is_some_and(|unit_id| selected.contains(unit_id))
+        })
+        .any(|unit| {
+            let skills = unit["skill_ids"].as_array();
+            let has_skill = |skill: &str| {
+                skills
+                    .into_iter()
+                    .flatten()
+                    .any(|candidate| candidate.as_str() == Some(skill))
+            };
+            let energy_cost = if has_skill("field_mend") {
+                26
+            } else if has_skill("relay_overcharge") {
+                24
+            } else if has_skill("inner_flame") {
+                28
+            } else if has_skill("wind_step") {
+                22
+            } else {
+                18
+            };
+            unit["ability_cooldown_ticks"].as_u64().unwrap_or_default() == 0
+                && unit["energy"].as_i64().unwrap_or_default() >= energy_cost
+        })
+}
+
+fn clear_living_enemies(
+    client: &OnlineClient,
+    host: &Identity,
+    guest: &Identity,
+    match_id: &str,
+    mut snapshot: OnlineSnapshotResponse,
+    command_prefix: &str,
+) -> Result<OnlineSnapshotResponse, String> {
+    let mut target_index = 0_u64;
+    while let Some((enemy_id, enemy_target)) = first_living_enemy_target(&snapshot.snapshot) {
+        let host_units = controlled(&snapshot, host)?;
+        let guest_units = controlled(&snapshot, guest)?;
+        let Some((attack_identity, attack_units)) =
+            select_largest_living_squad_prefer_guest(host, host_units, guest, guest_units)
+        else {
+            return Err(format!(
+                "{command_prefix} has living enemies but no living player squad"
+            ));
+        };
+        let selected = attack_units
+            .iter()
+            .cloned()
+            .collect::<std::collections::BTreeSet<_>>();
+        let selected_count = selected.len();
+        let _ = client.submit(
+            attack_identity,
+            match_id,
+            &snapshot,
+            CommandSpec {
+                command_id: format!("{command_prefix}-attack-move-{target_index}"),
+                kind: RtsOrderKind::AttackMove,
+                subjects: attack_units,
+                target: enemy_target,
+                queued: false,
+            },
+        )?;
+        snapshot = wait_for(
+            client,
+            attack_identity,
+            match_id,
+            phase_timeout(),
+            |candidate| {
+                candidate.snapshot["phase"] == "complete"
+                    || !enemy_is_alive(&candidate.snapshot, &enemy_id)
+                    || living_selected_count(&candidate.snapshot, &selected) < selected_count
+            },
+        )?;
+        if snapshot.snapshot["phase"] == "complete" {
+            return Err(format!(
+                "{command_prefix} reached terminal outcome {} while pursuing {enemy_id}",
+                snapshot.snapshot["outcome"],
+            ));
+        }
+        target_index = target_index.saturating_add(1);
+    }
+    Ok(snapshot)
+}
+
+fn move_squad_to_objective(
+    client: &OnlineClient,
+    identity: &Identity,
+    units: Vec<String>,
+    match_id: &str,
+    snapshot: &OnlineSnapshotResponse,
+    movement: ObjectiveMove,
+    command_prefix: &str,
+) -> Result<OnlineSnapshotResponse, String> {
+    if units.is_empty() {
+        return Err(format!("{command_prefix} has no living objective holder"));
+    }
+    let _ = client.submit(
+        identity,
+        match_id,
+        snapshot,
+        CommandSpec {
+            command_id: format!("{command_prefix}-move"),
+            kind: movement.kind,
+            subjects: units.clone(),
+            target: movement.target,
+            queued: false,
+        },
+    )?;
+    let units = units.into_iter().collect::<std::collections::BTreeSet<_>>();
+    let moved = wait_for(client, identity, match_id, phase_timeout(), |candidate| {
+        candidate.snapshot["phase"] == "complete"
+            || candidate.snapshot["party"].as_array().is_some_and(|party| {
+                let (selected_count, arrived_count) = party
+                    .iter()
+                    .filter(|unit| {
+                        unit["hp"].as_i64().unwrap_or_default() > 0
+                            && unit["unit_id"]
+                                .as_str()
+                                .is_some_and(|unit_id| units.contains(unit_id))
+                    })
+                    .fold((0_usize, 0_usize), |(selected, arrived), unit| {
+                        let is_arrived = (unit["position"]["x"].as_i64().unwrap_or_default()
+                            - i64::from(movement.target.x))
+                        .abs()
+                            + (unit["position"]["y"].as_i64().unwrap_or_default()
+                                - i64::from(movement.target.y))
+                            .abs()
+                            <= 2;
+                        (
+                            selected.saturating_add(1),
+                            arrived.saturating_add(usize::from(is_arrived)),
+                        )
+                    });
+                selected_count > 0
+                    && if movement.require_all_arrived {
+                        arrived_count == selected_count
+                    } else {
+                        arrived_count > 0
+                    }
+            })
+    })?;
+    if moved.snapshot["phase"] == "complete" {
+        return Err(format!(
+            "{command_prefix} reached terminal outcome {} before objective arrival",
+            moved.snapshot["outcome"]
+        ));
+    }
+    Ok(moved)
+}
+
+fn move_largest_squad_to_objective<'a>(
+    client: &OnlineClient,
+    host: &'a Identity,
+    guest: &'a Identity,
+    match_id: &str,
+    snapshot: &OnlineSnapshotResponse,
+    objective: RtsTile,
+    command_prefix: &str,
+) -> Result<(&'a Identity, OnlineSnapshotResponse), String> {
+    let host_units = controlled(snapshot, host)?;
+    let guest_units = controlled(snapshot, guest)?;
+    let Some((identity, units)) =
+        select_largest_living_squad_prefer_guest(host, host_units, guest, guest_units)
+    else {
+        return Err(format!("{command_prefix} has no living objective holder"));
+    };
+    let moved = move_squad_to_objective(
+        client,
+        identity,
+        units,
+        match_id,
+        snapshot,
+        ObjectiveMove {
+            target: objective,
+            kind: RtsOrderKind::AttackMove,
+            require_all_arrived: true,
+        },
+        command_prefix,
+    )?;
+    Ok((identity, moved))
+}
+
+fn move_largest_squad_to_objective_and_hold(
+    client: &OnlineClient,
+    host: &Identity,
+    guest: &Identity,
+    match_id: &str,
+    snapshot: &OnlineSnapshotResponse,
+    objective: RtsTile,
+    command_prefix: &str,
+) -> Result<OnlineSnapshotResponse, String> {
+    let (capture_identity, moved) = move_largest_squad_to_objective(
+        client,
+        host,
+        guest,
+        match_id,
+        snapshot,
+        objective,
+        command_prefix,
+    )?;
+    let hold_units = controlled(&moved, capture_identity)?;
+    if hold_units.is_empty() {
+        return Err(format!("{command_prefix} objective squad died before hold"));
+    }
+    let _ = client.submit(
+        capture_identity,
+        match_id,
+        &moved,
+        CommandSpec {
+            command_id: format!("{command_prefix}-hold"),
+            kind: RtsOrderKind::Hold,
+            subjects: hold_units,
+            target: objective,
+            queued: false,
+        },
+    )?;
+    Ok(moved)
 }
 
 fn restart_server(base_url: &str) -> Result<(), String> {
@@ -884,6 +1169,7 @@ fn run() -> Result<Value, String> {
         let match_id = created.match_id.clone();
         let snapshot = initial_guest;
         let command_id = format!("{run_id}-guest-concurrent-move");
+        let subjects = guest_units.clone();
         thread::spawn(move || {
             client.submit(
                 &guest,
@@ -892,7 +1178,7 @@ fn run() -> Result<Value, String> {
                 CommandSpec {
                     command_id,
                     kind: RtsOrderKind::Move,
-                    subjects: guest_units,
+                    subjects,
                     target: approach,
                     queued: true,
                 },
@@ -930,17 +1216,19 @@ fn run() -> Result<Value, String> {
     let mut websocket_authoritative_effect_samples_ms =
         Vec::with_capacity(websocket_authoritative_effect_sample_count);
     for sample in 0..websocket_authoritative_effect_sample_count {
-        let effect_snapshot = client.snapshot(&host, &created.match_id)?;
+        let effect_identity = &host;
+        let effect_units = &host_units;
+        let effect_snapshot = client.snapshot(effect_identity, &created.match_id)?;
         let effect_started = Instant::now();
         let (receipt, _) = client.submit(
-            &host,
+            effect_identity,
             &created.match_id,
             &effect_snapshot,
             CommandSpec {
                 command_id: format!("{run_id}-effect-sample-{sample}"),
-                kind: RtsOrderKind::AttackMove,
-                subjects: host_units.clone(),
-                target: objective,
+                kind: RtsOrderKind::Move,
+                subjects: effect_units.clone(),
+                target: approach,
                 queued: false,
             },
         )?;
@@ -976,29 +1264,45 @@ fn run() -> Result<Value, String> {
     }
     let _ = state_stream.close(None);
     let reconnect_command_race_rounds = 32_u64;
-    let mut reconnect_cursor = 0_u64;
-    let mut reconnect_hash = "stale-race-snapshot".to_string();
+    let reconnect_command_race_pipeline_depth = 4_usize;
+    let reconnect_cursor = 0_u64;
+    let reconnect_hash = "stale-race-snapshot".to_string();
+    let mut reconnect_threads = Vec::with_capacity(reconnect_command_race_pipeline_depth);
+    let validate_reconnect =
+        |reconnect_thread: thread::JoinHandle<Result<OnlineReconnectResponse, String>>| {
+            let raced_reconnect = reconnect_thread
+                .join()
+                .map_err(|_| "reconnect race request panicked".to_string())??;
+            if raced_reconnect.next_receipt_sequence < reconnect_cursor
+                || raced_reconnect.view.next_sequence < raced_reconnect.next_receipt_sequence
+            {
+                return Err(
+                    "reconnect race returned a regressed or impossible replay cursor".to_string(),
+                );
+            }
+            Ok(())
+        };
     for round in 0..reconnect_command_race_rounds {
-        let command_snapshot = client.snapshot(&host, &created.match_id)?;
+        let command_identity = host.clone();
+        let subjects = host_units.clone();
+        let command_snapshot = client.snapshot(&command_identity, &created.match_id)?;
         let barrier = Arc::new(Barrier::new(2));
         let race_command_id = format!("{run_id}-reconnect-race-{round}");
         let command_thread = {
             let client = Arc::clone(&client);
-            let host = host.clone();
             let match_id = created.match_id.clone();
             let barrier = Arc::clone(&barrier);
-            let subjects = host_units.clone();
             thread::spawn(move || {
                 barrier.wait();
                 client.submit(
-                    &host,
+                    &command_identity,
                     &match_id,
                     &command_snapshot,
                     CommandSpec {
                         command_id: race_command_id,
-                        kind: RtsOrderKind::AttackMove,
+                        kind: RtsOrderKind::Move,
                         subjects,
-                        target: objective,
+                        target: approach,
                         queued: false,
                     },
                 )
@@ -1006,30 +1310,30 @@ fn run() -> Result<Value, String> {
         };
         let reconnect_thread = {
             let client = Arc::clone(&client);
-            let guest = guest.clone();
+            let reconnect_identity = guest.clone();
             let match_id = created.match_id.clone();
             let barrier = Arc::clone(&barrier);
             let last_snapshot_hash = reconnect_hash.clone();
             thread::spawn(move || {
                 barrier.wait();
-                client.reconnect(&guest, &match_id, reconnect_cursor, last_snapshot_hash)
+                client.reconnect(
+                    &reconnect_identity,
+                    &match_id,
+                    reconnect_cursor,
+                    last_snapshot_hash,
+                )
             })
         };
         command_thread
             .join()
             .map_err(|_| "reconnect race command panicked".to_string())??;
-        let raced_reconnect = reconnect_thread
-            .join()
-            .map_err(|_| "reconnect race request panicked".to_string())??;
-        if raced_reconnect.next_receipt_sequence < reconnect_cursor
-            || raced_reconnect.view.next_sequence < raced_reconnect.next_receipt_sequence
-        {
-            return Err(
-                "reconnect race returned a regressed or impossible replay cursor".to_string(),
-            );
+        reconnect_threads.push(reconnect_thread);
+        if reconnect_threads.len() >= reconnect_command_race_pipeline_depth {
+            validate_reconnect(reconnect_threads.remove(0))?;
         }
-        reconnect_cursor = raced_reconnect.next_receipt_sequence;
-        reconnect_hash = raced_reconnect.view.snapshot_hash;
+    }
+    for reconnect_thread in reconnect_threads {
+        validate_reconnect(reconnect_thread)?;
     }
     let duplicate: OnlineCommandReceipt = client.post(
         &host,
@@ -1156,65 +1460,129 @@ fn run() -> Result<Value, String> {
         phase_timeout(),
         |snapshot| snapshot.snapshot["phase"] == "contact",
     )?;
-    let _ = client.submit(
-        &guest,
-        &created.match_id,
-        &contact,
-        CommandSpec {
-            command_id: format!("{run_id}-guest-ability"),
-            kind: RtsOrderKind::Ability,
-            subjects: controlled(&contact, &guest)?,
-            target: objective,
-            queued: false,
-        },
-    )?;
-    let after_ability = client.snapshot(&host, &created.match_id)?;
-    let _ = client.submit(
-        &host,
-        &created.match_id,
-        &after_ability,
-        CommandSpec {
-            command_id: format!("{run_id}-host-attack-relay"),
-            kind: RtsOrderKind::Attack,
-            subjects: controlled(&after_ability, &host)?,
-            target: objective,
-            queued: false,
-        },
-    )?;
-    let after_attack = client.snapshot(&guest, &created.match_id)?;
-    let _ = client.submit(
-        &guest,
-        &created.match_id,
-        &after_attack,
-        CommandSpec {
-            command_id: format!("{run_id}-guest-attack-relay"),
-            kind: RtsOrderKind::Attack,
-            subjects: controlled(&after_attack, &guest)?,
-            target: objective,
-            queued: true,
-        },
-    )?;
-    let relay = wait_for(
+    let host_relay_units = controlled(&contact, &host)?;
+    let host_relay_units = host_relay_units
+        .into_iter()
+        .collect::<std::collections::BTreeSet<_>>();
+    let host_relay_count = host_relay_units.len();
+    if host_relay_count == 0 {
+        return Err("relay prepositioning has no living host squad".to_string());
+    }
+    let host_ready = wait_for(
         &client,
         &host,
         &created.match_id,
         phase_timeout(),
         |snapshot| {
-            snapshot.snapshot["phase"] == "relay"
-                && snapshot.snapshot["relay_guard_hp"].as_i64().unwrap_or(1) <= 0
+            if snapshot.snapshot["phase"] == "complete" {
+                return true;
+            }
+            let living_count = living_selected_count(&snapshot.snapshot, &host_relay_units);
+            let arrived_count = snapshot.snapshot["party"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .filter(|unit| unit["hp"].as_i64().unwrap_or_default() > 0)
+                .filter(|unit| {
+                    unit["unit_id"]
+                        .as_str()
+                        .is_some_and(|unit_id| host_relay_units.contains(unit_id))
+                })
+                .filter(|unit| {
+                    (unit["position"]["x"].as_i64().unwrap_or_default() - i64::from(approach.x))
+                        .abs()
+                        + (unit["position"]["y"].as_i64().unwrap_or_default()
+                            - i64::from(approach.y))
+                        .abs()
+                        <= 2
+                })
+                .count();
+            living_count < host_relay_count || arrived_count == host_relay_count
         },
     )?;
+    if host_ready.snapshot["phase"] == "complete"
+        || living_selected_count(&host_ready.snapshot, &host_relay_units) < host_relay_count
+    {
+        return Err(format!(
+            "relay prepositioning lost a host unit or reached terminal outcome {}",
+            host_ready.snapshot["outcome"]
+        ));
+    }
+    let guest_ready = client.snapshot(&guest, &created.match_id)?;
     let _ = client.submit(
-        &host,
+        &guest,
         &created.match_id,
-        &relay,
+        &guest_ready,
         CommandSpec {
-            command_id: format!("{run_id}-host-hold-relay"),
-            kind: RtsOrderKind::Hold,
-            subjects: controlled(&relay, &host)?,
+            command_id: format!("{run_id}-guest-ability"),
+            kind: RtsOrderKind::Ability,
+            subjects: controlled(&guest_ready, &guest)?,
             target: objective,
             queued: false,
         },
+    )?;
+    // Positioning is an explicit mission precondition rather than an accidental
+    // side effect of request latency in the preceding stress workload.
+    let mut relay = client.snapshot(&host, &created.match_id)?;
+    let mut relay_attack_round = 0_u64;
+    while relay.snapshot["phase"] != "relay"
+        || relay.snapshot["relay_guard_hp"].as_i64().unwrap_or(1) > 0
+    {
+        if relay.snapshot["phase"] == "complete" {
+            return Err(format!(
+                "relay assault reached terminal outcome {}",
+                relay.snapshot["outcome"]
+            ));
+        }
+        let host_units = controlled(&relay, &host)?;
+        let guest_units = controlled(&relay, &guest)?;
+        let Some((attack_identity, attack_units)) =
+            select_largest_living_squad_prefer_guest(&host, host_units, &guest, guest_units)
+        else {
+            return Err("relay assault has no living squad".to_string());
+        };
+        let selected = attack_units
+            .iter()
+            .cloned()
+            .collect::<std::collections::BTreeSet<_>>();
+        let selected_count = selected.len();
+        // MissionSimV1 currently owns one global active order. A second
+        // member command replaces the first, so drive the largest living
+        // member squad and reselect immediately when it loses a unit.
+        let _ = client.submit(
+            attack_identity,
+            &created.match_id,
+            &relay,
+            CommandSpec {
+                command_id: format!("{run_id}-attack-relay-{relay_attack_round}"),
+                kind: RtsOrderKind::Attack,
+                subjects: attack_units,
+                target: objective,
+                queued: false,
+            },
+        )?;
+        relay = wait_for(
+            &client,
+            attack_identity,
+            &created.match_id,
+            phase_timeout(),
+            |snapshot| {
+                snapshot.snapshot["phase"] == "complete"
+                    || (snapshot.snapshot["phase"] == "relay"
+                        && snapshot.snapshot["relay_guard_hp"].as_i64().unwrap_or(1) <= 0)
+                    || living_selected_count(&snapshot.snapshot, &selected) < selected_count
+            },
+        )?;
+        relay_attack_round = relay_attack_round.saturating_add(1);
+    }
+    let _ = move_largest_squad_to_objective_and_hold(
+        &client,
+        &host,
+        &guest,
+        &created.match_id,
+        &relay,
+        objective,
+        &format!("{run_id}-relay-capture"),
     )?;
 
     for wave in 1..=2u64 {
@@ -1224,150 +1592,71 @@ fn run() -> Result<Value, String> {
             &created.match_id,
             phase_timeout(),
             |snapshot| {
-                snapshot.snapshot["reinforcement_wave"]
-                    .as_u64()
-                    .unwrap_or_default()
-                    >= wave
+                snapshot.snapshot["phase"] == "complete"
+                    || snapshot.snapshot["reinforcement_wave"]
+                        .as_u64()
+                        .unwrap_or_default()
+                        >= wave
             },
         )?;
+        if wave_snapshot.snapshot["phase"] == "complete" {
+            return Err(format!(
+                "wave {wave} did not spawn before terminal outcome {}",
+                wave_snapshot.snapshot["outcome"]
+            ));
+        }
+        let host_wave_units = controlled(&wave_snapshot, &host)?;
         let guest_wave_units = controlled(&wave_snapshot, &guest)?;
-        let ability_identity = if guest_wave_units.is_empty() {
-            &host
-        } else {
-            &guest
-        };
-        let ability_units = if guest_wave_units.is_empty() {
-            controlled(&wave_snapshot, &host)?
-        } else {
-            guest_wave_units
-        };
-        let _ = client.submit(
-            ability_identity,
-            &created.match_id,
-            &wave_snapshot,
-            CommandSpec {
-                command_id: format!("{run_id}-wave-{wave}-ability"),
-                kind: RtsOrderKind::Ability,
-                subjects: ability_units,
-                target: objective,
-                queued: false,
-            },
-        )?;
-        let wave_snapshot = client.snapshot(&host, &created.match_id)?;
-        let _ = client.submit(
+        let Some((ability_identity, ability_units)) = select_largest_living_squad_prefer_guest(
             &host,
-            &created.match_id,
-            &wave_snapshot,
-            CommandSpec {
-                command_id: format!("{run_id}-host-attack-wave-{wave}"),
-                kind: RtsOrderKind::Attack,
-                subjects: controlled(&wave_snapshot, &host)?,
-                target: objective,
-                queued: false,
-            },
-        )?;
-        let guest_snapshot = client.snapshot(&guest, &created.match_id)?;
-        let living_guest = controlled(&guest_snapshot, &guest)?;
-        if !living_guest.is_empty() {
+            host_wave_units,
+            &guest,
+            guest_wave_units,
+        ) else {
+            return Err(format!("wave {wave} spawned without a living player squad"));
+        };
+        let ability_selected = ability_units
+            .iter()
+            .cloned()
+            .collect::<std::collections::BTreeSet<_>>();
+        if selected_signature_ability_ready(&wave_snapshot.snapshot, &ability_selected) {
             let _ = client.submit(
-                &guest,
+                ability_identity,
                 &created.match_id,
-                &guest_snapshot,
+                &wave_snapshot,
                 CommandSpec {
-                    command_id: format!("{run_id}-guest-attack-wave-{wave}"),
-                    kind: RtsOrderKind::Attack,
-                    subjects: living_guest,
+                    command_id: format!("{run_id}-wave-{wave}-ability"),
+                    kind: RtsOrderKind::Ability,
+                    subjects: ability_units,
                     target: objective,
-                    queued: true,
+                    queued: false,
                 },
             )?;
         }
-        let cleared = wait_for(
+        let wave_snapshot = client.snapshot(&host, &created.match_id)?;
+        let cleared = clear_living_enemies(
             &client,
             &host,
+            &guest,
             &created.match_id,
-            phase_timeout(),
-            |snapshot| {
-                snapshot.snapshot["enemies"]
-                    .as_array()
-                    .is_some_and(|enemies| {
-                        enemies
-                            .iter()
-                            .all(|enemy| enemy["hp"].as_i64().unwrap_or_default() <= 0)
-                    })
-            },
+            wave_snapshot,
+            &format!("{run_id}-wave-{wave}"),
         )?;
         // Capture progress advances by at most two selected holders per tick.
         // In co-op the surviving holders can be split across members, so
         // always moving the host can leave only one selected unit on the
         // objective and miss the five-minute mission budget by a few ticks.
         // Move and hold with the member that currently owns the largest
-        // living squad; the deterministic host tie-break keeps replay input
-        // stable while still exercising independent member authority.
-        let host_move_units = controlled(&cleared, &host)?;
-        let guest_move_units = controlled(&cleared, &guest)?;
-        let Some((capture_identity, capture_units)) =
-            select_capture_squad(&host, host_move_units, &guest, guest_move_units)
-        else {
-            return Err(format!(
-                "wave {wave} cleared without a living objective holder"
-            ));
-        };
-        let _ = client.submit(
-            capture_identity,
+        // living squad; the deterministic guest tie-break keeps the relay
+        // veteran squad active while still exercising independent authority.
+        let _ = move_largest_squad_to_objective_and_hold(
+            &client,
+            &host,
+            &guest,
             &created.match_id,
             &cleared,
-            CommandSpec {
-                command_id: format!("{run_id}-capture-move-objective-{wave}"),
-                kind: RtsOrderKind::Move,
-                subjects: capture_units.clone(),
-                target: objective,
-                queued: false,
-            },
-        )?;
-        let capture_units = capture_units
-            .into_iter()
-            .collect::<std::collections::BTreeSet<_>>();
-        let moved = wait_for(
-            &client,
-            capture_identity,
-            &created.match_id,
-            phase_timeout(),
-            |snapshot| {
-                let ox = snapshot
-                    .snapshot
-                    .pointer("/seed/map/objective/x")
-                    .and_then(Value::as_i64);
-                let oy = snapshot
-                    .snapshot
-                    .pointer("/seed/map/objective/y")
-                    .and_then(Value::as_i64);
-                snapshot.snapshot["party"].as_array().is_some_and(|party| {
-                    party.iter().any(|unit| {
-                        unit["hp"].as_i64().unwrap_or_default() > 0
-                            && unit["unit_id"]
-                                .as_str()
-                                .is_some_and(|unit_id| capture_units.contains(unit_id))
-                            && ox.zip(oy).is_some_and(|(x, y)| {
-                                (unit["position"]["x"].as_i64().unwrap_or_default() - x).abs()
-                                    + (unit["position"]["y"].as_i64().unwrap_or_default() - y).abs()
-                                    <= 2
-                            })
-                    })
-                })
-            },
-        )?;
-        let _ = client.submit(
-            capture_identity,
-            &created.match_id,
-            &moved,
-            CommandSpec {
-                command_id: format!("{run_id}-capture-hold-objective-{wave}"),
-                kind: RtsOrderKind::Hold,
-                subjects: controlled(&moved, capture_identity)?,
-                target: objective,
-                queued: false,
-            },
+            objective,
+            &format!("{run_id}-wave-{wave}-capture"),
         )?;
     }
 
@@ -1478,6 +1767,7 @@ fn run() -> Result<Value, String> {
         "websocket_authoritative_effect_p95_ms": websocket_authoritative_effect_p95_ms,
         "websocket_authoritative_effect_max_ms": websocket_authoritative_effect_max_ms,
         "reconnect_command_race_rounds": reconnect_command_race_rounds,
+        "reconnect_command_race_pipeline_depth": reconnect_command_race_pipeline_depth,
         "cross_member_control_rejected": true,
         "old_build_rejected": true,
         "restart_recovery": restart_recovery,
@@ -1515,10 +1805,10 @@ mod tests {
     }
 
     #[test]
-    fn capture_squad_uses_largest_living_member_squad_with_host_tie_break() {
+    fn largest_living_squad_uses_member_count_with_guest_tie_break() {
         let host = identity("host");
         let guest = identity("guest");
-        let (selected, units) = select_capture_squad(
+        let (selected, units) = select_largest_living_squad_prefer_guest(
             &host,
             vec!["host:hero".to_string()],
             &guest,
@@ -1528,34 +1818,76 @@ mod tests {
         assert_eq!(selected.player_id, "guest");
         assert_eq!(units.len(), 2);
 
-        let (selected, units) = select_capture_squad(
+        let (selected, units) = select_largest_living_squad_prefer_guest(
             &host,
             vec!["host:hero".to_string()],
             &guest,
             vec!["guest:hero".to_string()],
         )
         .expect("both members have living capture units");
-        assert_eq!(selected.player_id, "host");
-        assert_eq!(units, ["host:hero"]);
+        assert_eq!(selected.player_id, "guest");
+        assert_eq!(units, ["guest:hero"]);
 
-        assert!(select_capture_squad(&host, Vec::new(), &guest, Vec::new()).is_none());
+        assert!(
+            select_largest_living_squad_prefer_guest(&host, Vec::new(), &guest, Vec::new())
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn combat_target_selects_only_a_living_enemy_tile() {
+        let snapshot = json!({
+            "visible_tiles": [
+                {"x":7,"y":9},
+                {"x":8,"y":10}
+            ],
+            "enemies": [
+                {"unit_id":"contact_dead", "hp":0, "position":{"x":1,"y":2}},
+                {"unit_id":"contact_target", "hp":43, "position":{"x":7,"y":9}},
+                {"unit_id":"next", "hp":487, "position":{"x":8,"y":10}}
+            ],
+            "party": [
+                {"unit_id":"host:hero", "hp":10, "energy":18,
+                 "ability_cooldown_ticks":0, "skill_ids":["iron_guard"]},
+                {"unit_id":"host:aya", "hp":0, "energy":140,
+                 "ability_cooldown_ticks":0, "skill_ids":["wind_step"]},
+                {"unit_id":"guest:hero", "hp":20, "energy":17,
+                 "ability_cooldown_ticks":0, "skill_ids":["iron_guard"]}
+            ]
+        });
+        let (enemy_id, target) =
+            first_living_enemy_target(&snapshot).expect("snapshot has one living target");
+        assert_eq!(enemy_id, "contact_target");
+        assert_eq!(target, RtsTile::new(7, 9));
+        assert!(enemy_is_alive(&snapshot, "contact_target"));
+        assert!(!enemy_is_alive(&snapshot, "contact_dead"));
+        let selected = ["host:hero".to_string(), "host:aya".to_string()]
+            .into_iter()
+            .collect();
+        assert_eq!(living_selected_count(&snapshot, &selected), 1);
+        assert!(selected_signature_ability_ready(&snapshot, &selected));
+        let guest_selected = ["guest:hero".to_string()].into_iter().collect();
+        assert!(!selected_signature_ability_ready(
+            &snapshot,
+            &guest_selected
+        ));
     }
 
     #[test]
     fn retries_only_explicitly_recoverable_service_unavailability() {
-        assert!(snapshot_response_is_recoverable(
+        assert!(publication_transition_is_recoverable(
             503,
             &json!({"error":"publication barrier","recoverable":true})
         ));
-        assert!(!snapshot_response_is_recoverable(
+        assert!(!publication_transition_is_recoverable(
             503,
             &json!({"error":"publication barrier","recoverable":false})
         ));
-        assert!(!snapshot_response_is_recoverable(
+        assert!(!publication_transition_is_recoverable(
             500,
             &json!({"error":"internal","recoverable":true})
         ));
-        assert!(!snapshot_response_is_recoverable(
+        assert!(!publication_transition_is_recoverable(
             200,
             &json!({"recoverable":true})
         ));
