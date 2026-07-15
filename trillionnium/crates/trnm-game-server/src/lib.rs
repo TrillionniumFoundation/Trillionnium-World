@@ -217,6 +217,7 @@ enum MatchActorInitializationKind {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum MatchActorLifecycle {
+    Warming { started_at: Instant },
     Running,
     Terminalizing { started_at: Instant },
 }
@@ -342,6 +343,8 @@ const MATCH_ACTOR_WORKER_ABORT_TIMEOUT: Duration = Duration::from_secs(1);
 const MATCH_ACTOR_INITIALIZATION_TIMEOUT: Duration = Duration::from_secs(10);
 const MATCH_ACTOR_TERMINAL_TRANSITION_TIMEOUT: Duration = Duration::from_secs(20);
 const MATCH_ACTOR_PUBLICATION_FRESHNESS: Duration = Duration::from_millis(750);
+const MATCH_ACTOR_CLOCK_WARMUP_EXTRA_TICKS: u32 = 2;
+const MATCH_ACTOR_CLOCK_FIRST_WAKE_GRACE_TICKS: u32 = 2;
 const INITIAL_AUTHORITY_RECOVERY_TIMEOUT: Duration = Duration::from_secs(30);
 const DATABASE_STATEMENT_TIMEOUT: Duration = Duration::from_secs(5);
 const DATABASE_LOCK_TIMEOUT: Duration = Duration::from_secs(2);
@@ -6660,6 +6663,10 @@ async fn readiness(State(state): State<AppState>) -> Response {
         .iter()
         .filter(|(_, kind, _)| *kind == MatchActorInitializationKind::Actor)
         .all(|(_, _, age)| *age < MATCH_ACTOR_INITIALIZATION_TIMEOUT);
+    let warming_match_actor_clocks = actor_states
+        .iter()
+        .filter(|(_, _, _, lifecycle)| matches!(lifecycle, MatchActorLifecycle::Warming { .. }))
+        .count();
     let terminalizing_match_actors = actor_states
         .iter()
         .filter(|(_, _, _, lifecycle)| {
@@ -6667,11 +6674,13 @@ async fn readiness(State(state): State<AppState>) -> Response {
         })
         .count();
     let running_match_actors = actor_states
-        .len()
-        .saturating_sub(terminalizing_match_actors);
+        .iter()
+        .filter(|(_, _, _, lifecycle)| matches!(lifecycle, MatchActorLifecycle::Running))
+        .count();
     let max_match_actor_terminal_transition_age_ms = actor_states
         .iter()
         .filter_map(|(_, _, _, lifecycle)| match lifecycle {
+            MatchActorLifecycle::Warming { .. } => None,
             MatchActorLifecycle::Running => None,
             MatchActorLifecycle::Terminalizing { started_at } => Some(
                 actor_observed_at
@@ -6711,14 +6720,34 @@ async fn readiness(State(state): State<AppState>) -> Response {
     let actor_clock_samples = actor_states
         .iter()
         .map(|(_, published, clock, lifecycle)| {
-            let drift_ticks = clock
-                .as_ref()
-                .and_then(|snapshot| snapshot.window_drift_ticks)
-                .unwrap_or(f64::INFINITY);
             let stale_ms = actor_observed_at
                 .saturating_duration_since(published.published_at)
                 .as_secs_f64()
                 * 1_000.0;
+            // A newly installed actor needs three 10 Hz observations before a
+            // drift window exists. Keep this transition numeric and ready only
+            // while its independently bounded warm-up remains healthy; an old,
+            // silent, late, or malformed clock still maps to infinity and
+            // therefore fails closed.
+            let drift_ticks = match lifecycle {
+                MatchActorLifecycle::Warming { started_at }
+                    if match_actor_clock_warmup_is_operational(
+                        clock.as_ref(),
+                        actor_observed_at.saturating_duration_since(*started_at),
+                        stale_ms,
+                        state.tick_interval,
+                    ) =>
+                {
+                    clock
+                        .as_ref()
+                        .and_then(|snapshot| snapshot.window_drift_ticks)
+                        .unwrap_or(0.0)
+                }
+                _ => clock
+                    .as_ref()
+                    .and_then(|snapshot| snapshot.window_drift_ticks)
+                    .unwrap_or(f64::INFINITY),
+            };
             (drift_ticks, stale_ms, clock.as_ref(), *lifecycle)
         })
         .collect::<Vec<_>>();
@@ -6754,6 +6783,14 @@ async fn readiness(State(state): State<AppState>) -> Response {
         && actor_clock_samples
             .iter()
             .all(|(_, stale_ms, clock, lifecycle)| match lifecycle {
+                MatchActorLifecycle::Warming { started_at } => {
+                    match_actor_clock_warmup_is_operational(
+                        *clock,
+                        actor_observed_at.saturating_duration_since(*started_at),
+                        *stale_ms,
+                        state.tick_interval,
+                    )
+                }
                 MatchActorLifecycle::Running => {
                     match_actor_clock_is_operational(*clock, *stale_ms, state.tick_interval)
                 }
@@ -7142,6 +7179,7 @@ async fn readiness(State(state): State<AppState>) -> Response {
     readiness_body["active_match_actors"] = json!(active_match_actors);
     readiness_body["running_match_actors"] = json!(running_match_actors);
     readiness_body["terminalizing_match_actors"] = json!(terminalizing_match_actors);
+    readiness_body["warming_match_actor_clocks"] = json!(warming_match_actor_clocks);
     readiness_body["initializing_match_actors"] = json!(initializing_match_actors);
     readiness_body["terminal_recovery_initializations"] = json!(terminal_recovery_initializations);
     readiness_body["match_actor_initializations_operational"] =
@@ -7164,6 +7202,8 @@ async fn readiness(State(state): State<AppState>) -> Response {
     readiness_body["max_actor_publish_stale_ms"] = json!(max_actor_publish_stale_ms);
     readiness_body["match_actor_publication_freshness_limit_ms"] =
         json!(MATCH_ACTOR_PUBLICATION_FRESHNESS.as_millis());
+    readiness_body["match_actor_clock_warmup_limit_ms"] =
+        json!(match_actor_clock_warmup_limit(state.tick_interval).as_millis());
     readiness_body["operational_readiness"] = operational_readiness;
     readiness_body["database_pool_saturation_healthy"] =
         Value::Bool(database_pool_saturation_healthy);
@@ -7232,6 +7272,7 @@ fn bounded_match_actor_transition_ids(
         .actors
         .iter()
         .filter_map(|(match_id, actor)| match *actor.lifecycle.borrow() {
+            MatchActorLifecycle::Warming { .. } => None,
             MatchActorLifecycle::Running => None,
             MatchActorLifecycle::Terminalizing { started_at }
                 if observed_at.saturating_duration_since(started_at)
@@ -7319,6 +7360,67 @@ fn match_actor_clock_is_operational(
     authority_clock_is_operational(snapshot, tick_interval)
         && published_stale_ms.is_finite()
         && published_stale_ms < MATCH_ACTOR_PUBLICATION_FRESHNESS.as_secs_f64() * 1_000.0
+}
+
+fn match_actor_clock_warmup_limit(tick_interval: Duration) -> Duration {
+    tick_interval.saturating_mul(
+        u32::try_from(AUTHORITY_CLOCK_MIN_SAMPLES)
+            .unwrap_or(u32::MAX)
+            .saturating_add(MATCH_ACTOR_CLOCK_WARMUP_EXTRA_TICKS),
+    )
+}
+
+fn match_actor_clock_warmup_is_operational(
+    snapshot: Option<&AuthorityClockSnapshot>,
+    warmup_age: Duration,
+    published_stale_ms: f64,
+    tick_interval: Duration,
+) -> bool {
+    let warmup_limit = match_actor_clock_warmup_limit(tick_interval);
+    if warmup_age >= warmup_limit
+        || !published_stale_ms.is_finite()
+        || published_stale_ms >= MATCH_ACTOR_PUBLICATION_FRESHNESS.as_secs_f64() * 1_000.0
+    {
+        return false;
+    }
+    let first_wake_grace = tick_interval.saturating_mul(MATCH_ACTOR_CLOCK_FIRST_WAKE_GRACE_TICKS);
+    let Some(snapshot) = snapshot else {
+        return warmup_age < first_wake_grace;
+    };
+    if snapshot.window_sample_count >= AUTHORITY_CLOCK_MIN_SAMPLES {
+        return authority_clock_is_operational(Some(snapshot), tick_interval);
+    }
+    if !snapshot.elapsed_ms.is_finite()
+        || snapshot.elapsed_ms < 0.0
+        || !snapshot.cumulative_drift_ticks.is_finite()
+        || u64::try_from(snapshot.window_sample_count).ok() != Some(snapshot.wake_count)
+    {
+        return false;
+    }
+    if snapshot.window_sample_count == 0 {
+        return warmup_age < first_wake_grace
+            && snapshot.window_drift_ticks.is_none()
+            && snapshot.latest_lateness_ticks.is_none()
+            && snapshot.max_recent_lateness_ticks.is_none()
+            && snapshot.last_wake_age_ms.is_none();
+    }
+    let lateness_is_healthy = |value: Option<f64>| {
+        value.is_some_and(|value| (0.0..MAX_AUTHORITY_CLOCK_ABS_DRIFT_TICKS).contains(&value))
+    };
+    let drift_is_healthy = match snapshot.window_drift_ticks {
+        Some(drift) => {
+            snapshot.window_sample_count >= 2
+                && drift.is_finite()
+                && drift.abs() < MAX_AUTHORITY_CLOCK_ABS_DRIFT_TICKS
+        }
+        None => snapshot.window_sample_count == 1,
+    };
+    drift_is_healthy
+        && lateness_is_healthy(snapshot.latest_lateness_ticks)
+        && lateness_is_healthy(snapshot.max_recent_lateness_ticks)
+        && snapshot
+            .last_wake_age_ms
+            .is_some_and(|age_ms| (0.0..tick_interval.as_secs_f64() * 2_000.0).contains(&age_ms))
 }
 
 fn receipt_protocol_for_observed_tick(client_observed_tick: Option<i64>) -> &'static str {
@@ -10700,7 +10802,9 @@ async fn initialize_match_actor(
     });
     let (command_tx, command_rx) = mpsc::channel(MATCH_ACTOR_COMMAND_QUEUE);
     let clock = Arc::new(AuthorityClockTelemetry::default());
-    let (lifecycle_tx, lifecycle_rx) = watch::channel(MatchActorLifecycle::Running);
+    let (lifecycle_tx, lifecycle_rx) = watch::channel(MatchActorLifecycle::Warming {
+        started_at: Instant::now(),
+    });
     let handle = MatchActorHandle {
         actor_id,
         commands: command_tx,
@@ -12521,7 +12625,18 @@ async fn run_match_actor(state: AppState, match_id: Uuid, initialized: Initializ
                 }
             }
             scheduled_at = interval.tick() => {
-                clock.record_wake(scheduled_at, Instant::now(), state.tick_interval);
+                let observed_at = Instant::now();
+                clock.record_wake(scheduled_at, observed_at, state.tick_interval);
+                let warming = matches!(*lifecycle.borrow(), MatchActorLifecycle::Warming { .. });
+                if warming
+                    && clock
+                        .snapshot(observed_at, state.tick_interval)
+                        .is_some_and(|snapshot| {
+                            snapshot.window_sample_count >= AUTHORITY_CLOCK_MIN_SAMPLES
+                        })
+                {
+                    lifecycle.send_replace(MatchActorLifecycle::Running);
+                }
                 if terminal_checkpoint_handle.is_some()
                     || terminal_publication_sequence.is_some()
                     || terminal_ack_handle.is_some()
@@ -14458,6 +14573,89 @@ mod tests {
             Some(&snapshot),
             750.0,
             tick_interval
+        ));
+    }
+
+    #[test]
+    fn match_actor_clock_warmup_is_bounded_and_fails_closed_on_bad_samples() {
+        let tick_interval = Duration::from_millis(100);
+        assert_eq!(
+            match_actor_clock_warmup_limit(tick_interval),
+            Duration::from_millis(500)
+        );
+        assert!(match_actor_clock_warmup_is_operational(
+            None,
+            Duration::from_millis(199),
+            0.0,
+            tick_interval,
+        ));
+        assert!(!match_actor_clock_warmup_is_operational(
+            None,
+            Duration::from_millis(200),
+            0.0,
+            tick_interval,
+        ));
+
+        let mut first_wake = AuthorityClockSnapshot {
+            elapsed_ms: 150.0,
+            wake_count: 1,
+            cumulative_drift_ticks: -0.5,
+            window_sample_count: 1,
+            window_drift_ticks: None,
+            latest_lateness_ticks: Some(0.01),
+            max_recent_lateness_ticks: Some(0.01),
+            last_wake_age_ms: Some(50.0),
+        };
+        assert!(match_actor_clock_warmup_is_operational(
+            Some(&first_wake),
+            Duration::from_millis(150),
+            100.0,
+            tick_interval,
+        ));
+        assert!(!match_actor_clock_warmup_is_operational(
+            Some(&first_wake),
+            Duration::from_millis(500),
+            100.0,
+            tick_interval,
+        ));
+        assert!(!match_actor_clock_warmup_is_operational(
+            Some(&first_wake),
+            Duration::from_millis(150),
+            750.0,
+            tick_interval,
+        ));
+
+        first_wake.latest_lateness_ticks = Some(MAX_AUTHORITY_CLOCK_ABS_DRIFT_TICKS);
+        assert!(!match_actor_clock_warmup_is_operational(
+            Some(&first_wake),
+            Duration::from_millis(150),
+            100.0,
+            tick_interval,
+        ));
+        first_wake.latest_lateness_ticks = Some(0.01);
+        first_wake.wake_count = 2;
+        assert!(!match_actor_clock_warmup_is_operational(
+            Some(&first_wake),
+            Duration::from_millis(150),
+            100.0,
+            tick_interval,
+        ));
+
+        let mature = AuthorityClockSnapshot {
+            elapsed_ms: 300.0,
+            wake_count: 3,
+            cumulative_drift_ticks: 0.0,
+            window_sample_count: AUTHORITY_CLOCK_MIN_SAMPLES,
+            window_drift_ticks: Some(0.0),
+            latest_lateness_ticks: Some(0.01),
+            max_recent_lateness_ticks: Some(0.01),
+            last_wake_age_ms: Some(1.0),
+        };
+        assert!(match_actor_clock_warmup_is_operational(
+            Some(&mature),
+            Duration::from_millis(300),
+            100.0,
+            tick_interval,
         ));
     }
 
