@@ -99,31 +99,26 @@ pub(super) async fn heartbeat_fleet(state: &AppState) -> Result<(), String> {
         return Err("PostgreSQL host authority is fail-closed".to_string());
     }
     let identity = &state.database_host_authority.identity;
-    let updated = sqlx::query_scalar::query_scalar::<_, bool>(
-        "select public.trnm_online_heartbeat_fleet_v1(
-            $1, $2, $3, $4, $5, $6, $7, $8,
-            $9, $10, $11, $12, $13, $14, $15, $16
-         )",
-    )
-    .bind(state.instance_id.as_str())
-    .bind(state.instance_epoch)
-    .bind(state.physical_host_id.as_str())
-    .bind(state.region.as_str())
-    .bind(state.public_endpoint.as_str())
-    .bind(ONLINE_OPERATIONS_BUILD)
-    .bind(state.capacity)
-    .bind(identity.owner_nonce)
-    .bind(&identity.application_name)
-    .bind(identity.backend_pid)
-    .bind(identity.backend_started_at)
-    .bind(&identity.database_system_identifier)
-    .bind(identity.database_timeline_id)
-    .bind(identity.database_postmaster_started_at)
-    .bind(identity.leader_lock_key)
-    .bind(identity.barrier_lock_key)
-    .fetch_one(&state.pool)
-    .await
-    .map_err(|error| error.to_string())?;
+    let updated = sqlx::query_scalar::query_scalar::<_, bool>(ONLINE_HEARTBEAT_FLEET_V1_SQL)
+        .bind(state.instance_id.as_str())
+        .bind(state.instance_epoch)
+        .bind(state.physical_host_id.as_str())
+        .bind(state.region.as_str())
+        .bind(state.public_endpoint.as_str())
+        .bind(ONLINE_OPERATIONS_BUILD)
+        .bind(state.capacity)
+        .bind(identity.owner_nonce)
+        .bind(&identity.application_name)
+        .bind(identity.backend_pid)
+        .bind(identity.backend_started_at)
+        .bind(&identity.database_system_identifier)
+        .bind(identity.database_timeline_id)
+        .bind(identity.database_postmaster_started_at)
+        .bind(identity.leader_lock_key)
+        .bind(identity.barrier_lock_key)
+        .fetch_one(&state.pool)
+        .await
+        .map_err(|error| error.to_string())?;
     if !updated {
         return Err("fleet instance epoch was fenced by a newer process".to_string());
     }

@@ -29,7 +29,7 @@ use published_tick_journal::{
 };
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
-use sqlx::{connection::Connection, row::Row};
+use sqlx::{connection::Connection, executor::Executor, row::Row};
 use sqlx_postgres::{PgConnection, PgPool, PgPoolOptions, Postgres};
 use std::{
     collections::{BTreeMap, BTreeSet, VecDeque},
@@ -348,6 +348,20 @@ const GAME_SERVER_DATABASE_MAX_CONNECTIONS: u32 = 8;
 const TERMINAL_ORPHAN_RECONCILIATION_CONCURRENCY: usize = 4;
 const TERMINAL_ACK_GAP_SCAN_LIMIT: i64 = 256;
 const TERMINAL_ACK_STARTUP_PAGE_SIZE: i64 = 512;
+const ONLINE_COMMAND_COMMIT_V2_SQL: &str =
+    "select * from public.trnm_online_commit_actor_command_v2(
+            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
+            $11, $12, $13, $14, $15, $16, $17, $18, $19, $20,
+            $21, $22, $23, $24, $25, $26, $27
+         )";
+const ONLINE_HEARTBEAT_FLEET_V1_SQL: &str = "select public.trnm_online_heartbeat_fleet_v1(
+            $1, $2, $3, $4, $5, $6, $7, $8,
+            $9, $10, $11, $12, $13, $14, $15, $16
+         )";
+const ONLINE_CHECKPOINT_ACTOR_V1_SQL: &str = "select public.trnm_online_checkpoint_actor_v1(
+            $1, $2, $3, $4, $5, $6, $7, $8, $9,
+            $10, $11, $12, $13, $14, $15, $16, $17, $18
+         )";
 const MATCH_ACTOR_FENCE_OWNERSHIP_SQL: &str = "select exists(
         select 1 from trnm_online_matches m
         join trnm_online_fleet_instances f
@@ -1696,6 +1710,20 @@ async fn configure_database_pool_connection(
         return Err(sqlx::Error::Protocol(
             "PostgreSQL host authority changed across pool barrier admission".to_string(),
         ));
+    }
+    // SQLx prepares dynamic PostgreSQL queries on first use per physical
+    // connection. Under WAN-like RTT that cache miss adds a full Parse/Describe
+    // round trip to an otherwise one-round-trip command. Prepare every
+    // real-time statement only after this connection owns the lifetime K2
+    // barrier, so no admitted command, heartbeat, checkpoint, or actor-fence
+    // query can pay that cold-start tax.
+    for statement in [
+        ONLINE_COMMAND_COMMIT_V2_SQL,
+        ONLINE_HEARTBEAT_FLEET_V1_SQL,
+        ONLINE_CHECKPOINT_ACTOR_V1_SQL,
+        MATCH_ACTOR_FENCE_OWNERSHIP_SQL,
+    ] {
+        let _ = connection.prepare(statement).await?;
     }
     Ok(())
 }
@@ -8211,42 +8239,36 @@ async fn persist_actor_command(
     // barrier, locks fleet -> match -> member, and either advances the command
     // event plus both cursors atomically or changes nothing.
     let database_started = Instant::now();
-    let row = sqlx::query::query(
-        "select * from public.trnm_online_commit_actor_command_v2(
-            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
-            $11, $12, $13, $14, $15, $16, $17, $18, $19, $20,
-            $21, $22, $23, $24, $25, $26, $27
-         )",
-    )
-    .bind(match_id)
-    .bind(&job.request.command_id)
-    .bind(&job.request.player_id)
-    .bind(job.input_sequence as i64)
-    .bind(&job.request_hash)
-    .bind(job.effective_tick as i64)
-    .bind(job.client_observed_tick.map(|value| value as i64))
-    .bind(order_json)
-    .bind(&job.snapshot_hash)
-    .bind(job.accepted_revision as i64)
-    .bind(&job.post_simulation)
-    .bind(job.base_next_sequence as i64)
-    .bind(job.base_match_revision as i64)
-    .bind(state.instance_id.as_str())
-    .bind(state.instance_epoch)
-    .bind(state.physical_host_id.as_str())
-    .bind(identity.owner_nonce)
-    .bind(&identity.application_name)
-    .bind(identity.backend_pid)
-    .bind(identity.backend_started_at)
-    .bind(&identity.database_system_identifier)
-    .bind(identity.database_timeline_id)
-    .bind(identity.database_postmaster_started_at)
-    .bind(identity.leader_lock_key)
-    .bind(identity.barrier_lock_key)
-    .bind(&job.admission.bucket_key)
-    .bind(job.admission.limit)
-    .fetch_one(&state.pool)
-    .await;
+    let row = sqlx::query::query(ONLINE_COMMAND_COMMIT_V2_SQL)
+        .bind(match_id)
+        .bind(&job.request.command_id)
+        .bind(&job.request.player_id)
+        .bind(job.input_sequence as i64)
+        .bind(&job.request_hash)
+        .bind(job.effective_tick as i64)
+        .bind(job.client_observed_tick.map(|value| value as i64))
+        .bind(order_json)
+        .bind(&job.snapshot_hash)
+        .bind(job.accepted_revision as i64)
+        .bind(&job.post_simulation)
+        .bind(job.base_next_sequence as i64)
+        .bind(job.base_match_revision as i64)
+        .bind(state.instance_id.as_str())
+        .bind(state.instance_epoch)
+        .bind(state.physical_host_id.as_str())
+        .bind(identity.owner_nonce)
+        .bind(&identity.application_name)
+        .bind(identity.backend_pid)
+        .bind(identity.backend_started_at)
+        .bind(&identity.database_system_identifier)
+        .bind(identity.database_timeline_id)
+        .bind(identity.database_postmaster_started_at)
+        .bind(identity.leader_lock_key)
+        .bind(identity.barrier_lock_key)
+        .bind(&job.admission.bucket_key)
+        .bind(job.admission.limit)
+        .fetch_one(&state.pool)
+        .await;
     let database_ms = u64::try_from(database_started.elapsed().as_millis()).unwrap_or(u64::MAX);
     if database_ms > 150 {
         tracing::warn!(%match_id, database_ms, "slow atomic command database commit");
@@ -12147,33 +12169,28 @@ async fn persist_actor_checkpoint(
         return Err("PostgreSQL host authority is fail-closed".to_string());
     }
     let identity = &state.database_host_authority.identity;
-    let persisted = sqlx::query_scalar::query_scalar::<_, bool>(
-        "select public.trnm_online_checkpoint_actor_v1(
-            $1, $2, $3, $4, $5, $6, $7, $8, $9,
-            $10, $11, $12, $13, $14, $15, $16, $17, $18
-         )",
-    )
-    .bind(match_id)
-    .bind(job.simulation.tick as i64)
-    .bind(&job.snapshot_hash)
-    .bind(&simulation_json)
-    .bind(job.next_sequence as i64)
-    .bind(job.match_revision as i64)
-    .bind(state.instance_id.as_str())
-    .bind(state.instance_epoch)
-    .bind(state.physical_host_id.as_str())
-    .bind(identity.owner_nonce)
-    .bind(&identity.application_name)
-    .bind(identity.backend_pid)
-    .bind(identity.backend_started_at)
-    .bind(&identity.database_system_identifier)
-    .bind(identity.database_timeline_id)
-    .bind(identity.database_postmaster_started_at)
-    .bind(identity.leader_lock_key)
-    .bind(identity.barrier_lock_key)
-    .fetch_one(&state.pool)
-    .await
-    .map_err(|error| error.to_string())?;
+    let persisted = sqlx::query_scalar::query_scalar::<_, bool>(ONLINE_CHECKPOINT_ACTOR_V1_SQL)
+        .bind(match_id)
+        .bind(job.simulation.tick as i64)
+        .bind(&job.snapshot_hash)
+        .bind(&simulation_json)
+        .bind(job.next_sequence as i64)
+        .bind(job.match_revision as i64)
+        .bind(state.instance_id.as_str())
+        .bind(state.instance_epoch)
+        .bind(state.physical_host_id.as_str())
+        .bind(identity.owner_nonce)
+        .bind(&identity.application_name)
+        .bind(identity.backend_pid)
+        .bind(identity.backend_started_at)
+        .bind(&identity.database_system_identifier)
+        .bind(identity.database_timeline_id)
+        .bind(identity.database_postmaster_started_at)
+        .bind(identity.leader_lock_key)
+        .bind(identity.barrier_lock_key)
+        .fetch_one(&state.pool)
+        .await
+        .map_err(|error| error.to_string())?;
     if !persisted {
         return Err("checkpoint was fenced or superseded".to_string());
     }
