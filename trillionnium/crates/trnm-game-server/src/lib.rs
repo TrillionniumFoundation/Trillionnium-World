@@ -5893,10 +5893,12 @@ async fn production_rate_limit(
     request: Request<Body>,
     next: Next,
 ) -> Response {
+    let request_started = Instant::now();
     let path = request.uri().path();
     if path == "/health" {
         return next.run(request).await;
     }
+    let command_request = path.ends_with("/commands");
     let effective_limit = if path.ends_with("/snapshot")
         || path.ends_with("/commands")
         || path.ends_with("/reconnect")
@@ -5922,6 +5924,7 @@ async fn production_rate_limit(
         "{:x}",
         Sha256::digest(format!("{}:{}:{}", identity, request.method(), endpoint_class).as_bytes())
     );
+    let admission_started = Instant::now();
     let count = sqlx::query_scalar::query_scalar::<_, i64>(
         "insert into trnm_online_admission_windows (
             bucket_key, window_started_at, request_class, request_count,
@@ -5937,6 +5940,7 @@ async fn production_rate_limit(
     .bind(state.instance_id.as_str())
     .fetch_one(&state.pool)
     .await;
+    let admission_ms = u64::try_from(admission_started.elapsed().as_millis()).unwrap_or(u64::MAX);
     let count = match count {
         Ok(value) => value,
         Err(error) => {
@@ -5969,7 +5973,18 @@ async fn production_rate_limit(
         )
             .into_response();
     }
-    next.run(request).await
+    let response = next.run(request).await;
+    let total_ms = u64::try_from(request_started.elapsed().as_millis()).unwrap_or(u64::MAX);
+    if command_request && total_ms > 300 {
+        tracing::warn!(
+            total_ms,
+            admission_ms,
+            handler_ms = total_ms.saturating_sub(admission_ms),
+            status = response.status().as_u16(),
+            "slow online command request"
+        );
+    }
+    response
 }
 
 pub fn build_router(state: AppState) -> Router {
@@ -7685,17 +7700,23 @@ async fn submit_command(
     headers: HeaderMap,
     Json(request): Json<OnlineCommandSubmitRequest>,
 ) -> Result<Json<OnlineCommandReceipt>, ApiError> {
+    let handler_started = Instant::now();
     reject_command_during_drain(&state)?;
     validate_client_contract(&request.protocol_version, &request.build_id)
         .map_err(|error| api_error(StatusCode::UPGRADE_REQUIRED, error, false))?;
     validate_command_id(&request.command_id)?;
+    let identity_started = Instant::now();
     verify_identity(&state, &headers, &request.player_id, &request.account_id).await?;
+    let identity_ms = u64::try_from(identity_started.elapsed().as_millis()).unwrap_or(u64::MAX);
     let account_id = Uuid::parse_str(&request.account_id)
         .map_err(|_| api_error(StatusCode::BAD_REQUEST, "account_id must be a UUID", false))?;
     let request_hash = hash_json(&request)?;
+    let actor_lookup_started = Instant::now();
     let actor = ensure_match_actor(&state, match_id)
         .await
         .map_err(|error| api_error(StatusCode::SERVICE_UNAVAILABLE, error, true))?;
+    let actor_lookup_ms =
+        u64::try_from(actor_lookup_started.elapsed().as_millis()).unwrap_or(u64::MAX);
     let Some(actor) = actor else {
         if let Some(receipt) = fetch_duplicate_command_receipt(
             &state,
@@ -7773,6 +7794,7 @@ async fn submit_command(
     let member_role = member.member_role.clone();
     reject_command_during_drain(&state)?;
     let (response_tx, response_rx) = oneshot::channel();
+    let actor_wait_started = Instant::now();
     tokio::time::timeout(
         Duration::from_secs(5),
         actor.commands.send(ActorCommandEnvelope {
@@ -7814,6 +7836,18 @@ async fn submit_command(
                 true,
             )
         })??;
+    let actor_wait_ms = u64::try_from(actor_wait_started.elapsed().as_millis()).unwrap_or(u64::MAX);
+    let handler_ms = u64::try_from(handler_started.elapsed().as_millis()).unwrap_or(u64::MAX);
+    if handler_ms > 200 {
+        tracing::warn!(
+            %match_id,
+            handler_ms,
+            identity_ms,
+            actor_lookup_ms,
+            actor_wait_ms,
+            "slow online command handler"
+        );
+    }
     Ok(Json(receipt))
 }
 
@@ -8136,6 +8170,7 @@ async fn persist_actor_command(
     // revalidates the exact K1 leader, holds the pool session's lifetime K2
     // barrier, locks fleet -> match -> member, and either advances the command
     // event plus both cursors atomically or changes nothing.
+    let database_started = Instant::now();
     let row = sqlx::query::query(
         "select * from public.trnm_online_commit_actor_command_v1(
             $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
@@ -8169,8 +8204,12 @@ async fn persist_actor_command(
     .bind(identity.leader_lock_key)
     .bind(identity.barrier_lock_key)
     .fetch_one(&state.pool)
-    .await
-    .map_err(internal_db)?;
+    .await;
+    let database_ms = u64::try_from(database_started.elapsed().as_millis()).unwrap_or(u64::MAX);
+    if database_ms > 150 {
+        tracing::warn!(%match_id, database_ms, "slow atomic command database commit");
+    }
+    let row = row.map_err(internal_db)?;
 
     let outcome: String = row.try_get("result_outcome").map_err(internal_db)?;
     let durable_revision = row
@@ -10926,6 +10965,7 @@ async fn run_actor_publication_worker(worker: ActorPublicationWorker) {
             receipts_replayable: candidate.receipts_replayable,
             snapshot_hash: candidate.state.snapshot_hash.as_ref().clone(),
         };
+        let journal_started = Instant::now();
         let result = if !publication_within_recovery_budget(
             candidate.state.simulation.tick,
             *durable_recovery_tick.borrow(),
@@ -10968,6 +11008,10 @@ async fn run_actor_publication_worker(worker: ActorPublicationWorker) {
                 Err(error) => Err(error),
             }
         };
+        let journal_ms = u64::try_from(journal_started.elapsed().as_millis()).unwrap_or(u64::MAX);
+        if journal_ms > 100 {
+            tracing::warn!(%match_id, state_sequence, journal_ms, "slow published-tick journal commit");
+        }
         if !*permit.borrow() {
             return;
         }

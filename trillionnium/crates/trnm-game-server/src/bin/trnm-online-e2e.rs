@@ -922,9 +922,14 @@ fn run() -> Result<Value, String> {
         .and_then(|value| value.parse::<u64>().ok())
     {
         if websocket_authoritative_effect_p95_ms > maximum_p95_ms {
+            let (_, command_ack_p95_ms, command_ack_max_ms) = client.command_ack_summary();
             return Err(format!(
-                "WebSocket authoritative effect p95 {}ms exceeded {}ms",
-                websocket_authoritative_effect_p95_ms, maximum_p95_ms
+                "WebSocket authoritative effect p95 {}ms exceeded {}ms; samples_ms={:?}; command_ack_p95_ms={}; command_ack_max_ms={}",
+                websocket_authoritative_effect_p95_ms,
+                maximum_p95_ms,
+                websocket_authoritative_effect_samples_ms,
+                command_ack_p95_ms,
+                command_ack_max_ms,
             ));
         }
     }
