@@ -752,6 +752,7 @@ fn select_largest_living_squad_prefer_guest<'a>(
     (!selected.1.is_empty()).then_some(selected)
 }
 
+#[cfg(test)]
 fn first_living_enemy_target(snapshot: &Value) -> Option<(String, RtsTile)> {
     let enemy = snapshot["enemies"]
         .as_array()?
@@ -828,57 +829,75 @@ fn clear_living_enemies(
     host: &Identity,
     guest: &Identity,
     match_id: &str,
-    mut snapshot: OnlineSnapshotResponse,
+    snapshot: OnlineSnapshotResponse,
+    objective: RtsTile,
     command_prefix: &str,
 ) -> Result<OnlineSnapshotResponse, String> {
-    let mut target_index = 0_u64;
-    while let Some((enemy_id, enemy_target)) = first_living_enemy_target(&snapshot.snapshot) {
-        let host_units = controlled(&snapshot, host)?;
-        let guest_units = controlled(&snapshot, guest)?;
-        let Some((attack_identity, attack_units)) =
-            select_largest_living_squad_prefer_guest(host, host_units, guest, guest_units)
-        else {
-            return Err(format!(
-                "{command_prefix} has living enemies but no living player squad"
-            ));
-        };
-        let selected = attack_units
-            .iter()
-            .cloned()
-            .collect::<std::collections::BTreeSet<_>>();
-        let selected_count = selected.len();
+    let living_enemies = snapshot.snapshot["enemies"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter(|enemy| enemy["hp"].as_i64().unwrap_or_default() > 0)
+        .filter_map(|enemy| enemy["unit_id"].as_str().map(str::to_string))
+        .collect::<Vec<_>>();
+    if living_enemies.is_empty() {
+        return Ok(snapshot);
+    }
+
+    let host_units = controlled(&snapshot, host)?;
+    let initial_guest_units = controlled(&snapshot, guest)?;
+    if host_units.is_empty() && initial_guest_units.is_empty() {
+        return Err(format!(
+            "{command_prefix} has living enemies but no living player squad"
+        ));
+    }
+
+    let host_attack_issued = !host_units.is_empty();
+    let mut attack_snapshot = snapshot;
+    if host_attack_issued {
         let _ = client.submit(
-            attack_identity,
+            host,
             match_id,
-            &snapshot,
+            &attack_snapshot,
             CommandSpec {
-                command_id: format!("{command_prefix}-attack-move-{target_index}"),
-                kind: RtsOrderKind::AttackMove,
-                subjects: attack_units,
-                target: enemy_target,
+                command_id: format!("{command_prefix}-host-attack"),
+                kind: RtsOrderKind::Attack,
+                subjects: host_units,
+                target: objective,
                 queued: false,
             },
         )?;
-        snapshot = wait_for(
-            client,
-            attack_identity,
+        attack_snapshot = client.snapshot(guest, match_id)?;
+    }
+    let guest_units = controlled(&attack_snapshot, guest)?;
+    if !guest_units.is_empty() {
+        let _ = client.submit(
+            guest,
             match_id,
-            phase_timeout(),
-            |candidate| {
-                candidate.snapshot["phase"] == "complete"
-                    || !enemy_is_alive(&candidate.snapshot, &enemy_id)
-                    || living_selected_count(&candidate.snapshot, &selected) < selected_count
+            &attack_snapshot,
+            CommandSpec {
+                command_id: format!("{command_prefix}-guest-attack"),
+                kind: RtsOrderKind::Attack,
+                subjects: guest_units,
+                target: objective,
+                queued: host_attack_issued,
             },
         )?;
-        if snapshot.snapshot["phase"] == "complete" {
-            return Err(format!(
-                "{command_prefix} reached terminal outcome {} while pursuing {enemy_id}",
-                snapshot.snapshot["outcome"],
-            ));
-        }
-        target_index = target_index.saturating_add(1);
     }
-    Ok(snapshot)
+
+    let cleared = wait_for(client, host, match_id, phase_timeout(), |candidate| {
+        candidate.snapshot["phase"] == "complete"
+            || living_enemies
+                .iter()
+                .all(|enemy_id| !enemy_is_alive(&candidate.snapshot, enemy_id))
+    })?;
+    if cleared.snapshot["phase"] == "complete" {
+        return Err(format!(
+            "{command_prefix} reached terminal outcome {} before the wave cleared",
+            cleared.snapshot["outcome"]
+        ));
+    }
+    Ok(cleared)
 }
 
 fn move_squad_to_objective(
@@ -1521,59 +1540,63 @@ fn run() -> Result<Value, String> {
             queued: false,
         },
     )?;
-    // Positioning is an explicit mission precondition rather than an accidental
-    // side effect of request latency in the preceding stress workload.
-    let mut relay = client.snapshot(&host, &created.match_id)?;
-    let mut relay_attack_round = 0_u64;
-    while relay.snapshot["phase"] != "relay"
-        || relay.snapshot["relay_guard_hp"].as_i64().unwrap_or(1) > 0
-    {
-        if relay.snapshot["phase"] == "complete" {
-            return Err(format!(
-                "relay assault reached terminal outcome {}",
-                relay.snapshot["outcome"]
-            ));
-        }
-        let host_units = controlled(&relay, &host)?;
-        let guest_units = controlled(&relay, &guest)?;
-        let Some((attack_identity, attack_units)) =
-            select_largest_living_squad_prefer_guest(&host, host_units, &guest, guest_units)
-        else {
-            return Err("relay assault has no living squad".to_string());
-        };
-        let selected = attack_units
-            .iter()
-            .cloned()
-            .collect::<std::collections::BTreeSet<_>>();
-        let selected_count = selected.len();
-        // MissionSimV1 currently owns one global active order. A second
-        // member command replaces the first, so drive the largest living
-        // member squad and reselect immediately when it loses a unit.
+    // The mission actor accepts a primary order plus queued co-op subjects.
+    // Keep both authority partitions active: the unqueued host order starts
+    // the assault and the queued guest order joins it without replacing it.
+    let relay_attack = client.snapshot(&host, &created.match_id)?;
+    let host_relay_attack_units = controlled(&relay_attack, &host)?;
+    let initial_guest_relay_attack_units = controlled(&relay_attack, &guest)?;
+    if host_relay_attack_units.is_empty() && initial_guest_relay_attack_units.is_empty() {
+        return Err("relay assault has no living squad".to_string());
+    }
+    let host_relay_attack_issued = !host_relay_attack_units.is_empty();
+    let mut guest_relay_snapshot = relay_attack;
+    if host_relay_attack_issued {
         let _ = client.submit(
-            attack_identity,
+            &host,
             &created.match_id,
-            &relay,
+            &guest_relay_snapshot,
             CommandSpec {
-                command_id: format!("{run_id}-attack-relay-{relay_attack_round}"),
+                command_id: format!("{run_id}-host-attack-relay"),
                 kind: RtsOrderKind::Attack,
-                subjects: attack_units,
+                subjects: host_relay_attack_units,
                 target: objective,
                 queued: false,
             },
         )?;
-        relay = wait_for(
-            &client,
-            attack_identity,
+        guest_relay_snapshot = client.snapshot(&guest, &created.match_id)?;
+    }
+    let guest_relay_attack_units = controlled(&guest_relay_snapshot, &guest)?;
+    if !guest_relay_attack_units.is_empty() {
+        let _ = client.submit(
+            &guest,
             &created.match_id,
-            phase_timeout(),
-            |snapshot| {
-                snapshot.snapshot["phase"] == "complete"
-                    || (snapshot.snapshot["phase"] == "relay"
-                        && snapshot.snapshot["relay_guard_hp"].as_i64().unwrap_or(1) <= 0)
-                    || living_selected_count(&snapshot.snapshot, &selected) < selected_count
+            &guest_relay_snapshot,
+            CommandSpec {
+                command_id: format!("{run_id}-guest-attack-relay"),
+                kind: RtsOrderKind::Attack,
+                subjects: guest_relay_attack_units,
+                target: objective,
+                queued: host_relay_attack_issued,
             },
         )?;
-        relay_attack_round = relay_attack_round.saturating_add(1);
+    }
+    let relay = wait_for(
+        &client,
+        &host,
+        &created.match_id,
+        phase_timeout(),
+        |snapshot| {
+            snapshot.snapshot["phase"] == "complete"
+                || (snapshot.snapshot["phase"] == "relay"
+                    && snapshot.snapshot["relay_guard_hp"].as_i64().unwrap_or(1) <= 0)
+        },
+    )?;
+    if relay.snapshot["phase"] == "complete" {
+        return Err(format!(
+            "relay assault reached terminal outcome {}",
+            relay.snapshot["outcome"]
+        ));
     }
     let _ = move_largest_squad_to_objective_and_hold(
         &client,
@@ -1640,6 +1663,7 @@ fn run() -> Result<Value, String> {
             &guest,
             &created.match_id,
             wave_snapshot,
+            objective,
             &format!("{run_id}-wave-{wave}"),
         )?;
         // Capture progress advances by at most two selected holders per tick.
