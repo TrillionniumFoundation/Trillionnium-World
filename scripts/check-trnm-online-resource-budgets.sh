@@ -30,6 +30,13 @@ for setting in 'CPUQuota=150%' 'MemoryHigh=1536M' 'MemoryMax=2048M' \
   'MemorySwapMax=512M' 'TasksMax=512' 'TRNM_CAPACITY_MIN_AVAILABLE_MIB:-3072'; do
   rg -Fq -- "$setting" "$capacity_script"
 done
+rg -Fq 'register_cleanup_process "$!" group "$(command -v timeout)"' \
+  "$capacity_script"
+if rg -Fq 'register_cleanup_process "$!" group "$(command -v setsid)"' \
+    "$capacity_script"; then
+  echo "capacity worker cleanup must bind the stable timeout wrapper" >&2
+  exit 1
+fi
 rg -q 'GAME_SERVER_DATABASE_MIN_CONNECTIONS: u32 = 12' \
   "$ROOT_DIR/trillionnium/crates/trnm-game-server/src/lib.rs"
 rg -q 'GAME_SERVER_DATABASE_MAX_CONNECTIONS: u32 = 12' \

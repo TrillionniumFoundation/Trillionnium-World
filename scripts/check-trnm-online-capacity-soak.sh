@@ -1557,7 +1557,9 @@ while (( $(monotonic_seconds) < deadline_monotonic_seconds )); do
         "$E2E_BINARY"
     ) >"$report.tmp" 2>"$report.stderr" &
     worker_pids+=("$!")
-    register_cleanup_process "$!" group "$(command -v setsid)"
+    # setsid establishes the group and then execs the stable --wait wrapper;
+    # bind cleanup to the long-lived timeout process that actually owns $!.
+    register_cleanup_process "$!" group "$(command -v timeout)"
   done
 
   monitor_failure="$EVIDENCE/wave-${wave}.monitor-failure"
