@@ -6074,6 +6074,10 @@ fn distributed_admission_bucket_key(identity: &str, method: &str, endpoint_class
     )
 }
 
+fn is_operational_probe_path(path: &str) -> bool {
+    matches!(path, "/health" | "/v1/online/readiness")
+}
+
 async fn production_rate_limit(
     State(state): State<AppState>,
     request: Request<Body>,
@@ -6081,7 +6085,11 @@ async fn production_rate_limit(
 ) -> Response {
     let request_started = Instant::now();
     let path = request.uri().path();
-    if path == "/health" {
+    // Liveness and readiness are infrastructure control-plane probes. Sending
+    // them through the durable player admission window adds a database write,
+    // lets business traffic starve the probe before its fail-closed checks run,
+    // and can feed orchestrator restarts back into a saturated service.
+    if is_operational_probe_path(path) {
         return next.run(request).await;
     }
     let command_request = path.ends_with("/commands");
@@ -15059,6 +15067,12 @@ mod tests {
             command,
             distributed_admission_bucket_key("session-a", "GET", "/v1/online/matches/match-a")
         );
+        assert!(is_operational_probe_path("/health"));
+        assert!(is_operational_probe_path("/v1/online/readiness"));
+        assert!(!is_operational_probe_path("/v1/production/status"));
+        assert!(!is_operational_probe_path(
+            "/v1/online/matches/match-a/snapshot"
+        ));
     }
 
     #[test]
