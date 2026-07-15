@@ -488,20 +488,90 @@ const CAMPAIGN_HAS_UNACKNOWLEDGED_PROGRESSION_SQL: &str = "select exists(
                   and a.published_settlement_state = m.settlement_state
            )
     )";
-const HISTORICAL_TERMINAL_PROJECTION_QUARANTINE_SQL: &str = "select
+const READINESS_DATABASE_SUMMARY_SQL: &str = "with terminal_ack_gaps as materialized (
+        select m.match_id
+          from trnm_online_matches m
+         where m.phase = 'complete'
+           and m.assigned_physical_host_id = $3
+           and m.terminal_publication_state <> 'legacy_quarantined'
+           and not exists (
+               select 1
+                 from trnm_online_terminal_publication_acks a
+                where a.match_id = m.match_id
+                  and m.checkpoint_sequence = m.next_sequence
+                  and m.result_hash is not null
+                  and m.settlement_state in ('pending', 'settled')
+                  and m.terminal_publication_state = 'acknowledged'
+                  and a.local_tombstone_state = 'sealed'
+                  and m.terminal_publication_actor_generation is not null
+                  and a.actor_generation = m.terminal_publication_actor_generation
+                  and a.instance_id = m.assigned_instance_id
+                  and a.actor_epoch = m.assigned_instance_epoch
+                  and a.physical_host_id = m.assigned_physical_host_id
+                  and a.authoritative_tick = m.authoritative_tick
+                  and a.next_sequence = m.next_sequence
+                  and a.match_revision = m.match_revision
+                  and a.next_input_sequences = (
+                      select coalesce(
+                          jsonb_object_agg(
+                              mm.player_id,
+                              to_jsonb(mm.next_input_sequence)
+                              order by mm.player_id
+                          ),
+                          '{}'::jsonb
+                      )
+                        from trnm_online_match_members mm
+                       where mm.match_id = m.match_id
+                  )
+                  and a.snapshot_hash = m.snapshot_hash
+                  and a.phase = 'complete'
+                  and a.result_hash = m.result_hash
+                  and a.published_settlement_state = m.settlement_state
+           )
+         order by m.match_id
+         limit $4
+    ), historical_projection as materialized (
+        select
+            (select count(*) from trnm_online_matches
+              where terminal_publication_state = 'legacy_quarantined')
+                as legacy_terminal_match_count,
+            exists(
+                select 1 from trnm_online_progression_events event
+                join trnm_online_matches m on m.match_id = event.match_id
+                where m.terminal_publication_state = 'legacy_quarantined'
+            ) as campaign_projection_polluted,
+            exists(
+                select 1 from trnm_online_rating_events event
+                join trnm_online_matches m on m.match_id = event.match_id
+                where m.terminal_publication_state = 'legacy_quarantined'
+            ) as rating_projection_polluted
+    )
+    select
+        true as postgres_healthy,
+        exists(
+            select 1 from trnm_online_fleet_instances
+             where instance_id = $1 and instance_epoch = $2
+               and physical_host_id = $3
+               and status in ('active', 'draining') and lease_expires_at > now()
+        ) as fleet_epoch_current,
+        (select count(*) from trnm_online_fleet_instances
+          where status = 'active' and lease_expires_at > now())
+            as healthy_fleet_instances,
         (select count(*) from trnm_online_matches
-          where terminal_publication_state = 'legacy_quarantined')
-            as legacy_terminal_match_count,
-        exists(
-            select 1 from trnm_online_progression_events event
-            join trnm_online_matches m on m.match_id = event.match_id
-            where m.terminal_publication_state = 'legacy_quarantined'
-        ) as campaign_projection_polluted,
-        exists(
-            select 1 from trnm_online_rating_events event
-            join trnm_online_matches m on m.match_id = event.match_id
-            where m.terminal_publication_state = 'legacy_quarantined'
-        ) as rating_projection_polluted";
+          where phase = 'running' and assigned_instance_id = $1
+            and assigned_instance_epoch = $2 and assigned_physical_host_id = $3)
+            as active_matches,
+        (select count(*) from terminal_ack_gaps) as terminal_ack_gap_count,
+        historical_projection.legacy_terminal_match_count,
+        historical_projection.campaign_projection_polluted,
+        historical_projection.rating_projection_polluted,
+        coalesce(cold.terminal_total_count, 0)::bigint as terminal_total_count,
+        coalesce(cold.terminal_sealed_count, 0)::bigint as terminal_sealed_count,
+        coalesce(cold.abandonment_total_count, 0)::bigint as abandonment_total_count,
+        coalesce(cold.abandonment_sealed_count, 0)::bigint as abandonment_sealed_count
+      from historical_projection
+      left join trnm_online_local_cold_witness_summaries cold
+        on cold.physical_host_id = $3";
 const LOCAL_TERMINAL_ACK_STARTUP_PAGE_SQL: &str = "select
         a.match_id, a.actor_generation, a.instance_id, a.actor_epoch,
         a.physical_host_id, a.authoritative_tick, a.next_sequence,
@@ -980,6 +1050,35 @@ impl ColdWitnessDatabaseSummary {
     fn all_sealed(self) -> bool {
         self.terminal_total_count == self.terminal_sealed_count
             && self.abandonment_total_count == self.abandonment_sealed_count
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct ReadinessDatabaseSummary {
+    postgres_healthy: bool,
+    fleet_epoch_current: bool,
+    healthy_fleet_instances: i64,
+    active_matches: i64,
+    terminal_ack_gap_count: usize,
+    historical_projection: HistoricalTerminalProjectionQuarantine,
+    cold_witness: ColdWitnessDatabaseSummary,
+}
+
+impl ReadinessDatabaseSummary {
+    fn blocked() -> Self {
+        Self {
+            postgres_healthy: false,
+            fleet_epoch_current: false,
+            healthy_fleet_instances: 0,
+            active_matches: -1,
+            terminal_ack_gap_count: usize::MAX,
+            historical_projection: HistoricalTerminalProjectionQuarantine {
+                legacy_terminal_match_count: -1,
+                campaign_projection_polluted: true,
+                rating_projection_polluted: true,
+            },
+            cold_witness: ColdWitnessDatabaseSummary::default(),
+        }
     }
 }
 
@@ -1722,6 +1821,7 @@ async fn configure_database_pool_connection(
         ONLINE_HEARTBEAT_FLEET_V1_SQL,
         ONLINE_CHECKPOINT_ACTOR_V1_SQL,
         MATCH_ACTOR_FENCE_OWNERSHIP_SQL,
+        READINESS_DATABASE_SUMMARY_SQL,
     ] {
         let _ = connection.prepare(statement).await?;
     }
@@ -2412,6 +2512,68 @@ where
         return Err("cold witness summary sealed count exceeds its total".to_string());
     }
     Ok(summary)
+}
+
+async fn load_readiness_database_summary(
+    pool: &PgPool,
+    instance_id: &str,
+    instance_epoch: i64,
+    physical_host_id: &str,
+) -> Result<ReadinessDatabaseSummary, String> {
+    let row = sqlx::query::query(READINESS_DATABASE_SUMMARY_SQL)
+        .bind(instance_id)
+        .bind(instance_epoch)
+        .bind(physical_host_id)
+        .bind(TERMINAL_ACK_GAP_SCAN_LIMIT.saturating_add(1))
+        .fetch_one(pool)
+        .await
+        .map_err(|error| error.to_string())?;
+    let read_nonnegative = |column| -> Result<u64, String> {
+        u64::try_from(
+            row.try_get::<i64, _>(column)
+                .map_err(|error| error.to_string())?,
+        )
+        .map_err(|_| format!("readiness database summary {column} is negative"))
+    };
+    let cold_witness = ColdWitnessDatabaseSummary {
+        terminal_total_count: read_nonnegative("terminal_total_count")?,
+        terminal_sealed_count: read_nonnegative("terminal_sealed_count")?,
+        abandonment_total_count: read_nonnegative("abandonment_total_count")?,
+        abandonment_sealed_count: read_nonnegative("abandonment_sealed_count")?,
+    };
+    if cold_witness.terminal_sealed_count > cold_witness.terminal_total_count
+        || cold_witness.abandonment_sealed_count > cold_witness.abandonment_total_count
+    {
+        return Err("readiness cold witness summary sealed count exceeds its total".to_string());
+    }
+    Ok(ReadinessDatabaseSummary {
+        postgres_healthy: row
+            .try_get("postgres_healthy")
+            .map_err(|error| error.to_string())?,
+        fleet_epoch_current: row
+            .try_get("fleet_epoch_current")
+            .map_err(|error| error.to_string())?,
+        healthy_fleet_instances: row
+            .try_get("healthy_fleet_instances")
+            .map_err(|error| error.to_string())?,
+        active_matches: row
+            .try_get("active_matches")
+            .map_err(|error| error.to_string())?,
+        terminal_ack_gap_count: usize::try_from(read_nonnegative("terminal_ack_gap_count")?)
+            .map_err(|_| "readiness terminal ACK gap count exceeds usize".to_string())?,
+        historical_projection: HistoricalTerminalProjectionQuarantine {
+            legacy_terminal_match_count: row
+                .try_get("legacy_terminal_match_count")
+                .map_err(|error| error.to_string())?,
+            campaign_projection_polluted: row
+                .try_get("campaign_projection_polluted")
+                .map_err(|error| error.to_string())?,
+            rating_projection_polluted: row
+                .try_get("rating_projection_polluted")
+                .map_err(|error| error.to_string())?,
+        },
+        cold_witness,
+    })
 }
 
 fn abandonment_database_evidence_from_row(
@@ -3405,7 +3567,7 @@ where
         .map_err(|error| error.to_string())
 }
 
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 struct HistoricalTerminalProjectionQuarantine {
     legacy_terminal_match_count: i64,
     campaign_projection_polluted: bool,
@@ -3418,26 +3580,6 @@ impl HistoricalTerminalProjectionQuarantine {
             && !self.campaign_projection_polluted
             && !self.rating_projection_polluted
     }
-}
-
-async fn historical_terminal_projection_quarantine(
-    pool: &PgPool,
-) -> Result<HistoricalTerminalProjectionQuarantine, String> {
-    let row = sqlx::query::query(HISTORICAL_TERMINAL_PROJECTION_QUARANTINE_SQL)
-        .fetch_one(pool)
-        .await
-        .map_err(|error| error.to_string())?;
-    Ok(HistoricalTerminalProjectionQuarantine {
-        legacy_terminal_match_count: row
-            .try_get("legacy_terminal_match_count")
-            .map_err(|error| error.to_string())?,
-        campaign_projection_polluted: row
-            .try_get("campaign_projection_polluted")
-            .map_err(|error| error.to_string())?,
-        rating_projection_polluted: row
-            .try_get("rating_projection_polluted")
-            .map_err(|error| error.to_string())?,
-    })
 }
 
 async fn terminal_publication_marker_matches_high_water<'e, E>(
@@ -6223,66 +6365,59 @@ async fn readiness(State(state): State<AppState>) -> Response {
         .map(|age| u64::try_from(age.as_millis()).unwrap_or(u64::MAX));
     let database_host_authority_freshness_limit_ms =
         u64::try_from(DATABASE_HOST_FENCE_FRESHNESS.as_millis()).unwrap_or(u64::MAX);
-    let postgres = sqlx::query_scalar::query_scalar::<_, i32>("select 1")
-        .fetch_one(&state.pool)
-        .await
-        .is_ok();
-    let cex = state.cex.readiness().await.is_ok();
-    let signer = state.cex.signer_readiness().await.ok();
-    let signer_registry_verified = state.cex.signer_attestation().await.is_ok();
-    let fleet_epoch_current = sqlx::query_scalar::query_scalar::<_, bool>(
-        "select exists(
-            select 1 from trnm_online_fleet_instances
-            where instance_id = $1 and instance_epoch = $2
-              and physical_host_id = $3
-              and status in ('active', 'draining') and lease_expires_at > now()
-        )",
-    )
-    .bind(state.instance_id.as_str())
-    .bind(state.instance_epoch)
-    .bind(state.physical_host_id.as_str())
-    .fetch_one(&state.pool)
-    .await
-    .unwrap_or(false);
-    let healthy_fleet_instances = sqlx::query_scalar::query_scalar::<_, i64>(
-        "select count(*) from trnm_online_fleet_instances
-         where status = 'active' and lease_expires_at > now()",
-    )
-    .fetch_one(&state.pool)
-    .await
-    .unwrap_or_default();
-    let active_matches_query = sqlx::query_scalar::query_scalar::<_, i64>(
-        "select count(*) from trnm_online_matches
-         where phase = 'running' and assigned_instance_id = $1
-           and assigned_instance_epoch = $2 and assigned_physical_host_id = $3",
-    )
-    .bind(state.instance_id.as_str())
-    .bind(state.instance_epoch)
-    .bind(state.physical_host_id.as_str())
-    .fetch_one(&state.pool)
-    .await;
-    let active_matches_query_healthy = active_matches_query.is_ok();
-    let active_matches = active_matches_query.unwrap_or(-1);
-    let terminal_ack_gaps =
-        local_terminal_publication_ack_gaps(&state.pool, state.physical_host_id.as_str()).await;
-    let terminal_ack_gap_query_healthy = terminal_ack_gaps.is_ok();
-    let terminal_ack_gap_count = terminal_ack_gaps
-        .as_ref()
-        .map(Vec::len)
-        .unwrap_or(usize::MAX);
+    // Readiness is a hot operational surface. Under WAN-like database RTT,
+    // serial probes used to accumulate more than five seconds of round trips
+    // and could consume the command pool while reporting the service dead.
+    // One prepared aggregate query owns all independent database counters;
+    // the external dependencies and the exact latest cold-witness check run
+    // concurrently, keeping the endpoint both fail-closed and non-disruptive.
+    let (
+        database_summary,
+        cex_readiness,
+        signer_readiness,
+        signer_attestation,
+        latest_cold_witness_sentinel,
+    ) = tokio::join!(
+        load_readiness_database_summary(
+            &state.pool,
+            state.instance_id.as_str(),
+            state.instance_epoch,
+            state.physical_host_id.as_str(),
+        ),
+        state.cex.readiness(),
+        state.cex.signer_readiness(),
+        state.cex.signer_attestation(),
+        latest_cold_witness_sentinel_is_healthy(&state),
+    );
+    let database_summary_query_healthy = database_summary.is_ok();
+    let database_summary = database_summary.unwrap_or_else(|error| {
+        tracing::warn!(%error, "readiness database summary failed closed");
+        ReadinessDatabaseSummary::blocked()
+    });
+    let postgres = database_summary_query_healthy && database_summary.postgres_healthy;
+    let cex = cex_readiness.is_ok();
+    let signer = signer_readiness.ok();
+    let signer_registry_verified = signer_attestation.is_ok();
+    let fleet_epoch_current =
+        database_summary_query_healthy && database_summary.fleet_epoch_current;
+    let healthy_fleet_instances = database_summary.healthy_fleet_instances;
+    let active_matches_query_healthy = database_summary_query_healthy;
+    let active_matches = database_summary.active_matches;
+    let terminal_ack_gap_scan_saturated =
+        terminal_ack_gap_scan_is_saturated(database_summary.terminal_ack_gap_count);
+    let terminal_ack_gap_query_healthy =
+        database_summary_query_healthy && !terminal_ack_gap_scan_saturated;
+    let terminal_ack_gap_count = if terminal_ack_gap_query_healthy {
+        database_summary.terminal_ack_gap_count
+    } else {
+        usize::MAX
+    };
     let terminal_ack_gap_recovery_operational = terminal_ack_gap_recovery_is_operational(
         terminal_ack_gap_query_healthy,
         terminal_ack_gap_count,
     );
-    let historical_projection_quarantine =
-        historical_terminal_projection_quarantine(&state.pool).await;
-    let historical_projection_quarantine_query_healthy = historical_projection_quarantine.is_ok();
-    let historical_projection_quarantine =
-        historical_projection_quarantine.unwrap_or(HistoricalTerminalProjectionQuarantine {
-            legacy_terminal_match_count: -1,
-            campaign_projection_polluted: true,
-            rating_projection_polluted: true,
-        });
+    let historical_projection_quarantine_query_healthy = database_summary_query_healthy;
+    let historical_projection_quarantine = database_summary.historical_projection;
     let historical_projection_public_credit = historical_projection_quarantine_query_healthy
         && historical_projection_quarantine.public_credit_is_clean()
         && terminal_ack_gap_recovery_operational;
@@ -6328,6 +6463,14 @@ async fn readiness(State(state): State<AppState>) -> Response {
     let max_actor_clock_abs_drift_ticks = actor_clock_samples
         .iter()
         .map(|(drift, _, _)| drift.abs())
+        .fold(0.0_f64, f64::max);
+    let max_actor_clock_cumulative_abs_drift_ticks = actor_clock_samples
+        .iter()
+        .filter_map(|(_, _, clock)| clock.map(|clock| clock.cumulative_drift_ticks.abs()))
+        .fold(0.0_f64, f64::max);
+    let max_actor_clock_recent_lateness_ticks = actor_clock_samples
+        .iter()
+        .filter_map(|(_, _, clock)| clock.and_then(|clock| clock.max_recent_lateness_ticks))
         .fold(0.0_f64, f64::max);
     let max_actor_publish_stale_ms = actor_clock_samples
         .iter()
@@ -6393,13 +6536,10 @@ async fn readiness(State(state): State<AppState>) -> Response {
     let published_tick_failed_closed_witness_count =
         published_tick_abandonment_tombstones.unwrap_or(usize::MAX);
     let published_tick_cold_tombstone_count = published_tick_cold_tombstones.unwrap_or(usize::MAX);
-    let latest_cold_witness_sentinel = latest_cold_witness_sentinel_is_healthy(&state).await;
     let latest_cold_witness_sentinel_query_healthy = latest_cold_witness_sentinel.is_ok();
     let latest_cold_witness_sentinel_healthy = latest_cold_witness_sentinel.unwrap_or(false);
-    let cold_witness_database_summary =
-        load_cold_witness_database_summary(&state.pool, state.physical_host_id.as_str()).await;
-    let cold_witness_database_summary_query_healthy = cold_witness_database_summary.is_ok();
-    let cold_witness_database_summary = cold_witness_database_summary.unwrap_or_default();
+    let cold_witness_database_summary_query_healthy = database_summary_query_healthy;
+    let cold_witness_database_summary = database_summary.cold_witness;
     let pending_local_tombstone_seal_count = cold_witness_database_summary
         .terminal_total_count
         .saturating_sub(cold_witness_database_summary.terminal_sealed_count)
@@ -6646,6 +6786,10 @@ async fn readiness(State(state): State<AppState>) -> Response {
     readiness_body["active_match_actors"] = json!(active_match_actors);
     readiness_body["match_actor_clocks_operational"] = Value::Bool(match_actor_clocks_operational);
     readiness_body["max_actor_clock_abs_drift_ticks"] = json!(max_actor_clock_abs_drift_ticks);
+    readiness_body["max_actor_clock_cumulative_abs_drift_ticks"] =
+        json!(max_actor_clock_cumulative_abs_drift_ticks);
+    readiness_body["max_actor_clock_recent_lateness_ticks"] =
+        json!(max_actor_clock_recent_lateness_ticks);
     readiness_body["max_actor_publish_stale_ms"] = json!(max_actor_publish_stale_ms);
     readiness_body["operational_readiness"] = operational_readiness;
     readiness_body["database_pool_saturation_healthy"] =
@@ -14567,6 +14711,47 @@ mod tests {
             ),
             vec![unrecoverable]
         );
+    }
+
+    #[test]
+    fn readiness_database_summary_collapses_exact_host_checks_and_fails_closed() {
+        for predicate in [
+            "m.phase = 'complete'",
+            "m.assigned_physical_host_id = $3",
+            "m.terminal_publication_state <> 'legacy_quarantined'",
+            "m.terminal_publication_state = 'acknowledged'",
+            "a.local_tombstone_state = 'sealed'",
+            "a.actor_generation = m.terminal_publication_actor_generation",
+            "a.instance_id = m.assigned_instance_id",
+            "a.actor_epoch = m.assigned_instance_epoch",
+            "a.physical_host_id = m.assigned_physical_host_id",
+            "a.authoritative_tick = m.authoritative_tick",
+            "a.next_sequence = m.next_sequence",
+            "a.match_revision = m.match_revision",
+            "a.next_input_sequences =",
+            "a.snapshot_hash = m.snapshot_hash",
+            "a.result_hash = m.result_hash",
+            "a.published_settlement_state = m.settlement_state",
+            "limit $4",
+            "instance_id = $1 and instance_epoch = $2",
+            "status in ('active', 'draining') and lease_expires_at > now()",
+            "phase = 'running' and assigned_instance_id = $1",
+            "terminal_publication_state = 'legacy_quarantined'",
+            "left join trnm_online_local_cold_witness_summaries cold",
+            "cold.physical_host_id = $3",
+        ] {
+            assert!(
+                READINESS_DATABASE_SUMMARY_SQL.contains(predicate),
+                "missing readiness database summary predicate: {predicate}"
+            );
+        }
+        let blocked = ReadinessDatabaseSummary::blocked();
+        assert!(!blocked.postgres_healthy);
+        assert!(!blocked.fleet_epoch_current);
+        assert_eq!(blocked.active_matches, -1);
+        assert_eq!(blocked.terminal_ack_gap_count, usize::MAX);
+        assert!(!blocked.historical_projection.public_credit_is_clean());
+        assert!(blocked.cold_witness.all_sealed());
     }
 
     #[test]

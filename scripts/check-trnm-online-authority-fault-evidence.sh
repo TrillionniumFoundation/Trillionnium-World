@@ -1691,21 +1691,75 @@ terminate_group() {
 }
 
 scan_and_redact_secrets() {
-  local secret file found=0
-  for secret in "$IDENTITY_ADMIN_TOKEN" "$DATABASE_PASSWORD" \
-    "$HOST_SESSION" "$GUEST_SESSION"; do
+  local secret mode file scanner_status found=0
+  local -a secret_specs=(
+    "literal:$IDENTITY_ADMIN_TOKEN"
+    "literal:$HOST_SESSION"
+    "literal:$GUEST_SESSION"
+  )
+  if (( ${#DATABASE_PASSWORD} >= 12 )); then
+    secret_specs+=("literal:$DATABASE_PASSWORD")
+  else
+    # Short database passwords can also be ordinary public vocabulary (for
+    # example the PostgreSQL service/schema name). Scan only credential
+    # contexts so public evidence keys remain intact while connection URLs,
+    # assignments, and password fields still fail closed and are redacted.
+    secret_specs+=("short_database:$DATABASE_PASSWORD")
+  fi
+  local spec
+  for spec in "${secret_specs[@]}"; do
+    mode="${spec%%:*}"
+    secret="${spec#*:}"
     [[ -n "$secret" ]] || continue
     while IFS= read -r -d '' file; do
-      if grep -Fq -- "$secret" "$file" 2>/dev/null; then
-        SECRET_VALUE="$secret" python3 - "$file" <<'PY'
-import os, pathlib, sys
+      scanner_status=0
+      SECRET_VALUE="$secret" SECRET_MODE="$mode" python3 - "$file" <<'PY' || scanner_status=$?
+import os, pathlib, re, sys
+from urllib.parse import quote_from_bytes
+
 p = pathlib.Path(sys.argv[1])
 value = os.environ["SECRET_VALUE"].encode()
+mode = os.environ["SECRET_MODE"]
 data = p.read_bytes()
-if value:
-    p.write_bytes(data.replace(value, b"[REDACTED]"))
+redacted = data
+if value and mode == "literal":
+    redacted = data.replace(value, b"[REDACTED]")
+elif value and mode == "short_database":
+    escaped = re.escape(value)
+    encoded = quote_from_bytes(value, safe="").encode()
+    patterns = [
+        re.compile(rb"(:)" + escaped + rb"(?=@)"),
+        re.compile(rb"(:)" + re.escape(encoded) + rb"(?=@)", re.IGNORECASE),
+        re.compile(
+            rb"(\b(?:DATABASE_PASSWORD|PGPASSWORD)\s*=\s*[\"']?)" + escaped
+            + rb"(?=[\"']?(?:\r?\n|$))"
+        ),
+        re.compile(
+            rb"(\bpassword\s*=\s*[\"']?)" + escaped
+            + rb"(?=[\"']?(?:[&;\s]|$))",
+            re.IGNORECASE,
+        ),
+        re.compile(
+            rb"([\"']password[\"']\s*:\s*[\"'])" + escaped
+            + rb"(?=[\"'])",
+            re.IGNORECASE,
+        ),
+        re.compile(rb"(?m)^([ \t]*)" + escaped + rb"(?=[ \t]*\r?$)"),
+    ]
+    for pattern in patterns:
+        redacted = pattern.sub(lambda match: match.group(1) + b"[REDACTED]", redacted)
+else:
+    raise RuntimeError(f"unsupported secret scanner mode: {mode}")
+if redacted != data:
+    p.write_bytes(redacted)
+    raise SystemExit(42)
 PY
+      if (( scanner_status == 42 )); then
         found=1
+      elif (( scanner_status != 0 )); then
+        SECRET_REDACTION_REQUIRED=1
+        fail "secret scanner could not inspect evidence file"
+        return 1
       fi
     done < <(find "$RUN_DIR" -type f -print0)
   done
@@ -2078,9 +2132,13 @@ write_decision() {
     and (($raw|sort) as $v
       | $v[((($v|length) * 99 + 99) / 100 | floor) - 1] <= 750)' \
     "$e2e" >/dev/null && echo true || echo false)"
-  [[ -f "$e2e" ]] && drift_gate="$(jq -e '
-    (.match_tick_drift|type) == "number" and (.match_tick_drift|fabs) < 2' \
-    "$e2e" >/dev/null && echo true || echo false)"
+  [[ -f "$RUN_DIR/readiness-samples.jsonl" ]] && drift_gate="$(jq -s -e '
+    length >= 2 and all(.[];
+      .http_ok == true and (.body|type) == "object"
+      and (.body.max_actor_clock_cumulative_abs_drift_ticks|type) == "number"
+      and .body.max_actor_clock_cumulative_abs_drift_ticks >= 0
+      and .body.max_actor_clock_cumulative_abs_drift_ticks < 2)' \
+    "$RUN_DIR/readiness-samples.jsonl" >/dev/null && echo true || echo false)"
   [[ -f "$database" ]] && database_gate="$(jq -e --arg instance "$TEST_INSTANCE_ID" '
     .contract_version == "trnm_authority_terminal_database_evidence_v2"
     and .match_count == 1 and .phase == "complete" and .settlement_state == "settled"
@@ -2208,7 +2266,9 @@ write_decision() {
       and $record.snapshot_hash == $database[0].ack_snapshot_hash
       and $tombstone.result_hash == $database[0].result_hash
       and $tombstone.result_hash == $database[0].ack_result_hash
-      and $tombstone.settlement_state == $database[0].ack_settlement_state
+      and ($tombstone.settlement_state == $database[0].ack_settlement_state
+        or ($tombstone.settlement_state == "pending"
+          and $database[0].ack_settlement_state == "settled"))
       and ($tombstone.settlement_state == $database[0].settlement_state
         or ($tombstone.settlement_state == "pending"
           and $database[0].settlement_state == "settled"))

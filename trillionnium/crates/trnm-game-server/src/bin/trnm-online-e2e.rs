@@ -1342,10 +1342,11 @@ fn run() -> Result<Value, String> {
         )?;
     }
 
-    // Stop the realtime clock when the actor publishes its terminal simulation,
-    // not after PostgreSQL progression/value settlement and the next HTTP poll.
-    // The latter is useful end-to-end latency evidence, but it is not simulation
-    // clock drift and previously added several non-simulation ticks to this gate.
+    // Keep the client-observed terminal skew as diagnostic evidence. It includes
+    // the terminal publication barrier plus the final snapshot request's
+    // database RTT, so the formal actor-clock gate uses the server's cumulative
+    // clock telemetry instead of misclassifying read-surface latency as dropped
+    // simulation ticks.
     let terminal = wait_for(
         &client,
         &host,
@@ -1427,6 +1428,7 @@ fn run() -> Result<Value, String> {
         "match_wall_elapsed_ms": match_wall_elapsed_ms,
         "tick_interval_ms": tick_interval_ms,
         "match_tick_drift": match_tick_drift,
+        "match_tick_drift_scope": "client_wall_to_terminal_read_surface_includes_publication_barrier_and_snapshot_database_latency_not_formal_actor_clock_gate",
         "settlement_observation_wall_elapsed_ms": settlement_observation_wall_elapsed_ms,
         "next_sequence": complete.view.next_sequence,
         "seed_hash": complete.view.seed_hash,

@@ -105,7 +105,8 @@ cex_load_env() {
   export IDENTITY_ADMIN_TOKEN="fixture-admin-secret"
 }
 cex_effective_database_url() {
-  printf '%s\n' 'postgresql://fixture:fixture-db-secret@127.0.0.1:5432/fixture'
+  printf 'postgresql://fixture:%s@127.0.0.1:5432/fixture\n' \
+    "${TRNM_FAULT_FAKE_DATABASE_PASSWORD:-fixture-db-secret}"
 }
 cex_psql_stdin() {
   local command="$*"
@@ -384,10 +385,13 @@ case "$url" in
   *:7010/v1/signer/readiness)
     echo '{"status":"ok","postgres_receipts":true}' ;;
   */v1/online/readiness)
-    jq -cn --arg instance "${TRNM_FAULT_EXPECTED_INSTANCE_ID:-production-fixture}" '{
+    jq -cn --arg instance "${TRNM_FAULT_EXPECTED_INSTANCE_ID:-production-fixture}" \
+      --arg expose "${TRNM_FAULT_FAKE_EXPOSE_SHORT_DATABASE_PASSWORD:-0}" '{
       status:"ok",fleet_instance_id:$instance,active_matches:0,active_match_actors:0,
       authority_clock_operational:true,authority_clock_drift_ticks:0.1,
       match_actor_clocks_operational:true,max_actor_clock_abs_drift_ticks:0.2,
+      max_actor_clock_cumulative_abs_drift_ticks:0.3,
+      postgres_healthy:true,
       published_tick_journal_operational:true,
       latest_cold_witness_sentinel_query_healthy:true,
       latest_cold_witness_sentinel_healthy:true,
@@ -395,7 +399,8 @@ case "$url" in
       local_tombstone_counts_exact:true,
       local_tombstone_seal_operational:true,
       operational_readiness:{local_cold_witness_seal:true},
-      published_tick_terminal_orphan_recovery_operational:true}' ;;
+      published_tick_terminal_orphan_recovery_operational:true}
+      + (if $expose == "1" then {password:"postgres"} else {} end)' ;;
   */v1/accounts)
     echo '{"account_id":"22222222-2222-4222-a222-222222222222"}' ;;
   */v1/trnm/identity/register)
@@ -732,6 +737,39 @@ jq -e '.cleanup_failed==0 and .qdisc_default_noqueue==true
 if grep -R -F -e fixture-admin-secret -e fixture-db-secret -e fixture-session-token \
     "$success_dir" >/dev/null 2>&1; then
   fail "mocked evidence persisted a secret"
+fi
+clear_fixture_match_journal
+
+sleep 1
+TRNM_FAULT_FAKE_DATABASE_PASSWORD=postgres run_harness pg-rtt100 >/dev/null
+short_password_dir="$(find "$repo/run/online-faults" -mindepth 1 -maxdepth 1 -type d \
+  | sort | tail -n1)"
+jq -e '.status=="contract_test_passed" and .checks.evidence_secret_free==true' \
+  "$short_password_dir/decision.json" >/dev/null \
+  || fail "short database password produced a failed or non-secret-free decision"
+grep -R -Fq '"postgres_healthy":true' "$short_password_dir" \
+  || fail "short database password scanner corrupted public PostgreSQL evidence"
+if grep -R -Fq '[REDACTED]' "$short_password_dir"; then
+  fail "short database password scanner redacted non-credential evidence"
+fi
+clear_fixture_match_journal
+
+sleep 1
+expect_failure "short database password credential leak" env \
+  TRNM_FAULT_FAKE_DATABASE_PASSWORD=postgres \
+  TRNM_FAULT_FAKE_EXPOSE_SHORT_DATABASE_PASSWORD=1 \
+  PATH="$fake_bin:$PATH" HOME="$home" CEX_PROJECT_ROOT="$cex" \
+  TRNM_FAULT_FAKE_STATE="$state" TRNM_FAULT_HARNESS_CONTRACT_MODE=1 \
+  "$repo/scripts/check-trnm-online-authority-fault-evidence.sh" pg-rtt100
+short_password_leak_dir="$(find "$repo/run/online-faults" -mindepth 1 -maxdepth 1 \
+  -type d | sort | tail -n1)"
+jq -e '.status=="failed" and .checks.evidence_secret_free==false' \
+  "$short_password_leak_dir/decision.json" >/dev/null \
+  || fail "short contextual database password leak was not rejected"
+grep -R -Fq '[REDACTED]' "$short_password_leak_dir" \
+  || fail "short contextual database password leak was not redacted"
+if grep -R -Fq '"password":"postgres"' "$short_password_leak_dir"; then
+  fail "short contextual database password remained in evidence"
 fi
 clear_fixture_match_journal
 
