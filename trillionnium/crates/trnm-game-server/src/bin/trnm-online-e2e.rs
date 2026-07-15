@@ -717,6 +717,20 @@ fn controlled(
         .collect())
 }
 
+fn select_capture_squad<'a>(
+    host: &'a Identity,
+    host_units: Vec<String>,
+    guest: &'a Identity,
+    guest_units: Vec<String>,
+) -> Option<(&'a Identity, Vec<String>)> {
+    let selected = if guest_units.len() > host_units.len() {
+        (guest, guest_units)
+    } else {
+        (host, host_units)
+    };
+    (!selected.1.is_empty()).then_some(selected)
+}
+
 fn restart_server(base_url: &str) -> Result<(), String> {
     let status = Command::new("systemctl")
         .args(["--user", "restart", "trnm-game-server.service"])
@@ -1283,25 +1297,40 @@ fn run() -> Result<Value, String> {
                     })
             },
         )?;
+        // Capture progress advances by at most two selected holders per tick.
+        // In co-op the surviving holders can be split across members, so
+        // always moving the host can leave only one selected unit on the
+        // objective and miss the five-minute mission budget by a few ticks.
+        // Move and hold with the member that currently owns the largest
+        // living squad; the deterministic host tie-break keeps replay input
+        // stable while still exercising independent member authority.
         let host_move_units = controlled(&cleared, &host)?;
+        let guest_move_units = controlled(&cleared, &guest)?;
+        let Some((capture_identity, capture_units)) =
+            select_capture_squad(&host, host_move_units, &guest, guest_move_units)
+        else {
+            return Err(format!(
+                "wave {wave} cleared without a living objective holder"
+            ));
+        };
         let _ = client.submit(
-            &host,
+            capture_identity,
             &created.match_id,
             &cleared,
             CommandSpec {
-                command_id: format!("{run_id}-host-move-objective-{wave}"),
+                command_id: format!("{run_id}-capture-move-objective-{wave}"),
                 kind: RtsOrderKind::Move,
-                subjects: host_move_units.clone(),
+                subjects: capture_units.clone(),
                 target: objective,
                 queued: false,
             },
         )?;
-        let host_move_units = host_move_units
+        let capture_units = capture_units
             .into_iter()
             .collect::<std::collections::BTreeSet<_>>();
         let moved = wait_for(
             &client,
-            &host,
+            capture_identity,
             &created.match_id,
             phase_timeout(),
             |snapshot| {
@@ -1318,7 +1347,7 @@ fn run() -> Result<Value, String> {
                         unit["hp"].as_i64().unwrap_or_default() > 0
                             && unit["unit_id"]
                                 .as_str()
-                                .is_some_and(|unit_id| host_move_units.contains(unit_id))
+                                .is_some_and(|unit_id| capture_units.contains(unit_id))
                             && ox.zip(oy).is_some_and(|(x, y)| {
                                 (unit["position"]["x"].as_i64().unwrap_or_default() - x).abs()
                                     + (unit["position"]["y"].as_i64().unwrap_or_default() - y).abs()
@@ -1329,13 +1358,13 @@ fn run() -> Result<Value, String> {
             },
         )?;
         let _ = client.submit(
-            &host,
+            capture_identity,
             &created.match_id,
             &moved,
             CommandSpec {
-                command_id: format!("{run_id}-host-hold-objective-{wave}"),
+                command_id: format!("{run_id}-capture-hold-objective-{wave}"),
                 kind: RtsOrderKind::Hold,
-                subjects: controlled(&moved, &host)?,
+                subjects: controlled(&moved, capture_identity)?,
                 target: objective,
                 queued: false,
             },
@@ -1474,8 +1503,43 @@ fn main() {
 }
 
 #[cfg(test)]
-mod snapshot_retry_tests {
+mod tests {
     use super::*;
+
+    fn identity(player_id: &str) -> Identity {
+        Identity {
+            player_id: player_id.to_string(),
+            account_id: format!("{player_id}-account"),
+            session: format!("{player_id}-session"),
+        }
+    }
+
+    #[test]
+    fn capture_squad_uses_largest_living_member_squad_with_host_tie_break() {
+        let host = identity("host");
+        let guest = identity("guest");
+        let (selected, units) = select_capture_squad(
+            &host,
+            vec!["host:hero".to_string()],
+            &guest,
+            vec!["guest:hero".to_string(), "guest:aya".to_string()],
+        )
+        .expect("guest has living capture units");
+        assert_eq!(selected.player_id, "guest");
+        assert_eq!(units.len(), 2);
+
+        let (selected, units) = select_capture_squad(
+            &host,
+            vec!["host:hero".to_string()],
+            &guest,
+            vec!["guest:hero".to_string()],
+        )
+        .expect("both members have living capture units");
+        assert_eq!(selected.player_id, "host");
+        assert_eq!(units, ["host:hero"]);
+
+        assert!(select_capture_squad(&host, Vec::new(), &guest, Vec::new()).is_none());
+    }
 
     #[test]
     fn retries_only_explicitly_recoverable_service_unavailability() {
