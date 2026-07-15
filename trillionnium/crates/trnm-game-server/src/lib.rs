@@ -96,6 +96,7 @@ const DATABASE_HOST_BARRIER_LOCK_SALT: i64 = 0x5452_4e4d_4241_5252;
 #[derive(Clone)]
 pub struct AppState {
     pool: PgPool,
+    readiness_pool: PgPool,
     cex: CexClient,
     asset_root: Arc<PathBuf>,
     moderator_token: Arc<String>,
@@ -345,6 +346,8 @@ const MAX_AUTHORITY_CLOCK_ABS_DRIFT_TICKS: f64 = 2.0;
 const AUTHORITY_CLOCK_WINDOW_TICKS: usize = 20;
 const AUTHORITY_CLOCK_MIN_SAMPLES: usize = 3;
 const GAME_SERVER_DATABASE_MAX_CONNECTIONS: u32 = 8;
+const READINESS_DATABASE_MIN_CONNECTIONS: u32 = 2;
+const READINESS_DATABASE_MAX_CONNECTIONS: u32 = 4;
 const TERMINAL_ORPHAN_RECONCILIATION_CONCURRENCY: usize = 4;
 const TERMINAL_ACK_GAP_SCAN_LIMIT: i64 = 256;
 const TERMINAL_ACK_STARTUP_PAGE_SIZE: i64 = 512;
@@ -375,6 +378,12 @@ const MATCH_ACTOR_FENCE_OWNERSHIP_SQL: &str = "select exists(
           and f.status in ('active', 'draining')
           and f.lease_expires_at > now()
     )";
+const DATABASE_LINEAGE_SQL: &str = "select
+        system.system_identifier::text as system_identifier,
+        checkpoint.timeline_id::integer as timeline_id,
+        pg_current_wal_flush_lsn()::text as wal_flush_lsn
+      from pg_control_system() system
+      cross join pg_control_checkpoint() checkpoint";
 const LOCAL_TERMINAL_ACK_GAPS_SQL: &str = "select m.match_id
        from trnm_online_matches m
       where m.phase = 'complete'
@@ -1789,7 +1798,7 @@ async fn database_host_authority_is_exact(
     .await
 }
 
-async fn configure_database_pool_connection(
+async fn admit_database_pool_connection(
     connection: &mut PgConnection,
     fence: &DatabaseHostAuthorityFence,
 ) -> Result<(), sqlx::Error> {
@@ -1810,6 +1819,14 @@ async fn configure_database_pool_connection(
             "PostgreSQL host authority changed across pool barrier admission".to_string(),
         ));
     }
+    Ok(())
+}
+
+async fn configure_database_pool_connection(
+    connection: &mut PgConnection,
+    fence: &DatabaseHostAuthorityFence,
+) -> Result<(), sqlx::Error> {
+    admit_database_pool_connection(connection, fence).await?;
     // SQLx prepares dynamic PostgreSQL queries on first use per physical
     // connection. Under WAN-like RTT that cache miss adds a full Parse/Describe
     // round trip to an otherwise one-round-trip command. Prepare every
@@ -1821,7 +1838,27 @@ async fn configure_database_pool_connection(
         ONLINE_HEARTBEAT_FLEET_V1_SQL,
         ONLINE_CHECKPOINT_ACTOR_V1_SQL,
         MATCH_ACTOR_FENCE_OWNERSHIP_SQL,
+    ] {
+        let _ = connection.prepare(statement).await?;
+    }
+    Ok(())
+}
+
+async fn configure_readiness_database_pool_connection(
+    connection: &mut PgConnection,
+    fence: &DatabaseHostAuthorityFence,
+) -> Result<(), sqlx::Error> {
+    admit_database_pool_connection(connection, fence).await?;
+    // The control-plane pool is deliberately independent of player traffic.
+    // Prepare every query used by the two concurrent readiness branches before
+    // the listener becomes available so WAN RTT cannot create a first-sample
+    // Parse/Describe spike on either reserved connection.
+    for statement in [
         READINESS_DATABASE_SUMMARY_SQL,
+        DATABASE_LINEAGE_SQL,
+        TERMINAL_ACK_DATABASE_EVIDENCE_BY_MATCH_SQL,
+        EXACT_TERMINAL_PUBLICATION_MARKER_SQL,
+        ABANDONMENT_DATABASE_EVIDENCE_BY_MATCH_SQL,
     ] {
         let _ = connection.prepare(statement).await?;
     }
@@ -1895,6 +1932,39 @@ impl AppState {
             .connect(&config.database_url)
             .await
             .map_err(|error| format!("connect Online Authority PostgreSQL: {error}"))?;
+
+        // Reserve a small control-plane pool for the two concurrent readiness
+        // database branches. Player admission, snapshots, checkpoints and
+        // command commits may fully occupy the data-plane pool under RTT or a
+        // burst, but they must not make the local orchestrator blind and turn
+        // transient queue pressure into restart feedback.
+        let readiness_after_connect_authority = database_host_authority.clone();
+        let readiness_before_acquire_authority = database_host_authority.clone();
+        let readiness_pool = PgPoolOptions::new()
+            .min_connections(READINESS_DATABASE_MIN_CONNECTIONS)
+            .max_connections(READINESS_DATABASE_MAX_CONNECTIONS)
+            .acquire_timeout(Duration::from_secs(5))
+            .after_connect(move |connection, _metadata| {
+                let authority = readiness_after_connect_authority.clone();
+                Box::pin(async move {
+                    configure_readiness_database_pool_connection(connection, &authority).await
+                })
+            })
+            .before_acquire(move |_connection, _metadata| {
+                let authority = readiness_before_acquire_authority.clone();
+                Box::pin(async move {
+                    if authority.is_healthy() {
+                        Ok(true)
+                    } else {
+                        Err(sqlx::Error::Protocol(
+                            "PostgreSQL host authority is fail-closed".to_string(),
+                        ))
+                    }
+                })
+            })
+            .connect(&config.database_url)
+            .await
+            .map_err(|error| format!("connect Online Authority readiness PostgreSQL: {error}"))?;
 
         let cex = CexClient::new(
             config.cex_base_url,
@@ -2045,6 +2115,7 @@ impl AppState {
         });
         Ok(Self {
             pool,
+            readiness_pool,
             cex,
             asset_root: Arc::new(config.asset_root),
             moderator_token: Arc::new(config.moderator_token),
@@ -2436,16 +2507,10 @@ async fn database_lineage<'e, E>(executor: E) -> Result<DatabaseLineage, String>
 where
     E: sqlx::executor::Executor<'e, Database = Postgres>,
 {
-    let row = sqlx::query::query(
-        "select system.system_identifier::text as system_identifier,
-                checkpoint.timeline_id::integer as timeline_id,
-                pg_current_wal_flush_lsn()::text as wal_flush_lsn
-           from pg_control_system() system
-           cross join pg_control_checkpoint() checkpoint",
-    )
-    .fetch_one(executor)
-    .await
-    .map_err(|error| format!("read PostgreSQL lineage after terminal ACK commit: {error}"))?;
+    let row = sqlx::query::query(DATABASE_LINEAGE_SQL)
+        .fetch_one(executor)
+        .await
+        .map_err(|error| format!("read PostgreSQL lineage after terminal ACK commit: {error}"))?;
     let timeline_id = u32::try_from(
         row.try_get::<i32, _>("timeline_id")
             .map_err(|error| error.to_string())?,
@@ -3512,7 +3577,7 @@ async fn latest_cold_witness_sentinel_is_healthy(state: &AppState) -> Result<boo
         return Ok(true);
     };
     let mut connection = state
-        .pool
+        .readiness_pool
         .acquire()
         .await
         .map_err(|error| error.to_string())?;
@@ -6387,7 +6452,7 @@ async fn readiness(State(state): State<AppState>) -> Response {
         latest_cold_witness_sentinel,
     ) = tokio::join!(
         load_readiness_database_summary(
-            &state.pool,
+            &state.readiness_pool,
             state.instance_id.as_str(),
             state.instance_epoch,
             state.physical_host_id.as_str(),
@@ -6525,6 +6590,13 @@ async fn readiness(State(state): State<AppState>) -> Response {
         database_pool_idle_connections,
         GAME_SERVER_DATABASE_MAX_CONNECTIONS,
     );
+    let readiness_database_pool_size = state.readiness_pool.size();
+    let readiness_database_pool_idle_connections = state.readiness_pool.num_idle();
+    let readiness_database_pool_saturation_healthy = database_pool_is_operational(
+        readiness_database_pool_size,
+        readiness_database_pool_idle_connections,
+        READINESS_DATABASE_MAX_CONNECTIONS,
+    );
     let published_tick_journal_operational = state.published_tick_journal.is_operational();
     let published_tick_records = state.published_tick_journal.recorded_match_ids();
     let published_tick_record_query_healthy = published_tick_records.is_ok();
@@ -6598,6 +6670,7 @@ async fn readiness(State(state): State<AppState>) -> Response {
         && active_matches_query_healthy
         && match_actor_clocks_operational
         && database_pool_saturation_healthy
+        && readiness_database_pool_saturation_healthy
         && published_tick_journal_operational
         && local_tombstone_seal_operational
         && terminal_orphan_recovery_operational
@@ -6615,6 +6688,7 @@ async fn readiness(State(state): State<AppState>) -> Response {
         "match_actor_clocks": match_actor_clocks_operational,
         "active_match_registry_query": active_matches_query_healthy,
         "database_pool": database_pool_saturation_healthy,
+        "readiness_database_pool": readiness_database_pool_saturation_healthy,
         "published_tick_journal": published_tick_journal_operational,
         "local_cold_witness_seal": local_tombstone_seal_operational,
         "local_terminal_tombstone_seal": local_tombstone_seal_operational,
@@ -6805,6 +6879,15 @@ async fn readiness(State(state): State<AppState>) -> Response {
     readiness_body["database_pool_max_connections"] = json!(GAME_SERVER_DATABASE_MAX_CONNECTIONS);
     readiness_body["database_pool_size"] = json!(database_pool_size);
     readiness_body["database_pool_idle_connections"] = json!(database_pool_idle_connections);
+    readiness_body["readiness_database_pool_saturation_healthy"] =
+        Value::Bool(readiness_database_pool_saturation_healthy);
+    readiness_body["readiness_database_pool_min_connections"] =
+        json!(READINESS_DATABASE_MIN_CONNECTIONS);
+    readiness_body["readiness_database_pool_max_connections"] =
+        json!(READINESS_DATABASE_MAX_CONNECTIONS);
+    readiness_body["readiness_database_pool_size"] = json!(readiness_database_pool_size);
+    readiness_body["readiness_database_pool_idle_connections"] =
+        json!(readiness_database_pool_idle_connections);
     (
         if ready {
             StatusCode::OK
@@ -13912,6 +13995,8 @@ mod tests {
         assert!(database_pool_is_operational(1, 0, 8));
         assert!(database_pool_is_operational(8, 1, 8));
         assert!(!database_pool_is_operational(8, 0, 8));
+        assert_eq!(READINESS_DATABASE_MIN_CONNECTIONS, 2);
+        assert_eq!(READINESS_DATABASE_MAX_CONNECTIONS, 4);
     }
 
     #[test]
