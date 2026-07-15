@@ -27,6 +27,9 @@ use tungstenite::{
     Message, WebSocket,
 };
 
+const SNAPSHOT_RECOVERABLE_RETRY_TIMEOUT: Duration = Duration::from_secs(10);
+const SNAPSHOT_RECOVERABLE_RETRY_INTERVAL: Duration = Duration::from_secs(1);
+
 #[derive(Clone)]
 struct Identity {
     player_id: String,
@@ -442,16 +445,35 @@ impl OnlineClient {
         identity: &Identity,
         match_id: &str,
     ) -> Result<OnlineSnapshotResponse, String> {
-        let response: OnlineSnapshotResponse = self.post(
-            identity,
-            &format!("/v1/online/matches/{match_id}/snapshot"),
-            &OnlineMatchAccessRequest {
-                protocol_version: ONLINE_AUTHORITY_PROTOCOL.to_string(),
-                build_id: ONLINE_AUTHORITY_BUILD.to_string(),
-                player_id: identity.player_id.clone(),
-                account_id: identity.account_id.clone(),
-            },
-        )?;
+        let path = format!("/v1/online/matches/{match_id}/snapshot");
+        let request = OnlineMatchAccessRequest {
+            protocol_version: ONLINE_AUTHORITY_PROTOCOL.to_string(),
+            build_id: ONLINE_AUTHORITY_BUILD.to_string(),
+            player_id: identity.player_id.clone(),
+            account_id: identity.account_id.clone(),
+        };
+        let retry_started = Instant::now();
+        let response = loop {
+            let (status, body) = self.post_status(identity, &path, &request)?;
+            if (200..300).contains(&status) {
+                break serde_json::from_value::<OnlineSnapshotResponse>(body)
+                    .map_err(|error| error.to_string())?;
+            }
+            if snapshot_response_is_recoverable(status, &body)
+                && retry_started.elapsed() < SNAPSHOT_RECOVERABLE_RETRY_TIMEOUT
+            {
+                // The Authority advertises Retry-After: 1 while a running
+                // tuple crosses its durable terminal publication barrier.
+                // Honor that contract without hiding non-recoverable errors or
+                // allowing an unbounded terminal wait.
+                thread::sleep(SNAPSHOT_RECOVERABLE_RETRY_INTERVAL);
+                continue;
+            }
+            let status = reqwest::StatusCode::from_u16(status)
+                .map(|status| status.to_string())
+                .unwrap_or_else(|_| status.to_string());
+            return Err(format!("POST {path} returned {status}: {body}"));
+        };
         if let Some(snapshot_tick) = response.snapshot.get("tick").and_then(Value::as_u64) {
             if response.view.authoritative_tick != snapshot_tick {
                 return Err(format!(
@@ -557,6 +579,11 @@ impl OnlineClient {
         };
         Ok((receipt, request))
     }
+}
+
+fn snapshot_response_is_recoverable(status: u16, body: &Value) -> bool {
+    status == reqwest::StatusCode::SERVICE_UNAVAILABLE.as_u16()
+        && body["recoverable"].as_bool() == Some(true)
 }
 
 fn send_with_retry(
@@ -1441,5 +1468,30 @@ fn main() {
             eprintln!("TRNM Online Authority E2E failed: {error}");
             std::process::exit(1);
         }
+    }
+}
+
+#[cfg(test)]
+mod snapshot_retry_tests {
+    use super::*;
+
+    #[test]
+    fn retries_only_explicitly_recoverable_service_unavailability() {
+        assert!(snapshot_response_is_recoverable(
+            503,
+            &json!({"error":"publication barrier","recoverable":true})
+        ));
+        assert!(!snapshot_response_is_recoverable(
+            503,
+            &json!({"error":"publication barrier","recoverable":false})
+        ));
+        assert!(!snapshot_response_is_recoverable(
+            500,
+            &json!({"error":"internal","recoverable":true})
+        ));
+        assert!(!snapshot_response_is_recoverable(
+            200,
+            &json!({"recoverable":true})
+        ));
     }
 }
