@@ -9402,8 +9402,9 @@ async fn reconnect_match(
         .map_err(|error| api_error(StatusCode::SERVICE_UNAVAILABLE, error, true))?;
     let mut transaction = state.pool.begin().await.map_err(internal_db)?;
     let match_row = sqlx::query::query(
-        "select simulation_json, snapshot_hash, authoritative_tick, next_sequence, match_revision,
-                checkpoint_sequence, phase, result_hash, settlement_state
+        "select match_id, join_code, phase, build_id, map_id, match_mode, rules_version,
+                seed_hash, snapshot_hash, authoritative_tick, next_sequence, match_revision,
+                result_hash, settlement_state, simulation_json, checkpoint_sequence
          from trnm_online_matches where match_id = $1 for share",
     )
     .bind(match_id)
@@ -9411,23 +9412,6 @@ async fn reconnect_match(
     .await
     .map_err(internal_db)?
     .ok_or_else(|| api_error(StatusCode::NOT_FOUND, "match not found", false))?;
-    let member = sqlx::query::query(
-        "select reconnect_count from trnm_online_match_members
-         where match_id = $1 and player_id = $2 and account_id = $3 for update",
-    )
-    .bind(match_id)
-    .bind(&request.player_id)
-    .bind(account_id)
-    .fetch_optional(&mut *transaction)
-    .await
-    .map_err(internal_db)?
-    .ok_or_else(|| {
-        api_error(
-            StatusCode::FORBIDDEN,
-            "identity is not a match member",
-            false,
-        )
-    })?;
     let durable_next_sequence = match_row
         .try_get::<i64, _>("next_sequence")
         .map_err(internal_db)? as u64;
@@ -9449,15 +9433,33 @@ async fn reconnect_match(
     let durable_settlement_state: String =
         match_row.try_get("settlement_state").map_err(internal_db)?;
     let durable_member_rows = sqlx::query::query(
-        "select player_id, next_input_sequence from trnm_online_match_members
-         where match_id = $1 order by player_id",
+        "select m.player_id, m.account_id, m.campaign_id, m.member_role,
+                m.controlled_unit_ids, m.next_input_sequence,
+                c.campaign_revision, c.campaign_json
+         from trnm_online_match_members m
+         join trnm_online_campaigns c on c.campaign_id = m.campaign_id
+         where m.match_id = $1 order by m.member_role desc",
     )
     .bind(match_id)
     .fetch_all(&mut *transaction)
     .await
     .map_err(internal_db)?;
+    let mut identity_is_member = false;
+    for row in &durable_member_rows {
+        let member_player_id = row.try_get::<String, _>("player_id").map_err(internal_db)?;
+        let member_account_id = row.try_get::<Uuid, _>("account_id").map_err(internal_db)?;
+        identity_is_member |=
+            member_player_id == request.player_id && member_account_id == account_id;
+    }
+    if !identity_is_member {
+        return Err(api_error(
+            StatusCode::FORBIDDEN,
+            "identity is not a match member",
+            false,
+        ));
+    }
     let mut durable_next_input_sequences = BTreeMap::new();
-    for row in durable_member_rows {
+    for row in &durable_member_rows {
         durable_next_input_sequences.insert(
             row.try_get::<String, _>("player_id").map_err(internal_db)?,
             row.try_get::<i64, _>("next_input_sequence")
@@ -9659,26 +9661,35 @@ async fn reconnect_match(
             true,
         ));
     }
-    let reconnect_count = member
-        .try_get::<i64, _>("reconnect_count")
-        .map_err(internal_db)? as u64
-        + 1;
-    sqlx::query::query(
-        "update trnm_online_match_members set reconnect_count = $4,
-            last_acknowledged_sequence = greatest(last_acknowledged_sequence, $5),
-            last_snapshot_hash = $6, last_seen_at = now()
-         where match_id = $1 and player_id = $2 and account_id = $3",
+    // Release the match authority snapshot before updating reconnect telemetry.
+    // Keeping the member row lock inside this transaction lets concurrent
+    // reconnects queue while all of them still hold a match FOR SHARE lock,
+    // which blocks the actor's canonical match FOR UPDATE command commit.
+    transaction.commit().await.map_err(internal_db)?;
+    let reconnect_count: i64 = sqlx::query_scalar::query_scalar(
+        "update trnm_online_match_members set reconnect_count = reconnect_count + 1,
+            last_acknowledged_sequence = greatest(last_acknowledged_sequence, $4),
+            last_snapshot_hash = $5, last_seen_at = now()
+         where match_id = $1 and player_id = $2 and account_id = $3
+         returning reconnect_count",
     )
     .bind(match_id)
     .bind(&request.player_id)
     .bind(account_id)
-    .bind(reconnect_count as i64)
     .bind(next_receipt_sequence as i64)
     .bind(&snapshot_hash)
-    .execute(&mut *transaction)
+    .fetch_optional(&state.pool)
     .await
-    .map_err(internal_db)?;
-    let mut view = fetch_match_view(&state.pool, match_id).await?;
+    .map_err(internal_db)?
+    .ok_or_else(|| {
+        api_error(
+            StatusCode::FORBIDDEN,
+            "identity is not a match member",
+            false,
+        )
+    })?;
+    let reconnect_count = reconnect_count as u64;
+    let mut view = match_view_from_rows(&match_row, &durable_member_rows)?;
     if !snapshot.is_null() {
         let simulation = serde_json::from_value::<MissionSimV1>(snapshot.clone())
             .map_err(internal_serialization)?;
@@ -9716,7 +9727,6 @@ async fn reconnect_match(
                 state.settlement_state.clone()
             }),
     );
-    transaction.commit().await.map_err(internal_db)?;
     Ok(Json(OnlineReconnectResponse {
         view,
         snapshot,
@@ -13834,6 +13844,13 @@ async fn fetch_match_view(pool: &PgPool, match_id: Uuid) -> Result<OnlineMatchVi
     .fetch_all(pool)
     .await
     .map_err(internal_db)?;
+    match_view_from_rows(&row, &member_rows)
+}
+
+fn match_view_from_rows(
+    row: &sqlx_postgres::PgRow,
+    member_rows: &[sqlx_postgres::PgRow],
+) -> Result<OnlineMatchView, ApiError> {
     let mut members = Vec::with_capacity(member_rows.len());
     for member in member_rows {
         let controlled: Value = member.try_get("controlled_unit_ids").map_err(internal_db)?;
@@ -13870,7 +13887,10 @@ async fn fetch_match_view(pool: &PgPool, match_id: Uuid) -> Result<OnlineMatchVi
     Ok(OnlineMatchView {
         protocol_version: ONLINE_AUTHORITY_PROTOCOL.to_string(),
         build_id: row.try_get("build_id").map_err(internal_db)?,
-        match_id: match_id.to_string(),
+        match_id: row
+            .try_get::<Uuid, _>("match_id")
+            .map_err(internal_db)?
+            .to_string(),
         join_code: row.try_get("join_code").map_err(internal_db)?,
         phase: match phase.as_str() {
             "waiting" => OnlineMatchPhase::Waiting,
