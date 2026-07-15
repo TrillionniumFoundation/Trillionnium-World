@@ -763,21 +763,39 @@ admin_post() {
 
 create_identity() {
   local label="$1" account player recovery session
-  account="$(admin_post /v1/accounts "$(jq -cn \
+  local account_response session_response
+  if ! account_response="$(admin_post /v1/accounts "$(jq -cn \
     --arg org '00000000-0000-0000-0000-00000000ce01' --arg label "$label" \
-    '{org_id:$org,account_type:("capacity-"+$label),currency_unit:"credit",initial_balance:0}')" \
-    | jq -er .account_id)"
+    '{org_id:$org,account_type:("capacity-"+$label),currency_unit:"credit",initial_balance:0}')")"; then
+    echo "capacity identity provisioning failed: label=$label stage=account" >&2
+    return 1
+  fi
+  if ! account="$(jq -er '.account_id | select(type == "string" and length > 0)' \
+      <<<"$account_response")"; then
+    echo "capacity identity provisioning failed: label=$label stage=account-response" >&2
+    return 1
+  fi
   player="$RUN_ID-$label"
   recovery="recovery-$RUN_ID-$label-012345678901234567890123"
-  admin_post /v1/trnm/identity/register "$(jq -cn \
+  if ! admin_post /v1/trnm/identity/register "$(jq -cn \
     --arg player "$player" --arg account "$account" --arg recovery "$recovery" \
-    '{player_id:$player,account_id:$account,recovery_key:$recovery}')" >/dev/null
-  session="$(bounded_curl "$CURL_REQUEST_TIMEOUT_SECONDS" \
+    '{player_id:$player,account_id:$account,recovery_key:$recovery}')" >/dev/null; then
+    echo "capacity identity provisioning failed: label=$label stage=registration" >&2
+    return 1
+  fi
+  if ! session_response="$(bounded_curl "$CURL_REQUEST_TIMEOUT_SECONDS" \
     "$LEDGER_URL/v1/trnm/identity/session" \
     -H 'content-type: application/json' --data-binary "$(jq -cn \
       --arg player "$player" --arg recovery "$recovery" --arg device "$RUN_ID-$label-device" \
-      '{player_id:$player,recovery_key:$recovery,device_id:$device,lifetime_seconds:10800}')" \
-    | jq -er .session_token)"
+      '{player_id:$player,recovery_key:$recovery,device_id:$device,lifetime_seconds:10800}')")"; then
+    echo "capacity identity provisioning failed: label=$label stage=session" >&2
+    return 1
+  fi
+  if ! session="$(jq -er '.session_token | select(type == "string" and length > 0)' \
+      <<<"$session_response")"; then
+    echo "capacity identity provisioning failed: label=$label stage=session-response" >&2
+    return 1
+  fi
   printf '%s\t%s\t%s\n' "$player" "$account" "$session"
 }
 
@@ -1478,11 +1496,46 @@ while (( $(monotonic_seconds) < deadline_monotonic_seconds )); do
   wave=$((wave + 1))
   worker_pids=()
   reports=()
+  host_players=()
+  host_accounts=()
+  host_sessions=()
+  guest_players=()
+  guest_accounts=()
+  guest_sessions=()
+  identity_provisioning_failed=0
   for worker in $(seq 1 "$CONCURRENCY"); do
-    IFS=$'\t' read -r host_player host_account host_session \
-      < <(create_identity "w${wave}-${worker}-host")
-    IFS=$'\t' read -r guest_player guest_account guest_session \
-      < <(create_identity "w${wave}-${worker}-guest")
+    worker_index=$((worker - 1))
+    if ! IFS=$'\t' read -r host_player host_account host_session \
+        < <(create_identity "w${wave}-${worker}-host"); then
+      identity_provisioning_failed=1
+      break
+    fi
+    if ! IFS=$'\t' read -r guest_player guest_account guest_session \
+        < <(create_identity "w${wave}-${worker}-guest"); then
+      identity_provisioning_failed=1
+      break
+    fi
+    host_players[$worker_index]="$host_player"
+    host_accounts[$worker_index]="$host_account"
+    host_sessions[$worker_index]="$host_session"
+    guest_players[$worker_index]="$guest_player"
+    guest_accounts[$worker_index]="$guest_account"
+    guest_sessions[$worker_index]="$guest_session"
+  done
+  if (( identity_provisioning_failed != 0 )); then
+    printf 'capacity_wave=%s identity_provisioning=failed workers_started=0\n' \
+      "$wave" >&2
+    failures=$((failures + 1))
+    break
+  fi
+  for worker in $(seq 1 "$CONCURRENCY"); do
+    worker_index=$((worker - 1))
+    host_player="${host_players[$worker_index]}"
+    host_account="${host_accounts[$worker_index]}"
+    host_session="${host_sessions[$worker_index]}"
+    guest_player="${guest_players[$worker_index]}"
+    guest_account="${guest_accounts[$worker_index]}"
+    guest_session="${guest_sessions[$worker_index]}"
     report="$EVIDENCE/wave-${wave}-worker-${worker}.json"
     reports+=("$report")
     (
