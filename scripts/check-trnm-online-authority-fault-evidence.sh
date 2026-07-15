@@ -732,19 +732,32 @@ configure_netem() {
 }
 
 sample_readiness() {
-  local sampled body http_ok=true
+  local sampled body response http_ok=true http_status=0
   sampled="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-  body="$(readiness_json "$TEST_URL" 2>/dev/null)" || {
+  response="$(curl -sS --max-time 5 --write-out $'\n%{http_code}' \
+    "$TEST_URL/v1/online/readiness" 2>/dev/null)" || {
     http_ok=false
     body='null'
   }
-  if [[ "$http_ok" == true ]] && ! jq -e 'type == "object"' >/dev/null 2>&1 <<<"$body"; then
-    http_ok=false
-    body='null'
+  if [[ "$http_ok" == true ]]; then
+    http_status="${response##*$'\n'}"
+    body="${response%$'\n'*}"
+    if [[ "$http_status" =~ ^[0-9]{3}$ ]]; then
+      http_status=$((10#$http_status))
+    else
+      http_status=0
+    fi
+    if ! jq -e 'type == "object"' >/dev/null 2>&1 <<<"$body"; then
+      http_ok=false
+      body='null'
+    elif (( http_status != 200 )); then
+      http_ok=false
+    fi
   fi
   jq -cn --arg sampled_at "$sampled" --argjson http_ok "$http_ok" \
+    --argjson http_status "$http_status" \
     --argjson body "$body" \
-    '{sampled_at:$sampled_at,http_ok:$http_ok,body:$body}' \
+    '{sampled_at:$sampled_at,http_ok:$http_ok,http_status:$http_status,body:$body}' \
     >>"$RUN_DIR/readiness-samples.jsonl"
 }
 

@@ -30,7 +30,13 @@ for setting in 'CPUQuota=150%' 'MemoryHigh=1536M' 'MemoryMax=2048M' \
   'MemorySwapMax=512M' 'TasksMax=512' 'TRNM_CAPACITY_MIN_AVAILABLE_MIB:-3072'; do
   rg -Fq -- "$setting" "$capacity_script"
 done
-rg -q 'GAME_SERVER_DATABASE_MAX_CONNECTIONS: u32 = 8' \
+rg -q 'GAME_SERVER_DATABASE_MIN_CONNECTIONS: u32 = 12' \
+  "$ROOT_DIR/trillionnium/crates/trnm-game-server/src/lib.rs"
+rg -q 'GAME_SERVER_DATABASE_MAX_CONNECTIONS: u32 = 12' \
+  "$ROOT_DIR/trillionnium/crates/trnm-game-server/src/lib.rs"
+rg -q 'READINESS_DATABASE_MIN_CONNECTIONS: u32 = 4' \
+  "$ROOT_DIR/trillionnium/crates/trnm-game-server/src/lib.rs"
+rg -q 'READINESS_DATABASE_MAX_CONNECTIONS: u32 = 4' \
   "$ROOT_DIR/trillionnium/crates/trnm-game-server/src/lib.rs"
 rg -q 'SIGNER_DATABASE_MAX_CONNECTIONS: u32 = 4' \
   "$ROOT_DIR/trillionnium/crates/trnm-game-server/src/bin/trnm-entitlement-signer.rs"
@@ -54,7 +60,9 @@ if [[ "${TRNM_REQUIRE_INSTALLED_RESOURCE_BUDGETS:-0}" == 1 ]]; then
 fi
 
 jq -n --argjson installed "$installed" \
-  '{status:"passed",game_server_pool_max:8,signer_pool_max:4,
+  '{status:"passed",game_server_data_pool_min:12,game_server_data_pool_max:12,
+    game_server_readiness_pool_min:4,game_server_readiness_pool_max:4,signer_pool_max:4,
+    game_server_total_pool_max:16,formal_database_connection_ceiling:40,
     game_server_memory_max_mib:512,capacity_harness_memory_max_mib:2048,
     capacity_harness_min_available_memory_mib:3072,
     systemd_unit_budgets:true,installed_runtime_verified:$installed}'

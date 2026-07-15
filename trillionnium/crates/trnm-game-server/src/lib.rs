@@ -345,8 +345,9 @@ const DATABASE_MIGRATION_LOCK_TIMEOUT: Duration = Duration::from_secs(10);
 const MAX_AUTHORITY_CLOCK_ABS_DRIFT_TICKS: f64 = 2.0;
 const AUTHORITY_CLOCK_WINDOW_TICKS: usize = 20;
 const AUTHORITY_CLOCK_MIN_SAMPLES: usize = 3;
-const GAME_SERVER_DATABASE_MAX_CONNECTIONS: u32 = 8;
-const READINESS_DATABASE_MIN_CONNECTIONS: u32 = 2;
+const GAME_SERVER_DATABASE_MIN_CONNECTIONS: u32 = 12;
+const GAME_SERVER_DATABASE_MAX_CONNECTIONS: u32 = 12;
+const READINESS_DATABASE_MIN_CONNECTIONS: u32 = 4;
 const READINESS_DATABASE_MAX_CONNECTIONS: u32 = 4;
 const TERMINAL_ORPHAN_RECONCILIATION_CONCURRENCY: usize = 4;
 const TERMINAL_ACK_GAP_SCAN_LIMIT: i64 = 256;
@@ -378,6 +379,48 @@ const MATCH_ACTOR_FENCE_OWNERSHIP_SQL: &str = "select exists(
           and f.status in ('active', 'draining')
           and f.lease_expires_at > now()
     )";
+const DUPLICATE_COMMAND_RECEIPT_SQL: &str = "select
+        c.sequence, c.input_sequence, c.player_id, c.request_hash,
+        c.accepted_match_revision, c.accepted_snapshot_hash, c.target_tick,
+        c.client_observed_tick,
+        m.match_revision as current_match_revision,
+        m.next_sequence as current_next_sequence,
+        m.checkpoint_sequence, m.phase, m.assigned_physical_host_id,
+        exists(
+            select 1 from trnm_online_terminal_publication_acks a
+            where a.match_id = m.match_id
+              and m.phase = 'complete'
+              and m.terminal_publication_state = 'acknowledged'
+              and a.local_tombstone_state = 'sealed'
+              and m.assigned_physical_host_id = $3
+              and m.terminal_publication_actor_generation is not null
+              and a.actor_generation = m.terminal_publication_actor_generation
+              and a.instance_id = m.assigned_instance_id
+              and a.actor_epoch = m.assigned_instance_epoch
+              and a.physical_host_id = m.assigned_physical_host_id
+              and a.authoritative_tick = m.authoritative_tick
+              and a.next_sequence = m.next_sequence
+              and a.match_revision = m.match_revision
+              and a.snapshot_hash = m.snapshot_hash
+              and a.phase = 'complete'
+              and a.result_hash = m.result_hash
+              and a.published_settlement_state = m.settlement_state
+              and a.next_input_sequences = coalesce(
+                  (select jsonb_object_agg(
+                      mm.player_id,
+                      mm.next_input_sequence order by mm.player_id
+                   )
+                   from trnm_online_match_members mm
+                   where mm.match_id = m.match_id),
+                  '{}'::jsonb
+              )
+        ) as terminal_publication_acked,
+        (select mm.next_input_sequence from trnm_online_match_members mm
+         where mm.match_id = c.match_id and mm.player_id = c.player_id)
+           as current_member_input_sequence
+ from trnm_online_commands c
+ join trnm_online_matches m on m.match_id = c.match_id
+ where c.match_id = $1 and c.command_id = $2";
 const DATABASE_LINEAGE_SQL: &str = "select
         system.system_identifier::text as system_identifier,
         checkpoint.timeline_id::integer as timeline_id,
@@ -1838,6 +1881,7 @@ async fn configure_database_pool_connection(
         ONLINE_HEARTBEAT_FLEET_V1_SQL,
         ONLINE_CHECKPOINT_ACTOR_V1_SQL,
         MATCH_ACTOR_FENCE_OWNERSHIP_SQL,
+        DUPLICATE_COMMAND_RECEIPT_SQL,
     ] {
         let _ = connection.prepare(statement).await?;
     }
@@ -1910,6 +1954,7 @@ impl AppState {
         let before_acquire_authority = database_host_authority.clone();
         let pool = PgPoolOptions::new()
             .max_connections(GAME_SERVER_DATABASE_MAX_CONNECTIONS)
+            .min_connections(GAME_SERVER_DATABASE_MIN_CONNECTIONS)
             .acquire_timeout(Duration::from_secs(5))
             .after_connect(move |connection, _metadata| {
                 let authority = after_connect_authority.clone();
@@ -8159,55 +8204,13 @@ async fn fetch_duplicate_command_receipt(
     player_id: &str,
     request_hash: &str,
 ) -> Result<Option<OnlineCommandReceipt>, ApiError> {
-    let Some(row) = sqlx::query::query(
-        "select c.sequence, c.input_sequence, c.player_id, c.request_hash,
-                c.accepted_match_revision, c.accepted_snapshot_hash, c.target_tick,
-                c.client_observed_tick,
-                m.match_revision as current_match_revision,
-                m.next_sequence as current_next_sequence,
-                m.checkpoint_sequence, m.phase, m.assigned_physical_host_id,
-                exists(
-                    select 1 from trnm_online_terminal_publication_acks a
-                    where a.match_id = m.match_id
-                      and m.phase = 'complete'
-                      and m.terminal_publication_state = 'acknowledged'
-                      and a.local_tombstone_state = 'sealed'
-                      and m.assigned_physical_host_id = $3
-                      and m.terminal_publication_actor_generation is not null
-                      and a.actor_generation = m.terminal_publication_actor_generation
-                      and a.instance_id = m.assigned_instance_id
-                      and a.actor_epoch = m.assigned_instance_epoch
-                      and a.physical_host_id = m.assigned_physical_host_id
-                      and a.authoritative_tick = m.authoritative_tick
-                      and a.next_sequence = m.next_sequence
-                      and a.match_revision = m.match_revision
-                      and a.snapshot_hash = m.snapshot_hash
-                      and a.phase = 'complete'
-                      and a.result_hash = m.result_hash
-                      and a.published_settlement_state = m.settlement_state
-                      and a.next_input_sequences = coalesce(
-                          (select jsonb_object_agg(
-                              mm.player_id,
-                              mm.next_input_sequence order by mm.player_id
-                           )
-                           from trnm_online_match_members mm
-                           where mm.match_id = m.match_id),
-                          '{}'::jsonb
-                      )
-                ) as terminal_publication_acked,
-                (select mm.next_input_sequence from trnm_online_match_members mm
-                 where mm.match_id = c.match_id and mm.player_id = c.player_id)
-                   as current_member_input_sequence
-         from trnm_online_commands c
-         join trnm_online_matches m on m.match_id = c.match_id
-         where c.match_id = $1 and c.command_id = $2",
-    )
-    .bind(match_id)
-    .bind(command_id)
-    .bind(state.physical_host_id.as_str())
-    .fetch_optional(&state.pool)
-    .await
-    .map_err(internal_db)?
+    let Some(row) = sqlx::query::query(DUPLICATE_COMMAND_RECEIPT_SQL)
+        .bind(match_id)
+        .bind(command_id)
+        .bind(state.physical_host_id.as_str())
+        .fetch_optional(&state.pool)
+        .await
+        .map_err(internal_db)?
     else {
         return Ok(None);
     };
@@ -13995,7 +13998,9 @@ mod tests {
         assert!(database_pool_is_operational(1, 0, 8));
         assert!(database_pool_is_operational(8, 1, 8));
         assert!(!database_pool_is_operational(8, 0, 8));
-        assert_eq!(READINESS_DATABASE_MIN_CONNECTIONS, 2);
+        assert_eq!(GAME_SERVER_DATABASE_MIN_CONNECTIONS, 12);
+        assert_eq!(GAME_SERVER_DATABASE_MAX_CONNECTIONS, 12);
+        assert_eq!(READINESS_DATABASE_MIN_CONNECTIONS, 4);
         assert_eq!(READINESS_DATABASE_MAX_CONNECTIONS, 4);
     }
 

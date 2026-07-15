@@ -378,7 +378,11 @@ cat >"$fake_bin/curl" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
 url=""
-for arg in "$@"; do [[ "$arg" == http://* || "$arg" == https://* ]] && url="$arg"; done
+write_http_status=false
+for arg in "$@"; do
+  [[ "$arg" == http://* || "$arg" == https://* ]] && url="$arg"
+  [[ "$arg" == *'%{http_code}'* ]] && write_http_status=true
+done
 case "$url" in
   *:7002/v1/trnm/economy/readiness)
     echo '{"status":"ok","postgres_healthy":true}' ;;
@@ -409,6 +413,9 @@ case "$url" in
     echo '{"session_token":"fixture-session-token"}' ;;
   *) echo '{}' ;;
 esac
+if [[ "$write_http_status" == true ]]; then
+  printf '%s' 200
+fi
 EOF
 chmod 0755 "$fake_bin/"*
 
