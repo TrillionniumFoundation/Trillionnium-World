@@ -1,6 +1,6 @@
 # TRNM Online Authority v3
 
-Updated: 2026-07-14
+Updated: 2026-07-15
 
 ## Contract and compatibility
 
@@ -22,17 +22,23 @@ character, ranking, wallet entitlement or tradeable inventory source.
 
 ## Source and deployment status
 
-The current feature-branch Authority v3 source passes the locked full
-workspace/all-target test suite. A strict full-workspace/all-target Clippy run
-first exposed one incomplete test initialization; after that fixture was fixed,
-the strict rerun passed. Format and diff checks pass as well.
+The current feature-branch Authority v3 source completed its serial source gate
+on 2026-07-15: locked workspace/all-target tests pass, the game-server library
+passes 92/92 tests, workspace/all-target Clippy passes with `-D warnings`, and
+format plus diff checks are clean. A transaction-wrapped V12 migration rehearsal
+against the live database also completed and rolled back: one exact legacy ACK
+was eligible for bootstrap, 385 unacknowledged complete matches were quarantined,
+and no historical ACK was synthesized. The release, fault-evidence and capacity
+shell contract fixtures pass. These are source and rollback-rehearsal results,
+not deployment or black-box runtime credit.
 
-This source has **not** yet been built into a verified release bundle, promoted
-or restarted as the running service. Existing E2E/netem artifacts therefore
-describe the previously deployed Authority v3 path unless a row explicitly says
-otherwise. The clean-snapshot build/check/promotion scripts and their mocked
-shell contract are source-complete, but their digest is provenance/integrity
-metadata rather than a cryptographic release signature.
+This source has **not** yet been built into a verified release-v2 bundle,
+promoted or restarted as the running service. Existing E2E/netem artifacts
+therefore describe the previously deployed Authority v3 path unless a row
+explicitly says otherwise. Release-v2 binds the exact commit, Git tree, binary,
+source manifest and Cargo/rustc toolchain digest. The checker accepts only that
+contract and rejects legacy v1 or toolchain-unbound bundles. These controls are
+provenance/integrity metadata rather than a cryptographic release signature.
 
 ## Player input and server total order
 
@@ -232,38 +238,53 @@ drains admission and actors within fixed deadlines and then exits nonzero via
 the supervisor path, deliberately bypassing Tokio runtime teardown so an
 uninterruptible `spawn_blocking` filesystem call cannot hang process restart.
 
-A terminal receipt crosses the public boundary only after the exact terminal
-checkpoint/result transaction, terminal journal `fsync`, and a separate durable
-terminal-publication acknowledgement row. The acknowledgement binds actor
-generation/epoch, terminal tick, global/revision/member cursors, snapshot hash,
-phase, result hash and the published settlement state; a match merely being
-`complete` is not enough for a duplicate request to receive HTTP 200. A marker
-records the metadata that actually crossed the publication barrier: if the
-database advances from `pending` to `settled` before marker persistence, the
-marker remains `pending`. Existing marker tuples are immutable; only an actual
-later `settled` publication may advance the marker from `pending` to `settled`,
-and settlement regression fails closed. Journal cleanup happens only after that
-proof. Startup repairs both the journal-ACK-before-marker window and
-the earlier DB-terminal-commit-before-terminal-journal window. In the latter it
-requires the running HWM owner/host/epoch, exact cursor or one-command successor,
-and deterministic running-HWM-to-terminal replay before writing the terminal
-HWM. Compaction then revalidates the exact terminal simulation, tick/hash,
-result/settlement, every member cursor and marker. Waiting, absent or mismatched
-records remain fail closed so PITR cannot erase rollback evidence. Publication stops before it
-exceeds 10,000 deterministic steps from the latest acknowledged DB checkpoint
-or command state; PostgreSQL statements and lock acquisition are also bounded.
+A terminal receipt crosses the public boundary only after two database phases
+and two filesystem phases. The first fenced transaction writes a private
+terminal stage but does not change campaign, rating, season, replay, settlement
+or public match truth. The terminal HWM is then `fsync`ed. A second fenced
+transaction atomically applies every terminal projection, switches the match to
+`complete` and inserts the exact publication ACK. The ACK binds actor
+generation, full instance/physical-host/epoch ownership, terminal tick,
+global/revision/member cursors, snapshot hash, phase, result hash and published
+settlement state. Finally the exact HWM is sealed as a cold ACK tombstone and
+the marker advances from `hot_pending` to `sealed`; only then may watch state or
+the terminal receipt be released. A match merely being `complete` is never
+enough for public credit or an HTTP-200 duplicate.
 
-This journal is deliberately a **single-physical-host durability boundary** and
-holds a process-lifetime host lock. Exactly one authority process may run per
-physical host. Listener binding, journal validation, migrations, dependencies
-and safe compaction finish before the database fleet epoch is incremented.
-Fleet heartbeat, actor assignment, fence monitor, command/checkpoint/terminal
-commits, terminal markers and duplicate receipts all require the same local
-physical-host identity in addition to instance ID and epoch; changing only the
-host column fences an already loaded actor.
+The hot HWM is the crash witness between database ACK commit and cold seal.
+Startup may reconstruct a cold record from database state only for explicitly
+marked pre-upgrade `legacy_bootstrap_pending` ACKs. A normal `hot_pending` row
+must have the exact hot or already-written cold witness, and `sealed` must have
+the exact cold witness; missing evidence or PostgreSQL rollback fails closed.
+The cold record includes the complete HWM, result/settlement, immutable ACK
+time, database system identifier, timeline and a post-commit flushed WAL upper
+bound. `pending` may advance atomically to `settled`, but never regress. Cold
+records do not consume the bounded 10,000-match hot set and live reconciliation
+does not scan the entire history. Tombstone deletion is not implemented in the
+live server; a future maintenance path must require an independently proven
+PITR floor for the same database lineage and timeline whose WAL position is
+later than every deleted tombstone. PostgreSQL statements, journal operations
+and lock acquisition remain deadline-bound.
+
+This journal is deliberately a **single-physical-host durability boundary**.
+The process holds both host-local filesystem locks and a PostgreSQL K1 leader
+lock. Every connection-pool session holds a shared K2 handoff barrier for its
+whole physical-session lifetime; a replacement must acquire K1 and then K2
+exclusively before it can publish its identity or claim a fleet epoch. This
+linearizes same-cluster takeover even across different UIDs or containers.
+Listener binding, journal validation, migrations, dependencies and safe
+compaction finish before the database fleet epoch is incremented. Fleet
+heartbeat, actor assignment, fence monitor, command/checkpoint/terminal commits,
+terminal markers and duplicate receipts also bind the local physical-host
+identity, instance ID and epoch; changing only the host column fences an already
+loaded actor.
 Cross-physical-host active-match takeover is blocked until the journal is backed
 by replicated consensus/shared durability with proven RPO=0. The current lease
 and assignment tables are fencing infrastructure, not a cross-host HA claim.
+K1/K2 are database-cluster-local: a writable PITR clone and its old primary can
+each acquire their own locks. Promotion therefore additionally requires
+external STONITH proving the old primary is no longer writable; the server does
+not claim cross-cluster split-brain prevention.
 
 On SIGTERM the server first stops command admission with a recoverable 503 and
 `Retry-After`, stops accepting new HTTP connections, and only then asks actors
@@ -282,7 +303,8 @@ commercial-release claim.
   netem packets during the effect window. Effect p95/max rose to
   3,158/3,416 ms, ACK p95/p99 to 2,748/3,137 ms and actor drift to 848.48
   ticks. All three design thresholds failed on the pre-refactor deployed path.
-  The asynchronous state machine described above now exists in source, but the
+  The asynchronous state machine described above now exists and passes the
+  current serial source gate, but the
   old failure remains the latest black-box database-latency evidence until a
   promoted build passes the same profile.
 - HTTP acceptance latency is not authoritative-effect latency. A 2026-07-14

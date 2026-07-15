@@ -1,4 +1,4 @@
-use serde::{Deserialize, Serialize};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::{
     collections::{BTreeMap, BTreeSet},
@@ -17,14 +17,25 @@ use uuid::Uuid;
 
 const JOURNAL_CONTRACT: &str = "trnm_published_tick_high_water_v2";
 const JOURNAL_OWNER_CONTRACT: &str = "trnm_published_tick_journal_owner_v1";
+const ACK_TOMBSTONE_CONTRACT: &str = "trnm_published_tick_ack_tombstone_v2";
+const ACK_MANIFEST_CONTRACT: &str = "trnm_published_tick_ack_manifest_v1";
 const JOURNAL_QUEUE_CAPACITY: usize = 128;
 const MAX_RECORDS: usize = 10_000;
+const MAX_JOURNAL_ROOT_ENTRIES: usize = MAX_RECORDS + 16;
 const MAX_RECORD_BYTES: u64 = 16 * 1024;
+const MAX_ACK_TOMBSTONE_BYTES: u64 = 24 * 1024;
+const MAX_ACK_MANIFEST_BYTES: u64 = 32 * 1024;
+#[cfg(test)]
+const MAX_ACK_TOMBSTONE_PAGE_SIZE: usize = 512;
+const MAX_ACK_TOMBSTONES_PER_SHARD: usize = 4_096;
+const ACK_TOMBSTONE_DIRECTORY: &str = "acknowledged";
+const ACK_MANIFEST_FILE: &str = ".published-tick-ack-manifest.json";
 
 /// The last actor state that was allowed to cross the public publication
 /// boundary. This is deliberately a local-host recovery record, not a
 /// replicated durability claim.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
 pub(crate) struct PublishedTickHighWater {
     pub contract_version: String,
     pub journal_owner_id: Uuid,
@@ -144,7 +155,198 @@ pub(crate) struct PublishedTickRecordInput {
     pub snapshot_hash: String,
 }
 
+#[derive(Clone, Debug)]
+struct DurableDatabaseHighWater {
+    next_sequence: u64,
+    match_revision: u64,
+    next_input_sequences: BTreeMap<String, u64>,
+}
+
+/// Durable cold evidence that an exact terminal high-water was committed to
+/// PostgreSQL and acknowledged. Unlike a hot high-water, this record is never
+/// rewritten by actor progress and is not subject to `MAX_RECORDS`.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct PublishedTickAckTombstone {
+    pub contract_version: String,
+    pub journal_seal_sequence: u64,
+    pub high_water: PublishedTickHighWater,
+    pub result_hash: String,
+    pub settlement_state: String,
+    pub acknowledged_at_unix_ms: u64,
+    pub database_system_identifier: String,
+    pub database_timeline_id: u32,
+    pub database_wal_lsn: String,
+}
+
+#[derive(Clone, Debug)]
+pub(crate) struct PublishedTickAckTombstoneInput {
+    pub high_water: PublishedTickHighWater,
+    pub result_hash: String,
+    pub settlement_state: String,
+    pub acknowledged_at_unix_ms: u64,
+    pub database_system_identifier: String,
+    pub database_timeline_id: u32,
+    pub database_wal_lsn: String,
+}
+
+impl PublishedTickAckTombstone {
+    fn new(
+        input: PublishedTickAckTombstoneInput,
+        journal_seal_sequence: u64,
+    ) -> Result<Self, String> {
+        let tombstone = Self {
+            contract_version: ACK_TOMBSTONE_CONTRACT.to_string(),
+            journal_seal_sequence,
+            high_water: input.high_water,
+            result_hash: input.result_hash,
+            settlement_state: input.settlement_state,
+            acknowledged_at_unix_ms: input.acknowledged_at_unix_ms,
+            database_system_identifier: input.database_system_identifier,
+            database_timeline_id: input.database_timeline_id,
+            database_wal_lsn: input.database_wal_lsn,
+        };
+        tombstone.validate()?;
+        Ok(tombstone)
+    }
+
+    fn validate(&self) -> Result<(), String> {
+        if self.contract_version != ACK_TOMBSTONE_CONTRACT {
+            return Err(format!(
+                "unsupported published-tick ACK tombstone contract {}",
+                self.contract_version
+            ));
+        }
+        if self.journal_seal_sequence == 0 {
+            return Err("published-tick ACK journal seal sequence must be positive".to_string());
+        }
+        self.high_water.validate()?;
+        if self.high_water.phase != "complete" || !self.high_water.receipts_replayable {
+            return Err(
+                "published-tick ACK tombstone requires a replayable terminal high-water"
+                    .to_string(),
+            );
+        }
+        if !is_lowercase_sha256(&self.result_hash) {
+            return Err(
+                "published-tick ACK result hash must be 64 lowercase hexadecimal characters"
+                    .to_string(),
+            );
+        }
+        if !matches!(self.settlement_state.as_str(), "pending" | "settled") {
+            return Err(
+                "published-tick ACK settlement state must be pending or settled".to_string(),
+            );
+        }
+        if self.acknowledged_at_unix_ms == 0 {
+            return Err(
+                "published-tick ACK acknowledgement timestamp must be positive".to_string(),
+            );
+        }
+        if !is_canonical_positive_u64(&self.database_system_identifier) {
+            return Err(
+                "published-tick ACK database system identifier must be canonical positive u64 text"
+                    .to_string(),
+            );
+        }
+        if self.database_timeline_id == 0 {
+            return Err(
+                "published-tick ACK database timeline identifier must be positive".to_string(),
+            );
+        }
+        if parse_postgres_wal_lsn(&self.database_wal_lsn).is_none() {
+            return Err(
+                "published-tick ACK database WAL LSN is not canonical PostgreSQL LSN text"
+                    .to_string(),
+            );
+        }
+        Ok(())
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+struct AckTombstoneManifest {
+    contract_version: String,
+    journal_owner_id: Uuid,
+    physical_host_id: String,
+    tombstone_count: u64,
+    committed_seal_sequence: u64,
+    database_system_identifier: Option<String>,
+    database_timeline_id: Option<u32>,
+    latest_tombstone: Option<PublishedTickAckTombstone>,
+    latest_tombstone_sha256: Option<String>,
+}
+
+impl AckTombstoneManifest {
+    fn empty(owner: &JournalOwnerManifest) -> Self {
+        Self {
+            contract_version: ACK_MANIFEST_CONTRACT.to_string(),
+            journal_owner_id: owner.journal_owner_id,
+            physical_host_id: owner.physical_host_id.clone(),
+            tombstone_count: 0,
+            committed_seal_sequence: 0,
+            database_system_identifier: None,
+            database_timeline_id: None,
+            latest_tombstone: None,
+            latest_tombstone_sha256: None,
+        }
+    }
+
+    fn validate(&self, owner: &JournalOwnerManifest) -> Result<(), String> {
+        if self.contract_version != ACK_MANIFEST_CONTRACT
+            || self.journal_owner_id != owner.journal_owner_id
+            || self.physical_host_id != owner.physical_host_id
+            || self.tombstone_count != self.committed_seal_sequence
+        {
+            return Err("published-tick ACK manifest identity or sequence is invalid".to_string());
+        }
+        if self.tombstone_count == 0 {
+            if self.database_system_identifier.is_some()
+                || self.database_timeline_id.is_some()
+                || self.latest_tombstone.is_some()
+                || self.latest_tombstone_sha256.is_some()
+            {
+                return Err(
+                    "empty published-tick ACK manifest contains lineage or latest state"
+                        .to_string(),
+                );
+            }
+            return Ok(());
+        }
+        let system_identifier = self.database_system_identifier.as_deref().ok_or_else(|| {
+            "published-tick ACK manifest database system identifier is missing".to_string()
+        })?;
+        if !is_canonical_positive_u64(system_identifier)
+            || self
+                .database_timeline_id
+                .is_none_or(|timeline| timeline == 0)
+        {
+            return Err("published-tick ACK manifest database lineage is invalid".to_string());
+        }
+        let latest = self
+            .latest_tombstone
+            .as_ref()
+            .ok_or_else(|| "published-tick ACK manifest latest tombstone is missing".to_string())?;
+        latest.validate()?;
+        if latest.journal_seal_sequence > self.committed_seal_sequence
+            || latest.high_water.journal_owner_id != self.journal_owner_id
+            || latest.high_water.physical_host_id != self.physical_host_id
+            || latest.database_system_identifier != system_identifier
+            || Some(latest.database_timeline_id) != self.database_timeline_id
+            || self
+                .latest_tombstone_sha256
+                .as_deref()
+                .is_none_or(|hash| !is_lowercase_sha256(hash))
+        {
+            return Err("published-tick ACK manifest latest tombstone is inconsistent".to_string());
+        }
+        Ok(())
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
 struct JournalOwnerManifest {
     contract_version: String,
     journal_owner_id: Uuid,
@@ -153,8 +355,10 @@ struct JournalOwnerManifest {
 
 #[derive(Clone)]
 pub(crate) struct PublishedTickJournal {
+    root: Arc<PathBuf>,
     requests: mpsc::Sender<JournalRequest>,
     records: Arc<Mutex<BTreeMap<Uuid, PublishedTickHighWater>>>,
+    ack_manifest: Arc<Mutex<AckTombstoneManifest>>,
     owner: Arc<JournalOwnerManifest>,
     failed_closed: Arc<AtomicBool>,
     poison_generation: Arc<AtomicU64>,
@@ -172,9 +376,7 @@ enum JournalRequest {
     Record {
         poison_generation: u64,
         record: Box<PublishedTickHighWater>,
-        durable_db_next_sequence: u64,
-        durable_db_match_revision: u64,
-        durable_db_next_input_sequences: BTreeMap<String, u64>,
+        durable_database: DurableDatabaseHighWater,
         completion: oneshot::Sender<Result<(), String>>,
     },
     Compact {
@@ -182,11 +384,10 @@ enum JournalRequest {
         active_matches: BTreeSet<Uuid>,
         completion: oneshot::Sender<Result<(), String>>,
     },
-    Retire {
+    SealTerminalAck {
         poison_generation: u64,
-        match_id: Uuid,
-        actor_generation: Uuid,
-        completion: oneshot::Sender<Result<(), String>>,
+        input: Box<PublishedTickAckTombstoneInput>,
+        completion: oneshot::Sender<Result<PublishedTickAckTombstone, String>>,
     },
 }
 
@@ -199,7 +400,10 @@ struct JournalWriterTestPause {
 struct JournalWriterContext {
     root: PathBuf,
     records: Arc<Mutex<BTreeMap<Uuid, PublishedTickHighWater>>>,
+    ack_manifest: Arc<Mutex<AckTombstoneManifest>>,
+    owner: Arc<JournalOwnerManifest>,
     _process_lock: Arc<File>,
+    _host_identity_lock: Arc<File>,
     failed_closed: Arc<AtomicBool>,
     poison_generation: Arc<AtomicU64>,
     fatal_shutdown: watch::Sender<bool>,
@@ -231,15 +435,27 @@ impl PublishedTickJournal {
         ensure_secure_directory(&root)?;
         let process_lock = acquire_process_lock(&root)?;
         let owner = Arc::new(load_or_create_owner(&root, physical_host_id)?);
-        let records = Arc::new(Mutex::new(load_records(&root, &owner)?));
+        let mut ack_manifest = load_or_create_ack_manifest(&root, &owner)?;
+        validate_manifest_latest_tombstone(&root, &owner, &ack_manifest)?;
+        let records = Arc::new(Mutex::new(load_hot_records(
+            &root,
+            &owner,
+            &mut ack_manifest,
+        )?));
+        let root = Arc::new(root);
+        let ack_manifest = Arc::new(Mutex::new(ack_manifest));
         let (requests, receiver) = mpsc::channel(JOURNAL_QUEUE_CAPACITY);
         let failed_closed = Arc::new(AtomicBool::new(false));
         let poison_generation = Arc::new(AtomicU64::new(0));
         let (fatal_shutdown, _) = watch::channel(false);
         #[cfg(test)]
         let test_pause_next_record = Arc::new(Mutex::new(None));
+        let worker_root = root.clone();
         let worker_records = records.clone();
+        let worker_ack_manifest = ack_manifest.clone();
+        let worker_owner = owner.clone();
         let worker_lock = process_lock.clone();
+        let worker_host_identity_lock = host_identity_lock.clone();
         let worker_failed_closed = failed_closed.clone();
         let worker_poison_generation = poison_generation.clone();
         let worker_fatal_shutdown = fatal_shutdown.clone();
@@ -248,9 +464,12 @@ impl PublishedTickJournal {
         tokio::spawn(async move {
             run_writer(
                 JournalWriterContext {
-                    root,
+                    root: (*worker_root).clone(),
                     records: worker_records,
+                    ack_manifest: worker_ack_manifest,
+                    owner: worker_owner,
                     _process_lock: worker_lock,
+                    _host_identity_lock: worker_host_identity_lock,
                     failed_closed: worker_failed_closed,
                     poison_generation: worker_poison_generation,
                     fatal_shutdown: worker_fatal_shutdown,
@@ -262,8 +481,10 @@ impl PublishedTickJournal {
             .await;
         });
         Ok(Self {
+            root,
             requests,
             records,
+            ack_manifest,
             owner,
             failed_closed,
             poison_generation,
@@ -378,9 +599,11 @@ impl PublishedTickJournal {
             .send(JournalRequest::Record {
                 poison_generation,
                 record: Box::new(record),
-                durable_db_next_sequence,
-                durable_db_match_revision,
-                durable_db_next_input_sequences,
+                durable_database: DurableDatabaseHighWater {
+                    next_sequence: durable_db_next_sequence,
+                    match_revision: durable_db_match_revision,
+                    next_input_sequences: durable_db_next_input_sequences,
+                },
                 completion,
             })
             .await
@@ -439,19 +662,85 @@ impl PublishedTickJournal {
             .map(|records| records.keys().copied().collect())
     }
 
-    pub(crate) async fn retire(
+    pub(crate) fn ack_tombstone(
         &self,
         match_id: Uuid,
-        actor_generation: Uuid,
-    ) -> Result<(), String> {
+    ) -> Result<Option<PublishedTickAckTombstone>, String> {
+        let manifest = self
+            .ack_manifest
+            .lock()
+            .map_err(|_| "published-tick ACK manifest lock is poisoned".to_string())?
+            .clone();
+        let tombstone = load_ack_tombstone_if_exists(&self.root, &self.owner, match_id)?;
+        if let Some(tombstone) = tombstone.as_ref() {
+            validate_tombstone_against_manifest(tombstone, &manifest)?;
+        }
+        Ok(tombstone)
+    }
+
+    /// Returns at most `limit` tombstones strictly after `after_match_id` in
+    /// UUID order. Callers must page explicitly; no runtime path is required
+    /// to enumerate the complete cold history.
+    #[cfg(test)]
+    pub(crate) fn ack_tombstones_page(
+        &self,
+        after_match_id: Option<Uuid>,
+        limit: usize,
+    ) -> Result<Vec<PublishedTickAckTombstone>, String> {
+        if limit == 0 || limit > MAX_ACK_TOMBSTONE_PAGE_SIZE {
+            return Err(format!(
+                "published-tick ACK tombstone page size must be 1..={MAX_ACK_TOMBSTONE_PAGE_SIZE}"
+            ));
+        }
+        let manifest = self
+            .ack_manifest
+            .lock()
+            .map_err(|_| "published-tick ACK manifest lock is poisoned".to_string())?
+            .clone();
+        scan_ack_tombstone_page(&self.root, &self.owner, &manifest, after_match_id, limit)
+    }
+
+    pub(crate) fn ack_tombstone_count(&self) -> Result<usize, String> {
+        self.ack_manifest
+            .lock()
+            .map_err(|_| "published-tick ACK manifest lock is poisoned".to_string())
+            .and_then(|manifest| {
+                usize::try_from(manifest.tombstone_count)
+                    .map_err(|_| "published-tick ACK tombstone count exceeds usize".to_string())
+            })
+    }
+
+    /// O(1) runtime rollback sentinel backed by the durable manifest. Normal
+    /// startup validates only this exact file plus deterministic hot overlaps.
+    pub(crate) fn latest_ack_tombstone(&self) -> Result<Option<PublishedTickAckTombstone>, String> {
+        self.ack_manifest
+            .lock()
+            .map_err(|_| "published-tick ACK manifest lock is poisoned".to_string())
+            .map(|manifest| manifest.latest_tombstone.clone())
+    }
+
+    /// Seal only after the exact PostgreSQL terminal ACK transaction has
+    /// committed. The database-derived timestamp and mandatory post-commit
+    /// WAL flush LSN are supplied by the caller.
+    pub(crate) async fn seal_terminal_ack(
+        &self,
+        input: PublishedTickAckTombstoneInput,
+    ) -> Result<PublishedTickAckTombstone, String> {
         let poison_generation = self.operational_generation()?;
+        let validated = PublishedTickAckTombstone::new(input.clone(), 1)?;
+        if validated.high_water.journal_owner_id != self.owner.journal_owner_id
+            || validated.high_water.physical_host_id != self.owner.physical_host_id
+        {
+            return Err(
+                "published-tick ACK tombstone does not belong to this host journal".to_string(),
+            );
+        }
         let (completion, completed) = oneshot::channel();
         if self
             .requests
-            .send(JournalRequest::Retire {
+            .send(JournalRequest::SealTerminalAck {
                 poison_generation,
-                match_id,
-                actor_generation,
+                input: Box::new(input),
                 completion,
             })
             .await
@@ -464,7 +753,9 @@ impl PublishedTickJournal {
             Ok(result) => result,
             Err(_) => {
                 self.require_generation(poison_generation)?;
-                return Err("published-tick journal writer stopped during retirement".to_string());
+                return Err(
+                    "published-tick journal writer stopped while sealing terminal ACK".to_string(),
+                );
             }
         };
         self.require_generation(poison_generation)?;
@@ -496,7 +787,10 @@ async fn run_writer(context: JournalWriterContext, mut requests: mpsc::Receiver<
     let JournalWriterContext {
         root,
         records,
+        ack_manifest,
+        owner,
         _process_lock,
+        _host_identity_lock,
         failed_closed,
         poison_generation,
         fatal_shutdown,
@@ -508,9 +802,7 @@ async fn run_writer(context: JournalWriterContext, mut requests: mpsc::Receiver<
             JournalRequest::Record {
                 poison_generation: request_generation,
                 record,
-                durable_db_next_sequence,
-                durable_db_match_revision,
-                durable_db_next_input_sequences,
+                durable_database,
                 completion,
             } => {
                 if !request_generation_is_operational(
@@ -549,14 +841,19 @@ async fn run_writer(context: JournalWriterContext, mut requests: mpsc::Receiver<
                 }
                 let worker_root = root.clone();
                 let worker_records = records.clone();
+                let worker_ack_manifest = ack_manifest.clone();
+                let worker_owner = owner.clone();
+                let worker_process_lock = _process_lock.clone();
+                let worker_host_identity_lock = _host_identity_lock.clone();
                 let result = tokio::task::spawn_blocking(move || {
+                    let _lock_guards = (worker_process_lock, worker_host_identity_lock);
                     persist_record(
                         &worker_root,
                         &worker_records,
+                        &worker_ack_manifest,
+                        &worker_owner,
                         *record,
-                        durable_db_next_sequence,
-                        durable_db_match_revision,
-                        durable_db_next_input_sequences,
+                        durable_database,
                     )
                 })
                 .await
@@ -605,7 +902,10 @@ async fn run_writer(context: JournalWriterContext, mut requests: mpsc::Receiver<
                 }
                 let worker_root = root.clone();
                 let worker_records = records.clone();
+                let worker_process_lock = _process_lock.clone();
+                let worker_host_identity_lock = _host_identity_lock.clone();
                 let result = tokio::task::spawn_blocking(move || {
+                    let _lock_guards = (worker_process_lock, worker_host_identity_lock);
                     compact_records(&worker_root, &worker_records, &active_matches)
                 })
                 .await
@@ -636,10 +936,9 @@ async fn run_writer(context: JournalWriterContext, mut requests: mpsc::Receiver<
                     break;
                 }
             }
-            JournalRequest::Retire {
+            JournalRequest::SealTerminalAck {
                 poison_generation: request_generation,
-                match_id,
-                actor_generation,
+                input,
                 completion,
             } => {
                 if !request_generation_is_operational(
@@ -655,13 +954,24 @@ async fn run_writer(context: JournalWriterContext, mut requests: mpsc::Receiver<
                 }
                 let worker_root = root.clone();
                 let worker_records = records.clone();
+                let worker_ack_manifest = ack_manifest.clone();
+                let worker_owner = owner.clone();
+                let worker_process_lock = _process_lock.clone();
+                let worker_host_identity_lock = _host_identity_lock.clone();
                 let result = tokio::task::spawn_blocking(move || {
-                    retire_record(&worker_root, &worker_records, match_id, actor_generation)
+                    let _lock_guards = (worker_process_lock, worker_host_identity_lock);
+                    seal_terminal_ack_tombstone(
+                        &worker_root,
+                        &worker_records,
+                        &worker_ack_manifest,
+                        &worker_owner,
+                        *input,
+                    )
                 })
                 .await
                 .unwrap_or_else(|error| {
                     Err(JournalWriteError::DurabilityUncertain(format!(
-                        "published-tick retirement task panicked or was cancelled: {error}"
+                        "published-tick ACK seal task panicked or was cancelled: {error}"
                     )))
                 });
                 let fatal = result.as_ref().is_err_and(JournalWriteError::is_fatal);
@@ -693,14 +1003,21 @@ async fn run_writer(context: JournalWriterContext, mut requests: mpsc::Receiver<
 fn persist_record(
     root: &Path,
     records: &Mutex<BTreeMap<Uuid, PublishedTickHighWater>>,
+    ack_manifest: &Mutex<AckTombstoneManifest>,
+    owner: &JournalOwnerManifest,
     record: PublishedTickHighWater,
-    durable_db_next_sequence: u64,
-    durable_db_match_revision: u64,
-    durable_db_next_input_sequences: BTreeMap<String, u64>,
+    durable_database: DurableDatabaseHighWater,
 ) -> Result<(), JournalWriteError> {
     record.validate().map_err(JournalWriteError::Rejected)?;
-    if record.next_sequence > durable_db_next_sequence
-        || record.match_revision > durable_db_match_revision
+    if record.journal_owner_id != owner.journal_owner_id
+        || record.physical_host_id != owner.physical_host_id
+    {
+        return Err(JournalWriteError::Rejected(
+            "published-tick record does not belong to this host journal".to_string(),
+        ));
+    }
+    if record.next_sequence > durable_database.next_sequence
+        || record.match_revision > durable_database.match_revision
     {
         return Err(JournalWriteError::Rejected(
             "published-tick high-water cursor is ahead of durable database authority".to_string(),
@@ -710,7 +1027,8 @@ fn persist_record(
         .next_input_sequences
         .iter()
         .any(|(player_id, cursor)| {
-            durable_db_next_input_sequences
+            durable_database
+                .next_input_sequences
                 .get(player_id)
                 .is_none_or(|durable| cursor > durable)
         })
@@ -719,30 +1037,37 @@ fn persist_record(
             "published-tick member cursor is ahead of durable database authority".to_string(),
         ));
     }
-    let current = records
-        .lock()
-        .map_err(|_| {
+    let (current, hot_record_count) = {
+        let records = records.lock().map_err(|_| {
             JournalWriteError::DurabilityUncertain(
                 "published-tick journal record lock is poisoned".to_string(),
             )
-        })?
-        .get(&record.match_id)
-        .cloned();
+        })?;
+        (records.get(&record.match_id).cloned(), records.len())
+    };
     if let Some(current) = current.as_ref() {
         validate_forward_progress(current, &record).map_err(JournalWriteError::Rejected)?;
-    } else if records
-        .lock()
-        .map_err(|_| {
-            JournalWriteError::DurabilityUncertain(
-                "published-tick journal record lock is poisoned".to_string(),
-            )
-        })?
-        .len()
-        >= MAX_RECORDS
-    {
-        return Err(JournalWriteError::Rejected(format!(
-            "published-tick journal reached its bounded {MAX_RECORDS}-match retention limit"
-        )));
+    } else {
+        validate_hot_record_capacity(hot_record_count, true)
+            .map_err(JournalWriteError::Rejected)?;
+        let manifest = ack_manifest
+            .lock()
+            .map_err(|_| {
+                JournalWriteError::DurabilityUncertain(
+                    "published-tick ACK manifest lock is poisoned".to_string(),
+                )
+            })?
+            .clone();
+        if let Some(tombstone) = load_ack_tombstone_if_exists(root, owner, record.match_id)
+            .map_err(JournalWriteError::DurabilityUncertain)?
+        {
+            validate_tombstone_against_manifest(&tombstone, &manifest)
+                .map_err(JournalWriteError::DurabilityUncertain)?;
+            return Err(JournalWriteError::Rejected(
+                "published-tick record cannot recreate or advance an acknowledged tombstone"
+                    .to_string(),
+            ));
+        }
     }
 
     let payload = serde_json::to_vec_pretty(&record).map_err(|error| {
@@ -754,7 +1079,7 @@ fn persist_record(
         )));
     }
     atomic_install(root, &record_path(root, record.match_id), &payload)?;
-    records
+    let previous = records
         .lock()
         .map_err(|_| {
             JournalWriteError::DurabilityUncertain(
@@ -762,6 +1087,11 @@ fn persist_record(
             )
         })?
         .insert(record.match_id, record);
+    if current.is_none() && previous.is_some() {
+        return Err(JournalWriteError::DurabilityUncertain(
+            "published-tick record appeared while installing a new hot high-water".to_string(),
+        ));
+    }
     Ok(())
 }
 
@@ -817,6 +1147,323 @@ fn validate_forward_progress(
     Ok(())
 }
 
+fn validate_hot_record_capacity(
+    hot_record_count: usize,
+    adding_new_record: bool,
+) -> Result<(), String> {
+    if (adding_new_record && hot_record_count >= MAX_RECORDS)
+        || (!adding_new_record && hot_record_count > MAX_RECORDS)
+    {
+        return Err(format!(
+            "published-tick journal reached its bounded {MAX_RECORDS}-match hot retention limit"
+        ));
+    }
+    Ok(())
+}
+
+fn ack_tombstone_order_key(tombstone: &PublishedTickAckTombstone) -> Result<(u64, Uuid), String> {
+    let wal_lsn = parse_postgres_wal_lsn(&tombstone.database_wal_lsn).ok_or_else(|| {
+        "published-tick ACK database WAL LSN is not canonical PostgreSQL LSN text".to_string()
+    })?;
+    Ok((wal_lsn, tombstone.high_water.match_id))
+}
+
+fn sha256_hex(bytes: &[u8]) -> String {
+    let digest = Sha256::digest(bytes);
+    let mut digest_hex = String::with_capacity(64);
+    for byte in digest {
+        write!(&mut digest_hex, "{byte:02x}")
+            .expect("writing a SHA-256 digest into a String cannot fail");
+    }
+    digest_hex
+}
+
+fn validate_tombstone_against_manifest(
+    tombstone: &PublishedTickAckTombstone,
+    manifest: &AckTombstoneManifest,
+) -> Result<(), String> {
+    tombstone.validate()?;
+    if manifest.tombstone_count == 0
+        || tombstone.journal_seal_sequence > manifest.committed_seal_sequence
+        || tombstone.high_water.journal_owner_id != manifest.journal_owner_id
+        || tombstone.high_water.physical_host_id != manifest.physical_host_id
+        || manifest.database_system_identifier.as_deref()
+            != Some(tombstone.database_system_identifier.as_str())
+        || manifest.database_timeline_id != Some(tombstone.database_timeline_id)
+    {
+        return Err(
+            "published-tick ACK tombstone is not covered by the durable manifest".to_string(),
+        );
+    }
+    Ok(())
+}
+
+fn advance_manifest_for_tombstone(
+    manifest: &mut AckTombstoneManifest,
+    owner: &JournalOwnerManifest,
+    tombstone: &PublishedTickAckTombstone,
+    tombstone_sha256: &str,
+) -> Result<(), String> {
+    manifest.validate(owner)?;
+    tombstone.validate()?;
+    if !is_lowercase_sha256(tombstone_sha256)
+        || tombstone.journal_seal_sequence
+            != manifest
+                .committed_seal_sequence
+                .checked_add(1)
+                .ok_or_else(|| "published-tick ACK seal sequence overflow".to_string())?
+        || tombstone.high_water.journal_owner_id != owner.journal_owner_id
+        || tombstone.high_water.physical_host_id != owner.physical_host_id
+    {
+        return Err("published-tick ACK tombstone cannot advance this manifest".to_string());
+    }
+
+    if manifest.tombstone_count == 0 {
+        manifest.database_system_identifier = Some(tombstone.database_system_identifier.clone());
+        manifest.database_timeline_id = Some(tombstone.database_timeline_id);
+    } else if manifest.database_system_identifier.as_deref()
+        != Some(tombstone.database_system_identifier.as_str())
+        || manifest.database_timeline_id != Some(tombstone.database_timeline_id)
+    {
+        return Err(
+            "published-tick ACK database incarnation changed within one host journal".to_string(),
+        );
+    }
+
+    let candidate_key = ack_tombstone_order_key(tombstone)?;
+    if let Some(current) = manifest.latest_tombstone.as_ref() {
+        let current_key = ack_tombstone_order_key(current)?;
+        if candidate_key.0 < current_key.0 {
+            return Err("published-tick ACK WAL LSN cannot regress".to_string());
+        }
+        if candidate_key > current_key {
+            manifest.latest_tombstone = Some(tombstone.clone());
+            manifest.latest_tombstone_sha256 = Some(tombstone_sha256.to_string());
+        }
+    } else {
+        manifest.latest_tombstone = Some(tombstone.clone());
+        manifest.latest_tombstone_sha256 = Some(tombstone_sha256.to_string());
+    }
+    manifest.tombstone_count = manifest
+        .tombstone_count
+        .checked_add(1)
+        .ok_or_else(|| "published-tick ACK tombstone count overflow".to_string())?;
+    manifest.committed_seal_sequence = tombstone.journal_seal_sequence;
+    manifest.validate(owner)
+}
+
+fn tombstone_matches_input(
+    tombstone: &PublishedTickAckTombstone,
+    input: &PublishedTickAckTombstoneInput,
+) -> Result<bool, String> {
+    let stored_lsn = parse_postgres_wal_lsn(&tombstone.database_wal_lsn).ok_or_else(|| {
+        "published-tick ACK database WAL LSN is not canonical PostgreSQL LSN text".to_string()
+    })?;
+    let retry_lsn = parse_postgres_wal_lsn(&input.database_wal_lsn).ok_or_else(|| {
+        "published-tick ACK retry WAL LSN is not canonical PostgreSQL LSN text".to_string()
+    })?;
+    Ok(tombstone.high_water == input.high_water
+        && tombstone.result_hash == input.result_hash
+        && (tombstone.settlement_state == input.settlement_state
+            || (tombstone.settlement_state == "pending" && input.settlement_state == "settled"))
+        && tombstone.acknowledged_at_unix_ms == input.acknowledged_at_unix_ms
+        && tombstone.database_system_identifier == input.database_system_identifier
+        && tombstone.database_timeline_id == input.database_timeline_id
+        && retry_lsn >= stored_lsn)
+}
+
+fn install_manifest_update(
+    root: &Path,
+    manifest_lock: &Mutex<AckTombstoneManifest>,
+    previous: &AckTombstoneManifest,
+    next: AckTombstoneManifest,
+) -> Result<(), JournalWriteError> {
+    persist_ack_manifest(root, &next)?;
+    let mut current = manifest_lock.lock().map_err(|_| {
+        JournalWriteError::DurabilityUncertain(
+            "published-tick ACK manifest lock is poisoned".to_string(),
+        )
+    })?;
+    if &*current != previous {
+        return Err(JournalWriteError::DurabilityUncertain(
+            "published-tick ACK manifest changed while installing a seal".to_string(),
+        ));
+    }
+    *current = next;
+    Ok(())
+}
+
+fn seal_terminal_ack_tombstone(
+    root: &Path,
+    records: &Mutex<BTreeMap<Uuid, PublishedTickHighWater>>,
+    ack_manifest: &Mutex<AckTombstoneManifest>,
+    owner: &JournalOwnerManifest,
+    input: PublishedTickAckTombstoneInput,
+) -> Result<PublishedTickAckTombstone, JournalWriteError> {
+    PublishedTickAckTombstone::new(input.clone(), 1).map_err(JournalWriteError::Rejected)?;
+    if input.high_water.journal_owner_id != owner.journal_owner_id
+        || input.high_water.physical_host_id != owner.physical_host_id
+    {
+        return Err(JournalWriteError::Rejected(
+            "published-tick ACK tombstone does not belong to this host journal".to_string(),
+        ));
+    }
+    let match_id = input.high_water.match_id;
+    let manifest = ack_manifest
+        .lock()
+        .map_err(|_| {
+            JournalWriteError::DurabilityUncertain(
+                "published-tick ACK manifest lock is poisoned".to_string(),
+            )
+        })?
+        .clone();
+    manifest
+        .validate(owner)
+        .map_err(JournalWriteError::DurabilityUncertain)?;
+    let current_high_water = records
+        .lock()
+        .map_err(|_| {
+            JournalWriteError::DurabilityUncertain(
+                "published-tick journal record lock is poisoned".to_string(),
+            )
+        })?
+        .get(&match_id)
+        .cloned();
+
+    if let Some((existing, tombstone_sha256)) =
+        load_ack_tombstone_if_exists_with_sha(root, owner, match_id)
+            .map_err(JournalWriteError::DurabilityUncertain)?
+    {
+        if !tombstone_matches_input(&existing, &input)
+            .map_err(JournalWriteError::DurabilityUncertain)?
+        {
+            return Err(JournalWriteError::Rejected(
+                "published-tick ACK seal does not match the durable tombstone".to_string(),
+            ));
+        }
+        if existing.journal_seal_sequence
+            == manifest
+                .committed_seal_sequence
+                .checked_add(1)
+                .ok_or_else(|| {
+                    JournalWriteError::DurabilityUncertain(
+                        "published-tick ACK seal sequence overflow".to_string(),
+                    )
+                })?
+        {
+            if current_high_water.as_ref() != Some(&existing.high_water) {
+                return Err(JournalWriteError::DurabilityUncertain(
+                    "uncommitted published-tick ACK tombstone lacks its exact hot witness"
+                        .to_string(),
+                ));
+            }
+            let mut next_manifest = manifest.clone();
+            advance_manifest_for_tombstone(&mut next_manifest, owner, &existing, &tombstone_sha256)
+                .map_err(JournalWriteError::DurabilityUncertain)?;
+            install_manifest_update(root, ack_manifest, &manifest, next_manifest)?;
+        } else {
+            validate_tombstone_against_manifest(&existing, &manifest)
+                .map_err(JournalWriteError::DurabilityUncertain)?;
+        }
+        if let Some(current) = current_high_water {
+            if current != existing.high_water {
+                return Err(JournalWriteError::DurabilityUncertain(
+                    "published-tick hot record conflicts with its durable ACK tombstone"
+                        .to_string(),
+                ));
+            }
+            remove_exact_hot_record(root, records, &current)?;
+        }
+        return Ok(existing);
+    }
+
+    let Some(current) = current_high_water else {
+        return Err(JournalWriteError::Rejected(
+            "published-tick ACK seal requires the exact terminal hot high-water".to_string(),
+        ));
+    };
+    if current != input.high_water {
+        return Err(JournalWriteError::Rejected(
+            "published-tick ACK seal does not match the current terminal high-water".to_string(),
+        ));
+    }
+    let seal_sequence = manifest
+        .committed_seal_sequence
+        .checked_add(1)
+        .ok_or_else(|| {
+            JournalWriteError::DurabilityUncertain(
+                "published-tick ACK seal sequence overflow".to_string(),
+            )
+        })?;
+    let tombstone = PublishedTickAckTombstone::new(input, seal_sequence)
+        .map_err(JournalWriteError::Rejected)?;
+    let payload = serde_json::to_vec_pretty(&tombstone).map_err(|error| {
+        JournalWriteError::Rejected(format!("encode published-tick ACK tombstone: {error}"))
+    })?;
+    if payload.len() as u64 > MAX_ACK_TOMBSTONE_BYTES {
+        return Err(JournalWriteError::Rejected(format!(
+            "published-tick ACK tombstone exceeds {MAX_ACK_TOMBSTONE_BYTES} bytes"
+        )));
+    }
+    let tombstone_sha256 = sha256_hex(&payload);
+    let mut next_manifest = manifest.clone();
+    advance_manifest_for_tombstone(&mut next_manifest, owner, &tombstone, &tombstone_sha256)
+        .map_err(JournalWriteError::Rejected)?;
+    let shard = ensure_ack_tombstone_shard(root, match_id)?;
+    let target = ack_tombstone_path(root, match_id);
+    match fs::symlink_metadata(&target) {
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Ok(_) => {
+            return Err(JournalWriteError::DurabilityUncertain(format!(
+                "unindexed published-tick ACK tombstone already exists at {}",
+                target.display()
+            )));
+        }
+        Err(error) => {
+            return Err(JournalWriteError::DurabilityUncertain(format!(
+                "inspect published-tick ACK tombstone {}: {error}",
+                target.display()
+            )));
+        }
+    }
+
+    // Crash contract: make cold evidence durable, then make its manifest
+    // membership durable, and only then unlink the hot witness.
+    atomic_install(&shard, &target, &payload)?;
+    install_manifest_update(root, ack_manifest, &manifest, next_manifest)?;
+    remove_exact_hot_record(root, records, &current)?;
+    Ok(tombstone)
+}
+
+fn remove_exact_hot_record(
+    root: &Path,
+    records: &Mutex<BTreeMap<Uuid, PublishedTickHighWater>>,
+    expected: &PublishedTickHighWater,
+) -> Result<(), JournalWriteError> {
+    let path = record_path(root, expected.match_id);
+    fs::remove_file(&path).map_err(|error| {
+        JournalWriteError::DurabilityUncertain(format!(
+            "remove sealed terminal published-tick record {}: {error}",
+            path.display()
+        ))
+    })?;
+    sync_directory(root).map_err(JournalWriteError::DurabilityUncertain)?;
+    let removed = records
+        .lock()
+        .map_err(|_| {
+            JournalWriteError::DurabilityUncertain(
+                "published-tick journal record lock is poisoned".to_string(),
+            )
+        })?
+        .remove(&expected.match_id);
+    if removed.as_ref() != Some(expected) {
+        return Err(JournalWriteError::DurabilityUncertain(
+            "published-tick hot record changed while sealing its ACK tombstone".to_string(),
+        ));
+    }
+    Ok(())
+}
+
 fn compact_records(
     root: &Path,
     records: &Mutex<BTreeMap<Uuid, PublishedTickHighWater>>,
@@ -860,123 +1507,586 @@ fn compact_records(
     Ok(())
 }
 
-fn retire_record(
-    root: &Path,
-    records: &Mutex<BTreeMap<Uuid, PublishedTickHighWater>>,
-    match_id: Uuid,
-    actor_generation: Uuid,
-) -> Result<(), JournalWriteError> {
-    let current = records
-        .lock()
-        .map_err(|_| {
-            JournalWriteError::DurabilityUncertain(
-                "published-tick journal record lock is poisoned".to_string(),
-            )
-        })?
-        .get(&match_id)
-        .cloned();
-    let Some(current) = current else {
-        return Ok(());
-    };
-    if current.actor_generation != actor_generation {
-        return Err(JournalWriteError::Rejected(
-            "published-tick retirement cannot remove a replacement actor generation".to_string(),
-        ));
-    }
-    if current.phase != "complete" || !current.receipts_replayable {
-        return Err(JournalWriteError::Rejected(
-            "published-tick retirement requires an acknowledged terminal record".to_string(),
-        ));
-    }
-    let path = record_path(root, match_id);
-    match fs::remove_file(&path) {
-        Ok(()) => {}
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
-        Err(error) => {
-            return Err(JournalWriteError::DurabilityUncertain(format!(
-                "remove terminal published-tick record {}: {error}",
-                path.display()
-            )));
-        }
-    }
-    sync_directory(root).map_err(JournalWriteError::DurabilityUncertain)?;
-    records
-        .lock()
-        .map_err(|_| {
-            JournalWriteError::DurabilityUncertain(
-                "published-tick journal record lock is poisoned".to_string(),
-            )
-        })?
-        .remove(&match_id);
-    Ok(())
-}
-
-fn load_records(
+fn load_or_create_ack_manifest(
     root: &Path,
     owner: &JournalOwnerManifest,
+) -> Result<AckTombstoneManifest, String> {
+    let path = root.join(ACK_MANIFEST_FILE);
+    let ack_root = root.join(ACK_TOMBSTONE_DIRECTORY);
+    let manifest = match fs::symlink_metadata(&path) {
+        Ok(_) => read_private_json(&path, "published-tick ACK manifest", MAX_ACK_MANIFEST_BYTES)?,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            match fs::symlink_metadata(&ack_root) {
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+                Ok(_) => {
+                    return Err(
+                        "published-tick ACK directory exists without its durable manifest"
+                            .to_string(),
+                    );
+                }
+                Err(error) => {
+                    return Err(format!(
+                        "inspect published-tick ACK directory {}: {error}",
+                        ack_root.display()
+                    ));
+                }
+            }
+            let manifest = AckTombstoneManifest::empty(owner);
+            persist_ack_manifest(root, &manifest).map_err(JournalWriteError::message)?;
+            manifest
+        }
+        Err(error) => {
+            return Err(format!(
+                "inspect published-tick ACK manifest {}: {error}",
+                path.display()
+            ));
+        }
+    };
+    manifest.validate(owner)?;
+    match fs::symlink_metadata(&ack_root) {
+        Ok(_) => {
+            validate_existing_secure_directory(&ack_root, "published-tick ACK tombstone directory")?
+        }
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            if manifest.tombstone_count != 0 {
+                return Err(
+                    "non-empty published-tick ACK manifest lost its tombstone directory"
+                        .to_string(),
+                );
+            }
+            ensure_secure_child_directory(root, &ack_root)?;
+        }
+        Err(error) => {
+            return Err(format!(
+                "inspect published-tick ACK directory {}: {error}",
+                ack_root.display()
+            ));
+        }
+    }
+    Ok(manifest)
+}
+
+fn persist_ack_manifest(
+    root: &Path,
+    manifest: &AckTombstoneManifest,
+) -> Result<(), JournalWriteError> {
+    let payload = serde_json::to_vec_pretty(manifest).map_err(|error| {
+        JournalWriteError::Rejected(format!("encode published-tick ACK manifest: {error}"))
+    })?;
+    if payload.len() as u64 > MAX_ACK_MANIFEST_BYTES {
+        return Err(JournalWriteError::Rejected(format!(
+            "published-tick ACK manifest exceeds {MAX_ACK_MANIFEST_BYTES} bytes"
+        )));
+    }
+    atomic_install(root, &root.join(ACK_MANIFEST_FILE), &payload)
+}
+
+fn validate_manifest_latest_tombstone(
+    root: &Path,
+    owner: &JournalOwnerManifest,
+    manifest: &AckTombstoneManifest,
+) -> Result<(), String> {
+    manifest.validate(owner)?;
+    let Some(expected) = manifest.latest_tombstone.as_ref() else {
+        return Ok(());
+    };
+    let (actual, actual_sha256) =
+        load_ack_tombstone_if_exists_with_sha(root, owner, expected.high_water.match_id)?
+            .ok_or_else(|| {
+                "published-tick ACK manifest latest tombstone file is missing".to_string()
+            })?;
+    if &actual != expected
+        || manifest.latest_tombstone_sha256.as_deref() != Some(actual_sha256.as_str())
+    {
+        return Err(
+            "published-tick ACK manifest latest tombstone does not match durable storage"
+                .to_string(),
+        );
+    }
+    validate_tombstone_against_manifest(&actual, manifest)
+}
+
+fn load_hot_records(
+    root: &Path,
+    owner: &JournalOwnerManifest,
+    manifest: &mut AckTombstoneManifest,
 ) -> Result<BTreeMap<Uuid, PublishedTickHighWater>, String> {
+    manifest.validate(owner)?;
     let mut records = BTreeMap::new();
+    let mut removed_root_entry = false;
+    let mut root_entry_count = 0usize;
     for entry in fs::read_dir(root)
         .map_err(|error| format!("read published-tick journal {}: {error}", root.display()))?
     {
+        root_entry_count += 1;
+        if root_entry_count > MAX_JOURNAL_ROOT_ENTRIES {
+            return Err(format!(
+                "published-tick journal root exceeds its {MAX_JOURNAL_ROOT_ENTRIES}-entry startup bound"
+            ));
+        }
         let entry = entry.map_err(|error| format!("read published-tick entry: {error}"))?;
         let path = entry.path();
-        let name = match path.file_name().and_then(|value| value.to_str()) {
-            Some(name) => name,
-            None => return Err("published-tick journal contains a non-UTF8 filename".to_string()),
-        };
-        if name == ".published-tick.lock"
-            || name == ".published-tick-owner.json"
-            || name.starts_with(".published-")
-        {
+        let name = path
+            .file_name()
+            .and_then(|value| value.to_str())
+            .ok_or_else(|| "published-tick journal contains a non-UTF8 filename".to_string())?;
+        if matches!(
+            name,
+            ".published-tick.lock" | ".published-tick-owner.json" | ACK_MANIFEST_FILE
+        ) {
             continue;
         }
-        if !name.starts_with("published-") || !name.ends_with(".json") {
+        if name == ACK_TOMBSTONE_DIRECTORY {
+            validate_existing_secure_directory(&path, "published-tick ACK tombstone directory")?;
+            continue;
+        }
+        if is_atomic_temp_name(name) {
+            let metadata = fs::symlink_metadata(&path).map_err(|error| {
+                format!(
+                    "inspect published-tick atomic temporary {}: {error}",
+                    path.display()
+                )
+            })?;
+            validate_private_regular_file(&path, &metadata, "published-tick atomic temporary")?;
+            fs::remove_file(&path).map_err(|error| {
+                format!(
+                    "remove published-tick atomic temporary {}: {error}",
+                    path.display()
+                )
+            })?;
+            removed_root_entry = true;
+            continue;
+        }
+        let Some(match_id) = hot_record_match_id(name) else {
             return Err(format!(
                 "published-tick journal contains unexpected entry {}",
                 path.display()
             ));
-        }
-        let metadata = fs::symlink_metadata(&path)
-            .map_err(|error| format!("inspect {}: {error}", path.display()))?;
-        validate_private_regular_file(&path, &metadata, "published-tick record")?;
-        if metadata.len() > MAX_RECORD_BYTES {
-            return Err(format!(
-                "published-tick record {} exceeds {MAX_RECORD_BYTES} bytes",
-                path.display()
-            ));
-        }
-        let mut bytes = Vec::with_capacity(metadata.len() as usize);
-        File::open(&path)
-            .and_then(|mut file| file.read_to_end(&mut bytes))
-            .map_err(|error| format!("read {}: {error}", path.display()))?;
-        let record: PublishedTickHighWater = serde_json::from_slice(&bytes)
-            .map_err(|error| format!("decode published-tick record {}: {error}", path.display()))?;
+        };
+        let record: PublishedTickHighWater =
+            read_private_json(&path, "published-tick record", MAX_RECORD_BYTES)?;
         record.validate()?;
-        if record.journal_owner_id != owner.journal_owner_id
+        if record.match_id != match_id
+            || record.journal_owner_id != owner.journal_owner_id
             || record.physical_host_id != owner.physical_host_id
         {
             return Err(format!(
-                "published-tick record {} belongs to a different host journal",
+                "published-tick record {} has the wrong filename or host journal identity",
                 path.display()
             ));
         }
-        if path != record_path(root, record.match_id) {
-            return Err(format!(
-                "published-tick record filename does not match its match id: {}",
-                path.display()
-            ));
+        if let Some((tombstone, tombstone_sha256)) =
+            load_ack_tombstone_if_exists_with_sha(root, owner, match_id)?
+        {
+            if tombstone.high_water != record {
+                return Err(format!(
+                    "published-tick hot record for match {match_id} conflicts with its ACK tombstone"
+                ));
+            }
+            if tombstone.journal_seal_sequence
+                == manifest
+                    .committed_seal_sequence
+                    .checked_add(1)
+                    .ok_or_else(|| "published-tick ACK seal sequence overflow".to_string())?
+            {
+                let mut next_manifest = manifest.clone();
+                advance_manifest_for_tombstone(
+                    &mut next_manifest,
+                    owner,
+                    &tombstone,
+                    &tombstone_sha256,
+                )?;
+                persist_ack_manifest(root, &next_manifest).map_err(JournalWriteError::message)?;
+                *manifest = next_manifest;
+            } else {
+                validate_tombstone_against_manifest(&tombstone, manifest)?;
+            }
+            fs::remove_file(&path).map_err(|error| {
+                format!(
+                    "remove redundant sealed hot record {}: {error}",
+                    path.display()
+                )
+            })?;
+            removed_root_entry = true;
+            continue;
         }
-        if records.insert(record.match_id, record).is_some() {
+        if records.insert(match_id, record).is_some() {
             return Err("duplicate published-tick match record".to_string());
         }
-        if records.len() > MAX_RECORDS {
+        validate_hot_record_capacity(records.len(), false)?;
+    }
+    if removed_root_entry {
+        sync_directory(root)?;
+    }
+    Ok(records)
+}
+
+fn load_ack_tombstone_if_exists(
+    root: &Path,
+    owner: &JournalOwnerManifest,
+    match_id: Uuid,
+) -> Result<Option<PublishedTickAckTombstone>, String> {
+    load_ack_tombstone_if_exists_with_sha(root, owner, match_id)
+        .map(|record| record.map(|(tombstone, _)| tombstone))
+}
+
+fn load_ack_tombstone_if_exists_with_sha(
+    root: &Path,
+    owner: &JournalOwnerManifest,
+    match_id: Uuid,
+) -> Result<Option<(PublishedTickAckTombstone, String)>, String> {
+    let (first, second) = ack_shard_components(match_id);
+    let ack_root = root.join(ACK_TOMBSTONE_DIRECTORY);
+    validate_existing_secure_directory(&ack_root, "published-tick ACK tombstone directory")?;
+    let first_path = ack_root.join(&first);
+    match fs::symlink_metadata(&first_path) {
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Ok(_) => {
+            validate_existing_secure_directory(&first_path, "published-tick ACK first-level shard")?
+        }
+        Err(error) => {
             return Err(format!(
-                "published-tick journal exceeds its {MAX_RECORDS}-match retention limit"
+                "inspect published-tick ACK shard {}: {error}",
+                first_path.display()
             ));
         }
     }
-    Ok(records)
+    let second_path = first_path.join(&second);
+    match fs::symlink_metadata(&second_path) {
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Ok(_) => validate_existing_secure_directory(
+            &second_path,
+            "published-tick ACK second-level shard",
+        )?,
+        Err(error) => {
+            return Err(format!(
+                "inspect published-tick ACK shard {}: {error}",
+                second_path.display()
+            ));
+        }
+    }
+    let path = ack_tombstone_path(root, match_id);
+    match fs::symlink_metadata(&path) {
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Ok(_) => {}
+        Err(error) => {
+            return Err(format!(
+                "inspect published-tick ACK tombstone {}: {error}",
+                path.display()
+            ));
+        }
+    }
+    let (tombstone, sha256): (PublishedTickAckTombstone, String) = read_private_json_with_sha(
+        &path,
+        "published-tick ACK tombstone",
+        MAX_ACK_TOMBSTONE_BYTES,
+    )?;
+    tombstone.validate()?;
+    if tombstone.high_water.match_id != match_id
+        || tombstone.high_water.journal_owner_id != owner.journal_owner_id
+        || tombstone.high_water.physical_host_id != owner.physical_host_id
+    {
+        return Err(format!(
+            "published-tick ACK tombstone {} has the wrong filename or host journal identity",
+            path.display()
+        ));
+    }
+    Ok(Some((tombstone, sha256)))
+}
+
+#[cfg(test)]
+fn scan_ack_tombstone_page(
+    root: &Path,
+    owner: &JournalOwnerManifest,
+    manifest: &AckTombstoneManifest,
+    after_match_id: Option<Uuid>,
+    limit: usize,
+) -> Result<Vec<PublishedTickAckTombstone>, String> {
+    manifest.validate(owner)?;
+    let ack_root = root.join(ACK_TOMBSTONE_DIRECTORY);
+    validate_existing_secure_directory(&ack_root, "published-tick ACK tombstone directory")?;
+    let first_shards =
+        list_hex_shard_directories(&ack_root, "published-tick ACK first-level shard")?;
+    let mut page = Vec::with_capacity(limit);
+    for (first_name, first_path) in first_shards {
+        let second_shards =
+            list_hex_shard_directories(&first_path, "published-tick ACK second-level shard")?;
+        for (second_name, second_path) in second_shards {
+            let mut entries = Vec::new();
+            for entry in fs::read_dir(&second_path).map_err(|error| {
+                format!(
+                    "read published-tick ACK shard {}: {error}",
+                    second_path.display()
+                )
+            })? {
+                let entry = entry
+                    .map_err(|error| format!("read published-tick ACK tombstone entry: {error}"))?;
+                let path = entry.path();
+                let name = path
+                    .file_name()
+                    .and_then(|value| value.to_str())
+                    .ok_or_else(|| {
+                        "published-tick ACK shard contains a non-UTF8 filename".to_string()
+                    })?;
+                if is_atomic_temp_name(name) {
+                    return Err(format!(
+                        "published-tick ACK shard contains an unresolved atomic temporary {}",
+                        path.display()
+                    ));
+                }
+                let match_id = ack_tombstone_match_id(name).ok_or_else(|| {
+                    format!(
+                        "published-tick ACK shard contains unexpected entry {}",
+                        path.display()
+                    )
+                })?;
+                let (expected_first, expected_second) = ack_shard_components(match_id);
+                if first_name != expected_first || second_name != expected_second {
+                    return Err(format!(
+                        "published-tick ACK tombstone is stored in the wrong shard: {}",
+                        path.display()
+                    ));
+                }
+                entries.push((match_id, path));
+                if entries.len() > MAX_ACK_TOMBSTONES_PER_SHARD {
+                    return Err(format!(
+                        "published-tick ACK shard {} exceeds its {MAX_ACK_TOMBSTONES_PER_SHARD}-record bound",
+                        second_path.display()
+                    ));
+                }
+            }
+            entries.sort_by_key(|(match_id, _)| *match_id);
+            for (match_id, _) in entries {
+                if after_match_id.is_some_and(|after| match_id <= after) {
+                    continue;
+                }
+                let tombstone =
+                    load_ack_tombstone_if_exists(root, owner, match_id)?.ok_or_else(|| {
+                        format!("published-tick ACK tombstone {match_id} disappeared during audit")
+                    })?;
+                validate_tombstone_against_manifest(&tombstone, manifest)?;
+                page.push(tombstone);
+                if page.len() == limit {
+                    return Ok(page);
+                }
+            }
+        }
+    }
+    Ok(page)
+}
+
+#[cfg(test)]
+fn list_hex_shard_directories(
+    parent: &Path,
+    label: &str,
+) -> Result<Vec<(String, PathBuf)>, String> {
+    let mut shards = Vec::new();
+    for entry in fs::read_dir(parent)
+        .map_err(|error| format!("read {label} directory {}: {error}", parent.display()))?
+    {
+        let entry = entry.map_err(|error| format!("read {label} entry: {error}"))?;
+        let path = entry.path();
+        let name = path
+            .file_name()
+            .and_then(|value| value.to_str())
+            .ok_or_else(|| format!("{label} contains a non-UTF8 name"))?;
+        if !is_lowercase_hex_shard_name(name) {
+            return Err(format!(
+                "{label} contains unexpected entry {}",
+                path.display()
+            ));
+        }
+        validate_existing_secure_directory(&path, label)?;
+        shards.push((name.to_string(), path));
+        if shards.len() > 256 {
+            return Err(format!("{label} directory exceeds its 256-shard bound"));
+        }
+    }
+    shards.sort_by(|left, right| left.0.cmp(&right.0));
+    Ok(shards)
+}
+
+fn ensure_ack_tombstone_shard(root: &Path, match_id: Uuid) -> Result<PathBuf, JournalWriteError> {
+    let (first, second) = ack_shard_components(match_id);
+    let ack_root = root.join(ACK_TOMBSTONE_DIRECTORY);
+    validate_existing_secure_directory(&ack_root, "published-tick ACK tombstone directory")
+        .map_err(JournalWriteError::DurabilityUncertain)?;
+    let first_path = ack_root.join(&first);
+    ensure_secure_child_directory(&ack_root, &first_path)
+        .map_err(JournalWriteError::DurabilityUncertain)?;
+    let second_path = first_path.join(&second);
+    ensure_secure_child_directory(&first_path, &second_path)
+        .map_err(JournalWriteError::DurabilityUncertain)?;
+    let mut count = 0usize;
+    for entry in fs::read_dir(&second_path).map_err(|error| {
+        JournalWriteError::DurabilityUncertain(format!(
+            "read published-tick ACK shard {}: {error}",
+            second_path.display()
+        ))
+    })? {
+        let entry = entry.map_err(|error| {
+            JournalWriteError::DurabilityUncertain(format!(
+                "read published-tick ACK shard entry: {error}"
+            ))
+        })?;
+        let path = entry.path();
+        let name = path
+            .file_name()
+            .and_then(|value| value.to_str())
+            .ok_or_else(|| {
+                JournalWriteError::DurabilityUncertain(
+                    "published-tick ACK shard contains a non-UTF8 filename".to_string(),
+                )
+            })?;
+        if is_atomic_temp_name(name) {
+            return Err(JournalWriteError::DurabilityUncertain(format!(
+                "published-tick ACK shard contains an unresolved atomic temporary {}",
+                path.display()
+            )));
+        }
+        let existing_id = ack_tombstone_match_id(name).ok_or_else(|| {
+            JournalWriteError::DurabilityUncertain(format!(
+                "published-tick ACK shard contains unexpected entry {}",
+                path.display()
+            ))
+        })?;
+        let (expected_first, expected_second) = ack_shard_components(existing_id);
+        if expected_first != first || expected_second != second {
+            return Err(JournalWriteError::DurabilityUncertain(format!(
+                "published-tick ACK tombstone is stored in the wrong shard: {}",
+                path.display()
+            )));
+        }
+        let metadata = fs::symlink_metadata(&path).map_err(|error| {
+            JournalWriteError::DurabilityUncertain(format!(
+                "inspect published-tick ACK tombstone {}: {error}",
+                path.display()
+            ))
+        })?;
+        validate_private_regular_file(&path, &metadata, "published-tick ACK tombstone")
+            .map_err(JournalWriteError::DurabilityUncertain)?;
+        count += 1;
+        if count >= MAX_ACK_TOMBSTONES_PER_SHARD {
+            return Err(JournalWriteError::Rejected(format!(
+                "published-tick ACK shard reached its {MAX_ACK_TOMBSTONES_PER_SHARD}-record bound"
+            )));
+        }
+    }
+    Ok(second_path)
+}
+
+fn ack_shard_components(match_id: Uuid) -> (String, String) {
+    let simple = match_id.simple().to_string();
+    (simple[0..2].to_string(), simple[2..4].to_string())
+}
+
+fn hot_record_match_id(name: &str) -> Option<Uuid> {
+    let id = name.strip_prefix("published-")?.strip_suffix(".json")?;
+    let parsed = Uuid::parse_str(id).ok()?;
+    (parsed.to_string() == id).then_some(parsed)
+}
+
+fn ack_tombstone_match_id(name: &str) -> Option<Uuid> {
+    let id = name.strip_prefix("acknowledged-")?.strip_suffix(".json")?;
+    let parsed = Uuid::parse_str(id).ok()?;
+    (parsed.to_string() == id).then_some(parsed)
+}
+
+fn is_atomic_temp_name(name: &str) -> bool {
+    let Some(rest) = name.strip_prefix(".published-") else {
+        return false;
+    };
+    let Some((pid, id)) = rest.split_once(".tmp-") else {
+        return false;
+    };
+    if pid.is_empty()
+        || (pid.len() > 1 && pid.starts_with('0'))
+        || !pid.bytes().all(|byte| byte.is_ascii_digit())
+        || pid.parse::<u32>().ok().is_none_or(|pid| pid == 0)
+    {
+        return false;
+    }
+    Uuid::parse_str(id).is_ok_and(|parsed| parsed.to_string() == id)
+}
+
+#[cfg(test)]
+fn is_lowercase_hex_shard_name(name: &str) -> bool {
+    name.len() == 2
+        && name
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || matches!(byte, b'a'..=b'f'))
+}
+
+#[cfg(test)]
+fn load_records(
+    root: &Path,
+    owner: &JournalOwnerManifest,
+) -> Result<BTreeMap<Uuid, PublishedTickHighWater>, String> {
+    let mut manifest = load_or_create_ack_manifest(root, owner)?;
+    validate_manifest_latest_tombstone(root, owner, &manifest)?;
+    load_hot_records(root, owner, &mut manifest)
+}
+
+fn read_private_json<T: DeserializeOwned>(
+    path: &Path,
+    label: &str,
+    max_bytes: u64,
+) -> Result<T, String> {
+    read_private_json_with_sha(path, label, max_bytes).map(|(value, _)| value)
+}
+
+fn read_private_json_with_sha<T: DeserializeOwned>(
+    path: &Path,
+    label: &str,
+    max_bytes: u64,
+) -> Result<(T, String), String> {
+    let metadata = fs::symlink_metadata(path)
+        .map_err(|error| format!("inspect {label} {}: {error}", path.display()))?;
+    validate_private_regular_file(path, &metadata, label)?;
+    if metadata.len() > max_bytes {
+        return Err(format!(
+            "{label} {} exceeds {max_bytes} bytes",
+            path.display()
+        ));
+    }
+    let mut file =
+        File::open(path).map_err(|error| format!("open {label} {}: {error}", path.display()))?;
+    validate_open_file_identity(path, &file, label)?;
+    let opened_metadata = file
+        .metadata()
+        .map_err(|error| format!("inspect opened {label} {}: {error}", path.display()))?;
+    validate_private_regular_file(path, &opened_metadata, label)?;
+    if !same_file_identity(&metadata, &opened_metadata) || metadata.len() != opened_metadata.len() {
+        return Err(format!("{label} {} changed while opening", path.display()));
+    }
+    let mut bytes = Vec::with_capacity(metadata.len() as usize);
+    (&mut file)
+        .take(max_bytes.saturating_add(1))
+        .read_to_end(&mut bytes)
+        .map_err(|error| format!("read {label} {}: {error}", path.display()))?;
+    if bytes.len() as u64 > max_bytes {
+        return Err(format!(
+            "{label} {} exceeds {max_bytes} bytes while reading",
+            path.display()
+        ));
+    }
+    let opened_after = file
+        .metadata()
+        .map_err(|error| format!("reinspect opened {label} {}: {error}", path.display()))?;
+    let path_after = fs::symlink_metadata(path)
+        .map_err(|error| format!("reinspect {label} {}: {error}", path.display()))?;
+    validate_private_regular_file(path, &path_after, label)?;
+    if !same_file_identity(&metadata, &opened_after)
+        || !same_file_identity(&metadata, &path_after)
+        || opened_after.len() != metadata.len()
+        || path_after.len() != metadata.len()
+        || bytes.len() as u64 != metadata.len()
+    {
+        return Err(format!("{label} {} changed while reading", path.display()));
+    }
+    let value = serde_json::from_slice(&bytes)
+        .map_err(|error| format!("decode {label} {}: {error}", path.display()))?;
+    Ok((value, sha256_hex(&bytes)))
 }
 
 fn load_or_create_owner(
@@ -993,10 +2103,8 @@ fn load_or_create_owner(
             if metadata.len() > MAX_RECORD_BYTES {
                 return Err("published-tick owner manifest is oversized".to_string());
             }
-            let bytes = fs::read(&path)
-                .map_err(|error| format!("read published-tick owner manifest: {error}"))?;
-            let owner: JournalOwnerManifest = serde_json::from_slice(&bytes)
-                .map_err(|error| format!("decode published-tick owner manifest: {error}"))?;
+            let owner: JournalOwnerManifest =
+                read_private_json(&path, "published-tick owner manifest", MAX_RECORD_BYTES)?;
             if owner.contract_version != JOURNAL_OWNER_CONTRACT
                 || owner.journal_owner_id.is_nil()
                 || !is_portable_identity(&owner.physical_host_id)
@@ -1037,12 +2145,65 @@ fn is_portable_identity(value: &str) -> bool {
             .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_' | b':' | b'.'))
 }
 
+fn is_lowercase_sha256(value: &str) -> bool {
+    value.len() == 64
+        && value
+            .bytes()
+            .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
+}
+
+fn is_canonical_positive_u64(value: &str) -> bool {
+    !value.is_empty()
+        && value.len() <= 20
+        && !value.starts_with('0')
+        && value.bytes().all(|byte| byte.is_ascii_digit())
+        && value.parse::<u64>().is_ok_and(|parsed| parsed > 0)
+}
+
+fn parse_postgres_wal_lsn(value: &str) -> Option<u64> {
+    fn parse_canonical_hex_part(part: &str) -> Option<u32> {
+        if part.is_empty()
+            || part.len() > 8
+            || (part != "0" && part.starts_with('0'))
+            || !part
+                .bytes()
+                .all(|byte| byte.is_ascii_digit() || matches!(byte, b'A'..=b'F'))
+        {
+            return None;
+        }
+        u32::from_str_radix(part, 16).ok()
+    }
+
+    let (high, low) = value.split_once('/')?;
+    if low.contains('/') {
+        return None;
+    }
+    let high = parse_canonical_hex_part(high)?;
+    let low = parse_canonical_hex_part(low)?;
+    Some((u64::from(high) << 32) | u64::from(low))
+}
+
 fn record_path(root: &Path, match_id: Uuid) -> PathBuf {
     root.join(format!("published-{match_id}.json"))
 }
 
-fn atomic_install(root: &Path, target: &Path, payload: &[u8]) -> Result<(), JournalWriteError> {
-    let temp = root.join(format!(
+fn ack_tombstone_path(root: &Path, match_id: Uuid) -> PathBuf {
+    let (first, second) = ack_shard_components(match_id);
+    root.join(ACK_TOMBSTONE_DIRECTORY)
+        .join(first)
+        .join(second)
+        .join(format!("acknowledged-{match_id}.json"))
+}
+
+fn atomic_install(parent: &Path, target: &Path, payload: &[u8]) -> Result<(), JournalWriteError> {
+    if target.parent() != Some(parent) {
+        return Err(JournalWriteError::Rejected(format!(
+            "atomic published-tick target {} is not inside {}",
+            target.display(),
+            parent.display()
+        )));
+    }
+    let temp = parent.join(format!(
         ".published-{}.tmp-{}",
         std::process::id(),
         Uuid::new_v4()
@@ -1070,10 +2231,10 @@ fn atomic_install(root: &Path, target: &Path, payload: &[u8]) -> Result<(), Jour
                 target.display()
             ))
         })?;
-        sync_directory(root).map_err(JournalWriteError::DurabilityUncertain)
+        sync_directory(parent).map_err(JournalWriteError::DurabilityUncertain)
     })();
-    if result.is_err() {
-        let _ = fs::remove_file(&temp);
+    if result.is_err() && fs::remove_file(&temp).is_ok() {
+        let _ = sync_directory(parent);
     }
     result
 }
@@ -1122,10 +2283,7 @@ fn acquire_host_identity_lock(physical_host_id: &str) -> Result<Arc<File>, Strin
         write!(&mut digest_hex, "{byte:02x}")
             .expect("writing a SHA-256 digest into a String cannot fail");
     }
-    #[cfg(unix)]
-    let lock_root = PathBuf::from("/tmp");
-    #[cfg(not(unix))]
-    let lock_root = std::env::temp_dir();
+    let lock_root = shared_host_identity_lock_root()?;
     let path = lock_root.join(format!(".trnm-published-tick-host-{digest_hex}.lock"));
     if let Ok(metadata) = fs::symlink_metadata(&path) {
         validate_private_regular_file(&path, &metadata, "published-tick host identity lock")?;
@@ -1150,6 +2308,111 @@ fn acquire_host_identity_lock(physical_host_id: &str) -> Result<Arc<File>, Strin
         )
     })?;
     Ok(Arc::new(file))
+}
+
+#[cfg(target_os = "linux")]
+fn shared_host_identity_lock_root() -> Result<PathBuf, String> {
+    let per_user_runtime_root = PathBuf::from(format!("/run/user/{}", effective_user_id()));
+    let metadata = fs::symlink_metadata(&per_user_runtime_root).map_err(|error| {
+        format!(
+            "the shared physical-host journal lock requires {}: {error}",
+            per_user_runtime_root.display()
+        )
+    })?;
+    if metadata.file_type().is_symlink() || !metadata.file_type().is_dir() {
+        return Err(format!(
+            "the shared physical-host journal runtime root {} must be a real directory",
+            per_user_runtime_root.display()
+        ));
+    }
+    validate_owner(
+        &per_user_runtime_root,
+        &metadata,
+        "published-tick shared runtime root",
+    )?;
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mode = metadata.permissions().mode() & 0o777;
+        if mode != 0o700 {
+            return Err(format!(
+                "published-tick shared runtime root {} must have mode 0700, found {mode:04o}",
+                per_user_runtime_root.display()
+            ));
+        }
+    }
+    let lock_root = per_user_runtime_root.join("trnm-published-tick-host-locks");
+    ensure_secure_directory(&lock_root)?;
+    Ok(lock_root)
+}
+
+#[cfg(all(unix, not(target_os = "linux")))]
+fn shared_host_identity_lock_root() -> Result<PathBuf, String> {
+    let lock_root = std::env::temp_dir().join(format!(
+        "trnm-published-tick-host-locks-{}",
+        effective_user_id()
+    ));
+    ensure_secure_directory(&lock_root)?;
+    Ok(lock_root)
+}
+
+#[cfg(not(unix))]
+fn shared_host_identity_lock_root() -> Result<PathBuf, String> {
+    let lock_root = std::env::temp_dir().join("trnm-published-tick-host-locks");
+    ensure_secure_directory(&lock_root)?;
+    Ok(lock_root)
+}
+
+fn validate_existing_secure_directory(path: &Path, label: &str) -> Result<(), String> {
+    let metadata = fs::symlink_metadata(path)
+        .map_err(|error| format!("inspect {label} {}: {error}", path.display()))?;
+    if metadata.file_type().is_symlink() || !metadata.file_type().is_dir() {
+        return Err(format!(
+            "{label} {} is not a real directory",
+            path.display()
+        ));
+    }
+    validate_owner(path, &metadata, label)?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mode = metadata.permissions().mode() & 0o777;
+        if mode != 0o700 {
+            return Err(format!(
+                "{label} {} must have mode 0700, found {mode:04o}",
+                path.display()
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn ensure_secure_child_directory(parent: &Path, path: &Path) -> Result<(), String> {
+    if path.parent() != Some(parent) {
+        return Err(format!(
+            "published-tick child directory {} is not directly inside {}",
+            path.display(),
+            parent.display()
+        ));
+    }
+    validate_existing_secure_directory(parent, "published-tick parent directory")?;
+    match fs::symlink_metadata(path) {
+        Ok(_) => validate_existing_secure_directory(path, "published-tick child directory"),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            let mut builder = fs::DirBuilder::new();
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::DirBuilderExt;
+                builder.mode(0o700);
+            }
+            builder
+                .create(path)
+                .map_err(|error| format!("create {}: {error}", path.display()))?;
+            sync_directory(parent)?;
+            sync_directory(path)?;
+            validate_existing_secure_directory(path, "published-tick child directory")
+        }
+        Err(error) => Err(format!("inspect {}: {error}", path.display())),
+    }
 }
 
 fn ensure_secure_directory(path: &Path) -> Result<(), String> {
@@ -1228,6 +2491,19 @@ fn validate_open_file_identity(path: &Path, file: &File, label: &str) -> Result<
     Ok(())
 }
 
+fn same_file_identity(left: &fs::Metadata, right: &fs::Metadata) -> bool {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::MetadataExt;
+        left.dev() == right.dev() && left.ino() == right.ino()
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = (left, right);
+        true
+    }
+}
+
 fn validate_private_regular_file(
     path: &Path,
     metadata: &fs::Metadata,
@@ -1239,11 +2515,17 @@ fn validate_private_regular_file(
     validate_owner(path, metadata, label)?;
     #[cfg(unix)]
     {
-        use std::os::unix::fs::PermissionsExt;
+        use std::os::unix::fs::{MetadataExt, PermissionsExt};
         let mode = metadata.permissions().mode() & 0o777;
         if mode != 0o600 {
             return Err(format!(
                 "{label} {} must have mode 0600, found {mode:04o}",
+                path.display()
+            ));
+        }
+        if metadata.nlink() != 1 {
+            return Err(format!(
+                "{label} {} must have exactly one filesystem link",
                 path.display()
             ));
         }
@@ -1350,6 +2632,50 @@ mod tests {
         }
     }
 
+    fn persist_test_record(
+        root: &Path,
+        records: &Mutex<BTreeMap<Uuid, PublishedTickHighWater>>,
+        record: PublishedTickHighWater,
+        durable_db_next_sequence: u64,
+        durable_db_match_revision: u64,
+    ) -> Result<(), JournalWriteError> {
+        let owner = JournalOwnerManifest {
+            contract_version: JOURNAL_OWNER_CONTRACT.to_string(),
+            journal_owner_id: record.journal_owner_id,
+            physical_host_id: record.physical_host_id.clone(),
+        };
+        let manifest = Mutex::new(
+            load_or_create_ack_manifest(root, &owner).map_err(JournalWriteError::Rejected)?,
+        );
+        persist_record(
+            root,
+            records,
+            &manifest,
+            &owner,
+            record,
+            DurableDatabaseHighWater {
+                next_sequence: durable_db_next_sequence,
+                match_revision: durable_db_match_revision,
+                next_input_sequences: input_cursors(),
+            },
+        )
+    }
+
+    fn ack_input(
+        high_water: PublishedTickHighWater,
+        acknowledged_at_unix_ms: u64,
+    ) -> PublishedTickAckTombstoneInput {
+        PublishedTickAckTombstoneInput {
+            high_water,
+            result_hash: "ab".repeat(32),
+            settlement_state: "pending".to_string(),
+            acknowledged_at_unix_ms,
+            database_system_identifier: "72623859790382856".to_string(),
+            database_timeline_id: 7,
+            database_wal_lsn: "0/16B6C50".to_string(),
+        }
+    }
+
     #[test]
     fn crash_reopen_recovers_exact_high_water() {
         let root = temp_dir("reopen");
@@ -1357,7 +2683,7 @@ mod tests {
         let records = Mutex::new(BTreeMap::new());
         let match_id = Uuid::new_v4();
         let expected = record(&owner, "instance-a", match_id, Uuid::new_v4(), 7, 91);
-        persist_record(&root, &records, expected.clone(), 4, 5, input_cursors()).unwrap();
+        persist_test_record(&root, &records, expected.clone(), 4, 5).unwrap();
 
         let reopened = load_records(&root, &owner).unwrap();
         assert_eq!(reopened.get(&match_id), Some(&expected));
@@ -1376,6 +2702,44 @@ mod tests {
     }
 
     #[test]
+    fn missing_or_corrupt_ack_manifest_fails_closed_without_scanning_repair() {
+        let root = temp_dir("manifest-fail-closed");
+        let owner = owner(&root, "host-a");
+        load_or_create_ack_manifest(&root, &owner).unwrap();
+        let manifest_path = root.join(ACK_MANIFEST_FILE);
+        fs::remove_file(&manifest_path).unwrap();
+        sync_directory(&root).unwrap();
+        assert!(load_or_create_ack_manifest(&root, &owner)
+            .unwrap_err()
+            .contains("exists without its durable manifest"));
+
+        fs::remove_dir_all(root.join(ACK_TOMBSTONE_DIRECTORY)).unwrap();
+        atomic_install(&root, &manifest_path, b"{not-json").unwrap();
+        assert!(load_or_create_ack_manifest(&root, &owner)
+            .unwrap_err()
+            .contains("decode published-tick ACK manifest"));
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn exact_root_atomic_temporary_is_cleaned_but_lookalike_is_rejected() {
+        let root = temp_dir("atomic-temp");
+        let owner = owner(&root, "host-a");
+        load_or_create_ack_manifest(&root, &owner).unwrap();
+        let exact = root.join(format!(".published-123.tmp-{}", Uuid::new_v4()));
+        atomic_install(&root, &exact, b"unfinished").unwrap();
+        assert!(load_records(&root, &owner).unwrap().is_empty());
+        assert!(!exact.exists());
+
+        let lookalike = root.join(format!(".published-0123.tmp-{}", Uuid::new_v4()));
+        atomic_install(&root, &lookalike, b"unfinished").unwrap();
+        assert!(load_records(&root, &owner)
+            .unwrap_err()
+            .contains("unexpected entry"));
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
     fn tick_or_cursor_rollback_is_rejected_without_replacing_record() {
         let root = temp_dir("rollback");
         let owner = owner(&root, "host-a");
@@ -1383,15 +2747,13 @@ mod tests {
         let match_id = Uuid::new_v4();
         let generation = Uuid::new_v4();
         let current = record(&owner, "instance-a", match_id, generation, 3, 100);
-        persist_record(&root, &records, current.clone(), 4, 5, input_cursors()).unwrap();
+        persist_test_record(&root, &records, current.clone(), 4, 5).unwrap();
 
         let rollback = record(&owner, "instance-a", match_id, generation, 3, 99);
-        assert!(
-            persist_record(&root, &records, rollback, 4, 5, input_cursors())
-                .unwrap_err()
-                .message()
-                .contains("cannot regress")
-        );
+        assert!(persist_test_record(&root, &records, rollback, 4, 5)
+            .unwrap_err()
+            .message()
+            .contains("cannot regress"));
         assert_eq!(
             load_records(&root, &owner).unwrap().get(&match_id),
             Some(&current)
@@ -1406,12 +2768,10 @@ mod tests {
         let records = Mutex::new(BTreeMap::new());
         let mut ahead = record(&owner, "instance-a", Uuid::new_v4(), Uuid::new_v4(), 2, 10);
         ahead.next_sequence = 9;
-        assert!(
-            persist_record(&root, &records, ahead, 8, 5, input_cursors())
-                .unwrap_err()
-                .message()
-                .contains("ahead of durable database")
-        );
+        assert!(persist_test_record(&root, &records, ahead, 8, 5)
+            .unwrap_err()
+            .message()
+            .contains("ahead of durable database"));
         assert!(records.lock().unwrap().is_empty());
         fs::remove_dir_all(root).unwrap();
     }
@@ -1423,7 +2783,7 @@ mod tests {
         let records = Mutex::new(BTreeMap::new());
         let match_id = Uuid::new_v4();
         let current = record(&owner, "instance-a", match_id, Uuid::new_v4(), 9, 50);
-        persist_record(&root, &records, current.clone(), 4, 5, input_cursors()).unwrap();
+        persist_test_record(&root, &records, current.clone(), 4, 5).unwrap();
 
         let adopted = PublishedTickHighWater::new(
             owner.journal_owner_id,
@@ -1443,16 +2803,30 @@ mod tests {
             },
         )
         .unwrap();
-        persist_record(&root, &records, adopted, 4, 5, input_cursors()).unwrap();
+        persist_test_record(&root, &records, adopted, 4, 5).unwrap();
 
         let advanced = record(&owner, "instance-c", match_id, Uuid::new_v4(), 20, 51);
-        assert!(
-            persist_record(&root, &records, advanced, 4, 5, input_cursors())
-                .unwrap_err()
-                .message()
-                .contains("must first adopt")
-        );
+        assert!(persist_test_record(&root, &records, advanced, 4, 5)
+            .unwrap_err()
+            .message()
+            .contains("must first adopt"));
         fs::remove_dir_all(root).unwrap();
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn physical_host_lock_uses_a_shared_private_runtime_directory() {
+        use std::os::unix::fs::{MetadataExt, PermissionsExt};
+
+        let lock_root = shared_host_identity_lock_root().unwrap();
+        assert!(lock_root.is_absolute());
+        assert!(!lock_root.starts_with("/tmp"));
+        let runtime_root = PathBuf::from(format!("/run/user/{}", effective_user_id()));
+        assert!(lock_root.starts_with(runtime_root));
+        let metadata = fs::symlink_metadata(&lock_root).unwrap();
+        assert!(metadata.file_type().is_dir());
+        assert_eq!(metadata.uid(), effective_user_id());
+        assert_eq!(metadata.permissions().mode() & 0o777, 0o700);
     }
 
     #[tokio::test]
@@ -1537,9 +2911,10 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn terminal_acknowledgement_is_retired_with_directory_durability() {
-        let root = temp_dir("retire");
-        let journal = PublishedTickJournal::open(root.clone(), unique_host("retire")).unwrap();
+    async fn terminal_ack_seal_reopens_as_cold_pitr_rollback_witness() {
+        let root = temp_dir("terminal-tombstone");
+        let journal =
+            PublishedTickJournal::open(root.clone(), unique_host("terminal-tombstone")).unwrap();
         let match_id = Uuid::new_v4();
         let generation = Uuid::new_v4();
         let terminal = journal
@@ -1553,13 +2928,258 @@ mod tests {
             ))
             .unwrap();
         journal
-            .record(terminal, 4, 5, input_cursors())
+            .record(terminal.clone(), 4, 5, input_cursors())
             .await
             .unwrap();
-        journal.retire(match_id, generation).await.unwrap();
+        let tombstone = journal
+            .seal_terminal_ack(ack_input(terminal.clone(), 1_700_000_000_000))
+            .await
+            .unwrap();
+        assert_eq!(tombstone.high_water, terminal);
         assert!(journal.high_water(match_id).unwrap().is_none());
+        assert_eq!(
+            journal.ack_tombstone(match_id).unwrap(),
+            Some(tombstone.clone())
+        );
+        assert!(journal.recorded_match_ids().unwrap().is_empty());
+        assert_eq!(journal.ack_tombstone_count().unwrap(), 1);
+        assert_eq!(
+            journal.latest_ack_tombstone().unwrap(),
+            Some(tombstone.clone())
+        );
         assert!(!record_path(&root, match_id).exists());
+        assert!(ack_tombstone_path(&root, match_id).exists());
+
+        let manifest = journal.ack_manifest.lock().unwrap().clone();
+        validate_manifest_latest_tombstone(&root, &journal.owner, &manifest).unwrap();
+        assert!(load_records(&root, &journal.owner).unwrap().is_empty());
+        assert_eq!(
+            load_ack_tombstone_if_exists(&root, &journal.owner, match_id).unwrap(),
+            Some(tombstone)
+        );
         drop(journal);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn reopen_reconciles_exact_hot_and_cold_crash_state() {
+        let root = temp_dir("dual-file-crash");
+        let owner = owner(&root, "host-a");
+        let records = Mutex::new(BTreeMap::new());
+        let manifest = Mutex::new(load_or_create_ack_manifest(&root, &owner).unwrap());
+        let match_id = Uuid::new_v4();
+        let mut terminal = record(&owner, "instance-a", match_id, Uuid::new_v4(), 3, 77);
+        terminal.phase = "complete".to_string();
+        terminal.validate().unwrap();
+        persist_record(
+            &root,
+            &records,
+            &manifest,
+            &owner,
+            terminal.clone(),
+            DurableDatabaseHighWater {
+                next_sequence: 4,
+                match_revision: 5,
+                next_input_sequences: input_cursors(),
+            },
+        )
+        .unwrap();
+        let tombstone =
+            PublishedTickAckTombstone::new(ack_input(terminal.clone(), 1_700_000_000_001), 1)
+                .unwrap();
+        let payload = serde_json::to_vec_pretty(&tombstone).unwrap();
+        let shard = ensure_ack_tombstone_shard(&root, match_id).unwrap();
+        atomic_install(&shard, &ack_tombstone_path(&root, match_id), &payload).unwrap();
+
+        let mut reopened_manifest = load_or_create_ack_manifest(&root, &owner).unwrap();
+        let reopened = load_hot_records(&root, &owner, &mut reopened_manifest).unwrap();
+        assert!(reopened.is_empty());
+        assert_eq!(reopened_manifest.tombstone_count, 1);
+        assert_eq!(reopened_manifest.committed_seal_sequence, 1);
+        validate_manifest_latest_tombstone(&root, &owner, &reopened_manifest).unwrap();
+        assert!(!record_path(&root, match_id).exists());
+        assert_eq!(
+            load_ack_tombstone_if_exists(&root, &owner, match_id).unwrap(),
+            Some(tombstone)
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn conflicting_hot_and_cold_crash_state_fails_closed() {
+        let root = temp_dir("dual-file-conflict");
+        let owner = owner(&root, "host-a");
+        let records = Mutex::new(BTreeMap::new());
+        let manifest = Mutex::new(load_or_create_ack_manifest(&root, &owner).unwrap());
+        let match_id = Uuid::new_v4();
+        let mut terminal = record(&owner, "instance-a", match_id, Uuid::new_v4(), 3, 77);
+        terminal.phase = "complete".to_string();
+        persist_record(
+            &root,
+            &records,
+            &manifest,
+            &owner,
+            terminal.clone(),
+            DurableDatabaseHighWater {
+                next_sequence: 4,
+                match_revision: 5,
+                next_input_sequences: input_cursors(),
+            },
+        )
+        .unwrap();
+        let mut conflicting = terminal.clone();
+        conflicting.snapshot_hash = "cd".repeat(32);
+        let tombstone =
+            PublishedTickAckTombstone::new(ack_input(conflicting, 1_700_000_000_002), 1).unwrap();
+        let shard = ensure_ack_tombstone_shard(&root, match_id).unwrap();
+        atomic_install(
+            &shard,
+            &ack_tombstone_path(&root, match_id),
+            &serde_json::to_vec_pretty(&tombstone).unwrap(),
+        )
+        .unwrap();
+        let mut reopened_manifest = load_or_create_ack_manifest(&root, &owner).unwrap();
+        assert!(load_hot_records(&root, &owner, &mut reopened_manifest)
+            .unwrap_err()
+            .contains("conflicts with its ACK tombstone"));
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn cold_history_does_not_consume_the_ten_thousand_hot_slots() {
+        let simulated_cold_history = MAX_RECORDS * 100;
+        assert!(simulated_cold_history > MAX_RECORDS);
+        assert!(validate_hot_record_capacity(MAX_RECORDS, false).is_ok());
+        assert!(validate_hot_record_capacity(MAX_RECORDS - 1, true).is_ok());
+        assert!(validate_hot_record_capacity(MAX_RECORDS, true).is_err());
+        assert!(validate_hot_record_capacity(MAX_RECORDS + 1, false).is_err());
+    }
+
+    #[tokio::test]
+    async fn tombstoned_match_cannot_recreate_a_hot_record() {
+        let root = temp_dir("tombstone-no-recreate");
+        let journal =
+            PublishedTickJournal::open(root.clone(), unique_host("tombstone-no-recreate")).unwrap();
+        let match_id = Uuid::new_v4();
+        let terminal = journal
+            .new_record(record_input(
+                "instance-a",
+                match_id,
+                Uuid::new_v4(),
+                1,
+                10,
+                "complete",
+            ))
+            .unwrap();
+        journal
+            .record(terminal.clone(), 4, 5, input_cursors())
+            .await
+            .unwrap();
+        journal
+            .seal_terminal_ack(ack_input(terminal.clone(), 1_700_000_000_003))
+            .await
+            .unwrap();
+        let error = journal
+            .record(terminal, 4, 5, input_cursors())
+            .await
+            .unwrap_err();
+        assert!(error.contains("acknowledged tombstone"));
+        assert!(journal.high_water(match_id).unwrap().is_none());
+        assert!(journal.is_operational());
+        drop(journal);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[tokio::test]
+    async fn cold_tombstones_are_retained_and_explicitly_paged_in_uuid_order() {
+        let root = temp_dir("retained-page");
+        let journal =
+            PublishedTickJournal::open(root.clone(), unique_host("retained-page")).unwrap();
+        let first_match = Uuid::new_v4();
+        let second_match = Uuid::new_v4();
+        let first = journal
+            .new_record(record_input(
+                "instance-a",
+                first_match,
+                Uuid::new_v4(),
+                1,
+                10,
+                "complete",
+            ))
+            .unwrap();
+        let second = journal
+            .new_record(record_input(
+                "instance-a",
+                second_match,
+                Uuid::new_v4(),
+                1,
+                11,
+                "complete",
+            ))
+            .unwrap();
+        journal
+            .record(first.clone(), 4, 5, input_cursors())
+            .await
+            .unwrap();
+        journal
+            .seal_terminal_ack(ack_input(first, 100))
+            .await
+            .unwrap();
+        journal
+            .record(second.clone(), 4, 5, input_cursors())
+            .await
+            .unwrap();
+        let mut second_ack = ack_input(second, 200);
+        second_ack.database_wal_lsn = "0/16B6C51".to_string();
+        journal.seal_terminal_ack(second_ack).await.unwrap();
+
+        assert!(journal.ack_tombstone(first_match).unwrap().is_some());
+        assert!(journal.ack_tombstone(second_match).unwrap().is_some());
+        assert_eq!(
+            journal
+                .latest_ack_tombstone()
+                .unwrap()
+                .unwrap()
+                .high_water
+                .match_id,
+            second_match
+        );
+        assert!(ack_tombstone_path(&root, first_match).exists());
+        assert!(ack_tombstone_path(&root, second_match).exists());
+        assert_eq!(journal.ack_tombstone_count().unwrap(), 2);
+        let page = journal.ack_tombstones_page(None, 2).unwrap();
+        assert_eq!(page.len(), 2);
+        assert!(page[0].high_water.match_id < page[1].high_water.match_id);
+        let second_page = journal
+            .ack_tombstones_page(Some(page[0].high_water.match_id), 1)
+            .unwrap();
+        assert_eq!(second_page, vec![page[1].clone()]);
+        assert!(journal
+            .ack_tombstones_page(None, MAX_ACK_TOMBSTONE_PAGE_SIZE + 1)
+            .is_err());
+        drop(journal);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn ack_tombstone_requires_canonical_database_lineage() {
+        let root = temp_dir("ack-lineage");
+        let owner = owner(&root, "host-a");
+        let mut terminal = record(&owner, "instance-a", Uuid::new_v4(), Uuid::new_v4(), 1, 1);
+        terminal.phase = "complete".to_string();
+        let mut input = ack_input(terminal.clone(), 100);
+        input.database_system_identifier = "072623859790382856".to_string();
+        assert!(PublishedTickAckTombstone::new(input, 1).is_err());
+        let mut input = ack_input(terminal.clone(), 100);
+        input.database_timeline_id = 0;
+        assert!(PublishedTickAckTombstone::new(input, 1).is_err());
+        let mut input = ack_input(terminal, 100);
+        input.database_wal_lsn = "0/016B6C50".to_string();
+        assert!(PublishedTickAckTombstone::new(input, 1).is_err());
+        assert_eq!(parse_postgres_wal_lsn("1/ABCDEF01"), Some(0x1_abcdef01));
+        assert!(parse_postgres_wal_lsn("1/abcdef01").is_none());
+        assert!(parse_postgres_wal_lsn("100000000/0").is_none());
+        assert!(parse_postgres_wal_lsn("1/00000000").is_none());
         fs::remove_dir_all(root).unwrap();
     }
 
@@ -1685,13 +3305,12 @@ mod tests {
         let owner = owner(&root, "host-a");
         let records = Mutex::new(BTreeMap::new());
         let match_id = Uuid::new_v4();
-        persist_record(
+        persist_test_record(
             &root,
             &records,
             record(&owner, "instance-a", match_id, Uuid::new_v4(), 1, 1),
             4,
             5,
-            input_cursors(),
         )
         .unwrap();
         let path = record_path(&root, match_id);
@@ -1699,6 +3318,34 @@ mod tests {
         assert!(load_records(&root, &owner)
             .unwrap_err()
             .contains("must have mode 0600"));
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn insecure_ack_tombstone_mode_fails_closed_on_reopen() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let root = temp_dir("ack-mode");
+        let owner = owner(&root, "host-a");
+        load_or_create_ack_manifest(&root, &owner).unwrap();
+        let mut terminal = record(&owner, "instance-a", Uuid::new_v4(), Uuid::new_v4(), 1, 1);
+        terminal.phase = "complete".to_string();
+        let tombstone = PublishedTickAckTombstone::new(ack_input(terminal, 100), 1).unwrap();
+        let path = ack_tombstone_path(&root, tombstone.high_water.match_id);
+        let shard = ensure_ack_tombstone_shard(&root, tombstone.high_water.match_id).unwrap();
+        atomic_install(
+            &shard,
+            &path,
+            &serde_json::to_vec_pretty(&tombstone).unwrap(),
+        )
+        .unwrap();
+        fs::set_permissions(&path, fs::Permissions::from_mode(0o644)).unwrap();
+        assert!(
+            load_ack_tombstone_if_exists(&root, &owner, tombstone.high_water.match_id)
+                .unwrap_err()
+                .contains("must have mode 0600")
+        );
         fs::remove_dir_all(root).unwrap();
     }
 }
