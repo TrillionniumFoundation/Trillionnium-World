@@ -6629,7 +6629,8 @@ async fn readiness(State(state): State<AppState>) -> Response {
                 )
             })
             .collect::<Vec<_>>();
-        let actor_tracked_match_ids = actor_tracked_published_tick_match_ids(&registry);
+        let actor_tracked_match_ids =
+            actor_tracked_published_tick_match_ids(&registry, actor_observed_at);
         let bounded_terminal_transition_match_ids =
             bounded_match_actor_transition_ids(&registry, actor_observed_at);
         (
@@ -7196,11 +7197,28 @@ fn count_untracked_published_tick_records(
         .count()
 }
 
-fn actor_tracked_published_tick_match_ids(registry: &MatchActorRegistry) -> BTreeSet<Uuid> {
-    // An initialization reservation has not yet installed a publication
-    // owner. Treat its HWM as unresolved so readiness cannot turn green if the
-    // database becomes terminal while initialization or recovery is in flight.
-    registry.actors.keys().copied().collect()
+fn actor_tracked_published_tick_match_ids(
+    registry: &MatchActorRegistry,
+    observed_at: Instant,
+) -> BTreeSet<Uuid> {
+    let mut match_ids = registry.actors.keys().copied().collect::<BTreeSet<_>>();
+    // A bounded actor initialization owns the running HWM it writes before
+    // the handle can be installed in the registry. Keep that deliberate
+    // hand-off ready while the independent initialization timeout remains
+    // healthy. Terminal-recovery reservations stay excluded: they are
+    // reconciling an already-orphaned HWM and must not turn readiness green.
+    match_ids.extend(
+        registry
+            .initializing
+            .iter()
+            .filter_map(|(match_id, initialization)| {
+                (initialization.kind == MatchActorInitializationKind::Actor
+                    && observed_at.saturating_duration_since(initialization.started_at)
+                        < MATCH_ACTOR_INITIALIZATION_TIMEOUT)
+                    .then_some(*match_id)
+            }),
+    );
+    match_ids
 }
 
 fn bounded_match_actor_transition_ids(
@@ -8318,8 +8336,14 @@ async fn start_match(
     lock_current_fleet_epoch_for_commit(&mut transaction, &state, false)
         .await
         .map_err(|error| api_error(StatusCode::SERVICE_UNAVAILABLE, error, true))?;
+    // Reserve local authority before the running phase becomes visible. The
+    // reservation is a bounded readiness owner and is released automatically
+    // if the database commit or the request future is cancelled.
+    let (actor_initialization, actor_reservation) = reserve_starting_match_actor(&state, match_id)
+        .await
+        .map_err(|error| api_error(StatusCode::SERVICE_UNAVAILABLE, error, true))?;
     transaction.commit().await.map_err(internal_db)?;
-    ensure_match_actor(&state, match_id)
+    initialize_reserved_match_actor(&state, match_id, actor_initialization, actor_reservation)
         .await
         .map_err(|error| api_error(StatusCode::SERVICE_UNAVAILABLE, error, true))?
         .ok_or_else(|| {
@@ -10415,63 +10439,103 @@ async fn ensure_match_actor(
                     .map_err(|_| "match actor initializer stopped without a result".to_string())?;
             }
             MatchActorEnsureDecision::Initialize(initialization) => {
-                let mut reservation = MatchActorInitializationReservation::new(
+                let reservation = MatchActorInitializationReservation::new(
                     state.match_actors.clone(),
                     match_id,
                     &initialization,
                 );
-                let initialized = tokio::time::timeout(
-                    MATCH_ACTOR_INITIALIZATION_TIMEOUT,
-                    initialize_match_actor(state, match_id),
+                return initialize_reserved_match_actor(
+                    state,
+                    match_id,
+                    initialization,
+                    reservation,
                 )
-                .await
-                .map_err(|_| "match actor initialization exceeded its hard timeout".to_string())
-                .and_then(|result| result);
-                let mut registry = state.match_actors.write().await;
-                let owns_reservation = registry
-                    .initializing
-                    .get(&match_id)
-                    .is_some_and(|current| current.token == initialization.token);
-                if !owns_reservation {
-                    reservation.disarm();
-                    initialization.ready.send_replace(true);
-                    return Err("match actor initialization reservation was replaced".to_string());
-                }
-                if !match_actor_install_is_allowed(
-                    *state.draining.borrow(),
-                    *state.shutdown.borrow(),
-                ) {
-                    registry.initializing.remove(&match_id);
-                    reservation.disarm();
-                    initialization.ready.send_replace(true);
-                    return Err(
-                        "game server began draining before match actor installation".to_string()
-                    );
-                }
-                registry.initializing.remove(&match_id);
-                reservation.disarm();
-                match initialized {
-                    Ok(Some(initialized)) => {
-                        let handle = initialized.handle.clone();
-                        registry.actors.insert(match_id, handle.clone());
-                        initialization.ready.send_replace(true);
-                        drop(registry);
-                        let actor_state = state.clone();
-                        tokio::spawn(async move {
-                            run_match_actor(actor_state, match_id, initialized).await;
-                        });
-                        return Ok(Some(handle));
-                    }
-                    Ok(None) => {
-                        initialization.ready.send_replace(true);
-                        return Ok(None);
-                    }
-                    Err(error) => {
-                        initialization.ready.send_replace(true);
-                        return Err(error);
-                    }
-                }
+                .await;
             }
+        }
+    }
+}
+
+async fn reserve_starting_match_actor(
+    state: &AppState,
+    match_id: Uuid,
+) -> Result<
+    (
+        MatchActorInitialization,
+        MatchActorInitializationReservation,
+    ),
+    String,
+> {
+    let initialization = {
+        let mut registry = state.match_actors.write().await;
+        match reserve_match_actor_initialization(&mut registry, match_id, state.capacity)? {
+            MatchActorEnsureDecision::Initialize(initialization) => initialization,
+            MatchActorEnsureDecision::Existing(_) => {
+                return Err("waiting match already has a local actor".to_string());
+            }
+            MatchActorEnsureDecision::Wait(_) => {
+                return Err("waiting match actor initialization is already reserved".to_string());
+            }
+        }
+    };
+    let reservation = MatchActorInitializationReservation::new(
+        state.match_actors.clone(),
+        match_id,
+        &initialization,
+    );
+    Ok((initialization, reservation))
+}
+
+async fn initialize_reserved_match_actor(
+    state: &AppState,
+    match_id: Uuid,
+    initialization: MatchActorInitialization,
+    mut reservation: MatchActorInitializationReservation,
+) -> Result<Option<MatchActorHandle>, String> {
+    let initialized = tokio::time::timeout(
+        MATCH_ACTOR_INITIALIZATION_TIMEOUT,
+        initialize_match_actor(state, match_id),
+    )
+    .await
+    .map_err(|_| "match actor initialization exceeded its hard timeout".to_string())
+    .and_then(|result| result);
+    let mut registry = state.match_actors.write().await;
+    let owns_reservation = registry
+        .initializing
+        .get(&match_id)
+        .is_some_and(|current| current.token == initialization.token);
+    if !owns_reservation {
+        reservation.disarm();
+        initialization.ready.send_replace(true);
+        return Err("match actor initialization reservation was replaced".to_string());
+    }
+    if !match_actor_install_is_allowed(*state.draining.borrow(), *state.shutdown.borrow()) {
+        registry.initializing.remove(&match_id);
+        reservation.disarm();
+        initialization.ready.send_replace(true);
+        return Err("game server began draining before match actor installation".to_string());
+    }
+    registry.initializing.remove(&match_id);
+    reservation.disarm();
+    match initialized {
+        Ok(Some(initialized)) => {
+            let handle = initialized.handle.clone();
+            registry.actors.insert(match_id, handle.clone());
+            initialization.ready.send_replace(true);
+            drop(registry);
+            let actor_state = state.clone();
+            tokio::spawn(async move {
+                run_match_actor(actor_state, match_id, initialized).await;
+            });
+            Ok(Some(handle))
+        }
+        Ok(None) => {
+            initialization.ready.send_replace(true);
+            Ok(None)
+        }
+        Err(error) => {
+            initialization.ready.send_replace(true);
+            Err(error)
         }
     }
 }
@@ -14624,6 +14688,32 @@ mod tests {
         assert_eq!(registry.initializing.len(), 2);
     }
 
+    #[test]
+    fn bounded_actor_initialization_owns_its_running_high_water_readiness_window() {
+        let mut registry = MatchActorRegistry::default();
+        let match_id = Uuid::new_v4();
+        let initialization =
+            match reserve_match_actor_initialization(&mut registry, match_id, 1).unwrap() {
+                MatchActorEnsureDecision::Initialize(initialization) => initialization,
+                _ => panic!("first reservation must initialize the match"),
+            };
+        let recorded = [match_id];
+        let tracked = actor_tracked_published_tick_match_ids(&registry, Instant::now());
+        assert_eq!(
+            count_untracked_published_tick_records(&recorded, &tracked),
+            0
+        );
+        assert!(terminal_orphan_recovery_is_operational(true, 0));
+
+        let timed_out_at = initialization.started_at + MATCH_ACTOR_INITIALIZATION_TIMEOUT;
+        let tracked = actor_tracked_published_tick_match_ids(&registry, timed_out_at);
+        assert_eq!(
+            count_untracked_published_tick_records(&recorded, &tracked),
+            1
+        );
+        assert!(!terminal_orphan_recovery_is_operational(true, 1));
+    }
+
     #[tokio::test]
     async fn cancelled_match_initialization_releases_its_capacity_reservation() {
         let registry = Arc::new(RwLock::new(MatchActorRegistry::default()));
@@ -15161,7 +15251,7 @@ mod tests {
             initialization.kind,
             MatchActorInitializationKind::TerminalRecovery
         );
-        let actor_tracked = actor_tracked_published_tick_match_ids(&registry);
+        let actor_tracked = actor_tracked_published_tick_match_ids(&registry, Instant::now());
         let untracked = count_untracked_published_tick_records(
             &journal.recorded_match_ids().unwrap(),
             &actor_tracked,

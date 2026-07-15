@@ -479,7 +479,7 @@ readiness_json() {
 }
 
 wait_for_test_readiness() {
-  local body="" attempt
+  local body="" attempt consecutive=0
   for ((attempt=0; attempt<WAIT_ATTEMPTS; attempt++)); do
     body="$(readiness_json "$TEST_URL" 2>/dev/null || true)"
     if jq -e --arg instance "$TEST_INSTANCE_ID" '
@@ -496,11 +496,14 @@ wait_for_test_readiness() {
         and .operational_readiness.local_cold_witness_seal == true
         and .published_tick_terminal_orphan_recovery_operational == true
       ' >/dev/null 2>&1 <<<"$body"; then
-      return 0
+      consecutive=$((consecutive + 1))
+      (( consecutive >= 3 )) && return 0
+    else
+      consecutive=0
     fi
     sleep "$WAIT_INTERVAL"
   done
-  fail "standalone Authority did not become ready"
+  fail "standalone Authority did not remain ready for three consecutive probes"
 }
 
 wait_for_production_readiness() {
@@ -2893,6 +2896,9 @@ IFS=$'\t' read -r HOST_PLAYER HOST_ACCOUNT HOST_SESSION < <(create_identity host
 IFS=$'\t' read -r GUEST_PLAYER GUEST_ACCOUNT GUEST_SESSION < <(create_identity guest)
 
 configure_netem
+# The injected RTT changes database-pool timing. Establish a new stable
+# readiness baseline under the actual fault before formal samples begin.
+wait_for_test_readiness
 sample_readiness
 (
   close_inherited_mutation_locks
