@@ -358,7 +358,7 @@ const AUTHORITY_CLOCK_MIN_SAMPLES: usize = 3;
 const GAME_SERVER_DATABASE_MIN_CONNECTIONS: u32 = 12;
 const GAME_SERVER_DATABASE_MAX_CONNECTIONS: u32 = 12;
 const READINESS_DATABASE_MIN_CONNECTIONS: u32 = 4;
-const READINESS_DATABASE_MAX_CONNECTIONS: u32 = 4;
+const READINESS_DATABASE_MAX_CONNECTIONS: u32 = 12;
 const TERMINAL_ORPHAN_RECONCILIATION_CONCURRENCY: usize = 4;
 const TERMINAL_ACK_GAP_SCAN_LIMIT: i64 = 256;
 const TERMINAL_ACK_STARTUP_PAGE_SIZE: i64 = 512;
@@ -2031,11 +2031,14 @@ impl AppState {
             .await
             .map_err(|error| format!("connect Online Authority PostgreSQL: {error}"))?;
 
-        // Reserve a small control-plane pool for the two concurrent readiness
-        // database branches. Player admission, snapshots, checkpoints and
-        // command commits may fully occupy the data-plane pool under RTT or a
-        // burst, but they must not make the local orchestrator blind and turn
-        // transient queue pressure into restart feedback.
+        // Reserve a small control-plane pool for the two concurrent database
+        // branches in each readiness request. Four warm connections cover the
+        // steady probe; elastic headroom covers the operations monitor plus
+        // four workers performing their startup probe together. Player
+        // admission, snapshots, checkpoints and command commits may fully
+        // occupy the data-plane pool under RTT or a burst, but they must not
+        // make the local orchestrator blind and turn transient probe overlap
+        // into restart feedback.
         let readiness_after_connect_authority = database_host_authority.clone();
         let readiness_before_acquire_authority = database_host_authority.clone();
         let readiness_pool = PgPoolOptions::new()
@@ -14509,7 +14512,7 @@ mod tests {
         assert_eq!(GAME_SERVER_DATABASE_MIN_CONNECTIONS, 12);
         assert_eq!(GAME_SERVER_DATABASE_MAX_CONNECTIONS, 12);
         assert_eq!(READINESS_DATABASE_MIN_CONNECTIONS, 4);
-        assert_eq!(READINESS_DATABASE_MAX_CONNECTIONS, 4);
+        assert_eq!(READINESS_DATABASE_MAX_CONNECTIONS, 12);
     }
 
     #[test]

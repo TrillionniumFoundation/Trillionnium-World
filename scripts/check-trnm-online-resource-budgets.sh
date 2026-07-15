@@ -43,7 +43,7 @@ rg -q 'GAME_SERVER_DATABASE_MAX_CONNECTIONS: u32 = 12' \
   "$ROOT_DIR/trillionnium/crates/trnm-game-server/src/lib.rs"
 rg -q 'READINESS_DATABASE_MIN_CONNECTIONS: u32 = 4' \
   "$ROOT_DIR/trillionnium/crates/trnm-game-server/src/lib.rs"
-rg -q 'READINESS_DATABASE_MAX_CONNECTIONS: u32 = 4' \
+rg -q 'READINESS_DATABASE_MAX_CONNECTIONS: u32 = 12' \
   "$ROOT_DIR/trillionnium/crates/trnm-game-server/src/lib.rs"
 rg -q 'SIGNER_DATABASE_MAX_CONNECTIONS: u32 = 4' \
   "$ROOT_DIR/trillionnium/crates/trnm-game-server/src/bin/trnm-entitlement-signer.rs"
@@ -68,8 +68,8 @@ fi
 
 jq -n --argjson installed "$installed" \
   '{status:"passed",game_server_data_pool_min:12,game_server_data_pool_max:12,
-    game_server_readiness_pool_min:4,game_server_readiness_pool_max:4,signer_pool_max:4,
-    game_server_total_pool_max:16,formal_database_connection_ceiling:40,
+    game_server_readiness_pool_min:4,game_server_readiness_pool_max:12,signer_pool_max:4,
+    game_server_total_pool_max:24,formal_database_connection_ceiling:40,
     game_server_memory_max_mib:512,capacity_harness_memory_max_mib:2048,
     capacity_harness_min_available_memory_mib:3072,
     systemd_unit_budgets:true,installed_runtime_verified:$installed}'
