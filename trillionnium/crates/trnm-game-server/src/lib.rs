@@ -80,6 +80,7 @@ const MIGRATION_V11: &str =
 const MIGRATION_V12: &str = include_str!("../migrations/0012_online_terminal_staging_v1.sql");
 const MIGRATION_V13: &str =
     include_str!("../migrations/0013_online_failed_closed_abandonment_v1.sql");
+const MIGRATION_V14: &str = include_str!("../migrations/0014_online_command_commit_rpc_v1.sql");
 const MIGRATION_ADVISORY_LOCK: i64 = 0x5452_4e4d_4f4e_4c49;
 const MIGRATION_LEDGER_DDL: &str =
     "create table if not exists public.trnm_online_schema_migrations (
@@ -800,9 +801,17 @@ struct PublishedMatchState {
 struct MatchActorHandle {
     actor_id: Uuid,
     commands: mpsc::Sender<ActorCommandEnvelope>,
+    members: Arc<BTreeMap<String, ActorMemberAuthority>>,
     published: watch::Receiver<PublishedMatchState>,
     publication_acked: watch::Receiver<ActorPublicationCursor>,
     clock: Arc<AuthorityClockTelemetry>,
+}
+
+#[derive(Clone)]
+struct ActorMemberAuthority {
+    account_id: Uuid,
+    controlled_unit_ids: BTreeSet<String>,
+    member_role: String,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -841,6 +850,7 @@ struct ActorCommandEnvelope {
 struct LoadedMatchActor {
     simulation: MissionSimV1,
     match_mode: String,
+    members: Arc<BTreeMap<String, ActorMemberAuthority>>,
     next_sequence: u64,
     match_revision: u64,
     next_input_sequences: BTreeMap<String, u64>,
@@ -1435,6 +1445,7 @@ async fn run_database_migrations(connection: &mut PgConnection) -> Result<(), St
             "0013_online_failed_closed_abandonment_v1",
             MIGRATION_V13,
         ),
+        (14, "0014_online_command_commit_rpc_v1", MIGRATION_V14),
     ] {
         let checksum = migration_checksum_sha256(sql);
         let recorded = sqlx::query::query(
@@ -7682,53 +7693,6 @@ async fn submit_command(
     let account_id = Uuid::parse_str(&request.account_id)
         .map_err(|_| api_error(StatusCode::BAD_REQUEST, "account_id must be a UUID", false))?;
     let request_hash = hash_json(&request)?;
-    let member = sqlx::query::query(
-        "select controlled_unit_ids, member_role from trnm_online_match_members
-         where match_id = $1 and player_id = $2 and account_id = $3",
-    )
-    .bind(match_id)
-    .bind(&request.player_id)
-    .bind(account_id)
-    .fetch_optional(&state.pool)
-    .await
-    .map_err(internal_db)?
-    .ok_or_else(|| {
-        api_error(
-            StatusCode::FORBIDDEN,
-            "identity is not a match member",
-            false,
-        )
-    })?;
-    let controlled_value: Value = member.try_get("controlled_unit_ids").map_err(internal_db)?;
-    let controlled = serde_json::from_value::<Vec<String>>(controlled_value)
-        .map_err(internal_serialization)?
-        .into_iter()
-        .collect::<BTreeSet<_>>();
-    let requested_subjects = request
-        .order
-        .subject_actor_ids
-        .iter()
-        .cloned()
-        .collect::<BTreeSet<_>>();
-    if requested_subjects.is_empty() || !requested_subjects.is_subset(&controlled) {
-        return Err(api_error(
-            StatusCode::FORBIDDEN,
-            "command subjects are outside this member's authoritative control set",
-            false,
-        ));
-    }
-    let member_role: String = member.try_get("member_role").map_err(internal_db)?;
-    if let Some(receipt) = fetch_duplicate_command_receipt(
-        &state,
-        match_id,
-        &request.command_id,
-        &request.player_id,
-        &request_hash,
-    )
-    .await?
-    {
-        return Ok(Json(receipt));
-    }
     let actor = ensure_match_actor(&state, match_id)
         .await
         .map_err(|error| api_error(StatusCode::SERVICE_UNAVAILABLE, error, true))?;
@@ -7750,20 +7714,63 @@ async fn submit_command(
             false,
         ));
     };
-    // Starting/recovering an actor installs its initial durable publication
-    // cursor. Re-check an exact retry after that barrier before routing it into
-    // the command lane; a DB row alone is never an acknowledgement.
-    if let Some(receipt) = fetch_duplicate_command_receipt(
-        &state,
-        match_id,
-        &request.command_id,
-        &request.player_id,
-        &request_hash,
-    )
-    .await?
-    {
-        return Ok(Json(receipt));
+    // Running-match membership, account binding, role and unit controls are
+    // immutable. The actor loaded them under the same fenced transaction as
+    // its simulation and cursors, so the hot command path does not spend a
+    // separate database RTT rediscovering immutable authority.
+    let member = actor.members.get(&request.player_id).ok_or_else(|| {
+        api_error(
+            StatusCode::FORBIDDEN,
+            "identity is not a match member",
+            false,
+        )
+    })?;
+    if member.account_id != account_id {
+        return Err(api_error(
+            StatusCode::FORBIDDEN,
+            "identity is not bound to this match account",
+            false,
+        ));
     }
+    let published_cursor = actor.publication_acked.borrow().clone();
+    let duplicate_lookup_needed = if request.protocol_version == ONLINE_AUTHORITY_PROTOCOL {
+        request.input_sequence.is_some_and(|input_sequence| {
+            published_cursor
+                .next_input_sequences
+                .get(&request.player_id)
+                .is_some_and(|current| input_sequence < *current)
+        })
+    } else {
+        request.sequence < published_cursor.next_sequence
+    };
+    if duplicate_lookup_needed {
+        if let Some(receipt) = fetch_duplicate_command_receipt(
+            &state,
+            match_id,
+            &request.command_id,
+            &request.player_id,
+            &request_hash,
+        )
+        .await?
+        {
+            return Ok(Json(receipt));
+        }
+    }
+    let requested_subjects = request
+        .order
+        .subject_actor_ids
+        .iter()
+        .cloned()
+        .collect::<BTreeSet<_>>();
+    if requested_subjects.is_empty() || !requested_subjects.is_subset(&member.controlled_unit_ids) {
+        return Err(api_error(
+            StatusCode::FORBIDDEN,
+            "command subjects are outside this member's authoritative control set",
+            false,
+        ));
+    }
+    let controlled = member.controlled_unit_ids.clone();
+    let member_role = member.member_role.clone();
     reject_command_during_drain(&state)?;
     let (response_tx, response_rx) = oneshot::channel();
     tokio::time::timeout(
@@ -8116,124 +8123,126 @@ async fn persist_actor_command(
     match_id: Uuid,
     job: ActorCommandPersistence,
 ) -> Result<OnlineCommandReceipt, ApiError> {
-    let mut transaction = state.pool.begin().await.map_err(internal_db)?;
-    lock_current_fleet_epoch(&mut transaction, state, true)
-        .await
-        .map_err(|error| api_error(StatusCode::SERVICE_UNAVAILABLE, error, true))?;
-    let row = sqlx::query::query(
-        "select phase, next_sequence, match_revision, checkpoint_sequence,
-                assigned_instance_id, assigned_instance_epoch,
-                assigned_physical_host_id
-         from trnm_online_matches where match_id = $1 for update",
-    )
-    .bind(match_id)
-    .fetch_optional(&mut *transaction)
-    .await
-    .map_err(internal_db)?
-    .ok_or_else(|| api_error(StatusCode::NOT_FOUND, "match not found", false))?;
-    let durable_revision = row
-        .try_get::<i64, _>("match_revision")
-        .map_err(internal_db)? as u64;
-    let durable_next_sequence = row
-        .try_get::<i64, _>("next_sequence")
-        .map_err(internal_db)? as u64;
-    let checkpoint_sequence = row
-        .try_get::<i64, _>("checkpoint_sequence")
-        .map_err(internal_db)? as u64;
-    let phase: String = row.try_get("phase").map_err(internal_db)?;
-    let assigned_physical_host: Option<String> = row
-        .try_get("assigned_physical_host_id")
-        .map_err(internal_db)?;
-    if assigned_physical_host.as_deref() != Some(state.physical_host_id.as_str()) {
+    if !state.database_host_authority.is_healthy() {
         return Err(api_error(
             StatusCode::SERVICE_UNAVAILABLE,
-            "match actor physical host was fenced before command persistence",
+            "PostgreSQL host authority is fail-closed",
             true,
         ));
     }
-    if let Some(command) = sqlx::query::query(
-        "select sequence, input_sequence, player_id, request_hash, accepted_match_revision,
-                accepted_snapshot_hash, target_tick, client_observed_tick
-         from trnm_online_commands where match_id = $1 and command_id = $2",
+    let identity = &state.database_host_authority.identity;
+    let order_json = serde_json::to_value(&job.order).map_err(internal_serialization)?;
+    // This is intentionally one PostgreSQL statement. The migration function
+    // revalidates the exact K1 leader, holds the pool session's lifetime K2
+    // barrier, locks fleet -> match -> member, and either advances the command
+    // event plus both cursors atomically or changes nothing.
+    let row = sqlx::query::query(
+        "select * from public.trnm_online_commit_actor_command_v1(
+            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
+            $11, $12, $13, $14, $15, $16, $17, $18, $19, $20,
+            $21, $22, $23, $24, $25
+         )",
     )
     .bind(match_id)
     .bind(&job.request.command_id)
-    .fetch_optional(&mut *transaction)
+    .bind(&job.request.player_id)
+    .bind(job.input_sequence as i64)
+    .bind(&job.request_hash)
+    .bind(job.effective_tick as i64)
+    .bind(job.client_observed_tick.map(|value| value as i64))
+    .bind(order_json)
+    .bind(&job.snapshot_hash)
+    .bind(job.accepted_revision as i64)
+    .bind(&job.post_simulation)
+    .bind(job.base_next_sequence as i64)
+    .bind(job.base_match_revision as i64)
+    .bind(state.instance_id.as_str())
+    .bind(state.instance_epoch)
+    .bind(state.physical_host_id.as_str())
+    .bind(identity.owner_nonce)
+    .bind(&identity.application_name)
+    .bind(identity.backend_pid)
+    .bind(identity.backend_started_at)
+    .bind(&identity.database_system_identifier)
+    .bind(identity.database_timeline_id)
+    .bind(identity.database_postmaster_started_at)
+    .bind(identity.leader_lock_key)
+    .bind(identity.barrier_lock_key)
+    .fetch_one(&state.pool)
     .await
-    .map_err(internal_db)?
-    {
-        let stored_player_id: String = command.try_get("player_id").map_err(internal_db)?;
-        let stored_request_hash: Option<String> =
-            command.try_get("request_hash").map_err(internal_db)?;
-        if stored_player_id != job.request.player_id
-            || stored_request_hash.as_deref() != Some(job.request_hash.as_str())
-        {
-            return Err(conflict(
-                "command_id was already used with a different authenticated request",
-                durable_revision,
-            ));
-        }
-        let stored_client_observed_tick = command
-            .try_get::<Option<i64>, _>("client_observed_tick")
-            .map_err(internal_db)?;
-        let sequence = command.try_get::<i64, _>("sequence").map_err(internal_db)? as u64;
-        let accepted_revision = command
-            .try_get::<i64, _>("accepted_match_revision")
-            .map_err(internal_db)? as u64;
-        let stored_input_sequence = command
-            .try_get::<i64, _>("input_sequence")
-            .map_err(internal_db)? as u64;
-        let durable_member_input_sequence: i64 = sqlx::query_scalar::query_scalar(
-            "select next_input_sequence from trnm_online_match_members
-             where match_id = $1 and player_id = $2",
-        )
-        .bind(match_id)
-        .bind(&stored_player_id)
-        .fetch_one(&mut *transaction)
-        .await
+    .map_err(internal_db)?;
+
+    let outcome: String = row.try_get("result_outcome").map_err(internal_db)?;
+    let durable_revision = row
+        .try_get::<Option<i64>, _>("result_durable_match_revision")
+        .map_err(internal_db)?
+        .unwrap_or(job.base_match_revision as i64)
+        .max(0) as u64;
+    if outcome == "match_not_found" {
+        return Err(api_error(StatusCode::NOT_FOUND, "match not found", false));
+    }
+    if outcome == "command_conflict" {
+        return Err(conflict(
+            "command_id was already used with a different authenticated request",
+            durable_revision,
+        ));
+    }
+    if outcome == "match_not_running" {
+        return Err(conflict("match is not running", durable_revision));
+    }
+    if outcome == "duplicate_publication_pending" {
+        return Err(api_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "duplicate command is awaiting its durable publication barrier",
+            true,
+        ));
+    }
+    if outcome != "inserted" && outcome != "duplicate" {
+        return Err(api_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            format!("atomic command commit failed closed: {outcome}"),
+            true,
+        ));
+    }
+
+    let stored_player_id: String = row.try_get("result_player_id").map_err(internal_db)?;
+    let stored_request_hash: String = row.try_get("result_request_hash").map_err(internal_db)?;
+    if stored_player_id != job.request.player_id || stored_request_hash != job.request_hash {
+        return Err(conflict(
+            "atomic command result did not bind the authenticated request",
+            durable_revision,
+        ));
+    }
+    let sequence = row
+        .try_get::<i64, _>("result_sequence")
+        .map_err(internal_db)? as u64;
+    let input_sequence = row
+        .try_get::<i64, _>("result_input_sequence")
+        .map_err(internal_db)? as u64;
+    let accepted_revision = row
+        .try_get::<i64, _>("result_accepted_match_revision")
+        .map_err(internal_db)? as u64;
+    let accepted_snapshot_hash: String = row
+        .try_get("result_accepted_snapshot_hash")
         .map_err(internal_db)?;
-        let terminal_publication_acked = if phase == "running" {
-            false
-        } else {
-            sqlx::query_scalar::query_scalar::<_, bool>(
-                "select exists(
-                    select 1 from trnm_online_terminal_publication_acks a
-                    join trnm_online_matches m on m.match_id = a.match_id
-                    where a.match_id = $1
-                      and m.phase = 'complete'
-                      and m.terminal_publication_state = 'acknowledged'
-                      and a.local_tombstone_state = 'sealed'
-                      and m.assigned_physical_host_id = $2
-                      and m.terminal_publication_actor_generation is not null
-                      and a.actor_generation = m.terminal_publication_actor_generation
-                      and a.instance_id = m.assigned_instance_id
-                      and a.actor_epoch = m.assigned_instance_epoch
-                      and a.physical_host_id = m.assigned_physical_host_id
-                      and a.authoritative_tick = m.authoritative_tick
-                      and a.next_sequence = m.next_sequence
-                      and a.match_revision = m.match_revision
-                      and a.snapshot_hash = m.snapshot_hash
-                      and a.phase = 'complete'
-                      and a.result_hash = m.result_hash
-                      and a.published_settlement_state = m.settlement_state
-                      and a.next_input_sequences = coalesce(
-                          (select jsonb_object_agg(
-                              mm.player_id,
-                              mm.next_input_sequence order by mm.player_id
-                           )
-                           from trnm_online_match_members mm
-                           where mm.match_id = m.match_id),
-                          '{}'::jsonb
-                      )
-                )",
-            )
-            .bind(match_id)
-            .bind(state.physical_host_id.as_str())
-            .fetch_one(&mut *transaction)
-            .await
-            .map_err(internal_db)?
-        };
-        transaction.commit().await.map_err(internal_db)?;
+    let accepted_tick = row
+        .try_get::<i64, _>("result_target_tick")
+        .map_err(internal_db)? as u64;
+    let stored_client_observed_tick = row
+        .try_get::<Option<i64>, _>("result_client_observed_tick")
+        .map_err(internal_db)?;
+    let duplicate = outcome == "duplicate";
+    if duplicate {
+        let durable_next_sequence = row
+            .try_get::<i64, _>("result_durable_next_sequence")
+            .map_err(internal_db)? as u64;
+        let checkpoint_sequence = row
+            .try_get::<i64, _>("result_checkpoint_sequence")
+            .map_err(internal_db)? as u64;
+        let durable_member_input_sequence = row
+            .try_get::<i64, _>("result_durable_member_input_sequence")
+            .map_err(internal_db)? as u64;
+        let phase: String = row.try_get("result_phase").map_err(internal_db)?;
         let actor_cursor = state
             .match_actors
             .read()
@@ -8247,10 +8256,10 @@ async fn persist_actor_command(
             durable_next_sequence,
             checkpoint_sequence,
             player_id: &stored_player_id,
-            input_sequence: stored_input_sequence,
-            durable_member_input_sequence: durable_member_input_sequence as u64,
+            input_sequence,
+            durable_member_input_sequence,
             phase: &phase,
-            terminal_publication_acked,
+            terminal_publication_acked: false,
             actor_cursor: actor_cursor.as_ref(),
         }) {
             return Err(api_error(
@@ -8259,164 +8268,20 @@ async fn persist_actor_command(
                 true,
             ));
         }
-        return Ok(OnlineCommandReceipt {
-            protocol_version: receipt_protocol_for_observed_tick(stored_client_observed_tick)
-                .to_string(),
-            match_id: match_id.to_string(),
-            player_id: stored_player_id,
-            command_id: job.request.command_id,
-            sequence,
-            input_sequence: stored_input_sequence,
-            duplicate: true,
-            accepted_tick: command
-                .try_get::<i64, _>("target_tick")
-                .map_err(internal_db)? as u64,
-            client_observed_tick: stored_client_observed_tick.map(|value| value as u64),
-            match_revision: accepted_revision,
-            snapshot_hash: command
-                .try_get("accepted_snapshot_hash")
-                .map_err(internal_db)?,
-        });
     }
-    let assigned_instance: Option<String> =
-        row.try_get("assigned_instance_id").map_err(internal_db)?;
-    let assigned_epoch: i64 = row
-        .try_get("assigned_instance_epoch")
-        .map_err(internal_db)?;
-    if phase != "running" {
-        return Err(api_error(
-            StatusCode::CONFLICT,
-            "match is not running",
-            false,
-        ));
-    }
-    if assigned_instance.as_deref() != Some(state.instance_id.as_str())
-        || assigned_epoch != state.instance_epoch
-    {
-        return Err(api_error(
-            StatusCode::SERVICE_UNAVAILABLE,
-            "match actor was fenced by newer fleet authority",
-            true,
-        ));
-    }
-    if durable_next_sequence != job.base_next_sequence
-        || durable_revision != job.base_match_revision
-        || job.accepted_revision != job.base_match_revision.saturating_add(1)
-    {
-        return Err(api_error(
-            StatusCode::SERVICE_UNAVAILABLE,
-            "match actor event cursor diverged before command persistence",
-            true,
-        ));
-    }
-    let member_input_sequence: i64 = sqlx::query_scalar::query_scalar(
-        "select next_input_sequence from trnm_online_match_members
-         where match_id = $1 and player_id = $2 for update",
-    )
-    .bind(match_id)
-    .bind(&job.request.player_id)
-    .fetch_one(&mut *transaction)
-    .await
-    .map_err(internal_db)?;
-    if member_input_sequence as u64 != job.input_sequence {
-        return Err(api_error(
-            StatusCode::SERVICE_UNAVAILABLE,
-            "player input cursor diverged before command persistence",
-            true,
-        ));
-    }
-    sqlx::query::query(
-        "insert into trnm_online_commands (
-            match_id, sequence, command_id, player_id, input_sequence, request_hash, target_tick,
-            client_observed_tick,
-            order_json, accepted_snapshot_hash, accepted_match_revision,
-            post_simulation_json
-         ) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)",
-    )
-    .bind(match_id)
-    .bind(job.base_next_sequence as i64)
-    .bind(&job.request.command_id)
-    .bind(&job.request.player_id)
-    .bind(job.input_sequence as i64)
-    .bind(&job.request_hash)
-    .bind(job.effective_tick as i64)
-    .bind(job.client_observed_tick.map(|value| value as i64))
-    .bind(serde_json::to_value(&job.order).map_err(internal_serialization)?)
-    .bind(&job.snapshot_hash)
-    .bind(job.accepted_revision as i64)
-    .bind(&job.post_simulation)
-    .execute(&mut *transaction)
-    .await
-    .map_err(internal_db)?;
-    let member_updated = sqlx::query::query(
-        "update trnm_online_match_members set next_input_sequence = $3,
-            last_seen_at = now()
-         where match_id = $1 and player_id = $2 and next_input_sequence = $4",
-    )
-    .bind(match_id)
-    .bind(&job.request.player_id)
-    .bind(job.input_sequence.saturating_add(1) as i64)
-    .bind(job.input_sequence as i64)
-    .execute(&mut *transaction)
-    .await
-    .map_err(internal_db)?;
-    if member_updated.rows_affected() != 1 {
-        return Err(api_error(
-            StatusCode::SERVICE_UNAVAILABLE,
-            "player input cursor was fenced before commit",
-            true,
-        ));
-    }
-    let updated = sqlx::query::query(
-        "update trnm_online_matches set next_sequence = $2,
-            match_revision = $3, updated_at = now()
-         where match_id = $1 and phase = 'running'
-           and assigned_instance_id = $4 and assigned_instance_epoch = $5
-           and assigned_physical_host_id = $8
-           and terminal_stage_snapshot_hash is null
-           and next_sequence = $6 and match_revision = $7
-           and exists (
-             select 1 from trnm_online_fleet_instances f
-             where f.instance_id = $4 and f.instance_epoch = $5
-               and f.physical_host_id = $8
-               and f.status in ('active', 'draining')
-               and f.lease_expires_at > now()
-           )",
-    )
-    .bind(match_id)
-    .bind(job.base_next_sequence.saturating_add(1) as i64)
-    .bind(job.accepted_revision as i64)
-    .bind(state.instance_id.as_str())
-    .bind(state.instance_epoch)
-    .bind(job.base_next_sequence as i64)
-    .bind(job.base_match_revision as i64)
-    .bind(state.physical_host_id.as_str())
-    .execute(&mut *transaction)
-    .await
-    .map_err(internal_db)?;
-    if updated.rows_affected() != 1 {
-        return Err(api_error(
-            StatusCode::SERVICE_UNAVAILABLE,
-            "command event was fenced before commit",
-            true,
-        ));
-    }
-    lock_current_fleet_epoch_for_commit(&mut transaction, state, true)
-        .await
-        .map_err(|error| api_error(StatusCode::SERVICE_UNAVAILABLE, error, true))?;
-    transaction.commit().await.map_err(internal_db)?;
     Ok(OnlineCommandReceipt {
-        protocol_version: job.request.protocol_version,
+        protocol_version: receipt_protocol_for_observed_tick(stored_client_observed_tick)
+            .to_string(),
         match_id: match_id.to_string(),
-        player_id: job.request.player_id,
+        player_id: stored_player_id,
         command_id: job.request.command_id,
-        sequence: job.base_next_sequence,
-        input_sequence: job.input_sequence,
-        duplicate: false,
-        accepted_tick: job.effective_tick,
-        client_observed_tick: job.client_observed_tick,
-        match_revision: job.accepted_revision,
-        snapshot_hash: job.snapshot_hash,
+        sequence,
+        input_sequence,
+        duplicate,
+        accepted_tick,
+        client_observed_tick: stored_client_observed_tick.map(|value| value as u64),
+        match_revision: accepted_revision,
+        snapshot_hash: accepted_snapshot_hash,
     })
 }
 
@@ -10087,6 +9952,7 @@ async fn initialize_match_actor(
     let handle = MatchActorHandle {
         actor_id,
         commands: command_tx,
+        members: loaded.members.clone(),
         published: published_rx,
         publication_acked: publication_acked_rx,
         clock,
@@ -10346,7 +10212,8 @@ async fn load_match_actor(
         .map_err(|error| error.to_string())?;
     let staged_terminal = staged_terminal_authority_from_row(&row, &match_mode)?;
     let input_rows = sqlx::query::query(
-        "select player_id, next_input_sequence
+        "select player_id, account_id, controlled_unit_ids, member_role,
+                next_input_sequence
          from trnm_online_match_members where match_id = $1",
     )
     .bind(match_id)
@@ -10354,6 +10221,7 @@ async fn load_match_actor(
     .await
     .map_err(|error| error.to_string())?;
     let mut next_input_sequences = BTreeMap::new();
+    let mut members = BTreeMap::new();
     for input_row in input_rows {
         let player_id: String = input_row
             .try_get("player_id")
@@ -10363,7 +10231,33 @@ async fn load_match_actor(
             .map_err(|error| error.to_string())?;
         let next_input_sequence = u64::try_from(next_input_sequence)
             .map_err(|_| "member input sequence is negative".to_string())?;
-        next_input_sequences.insert(player_id, next_input_sequence);
+        let controlled_unit_ids = serde_json::from_value::<Vec<String>>(
+            input_row
+                .try_get::<Value, _>("controlled_unit_ids")
+                .map_err(|error| error.to_string())?,
+        )
+        .map_err(|error| format!("decode match actor member controls: {error}"))?
+        .into_iter()
+        .collect::<BTreeSet<_>>();
+        let authority = ActorMemberAuthority {
+            account_id: input_row
+                .try_get("account_id")
+                .map_err(|error| error.to_string())?,
+            controlled_unit_ids,
+            member_role: input_row
+                .try_get("member_role")
+                .map_err(|error| error.to_string())?,
+        };
+        if next_input_sequences
+            .insert(player_id.clone(), next_input_sequence)
+            .is_some()
+            || members.insert(player_id, authority).is_some()
+        {
+            return Err("match actor member authority is duplicated".to_string());
+        }
+    }
+    if members.is_empty() || members.len() != next_input_sequences.len() {
+        return Err("match actor member authority is incomplete".to_string());
     }
     let bridge_simulation = if let Some(staged) = staged_terminal.as_ref() {
         let high_water = high_water.as_ref().ok_or_else(|| {
@@ -10476,6 +10370,7 @@ async fn load_match_actor(
     let mut loaded = LoadedMatchActor {
         simulation,
         match_mode,
+        members: Arc::new(members),
         next_sequence,
         match_revision,
         next_input_sequences,
@@ -14840,6 +14735,22 @@ mod tests {
     }
 
     #[test]
+    fn v14_command_commit_rpc_keeps_one_statement_atomic_fencing_contract() {
+        assert!(MIGRATION_V14
+            .contains("create or replace function public.trnm_online_commit_actor_command_v1"));
+        assert!(MIGRATION_V14.contains("for share;"));
+        assert!(MIGRATION_V14.contains("for update;"));
+        assert!(MIGRATION_V14.contains("authority.owner_nonce = p_host_owner_nonce"));
+        assert!(MIGRATION_V14.contains("authority_lock.mode = 'ExclusiveLock'"));
+        assert!(MIGRATION_V14.contains("insert into public.trnm_online_commands"));
+        assert!(MIGRATION_V14.contains("set next_input_sequence = p_input_sequence + 1"));
+        assert!(MIGRATION_V14.contains("set next_sequence = p_base_next_sequence + 1"));
+        assert!(MIGRATION_V14.contains("result_outcome := 'duplicate'"));
+        assert!(MIGRATION_V14.contains("result_outcome := 'command_conflict'"));
+        assert!(!MIGRATION_V14.contains("commit;"));
+    }
+
+    #[test]
     fn v13_cold_witness_history_is_restrictive_immutable_and_monotonic() {
         let sql = MIGRATION_V13
             .split_whitespace()
@@ -15216,6 +15127,7 @@ mod tests {
         let mut durable = LoadedMatchActor {
             simulation: simulation.clone(),
             match_mode: "coop_vs_ai".to_string(),
+            members: Arc::new(BTreeMap::new()),
             next_sequence: 3,
             match_revision: 8,
             next_input_sequences: cursors.clone(),
