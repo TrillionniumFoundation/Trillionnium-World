@@ -1,3 +1,5 @@
+#![recursion_limit = "256"]
+
 use reqwest::blocking::Client;
 use serde::{de::DeserializeOwned, Serialize};
 use serde_json::{json, Value};
@@ -35,6 +37,7 @@ struct Identity {
 struct OnlineClient {
     base_url: String,
     http: Client,
+    non_idempotent_http: Client,
     command_ack_ms: Mutex<Vec<u64>>,
 }
 
@@ -298,8 +301,64 @@ impl OnlineClient {
                 .timeout(Duration::from_secs(4))
                 .build()
                 .map_err(|error| error.to_string())?,
+            non_idempotent_http: Client::builder()
+                .connect_timeout(Duration::from_secs(2))
+                .timeout(Duration::from_secs(30))
+                .build()
+                .map_err(|error| error.to_string())?,
             command_ack_ms: Mutex::new(Vec::new()),
         })
+    }
+
+    fn post_one_shot_non_idempotent<T: Serialize, R: DeserializeOwned>(
+        &self,
+        identity: &Identity,
+        path: &str,
+        body: &T,
+    ) -> Result<R, String> {
+        // Create and join have no request ID, so a timeout cannot be retried
+        // without risking a second mutation. Keep them on a long, one-shot
+        // request path until the protocol exposes an idempotency key.
+        let response = self
+            .non_idempotent_http
+            .post(format!("{}{}", self.base_url, path))
+            .header("x-trnm-player-session", &identity.session)
+            .json(body)
+            .send()
+            .map_err(|error| error.to_string())?;
+        let status = response.status();
+        let bytes = response.bytes().map_err(|error| error.to_string())?;
+        if !status.is_success() {
+            return Err(format!(
+                "POST {path} returned {status}: {}",
+                String::from_utf8_lossy(&bytes)
+            ));
+        }
+        serde_json::from_slice(&bytes).map_err(|error| error.to_string())
+    }
+
+    fn start_with_lost_response_retry(
+        &self,
+        identity: &Identity,
+        match_id: &str,
+        body: &OnlineMatchStartRequest,
+    ) -> Result<OnlineMatchView, String> {
+        let path = format!("/v1/online/matches/{match_id}/start");
+        let request = self
+            .http
+            .post(format!("{}{}", self.base_url, path))
+            .header("x-trnm-player-session", &identity.session)
+            .json(body);
+        let response = send_with_lost_response_retry(request)?;
+        let status = response.status();
+        let bytes = response.bytes().map_err(|error| error.to_string())?;
+        if !status.is_success() {
+            return Err(format!(
+                "POST {path} returned {status}: {}",
+                String::from_utf8_lossy(&bytes)
+            ));
+        }
+        serde_json::from_slice(&bytes).map_err(|error| error.to_string())
     }
 
     fn post<T: Serialize, R: DeserializeOwned>(
@@ -503,24 +562,44 @@ impl OnlineClient {
 fn send_with_retry(
     request: reqwest::blocking::RequestBuilder,
 ) -> Result<reqwest::blocking::Response, String> {
-    let mut last_error = None;
-    for attempt in 0..4 {
+    send_with_retry_inner(request, false)
+}
+
+fn send_with_lost_response_retry(
+    request: reqwest::blocking::RequestBuilder,
+) -> Result<reqwest::blocking::Response, String> {
+    send_with_retry_inner(request, true)
+}
+
+fn send_with_retry_inner(
+    request: reqwest::blocking::RequestBuilder,
+    mut lose_first_successful_response: bool,
+) -> Result<reqwest::blocking::Response, String> {
+    let mut transport_failures = 0_u64;
+    let last_error = loop {
         let retry = request
             .try_clone()
             .ok_or_else(|| "request cannot be safely retried".to_string())?;
         match retry.send() {
+            Ok(response) if lose_first_successful_response && response.status().is_success() => {
+                // The server has committed the mutation, but the simulated
+                // client never observes the response. Draining then discarding
+                // it keeps the connection healthy before resending the exact
+                // cloned request and exercising the server's idempotent branch.
+                let _ = response.bytes();
+                lose_first_successful_response = false;
+            }
             Ok(response) => return Ok(response),
             Err(error) => {
-                last_error = Some(error);
-                if attempt < 3 {
-                    thread::sleep(Duration::from_millis(100 * (attempt + 1) as u64));
+                if transport_failures >= 3 {
+                    break error;
                 }
+                transport_failures += 1;
+                thread::sleep(Duration::from_millis(100 * transport_failures));
             }
         }
-    }
-    Err(last_error
-        .map(|error| error.to_string())
-        .unwrap_or_else(|| "request failed without a response".to_string()))
+    };
+    Err(last_error.to_string())
 }
 
 fn env_identity(prefix: &str) -> Result<Identity, String> {
@@ -672,46 +751,47 @@ fn run() -> Result<Value, String> {
             slot_key,
         },
     )?;
-    let (created, started) = if let Ok(match_id) = std::env::var("TRNM_ONLINE_EXISTING_MATCH_ID") {
-        let snapshot = client.snapshot(&host, &match_id)?;
-        (snapshot.view.clone(), snapshot.view)
-    } else {
-        let created: OnlineMatchView = client.post(
-            &host,
-            "/v1/online/matches",
-            &OnlineMatchCreateRequest {
-                protocol_version: ONLINE_AUTHORITY_PROTOCOL.to_string(),
-                build_id: ONLINE_AUTHORITY_BUILD.to_string(),
-                campaign_id: campaign.campaign_id.clone(),
-                map_id: "first_contact".to_string(),
-                expected_campaign_revision: campaign.campaign_revision,
-            },
-        )?;
-        let _: OnlineMatchView = client.post(
-            &guest,
-            "/v1/online/matches/join",
-            &OnlineMatchJoinRequest {
-                protocol_version: ONLINE_AUTHORITY_PROTOCOL.to_string(),
-                build_id: ONLINE_AUTHORITY_BUILD.to_string(),
-                player_id: guest.player_id.clone(),
-                account_id: guest.account_id.clone(),
-                campaign_id: guest_campaign.campaign_id.clone(),
-                join_code: created.join_code.clone(),
-            },
-        )?;
-        let started: OnlineMatchView = client.post(
-            &host,
-            &format!("/v1/online/matches/{}/start", created.match_id),
-            &OnlineMatchStartRequest {
-                protocol_version: ONLINE_AUTHORITY_PROTOCOL.to_string(),
-                build_id: ONLINE_AUTHORITY_BUILD.to_string(),
-                player_id: host.player_id.clone(),
-                account_id: host.account_id.clone(),
-                expected_match_revision: 0,
-            },
-        )?;
-        (created, started)
-    };
+    let (created, started, start_lost_response_retry_verified) =
+        if let Ok(match_id) = std::env::var("TRNM_ONLINE_EXISTING_MATCH_ID") {
+            let snapshot = client.snapshot(&host, &match_id)?;
+            (snapshot.view.clone(), snapshot.view, false)
+        } else {
+            let created: OnlineMatchView = client.post_one_shot_non_idempotent(
+                &host,
+                "/v1/online/matches",
+                &OnlineMatchCreateRequest {
+                    protocol_version: ONLINE_AUTHORITY_PROTOCOL.to_string(),
+                    build_id: ONLINE_AUTHORITY_BUILD.to_string(),
+                    campaign_id: campaign.campaign_id.clone(),
+                    map_id: "first_contact".to_string(),
+                    expected_campaign_revision: campaign.campaign_revision,
+                },
+            )?;
+            let _: OnlineMatchView = client.post_one_shot_non_idempotent(
+                &guest,
+                "/v1/online/matches/join",
+                &OnlineMatchJoinRequest {
+                    protocol_version: ONLINE_AUTHORITY_PROTOCOL.to_string(),
+                    build_id: ONLINE_AUTHORITY_BUILD.to_string(),
+                    player_id: guest.player_id.clone(),
+                    account_id: guest.account_id.clone(),
+                    campaign_id: guest_campaign.campaign_id.clone(),
+                    join_code: created.join_code.clone(),
+                },
+            )?;
+            let started = client.start_with_lost_response_retry(
+                &host,
+                &created.match_id,
+                &OnlineMatchStartRequest {
+                    protocol_version: ONLINE_AUTHORITY_PROTOCOL.to_string(),
+                    build_id: ONLINE_AUTHORITY_BUILD.to_string(),
+                    player_id: host.player_id.clone(),
+                    account_id: host.account_id.clone(),
+                    expected_match_revision: 0,
+                },
+            )?;
+            (created, started, true)
+        };
     if started.phase != OnlineMatchPhase::Running || started.members.len() != 2 {
         return Err("two-client match did not enter running phase".to_string());
     }
@@ -1321,6 +1401,7 @@ fn run() -> Result<Value, String> {
         "snapshot_hash": complete.view.snapshot_hash,
         "result_hash": complete.view.result_hash,
         "settlement_state": complete.view.settlement_state,
+        "start_lost_response_retry_verified": start_lost_response_retry_verified,
         "duplicate_command_exactly_once": true,
         "terminal_duplicate_command_exactly_once": true,
         "tampered_duplicate_rejected": true,

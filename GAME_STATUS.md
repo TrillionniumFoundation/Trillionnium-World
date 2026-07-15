@@ -146,8 +146,13 @@ ACK, and a durable cold ACK tombstone. The ACK binds generation, full
 instance/host/epoch ownership, terminal tick/hash/result/settlement and every
 authority cursor; database `complete` alone cannot acknowledge a duplicate.
 Hot HWM state remains the crash witness until the cold tombstone is sealed.
-Cold evidence is not removed by live compaction; deletion requires an explicit
-database-lineage and PITR-retention proof. Journal/database operations,
+An exact running fail-close is now committed atomically with its abandonment
+marker, then sealed through the same cold-first saga; waiting cleanup remains a
+strict database-only path and pre-V13 adoption is explicit. Terminal and
+abandonment witnesses share a manifest-v2 global sequence, count and tagged
+latest sentinel, with exact startup overlap recovery and O(1) database-summary
+gating. Cold evidence is not removed by live compaction; deletion requires an
+explicit database-lineage and PITR-retention proof. Journal/database operations,
 checkpoint barriers and worker joins are bounded; uncertain durability poisons
 readiness, and SIGTERM stops command/HTTP admission before actor flush. One
 physical host is restricted to one authority process and one canonical journal
@@ -291,19 +296,20 @@ deployed.
 ## Current local evidence
 
 - current feature-branch source has passed the 2026-07-15 serial source gate:
-  locked workspace/all-target tests, game-server library 92/92, locked
-  workspace/all-target Clippy with `-D warnings`, format and diff checks. A
-  transaction-wrapped live-database V12 rehearsal rolled back after classifying
-  one exact legacy ACK for bootstrap and quarantining 385 unacknowledged
-  complete matches without synthesizing history. Release, fault-evidence and
-  capacity shell contract fixtures pass. This is not promotion or runtime
-  fault/latency credit;
+  locked workspace/all-target tests, game-server library 119/119, locked
+  workspace/all-target Clippy with `-D warnings`, format and diff checks. The
+  fault-evidence shell contract v2 passes. A transaction-wrapped live-database
+  V13 rehearsal verifies pre-forgery and naked-transition rejection, exact
+  atomic fail-close plus marker creation, summary maintenance, immutability and
+  cursor-drift detection, then rolls back the migration and fixture. This is
+  not promotion or runtime fault/latency credit;
 - current P0 source scope includes bounded asynchronous Authority command
   persistence, private two-phase terminal staging, full-ownership exact ACKs,
-  hot/cold published-tick rollback evidence, historical projection quarantine,
-  ten-map render lifecycle replacement, RTS and campaign `MouseOnly` intent
-  paths, and release-v2 provenance. None of these new source paths has yet
-  received its post-promotion runtime/fault/human acceptance credit;
+  unified terminal/abandonment cold-witness rollback evidence, atomic exact
+  running fail-close maintenance, historical projection quarantine, ten-map
+  render lifecycle replacement, RTS and campaign `MouseOnly` intent paths, and
+  release-v2 provenance. None of these new source paths has yet received its
+  post-promotion runtime/fault/human acceptance credit;
 - historical Online Authority v2 E2E: two real CEX sessions bring separate campaigns into one match, receive disjoint unit control, reject exact-ID altered replay, sequence skip, old build and control theft, recover via authenticated command-gap replay through a real systemd restart, each gain 80 XP plus two inventory units, and each settle a server-owned 25-credit Ed25519 reward; 15/15 PostgreSQL commands have unique persisted request fingerprints and the match owns two progression events;
 - Stage 0 four-match endurance evidence `run/online-capacity/capacity-1783972489-528/summary.json`: 7,306 seconds, 32 waves, 128/128 unique settled matches, 2,176 ACKs at p95 39 ms/max 160 ms, maximum absolute tick drift 0.70, 0 process restarts/OOM/database crash signals and 122 newly archived WAL segments with 0 new archive failures. This closes the two-hour gate only; a clean independent 24-hour run remains required;
 - Authority v3 baseline E2E `online-e2e-1783987972505`, match `999291c0-3be7-44e9-97fa-e1f36a9217d0`: 68 commands, two members submitting from one revision with independent input cursor 0/0 and contiguous server order 0/1, 32 command/reconnect races, real systemd restart/recovery, WebSocket Full/Delta and decoded hash/tick verification, 20 authoritative-effect samples at p95 24 ms/max 26 ms, 70 ACK samples at p95 24 ms/max 30 ms, zero sequence/cursor mismatch and complete two-member progression/settlement;
@@ -335,8 +341,8 @@ deployed.
   passing on 2026-07-15;
 - product boundary: green (8 game / 12 platform / legacy working tree absent); CEX depends on `trnm-economy-protocol` and no longer depends on removed `trnm-world-api`, `trnm-world-domain` or `trnm-world-projection` crates;
 - previously deployed baseline release build and desktop installer smoke:
-  passing; the current terminal/PITR source still awaits its strict release-v2
-  build, verification and promotion;
+  passing. Current terminal/PITR runtime credit must separately cite a strict
+  release-v2 ID whose commit/tree/binary match the post-promotion evidence;
 - current X230 isolated warm-cache matrix after explicit `--no-run` client-harness prewarming: RPG 1.39 s / 83 MiB, Campaign 0.60 s / 83 MiB, full 19-test First Contact package 89.57 s / 122 MiB, 64-sample RTS simulation 69.35 s / 83 MiB, new-save client journey 40.68 s / 122 MiB, Standard Annihilation 74.47 s / 122 MiB, authored-map adapter 12.72 s / 122 MiB, closed loop 13.52 s / 83 MiB and release build 49.44 s / 786 MiB. Every isolated row remains below the explicit 90-second / 4-GiB bound. The final Production v2 non-isolated full-workspace run recorded 99.30 s for First Contact (and 78.15 s for the 32-test RTS package), so that First Contact wall clock is not presented as passing the 90-second reference line; stopping the project window restores the isolated gate. The former 3.41-GiB client figure was rustc/linker RSS from compiling the test harness, not game-runtime memory; the gate separates compilation from runtime instead of misreporting it;
 - release client service: active with a viewable native window after restart.
 - persistent CEX recovery: PostgreSQL WAL archival, a physical 8.6-GiB base

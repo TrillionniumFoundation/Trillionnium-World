@@ -782,14 +782,81 @@ create_identity() {
 }
 
 fail_close_running_test_matches() {
-  run_cex_psql "
-    update trnm_online_matches m
-    set phase='failed_closed', settlement_state='failed_closed',
-        failure_reason='capacity soak interrupted or failed', updated_at=now()
-    where m.phase='running' and exists (
-      select 1 from trnm_online_match_members mm
-      where mm.match_id=m.match_id and mm.player_id like '$RUN_ID-%'
-    )" -v ON_ERROR_STOP=1 >/dev/null
+  local match_id report remaining candidates_left time_slice command_timeout
+  local candidate_index=0
+  local -a candidates=()
+  (( CLEANUP_DEADLINE > SECONDS )) || return 1
+  [[ "$(unit_property trnm-game-server.service ActiveState)" == inactive ]] \
+    || return 1
+  ! process_pid_is_live "${GAME_SERVER_PID:-}" || return 1
+  [[ -n "${GAME_SERVER_SHA256:-}" \
+      && "$(sha256sum "$GAME_SERVER_BINARY" | awk '{print $1}')" \
+        == "${GAME_SERVER_SHA256:-}" ]] || return 1
+  mapfile -t candidates < <(run_cex_psql "
+    select distinct m.match_id::text
+      from trnm_online_matches m
+      join trnm_online_match_members mm using (match_id)
+     where m.phase in ('waiting','running','failed_closed')
+       and mm.player_id like '$RUN_ID-%'
+     order by m.match_id" -At -v ON_ERROR_STOP=1)
+  for match_id in "${candidates[@]}"; do
+    candidate_index=$((candidate_index + 1))
+    [[ "$match_id" =~ ^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$ ]] \
+      || return 1
+    remaining=$((CLEANUP_DEADLINE - SECONDS))
+    candidates_left=$((${#candidates[@]} - candidate_index + 1))
+    (( remaining > 3 && candidates_left > 0 )) || return 1
+    time_slice=$((remaining / candidates_left))
+    (( time_slice > 3 )) || return 1
+    command_timeout=$((time_slice - 2))
+    (( command_timeout > 120 )) && command_timeout=120
+    report="$EVIDENCE/maintenance-fail-close-$match_id.json"
+    if ! (
+      exec 8>&- 9>&-
+      export TRNM_GAME_SERVER_RELEASE_DIR="$RELEASE_DIR"
+      export TRNM_MAINTENANCE_FAILURE_REASON='capacity soak interrupted or failed'
+      exec timeout --foreground --signal=TERM --kill-after=2s "${command_timeout}s" \
+        "$ROOT_DIR/scripts/run-trnm-game-server.sh" \
+        --maintenance-fail-close "$match_id"
+    ) >"$report" 2>"$EVIDENCE/maintenance-fail-close-$match_id.log"; then
+      return 1
+    fi
+    jq -e --arg match_id "$match_id" '
+      .contract_version == "trnm_online_maintenance_fail_close_v1"
+      and .status == "completed"
+      and .match_id == $match_id
+      and .selector == "exact_match_id"
+      and .transition_atomic == true
+      and .legacy_adoption == false
+      and .adoption_contract == null
+      and (.previous_phase == "waiting" or .previous_phase == "running"
+        or .previous_phase == "failed_closed")
+      and .final_phase == "failed_closed"
+      and (
+        if .waiting_db_only then
+          .hot_witness_present_before == false
+          and .cold_witness_sealed == false
+          and .local_marker_state == null
+        else
+          .cold_witness_sealed == true
+          and .local_marker_state == "sealed"
+          and (if .previous_phase == "running" then
+            .hot_witness_present_before == true
+          else
+            (.hot_witness_present_before | type) == "boolean"
+          end)
+        end
+      )' "$report" >/dev/null || return 1
+  done
+  remaining="$(run_cex_psql "
+    select count(*)
+      from trnm_online_matches m
+     where m.phase in ('waiting','running')
+       and exists (
+         select 1 from trnm_online_match_members mm
+          where mm.match_id=m.match_id and mm.player_id like '$RUN_ID-%'
+       )" -At -v ON_ERROR_STOP=1)"
+  [[ "$remaining" == 0 ]]
 }
 
 worker_pids=()
@@ -1032,7 +1099,14 @@ cleanup() {
   MONITOR_PID=""
   terminate_workers_bounded || cleanup_failed=true
   if [[ "$MUTATION_STARTED" == 1 ]]; then
-    fail_close_running_test_matches >/dev/null 2>&1 || cleanup_failed=true
+    cleanup_systemctl stop trnm-game-server.service >/dev/null 2>&1 \
+      || cleanup_failed=true
+    if [[ "$(unit_property trnm-game-server.service ActiveState 2>/dev/null)" != inactive ]] \
+        || process_pid_is_live "${GAME_SERVER_PID:-}"; then
+      cleanup_failed=true
+    elif ! fail_close_running_test_matches >/dev/null 2>&1; then
+      cleanup_failed=true
+    fi
     restore_manager_variable TRNM_GAME_SERVER_RELEASE_DIR \
       "$ORIGINAL_RELEASE_ENV_SET" "$ORIGINAL_RELEASE_ENV_VALUE" \
       >/dev/null 2>&1 || cleanup_failed=true
@@ -1504,7 +1578,6 @@ while (( $(monotonic_seconds) < deadline_monotonic_seconds )); do
     "$wave" "$CONCURRENCY" "$failures" \
     "$(( $(monotonic_seconds) - started_monotonic_seconds ))" >&2
   if (( failures != 0 )); then
-    fail_close_running_test_matches
     break
   fi
 done

@@ -23,8 +23,23 @@ MATCH_ID=""
 mkdir -p "$EVIDENCE/host-save" "$EVIDENCE/guest-save" \
   "$EVIDENCE/host-journal" "$EVIDENCE/guest-journal"
 
+process_environment_value() {
+  local pid="$1" name="$2" entry
+  while IFS= read -r entry; do
+    if [[ "$entry" == "$name="* ]]; then
+      printf '%s\n' "${entry#*=}"
+      return 0
+    fi
+  done < <(tr '\0' '\n' <"/proc/$pid/environ")
+  return 1
+}
+
 cleanup() {
-  local status=$?
+  local status=$? cleanup_failed=0 maintenance_report=""
+  local maintenance_pid="" maintenance_exe="" maintenance_sha=""
+  local maintenance_release="" maintenance_verification=""
+  local maintenance_journal="" maintenance_instance="" maintenance_host=""
+  local maintenance_identity_valid=0
   [[ -z "$HOST_PID" ]] || kill "$HOST_PID" >/dev/null 2>&1 || true
   [[ -z "$GUEST_PID" ]] || kill "$GUEST_PID" >/dev/null 2>&1 || true
   [[ -z "$XVFB_PID" ]] || kill "$XVFB_PID" >/dev/null 2>&1 || true
@@ -32,16 +47,106 @@ cleanup() {
     sudo -n "${TC:-/usr/sbin/tc}" qdisc del dev lo root >/dev/null 2>&1 || true
   fi
   if [[ -n "$MATCH_ID" ]]; then
-    cex_psql_stdin -c "
-      update trnm_online_matches
-      set phase='failed_closed', settlement_state='failed_closed',
-          failure_reason='native render/network smoke completed without settlement',
-          updated_at=now()
-      where match_id='$MATCH_ID'::uuid and phase='running'" >/dev/null 2>&1 || true
+    maintenance_pid="$(systemctl --user show trnm-game-server.service \
+      -p MainPID --value 2>/dev/null || true)"
+    if [[ "$maintenance_pid" =~ ^[1-9][0-9]*$ \
+        && -r "/proc/$maintenance_pid/stat" ]]; then
+      maintenance_exe="$(readlink -e "/proc/$maintenance_pid/exe" 2>/dev/null || true)"
+      maintenance_sha="$(sha256sum "/proc/$maintenance_pid/exe" 2>/dev/null \
+        | awk '{print $1}')"
+      maintenance_release="$(dirname -- "$maintenance_exe")"
+      maintenance_verification="$(
+        "$ROOT_DIR/scripts/check-trnm-game-server-release.sh" \
+          "$maintenance_release" 2>/dev/null || true
+      )"
+      maintenance_journal="$(process_environment_value "$maintenance_pid" \
+        TRNM_PUBLISHED_TICK_JOURNAL_DIR 2>/dev/null || true)"
+      maintenance_instance="$(process_environment_value "$maintenance_pid" \
+        TRNM_FLEET_INSTANCE_ID 2>/dev/null || true)"
+      maintenance_host="$(process_environment_value "$maintenance_pid" \
+        TRNM_FLEET_PHYSICAL_HOST_ID 2>/dev/null || true)"
+      if [[ -n "$maintenance_exe" && -n "$maintenance_sha" \
+          && -n "$maintenance_journal" && "$maintenance_journal" == /* \
+          && -n "$maintenance_instance" && -n "$maintenance_host" ]] \
+          && jq -e --arg exe "$maintenance_exe" --arg sha "$maintenance_sha" \
+            --arg release "$maintenance_release" '
+              .verified == true
+              and .release_dir == $release
+              and .binaries.game_server.path == $exe
+              and .binaries.game_server.sha256 == $sha
+            ' >/dev/null 2>&1 <<<"$maintenance_verification"; then
+        maintenance_identity_valid=1
+        jq -n --argjson pid "$maintenance_pid" \
+          --arg executable "$maintenance_exe" --arg sha256 "$maintenance_sha" \
+          --arg release_dir "$maintenance_release" --arg journal "$maintenance_journal" \
+          --arg instance "$maintenance_instance" --arg host "$maintenance_host" '{
+            contract_version:"trnm_online_native_maintenance_runtime_identity_v1",
+            pid:$pid,executable:$executable,sha256:$sha256,release_dir:$release_dir,
+            journal_dir:$journal,instance_id:$instance,physical_host_id:$host
+          }' >"$EVIDENCE/maintenance-runtime-identity.json" \
+          || maintenance_identity_valid=0
+      fi
+    fi
+    systemctl --user stop trnm-game-server.service >/dev/null 2>&1 \
+      || cleanup_failed=1
+    if [[ "$(systemctl --user show trnm-game-server.service \
+          -p ActiveState --value 2>/dev/null || true)" != inactive \
+        || -e "/proc/$maintenance_pid/stat" \
+        || "$maintenance_identity_valid" != 1 \
+        || "$(sha256sum "$maintenance_exe" 2>/dev/null | awk '{print $1}')" \
+          != "$maintenance_sha" ]]; then
+      cleanup_failed=1
+      maintenance_identity_valid=0
+    fi
+    maintenance_report="$EVIDENCE/maintenance-fail-close.json"
+    if (( maintenance_identity_valid == 0 )); then
+      cleanup_failed=1
+    elif ! TRNM_GAME_SERVER_RELEASE_DIR="$maintenance_release" \
+        TRNM_PUBLISHED_TICK_JOURNAL_DIR="$maintenance_journal" \
+        TRNM_FLEET_INSTANCE_ID="$maintenance_instance" \
+        TRNM_FLEET_PHYSICAL_HOST_ID="$maintenance_host" \
+        TRNM_MAINTENANCE_FAILURE_REASON="native render/network smoke completed without settlement" \
+        timeout --foreground --signal=TERM --kill-after=5s 120s \
+        "$ROOT_DIR/scripts/run-trnm-game-server.sh" \
+        --maintenance-fail-close "$MATCH_ID" \
+        >"$maintenance_report" 2>"$EVIDENCE/maintenance-fail-close.log"; then
+      cleanup_failed=1
+    elif ! jq -e --arg match_id "$MATCH_ID" '
+        .contract_version == "trnm_online_maintenance_fail_close_v1"
+        and .status == "completed"
+        and .match_id == $match_id
+        and .selector == "exact_match_id"
+        and .transition_atomic == true
+        and .legacy_adoption == false
+        and .adoption_contract == null
+        and (.previous_phase == "waiting" or .previous_phase == "running"
+          or .previous_phase == "failed_closed")
+        and .final_phase == "failed_closed"
+        and (
+          if .waiting_db_only then
+            .hot_witness_present_before == false
+            and .cold_witness_sealed == false
+            and .local_marker_state == null
+          else
+            .cold_witness_sealed == true
+            and .local_marker_state == "sealed"
+            and (if .previous_phase == "running" then
+              .hot_witness_present_before == true
+            else
+              (.hot_witness_present_before | type) == "boolean"
+            end)
+          end
+        )' "$maintenance_report" >/dev/null 2>&1; then
+      cleanup_failed=1
+    fi
   fi
   systemctl --user unset-environment TRNM_GAME_SERVER_TICK_MS TRNM_ALLOW_ACCELERATED_TEST_CLOCK >/dev/null 2>&1 || true
   systemctl --user reset-failed trnm-game-server.service >/dev/null 2>&1 || true
-  systemctl --user restart trnm-game-server.service >/dev/null 2>&1 || true
+  systemctl --user restart trnm-game-server.service >/dev/null 2>&1 \
+    || cleanup_failed=1
+  if (( status == 0 && cleanup_failed != 0 )); then
+    status=1
+  fi
   exit "$status"
 }
 trap cleanup EXIT

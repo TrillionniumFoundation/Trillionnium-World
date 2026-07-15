@@ -8,25 +8,12 @@ source "$CEX_ROOT/scripts/_dev-helpers.sh"
 cex_load_env
 
 export DATABASE_URL="$(cex_effective_database_url)"
-export TRNM_CEX_LEDGER_URL="${TRNM_CEX_LEDGER_URL:-http://127.0.0.1:7002}"
-export TRNM_GAME_AUTHORITY_TOKEN="${TRNM_GAME_AUTHORITY_TOKEN:-trnm-game-authority-v1:$IDENTITY_ADMIN_TOKEN}"
-export TRNM_MODERATOR_TOKEN="${TRNM_MODERATOR_TOKEN:-trnm-moderator-v1:$IDENTITY_ADMIN_TOKEN}"
-export TRNM_ENTITLEMENT_SIGNER_URL="${TRNM_ENTITLEMENT_SIGNER_URL:-http://127.0.0.1:7010}"
-export TRNM_ENTITLEMENT_SIGNER_TOKEN="${TRNM_ENTITLEMENT_SIGNER_TOKEN:-trnm-isolated-signer-v1:$IDENTITY_ADMIN_TOKEN}"
-export TRNM_ASSET_ROOT="${TRNM_ASSET_ROOT:-$ROOT_DIR/assets}"
 export TRNM_PUBLISHED_TICK_JOURNAL_DIR="${TRNM_PUBLISHED_TICK_JOURNAL_DIR:-$ROOT_DIR/run/trnm-game-server/published-ticks}"
-export TRNM_GAME_SERVER_BIND_ADDR="${TRNM_GAME_SERVER_BIND_ADDR:-127.0.0.1:7005}"
-export TRNM_GAME_SERVER_TICK_MS="${TRNM_GAME_SERVER_TICK_MS:-100}"
 export TRNM_FLEET_INSTANCE_ID="${TRNM_FLEET_INSTANCE_ID:-trnm-local-primary}"
-export TRNM_FLEET_REGION="${TRNM_FLEET_REGION:-local-x230}"
-export TRNM_FLEET_PUBLIC_ENDPOINT="${TRNM_FLEET_PUBLIC_ENDPOINT:-http://127.0.0.1:7005}"
 if [[ -z "${TRNM_FLEET_PHYSICAL_HOST_ID:-}" ]]; then
   TRNM_FLEET_PHYSICAL_HOST_ID="host-$(sha256sum /etc/machine-id | cut -c1-24)"
 fi
 export TRNM_FLEET_PHYSICAL_HOST_ID
-export TRNM_FLEET_CAPACITY="${TRNM_FLEET_CAPACITY:-4}"
-export TRNM_PRODUCTION_RATE_LIMIT_PER_MINUTE="${TRNM_PRODUCTION_RATE_LIMIT_PER_MINUTE:-600}"
-export TRNM_PRODUCTION_REQUEST_BODY_LIMIT_BYTES="${TRNM_PRODUCTION_REQUEST_BODY_LIMIT_BYTES:-262144}"
 
 default_release_dir="$ROOT_DIR/run/releases/trnm-game-server/current"
 if [[ "${TRNM_GAME_SERVER_RELEASE_DIR+x}" == "x" ]]; then
@@ -63,6 +50,27 @@ fi
   exit 1
 }
 
+# Maintenance owns the journal and database-host fences itself and must remain
+# available while the HTTP ledger or signer dependency is degraded. Release
+# verification above still binds the exact binary before this early exec.
+if [[ "${1:-}" == "--maintenance-fail-close" ]]; then
+  exec "$game_server_binary" "$@"
+fi
+
+export TRNM_CEX_LEDGER_URL="${TRNM_CEX_LEDGER_URL:-http://127.0.0.1:7002}"
+export TRNM_GAME_AUTHORITY_TOKEN="${TRNM_GAME_AUTHORITY_TOKEN:-trnm-game-authority-v1:$IDENTITY_ADMIN_TOKEN}"
+export TRNM_MODERATOR_TOKEN="${TRNM_MODERATOR_TOKEN:-trnm-moderator-v1:$IDENTITY_ADMIN_TOKEN}"
+export TRNM_ENTITLEMENT_SIGNER_URL="${TRNM_ENTITLEMENT_SIGNER_URL:-http://127.0.0.1:7010}"
+export TRNM_ENTITLEMENT_SIGNER_TOKEN="${TRNM_ENTITLEMENT_SIGNER_TOKEN:-trnm-isolated-signer-v1:$IDENTITY_ADMIN_TOKEN}"
+export TRNM_ASSET_ROOT="${TRNM_ASSET_ROOT:-$ROOT_DIR/assets}"
+export TRNM_GAME_SERVER_BIND_ADDR="${TRNM_GAME_SERVER_BIND_ADDR:-127.0.0.1:7005}"
+export TRNM_GAME_SERVER_TICK_MS="${TRNM_GAME_SERVER_TICK_MS:-100}"
+export TRNM_FLEET_REGION="${TRNM_FLEET_REGION:-local-x230}"
+export TRNM_FLEET_PUBLIC_ENDPOINT="${TRNM_FLEET_PUBLIC_ENDPOINT:-http://127.0.0.1:7005}"
+export TRNM_FLEET_CAPACITY="${TRNM_FLEET_CAPACITY:-4}"
+export TRNM_PRODUCTION_RATE_LIMIT_PER_MINUTE="${TRNM_PRODUCTION_RATE_LIMIT_PER_MINUTE:-600}"
+export TRNM_PRODUCTION_REQUEST_BODY_LIMIT_BYTES="${TRNM_PRODUCTION_REQUEST_BODY_LIMIT_BYTES:-262144}"
+
 delay=1
 for _ in $(seq 1 8); do
   if cex_readiness="$(curl -fsS "$TRNM_CEX_LEDGER_URL/v1/trnm/economy/readiness" 2>/dev/null)" \
@@ -72,7 +80,7 @@ for _ in $(seq 1 8); do
     && jq -e '.status == "ok" and .contract_version == "trnm_entitlement_signer_v1" and
       .private_key_exported_to_game_server == false and .postgres_receipts == true' \
       >/dev/null <<<"$signer_readiness"; then
-    exec "$game_server_binary"
+    exec "$game_server_binary" "$@"
   fi
   sleep "$delay"
   delay=$((delay * 2))

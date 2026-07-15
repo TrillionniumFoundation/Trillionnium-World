@@ -51,6 +51,15 @@ cp "$ROOT_DIR/deploy/systemd/trnm-game-server.service" "$repo/deploy/systemd/"
 cp "$ROOT_DIR/deploy/systemd/trnm-game-server.service" \
   "$home/.config/systemd/user/trnm-game-server.service"
 chmod 0755 "$repo/scripts/check-trnm-online-authority-fault-evidence.sh"
+if grep -Fq "set phase='failed_closed'" \
+    "$repo/scripts/check-trnm-online-authority-fault-evidence.sh" \
+    || grep -Fq 'update trnm_online_matches' \
+      "$repo/scripts/check-trnm-online-authority-fault-evidence.sh"; then
+  fail "fault cleanup retained a broad direct match-state mutation"
+fi
+grep -Fq -- '--maintenance-fail-close "$maintenance_candidate"' \
+  "$repo/scripts/check-trnm-online-authority-fault-evidence.sh" \
+  || fail "fault cleanup does not invoke the exact maintenance CLI"
 
 cat >"$repo/.gitignore" <<'EOF'
 /run/
@@ -100,7 +109,109 @@ cex_effective_database_url() {
 }
 cex_psql_stdin() {
   local command="$*"
-  if [[ "$command" == *"select count(*) from trnm_online_matches where phase = 'running'"* ]]; then
+  if [[ "$command" == *"trnm_online_maintenance_candidates_v1"* ]]; then
+    case "${TRNM_FAULT_FAKE_MAINTENANCE_PHASE:-complete}" in
+      waiting|running|failed_closed)
+        printf '%s\n' '11111111-1111-1111-a111-111111111111' ;;
+      complete) ;;
+      invalid-selector) printf '%s\n' 'not-a-match-uuid' ;;
+      *) return 64 ;;
+    esac
+  elif [[ "$command" == *"trnm_online_maintenance_database_evidence_v1"* ]]; then
+    local phase tamper has_marker marker_state marker_reason summary_host
+    local summary_rows abandonment_total abandonment_sealed actual_total actual_sealed
+    phase="${TRNM_FAULT_FAKE_MAINTENANCE_PHASE:-complete}"
+    tamper="${TRNM_FAULT_FAKE_DATABASE_MAINTENANCE_TAMPER:-none}"
+    has_marker=true
+    marker_state=sealed
+    marker_reason='local Authority fault harness exact cleanup'
+    summary_host="${TRNM_FAULT_EXPECTED_PHYSICAL_HOST_ID:?}"
+    summary_rows=1
+    abandonment_total=1
+    abandonment_sealed=1
+    actual_total=1
+    actual_sealed=1
+    if [[ "$phase" == waiting ]]; then
+      has_marker=false
+      summary_rows=0
+      abandonment_total=0
+      abandonment_sealed=0
+      actual_total=0
+      actual_sealed=0
+    fi
+    case "$tamper" in
+      none) ;;
+      marker-state) marker_state=hot_pending ;;
+      reason) marker_reason='forged maintenance reason' ;;
+      summary-count) abandonment_total=2 ;;
+      summary-host) summary_host='forged-host' ;;
+      *) return 64 ;;
+    esac
+    jq -cn \
+      --arg phase "$phase" \
+      --arg instance "${TRNM_FAULT_EXPECTED_INSTANCE_ID:?}" \
+      --arg host "${TRNM_FAULT_EXPECTED_PHYSICAL_HOST_ID:?}" \
+      --arg summary_host "$summary_host" \
+      --arg marker_state "$marker_state" \
+      --arg marker_reason "$marker_reason" \
+      --argjson has_marker "$has_marker" \
+      --argjson summary_rows "$summary_rows" \
+      --argjson abandonment_total "$abandonment_total" \
+      --argjson abandonment_sealed "$abandonment_sealed" \
+      --argjson actual_total "$actual_total" \
+      --argjson actual_sealed "$actual_sealed" '
+      def match_row:
+        if $phase == "waiting" then {
+          match_id:"11111111-1111-1111-a111-111111111111",
+          phase:"failed_closed",settlement_state:"failed_closed",
+          failure_reason:"local Authority fault harness exact cleanup",
+          assigned_instance_id:null,assigned_instance_epoch:0,
+          assigned_physical_host_id:null,authoritative_tick:0,
+          next_sequence:0,checkpoint_sequence:0,match_revision:1,
+          next_input_sequences:{host:0,guest:0},
+          snapshot_hash:"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          terminal_publication_state:"pending",terminal_stage_present:false,
+          result_present:false
+        } else {
+          match_id:"11111111-1111-1111-a111-111111111111",
+          phase:"failed_closed",settlement_state:"failed_closed",
+          failure_reason:"local Authority fault harness exact cleanup",
+          assigned_instance_id:$instance,assigned_instance_epoch:1,
+          assigned_physical_host_id:$host,authoritative_tick:3000,
+          next_sequence:54,checkpoint_sequence:54,match_revision:55,
+          next_input_sequences:{host:53,guest:1},
+          snapshot_hash:"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          terminal_publication_state:"pending",terminal_stage_present:false,
+          result_present:false
+        } end;
+      def marker: {
+        match_id:"11111111-1111-1111-a111-111111111111",
+        journal_owner_id:"33333333-3333-4333-a333-333333333333",
+        actor_generation:"44444444-4444-4444-a444-444444444444",
+        instance_id:$instance,actor_epoch:1,physical_host_id:$host,
+        authoritative_tick:3000,next_sequence:54,match_revision:55,
+        next_input_sequences:{host:53,guest:1},
+        snapshot_hash:"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        failure_reason:$marker_reason,abandoned_at_unix_ms:1700000000000,
+        local_tombstone_state:$marker_state
+      };
+      {
+        contract_version:"trnm_online_maintenance_database_evidence_v1",
+        status:"captured",match_count:1,match:match_row,
+        terminal_marker_count:0,
+        abandonment_marker_count:(if $has_marker then 1 else 0 end),
+        abandonment_marker:(if $has_marker then marker else null end),
+        summary_row_count:$summary_rows,
+        summary:(if $summary_rows == 1 then {
+          physical_host_id:$summary_host,terminal_total_count:0,
+          terminal_sealed_count:0,abandonment_total_count:$abandonment_total,
+          abandonment_sealed_count:$abandonment_sealed
+        } else null end),
+        actual_host_counts:{terminal_total_count:0,terminal_sealed_count:0,
+          abandonment_total_count:$actual_total,
+          abandonment_sealed_count:$actual_sealed}
+      }'
+  elif [[ "$command" == *"select count(*) from trnm_online_matches where phase = 'running'"* ]]; then
     printf '%s\n' 0
   elif [[ "$command" == *"trnm_authority_terminal_database_evidence_v2"* ]]; then
     jq -cn --arg instance "${TRNM_FAULT_EXPECTED_INSTANCE_ID:?}" \
@@ -278,6 +389,12 @@ case "$url" in
       authority_clock_operational:true,authority_clock_drift_ticks:0.1,
       match_actor_clocks_operational:true,max_actor_clock_abs_drift_ticks:0.2,
       published_tick_journal_operational:true,
+      latest_cold_witness_sentinel_query_healthy:true,
+      latest_cold_witness_sentinel_healthy:true,
+      cold_witness_database_summary_query_healthy:true,
+      local_tombstone_counts_exact:true,
+      local_tombstone_seal_operational:true,
+      operational_readiness:{local_cold_witness_seal:true},
       published_tick_terminal_orphan_recovery_operational:true}' ;;
   */v1/accounts)
     echo '{"account_id":"22222222-2222-4222-a222-222222222222"}' ;;
@@ -323,48 +440,194 @@ cat >"$release/trnm-game-server" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
 state="${TRNM_FAULT_FAKE_STATE:?}"
-exec {lock_fd}>>"${TRNM_PUBLISHED_TICK_JOURNAL_DIR:?}/.published-tick.lock"
-flock -n "$lock_fd"
-touch "$state/standalone"
-printf '%s\n' "$BASHPID" >"$state/standalone.pid"
 match_id="11111111-1111-1111-a111-111111111111"
+[[ -n "${TRNM_PUBLISHED_TICK_JOURNAL_DIR:-}" ]] || exit 64
 hot="$TRNM_PUBLISHED_TICK_JOURNAL_DIR/published-$match_id.json"
 cold_dir="$TRNM_PUBLISHED_TICK_JOURNAL_DIR/acknowledged/11/11"
 cold="$cold_dir/acknowledged-$match_id.json"
-mkdir -p -- "$cold_dir"
-chmod 0700 \
-  "$TRNM_PUBLISHED_TICK_JOURNAL_DIR/acknowledged" \
-  "$TRNM_PUBLISHED_TICK_JOURNAL_DIR/acknowledged/11" \
-  "$cold_dir"
-rm -f -- "$hot" "$cold"
-if [[ "${TRNM_FAULT_FAKE_JOURNAL_MODE:-cold}" == hot-only ]]; then
+abandon_dir="$TRNM_PUBLISHED_TICK_JOURNAL_DIR/abandoned/11/11"
+abandon_cold="$abandon_dir/abandoned-$match_id.json"
+wrong_abandon_dir="$TRNM_PUBLISHED_TICK_JOURNAL_DIR/abandoned/11/22"
+wrong_abandon_cold="$wrong_abandon_dir/abandoned-$match_id.json"
+
+if [[ "${1:-}" == --maintenance-fail-close ]]; then
+  [[ "$#" == 2 && "$2" == "$match_id" \
+    && -n "${DATABASE_URL:-}" \
+    && -n "${TRNM_FLEET_INSTANCE_ID:-}" \
+    && -n "${TRNM_FLEET_PHYSICAL_HOST_ID:-}" \
+    && -n "${TRNM_MAINTENANCE_FAILURE_REASON:-}" ]] || exit 64
+  exec {lock_fd}>>"$TRNM_PUBLISHED_TICK_JOURNAL_DIR/.published-tick.lock"
+  flock -n "$lock_fd"
+  phase="${TRNM_FAULT_FAKE_MAINTENANCE_PHASE:-complete}"
+  selector=exact_match_id
+  transition_atomic=true
+  status=completed
+  case "${TRNM_FAULT_FAKE_MAINTENANCE_REPORT_TAMPER:-none}" in
+    none) ;;
+    selector) selector=broad_instance_scan ;;
+    atomic) transition_atomic=false ;;
+    status) status=partial ;;
+    *) exit 64 ;;
+  esac
+  case "$phase" in
+    running|failed_closed)
+      [[ -f "$hot" && ! -L "$hot" && ! -e "$abandon_cold" ]] || exit 65
+      mkdir -p -- "$abandon_dir"
+      chmod 0700 \
+        "$TRNM_PUBLISHED_TICK_JOURNAL_DIR/abandoned" \
+        "$TRNM_PUBLISHED_TICK_JOURNAL_DIR/abandoned/11" \
+        "$abandon_dir"
+      jq -cn --arg reason "$TRNM_MAINTENANCE_FAILURE_REASON" \
+        --slurpfile high_water "$hot" '{
+          contract_version:"trnm_published_tick_abandonment_tombstone_v1",
+          journal_seal_sequence:1,high_water:$high_water[0],failure_reason:$reason,
+          abandoned_at_unix_ms:1700000000000,
+          database_system_identifier:"72623859790382856",database_timeline_id:7,
+          database_wal_lsn:"0/16B6C50"
+        }' >"$abandon_cold"
+      chmod 0600 "$abandon_cold"
+      witness_sha="$(sha256sum "$abandon_cold" | awk '{print $1}')"
+      jq -cn --arg host "$TRNM_FLEET_PHYSICAL_HOST_ID" --arg sha "$witness_sha" \
+        --slurpfile witness "$abandon_cold" '{
+          contract_version:"trnm_published_tick_cold_witness_manifest_v2",
+          journal_owner_id:"33333333-3333-4333-a333-333333333333",
+          physical_host_id:$host,terminal_tombstone_count:0,
+          abandonment_tombstone_count:1,committed_seal_sequence:1,
+          database_system_identifier:"72623859790382856",database_timeline_id:7,
+          latest_witness:{failed_closed_abandonment:$witness[0]},
+          latest_witness_sha256:$sha
+        }' >"$TRNM_PUBLISHED_TICK_JOURNAL_DIR/.published-tick-ack-manifest.json"
+      chmod 0600 "$TRNM_PUBLISHED_TICK_JOURNAL_DIR/.published-tick-ack-manifest.json"
+      rm -f -- "$hot"
+      waiting_db_only=false
+      hot_witness_present_before=true
+      cold_witness_sealed=true
+      local_marker_state=sealed
+      ;;
+    waiting)
+      [[ ! -e "$hot" && ! -e "$cold" && ! -e "$abandon_cold" ]] || exit 65
+      waiting_db_only=true
+      hot_witness_present_before=false
+      cold_witness_sealed=false
+      local_marker_state=null
+      ;;
+    *) exit 66 ;;
+  esac
+  jq -cn --arg status "$status" --arg match_id "$match_id" \
+    --arg selector "$selector" --arg previous_phase "$phase" \
+    --argjson transition_atomic "$transition_atomic" \
+    --argjson waiting_db_only "$waiting_db_only" \
+    --argjson hot_witness_present_before "$hot_witness_present_before" \
+    --argjson cold_witness_sealed "$cold_witness_sealed" \
+    --arg local_marker_state "$local_marker_state" '{
+      contract_version:"trnm_online_maintenance_fail_close_v1",status:$status,
+      match_id:$match_id,selector:$selector,transition_atomic:$transition_atomic,
+      previous_phase:$previous_phase,final_phase:"failed_closed",
+      waiting_db_only:$waiting_db_only,
+      hot_witness_present_before:$hot_witness_present_before,
+      cold_witness_sealed:$cold_witness_sealed,
+      local_marker_state:(if $local_marker_state=="null" then null else $local_marker_state end),
+      legacy_adoption:false,adoption_contract:null
+    }'
+  exit 0
+fi
+
+exec {lock_fd}>>"$TRNM_PUBLISHED_TICK_JOURNAL_DIR/.published-tick.lock"
+flock -n "$lock_fd"
+touch "$state/standalone"
+printf '%s\n' "$BASHPID" >"$state/standalone.pid"
+rm -f -- "$hot" "$cold" "$abandon_cold" "$wrong_abandon_cold"
+maintenance_phase="${TRNM_FAULT_FAKE_MAINTENANCE_PHASE:-complete}"
+if [[ "$maintenance_phase" == running || "$maintenance_phase" == failed_closed ]]; then
+  cat >"$hot" <<JSON
+{"contract_version":"trnm_published_tick_high_water_v2","journal_owner_id":"33333333-3333-4333-a333-333333333333","instance_id":"$TRNM_FLEET_INSTANCE_ID","physical_host_id":"$TRNM_FLEET_PHYSICAL_HOST_ID","match_id":"$match_id","actor_generation":"44444444-4444-4444-a444-444444444444","actor_epoch":1,"tick":3000,"next_sequence":54,"match_revision":55,"next_input_sequences":{"host":53,"guest":1},"phase":"running","receipts_replayable":true,"snapshot_hash":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","recorded_at_unix_ms":1}
+JSON
+  chmod 0600 "$hot"
+elif [[ "$maintenance_phase" == waiting ]]; then
+  :
+elif [[ "${TRNM_FAULT_FAKE_JOURNAL_MODE:-cold}" == hot-only ]]; then
   cat >"$hot" <<JSON
 {"contract_version":"trnm_published_tick_high_water_v2","journal_owner_id":"33333333-3333-4333-a333-333333333333","instance_id":"$TRNM_FLEET_INSTANCE_ID","physical_host_id":"$TRNM_FLEET_PHYSICAL_HOST_ID","match_id":"$match_id","actor_generation":"44444444-4444-4444-a444-444444444444","actor_epoch":1,"tick":3000,"next_sequence":54,"match_revision":55,"next_input_sequences":{"host":53,"guest":1},"phase":"complete","receipts_replayable":true,"snapshot_hash":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","recorded_at_unix_ms":1}
 JSON
   chmod 0600 "$hot"
 else
+  tamper="${TRNM_FAULT_FAKE_TOMBSTONE_TAMPER:-none}"
   result_hash="bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
   database_system_identifier="72623859790382856"
-  case "${TRNM_FAULT_FAKE_TOMBSTONE_TAMPER:-none}" in
+  case "$tamper" in
     none) ;;
     lineage) database_system_identifier="72623859790382857" ;;
     result) result_hash="cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc" ;;
+    abandonment-kind|abandonment-path|abandonment-count|abandonment-sha|stale-latest) ;;
     *) exit 64 ;;
   esac
-  cat >"$cold" <<JSON
+  if [[ "$tamper" == abandonment-* ]]; then
+    abandonment_target="$abandon_cold"
+    abandonment_target_dir="$abandon_dir"
+    if [[ "$tamper" == abandonment-path ]]; then
+      abandonment_target="$wrong_abandon_cold"
+      abandonment_target_dir="$wrong_abandon_dir"
+    fi
+    mkdir -p -- "$abandonment_target_dir"
+    chmod 0700 \
+      "$TRNM_PUBLISHED_TICK_JOURNAL_DIR/abandoned" \
+      "$TRNM_PUBLISHED_TICK_JOURNAL_DIR/abandoned/11" \
+      "$abandonment_target_dir"
+    cat >"$abandonment_target" <<JSON
+{"contract_version":"trnm_published_tick_abandonment_tombstone_v1","journal_seal_sequence":1,"high_water":{"contract_version":"trnm_published_tick_high_water_v2","journal_owner_id":"33333333-3333-4333-a333-333333333333","instance_id":"$TRNM_FLEET_INSTANCE_ID","physical_host_id":"$TRNM_FLEET_PHYSICAL_HOST_ID","match_id":"$match_id","actor_generation":"44444444-4444-4444-a444-444444444444","actor_epoch":1,"tick":3000,"next_sequence":54,"match_revision":55,"next_input_sequences":{"host":53,"guest":1},"phase":"running","receipts_replayable":true,"snapshot_hash":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","recorded_at_unix_ms":1},"failure_reason":"fault fixture failed closed","abandoned_at_unix_ms":1700000000000,"database_system_identifier":"$database_system_identifier","database_timeline_id":7,"database_wal_lsn":"0/16B6C50"}
+JSON
+    chmod 0600 "$abandonment_target"
+    witness_sha="$(sha256sum "$abandonment_target" | awk '{print $1}')"
+    abandonment_count=1
+    committed_sequence=1
+    latest_kind=failed_closed_abandonment
+    [[ "$tamper" != abandonment-count ]] || abandonment_count=2
+    [[ "$tamper" != abandonment-kind ]] || latest_kind=terminal_ack
+    [[ "$tamper" != abandonment-sha ]] \
+      || witness_sha=0000000000000000000000000000000000000000000000000000000000000000
+    jq -cn --arg host "$TRNM_FLEET_PHYSICAL_HOST_ID" \
+      --arg system "$database_system_identifier" --arg sha "$witness_sha" \
+      --arg kind "$latest_kind" --argjson abandonment_count "$abandonment_count" \
+      --argjson committed_sequence "$committed_sequence" \
+      --slurpfile witness "$abandonment_target" '{
+        contract_version:"trnm_published_tick_cold_witness_manifest_v2",
+        journal_owner_id:"33333333-3333-4333-a333-333333333333",
+        physical_host_id:$host,terminal_tombstone_count:0,
+        abandonment_tombstone_count:$abandonment_count,
+        committed_seal_sequence:$committed_sequence,
+        database_system_identifier:$system,database_timeline_id:7,
+        latest_witness:{($kind):$witness[0]},latest_witness_sha256:$sha
+      }' >"$TRNM_PUBLISHED_TICK_JOURNAL_DIR/.published-tick-ack-manifest.json"
+  else
+    mkdir -p -- "$cold_dir"
+    chmod 0700 \
+      "$TRNM_PUBLISHED_TICK_JOURNAL_DIR/acknowledged" \
+      "$TRNM_PUBLISHED_TICK_JOURNAL_DIR/acknowledged/11" \
+      "$cold_dir"
+    cat >"$cold" <<JSON
 {"contract_version":"trnm_published_tick_ack_tombstone_v2","journal_seal_sequence":1,"high_water":{"contract_version":"trnm_published_tick_high_water_v2","journal_owner_id":"33333333-3333-4333-a333-333333333333","instance_id":"$TRNM_FLEET_INSTANCE_ID","physical_host_id":"$TRNM_FLEET_PHYSICAL_HOST_ID","match_id":"$match_id","actor_generation":"44444444-4444-4444-a444-444444444444","actor_epoch":1,"tick":3000,"next_sequence":54,"match_revision":55,"next_input_sequences":{"host":53,"guest":1},"phase":"complete","receipts_replayable":true,"snapshot_hash":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","recorded_at_unix_ms":1},"result_hash":"$result_hash","settlement_state":"settled","acknowledged_at_unix_ms":1700000000000,"database_system_identifier":"$database_system_identifier","database_timeline_id":7,"database_wal_lsn":"0/16B6C50"}
 JSON
-  chmod 0600 "$cold"
-  tombstone_sha="$(sha256sum "$cold" | awk '{print $1}')"
-  jq -cn --arg host "$TRNM_FLEET_PHYSICAL_HOST_ID" \
-    --arg system "$database_system_identifier" --arg sha "$tombstone_sha" \
-    --slurpfile tombstone "$cold" '{
-      contract_version:"trnm_published_tick_ack_manifest_v1",
-      journal_owner_id:"33333333-3333-4333-a333-333333333333",
-      physical_host_id:$host,tombstone_count:1,committed_seal_sequence:1,
-      database_system_identifier:$system,database_timeline_id:7,
-      latest_tombstone:$tombstone[0],latest_tombstone_sha256:$sha
-    }' >"$TRNM_PUBLISHED_TICK_JOURNAL_DIR/.published-tick-ack-manifest.json"
+    chmod 0600 "$cold"
+    tombstone_sha="$(sha256sum "$cold" | awk '{print $1}')"
+    terminal_count=1
+    committed_sequence=1
+    if [[ "$tamper" == stale-latest ]]; then
+      terminal_count=2
+      committed_sequence=2
+    fi
+    jq -cn --arg host "$TRNM_FLEET_PHYSICAL_HOST_ID" \
+      --arg system "$database_system_identifier" --arg sha "$tombstone_sha" \
+      --argjson terminal_count "$terminal_count" \
+      --argjson committed_sequence "$committed_sequence" \
+      --slurpfile tombstone "$cold" '{
+        contract_version:"trnm_published_tick_cold_witness_manifest_v2",
+        journal_owner_id:"33333333-3333-4333-a333-333333333333",
+        physical_host_id:$host,terminal_tombstone_count:$terminal_count,
+        abandonment_tombstone_count:0,committed_seal_sequence:$committed_sequence,
+        database_system_identifier:$system,database_timeline_id:7,
+        latest_witness:{terminal_ack:$tombstone[0]},latest_witness_sha256:$sha
+      }' >"$TRNM_PUBLISHED_TICK_JOURNAL_DIR/.published-tick-ack-manifest.json"
+  fi
   chmod 0600 "$TRNM_PUBLISHED_TICK_JOURNAL_DIR/.published-tick-ack-manifest.json"
 fi
 trap 'rm -f "$state/standalone" "$state/standalone.pid"; exit 0' TERM INT HUP EXIT
@@ -399,7 +662,15 @@ run_harness() {
 clear_fixture_match_journal() {
   rm -f -- \
     "$repo/run/trnm-game-server/published-ticks/published-11111111-1111-1111-a111-111111111111.json" \
-    "$repo/run/trnm-game-server/published-ticks/acknowledged/11/11/acknowledged-11111111-1111-1111-a111-111111111111.json"
+    "$repo/run/trnm-game-server/published-ticks/acknowledged/11/11/acknowledged-11111111-1111-1111-a111-111111111111.json" \
+    "$repo/run/trnm-game-server/published-ticks/abandoned/11/11/abandoned-11111111-1111-1111-a111-111111111111.json" \
+    "$repo/run/trnm-game-server/published-ticks/abandoned/11/22/abandoned-11111111-1111-1111-a111-111111111111.json"
+  rmdir \
+    "$repo/run/trnm-game-server/published-ticks/abandoned/11/11" \
+    "$repo/run/trnm-game-server/published-ticks/abandoned/11/22" \
+    "$repo/run/trnm-game-server/published-ticks/abandoned/11" \
+    "$repo/run/trnm-game-server/published-ticks/abandoned" \
+    2>/dev/null || true
   jq -cn --arg host "$fixture_physical_host" '{
     contract_version:"trnm_published_tick_ack_manifest_v1",
     journal_owner_id:"33333333-3333-4333-a333-333333333333",
@@ -501,6 +772,175 @@ result_dir="$(find "$repo/run/online-faults" -mindepth 1 -maxdepth 1 -type d | s
 jq -e '.status=="failed" and .checks.terminal_journal_cold_ack_tombstone==false' \
   "$result_dir/decision.json" >/dev/null \
   || fail "tampered ACK tombstone result did not fail closed"
+clear_fixture_match_journal
+
+expect_abandonment_tamper_failure() {
+  local mode="$1" description="$2" expected_error="$3" evidence_dir
+  sleep 1
+  expect_failure "$description" env \
+    TRNM_FAULT_FAKE_TOMBSTONE_TAMPER="$mode" \
+    PATH="$fake_bin:$PATH" HOME="$home" CEX_PROJECT_ROOT="$cex" \
+    TRNM_FAULT_FAKE_STATE="$state" TRNM_FAULT_HARNESS_CONTRACT_MODE=1 \
+    "$repo/scripts/check-trnm-online-authority-fault-evidence.sh" pg-rtt100
+  evidence_dir="$(find "$repo/run/online-faults" -mindepth 1 -maxdepth 1 -type d | sort | tail -n1)"
+  jq -e --arg expected "$expected_error" '
+    .status=="failed" and .checks.terminal_journal_cold_ack_tombstone==false' \
+    "$evidence_dir/decision.json" >/dev/null \
+    || fail "$description did not fail the final journal gate"
+  jq -e --arg expected "$expected_error" '
+    .decode_error_count > 0
+    and any(.decode_errors[]; .decode_error | contains($expected))' \
+    "$evidence_dir/journal-after.json" >/dev/null \
+    || fail "$description did not record the expected fail-closed decode error"
+  clear_fixture_match_journal
+}
+
+expect_abandonment_tamper_failure \
+  abandonment-kind "tampered abandonment witness kind" "ack_tombstone_schema"
+expect_abandonment_tamper_failure \
+  abandonment-path "tampered abandonment witness shard path" "abandonment_tombstone_shard"
+expect_abandonment_tamper_failure \
+  abandonment-count "tampered abandonment witness count" "cold_witness_manifest_sequence"
+expect_abandonment_tamper_failure \
+  abandonment-sha "tampered abandonment witness SHA" "manifest_latest_witness_payload_or_sha"
+expect_abandonment_tamper_failure \
+  stale-latest "stale latest witness in v2 manifest" "cold_witness_manifest_latest_identity"
+
+expect_exact_maintenance_cleanup() {
+  local phase="$1" evidence_dir
+  sleep 1
+  expect_failure "exact $phase maintenance cleanup evidence" env \
+    TRNM_FAULT_FAKE_MAINTENANCE_PHASE="$phase" TRNM_FAULT_FAKE_EMPTY_ACK=1 \
+    PATH="$fake_bin:$PATH" HOME="$home" CEX_PROJECT_ROOT="$cex" \
+    TRNM_FAULT_FAKE_STATE="$state" TRNM_FAULT_HARNESS_CONTRACT_MODE=1 \
+    "$repo/scripts/check-trnm-online-authority-fault-evidence.sh" pg-rtt100
+  evidence_dir="$(find "$repo/run/online-faults" -mindepth 1 -maxdepth 1 -type d | sort | tail -n1)"
+  jq -e '.status=="failed" and .checks.command_ack_p99_within_budget==false
+    and .checks.cleanup_and_restore_complete==true' "$evidence_dir/decision.json" >/dev/null \
+    || fail "exact $phase maintenance did not preserve a valid cleanup gate"
+  jq -e '.cleanup_failed==0 and .maintenance_candidate_count==1
+    and .maintenance_reports_valid==true and .maintenance_service_stopped==true
+    and .maintenance_exact_only==true
+    and .maintenance_database_evidence_valid==true' \
+    "$evidence_dir/cleanup.json" >/dev/null \
+    || fail "exact $phase maintenance cleanup metadata is invalid"
+  jq -e --arg phase "$phase" --arg host "$fixture_physical_host" '
+    .contract_version=="trnm_online_maintenance_fail_close_collection_v1"
+    and .selector=="exact_match_id" and .report_count==1
+    and (.reports|length)==1
+    and .reports[0].contract_version=="trnm_online_maintenance_fail_close_v1"
+    and .reports[0].status=="completed"
+    and .reports[0].match_id=="11111111-1111-1111-a111-111111111111"
+    and .reports[0].selector=="exact_match_id"
+    and .reports[0].transition_atomic==true
+    and .reports[0].previous_phase==$phase
+    and .reports[0].final_phase=="failed_closed"
+    and .reports[0].legacy_adoption==false
+    and .reports[0].adoption_contract==null
+    and (if $phase=="waiting" then
+      .reports[0].waiting_db_only==true
+      and .reports[0].hot_witness_present_before==false
+      and .reports[0].cold_witness_sealed==false
+      and .reports[0].local_marker_state==null
+    else
+      .reports[0].waiting_db_only==false
+      and .reports[0].hot_witness_present_before==true
+      and .reports[0].cold_witness_sealed==true
+      and .reports[0].local_marker_state=="sealed"
+    end)' "$evidence_dir/maintenance-fail-close.json" >/dev/null \
+    || fail "exact $phase maintenance report contract is invalid"
+  jq -e --arg phase "$phase" '
+    .decode_error_count==0 and .run_match_hot_record_present==false
+    and (if $phase=="waiting" then
+      .run_match_cold_witness_present==false
+      and .run_match_abandonment_tombstone_present==false
+    else
+      .run_match_cold_witness_present==true
+      and .run_match_abandonment_tombstone_present==true
+      and .ack_manifest.latest_witness.failed_closed_abandonment.high_water.match_id
+        == "11111111-1111-1111-a111-111111111111"
+    end)' "$evidence_dir/journal-after-maintenance.json" >/dev/null \
+    || fail "exact $phase maintenance journal postcondition is invalid"
+  jq -e --arg phase "$phase" --arg host "$fixture_physical_host" '
+    .contract_version=="trnm_online_maintenance_database_evidence_v1"
+    and .status=="captured" and .match_count==1
+    and .match.match_id=="11111111-1111-1111-a111-111111111111"
+    and .match.phase=="failed_closed"
+    and .match.settlement_state=="failed_closed"
+    and .match.failure_reason=="local Authority fault harness exact cleanup"
+    and .terminal_marker_count==0
+    and (if $phase=="waiting" then
+      .abandonment_marker_count==0 and .abandonment_marker==null
+      and .summary_row_count==0
+      and .actual_host_counts.abandonment_total_count==0
+    else
+      .abandonment_marker_count==1
+      and .abandonment_marker.local_tombstone_state=="sealed"
+      and .abandonment_marker.failure_reason
+        =="local Authority fault harness exact cleanup"
+      and .summary_row_count==1
+      and .summary.physical_host_id==$host
+      and .summary.abandonment_total_count==1
+      and .summary.abandonment_sealed_count==1
+      and .summary.abandonment_total_count
+        ==.actual_host_counts.abandonment_total_count
+      and .summary.abandonment_sealed_count
+        ==.actual_host_counts.abandonment_sealed_count
+    end)' "$evidence_dir/database-after-maintenance.json" >/dev/null \
+    || fail "exact $phase maintenance database postcondition is invalid"
+  clear_fixture_match_journal
+}
+
+expect_exact_maintenance_cleanup running
+expect_exact_maintenance_cleanup waiting
+expect_exact_maintenance_cleanup failed_closed
+
+expect_database_maintenance_tamper_failure() {
+  local tamper="$1" description="$2" evidence_dir
+  sleep 1
+  expect_failure "$description" env \
+    TRNM_FAULT_FAKE_MAINTENANCE_PHASE=running TRNM_FAULT_FAKE_EMPTY_ACK=1 \
+    TRNM_FAULT_FAKE_DATABASE_MAINTENANCE_TAMPER="$tamper" \
+    PATH="$fake_bin:$PATH" HOME="$home" CEX_PROJECT_ROOT="$cex" \
+    TRNM_FAULT_FAKE_STATE="$state" TRNM_FAULT_HARNESS_CONTRACT_MODE=1 \
+    "$repo/scripts/check-trnm-online-authority-fault-evidence.sh" pg-rtt100
+  evidence_dir="$(find "$repo/run/online-faults" -mindepth 1 -maxdepth 1 -type d | sort | tail -n1)"
+  jq -e '.status=="failed" and .checks.cleanup_and_restore_complete==false' \
+    "$evidence_dir/decision.json" >/dev/null \
+    || fail "$description did not fail the final cleanup gate"
+  jq -e '.cleanup_failed==1 and .maintenance_candidate_count==1
+    and .maintenance_reports_valid==false
+    and .maintenance_database_evidence_valid==false
+    and (.reason|contains("maintenance_database_postcondition"))' \
+    "$evidence_dir/cleanup.json" >/dev/null \
+    || fail "$description was not rejected by the exact database gate"
+  clear_fixture_match_journal
+}
+
+expect_database_maintenance_tamper_failure \
+  marker-state "tampered maintenance marker seal state"
+expect_database_maintenance_tamper_failure \
+  reason "tampered maintenance marker failure reason"
+expect_database_maintenance_tamper_failure \
+  summary-count "tampered maintenance summary count"
+expect_database_maintenance_tamper_failure \
+  summary-host "tampered maintenance summary host"
+
+sleep 1
+expect_failure "forged exact maintenance selector report" env \
+  TRNM_FAULT_FAKE_MAINTENANCE_PHASE=running TRNM_FAULT_FAKE_EMPTY_ACK=1 \
+  TRNM_FAULT_FAKE_MAINTENANCE_REPORT_TAMPER=selector \
+  PATH="$fake_bin:$PATH" HOME="$home" CEX_PROJECT_ROOT="$cex" \
+  TRNM_FAULT_FAKE_STATE="$state" TRNM_FAULT_HARNESS_CONTRACT_MODE=1 \
+  "$repo/scripts/check-trnm-online-authority-fault-evidence.sh" pg-rtt100
+maintenance_tamper_dir="$(find "$repo/run/online-faults" -mindepth 1 -maxdepth 1 -type d | sort | tail -n1)"
+jq -e '.status=="failed" and .checks.cleanup_and_restore_complete==false' \
+  "$maintenance_tamper_dir/decision.json" >/dev/null \
+  || fail "forged maintenance selector did not fail the final cleanup gate"
+jq -e '.cleanup_failed==1 and .maintenance_candidate_count==1
+  and .maintenance_reports_valid==false and (.reason|contains("maintenance_report_invalid"))' \
+  "$maintenance_tamper_dir/cleanup.json" >/dev/null \
+  || fail "forged maintenance selector was not rejected fail-closed"
 clear_fixture_match_journal
 
 sleep 1

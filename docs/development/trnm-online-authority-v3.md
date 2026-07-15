@@ -24,21 +24,22 @@ character, ranking, wallet entitlement or tradeable inventory source.
 
 The current feature-branch Authority v3 source completed its serial source gate
 on 2026-07-15: locked workspace/all-target tests pass, the game-server library
-passes 92/92 tests, workspace/all-target Clippy passes with `-D warnings`, and
-format plus diff checks are clean. A transaction-wrapped V12 migration rehearsal
-against the live database also completed and rolled back: one exact legacy ACK
-was eligible for bootstrap, 385 unacknowledged complete matches were quarantined,
-and no historical ACK was synthesized. The release, fault-evidence and capacity
-shell contract fixtures pass. These are source and rollback-rehearsal results,
-not deployment or black-box runtime credit.
+passes 119/119 tests, workspace/all-target Clippy passes with `-D warnings`, and
+format plus diff checks are clean. The isolated fault-evidence shell contract v2
+passes. A transaction-wrapped V13 rehearsal against the live database verifies
+pre-forgery rejection, atomic running fail-close plus marker creation, exact
+summary maintenance, marker immutability and cursor-drift detection, then rolls
+the migration and all fixture changes back. These are source and rollback-
+rehearsal results, not deployment or black-box runtime credit.
 
-This source has **not** yet been built into a verified release-v2 bundle,
-promoted or restarted as the running service. Existing E2E/netem artifacts
-therefore describe the previously deployed Authority v3 path unless a row
-explicitly says otherwise. Release-v2 binds the exact commit, Git tree, binary,
-source manifest and Cargo/rustc toolchain digest. The checker accepts only that
-contract and rejects legacy v1 or toolchain-unbound bundles. These controls are
-provenance/integrity metadata rather than a cryptographic release signature.
+Source-gate credit does not by itself establish deployment. Any runtime claim
+for this tranche must cite a verified release-v2 ID and a post-promotion run
+whose commit/tree/binary match that bundle; older E2E/netem artifacts remain
+historical unless a row explicitly binds the newer release. Release-v2 binds
+the exact commit, Git tree, binary, source manifest and Cargo/rustc toolchain
+digest. The checker accepts only that contract and rejects legacy v1 or
+toolchain-unbound bundles. These controls are provenance/integrity metadata
+rather than a cryptographic release signature.
 
 ## Player input and server total order
 
@@ -265,6 +266,25 @@ live server; a future maintenance path must require an independently proven
 PITR floor for the same database lineage and timeline whose WAL position is
 later than every deleted tombstone. PostgreSQL statements, journal operations
 and lock acquisition remain deadline-bound.
+
+Failed-closed running matches use the same durability direction. The release-
+bound maintenance command opens the canonical journal under its host locks,
+accepts only an exact monotonic PostgreSQL successor of the retained hot HWM,
+`fsync`s that final HWM, and atomically commits `running -> failed_closed` plus
+an exact abandonment marker. It then seals an immutable abandonment cold
+witness before unlinking the hot record and finally advances the database marker
+to `sealed`. Waiting matches have no running HWM and use a separately checked,
+strictly idempotent database-only path. Missing post-V13 markers are invariant
+violations; only the explicit maintenance adoption flag may bind an exact
+pre-V13 failed-closed row to its retained hot witness.
+
+Terminal and abandonment witnesses share one manifest-v2 global seal sequence,
+total count and tagged latest sentinel while retaining their distinct payload
+schemas and sharded directories. The reader remains compatible with manifest
+v1, but the first new seal upgrades it to v2. Startup accepts only exact honest-
+crash overlaps, verifies both witness kinds against the unified manifest and
+database O(1) summary, and blocks hot revival, cross-kind coexistence, lineage,
+timeline, WAL, count or latest-sentinel rollback.
 
 This journal is deliberately a **single-physical-host durability boundary**.
 The process holds both host-local filesystem locks and a PostgreSQL K1 leader

@@ -141,6 +141,7 @@ PRODUCTION_URL="http://127.0.0.1:7005"
 TEST_URL="http://127.0.0.1:7006"
 LEDGER_URL="http://127.0.0.1:7002"
 SIGNER_URL="http://127.0.0.1:7010"
+MAINTENANCE_FAILURE_REASON="local Authority fault harness exact cleanup"
 TEST_SERVER_PORT=7006
 PROXY_PORT=7543
 if [[ "$CONTRACT_MODE" == 1 ]]; then
@@ -325,6 +326,13 @@ journal_ack_relative_path() {
     "${simple:0:2}" "${simple:2:2}" "$match_id"
 }
 
+journal_abandonment_relative_path() {
+  local match_id="$1" simple
+  simple="${match_id//-/}"
+  printf 'abandoned/%s/%s/abandoned-%s.json\n' \
+    "${simple:0:2}" "${simple:2:2}" "$match_id"
+}
+
 atomic_write() {
   local destination="$1" temporary
   temporary="$destination.tmp.$$"
@@ -480,6 +488,12 @@ wait_for_test_readiness() {
         and .authority_clock_operational == true
         and .match_actor_clocks_operational == true
         and .published_tick_journal_operational == true
+        and .latest_cold_witness_sentinel_query_healthy == true
+        and .latest_cold_witness_sentinel_healthy == true
+        and .cold_witness_database_summary_query_healthy == true
+        and .local_tombstone_counts_exact == true
+        and .local_tombstone_seal_operational == true
+        and .operational_readiness.local_cold_witness_seal == true
         and .published_tick_terminal_orphan_recovery_operational == true
       ' >/dev/null 2>&1 <<<"$body"; then
       return 0
@@ -493,7 +507,16 @@ wait_for_production_readiness() {
   local body="" attempt
   for ((attempt=0; attempt<WAIT_ATTEMPTS; attempt++)); do
     body="$(readiness_json "$PRODUCTION_URL" 2>/dev/null || true)"
-    if jq -e '.status == "ok" and .authority_clock_operational == true' \
+    if jq -e '
+        .status == "ok"
+        and .authority_clock_operational == true
+        and .latest_cold_witness_sentinel_query_healthy == true
+        and .latest_cold_witness_sentinel_healthy == true
+        and .cold_witness_database_summary_query_healthy == true
+        and .local_tombstone_counts_exact == true
+        and .local_tombstone_seal_operational == true
+        and .operational_readiness.local_cold_witness_seal == true
+      ' \
         >/dev/null 2>&1 <<<"$body"; then
       return 0
     fi
@@ -741,14 +764,14 @@ capture_journal() {
   local output="$1" match_id="${2:-}"
   JOURNAL_ROOT="$CANONICAL_JOURNAL" JOURNAL_MATCH_ID="$match_id" python3 - <<'PY' \
     | atomic_write "$output"
-import hashlib, json, os, pathlib, re, stat
+import hashlib, json, os, pathlib, re, stat, unicodedata
 root = pathlib.Path(os.environ["JOURNAL_ROOT"])
 match_id = os.environ.get("JOURNAL_MATCH_ID", "")
 UUID = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}")
 SHA256 = re.compile(r"[0-9a-f]{64}")
 PORTABLE = re.compile(r"[A-Za-z0-9_.:-]{1,128}")
 SYSTEM_ID = re.compile(r"[1-9][0-9]{0,19}")
-WAL_LSN = re.compile(r"(?:0|[1-9A-F][0-9A-F]{0,15})/(?:0|[1-9A-F][0-9A-F]{0,15})")
+WAL_LSN = re.compile(r"(?:0|[1-9A-F][0-9A-F]{0,7})/(?:0|[1-9A-F][0-9A-F]{0,7})")
 HIGH_WATER_KEYS = {
     "contract_version", "journal_owner_id", "instance_id", "physical_host_id",
     "match_id", "actor_generation", "actor_epoch", "tick", "next_sequence",
@@ -760,10 +783,21 @@ TOMBSTONE_KEYS = {
     "acknowledged_at_unix_ms", "database_system_identifier",
     "database_timeline_id", "database_wal_lsn",
 }
-ACK_MANIFEST_KEYS = {
+ABANDONMENT_KEYS = {
+    "contract_version", "journal_seal_sequence", "high_water", "failure_reason",
+    "abandoned_at_unix_ms", "database_system_identifier", "database_timeline_id",
+    "database_wal_lsn",
+}
+LEGACY_ACK_MANIFEST_KEYS = {
     "contract_version", "journal_owner_id", "physical_host_id", "tombstone_count",
     "committed_seal_sequence", "database_system_identifier", "database_timeline_id",
     "latest_tombstone", "latest_tombstone_sha256",
+}
+COLD_WITNESS_MANIFEST_KEYS = {
+    "contract_version", "journal_owner_id", "physical_host_id",
+    "terminal_tombstone_count", "abandonment_tombstone_count",
+    "committed_seal_sequence", "database_system_identifier", "database_timeline_id",
+    "latest_witness", "latest_witness_sha256",
 }
 OWNER_KEYS = {"contract_version", "journal_owner_id", "physical_host_id"}
 
@@ -778,6 +812,16 @@ def positive_int(value, label, maximum=None):
 def nonnegative_int(value, label):
     if type(value) is not int or value < 0:
         raise ValueError(label)
+
+def validate_database_lineage(value, label):
+    system_id = value["database_system_identifier"]
+    if type(system_id) is not str or SYSTEM_ID.fullmatch(system_id) is None \
+            or int(system_id) > 18446744073709551615:
+        raise ValueError(f"{label}_database_system_identifier")
+    positive_int(value["database_timeline_id"], f"{label}_database_timeline_id", 4294967295)
+    wal_lsn = value["database_wal_lsn"]
+    if type(wal_lsn) is not str or WAL_LSN.fullmatch(wal_lsn) is None or wal_lsn == "0/0":
+        raise ValueError(f"{label}_database_wal_lsn")
 
 def validate_high_water(value, filename_match_id):
     exact_object(value, HIGH_WATER_KEYS, "high_water")
@@ -823,54 +867,126 @@ def validate_tombstone(value, filename_match_id):
     if value["settlement_state"] not in ("pending", "settled"):
         raise ValueError("settlement_state")
     positive_int(value["acknowledged_at_unix_ms"], "acknowledged_at_unix_ms")
-    system_id = value["database_system_identifier"]
-    if type(system_id) is not str or SYSTEM_ID.fullmatch(system_id) is None \
-            or int(system_id) > 18446744073709551615:
-        raise ValueError("database_system_identifier")
-    positive_int(value["database_timeline_id"], "database_timeline_id", 4294967295)
-    wal_lsn = value["database_wal_lsn"]
-    if type(wal_lsn) is not str or WAL_LSN.fullmatch(wal_lsn) is None:
-        raise ValueError("database_wal_lsn")
+    validate_database_lineage(value, "ack_tombstone")
     return value
 
-def validate_ack_manifest(value):
-    exact_object(value, ACK_MANIFEST_KEYS, "ack_manifest")
-    if value["contract_version"] != "trnm_published_tick_ack_manifest_v1":
-        raise ValueError("ack_manifest_contract")
+def validate_abandonment(value, filename_match_id):
+    exact_object(value, ABANDONMENT_KEYS, "abandonment_tombstone")
+    if value["contract_version"] != "trnm_published_tick_abandonment_tombstone_v1":
+        raise ValueError("abandonment_tombstone_contract")
+    positive_int(value["journal_seal_sequence"], "journal_seal_sequence")
+    high_water = validate_high_water(value["high_water"], filename_match_id)
+    if high_water["phase"] != "running" or high_water["receipts_replayable"] is not True:
+        raise ValueError("abandonment_tombstone_running_high_water")
+    failure_reason = value["failure_reason"]
+    if type(failure_reason) is not str or not failure_reason.strip() \
+            or len(failure_reason.encode()) > 1024 \
+            or any(unicodedata.category(char) == "Cc" for char in failure_reason):
+        raise ValueError("abandonment_failure_reason")
+    positive_int(value["abandoned_at_unix_ms"], "abandoned_at_unix_ms")
+    validate_database_lineage(value, "abandonment_tombstone")
+    return value
+
+def validate_cold_witness(value):
+    if type(value) is not dict or len(value) != 1:
+        raise ValueError("cold_witness_tag")
+    kind, payload = next(iter(value.items()))
+    if type(payload) is not dict or type(payload.get("high_water")) is not dict:
+        raise ValueError("cold_witness_payload")
+    filename_match_id = payload["high_water"].get("match_id", "")
+    if kind == "terminal_ack":
+        return kind, validate_tombstone(payload, filename_match_id)
+    if kind == "failed_closed_abandonment":
+        return kind, validate_abandonment(payload, filename_match_id)
+    raise ValueError("cold_witness_kind")
+
+def validate_manifest_identity(value, label):
     if type(value["journal_owner_id"]) is not str or UUID.fullmatch(value["journal_owner_id"]) is None:
-        raise ValueError("ack_manifest_owner")
+        raise ValueError(f"{label}_owner")
     if type(value["physical_host_id"]) is not str or PORTABLE.fullmatch(value["physical_host_id"]) is None:
-        raise ValueError("ack_manifest_host")
+        raise ValueError(f"{label}_host")
+
+def validate_legacy_ack_manifest(value):
+    exact_object(value, LEGACY_ACK_MANIFEST_KEYS, "legacy_ack_manifest")
+    if value["contract_version"] != "trnm_published_tick_ack_manifest_v1":
+        raise ValueError("legacy_ack_manifest_contract")
+    validate_manifest_identity(value, "legacy_ack_manifest")
     nonnegative_int(value["tombstone_count"], "tombstone_count")
     nonnegative_int(value["committed_seal_sequence"], "committed_seal_sequence")
     if value["tombstone_count"] != value["committed_seal_sequence"]:
-        raise ValueError("ack_manifest_sequence")
+        raise ValueError("legacy_ack_manifest_sequence")
     if value["tombstone_count"] == 0:
         if any(value[key] is not None for key in (
             "database_system_identifier", "database_timeline_id",
             "latest_tombstone", "latest_tombstone_sha256",
         )):
-            raise ValueError("ack_manifest_empty_state")
+            raise ValueError("legacy_ack_manifest_empty_state")
         return value
     system_id = value["database_system_identifier"]
     if type(system_id) is not str or SYSTEM_ID.fullmatch(system_id) is None \
             or int(system_id) > 18446744073709551615:
-        raise ValueError("ack_manifest_system_identifier")
-    positive_int(value["database_timeline_id"], "ack_manifest_timeline", 4294967295)
+        raise ValueError("legacy_ack_manifest_system_identifier")
+    positive_int(value["database_timeline_id"], "legacy_ack_manifest_timeline", 4294967295)
     latest = value["latest_tombstone"]
     if type(latest) is not dict or type(latest.get("high_water")) is not dict:
-        raise ValueError("ack_manifest_latest")
+        raise ValueError("legacy_ack_manifest_latest")
     latest = validate_tombstone(latest, latest["high_water"].get("match_id", ""))
     if latest["journal_seal_sequence"] > value["committed_seal_sequence"] \
             or latest["high_water"]["journal_owner_id"] != value["journal_owner_id"] \
             or latest["high_water"]["physical_host_id"] != value["physical_host_id"] \
             or latest["database_system_identifier"] != system_id \
             or latest["database_timeline_id"] != value["database_timeline_id"]:
-        raise ValueError("ack_manifest_latest_identity")
+        raise ValueError("legacy_ack_manifest_latest_identity")
     if type(value["latest_tombstone_sha256"]) is not str \
             or SHA256.fullmatch(value["latest_tombstone_sha256"]) is None:
-        raise ValueError("ack_manifest_latest_sha")
+        raise ValueError("legacy_ack_manifest_latest_sha")
     return value
+
+def validate_cold_witness_manifest(value):
+    exact_object(value, COLD_WITNESS_MANIFEST_KEYS, "cold_witness_manifest")
+    if value["contract_version"] != "trnm_published_tick_cold_witness_manifest_v2":
+        raise ValueError("cold_witness_manifest_contract")
+    validate_manifest_identity(value, "cold_witness_manifest")
+    nonnegative_int(value["terminal_tombstone_count"], "terminal_tombstone_count")
+    nonnegative_int(value["abandonment_tombstone_count"], "abandonment_tombstone_count")
+    nonnegative_int(value["committed_seal_sequence"], "committed_seal_sequence")
+    total = value["terminal_tombstone_count"] + value["abandonment_tombstone_count"]
+    if total != value["committed_seal_sequence"]:
+        raise ValueError("cold_witness_manifest_sequence")
+    if total == 0:
+        if any(value[key] is not None for key in (
+            "database_system_identifier", "database_timeline_id",
+            "latest_witness", "latest_witness_sha256",
+        )):
+            raise ValueError("cold_witness_manifest_empty_state")
+        return value
+    system_id = value["database_system_identifier"]
+    if type(system_id) is not str or SYSTEM_ID.fullmatch(system_id) is None \
+            or int(system_id) > 18446744073709551615:
+        raise ValueError("cold_witness_manifest_system_identifier")
+    positive_int(value["database_timeline_id"], "cold_witness_manifest_timeline", 4294967295)
+    kind, latest = validate_cold_witness(value["latest_witness"])
+    if latest["journal_seal_sequence"] != value["committed_seal_sequence"] \
+            or latest["high_water"]["journal_owner_id"] != value["journal_owner_id"] \
+            or latest["high_water"]["physical_host_id"] != value["physical_host_id"] \
+            or latest["database_system_identifier"] != system_id \
+            or latest["database_timeline_id"] != value["database_timeline_id"]:
+        raise ValueError("cold_witness_manifest_latest_identity")
+    if kind == "terminal_ack" and value["terminal_tombstone_count"] == 0:
+        raise ValueError("cold_witness_manifest_terminal_count")
+    if kind == "failed_closed_abandonment" and value["abandonment_tombstone_count"] == 0:
+        raise ValueError("cold_witness_manifest_abandonment_count")
+    if type(value["latest_witness_sha256"]) is not str \
+            or SHA256.fullmatch(value["latest_witness_sha256"]) is None:
+        raise ValueError("cold_witness_manifest_latest_sha")
+    return value
+
+def validate_ack_manifest(value):
+    if type(value) is not dict:
+        raise ValueError("ack_manifest_schema")
+    if value.get("contract_version") == "trnm_published_tick_ack_manifest_v1":
+        return validate_legacy_ack_manifest(value)
+    return validate_cold_witness_manifest(value)
 
 def journal_inventory_paths(journal_root):
     # Keep relative names in evidence so a future deterministic shard layout is
@@ -882,7 +998,7 @@ def journal_inventory_paths(journal_root):
         key=lambda p: p.relative_to(journal_root).as_posix(),
     )
 
-items, directories, records, tombstones, decode_errors = [], [], [], [], []
+items, directories, records, tombstones, abandonments, decode_errors = [], [], [], [], [], []
 owner_manifest = None
 ack_manifest = None
 if root.is_dir():
@@ -916,7 +1032,8 @@ for path in journal_inventory_paths(root):
         item["bytes"] = len(data)
     hot_match = re.fullmatch(rf"published-({UUID.pattern})\.json", path.name)
     tombstone_match = re.fullmatch(rf"acknowledged-({UUID.pattern})\.json", path.name)
-    if hot_match or tombstone_match or relative_name in (
+    abandonment_match = re.fullmatch(rf"abandoned-({UUID.pattern})\.json", path.name)
+    if hot_match or tombstone_match or abandonment_match or relative_name in (
             ".published-tick-owner.json", ".published-tick-ack-manifest.json"):
         try:
             if not item["regular"] or item["symlink"]:
@@ -934,6 +1051,14 @@ for path in journal_inventory_paths(root):
                 tombstone = validate_tombstone(value, tombstone_match.group(1)).copy()
                 tombstone.update(name=relative_name, sha256=item["sha256"])
                 tombstones.append(tombstone)
+            elif abandonment_match:
+                simple = abandonment_match.group(1).replace("-", "")
+                expected = f"abandoned/{simple[0:2]}/{simple[2:4]}/{path.name}"
+                if relative_name != expected:
+                    raise ValueError("abandonment_tombstone_shard")
+                abandonment = validate_abandonment(value, abandonment_match.group(1)).copy()
+                abandonment.update(name=relative_name, sha256=item["sha256"])
+                abandonments.append(abandonment)
             elif relative_name == ".published-tick-ack-manifest.json":
                 ack_manifest = validate_ack_manifest(value)
             else:
@@ -952,7 +1077,54 @@ for path in journal_inventory_paths(root):
                 records.append(error)
             elif tombstone_match:
                 tombstones.append(error)
+            elif abandonment_match:
+                abandonments.append(error)
     items.append(item)
+
+def validate_manifest_inventory(manifest):
+    if manifest["contract_version"] == "trnm_published_tick_ack_manifest_v1":
+        terminal_count = manifest["tombstone_count"]
+        abandonment_count = 0
+        latest_kind = "terminal_ack" if manifest["latest_tombstone"] is not None else None
+        latest_payload = manifest["latest_tombstone"]
+        latest_sha256 = manifest["latest_tombstone_sha256"]
+    else:
+        terminal_count = manifest["terminal_tombstone_count"]
+        abandonment_count = manifest["abandonment_tombstone_count"]
+        if manifest["latest_witness"] is None:
+            latest_kind, latest_payload = None, None
+        else:
+            latest_kind, latest_payload = validate_cold_witness(manifest["latest_witness"])
+        latest_sha256 = manifest["latest_witness_sha256"]
+    if terminal_count != len(tombstones) or abandonment_count != len(abandonments):
+        raise ValueError("manifest_inventory_count")
+    if latest_payload is None:
+        return
+    latest_match_id = latest_payload["high_water"]["match_id"]
+    simple = latest_match_id.replace("-", "")
+    if latest_kind == "terminal_ack":
+        expected_name = f"acknowledged/{simple[0:2]}/{simple[2:4]}/acknowledged-{latest_match_id}.json"
+        candidates = tombstones
+    else:
+        expected_name = f"abandoned/{simple[0:2]}/{simple[2:4]}/abandoned-{latest_match_id}.json"
+        candidates = abandonments
+    actual = [record for record in candidates if record.get("name") == expected_name]
+    if len(actual) != 1 or "decode_error" in actual[0]:
+        raise ValueError("manifest_latest_witness_path")
+    actual_payload = {key: value for key, value in actual[0].items() if key not in ("name", "sha256")}
+    if actual_payload != latest_payload or actual[0].get("sha256") != latest_sha256:
+        raise ValueError("manifest_latest_witness_payload_or_sha")
+
+if ack_manifest is not None:
+    try:
+        validate_manifest_inventory(ack_manifest)
+    except Exception as exc:
+        decode_errors.append({
+            "name": ".published-tick-ack-manifest.json",
+            "decode_error": f"{type(exc).__name__}:{exc}",
+        })
+        ack_manifest = None
+
 digest_source = "\n".join(
     f'{x["name"]}\t{x.get("sha256", "-")}\t{x["mode"]}\t{x["nlink"]}\t{x["uid"]}\t{x["gid"]}'
     for x in items
@@ -975,16 +1147,26 @@ print(json.dumps({
     "record_count": len(records),
     "hot_record_count": len(records),
     "ack_tombstone_count": len(tombstones),
+    "abandonment_tombstone_count": len(abandonments),
+    "cold_witness_count": len(tombstones) + len(abandonments),
     "run_match_id": match_id or None,
     "run_match_record_present": any(r.get("match_id") == match_id for r in records),
     "run_match_hot_record_present": any(r.get("match_id") == match_id for r in records),
     "run_match_ack_tombstone_present": any(
         r.get("high_water", {}).get("match_id") == match_id for r in tombstones
     ),
+    "run_match_abandonment_tombstone_present": any(
+        r.get("high_water", {}).get("match_id") == match_id for r in abandonments
+    ),
+    "run_match_cold_witness_present": any(
+        r.get("high_water", {}).get("match_id") == match_id
+        for r in tombstones + abandonments
+    ),
     "decode_error_count": len(decode_errors),
     "decode_errors": decode_errors,
     "records": records,
     "ack_tombstones": tombstones,
+    "abandonment_tombstones": abandonments,
     "directories": directories,
     "items": items,
 }, separators=(",", ":")))
@@ -1107,6 +1289,311 @@ capture_fleet_state() {
     | atomic_write "$1"
 }
 
+maintenance_candidate_match_ids() {
+  cex_psql_stdin -At -v ON_ERROR_STOP=1 -c "
+    /* trnm_online_maintenance_candidates_v1: discovery only; mutations are exact UUID CLI calls */
+    select m.match_id::text
+    from trnm_online_matches m
+    where m.phase in ('waiting','running','failed_closed')
+      and (
+        (m.phase = 'waiting'
+          and m.assigned_instance_id is null
+          and m.assigned_instance_epoch = 0
+          and m.assigned_physical_host_id is null)
+        or (m.phase in ('running','failed_closed')
+          and (m.assigned_instance_id='$TEST_INSTANCE_ID'
+            or (m.assigned_instance_id is null
+              and m.assigned_instance_epoch = 0
+              and m.assigned_physical_host_id is null)))
+      )
+      and exists (select 1 from trnm_online_match_members mm
+                  where mm.match_id=m.match_id
+                    and mm.player_id in ('$HOST_PLAYER','$GUEST_PLAYER'))
+    order by m.match_id"
+}
+
+maintenance_report_is_exact_and_atomic() {
+  local report="$1" match_id="$2"
+  jq -e --arg match_id "$match_id" '
+    (keys | sort) == ([
+      "adoption_contract","cold_witness_sealed","contract_version","final_phase",
+      "hot_witness_present_before","legacy_adoption","local_marker_state",
+      "match_id","previous_phase","selector","status","transition_atomic",
+      "waiting_db_only"
+    ] | sort)
+    and .contract_version == "trnm_online_maintenance_fail_close_v1"
+    and .status == "completed"
+    and .match_id == $match_id
+    and .selector == "exact_match_id"
+    and .transition_atomic == true
+    and .legacy_adoption == false
+    and .adoption_contract == null
+    and (.previous_phase == "waiting" or .previous_phase == "running"
+      or .previous_phase == "failed_closed")
+    and .final_phase == "failed_closed"
+    and (.waiting_db_only | type) == "boolean"
+    and (.hot_witness_present_before | type) == "boolean"
+    and (.cold_witness_sealed | type) == "boolean"
+    and (
+      if .previous_phase == "waiting" then
+        .waiting_db_only == true
+        and .hot_witness_present_before == false
+        and .cold_witness_sealed == false
+        and .local_marker_state == null
+      elif .previous_phase == "running" then
+        .waiting_db_only == false
+        and .hot_witness_present_before == true
+        and .cold_witness_sealed == true
+        and .local_marker_state == "sealed"
+      else
+        ((.waiting_db_only == true
+          and .hot_witness_present_before == false
+          and .cold_witness_sealed == false
+          and .local_marker_state == null)
+        or (.waiting_db_only == false
+          and .cold_witness_sealed == true
+          and .local_marker_state == "sealed"))
+      end
+    )' "$report" >/dev/null
+}
+
+capture_database_after_maintenance() {
+  local output="$1" match_id="$2"
+  cex_psql_stdin -At -v ON_ERROR_STOP=1 -c "
+    /* trnm_online_maintenance_database_evidence_v1: exact post-maintenance evidence */
+    with selected as (
+      select * from trnm_online_matches
+       where match_id='$match_id'::uuid
+    ), cursors as (
+      select coalesce(jsonb_object_agg(
+               member.player_id,
+               to_jsonb(member.next_input_sequence)
+               order by member.player_id
+             ), '{}'::jsonb) as value
+        from trnm_online_match_members member
+       where member.match_id='$match_id'::uuid
+    ), marker as (
+      select * from trnm_online_failed_closed_abandonment_markers
+       where match_id='$match_id'::uuid
+    ), summary as (
+      select * from trnm_online_local_cold_witness_summaries
+       where physical_host_id='$PHYSICAL_HOST_ID'
+    ), actual as (
+      select
+        (select count(*)::bigint
+           from trnm_online_terminal_publication_acks
+          where physical_host_id='$PHYSICAL_HOST_ID') as terminal_total_count,
+        (select count(*)::bigint
+           from trnm_online_terminal_publication_acks
+          where physical_host_id='$PHYSICAL_HOST_ID'
+            and local_tombstone_state='sealed') as terminal_sealed_count,
+        (select count(*)::bigint
+           from trnm_online_failed_closed_abandonment_markers
+          where physical_host_id='$PHYSICAL_HOST_ID') as abandonment_total_count,
+        (select count(*)::bigint
+           from trnm_online_failed_closed_abandonment_markers
+          where physical_host_id='$PHYSICAL_HOST_ID'
+            and local_tombstone_state='sealed') as abandonment_sealed_count
+    )
+    select json_build_object(
+      'contract_version','trnm_online_maintenance_database_evidence_v1',
+      'status','captured',
+      'match_count',(select count(*) from selected),
+      'match',(select json_build_object(
+        'match_id',match_id::text,
+        'phase',phase,
+        'settlement_state',settlement_state,
+        'failure_reason',failure_reason,
+        'assigned_instance_id',assigned_instance_id,
+        'assigned_instance_epoch',assigned_instance_epoch,
+        'assigned_physical_host_id',assigned_physical_host_id,
+        'authoritative_tick',authoritative_tick,
+        'next_sequence',next_sequence,
+        'checkpoint_sequence',checkpoint_sequence,
+        'match_revision',match_revision,
+        'next_input_sequences',(select value from cursors),
+        'snapshot_hash',snapshot_hash,
+        'terminal_publication_state',terminal_publication_state,
+        'terminal_stage_present',(
+          terminal_stage_simulation_json is not null
+          or terminal_stage_result_json is not null
+          or terminal_stage_result_hash is not null
+          or terminal_stage_snapshot_hash is not null
+          or terminal_stage_authoritative_tick is not null
+          or terminal_stage_next_sequence is not null
+          or terminal_stage_match_revision is not null
+          or terminal_staged_at is not null
+        ),
+        'result_present',(result_json is not null or result_hash is not null)
+      ) from selected),
+      'terminal_marker_count',(
+        select count(*) from trnm_online_terminal_publication_acks
+         where match_id='$match_id'::uuid
+      ),
+      'abandonment_marker_count',(select count(*) from marker),
+      'abandonment_marker',(select json_build_object(
+        'match_id',match_id::text,
+        'journal_owner_id',journal_owner_id::text,
+        'actor_generation',actor_generation::text,
+        'instance_id',instance_id,
+        'actor_epoch',actor_epoch,
+        'physical_host_id',physical_host_id,
+        'authoritative_tick',authoritative_tick,
+        'next_sequence',next_sequence,
+        'match_revision',match_revision,
+        'next_input_sequences',next_input_sequences,
+        'snapshot_hash',snapshot_hash,
+        'failure_reason',failure_reason,
+        'abandoned_at_unix_ms',floor(extract(epoch from abandoned_at) * 1000)::bigint,
+        'local_tombstone_state',local_tombstone_state
+      ) from marker),
+      'summary_row_count',(select count(*) from summary),
+      'summary',(select json_build_object(
+        'physical_host_id',physical_host_id,
+        'terminal_total_count',terminal_total_count,
+        'terminal_sealed_count',terminal_sealed_count,
+        'abandonment_total_count',abandonment_total_count,
+        'abandonment_sealed_count',abandonment_sealed_count
+      ) from summary),
+      'actual_host_counts',(select json_build_object(
+        'terminal_total_count',terminal_total_count,
+        'terminal_sealed_count',terminal_sealed_count,
+        'abandonment_total_count',abandonment_total_count,
+        'abandonment_sealed_count',abandonment_sealed_count
+      ) from actual)
+    )" | atomic_write "$output"
+}
+
+maintenance_post_database_is_exact() {
+  local report="$1" database="$2" journal="$3" match_id="$4"
+  jq -e --arg match_id "$match_id" \
+    --arg reason "$MAINTENANCE_FAILURE_REASON" \
+    --arg host "$PHYSICAL_HOST_ID" \
+    --arg instance "$TEST_INSTANCE_ID" \
+    --slurpfile report "$report" --slurpfile journal "$journal" '
+    $report[0] as $report
+    | $journal[0] as $journal
+    | .contract_version == "trnm_online_maintenance_database_evidence_v1"
+    and .status == "captured"
+    and .match_count == 1
+    and .match.match_id == $match_id
+    and .match.phase == "failed_closed"
+    and .match.settlement_state == "failed_closed"
+    and .match.failure_reason == $reason
+    and .match.terminal_publication_state == "pending"
+    and .match.terminal_stage_present == false
+    and .match.result_present == false
+    and .terminal_marker_count == 0
+    and (.summary_row_count == 0 or .summary_row_count == 1)
+    and (.actual_host_counts | type) == "object"
+    and all(.actual_host_counts[]; type == "number" and . >= 0)
+    and (
+      if .summary_row_count == 0 then
+        .summary == null
+        and ([.actual_host_counts[]] | add) == 0
+      else
+        .summary.physical_host_id == $host
+        and .summary.terminal_total_count
+          == .actual_host_counts.terminal_total_count
+        and .summary.terminal_sealed_count
+          == .actual_host_counts.terminal_sealed_count
+        and .summary.abandonment_total_count
+          == .actual_host_counts.abandonment_total_count
+        and .summary.abandonment_sealed_count
+          == .actual_host_counts.abandonment_sealed_count
+      end
+    )
+    and (
+      if $report.waiting_db_only then
+        .abandonment_marker_count == 0
+        and .abandonment_marker == null
+        and .match.assigned_instance_id == null
+        and .match.assigned_instance_epoch == 0
+        and .match.assigned_physical_host_id == null
+      else
+        .abandonment_marker_count == 1
+        and (.abandonment_marker | type) == "object"
+        and .abandonment_marker.match_id == $match_id
+        and .abandonment_marker.failure_reason == $reason
+        and .abandonment_marker.local_tombstone_state == "sealed"
+        and .abandonment_marker.physical_host_id == $host
+        and .abandonment_marker.instance_id == $instance
+        and .match.assigned_instance_id == .abandonment_marker.instance_id
+        and .match.assigned_instance_epoch == .abandonment_marker.actor_epoch
+        and .match.assigned_physical_host_id
+          == .abandonment_marker.physical_host_id
+        and .match.authoritative_tick
+          == .abandonment_marker.authoritative_tick
+        and .match.next_sequence == .abandonment_marker.next_sequence
+        and .match.checkpoint_sequence == .abandonment_marker.next_sequence
+        and .match.match_revision == .abandonment_marker.match_revision
+        and .match.next_input_sequences
+          == .abandonment_marker.next_input_sequences
+        and .match.snapshot_hash == .abandonment_marker.snapshot_hash
+        and .summary_row_count == 1
+        and .summary.abandonment_total_count >= 1
+        and .summary.abandonment_sealed_count >= 1
+        and ([ $journal.abandonment_tombstones[]
+          | select(.high_water.match_id == $match_id) ] | length) == 1
+        and ([ $journal.abandonment_tombstones[]
+          | select(.high_water.match_id == $match_id) ][0] as $cold
+          | .abandonment_marker.journal_owner_id
+              == $cold.high_water.journal_owner_id
+          and .abandonment_marker.actor_generation
+              == $cold.high_water.actor_generation
+          and .abandonment_marker.instance_id == $cold.high_water.instance_id
+          and .abandonment_marker.actor_epoch == $cold.high_water.actor_epoch
+          and .abandonment_marker.physical_host_id
+              == $cold.high_water.physical_host_id
+          and .abandonment_marker.authoritative_tick == $cold.high_water.tick
+          and .abandonment_marker.next_sequence == $cold.high_water.next_sequence
+          and .abandonment_marker.match_revision == $cold.high_water.match_revision
+          and .abandonment_marker.next_input_sequences
+              == $cold.high_water.next_input_sequences
+          and .abandonment_marker.snapshot_hash == $cold.high_water.snapshot_hash
+          and .abandonment_marker.failure_reason == $cold.failure_reason
+          and .abandonment_marker.abandoned_at_unix_ms
+              == $cold.abandoned_at_unix_ms)
+      end
+    )' "$database" >/dev/null
+}
+
+maintenance_post_journal_is_exact() {
+  local report="$1" journal="$2" match_id="$3"
+  jq -e --arg match_id "$match_id" --slurpfile report "$report" '
+    $report[0] as $report
+    | .decode_error_count == 0
+    and .run_match_hot_record_present == false
+    and ([.records[] | select(.match_id == $match_id)] | length) == 0
+    and (
+      if $report.waiting_db_only then
+        .run_match_cold_witness_present == false
+        and .run_match_ack_tombstone_present == false
+        and .run_match_abandonment_tombstone_present == false
+        and ([.ack_tombstones[] | select(.high_water.match_id == $match_id)] | length) == 0
+        and ([.abandonment_tombstones[]
+          | select(.high_water.match_id == $match_id)] | length) == 0
+      else
+        .run_match_cold_witness_present == true
+        and .run_match_ack_tombstone_present == false
+        and .run_match_abandonment_tombstone_present == true
+        and ([.ack_tombstones[] | select(.high_water.match_id == $match_id)] | length) == 0
+        and ([.abandonment_tombstones[]
+          | select(.high_water.match_id == $match_id)] | length) == 1
+        and .ack_manifest.contract_version
+          == "trnm_published_tick_cold_witness_manifest_v2"
+        and (.ack_manifest.latest_witness | keys) == ["failed_closed_abandonment"]
+        and .ack_manifest.latest_witness.failed_closed_abandonment.high_water.match_id
+          == $match_id
+        and ([.abandonment_tombstones[]
+          | select(.high_water.match_id == $match_id)][0] as $abandonment
+          | .ack_manifest.latest_witness.failed_closed_abandonment
+              == ($abandonment | del(.name, .sha256))
+          and .ack_manifest.latest_witness_sha256 == $abandonment.sha256)
+      end
+    )' "$journal" >/dev/null
+}
+
 create_identity() {
   local label="$1" account player recovery session
   account="$(curl -fsS --max-time 10 "$LEDGER_URL/v1/accounts" \
@@ -1175,14 +1662,18 @@ cleanup_process_identity_matches() {
 }
 
 terminate_group() {
-  local pid="$1" label="$2"
+  local pid="$1" label="$2" grace_attempts=40
   [[ -n "$pid" ]] || return 0
+  # The Authority drains HTTP for up to 12 seconds and actor/checkpoint work
+  # for up to 10 seconds. Do not turn a graceful shutdown into SIGKILL merely
+  # because the fault profile itself adds database latency.
+  [[ "$label" == standalone-server ]] && grace_attempts=300
   if kill -0 "$pid" >/dev/null 2>&1; then
     cleanup_process_identity_matches "$pid" \
       || { fail "$label PID was reused or changed identity; refusing to signal it"; return 1; }
     kill -TERM -- "-$pid" >/dev/null 2>&1 || kill -TERM "$pid" >/dev/null 2>&1 || true
     local attempt
-    for ((attempt=0; attempt<40; attempt++)); do
+    for ((attempt=0; attempt<grace_attempts; attempt++)); do
       kill -0 "$pid" >/dev/null 2>&1 || break
       sleep 0.1
     done
@@ -1228,6 +1719,12 @@ PY
 cleanup_resources() {
   local original_status="$1" cleanup_reason="" current_fp=""
   local qdisc_restored=0 removed=0 attempt
+  local maintenance_candidate_count=0 maintenance_reports_valid=1
+  local maintenance_service_stopped=0 maintenance_exact_only=1
+  local maintenance_database_evidence_valid=0
+  local maintenance_candidate="" maintenance_report=""
+  local maintenance_candidates_file="" maintenance_command_ok=0
+  local -a maintenance_candidates=()
   set +e
 
   terminate_group "$E2E_PID" e2e || { CLEANUP_FAILED=1; cleanup_reason+="e2e_stop;"; }
@@ -1242,6 +1739,17 @@ cleanup_resources() {
     || { CLEANUP_FAILED=1; cleanup_reason+="proxy_stop;"; }
   PROXY_PID=""
 
+  if [[ "$(unit_property ActiveState 2>/dev/null)" == inactive ]] \
+      && assert_no_game_server_processes \
+      && wait_for_port_state "$TEST_SERVER_PORT" free \
+      && wait_for_port_state "$PROXY_PORT" free; then
+    maintenance_service_stopped=1
+  else
+    CLEANUP_FAILED=1
+    maintenance_reports_valid=0
+    cleanup_reason+="maintenance_service_not_stopped;"
+  fi
+
   if [[ -n "$RUN_DIR" && ! -f "$RUN_DIR/database-terminal.json" \
       && -n "$HOST_PLAYER" && -n "$GUEST_PLAYER" ]]; then
     capture_database_terminal "$RUN_DIR/database-terminal.json" \
@@ -1250,6 +1758,10 @@ cleanup_resources() {
   if [[ -n "$RUN_DIR" && ! -f "$RUN_DIR/journal-after.json" ]]; then
     capture_journal "$RUN_DIR/journal-after.json" \
       || { CLEANUP_FAILED=1; cleanup_reason+="journal_capture;"; }
+  fi
+  if [[ -n "$RUN_DIR" ]]; then
+    capture_journal "$RUN_DIR/journal-before-maintenance.json" "$MATCH_ID" \
+      || { CLEANUP_FAILED=1; cleanup_reason+="journal_before_maintenance_capture;"; }
   fi
 
   if (( QDISC_OWNED == 1 )); then
@@ -1287,19 +1799,126 @@ cleanup_resources() {
   fi
 
   if [[ -n "$HOST_PLAYER" && -n "$GUEST_PLAYER" ]]; then
+    maintenance_candidates_file="$RUN_DIR/maintenance-candidates.txt"
+    if (( maintenance_service_stopped == 1 )) \
+        && maintenance_candidate_match_ids >"$maintenance_candidates_file" 2>"$RUN_DIR/maintenance-candidates.log"; then
+      mapfile -t maintenance_candidates <"$maintenance_candidates_file"
+      for maintenance_candidate in "${maintenance_candidates[@]}"; do
+        if [[ ! "$maintenance_candidate" =~ ^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$ ]]; then
+          maintenance_reports_valid=0
+          maintenance_exact_only=0
+          cleanup_reason+="maintenance_candidate_invalid;"
+        fi
+      done
+      maintenance_candidate_count="${#maintenance_candidates[@]}"
+      if (( maintenance_candidate_count > 1 )); then
+        maintenance_reports_valid=0
+        maintenance_exact_only=0
+        cleanup_reason+="maintenance_candidate_ambiguous;"
+      fi
+    else
+      maintenance_reports_valid=0
+      cleanup_reason+="maintenance_candidate_discovery;"
+    fi
+
+    if (( maintenance_reports_valid == 1 && maintenance_candidate_count == 1 )); then
+      maintenance_candidate="${maintenance_candidates[0]}"
+      if [[ -n "$MATCH_ID" && "$maintenance_candidate" != "$MATCH_ID" ]]; then
+        maintenance_reports_valid=0
+        maintenance_exact_only=0
+        cleanup_reason+="maintenance_candidate_report_mismatch;"
+      fi
+    fi
+
+    if (( maintenance_reports_valid == 1 && maintenance_candidate_count == 1 )); then
+      maintenance_report="$RUN_DIR/maintenance-fail-close-$maintenance_candidate.json"
+      if [[ "$(sha256sum "$GAME_SERVER_BIN" 2>/dev/null | awk '{print $1}')" != "$GAME_SERVER_SHA" ]]; then
+        maintenance_reports_valid=0
+        cleanup_reason+="maintenance_release_binary_changed;"
+      elif (
+        close_inherited_mutation_locks
+        export DATABASE_URL="$DIRECT_DATABASE_URL"
+        export TRNM_PUBLISHED_TICK_JOURNAL_DIR="$CANONICAL_JOURNAL"
+        export TRNM_FLEET_INSTANCE_ID="$TEST_INSTANCE_ID"
+        export TRNM_FLEET_PHYSICAL_HOST_ID="$PHYSICAL_HOST_ID"
+        export TRNM_MAINTENANCE_FAILURE_REASON="$MAINTENANCE_FAILURE_REASON"
+        exec timeout --foreground --signal=TERM --kill-after=5s 120s \
+          "$GAME_SERVER_BIN" --maintenance-fail-close "$maintenance_candidate"
+      ) 2>"$RUN_DIR/maintenance-fail-close-$maintenance_candidate.log" \
+          | atomic_write "$maintenance_report"; then
+        maintenance_command_ok=1
+      else
+        maintenance_reports_valid=0
+        cleanup_reason+="maintenance_command_failed;"
+      fi
+      if (( maintenance_command_ok == 1 )) \
+          && ! maintenance_report_is_exact_and_atomic \
+            "$maintenance_report" "$maintenance_candidate"; then
+        maintenance_reports_valid=0
+        cleanup_reason+="maintenance_report_invalid;"
+      fi
+    fi
+
+    capture_journal "$RUN_DIR/journal-after-maintenance.json" \
+      "${maintenance_candidate:-$MATCH_ID}" \
+      || { maintenance_reports_valid=0; cleanup_reason+="maintenance_journal_capture;"; }
+    if (( maintenance_reports_valid == 1 && maintenance_candidate_count == 1 )) \
+        && ! maintenance_post_journal_is_exact \
+          "$maintenance_report" "$RUN_DIR/journal-after-maintenance.json" \
+          "$maintenance_candidate"; then
+      maintenance_reports_valid=0
+      cleanup_reason+="maintenance_journal_postcondition;"
+    fi
+    if (( maintenance_candidate_count == 1 )); then
+      if capture_database_after_maintenance \
+          "$RUN_DIR/database-after-maintenance.json" "$maintenance_candidate"; then
+        if (( maintenance_reports_valid == 1 )) \
+            && maintenance_post_database_is_exact \
+              "$maintenance_report" "$RUN_DIR/database-after-maintenance.json" \
+              "$RUN_DIR/journal-after-maintenance.json" "$maintenance_candidate"; then
+          maintenance_database_evidence_valid=1
+        else
+          maintenance_reports_valid=0
+          cleanup_reason+="maintenance_database_postcondition;"
+        fi
+      else
+        maintenance_reports_valid=0
+        cleanup_reason+="maintenance_database_capture;"
+      fi
+    elif (( maintenance_candidate_count == 0 && maintenance_reports_valid == 1 )); then
+      jq -n '{
+        contract_version:"trnm_online_maintenance_database_evidence_v1",
+        status:"not_applicable",match_count:0
+      }' | atomic_write "$RUN_DIR/database-after-maintenance.json" \
+        && maintenance_database_evidence_valid=1 \
+        || { maintenance_reports_valid=0; cleanup_reason+="maintenance_database_empty_evidence;"; }
+    fi
+    if [[ ! -f "$RUN_DIR/database-after-maintenance.json" ]]; then
+      jq -n '{
+        contract_version:"trnm_online_maintenance_database_evidence_v1",
+        status:"unavailable",match_count:0
+      }' | atomic_write "$RUN_DIR/database-after-maintenance.json" \
+        || cleanup_reason+="maintenance_database_fallback_evidence;"
+    fi
+    if (( maintenance_candidate_count == 1 && maintenance_reports_valid == 1 )); then
+      jq -s '{contract_version:"trnm_online_maintenance_fail_close_collection_v1",
+        selector:"exact_match_id",report_count:length,reports:.}' "$maintenance_report" \
+        | atomic_write "$RUN_DIR/maintenance-fail-close.json" \
+        || { maintenance_reports_valid=0; cleanup_reason+="maintenance_collection;"; }
+    else
+      jq -n '{contract_version:"trnm_online_maintenance_fail_close_collection_v1",
+        selector:"exact_match_id",report_count:0,reports:[]}' \
+        | atomic_write "$RUN_DIR/maintenance-fail-close.json" \
+        || { maintenance_reports_valid=0; cleanup_reason+="maintenance_collection;"; }
+    fi
+    (( maintenance_reports_valid == 1 )) \
+      || { CLEANUP_FAILED=1; cleanup_reason+="maintenance_fail_closed;"; }
+
     cex_psql_stdin -v ON_ERROR_STOP=1 -c "
-      update trnm_online_matches m
-      set phase='failed_closed', settlement_state='failed_closed',
-          failure_reason='local Authority fault harness interrupted or failed', updated_at=now()
-      where m.phase in ('waiting','running')
-        and m.assigned_instance_id='$TEST_INSTANCE_ID'
-        and exists (select 1 from trnm_online_match_members mm
-                    where mm.match_id=m.match_id
-                      and mm.player_id in ('$HOST_PLAYER','$GUEST_PLAYER'));
       update trnm_online_fleet_instances
       set status='offline', active_matches=0, lease_expires_at=now(), heartbeat_at=now()
       where instance_id='$TEST_INSTANCE_ID';" >/dev/null 2>&1 \
-      || { CLEANUP_FAILED=1; cleanup_reason+="database_fail_close;"; }
+      || { CLEANUP_FAILED=1; cleanup_reason+="fleet_offline;"; }
     if [[ -n "$RUN_DIR" ]]; then
       capture_fleet_state "$RUN_DIR/fleet-after-cleanup.json" \
         || { CLEANUP_FAILED=1; cleanup_reason+="fleet_capture;"; }
@@ -1312,7 +1931,7 @@ cleanup_resources() {
   fi
 
   assert_no_game_server_processes \
-    || { CLEANUP_FAILED=1; cleanup_reason+="game_server_process_orphan;"; }
+    || { CLEANUP_FAILED=1; cleanup_reason+="maintenance_process_orphan;"; }
 
   wait_for_port_state "$TEST_SERVER_PORT" free \
     || { CLEANUP_FAILED=1; cleanup_reason+="test_port_busy;"; }
@@ -1368,10 +1987,20 @@ cleanup_resources() {
       --argjson qdisc_default "$(qdisc_is_default_noqueue && echo true || echo false)" \
       --argjson test_port_free "$(port_is_free "$TEST_SERVER_PORT" && echo true || echo false)" \
       --argjson proxy_port_free "$(port_is_free "$PROXY_PORT" && echo true || echo false)" \
+      --argjson maintenance_candidate_count "$maintenance_candidate_count" \
+      --argjson maintenance_reports_valid "$maintenance_reports_valid" \
+      --argjson maintenance_service_stopped "$maintenance_service_stopped" \
+      --argjson maintenance_exact_only "$maintenance_exact_only" \
+      --argjson maintenance_database_evidence_valid "$maintenance_database_evidence_valid" \
       '{contract_version:$contract_version,original_workload_status:$original_status,
         original_active_state:$original_active_state,restored_active_state:$restored_active_state,
         cleanup_failed:$cleanup_failed,reason:$reason,qdisc_default_noqueue:$qdisc_default,
         test_port_free:$test_port_free,proxy_port_free:$proxy_port_free,
+        maintenance_candidate_count:$maintenance_candidate_count,
+        maintenance_reports_valid:($maintenance_reports_valid==1),
+        maintenance_service_stopped:($maintenance_service_stopped==1),
+        maintenance_exact_only:($maintenance_exact_only==1),
+        maintenance_database_evidence_valid:($maintenance_database_evidence_valid==1),
         sigkill_or_power_loss_cleanup_guaranteed:false}' \
       | atomic_write "$RUN_DIR/cleanup.json"
   fi
@@ -1402,6 +2031,8 @@ write_decision() {
   local exit_status="$1" workload_pass=false formal_pass=false contract_pass=false
   local e2e="$RUN_DIR/e2e-report.json" database="$RUN_DIR/database-terminal.json"
   local journal="$RUN_DIR/journal-after.json" cleanup="$RUN_DIR/cleanup.json"
+  local maintenance="$RUN_DIR/maintenance-fail-close.json"
+  local maintenance_database="$RUN_DIR/database-after-maintenance.json"
   local readiness_gate=false packet_gate=false effect_gate=false ack_gate=false drift_gate=false
   local database_gate=false journal_gate=false cleanup_gate=false e2e_gate=false
   local monitor_gate=false process_gate=false dependency_gate=false inputs_gate=false
@@ -1416,6 +2047,12 @@ write_decision() {
       and (.body.max_actor_clock_abs_drift_ticks|type) == "number"
       and (.body.authority_clock_drift_ticks | fabs) < 2
       and (.body.max_actor_clock_abs_drift_ticks | fabs) < 2
+      and .body.latest_cold_witness_sentinel_query_healthy == true
+      and .body.latest_cold_witness_sentinel_healthy == true
+      and .body.cold_witness_database_summary_query_healthy == true
+      and .body.local_tombstone_counts_exact == true
+      and .body.local_tombstone_seal_operational == true
+      and .body.operational_readiness.local_cold_witness_seal == true
       and .body.published_tick_terminal_orphan_recovery_operational == true)
     ' "$RUN_DIR/readiness-samples.jsonl" >/dev/null && echo true || echo false)"
   if (( MONITOR_SURVIVED_WORKLOAD == 1 )) \
@@ -1459,7 +2096,8 @@ write_decision() {
     and (.database_timeline_id | type) == "number" and .database_timeline_id > 0
     and (.database_current_wal_lsn | type) == "string"
     and (.database_current_wal_lsn
-      | test("^(0|[1-9A-F][0-9A-F]{0,15})/(0|[1-9A-F][0-9A-F]{0,15})$"))
+      | test("^(0|[1-9A-F][0-9A-F]{0,7})/(0|[1-9A-F][0-9A-F]{0,7})$"))
+    and .database_current_wal_lsn != "0/0"
     and .assigned_instance_id == $instance' "$database" >/dev/null && echo true || echo false)"
   [[ -f "$journal" && -f "$RUN_DIR/journal-before.json" && -f "$database" \
       && -n "$MATCH_ID" ]] && journal_gate="$(jq -e \
@@ -1473,6 +2111,14 @@ write_decision() {
     --argjson current_uid "$(id -u)" \
     --slurpfile before "$RUN_DIR/journal-before.json" --slurpfile database "$database" '
     def stable_item: {name,mode,nlink,uid,gid,regular,symlink,sha256,bytes};
+    def manifest_terminal_count:
+      if .contract_version == "trnm_published_tick_ack_manifest_v1" then .tombstone_count
+      elif .contract_version == "trnm_published_tick_cold_witness_manifest_v2"
+        then .terminal_tombstone_count else null end;
+    def manifest_abandonment_count:
+      if .contract_version == "trnm_published_tick_ack_manifest_v1" then 0
+      elif .contract_version == "trnm_published_tick_cold_witness_manifest_v2"
+        then .abandonment_tombstone_count else null end;
     .contract_version == "trnm_published_tick_journal_inventory_v2"
     and $before[0].contract_version == "trnm_published_tick_journal_inventory_v2"
     and .root_exists == true and .root_mode == "0700" and .root_uid == $current_uid
@@ -1483,19 +2129,41 @@ write_decision() {
     and .owner_manifest.contract_version == "trnm_published_tick_journal_owner_v1"
     and (.ack_manifest | type) == "object"
     and ($before[0].ack_manifest | type) == "object"
-    and .ack_manifest.contract_version == "trnm_published_tick_ack_manifest_v1"
+    and .ack_manifest.contract_version == "trnm_published_tick_cold_witness_manifest_v2"
+    and ($before[0].ack_manifest.contract_version == "trnm_published_tick_ack_manifest_v1"
+      or $before[0].ack_manifest.contract_version
+        == "trnm_published_tick_cold_witness_manifest_v2")
     and .ack_manifest.journal_owner_id == .owner_manifest.journal_owner_id
     and .ack_manifest.physical_host_id == .owner_manifest.physical_host_id
-    and .ack_manifest.tombstone_count == ($before[0].ack_manifest.tombstone_count + 1)
+    and $before[0].ack_manifest.journal_owner_id == .owner_manifest.journal_owner_id
+    and $before[0].ack_manifest.physical_host_id == .owner_manifest.physical_host_id
+    and .ack_manifest.terminal_tombstone_count
+      == (($before[0].ack_manifest | manifest_terminal_count) + 1)
+    and .ack_manifest.abandonment_tombstone_count
+      == ($before[0].ack_manifest | manifest_abandonment_count)
     and .ack_manifest.committed_seal_sequence
       == ($before[0].ack_manifest.committed_seal_sequence + 1)
-    and .ack_manifest.tombstone_count == .ack_manifest.committed_seal_sequence
+    and (.ack_manifest.terminal_tombstone_count
+      + .ack_manifest.abandonment_tombstone_count)
+      == .ack_manifest.committed_seal_sequence
+    and .ack_manifest.terminal_tombstone_count == .ack_tombstone_count
+    and .ack_manifest.abandonment_tombstone_count == .abandonment_tombstone_count
+    and .cold_witness_count == (.ack_tombstone_count + .abandonment_tombstone_count)
+    and .cold_witness_count == .ack_manifest.committed_seal_sequence
+    and ($before[0].ack_tombstone_count
+      == ($before[0].ack_manifest | manifest_terminal_count))
+    and ($before[0].abandonment_tombstone_count
+      == ($before[0].ack_manifest | manifest_abandonment_count))
+    and $before[0].cold_witness_count
+      == $before[0].ack_manifest.committed_seal_sequence
     and .ack_manifest.database_system_identifier == $database[0].database_system_identifier
     and .ack_manifest.database_timeline_id == $database[0].database_timeline_id
     and (.ack_manifest_sha256 | type) == "string"
     and (.ack_manifest_sha256 | test("^[0-9a-f]{64}$"))
     and .run_match_hot_record_present == false
     and .run_match_ack_tombstone_present == true
+    and .run_match_abandonment_tombstone_present == false
+    and .run_match_cold_witness_present == true
     and ([.records[] | select(.match_id == $match_id)] | length) == 0
     and ([.ack_tombstones[] | select(.high_water.match_id == $match_id)] | length) == 1
     and ([.items[] | select(.name == $hot_file)] | length) == 0
@@ -1549,9 +2217,12 @@ write_decision() {
       and $tombstone.database_timeline_id == $database[0].database_timeline_id
       and ($tombstone.database_wal_lsn | type) == "string"
       and ($tombstone.database_wal_lsn
-        | test("^(0|[1-9A-F][0-9A-F]{0,15})/(0|[1-9A-F][0-9A-F]{0,15})$"))
-      and .ack_manifest.latest_tombstone == ($tombstone | del(.name, .sha256))
-      and .ack_manifest.latest_tombstone_sha256 == $tombstone.sha256)
+        | test("^(0|[1-9A-F][0-9A-F]{0,7})/(0|[1-9A-F][0-9A-F]{0,7})$"))
+      and $tombstone.database_wal_lsn != "0/0"
+      and (.ack_manifest.latest_witness | keys) == ["terminal_ack"]
+      and .ack_manifest.latest_witness.terminal_ack
+        == ($tombstone | del(.name, .sha256))
+      and .ack_manifest.latest_witness_sha256 == $tombstone.sha256)
     and ([$before[0].items[] | select(.name == $hot_file or .name == $cold_file)]
       | length) == 0
     and (([$before[0].items[] | select(.name != ".published-tick.lock"
@@ -1609,9 +2280,39 @@ write_decision() {
   [[ -f "$RUN_DIR/bound-inputs-after.json" ]] && inputs_gate="$(jq -e \
     '.unchanged == true and .root.clean == true and .cex.clean == true' \
     "$RUN_DIR/bound-inputs-after.json" >/dev/null && echo true || echo false)"
-  [[ -f "$cleanup" ]] && cleanup_gate="$(jq -e '
+  [[ -f "$cleanup" && -f "$maintenance" && -f "$maintenance_database" ]] \
+    && cleanup_gate="$(jq -e \
+    --slurpfile maintenance "$maintenance" \
+    --slurpfile maintenance_database "$maintenance_database" '
     .cleanup_failed == 0 and .qdisc_default_noqueue == true
-    and .test_port_free == true and .proxy_port_free == true' "$cleanup" >/dev/null && echo true || echo false)"
+    and .test_port_free == true and .proxy_port_free == true
+    and .maintenance_reports_valid == true
+    and .maintenance_service_stopped == true
+    and .maintenance_exact_only == true
+    and .maintenance_database_evidence_valid == true
+    and $maintenance[0].contract_version
+      == "trnm_online_maintenance_fail_close_collection_v1"
+    and $maintenance[0].selector == "exact_match_id"
+    and $maintenance[0].report_count == .maintenance_candidate_count
+    and ($maintenance[0].reports | length) == .maintenance_candidate_count
+    and all($maintenance[0].reports[];
+      .contract_version == "trnm_online_maintenance_fail_close_v1"
+      and .status == "completed"
+      and .selector == "exact_match_id"
+      and .transition_atomic == true
+      and .legacy_adoption == false
+      and .adoption_contract == null
+      and .final_phase == "failed_closed")
+    and $maintenance_database[0].contract_version
+      == "trnm_online_maintenance_database_evidence_v1"
+    and (if .maintenance_candidate_count == 0 then
+      $maintenance_database[0].status == "not_applicable"
+      and $maintenance_database[0].match_count == 0
+    else
+      $maintenance_database[0].status == "captured"
+      and $maintenance_database[0].match_count == 1
+    end)' \
+    "$cleanup" >/dev/null && echo true || echo false)"
 
   if [[ "$e2e_gate" == true && "$readiness_gate" == true && "$packet_gate" == true \
       && "$effect_gate" == true && "$ack_gate" == true && "$drift_gate" == true \
