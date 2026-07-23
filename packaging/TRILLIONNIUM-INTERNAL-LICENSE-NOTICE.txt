@@ -1,0 +1,10 @@
+Trillionnium game sources use the SPDX identifier
+LicenseRef-Trillionnium-Internal.
+
+This repository does not provide a public redistribution license for the
+Trillionnium-owned game code or assets. CI distribution bundles are internal
+evaluation artifacts and are not public-release authorization.
+
+Third-party dependencies retain their own licenses. The bundle includes a
+machine-readable third-party license inventory, the locked dependency graph,
+and any vendored license files required by the current source tree.

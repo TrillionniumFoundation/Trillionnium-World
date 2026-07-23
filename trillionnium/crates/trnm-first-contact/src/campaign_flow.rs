@@ -1,12 +1,19 @@
+use super::frame_timing::note_instrumented_network_io;
 use super::map_loader::{FirstContactMap, MissionMapCatalog};
 use super::simulation_adapter::{
     FirstContactCommand, FirstContactRuntime, FirstContactSimulationAdapter,
 };
+use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 use serde_json::{json, Value};
 use std::{
     env,
     path::{Path, PathBuf},
+    sync::{
+        mpsc::{self, Receiver, Sender, TryRecvError},
+        Mutex,
+    },
+    thread,
     time::Duration,
 };
 use trnm_campaign_core::{
@@ -79,6 +86,15 @@ impl CampaignUiIntents {
     }
 }
 
+#[derive(SystemParam)]
+pub(super) struct CampaignInputState<'w> {
+    map: ResMut<'w, FirstContactMap>,
+    maps: Res<'w, MissionMapCatalog>,
+    flow: ResMut<'w, CampaignFlow>,
+    runtime: ResMut<'w, FirstContactRuntime>,
+    adapter: ResMut<'w, FirstContactSimulationAdapter>,
+}
+
 #[derive(Resource, Debug, Clone)]
 pub(super) struct CampaignFlow {
     pub save: CampaignSaveV1,
@@ -108,6 +124,95 @@ struct CexHttpEconomyBackend {
     base_url: String,
     player_session: String,
     client: reqwest::blocking::Client,
+}
+
+#[derive(Debug, Clone, Copy)]
+enum CampaignEconomyAction {
+    Reconcile,
+    Purchase,
+    Cancel,
+}
+
+impl CampaignEconomyAction {
+    fn label(self) -> &'static str {
+        match self {
+            Self::Reconcile => "wallet reconciliation",
+            Self::Purchase => "trade purchase",
+            Self::Cancel => "trade cancellation",
+        }
+    }
+}
+
+struct CampaignEconomyCompletion {
+    flow: Box<CampaignFlow>,
+    result: Result<String, String>,
+}
+
+#[derive(Resource)]
+pub(super) struct CampaignEconomyTasks {
+    completion_tx: Sender<CampaignEconomyCompletion>,
+    completions: Mutex<Receiver<CampaignEconomyCompletion>>,
+    in_flight: bool,
+}
+
+impl Default for CampaignEconomyTasks {
+    fn default() -> Self {
+        let (completion_tx, completions) = mpsc::channel();
+        Self {
+            completion_tx,
+            completions: Mutex::new(completions),
+            in_flight: false,
+        }
+    }
+}
+
+impl CampaignEconomyTasks {
+    fn start(
+        &mut self,
+        flow: &mut CampaignFlow,
+        action: CampaignEconomyAction,
+    ) -> Result<String, String> {
+        if self.in_flight {
+            return Err(format!(
+                "{} is still in progress; input was not queued",
+                action.label()
+            ));
+        }
+        if flow.mode != CampaignMode::Town || flow.shell_mode != ShellMode::Playing {
+            return Err("economy actions are available only while playing in town".to_string());
+        }
+        self.in_flight = true;
+        let mut background = flow.clone();
+        let completion_tx = self.completion_tx.clone();
+        if let Err(error) = thread::Builder::new()
+            .name(format!("trnm-economy-{}", action.label().replace(' ', "-")))
+            .spawn(move || {
+                let result = match action {
+                    CampaignEconomyAction::Reconcile => background.reconcile_economy_now_blocking(),
+                    CampaignEconomyAction::Purchase => {
+                        background.begin_tradeable_purchase_and_reconcile_blocking()
+                    }
+                    CampaignEconomyAction::Cancel => {
+                        background.cancel_latest_tradeable_purchase_and_reconcile_blocking()
+                    }
+                };
+                let _ = completion_tx.send(CampaignEconomyCompletion {
+                    flow: Box::new(background),
+                    result,
+                });
+            })
+        {
+            self.in_flight = false;
+            return Err(format!("start {} worker: {error}", action.label()));
+        }
+        let status = format!("{} in progress...", action.label());
+        flow.status = status.clone();
+        Ok(status)
+    }
+
+    fn in_flight(&self) -> bool {
+        self.in_flight
+    }
 }
 
 impl CexHttpEconomyBackend {
@@ -174,6 +279,7 @@ impl EconomyBackend for CexHttpEconomyBackend {
                     entitlement,
                 );
         }
+        note_instrumented_network_io();
         let response = self
             .request("/v1/trillionnium/economy/intents")
             .json(&serde_json::json!({"intent": authorized_intent}))
@@ -194,6 +300,7 @@ impl EconomyBackend for CexHttpEconomyBackend {
         binding: &EconomyAccountBinding,
         cursor: u64,
     ) -> Result<Option<WalletSnapshot>, String> {
+        note_instrumented_network_io();
         let response = self
             .request("/v1/trillionnium/economy/wallet")
             .json(&serde_json::json!({
@@ -500,7 +607,7 @@ impl CampaignFlow {
         Ok(())
     }
 
-    pub fn reconcile_economy_now(&mut self) -> Result<String, String> {
+    fn reconcile_economy_now_blocking(&mut self) -> Result<String, String> {
         let mut candidate = self.save.clone();
         Self::bind_cex_from_env_if_present(&mut candidate)?;
         let report = if candidate.economy_mode == EconomyMode::CexConnected {
@@ -532,7 +639,7 @@ impl CampaignFlow {
         ))
     }
 
-    pub fn begin_tradeable_purchase_and_reconcile(&mut self) -> Result<String, String> {
+    fn begin_tradeable_purchase_and_reconcile_blocking(&mut self) -> Result<String, String> {
         let mut candidate = self.save.clone();
         Self::bind_cex_from_env_if_present(&mut candidate)?;
         let market_account_id = env::var("TRNM_CEX_MARKET_ACCOUNT_ID")
@@ -564,7 +671,9 @@ impl CampaignFlow {
         ))
     }
 
-    pub fn cancel_latest_tradeable_purchase_and_reconcile(&mut self) -> Result<String, String> {
+    fn cancel_latest_tradeable_purchase_and_reconcile_blocking(
+        &mut self,
+    ) -> Result<String, String> {
         let mut candidate = self.save.clone();
         Self::bind_cex_from_env_if_present(&mut candidate)?;
         let purchase_id = candidate
@@ -861,12 +970,16 @@ fn apply_campaign_ui_intent(
 
 pub(super) fn handle_campaign_ui_intents(
     mut intents: ResMut<CampaignUiIntents>,
+    economy_tasks: Option<Res<CampaignEconomyTasks>>,
     mut map: ResMut<FirstContactMap>,
     maps: Res<MissionMapCatalog>,
     mut flow: ResMut<CampaignFlow>,
     mut runtime: ResMut<FirstContactRuntime>,
     mut adapter: ResMut<FirstContactSimulationAdapter>,
 ) {
+    if economy_tasks.is_some_and(|tasks| tasks.in_flight()) {
+        return;
+    }
     let Some(intent) = intents.take_first() else {
         return;
     };
@@ -887,16 +1000,26 @@ pub(super) fn handle_campaign_ui_intents(
 pub(super) fn handle_campaign_input(
     input: Res<ButtonInput<KeyCode>>,
     ui_intents: Option<Res<CampaignUiIntents>>,
-    mut map: ResMut<FirstContactMap>,
-    maps: Res<MissionMapCatalog>,
-    mut flow: ResMut<CampaignFlow>,
-    mut runtime: ResMut<FirstContactRuntime>,
-    mut adapter: ResMut<FirstContactSimulationAdapter>,
+    mut economy_tasks: Option<ResMut<CampaignEconomyTasks>>,
+    state: CampaignInputState,
 ) {
+    let CampaignInputState {
+        mut map,
+        maps,
+        mut flow,
+        mut runtime,
+        mut adapter,
+    } = state;
     // A physical click and a key can land in the same update while running the
     // Hybrid profile. The explicit UI intent wins so one frame can never
     // advance the authoritative campaign twice.
     if ui_intents.is_some_and(|intents| intents.has_pending()) {
+        return;
+    }
+    if economy_tasks
+        .as_ref()
+        .is_some_and(|tasks| tasks.in_flight())
+    {
         return;
     }
     if flow.settings.input_mode == InputMode::MouseOnly {
@@ -943,12 +1066,18 @@ pub(super) fn handle_campaign_input(
         let control = input.pressed(KeyCode::ControlLeft) || input.pressed(KeyCode::ControlRight);
         let shift = input.pressed(KeyCode::ShiftLeft) || input.pressed(KeyCode::ShiftRight);
         let alt = input.pressed(KeyCode::AltLeft) || input.pressed(KeyCode::AltRight);
-        let result = if control && alt {
-            flow.cancel_latest_tradeable_purchase_and_reconcile()
-        } else if control && shift {
-            flow.begin_tradeable_purchase_and_reconcile()
-        } else if control {
-            flow.reconcile_economy_now()
+        let result = if control {
+            let action = if alt {
+                CampaignEconomyAction::Cancel
+            } else if shift {
+                CampaignEconomyAction::Purchase
+            } else {
+                CampaignEconomyAction::Reconcile
+            };
+            economy_tasks
+                .as_deref_mut()
+                .ok_or_else(|| "economy worker is unavailable".to_string())
+                .and_then(|tasks| tasks.start(&mut flow, action))
         } else {
             flow.cycle_control_scheme()
                 .map(|()| format!("Control scheme: {:?}", flow.settings.control_scheme))
@@ -961,8 +1090,10 @@ pub(super) fn handle_campaign_input(
         let control = input.pressed(KeyCode::ControlLeft) || input.pressed(KeyCode::ControlRight);
         let shift = input.pressed(KeyCode::ShiftLeft) || input.pressed(KeyCode::ShiftRight);
         if control && shift {
-            flow.status = flow
-                .cancel_latest_tradeable_purchase_and_reconcile()
+            flow.status = economy_tasks
+                .as_deref_mut()
+                .ok_or_else(|| "economy worker is unavailable".to_string())
+                .and_then(|tasks| tasks.start(&mut flow, CampaignEconomyAction::Cancel))
                 .unwrap_or_else(|error| error);
         } else {
             match flow.cycle_master_volume() {
@@ -1634,7 +1765,52 @@ pub(super) fn handle_campaign_input(
     }
 }
 
-fn native_economy_e2e_tap(app: &mut App, key: KeyCode, shift: bool, control: bool, alt: bool) {
+pub(super) fn pump_campaign_economy_tasks(
+    mut tasks: ResMut<CampaignEconomyTasks>,
+    mut flow: ResMut<CampaignFlow>,
+) {
+    enum CompletionPoll {
+        Ready(CampaignEconomyCompletion),
+        Empty,
+        Disconnected,
+        Poisoned,
+    }
+    let completion = {
+        match tasks.completions.lock() {
+            Ok(completions) => match completions.try_recv() {
+                Ok(completion) => CompletionPoll::Ready(completion),
+                Err(TryRecvError::Empty) => CompletionPoll::Empty,
+                Err(TryRecvError::Disconnected) => CompletionPoll::Disconnected,
+            },
+            Err(_) => CompletionPoll::Poisoned,
+        }
+    };
+    let completion = match completion {
+        CompletionPoll::Ready(completion) => completion,
+        CompletionPoll::Empty => return,
+        CompletionPoll::Disconnected => {
+            tasks.in_flight = false;
+            flow.status = "economy worker disconnected before completion".to_string();
+            return;
+        }
+        CompletionPoll::Poisoned => {
+            tasks.in_flight = false;
+            flow.status = "economy worker completion queue is unavailable".to_string();
+            return;
+        }
+    };
+    tasks.in_flight = false;
+    *flow = *completion.flow;
+    flow.status = completion.result.unwrap_or_else(|error| error);
+}
+
+fn native_economy_e2e_tap(
+    app: &mut App,
+    key: KeyCode,
+    shift: bool,
+    control: bool,
+    alt: bool,
+) -> Result<(), String> {
     {
         let mut input = app.world_mut().resource_mut::<ButtonInput<KeyCode>>();
         if shift {
@@ -1655,6 +1831,14 @@ fn native_economy_e2e_tap(app: &mut App, key: KeyCode, shift: bool, control: boo
     input.release(KeyCode::ControlLeft);
     input.release(KeyCode::AltLeft);
     input.clear();
+    for _ in 0..600 {
+        app.update();
+        if !app.world().resource::<CampaignEconomyTasks>().in_flight() {
+            return Ok(());
+        }
+        thread::sleep(Duration::from_millis(10));
+    }
+    Err("native economy worker did not complete within six seconds".to_string())
 }
 
 pub(super) fn run_native_economy_e2e_phase(phase: &str) -> Result<Value, String> {
@@ -1667,9 +1851,13 @@ pub(super) fn run_native_economy_e2e_phase(phase: &str) -> Result<Value, String>
         .insert_resource(map)
         .insert_resource(maps)
         .insert_resource(flow)
+        .insert_resource(CampaignEconomyTasks::default())
         .insert_resource(FirstContactRuntime::default())
         .insert_resource(FirstContactSimulationAdapter::default())
-        .add_systems(Update, handle_campaign_input);
+        .add_systems(
+            Update,
+            (pump_campaign_economy_tasks, handle_campaign_input).chain(),
+        );
 
     if phase == "purchase" {
         {
@@ -1693,13 +1881,13 @@ pub(super) fn run_native_economy_e2e_phase(phase: &str) -> Result<Value, String>
                     .map_err(|error| error.to_string())?;
             }
         }
-        native_economy_e2e_tap(&mut app, KeyCode::F7, false, true, false);
-        native_economy_e2e_tap(&mut app, KeyCode::F7, true, true, false);
+        native_economy_e2e_tap(&mut app, KeyCode::F7, false, true, false)?;
+        native_economy_e2e_tap(&mut app, KeyCode::F7, true, true, false)?;
     } else {
         app.world_mut().resource_mut::<CampaignFlow>().shell_mode = ShellMode::Playing;
-        native_economy_e2e_tap(&mut app, KeyCode::F7, false, true, false);
+        native_economy_e2e_tap(&mut app, KeyCode::F7, false, true, false)?;
         if phase == "cancel" {
-            native_economy_e2e_tap(&mut app, KeyCode::F8, true, true, false);
+            native_economy_e2e_tap(&mut app, KeyCode::F8, true, true, false)?;
         }
     }
 
@@ -1784,6 +1972,88 @@ mod tests {
             // All Bevy App owners have been dropped before this helper runs.
             let _ = unsafe { malloc_trim(0) };
         }
+    }
+
+    #[test]
+    fn economy_reconciliation_dispatch_does_not_block_the_bevy_update_thread() {
+        let nonce = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let root = std::env::temp_dir().join(format!(
+            "trnm-economy-worker-{}-{nonce}",
+            std::process::id()
+        ));
+        std::fs::create_dir_all(&root).unwrap();
+        let slot_store = SaveSlotStore::new(&root);
+        let save_path = slot_store.path(SaveSlotId::A);
+        let maps =
+            MissionMapCatalog::load(&Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../assets"))
+                .unwrap();
+        let flow = CampaignFlow {
+            save: CampaignSaveV1::default(),
+            mode: CampaignMode::Town,
+            mission: None,
+            last_receipt: None,
+            status: String::new(),
+            last_checkpoint_tick: 0,
+            shell_mode: ShellMode::Playing,
+            active_slot: SaveSlotId::A,
+            selected_slot: SaveSlotId::A,
+            overwrite_pending: None,
+            replay_cursor_tick: 0,
+            replay_speed: 1,
+            replay_paused: true,
+            replay_camera_x: 0,
+            replay_camera_y: 0,
+            settings: PlayerSettings::default(),
+            settings_store: PlayerSettingsStore::new(root.join("settings.json")),
+            store: CampaignStore::new(&save_path),
+            checkpoint_store: SimCheckpointStore::new(checkpoint_path_for(&save_path)),
+            slot_store,
+        };
+        let mut app = App::new();
+        app.insert_resource(ButtonInput::<KeyCode>::default())
+            .insert_resource(maps.first_contact.clone())
+            .insert_resource(maps)
+            .insert_resource(flow)
+            .insert_resource(CampaignEconomyTasks::default())
+            .insert_resource(FirstContactRuntime::default())
+            .insert_resource(FirstContactSimulationAdapter::default())
+            .add_systems(
+                Update,
+                (pump_campaign_economy_tasks, handle_campaign_input).chain(),
+            );
+        {
+            let mut input = app.world_mut().resource_mut::<ButtonInput<KeyCode>>();
+            input.press(KeyCode::ControlLeft);
+            input.press(KeyCode::F7);
+        }
+        let started = std::time::Instant::now();
+        app.update();
+        assert!(started.elapsed() < Duration::from_millis(50));
+        assert!(app.world().resource::<CampaignEconomyTasks>().in_flight());
+        {
+            let mut input = app.world_mut().resource_mut::<ButtonInput<KeyCode>>();
+            input.release(KeyCode::F7);
+            input.release(KeyCode::ControlLeft);
+            input.clear();
+        }
+        for _ in 0..100 {
+            app.update();
+            if !app.world().resource::<CampaignEconomyTasks>().in_flight() {
+                break;
+            }
+            thread::sleep(Duration::from_millis(1));
+        }
+        assert!(!app.world().resource::<CampaignEconomyTasks>().in_flight());
+        assert!(app
+            .world()
+            .resource::<CampaignFlow>()
+            .status
+            .starts_with("ECON OfflineLocal"));
+        drop(app);
+        std::fs::remove_dir_all(root).unwrap();
     }
 
     fn tap_client_key(app: &mut App, key: KeyCode, shift: bool, control: bool) {

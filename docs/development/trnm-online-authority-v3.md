@@ -317,22 +317,24 @@ past the recovery cap.
 Authority v3 is a local realtime vertical slice, not a public-network or
 commercial-release claim.
 
-- The isolated database-path run
+- The isolated pre-refactor database-path run
   `run/online-latency/pg-rtt100-1783989631-2381685/decision.json` installed
   50 ms each way only after the match entered `running` and observed 7,190
   netem packets during the effect window. Effect p95/max rose to
   3,158/3,416 ms, ACK p95/p99 to 2,748/3,137 ms and actor drift to 848.48
-  ticks. All three design thresholds failed on the pre-refactor deployed path.
-  The asynchronous state machine described above now exists and passes the
-  current serial source gate, but the
-  old failure remains the latest black-box database-latency evidence until a
-  promoted build passes the same profile.
+  ticks. All three design thresholds failed. The promoted asynchronous release
+  passed the same profile in
+  `run/online-faults/pg-rtt100-a3e1d6d7ffe4-20260715T234918Z-053868/decision.json`:
+  effect p95 256 ms, ACK p95 244 ms/max 476 ms, maximum cumulative actor drift
+  1.0011 ticks and 191/191 healthy readiness samples. This supersedes the old
+  failure as current local database-latency evidence without granting a public
+  SLO claim.
 - HTTP acceptance latency is not authoritative-effect latency. A 2026-07-14
   port-scoped 100-ms RTT/1%-loss run measured 20 command-submit-to-hash-verified
   stream effects at p95 256 ms/max 364 ms and passed the p95 300-ms gate. This
   does not establish the same SLO under public Internet routing or production
-  concurrency. The separately injected PostgreSQL result above explicitly
-  fails the realtime SLO and must not be presented as a passing profile.
+  concurrency. The release-bound PostgreSQL result above passes its local
+  profile but must not be presented as public-network or regional evidence.
 - The stream currently sends JSON full snapshots or top-level deltas. It is not
   evidence of compressed binary transport, large public concurrency or regional
   capacity.
@@ -341,9 +343,11 @@ commercial-release claim.
   restart, rollback, ambiguous-commit and multi-client black-box fault drills.
 - Active-match v2-to-v3 ownership takeover is unproven and must remain a drain
   boundary until a cross-generation recovery matrix passes.
-- An independent clean 24-hour endurance run remains required. Earlier bounded
-  local netem and soak evidence does not substitute for the new v3 path's final
-  active-match evidence.
+- An independent clean 24-hour endurance run remains required. Attempt
+  `capacity-1784159702-574915978` failed closed after 4,779 seconds, and
+  `capacity-1784396963-2295312903` was SIGKILLed without a final summary after
+  3,129 sampled seconds. Neither earns partial endurance credit; the next run
+  must be isolated from OpenClaw/build pressure.
 - Public TLS/mTLS edge, WAF/DDoS protection, cross-host or multi-region HA,
   off-host backup retention, KMS/HSM custody, staffed moderation/support and
   human multiplayer usability remain release gates.

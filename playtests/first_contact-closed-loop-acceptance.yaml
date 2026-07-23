@@ -41,9 +41,10 @@ boundaries:
   fabricated_human_observation: false
   public_launch_claimed: false
   android_s5_claimed: false
-  online_authority_claimed: false
+  online_authority_credited_by_this_offline_packet: false
+  current_product_online_authority_exists: true
 workspaces:
-  game_product_crates: 5
+  game_product_crates: 8
   platform_crates: 12
   frozen_legacy_crates: 14
   product_rpg_core: trnm-rpg-core

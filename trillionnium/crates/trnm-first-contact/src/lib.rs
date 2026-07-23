@@ -3,6 +3,7 @@ mod audio;
 mod campaign_flow;
 mod campaign_ui;
 mod evidence_adapter;
+mod frame_timing;
 mod hud;
 mod map_loader;
 mod online_authority;
@@ -15,11 +16,13 @@ use asset_loader::{load_first_contact_atlas, FirstContactAtlasManifest};
 use audio::{spawn_trnm_audio, sync_trnm_audio, validate_trnm_audio_assets};
 use bevy::prelude::*;
 use campaign_flow::{
-    handle_campaign_input, handle_campaign_ui_intents, settle_finished_battle, CampaignFlow,
-    CampaignMode, CampaignUiIntents, ShellMode,
+    handle_campaign_input, handle_campaign_ui_intents, pump_campaign_economy_tasks,
+    settle_finished_battle, CampaignEconomyTasks, CampaignFlow, CampaignMode, CampaignUiIntents,
+    ShellMode,
 };
 use campaign_ui::{collect_campaign_ui_intents, spawn_campaign_ui, update_campaign_ui};
 use evidence_adapter::FirstContactVisualAcceptance;
+use frame_timing::{begin_online_frame_timing, record_online_frame_timing, OnlineFrameTiming};
 use hud::{
     handle_first_contact_command_card_interactions, spawn_first_contact_hud,
     update_first_contact_hud,
@@ -35,10 +38,7 @@ use simulation_adapter::{
     handle_first_contact_mouse_selection, pan_first_contact_camera, FirstContactCommandIntents,
     FirstContactRuntime, FirstContactSimulationAdapter, MouseSelectionState,
 };
-use std::{
-    path::{Path, PathBuf},
-    time::Instant,
-};
+use std::path::{Path, PathBuf};
 
 pub use evidence_adapter::{FirstContactVisualAcceptance as VisualAcceptance, ObserverAnswer};
 
@@ -52,104 +52,6 @@ pub struct FirstContactLivePlugin {
     atlas: FirstContactAtlasManifest,
     campaign: CampaignFlow,
     online: Option<OnlineAuthorityClient>,
-}
-
-#[derive(Resource)]
-struct OnlineFrameTiming {
-    evidence_path: PathBuf,
-    warmup_started_at: Instant,
-    warmup_seconds: f64,
-    measurement_started_at: Option<Instant>,
-    frame_count: u64,
-    frames_over_100ms: u64,
-    max_frame_delta_ms: f64,
-    update_started_at: Option<Instant>,
-    main_thread_updates_over_100ms: u64,
-    max_main_thread_update_ms: f64,
-    write_accumulator: f32,
-}
-
-impl OnlineFrameTiming {
-    fn from_env() -> Option<Self> {
-        std::env::var_os("TRNM_ONLINE_FRAME_TIMING_PATH").map(|path| Self {
-            evidence_path: PathBuf::from(path),
-            warmup_started_at: Instant::now(),
-            warmup_seconds: std::env::var("TRNM_ONLINE_FRAME_TIMING_WARMUP_SECONDS")
-                .ok()
-                .and_then(|value| value.parse().ok())
-                .unwrap_or(5.0),
-            measurement_started_at: None,
-            frame_count: 0,
-            frames_over_100ms: 0,
-            max_frame_delta_ms: 0.0,
-            update_started_at: None,
-            main_thread_updates_over_100ms: 0,
-            max_main_thread_update_ms: 0.0,
-            write_accumulator: 0.0,
-        })
-    }
-}
-
-fn begin_online_frame_timing(timing: Option<ResMut<OnlineFrameTiming>>) {
-    if let Some(mut timing) = timing {
-        timing.update_started_at = Some(Instant::now());
-    }
-}
-
-fn record_online_frame_timing(time: Res<Time>, timing: Option<ResMut<OnlineFrameTiming>>) {
-    let Some(mut timing) = timing else {
-        return;
-    };
-    if timing.warmup_started_at.elapsed().as_secs_f64() < timing.warmup_seconds {
-        timing.update_started_at = None;
-        return;
-    }
-    if timing.measurement_started_at.is_none() {
-        timing.measurement_started_at = Some(Instant::now());
-        timing.update_started_at = None;
-        return;
-    }
-    let delta_ms = time.delta_secs_f64() * 1_000.0;
-    timing.frame_count = timing.frame_count.saturating_add(1);
-    timing.max_frame_delta_ms = timing.max_frame_delta_ms.max(delta_ms);
-    if delta_ms > 100.0 {
-        timing.frames_over_100ms = timing.frames_over_100ms.saturating_add(1);
-    }
-    if let Some(started_at) = timing.update_started_at.take() {
-        let update_ms = started_at.elapsed().as_secs_f64() * 1_000.0;
-        timing.max_main_thread_update_ms = timing.max_main_thread_update_ms.max(update_ms);
-        if update_ms > 100.0 {
-            timing.main_thread_updates_over_100ms =
-                timing.main_thread_updates_over_100ms.saturating_add(1);
-        }
-    }
-    timing.write_accumulator += time.delta_secs();
-    if timing.write_accumulator < 0.5 {
-        return;
-    }
-    timing.write_accumulator = 0.0;
-    let report = serde_json::json!({
-        "contract_version": "trnm_online_render_frame_timing_v1",
-        "warmup_seconds": timing.warmup_seconds,
-        "measurement_elapsed_ms": timing.measurement_started_at
-            .map(|started| started.elapsed().as_secs_f64() * 1_000.0)
-            .unwrap_or_default(),
-        "frame_count": timing.frame_count,
-        "frames_over_100ms": timing.frames_over_100ms,
-        "max_frame_delta_ms": timing.max_frame_delta_ms,
-        "main_thread_updates_over_100ms": timing.main_thread_updates_over_100ms,
-        "max_main_thread_update_ms": timing.max_main_thread_update_ms,
-        "network_requests_on_render_thread": false,
-        "network_main_thread_passed": timing.main_thread_updates_over_100ms == 0,
-        "frame_cadence_passed": timing.frames_over_100ms == 0,
-        "passed": timing.frames_over_100ms == 0 && timing.main_thread_updates_over_100ms == 0,
-    });
-    if let Some(parent) = timing.evidence_path.parent() {
-        let _ = std::fs::create_dir_all(parent);
-    }
-    if let Ok(bytes) = serde_json::to_vec_pretty(&report) {
-        let _ = std::fs::write(&timing.evidence_path, bytes);
-    }
 }
 
 impl FirstContactLivePlugin {
@@ -205,6 +107,7 @@ impl Plugin for FirstContactLivePlugin {
             .insert_resource(self.maps.clone())
             .insert_resource(self.atlas.clone())
             .insert_resource(self.campaign.clone())
+            .insert_resource(CampaignEconomyTasks::default())
             .insert_resource(runtime)
             .init_resource::<FirstContactSimulationAdapter>()
             .init_resource::<FirstContactCommandIntents>()
@@ -225,6 +128,7 @@ impl Plugin for FirstContactLivePlugin {
                 Update,
                 (
                     begin_online_frame_timing,
+                    pump_campaign_economy_tasks,
                     collect_campaign_ui_intents,
                     handle_campaign_input,
                     handle_campaign_ui_intents,

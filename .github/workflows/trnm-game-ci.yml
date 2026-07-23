@@ -13,6 +13,10 @@ on:
       - 'scripts/check-trnm-online-*.sh'
       - 'scripts/run-trnm-*.sh'
       - 'scripts/install-trnm-game-server-systemd.sh'
+      - 'scripts/package-trnm-game-release.sh'
+      - 'scripts/check-trnm-game-package.sh'
+      - 'packaging/**'
+      - 'GAME_STATUS.md'
       - '.github/workflows/trnm-game-ci.yml'
   push:
     branches: [main]
@@ -26,6 +30,10 @@ on:
       - 'scripts/check-trnm-online-*.sh'
       - 'scripts/run-trnm-*.sh'
       - 'scripts/install-trnm-game-server-systemd.sh'
+      - 'scripts/package-trnm-game-release.sh'
+      - 'scripts/check-trnm-game-package.sh'
+      - 'packaging/**'
+      - 'GAME_STATUS.md'
       - '.github/workflows/trnm-game-ci.yml'
 
 permissions:
@@ -54,7 +62,7 @@ jobs:
         with:
           components: rustfmt, clippy
       - name: Install native build dependencies
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libasound2-dev libudev-dev libx11-dev libxi-dev libxkbcommon-dev libwayland-dev pkg-config
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends jq libasound2-dev libudev-dev libx11-dev libxi-dev libxkbcommon-dev libwayland-dev pkg-config
       - name: Resource budget contract
         run: ../scripts/check-trnm-online-resource-budgets.sh
       - name: Format
@@ -65,16 +73,17 @@ jobs:
         run: cargo clippy --workspace --all-targets --locked -- -D warnings
       - name: Release player and online services
         run: cargo build --release --locked -p trnm-first-contact -p trnm-game-server --bins
-      - name: Upload release artifacts
+      - name: Package complete Linux distribution
+        run: ../scripts/package-trnm-game-release.sh --require-clean --output-dir ../run/ci-distribution
+      - name: Verify Linux distribution
+        run: |
+          archive="$(find ../run/ci-distribution -maxdepth 1 -type f -name '*.tar.gz' -print -quit)"
+          TRNM_REQUIRE_CLEAN_PACKAGE=1 ../scripts/check-trnm-game-package.sh "$archive"
+      - name: Upload complete release artifact
         uses: actions/upload-artifact@v4
         with:
           name: trnm-game-${{ github.sha }}
-          path: |
-            trillionnium/target/release/trnm-first-contact
-            trillionnium/target/release/trnm-online-product
-            trillionnium/target/release/trnm-game-server
-            trillionnium/target/release/trnm-entitlement-signer
-            trillionnium/Cargo.lock
+          path: run/ci-distribution/**
           if-no-files-found: error
 
   supply-chain:

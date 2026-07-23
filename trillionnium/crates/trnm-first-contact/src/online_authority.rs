@@ -1,3 +1,4 @@
+use crate::frame_timing::note_instrumented_network_io;
 use crate::online_command_journal::{
     JournalStoreError, OnlineCommandJournal, OnlineCommandJournalScope, PendingExactCommandAttempt,
     MAX_PENDING_EXACT_ATTEMPTS,
@@ -46,6 +47,7 @@ struct CommandIntent {
     order: RtsFrameOrder,
     label: String,
     intent_id: String,
+    input_accepted_at: Instant,
     legacy_sequence: u64,
     observed_next_input_sequence: u64,
     expected_match_revision: u64,
@@ -73,6 +75,11 @@ enum JournalRequest {
     FailStop(String),
 }
 
+struct NetworkCommandJob {
+    command: CommandJob,
+    input_accepted_at: Option<Instant>,
+}
+
 enum WorkerEvent {
     CommandAccepted(Box<WorkerCommandAccepted>),
     SnapshotRefreshCompleted,
@@ -93,6 +100,7 @@ struct WorkerCommandAccepted {
     order: RtsFrameOrder,
     label: String,
     round_trip_ms: f64,
+    input_to_durable_ack_ms: Option<f64>,
 }
 
 pub(super) enum OnlineClientEvent {
@@ -111,6 +119,7 @@ pub(super) struct OnlineCommandAcceptedEvent {
     pub order: RtsFrameOrder,
     pub label: String,
     pub round_trip_ms: f64,
+    pub input_to_durable_ack_ms: Option<f64>,
 }
 
 #[derive(Clone, Resource)]
@@ -328,6 +337,7 @@ impl OnlineAuthorityClient {
             order,
             label,
             intent_id,
+            input_accepted_at: Instant::now(),
             legacy_sequence: self.view.view.next_sequence,
             observed_next_input_sequence: member_next_input_sequence(&self.view, &self.player_id)?,
             expected_match_revision: self.view.view.match_revision,
@@ -385,6 +395,7 @@ impl OnlineAuthorityClient {
                             order: event.order,
                             label: event.label,
                             round_trip_ms: event.round_trip_ms,
+                            input_to_durable_ack_ms: event.input_to_durable_ack_ms,
                         },
                     )));
                 }
@@ -551,6 +562,7 @@ fn consume_stream_connection(
     };
     // Redirects are deliberately disabled so the authenticated session header
     // can never be forwarded to a different authority endpoint.
+    note_instrumented_network_io();
     let (mut socket, response) =
         tungstenite::client::connect_with_config(request, Some(websocket_config), 0)
             .map_err(|error| format!("connect online state stream: {error}"))?;
@@ -565,6 +577,7 @@ fn consume_stream_connection(
     configure_stream_socket(&mut socket)?;
 
     loop {
+        note_instrumented_network_io();
         let message = socket
             .read()
             .map_err(|error| format!("read online state stream: {error}"))?;
@@ -931,15 +944,26 @@ fn spawn_command_workers(
         .pending_exact_attempts
         .iter()
         .cloned()
+        .map(|command| NetworkCommandJob {
+            command,
+            input_accepted_at: None,
+        })
         .collect::<Vec<_>>();
-    let (network_tx, network_rx) = mpsc::sync_channel(ONLINE_COMMAND_QUEUE_CAPACITY);
+    let (network_tx, network_rx) =
+        mpsc::sync_channel::<NetworkCommandJob>(ONLINE_COMMAND_QUEUE_CAPACITY);
     let network_events = events.clone();
     let network_pending = Arc::clone(&pending_commands);
     thread::Builder::new()
         .name("trnm-online-command-network".to_string())
         .spawn(move || {
             while let Ok(job) = network_rx.recv() {
-                match submit_command_until_resolved(&client, &config, &mutation_tx, job) {
+                match submit_command_until_resolved(
+                    &client,
+                    &config,
+                    &mutation_tx,
+                    job.command,
+                    job.input_accepted_at,
+                ) {
                     Ok(event) => {
                         release_pending_slot(&network_pending);
                         if network_events.send(event).is_err() {
@@ -963,9 +987,9 @@ fn spawn_command_workers(
 
 fn run_journal_owner(
     mut journal: OnlineCommandJournal,
-    recovered: Vec<CommandJob>,
+    recovered: Vec<NetworkCommandJob>,
     requests: Receiver<JournalRequest>,
-    network: SyncSender<CommandJob>,
+    network: SyncSender<NetworkCommandJob>,
     events: SyncSender<WorkerEvent>,
 ) {
     for job in recovered {
@@ -1100,7 +1124,7 @@ fn run_journal_owner(
 fn enqueue_command_intent(
     journal: &mut OnlineCommandJournal,
     intent: CommandIntent,
-) -> Result<CommandJob, String> {
+) -> Result<NetworkCommandJob, String> {
     if intent.observed_next_input_sequence > journal.next_input_sequence {
         journal.advance_input_sequence(intent.observed_next_input_sequence)?;
     }
@@ -1118,15 +1142,18 @@ fn enqueue_command_intent(
         client_observed_tick: Some(intent.client_observed_tick),
         order: intent.order.clone(),
     };
-    let job = CommandJob {
+    let command = CommandJob {
         request,
         order: intent.order,
         label: intent.label,
         intent_id: intent.intent_id,
         attempt: 0,
     };
-    journal.enqueue_exact_attempt(job.clone())?;
-    Ok(job)
+    journal.enqueue_exact_attempt(command.clone())?;
+    Ok(NetworkCommandJob {
+        command,
+        input_accepted_at: Some(intent.input_accepted_at),
+    })
 }
 
 fn store_journal_mutation(
@@ -1169,6 +1196,7 @@ fn submit_command_until_resolved(
     config: &NetworkConfig,
     journal: &SyncSender<JournalRequest>,
     mut job: CommandJob,
+    input_accepted_at: Option<Instant>,
 ) -> Result<WorkerEvent, String> {
     let started = Instant::now();
     let mut retry_delay = ONLINE_COMMAND_RETRY_MIN;
@@ -1198,6 +1226,8 @@ fn submit_command_until_resolved(
                     order: job.order,
                     label: job.label,
                     round_trip_ms: started.elapsed().as_secs_f64() * 1_000.0,
+                    input_to_durable_ack_ms: input_accepted_at
+                        .map(|accepted| accepted.elapsed().as_secs_f64() * 1_000.0),
                 },
             )));
         }
@@ -1384,6 +1414,7 @@ fn send_with_retry(
         let retry = request
             .try_clone()
             .ok_or_else(|| format!("{context}: request cannot be retried safely"))?;
+        note_instrumented_network_io();
         match retry.send() {
             Ok(response) => return Ok(response),
             Err(error) => {
@@ -1820,7 +1851,7 @@ mod tests {
         for sequence in 0..MAX_PENDING_EXACT_ATTEMPTS as u64 {
             let before = journal.clone();
             let job = enqueue_command_intent(&mut journal, test_command_intent(sequence)).unwrap();
-            allocated.push(job.request.input_sequence.unwrap());
+            allocated.push(job.command.request.input_sequence.unwrap());
             store_journal_mutation(&mut journal, before, "test durable enqueue").unwrap();
         }
         assert_eq!(
@@ -1995,6 +2026,7 @@ mod tests {
             order,
             label: "Move".to_string(),
             intent_id: format!("intent-{sequence}"),
+            input_accepted_at: Instant::now(),
             legacy_sequence: 0,
             observed_next_input_sequence: 0,
             expected_match_revision: 3,

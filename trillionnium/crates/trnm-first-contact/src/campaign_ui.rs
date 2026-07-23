@@ -20,6 +20,9 @@ pub(super) struct CampaignPanel;
 pub(super) struct CampaignTitle;
 
 #[derive(Component)]
+pub(super) struct CampaignObjective;
+
+#[derive(Component)]
 pub(super) struct CampaignBody;
 
 #[derive(Component)]
@@ -54,7 +57,9 @@ fn campaign_action_button(slot: usize) -> impl Bundle {
     (
         Button,
         Node {
-            min_width: px(150),
+            min_width: px(170),
+            max_width: px(320),
+            flex_grow: 1.0,
             height: px(46),
             padding: UiRect::axes(px(16), px(8)),
             border: UiRect::all(px(2)),
@@ -88,9 +93,9 @@ fn spawn_campaign_ui_root(commands: &mut Commands) {
             height: percent(100),
             flex_direction: FlexDirection::Column,
             align_items: AlignItems::Center,
-            justify_content: JustifyContent::Center,
-            row_gap: px(18),
-            padding: UiRect::all(px(40)),
+            justify_content: JustifyContent::FlexStart,
+            row_gap: px(12),
+            padding: UiRect::all(px(24)),
             ..default()
         },
         BackgroundColor(Color::srgb(0.012, 0.025, 0.024)),
@@ -100,36 +105,66 @@ fn spawn_campaign_ui_root(commands: &mut Commands) {
             (
                 Text::new("TRILLIONNIUM CAMPAIGN"),
                 CampaignTitle,
-                TextFont::from_font_size(34.0),
+                Node {
+                    width: percent(92),
+                    max_width: px(1040),
+                    ..default()
+                },
+                TextFont::from_font_size(30.0),
                 TextColor(Color::srgb(0.95, 0.82, 0.42)),
             ),
             (
                 Node {
-                    width: px(820),
-                    min_height: px(260),
-                    padding: UiRect::all(px(28)),
+                    width: percent(92),
+                    max_width: px(1040),
+                    min_height: px(220),
+                    padding: UiRect::all(px(22)),
                     border: UiRect::all(px(2)),
+                    flex_direction: FlexDirection::Column,
+                    row_gap: px(12),
                     ..default()
                 },
                 BackgroundColor(Color::srgba(0.035, 0.070, 0.064, 0.98)),
                 BorderColor::all(Color::srgb(0.25, 0.52, 0.42)),
                 CampaignPanel,
-                children![(
-                    Text::new("Loading campaign..."),
-                    CampaignBody,
-                    TextFont::from_font_size(19.0),
-                    TextColor(Color::srgb(0.88, 0.92, 0.78)),
-                )],
+                children![
+                    (
+                        Text::new("Preparing your next objective..."),
+                        CampaignObjective,
+                        Node {
+                            width: percent(100),
+                            ..default()
+                        },
+                        TextFont::from_font_size(17.0),
+                        TextColor(Color::srgb(0.95, 0.82, 0.42)),
+                    ),
+                    (
+                        Text::new("Loading campaign..."),
+                        CampaignBody,
+                        Node {
+                            width: percent(100),
+                            ..default()
+                        },
+                        TextFont::from_font_size(16.0),
+                        TextColor(Color::srgb(0.88, 0.92, 0.78)),
+                    )
+                ],
             ),
             (
                 Text::new("1 SQUARE  |  2 MENTOR  |  3 GATE  |  4 RELAY QUARTER"),
                 CampaignActions,
-                TextFont::from_font_size(18.0),
+                Node {
+                    width: percent(92),
+                    max_width: px(1040),
+                    ..default()
+                },
+                TextFont::from_font_size(16.0),
                 TextColor(Color::srgb(0.62, 0.88, 0.70)),
             ),
             (
                 Node {
-                    width: px(820),
+                    width: percent(92),
+                    max_width: px(1040),
                     flex_wrap: FlexWrap::Wrap,
                     justify_content: JustifyContent::Center,
                     row_gap: px(10),
@@ -149,6 +184,11 @@ fn spawn_campaign_ui_root(commands: &mut Commands) {
             (
                 Text::new("Campaign ready"),
                 CampaignStatus,
+                Node {
+                    width: percent(92),
+                    max_width: px(1040),
+                    ..default()
+                },
                 TextFont::from_font_size(15.0),
                 TextColor(Color::srgb(0.72, 0.80, 0.76)),
             ),
@@ -198,7 +238,6 @@ fn quest_label(state: QuestState) -> &'static str {
 
 pub(super) fn town_body(flow: &CampaignFlow) -> String {
     let save = &flow.save;
-    let guide = save.current_guide_step();
     let route = save.current_task_route_plan();
     let navigation = if let Some(exit) = route.next_exit.as_ref() {
         format!(
@@ -228,7 +267,7 @@ pub(super) fn town_body(flow: &CampaignFlow) -> String {
     }
     let body = match save.room {
         CampaignRoom::MirrorSquare => format!(
-            "{}\n\n{}  |  ORIGIN {}  |  LV {}  |  XP {}  |  CR {}  |  REP {}\nGUIDE: {}\nTIME {}  |  STAMINA {}  |  RATIONS {}  |  WATER {}\nGROWTH {}  |  PREVIEW {:?}  |  BUILD {:?}  |  TITLE {:?}\n{}\n\nO changes origin before mentor progress; A/S/D choose growth; Q earns the selected path title through its mastery challenge.\n\nSTORY: {:?}  |  MISSION: {}  |  AFTERSHOCK WINS {}  |  SAVE REVISION {}",
+            "{}\n\n{}  |  ORIGIN {}  |  LV {}  |  XP {}  |  CR {}  |  REP {}\nTIME {}  |  STAMINA {}  |  RATIONS {}  |  WATER {}\nGROWTH {}  |  PREVIEW {:?}  |  BUILD {:?}  |  TITLE {:?}\n{}\nSTORY: {:?}  |  MISSION: {}  |  AFTERSHOCK WINS {}",
             room_label(save.room),
             save.character.display_name.to_ascii_uppercase(),
             save.character_origin.display_name(),
@@ -236,7 +275,6 @@ pub(super) fn town_body(flow: &CampaignFlow) -> String {
             save.progression.experience,
             save.progression.credits,
             save.character.attributes.reputation,
-            guide.prompt(),
             save.world_clock.label(),
             save.expedition_supplies.stamina,
             save.expedition_supplies.rations,
@@ -249,7 +287,6 @@ pub(super) fn town_body(flow: &CampaignFlow) -> String {
             save.story.current_step,
             quest_label(save.quest_state),
             save.progression.aftershock_completions,
-            save.revision,
         ),
         CampaignRoom::MentorHall => {
             let rank = save
@@ -259,7 +296,7 @@ pub(super) fn town_body(flow: &CampaignFlow) -> String {
                 .map(|progress| progress.rank)
                 .unwrap_or(0);
             format!(
-                "{}\n\nMENTOR MET: {}  |  TRAINING COMPLETE: {}\nSELECTED PATH: {}  |  PATH RANK: {}\nSESSIONS: {}/{}  |  CREDITS: {}  |  FACTION: {:?}\n{}\n\nL cycles training; K trains; Y spars; Q attempts the typed {:?} mastery. Growth selects a path, but only mastery grants its title.",
+                "{}\n\nMENTOR MET: {}  |  TRAINING COMPLETE: {}\nSELECTED PATH: {}  |  PATH RANK: {}\nSESSIONS: {}/{}  |  CREDITS: {}  |  FACTION: {:?}\n{}\nMASTERY CHALLENGE: {:?}",
                 room_label(save.room),
                 save.mentor_met,
                 save.trained_with_mentor,
@@ -308,13 +345,12 @@ pub(super) fn town_body(flow: &CampaignFlow) -> String {
                 String::new()
             };
             format!(
-                "{}\n\nMISSION: {} / {}  |  DIFFICULTY: {}  |  LOADOUT: {}\nGUIDE: {}\nPREPARATION: {}  |  TIME: {}\nSTAMINA {}  |  RATIONS {}  |  WATER {}{}\nPARTY (hero + freely chosen companions):\n{}\n\nR cycles preparation; F6 changes difficulty; F10 selects campaign/skirmish. In skirmish T changes faction, Y resources and U victory mode. Every choice is bound into the authoritative BattleSeed.",
+                "{}\n\nMISSION: {} / {}  |  DIFFICULTY: {}  |  LOADOUT: {}\nPREPARATION: {}  |  TIME: {}\nSTAMINA {}  |  RATIONS {}  |  WATER {}{}\nPARTY:\n{}",
                 room_label(save.room),
                 quest_label(save.quest_state),
                 save.active_mission.display_name(),
                 save.difficulty.display_name(),
                 save.selected_loadout.display_name(),
-                guide.prompt(),
                 save.selected_expedition_preparation.display_name(),
                 save.world_clock.label(),
                 save.expedition_supplies.stamina,
@@ -325,7 +361,7 @@ pub(super) fn town_body(flow: &CampaignFlow) -> String {
             )
         }
         CampaignRoom::RelayQuarter => format!(
-            "{}\n\nThe route opened only after First Contact and Aftershock were both secured. T speaks with Relay Smith Brann; U recruits him once trust reaches 8; J begins the typed Signal Road ambush.\n\nCISTERN RELIEF: {:?}\nB advances its typed nodes; at the final choice N reinforces the cistern, M evacuates families.\n\nBRANN TRUST: {}  |  RECRUITED: {}  |  FACTION: {:?}  |  LAST ENCOUNTER: {:?}\n\nSIGNAL ROAD FLAGS: {:?}",
+            "{}\n\nThe route opened after First Contact and Aftershock were secured.\nCISTERN RELIEF: {:?}\nBRANN TRUST: {}  |  RECRUITED: {}  |  FACTION: {:?}\nLAST ENCOUNTER: {:?}",
             room_label(save.room),
             save.quest_chain,
             save.npc_relationships
@@ -337,16 +373,17 @@ pub(super) fn town_body(flow: &CampaignFlow) -> String {
                 .is_some_and(|relation| relation.recruited),
             save.faction_rank,
             save.last_encounter_outcome,
-            save.progression
-                .world_flags
-                .iter()
-                .filter(|flag| flag.contains("contact") || flag.contains("aftershock") || flag.contains("signal_road"))
-                .collect::<Vec<_>>(),
         ),
         room => {
-            let npc = save
-                .current_regional_npc_summary()
-                .unwrap_or_else(|| "No scheduled regional NPC in this room".to_string());
+            let npc = save.current_regional_npc().map(|npc| {
+                let relationship = save.npc_relationships.get(npc.id);
+                format!(
+                    "{} | {:?} | trust {}",
+                    npc.display_name,
+                    npc.role,
+                    relationship.map(|value| value.trust).unwrap_or(0),
+                )
+            }).unwrap_or_else(|| "No regional NPC is present".to_string());
             let dialogue = save
                 .last_npc_conversation
                 .as_ref()
@@ -393,7 +430,7 @@ pub(super) fn town_body(flow: &CampaignFlow) -> String {
             let caravan = save
                 .visible_regional_caravan()
                 .map(|caravan| format!(
-                    "VISIBLE CARAVAN: {} | {} x{} | {} -> {} | integrity {} | risk {} | {:?}\nCtrl+Shift+C escorts it; repeat after escort to intercept it.",
+                    "VISIBLE CARAVAN: {} | {} x{} | {} -> {} | integrity {} | risk {} | {:?}",
                     caravan.caravan_id,
                     caravan.item_id,
                     caravan.quantity,
@@ -405,22 +442,16 @@ pub(super) fn town_body(flow: &CampaignFlow) -> String {
                 ))
                 .unwrap_or_else(|| "VISIBLE CARAVAN: none in this room".to_string());
             format!(
-                "{}\n\nMIRROR CITY REGIONAL DISTRICT\n\nNPC: {}\n{}\n\nQUEST: {}\n{}\n\n{}\n{}\n{}\n\nT talks; Shift+T changes dialogue intent; Ctrl+T joins the sect in a sect hall. F9 accepts, N walks one legal route edge, F10 resolves the graph-ready node, Ctrl+F10 abandons it for a retry, and R changes Direct/Diplomatic/Resourceful resolution. Shift+B selects a chapter outcome; Ctrl+Shift+B advances its authored scene/epilogue. W advances schedules. Shift+K / Ctrl+Shift+K choose techniques. F11 cycles; Shift+F11 buys/crafts; Ctrl+F11 sells; F12 repairs.",
+                "{}\n\nMIRROR CITY REGIONAL DISTRICT\nNPC: {}\n{}\nQUEST: {}\n{}\n{}\n{}\n{}",
                 room_label(room), npc, dialogue, quest, navigation, commerce, story, caravan,
             )
         }
     };
     let body = format!(
-        "{body}\n\nECONOMY: {:?} | soft {} | wallet available {} / reserved {} | outbox {} + priority compensation {} | receipts {} | value events {} | dead letters {}\nCtrl+F7 binds/reconciles; Ctrl+Shift+F7 starts an escrow-backed tradeable purchase; Ctrl+Shift+F8 cancels the latest purchase through the priority compensation lane (Ctrl+Alt+F7 remains a compatibility chord). Local-only, wallet-only and explicit capped dual-track rewards are audited separately. RTS resources and bound items remain local authority; public player listings remain release-gated.",
-        save.economy_mode,
-        save.progression.credits,
+        "{body}\n\nwallet available {} / reserved {}  |  local credits {}",
         save.wallet_snapshot.available_credits,
         save.wallet_snapshot.reserved_credits,
-        save.pending_economic_intents.len(),
-        save.pending_economic_compensations.len(),
-        save.verified_economic_receipts.len(),
-        save.value_events.len(),
-        save.economic_dead_letters.len(),
+        save.progression.credits,
     );
     if flow.settings.subtitles && !save.combat_log.is_empty() {
         let captions = save
@@ -432,6 +463,34 @@ pub(super) fn town_body(flow: &CampaignFlow) -> String {
         format!("{body}\n\nCOMBAT CAPTIONS\n{captions}")
     } else {
         body
+    }
+}
+
+fn campaign_objective(flow: &CampaignFlow) -> String {
+    match flow.shell_mode {
+        ShellMode::Title => {
+            "Choose a save slot, continue a campaign, or open skirmish setup.".to_string()
+        }
+        ShellMode::CharacterCreate => "Confirm a persistent character identity.".to_string(),
+        ShellMode::SkirmishSetup => "Choose the match rules, then deploy.".to_string(),
+        ShellMode::Journal => "Review the active route and return to play.".to_string(),
+        ShellMode::ResumeGuard => "Resume the saved campaign state.".to_string(),
+        ShellMode::Paused => "Resume when ready; your campaign is already saved.".to_string(),
+        ShellMode::ReplayBrowser => {
+            "Inspect a verified replay without changing campaign state.".to_string()
+        }
+        ShellMode::Playing if flow.mode == CampaignMode::Debrief => {
+            "Review the settlement, then return to Mirror Square.".to_string()
+        }
+        ShellMode::Playing if flow.save.active_encounter.is_some() => {
+            "Read the enemy intent, then attack, defend, use a technique, or withdraw.".to_string()
+        }
+        ShellMode::Playing => {
+            if let Some(objective) = flow.save.active_regional_quest_objective() {
+                return objective;
+            }
+            flow.save.current_guide_step().prompt().to_string()
+        }
     }
 }
 
@@ -606,7 +665,7 @@ pub(super) fn campaign_action_specs(flow: &CampaignFlow) -> Vec<CampaignActionSp
                 if flow.overwrite_pending == Some(flow.selected_slot) {
                     format!("CONFIRM OVERWRITE SLOT {}", flow.selected_slot.label())
                 } else {
-                    format!("NEW CAMPAIGN — SLOT {}", flow.selected_slot.label())
+                    format!("NEW CAMPAIGN - SLOT {}", flow.selected_slot.label())
                 },
                 CampaignUiIntent::CreateCampaign,
             ));
@@ -792,6 +851,17 @@ pub(super) fn update_campaign_ui(
         (&mut Text, &mut TextColor),
         (
             With<CampaignTitle>,
+            Without<CampaignObjective>,
+            Without<CampaignBody>,
+            Without<CampaignActions>,
+            Without<CampaignStatus>,
+        ),
+    >,
+    mut objectives: Query<
+        (&mut Text, &mut TextColor),
+        (
+            With<CampaignObjective>,
+            Without<CampaignTitle>,
             Without<CampaignBody>,
             Without<CampaignActions>,
             Without<CampaignStatus>,
@@ -802,6 +872,7 @@ pub(super) fn update_campaign_ui(
         (
             With<CampaignBody>,
             Without<CampaignTitle>,
+            Without<CampaignObjective>,
             Without<CampaignActions>,
             Without<CampaignStatus>,
         ),
@@ -811,23 +882,37 @@ pub(super) fn update_campaign_ui(
         (
             With<CampaignActions>,
             Without<CampaignTitle>,
+            Without<CampaignObjective>,
             Without<CampaignBody>,
             Without<CampaignStatus>,
         ),
     >,
-    mut action_buttons: Query<(
-        &mut Node,
-        &mut CampaignActionButton,
-        &Interaction,
-        &mut BackgroundColor,
-        &mut BorderColor,
-    )>,
-    mut action_labels: Query<(&CampaignActionButtonLabel, &mut Text, &mut TextColor)>,
+    mut action_buttons: Query<
+        (
+            &mut Node,
+            &mut CampaignActionButton,
+            &Interaction,
+            &mut BackgroundColor,
+            &mut BorderColor,
+        ),
+        (Without<CampaignOverlayRoot>, Without<CampaignPanel>),
+    >,
+    mut action_labels: Query<
+        (&CampaignActionButtonLabel, &mut Text, &mut TextColor),
+        (
+            Without<CampaignTitle>,
+            Without<CampaignObjective>,
+            Without<CampaignBody>,
+            Without<CampaignActions>,
+            Without<CampaignStatus>,
+        ),
+    >,
     mut statuses: Query<
         (&mut Text, &mut TextColor),
         (
             With<CampaignStatus>,
             Without<CampaignTitle>,
+            Without<CampaignObjective>,
             Without<CampaignBody>,
             Without<CampaignActions>,
         ),
@@ -886,6 +971,16 @@ pub(super) fn update_campaign_ui(
             Color::srgb(0.95, 0.82, 0.42)
         };
     }
+    for (mut objective, mut color) in &mut objectives {
+        objective.0 = campaign_objective(&flow);
+        color.0 = if hidden {
+            Color::NONE
+        } else if flow.settings.high_contrast {
+            Color::WHITE
+        } else {
+            Color::srgb(0.95, 0.82, 0.42)
+        };
+    }
     for (mut body, mut color) in &mut bodies {
         body.0 = if shell_visible {
             shell_body(&flow)
@@ -902,43 +997,42 @@ pub(super) fn update_campaign_ui(
     }
     for (mut action, mut color) in &mut actions {
         action.0 = if flow.settings.input_mode == InputMode::MouseOnly {
-            "MOUSE-ONLY: choose an available action below; disabled actions are visibly muted."
-                .to_string()
+            "Choose an available action below.".to_string()
         } else if flow.shell_mode == ShellMode::Title {
-            "1/2/3 SLOT | N NEW | ENTER LOAD | K SKIRMISH | P REPLAY | F2 MOTION | F3 INPUT | F5 SUBTITLE/CONTRAST | F7 CONTROLS | F8 AUDIO".to_string()
+            "KEYBOARD | 1-3 slot | N new | Enter continue | K skirmish | P replay".to_string()
         } else if flow.shell_mode == ShellMode::CharacterCreate {
-            "C CYCLE NAME | ENTER CONFIRM | ESC TITLE".to_string()
+            "KEYBOARD | C cycle name | Enter confirm | Esc title".to_string()
         } else if flow.shell_mode == ShellMode::SkirmishSetup {
-            "M MAP | T FACTIONS | Y RESOURCES | U VICTORY | I SEED | ENTER DEPLOY | ESC TITLE"
-                .to_string()
+            "KEYBOARD | M map | T factions | Y resources | U victory | Enter deploy".to_string()
         } else if flow.shell_mode == ShellMode::ReplayBrowser {
-            "ENTER VERIFY REPLAY | ESC TITLE".to_string()
+            "KEYBOARD | Enter verify replay | Esc title".to_string()
         } else if flow.shell_mode == ShellMode::Journal {
-            "F4 / ESC CLOSE JOURNAL".to_string()
+            "KEYBOARD | F4 or Esc closes the journal".to_string()
         } else if flow.shell_mode == ShellMode::ResumeGuard {
-            "ENTER RESUME | F1 TITLE".to_string()
+            "KEYBOARD | Enter resume | F1 title".to_string()
         } else if flow.shell_mode == ShellMode::Paused {
-            "ESC RESUME | F1 TITLE | F2 MOTION | F3 INPUT | F5 SUBTITLE/CONTRAST | F7 CONTROLS | F8 AUDIO".to_string()
+            "KEYBOARD | Esc resume | F1 title | F2 motion | F3 input | F8 audio".to_string()
         } else if flow.mode == CampaignMode::Debrief {
-            "ENTER  RETURN TO MIRROR SQUARE".to_string()
+            "KEYBOARD | Enter returns to Mirror Square".to_string()
         } else if flow.save.active_encounter.is_some() {
-            "J ATTACK | R DEFEND | K TECHNIQUE | I USE TONIC | ESC WITHDRAW".to_string()
+            "KEYBOARD | J attack | R defend | K technique | I tonic | Esc withdraw".to_string()
         } else {
             match flow.save.room {
                 CampaignRoom::MirrorSquare => {
-                "O ORIGIN | A PREVIEW | S CONFIRM | D CANCEL | Q MASTERY | V TITLE | E LOADOUT | P PARTY | H HEAL | G RELIC | 1-4 TRAVEL".to_string()
+                    "KEYBOARD | 1-4 travel | O origin | A/S/D growth | E loadout".to_string()
                 }
                 CampaignRoom::MentorHall => {
-                    "T TALK | L PATH | K TRAIN | Y SPAR | Q MASTERY | E LOADOUT | H HEAL | 1 SQUARE | 3 GATE".to_string()
+                    "KEYBOARD | T talk | L path | K train | Y spar | Q mastery".to_string()
                 }
                 CampaignRoom::ExpeditionGate => {
-                    "R PREP | F6 DIFFICULTY | F10 MAP/MODE | T FACTION | Y RESOURCES | U VICTORY | F4 JOURNAL | Z/X/C PARTY | E LOADOUT | F DEPLOY"
+                    "KEYBOARD | R preparation | F accept/deploy | F4 journal | E loadout"
                         .to_string()
                 }
                 CampaignRoom::RelayQuarter => {
-                    "B CISTERN RELIEF | N REINFORCE | M EVACUATE | T TALK BRANN | U RECRUIT | J RPG AMBUSH | F1 TITLE | ESC PAUSE".to_string()
+                    "KEYBOARD | B relief quest | T talk | U recruit | J road encounter".to_string()
                 }
-                _ => "1-0/-/= TRAVEL | T TALK | SHIFT+T INTENT | R APPROACH | W WAIT | F9 ACCEPT | F10 STEP | F11 CYCLE | SHIFT+F11 BUY/CRAFT | CTRL+F11 SELL | F12 REPAIR".to_string(),
+                _ => "KEYBOARD | T talk | F9 quest | N travel | F11 item | Shift+F11 buy/craft"
+                    .to_string(),
             }
         };
         color.0 = if hidden {
@@ -997,6 +1091,44 @@ pub(super) fn update_campaign_ui(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use bevy::ecs::system::IntoSystem;
+
+    #[test]
+    fn campaign_update_queries_are_disjoint() {
+        let mut world = World::new();
+        let mut system = IntoSystem::into_system(update_campaign_ui);
+        system.initialize(&mut world);
+    }
+
+    #[test]
+    fn campaign_root_uses_responsive_player_first_layout() {
+        let mut app = App::new();
+        app.add_systems(Startup, spawn_campaign_ui);
+        app.update();
+
+        let world = app.world_mut();
+        let mut panel_query = world.query_filtered::<&Node, With<CampaignPanel>>();
+        let panel = panel_query.single(world).unwrap();
+        assert_eq!(panel.width, percent(92));
+        assert_eq!(panel.max_width, px(1040));
+        assert_eq!(panel.flex_direction, FlexDirection::Column);
+
+        let mut actions_query = world.query_filtered::<&Node, With<CampaignPrimaryActions>>();
+        let actions = actions_query.single(world).unwrap();
+        assert_eq!(actions.width, percent(92));
+        assert_eq!(actions.max_width, px(1040));
+
+        let mut objective_query = world.query_filtered::<&TextFont, With<CampaignObjective>>();
+        assert_eq!(
+            objective_query.single(world).unwrap().font_size,
+            FontSize::Px(17.0)
+        );
+        let mut body_query = world.query_filtered::<&TextFont, With<CampaignBody>>();
+        assert_eq!(
+            body_query.single(world).unwrap().font_size,
+            FontSize::Px(16.0)
+        );
+    }
 
     #[test]
     fn campaign_action_is_a_real_button_and_emits_only_when_enabled() {

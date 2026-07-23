@@ -12,7 +12,18 @@ ONLINE_URL="${TRNM_GAME_SERVER_URL:-http://127.0.0.1:7005}"
 ADMIN_TOKEN="${LEDGER_ADMIN_TOKEN:-${IDENTITY_ADMIN_TOKEN:?identity admin token required}}"
 RUN_ID="online-native-$(date +%s)-${RANDOM}"
 EVIDENCE="$ROOT_DIR/acceptance/online-native/$RUN_ID"
-BIN="$ROOT_DIR/target/release/trnm-first-contact"
+BIN="${TRNM_NATIVE_CLIENT_BIN:-$ROOT_DIR/target/release/trnm-first-contact}"
+REQUIRE_CLEAN_EVIDENCE="${TRNM_REQUIRE_CLEAN_NATIVE_EVIDENCE:-0}"
+FRAME_CONTRACT="trnm_online_render_frame_timing_v3"
+FRAME_WARMUP_SECONDS=5
+FRAME_MIN_MEASUREMENT_SECONDS=10
+FRAME_MIN_SAMPLES=300
+FRAME_MIN_AVERAGE_FPS=60
+FRAME_MIN_ONE_PERCENT_LOW_FPS=30
+FRAME_MAX_DELTA_MS=100
+FRAME_MIN_COVERAGE_RATIO=0.90
+FRAME_MAX_COVERAGE_RATIO=1.10
+INPUT_ACK_MAX_MS=1000
 HOST_PID=""
 GUEST_PID=""
 XVFB_PID=""
@@ -20,6 +31,39 @@ NETEM_APPLIED=0
 CHAOS_RTT_MS="${TRNM_NATIVE_CHAOS_RTT_MS:-}"
 CHAOS_LOSS_PERCENT="${TRNM_NATIVE_CHAOS_LOSS_PERCENT:-0}"
 MATCH_ID=""
+
+case "$REQUIRE_CLEAN_EVIDENCE" in
+  0|1) ;;
+  *) echo "TRNM_REQUIRE_CLEAN_NATIVE_EVIDENCE must be 0 or 1" >&2; exit 64 ;;
+esac
+[[ -x "$BIN" ]] || {
+  echo "native client binary is unavailable or not executable: $BIN" >&2
+  exit 1
+}
+SOURCE_COMMIT="$(git -C "$ROOT_DIR" rev-parse HEAD)"
+SOURCE_TREE="$(git -C "$ROOT_DIR" rev-parse 'HEAD^{tree}')"
+SOURCE_DIRTY=false
+[[ -z "$(git -C "$ROOT_DIR" status --porcelain)" ]] || SOURCE_DIRTY=true
+if [[ "$REQUIRE_CLEAN_EVIDENCE" == 1 && "$SOURCE_DIRTY" == true ]]; then
+  echo "formal native evidence requires a clean source tree" >&2
+  exit 1
+fi
+NEWER_SOURCE="$(
+  find "$ROOT_DIR/trillionnium/crates" -type f \
+    \( -name '*.rs' -o -name Cargo.toml \) -newer "$BIN" -print -quit
+)"
+for source_file in "$ROOT_DIR/trillionnium/Cargo.toml" \
+  "$ROOT_DIR/trillionnium/Cargo.lock"; do
+  if [[ "$source_file" -nt "$BIN" ]]; then
+    NEWER_SOURCE="$source_file"
+    break
+  fi
+done
+if [[ -n "$NEWER_SOURCE" ]]; then
+  echo "native client binary is stale relative to source: $NEWER_SOURCE" >&2
+  exit 1
+fi
+CLIENT_BINARY_SHA256="$(sha256sum "$BIN" | awk '{print $1}')"
 mkdir -p "$EVIDENCE/host-save" "$EVIDENCE/guest-save" \
   "$EVIDENCE/host-journal" "$EVIDENCE/guest-journal"
 
@@ -230,14 +274,82 @@ capture() {
 
 wait_for_frame_timing() {
   local path="$1"
-  for _ in $(seq 1 120); do
-    if [[ -s "$path" ]] && jq -e '.frame_count >= 10' "$path" >/dev/null 2>&1; then
+  for _ in $(seq 1 180); do
+    if [[ -s "$path" ]] && jq -e '
+        .contract_version == "trnm_online_render_frame_timing_v3"
+        and .clock == "bevy_time_real"
+        and .write_mode == "same_directory_atomic_rename"
+        and .measurement_valid == true
+        and .frame_count >= .minimum_frame_samples
+        and .network_thread_instrumentation.instrumented_io_calls_after_render_start > 0
+        and .native_input_to_durable_ack.samples >=
+          .native_input_to_durable_ack.minimum_samples
+      ' "$path" >/dev/null 2>&1; then
       return 0
     fi
     sleep 0.25
   done
-  echo "native client did not produce ten post-warmup frame samples: $path" >&2
+  echo "native client did not produce a complete real-clock frame/input measurement: $path" >&2
   return 1
+}
+
+wait_for_frame_measurement_start() {
+  local path="$1"
+  for _ in $(seq 1 80); do
+    if [[ -s "$path" ]] && jq -e '
+        .contract_version == "trnm_online_render_frame_timing_v3"
+        and .clock == "bevy_time_real"
+        and .measurement_elapsed_ms >= 500
+      ' "$path" >/dev/null 2>&1; then
+      return 0
+    fi
+    sleep 0.25
+  done
+  echo "native client did not enter the real-clock measurement window: $path" >&2
+  return 1
+}
+
+wait_for_bound_input_command() {
+  local player="$1" injected_at_ms="$2"
+  local row=""
+  for _ in $(seq 1 40); do
+    row="$(cex_psql_stdin -Atc "select json_build_object(
+      'command_id',command_id,
+      'sequence',sequence,
+      'input_sequence',input_sequence,
+      'created_at_unix_ms',floor(extract(epoch from created_at) * 1000)::bigint,
+      'source',order_json->>'source',
+      'kind',order_json->>'kind',
+      'raw_command_label',order_json->>'raw_command_label'
+    ) from trnm_online_commands
+      where match_id = '$MATCH_ID'::uuid and player_id = '$player'
+      order by sequence desc limit 1")"
+    if [[ -n "$row" ]] && jq -e '
+        (.command_id | startswith("native:"))
+        and .input_sequence == 0
+        and .source == "local_input"
+        and .kind == "move"
+        and .raw_command_label == "FIRST_CONTACT:MOVE"
+      ' >/dev/null 2>&1 <<<"$row"; then
+      jq -cn --argjson row "$row" --argjson injected_at_ms "$injected_at_ms" \
+        '$row + {
+          injected_at_unix_ms:$injected_at_ms,
+          database_commit_after_injection_ms:
+            ($row.created_at_unix_ms - $injected_at_ms)
+        }'
+      return 0
+    fi
+    sleep 0.25
+  done
+  echo "native input did not produce one bound durable local-input command for $player" >&2
+  return 1
+}
+
+netem_packet_count() {
+  "$TC" -s qdisc show dev lo | awk '
+    $1 == "qdisc" && $2 == "netem" && $3 == "30:" { found = 1; next }
+    found && $1 == "Sent" { print $4 + 0; exit }
+  '
 }
 
 IFS=$'\t' read -r HOST_PLAYER HOST_ACCOUNT HOST_SESSION < <(create_identity host)
@@ -294,19 +406,25 @@ allocation="$(player_post "$HOST_SESSION" "/v1/product/lobbies/$LOBBY_ID/queue" 
   '{protocol_version:$protocol,build_id:$build,player_id:$player,account_id:$account,expected_lobby_revision:3}')")"
 MATCH_ID="$(jq -er .match_view.match_id <<<"$allocation")"
 
-if [[ -n "$CHAOS_RTT_MS" || -n "${TRNM_NATIVE_CHAOS_LATENCY_MS:-}" ]]; then
-  TC="${TC:-/usr/sbin/tc}"
+if [[ -n "$CHAOS_RTT_MS" && -n "${TRNM_NATIVE_CHAOS_LATENCY_MS:-}" ]]; then
+  echo "set only TRNM_NATIVE_CHAOS_RTT_MS; the legacy one-way latency variable is ambiguous" >&2
+  exit 64
+fi
+if [[ -n "${TRNM_NATIVE_CHAOS_LATENCY_MS:-}" ]]; then
+  [[ "${TRNM_NATIVE_CHAOS_LATENCY_MS}" =~ ^[0-9]+$ ]] \
+    && (( TRNM_NATIVE_CHAOS_LATENCY_MS > 0 ))
+  CHAOS_RTT_MS=$(( TRNM_NATIVE_CHAOS_LATENCY_MS * 2 ))
+fi
+if [[ -n "$CHAOS_RTT_MS" ]]; then
+  TC="/usr/sbin/tc"
+  [[ "$ONLINE_URL" == "http://127.0.0.1:7005" ]] || {
+    echo "native loopback chaos requires the canonical IPv4 authority URL on port 7005" >&2
+    exit 64
+  }
   jq -en --arg value "$CHAOS_LOSS_PERCENT" \
     '($value | tonumber) >= 0 and ($value | tonumber) <= 100' >/dev/null
-  if [[ -n "$CHAOS_RTT_MS" ]]; then
-    [[ "$CHAOS_RTT_MS" =~ ^[0-9]+$ ]] && (( CHAOS_RTT_MS > 0 ))
-    one_way_delay_ms=$(( (CHAOS_RTT_MS + 1) / 2 ))
-  else
-    [[ "${TRNM_NATIVE_CHAOS_LATENCY_MS}" =~ ^[0-9]+$ ]] \
-      && (( TRNM_NATIVE_CHAOS_LATENCY_MS > 0 ))
-    one_way_delay_ms="${TRNM_NATIVE_CHAOS_LATENCY_MS}"
-    CHAOS_RTT_MS=$(( one_way_delay_ms * 2 ))
-  fi
+  [[ "$CHAOS_RTT_MS" =~ ^[0-9]+$ ]] && (( CHAOS_RTT_MS > 0 ))
+  one_way_delay_ms=$(( (CHAOS_RTT_MS + 1) / 2 ))
   sudo -n true
   [[ -x "$TC" ]]
   "$TC" qdisc show dev lo | grep -q '^qdisc noqueue'
@@ -337,6 +455,18 @@ TRNM_CEX_ACTOR_ID="$HOST_PLAYER" TRNM_CEX_ACCOUNT_ID="$HOST_ACCOUNT" \
 TRNM_CEX_PLAYER_SESSION="$HOST_SESSION" \
 TRNM_ONLINE_COMMAND_JOURNAL_PATH="$EVIDENCE/host-journal/journal.json" \
 TRNM_ONLINE_FRAME_TIMING_PATH="$EVIDENCE/host-frame-timing.json" \
+TRNM_ONLINE_FRAME_TIMING_WARMUP_SECONDS="$FRAME_WARMUP_SECONDS" \
+TRNM_ONLINE_FRAME_TIMING_MIN_SECONDS="$FRAME_MIN_MEASUREMENT_SECONDS" \
+TRNM_ONLINE_FRAME_TIMING_MIN_SAMPLES="$FRAME_MIN_SAMPLES" \
+TRNM_ONLINE_MIN_AVERAGE_FPS="$FRAME_MIN_AVERAGE_FPS" \
+TRNM_ONLINE_MIN_ONE_PERCENT_LOW_FPS="$FRAME_MIN_ONE_PERCENT_LOW_FPS" \
+TRNM_ONLINE_MAX_FRAME_DELTA_MS="$FRAME_MAX_DELTA_MS" \
+TRNM_ONLINE_MIN_REAL_TIME_COVERAGE_RATIO="$FRAME_MIN_COVERAGE_RATIO" \
+TRNM_ONLINE_MAX_REAL_TIME_COVERAGE_RATIO="$FRAME_MAX_COVERAGE_RATIO" \
+TRNM_ONLINE_REQUIRE_NETWORK_THREAD_EVIDENCE=1 \
+TRNM_ONLINE_REQUIRE_INPUT_ACK_EVIDENCE=1 \
+TRNM_ONLINE_MIN_INPUT_ACK_SAMPLES=1 \
+TRNM_ONLINE_MAX_INPUT_ACK_MS="$INPUT_ACK_MAX_MS" \
   "$BIN" >"$EVIDENCE/host.log" 2>&1 &
 HOST_PID=$!
 HOST_WINDOW="$(wait_for_window "$HOST_PID")"
@@ -344,15 +474,19 @@ HOST_WINDOW="$(wait_for_window "$HOST_PID")"
 sleep 1
 
 capture "$HOST_WINDOW" "$EVIDENCE/host-attached.png"
+wait_for_frame_measurement_start "$EVIDENCE/host-frame-timing.json"
+host_input_injected_at_ms="$(date +%s%3N)"
 "$ROOT_DIR/scripts/x11_key_inject.py" "$HOST_WINDOW" q
-for _ in $(seq 1 30); do
-  host_commands="$(cex_psql_stdin -Atc "select count(*) from trnm_online_commands where match_id = '$MATCH_ID'::uuid and player_id = '$HOST_PLAYER'")"
-  [[ "$host_commands" -ge 1 ]] && break
-  sleep 1
-done
-[[ "${host_commands:-0}" -ge 1 ]]
-capture "$HOST_WINDOW" "$EVIDENCE/host-command-ack.png"
+host_input_command="$(wait_for_bound_input_command "$HOST_PLAYER" "$host_input_injected_at_ms")"
+jq -e --argjson maximum_ms "$INPUT_ACK_MAX_MS" '
+  .database_commit_after_injection_ms >= 0
+  and .database_commit_after_injection_ms <= $maximum_ms
+' >/dev/null <<<"$host_input_command"
 wait_for_frame_timing "$EVIDENCE/host-frame-timing.json"
+kill -STOP "$HOST_PID"
+host_frame_timing="$(jq -c . "$EVIDENCE/host-frame-timing.json")"
+capture "$HOST_WINDOW" "$EVIDENCE/host-command-ack.png"
+kill -CONT "$HOST_PID" >/dev/null 2>&1 || true
 kill "$HOST_PID" >/dev/null 2>&1 || true
 wait "$HOST_PID" 2>/dev/null || true
 HOST_PID=""
@@ -363,28 +497,104 @@ TRNM_CEX_ACTOR_ID="$GUEST_PLAYER" TRNM_CEX_ACCOUNT_ID="$GUEST_ACCOUNT" \
 TRNM_CEX_PLAYER_SESSION="$GUEST_SESSION" \
 TRNM_ONLINE_COMMAND_JOURNAL_PATH="$EVIDENCE/guest-journal/journal.json" \
 TRNM_ONLINE_FRAME_TIMING_PATH="$EVIDENCE/guest-frame-timing.json" \
+TRNM_ONLINE_FRAME_TIMING_WARMUP_SECONDS="$FRAME_WARMUP_SECONDS" \
+TRNM_ONLINE_FRAME_TIMING_MIN_SECONDS="$FRAME_MIN_MEASUREMENT_SECONDS" \
+TRNM_ONLINE_FRAME_TIMING_MIN_SAMPLES="$FRAME_MIN_SAMPLES" \
+TRNM_ONLINE_MIN_AVERAGE_FPS="$FRAME_MIN_AVERAGE_FPS" \
+TRNM_ONLINE_MIN_ONE_PERCENT_LOW_FPS="$FRAME_MIN_ONE_PERCENT_LOW_FPS" \
+TRNM_ONLINE_MAX_FRAME_DELTA_MS="$FRAME_MAX_DELTA_MS" \
+TRNM_ONLINE_MIN_REAL_TIME_COVERAGE_RATIO="$FRAME_MIN_COVERAGE_RATIO" \
+TRNM_ONLINE_MAX_REAL_TIME_COVERAGE_RATIO="$FRAME_MAX_COVERAGE_RATIO" \
+TRNM_ONLINE_REQUIRE_NETWORK_THREAD_EVIDENCE=1 \
+TRNM_ONLINE_REQUIRE_INPUT_ACK_EVIDENCE=1 \
+TRNM_ONLINE_MIN_INPUT_ACK_SAMPLES=1 \
+TRNM_ONLINE_MAX_INPUT_ACK_MS="$INPUT_ACK_MAX_MS" \
   "$BIN" >"$EVIDENCE/guest.log" 2>&1 &
 GUEST_PID=$!
 GUEST_WINDOW="$(wait_for_window "$GUEST_PID")"
 "$ROOT_DIR/scripts/x11_window_move.py" "$GUEST_WINDOW" 0 0
 sleep 1
 capture "$GUEST_WINDOW" "$EVIDENCE/guest-attached.png"
+wait_for_frame_measurement_start "$EVIDENCE/guest-frame-timing.json"
+guest_input_injected_at_ms="$(date +%s%3N)"
 "$ROOT_DIR/scripts/x11_key_inject.py" "$GUEST_WINDOW" q
-for _ in $(seq 1 30); do
-  guest_commands="$(cex_psql_stdin -Atc "select count(*) from trnm_online_commands where match_id = '$MATCH_ID'::uuid and player_id = '$GUEST_PLAYER'")"
-  [[ "$guest_commands" -ge 1 ]] && break
-  sleep 1
-done
-[[ "${guest_commands:-0}" -ge 1 ]]
-capture "$GUEST_WINDOW" "$EVIDENCE/guest-command-ack.png"
+guest_input_command="$(wait_for_bound_input_command "$GUEST_PLAYER" "$guest_input_injected_at_ms")"
+jq -e --argjson maximum_ms "$INPUT_ACK_MAX_MS" '
+  .database_commit_after_injection_ms >= 0
+  and .database_commit_after_injection_ms <= $maximum_ms
+' >/dev/null <<<"$guest_input_command"
 wait_for_frame_timing "$EVIDENCE/guest-frame-timing.json"
-host_frame_timing="$(jq -c . "$EVIDENCE/host-frame-timing.json")"
+kill -STOP "$GUEST_PID"
 guest_frame_timing="$(jq -c . "$EVIDENCE/guest-frame-timing.json")"
-jq -e '.frame_count >= 10 and .main_thread_updates_over_100ms == 0 and
-  .max_main_thread_update_ms <= 100 and .network_requests_on_render_thread == false' \
+capture "$GUEST_WINDOW" "$EVIDENCE/guest-command-ack.png"
+kill -CONT "$GUEST_PID" >/dev/null 2>&1 || true
+kill "$GUEST_PID" >/dev/null 2>&1 || true
+wait "$GUEST_PID" 2>/dev/null || true
+GUEST_PID=""
+
+jq -e '.contract_version == "trnm_online_render_frame_timing_v3" and
+  .clock == "bevy_time_real" and
+  .write_mode == "same_directory_atomic_rename" and
+  .warmup_seconds == 5 and .minimum_measurement_seconds == 10 and
+  .minimum_frame_samples == 300 and
+  .targets.minimum_average_fps == 60 and
+  .targets.minimum_one_percent_low_fps == 30 and
+  .targets.maximum_frame_delta_ms == 100 and
+  .targets.minimum_real_time_coverage_ratio == 0.9 and
+  .targets.maximum_real_time_coverage_ratio == 1.1 and
+  .measurement_valid == true and .frame_count >= .minimum_frame_samples and
+  .average_fps >= .targets.minimum_average_fps and
+  .one_percent_low_fps >= .targets.minimum_one_percent_low_fps and
+  .max_frame_delta_ms <= .targets.maximum_frame_delta_ms and
+  .frames_over_100ms == 0 and
+  .main_thread_updates_over_100ms == 0 and .max_main_thread_update_ms <= 100 and
+  .network_requests_on_render_thread == false and
+  .network_thread_instrumentation.required == true and
+  .network_thread_instrumentation.instrumented_io_calls_after_render_start > 0 and
+  .network_thread_instrumentation.io_calls_on_render_thread == 0 and
+  .network_thread_instrumentation.render_update_thread_changes == 0 and
+  .network_thread_instrumentation.passed == true and
+  .network_command_round_trip.samples >= 1 and
+  .native_input_to_durable_ack.required == true and
+  .native_input_to_durable_ack.minimum_samples == 1 and
+  .native_input_to_durable_ack.maximum_ms == 1000 and
+  .native_input_to_durable_ack.samples >= 1 and
+  .native_input_to_durable_ack.max_ms <= 1000 and
+  .native_input_to_durable_ack.passed == true and
+  .network_main_thread_passed == true and .frame_cadence_passed == true and
+  .passed == true' \
   >/dev/null <<<"$host_frame_timing"
-jq -e '.frame_count >= 10 and .main_thread_updates_over_100ms == 0 and
-  .max_main_thread_update_ms <= 100 and .network_requests_on_render_thread == false' \
+jq -e '.contract_version == "trnm_online_render_frame_timing_v3" and
+  .clock == "bevy_time_real" and
+  .write_mode == "same_directory_atomic_rename" and
+  .warmup_seconds == 5 and .minimum_measurement_seconds == 10 and
+  .minimum_frame_samples == 300 and
+  .targets.minimum_average_fps == 60 and
+  .targets.minimum_one_percent_low_fps == 30 and
+  .targets.maximum_frame_delta_ms == 100 and
+  .targets.minimum_real_time_coverage_ratio == 0.9 and
+  .targets.maximum_real_time_coverage_ratio == 1.1 and
+  .measurement_valid == true and .frame_count >= .minimum_frame_samples and
+  .average_fps >= .targets.minimum_average_fps and
+  .one_percent_low_fps >= .targets.minimum_one_percent_low_fps and
+  .max_frame_delta_ms <= .targets.maximum_frame_delta_ms and
+  .frames_over_100ms == 0 and
+  .main_thread_updates_over_100ms == 0 and .max_main_thread_update_ms <= 100 and
+  .network_requests_on_render_thread == false and
+  .network_thread_instrumentation.required == true and
+  .network_thread_instrumentation.instrumented_io_calls_after_render_start > 0 and
+  .network_thread_instrumentation.io_calls_on_render_thread == 0 and
+  .network_thread_instrumentation.render_update_thread_changes == 0 and
+  .network_thread_instrumentation.passed == true and
+  .network_command_round_trip.samples >= 1 and
+  .native_input_to_durable_ack.required == true and
+  .native_input_to_durable_ack.minimum_samples == 1 and
+  .native_input_to_durable_ack.maximum_ms == 1000 and
+  .native_input_to_durable_ack.samples >= 1 and
+  .native_input_to_durable_ack.max_ms <= 1000 and
+  .native_input_to_durable_ack.passed == true and
+  .network_main_thread_passed == true and .frame_cadence_passed == true and
+  .passed == true' \
   >/dev/null <<<"$guest_frame_timing"
 
 for journal in "$EVIDENCE/host-journal/journal.json" \
@@ -403,8 +613,14 @@ for journal in "$EVIDENCE/host-journal/journal.json" \
     (.pending_exact_attempts | length == 0) and
     (.rejected_exact_attempts | length == 0)' "$journal" >/dev/null
 done
-! grep -Fq -- "$HOST_SESSION" "$EVIDENCE/host-journal/journal.json"
-! grep -Fq -- "$GUEST_SESSION" "$EVIDENCE/guest-journal/journal.json"
+if grep -Fq -- "$HOST_SESSION" "$EVIDENCE/host-journal/journal.json"; then
+  echo "host command journal leaked the player session" >&2
+  exit 1
+fi
+if grep -Fq -- "$GUEST_SESSION" "$EVIDENCE/guest-journal/journal.json"; then
+  echo "guest command journal leaked the player session" >&2
+  exit 1
+fi
 journal_evidence="$(jq -cn \
   --arg host_directory_mode "$(stat -c '%a' "$EVIDENCE/host-journal")" \
   --arg host_file_mode "$(stat -c '%a' "$EVIDENCE/host-journal/journal.json")" \
@@ -424,27 +640,57 @@ database="$(cex_psql_stdin -Atc "select json_build_object(
   'distinct_control_sets',(select count(distinct controlled_unit_ids) from trnm_online_match_members where match_id = '$MATCH_ID'::uuid)
 )" | jq -c .)"
 jq -e '.lobby_status == "matched" and .allocations == 1 and
-  .members == 2 and .host_commands >= 1 and .guest_commands >= 1 and
+  .members == 2 and .host_commands == 1 and .guest_commands == 1 and
   .fingerprinted_commands == (.host_commands + .guest_commands) and
   .distinct_control_sets == 2' <<<"$database" >/dev/null
+
+NETEM_PACKETS=0
+if [[ "$NETEM_APPLIED" == 1 ]]; then
+  NETEM_PACKETS="$(netem_packet_count)"
+  if [[ ! "$NETEM_PACKETS" =~ ^[0-9]+$ ]] || (( NETEM_PACKETS <= 0 )); then
+    echo "loopback netem did not observe authority traffic" >&2
+    exit 1
+  fi
+fi
 
 jq -n --arg run_id "$RUN_ID" --arg match_id "$MATCH_ID" --arg evidence "$EVIDENCE" \
   --arg host_window "$HOST_WINDOW" --arg guest_window "$GUEST_WINDOW" \
   --arg authority_protocol "$contract" --arg authority_build "$build" \
   --arg product_protocol "$product_contract" --arg product_build "$product_build" \
+  --arg frame_contract "$FRAME_CONTRACT" \
   --arg chaos_rtt_ms "$CHAOS_RTT_MS" --arg chaos_loss_percent "$CHAOS_LOSS_PERCENT" \
+  --argjson netem_packets "$NETEM_PACKETS" \
+  --arg client_binary "$BIN" --arg client_binary_sha256 "$CLIENT_BINARY_SHA256" \
+  --arg source_commit "$SOURCE_COMMIT" --arg source_tree "$SOURCE_TREE" \
+  --argjson source_dirty "$SOURCE_DIRTY" \
+  --argjson clean_evidence_required "$REQUIRE_CLEAN_EVIDENCE" \
   --argjson database "$database" --argjson host_frame_timing "$host_frame_timing" \
   --argjson guest_frame_timing "$guest_frame_timing" \
+  --argjson host_input_command "$host_input_command" \
+  --argjson guest_input_command "$guest_input_command" \
   --argjson journal_evidence "$journal_evidence" \
   '{status:"passed",run_id:$run_id,match_id:$match_id,evidence:$evidence,
     authority_protocol:$authority_protocol,authority_build:$authority_build,
     product_protocol:$product_protocol,product_build:$product_build,
-    network_chaos:{rtt_ms:($chaos_rtt_ms | if length == 0 then 0 else tonumber end),loss_percent:($chaos_loss_percent|tonumber)},
+    frame_contract:$frame_contract,
+    client_binary:{path:$client_binary,sha256:$client_binary_sha256,
+      source_commit:$source_commit,source_tree:$source_tree,source_dirty:$source_dirty,
+      clean_evidence_required:($clean_evidence_required == 1),build_fresh:true},
+    network_chaos:{
+      configured:($chaos_rtt_ms | length > 0),
+      rtt_ms:($chaos_rtt_ms | if length == 0 then 0 else tonumber end),
+      one_way_delay_ms:($chaos_rtt_ms | if length == 0 then 0 else ((tonumber + 1) / 2 | floor) end),
+      loss_percent:($chaos_loss_percent|tonumber),
+      matched_transport:"ipv4_loopback_tcp_7005",
+      netem_packets:$netem_packets
+    },
     native_x11_clients:2,distinct_windows:($host_window != $guest_window),
     client_execution_model:"sequential_on_single_evidence_host_models_separate_player_devices",
     closed_alpha_product_lobby_flow:true,
     server_authoritative_commands:true,database:$database,
+    native_input_database:{host:$host_input_command,guest:$guest_input_command,
+      maximum_commit_after_injection_ms:1000},
     durable_command_journal:$journal_evidence,
     host_frame_timing:$host_frame_timing,guest_frame_timing:$guest_frame_timing,
-    boundary:"automated two-process native attach/input smoke measured sequentially on one evidence host; not a human multiplayer session"}' \
+    boundary:"release-bound real-clock 60-average/30-one-percent-low native input-to-durable-ACK and instrumented worker-network laboratory evidence on one host; not a human multiplayer, public-network, GPU-fleet, or regional result"}' \
   | tee "$EVIDENCE/report.json"

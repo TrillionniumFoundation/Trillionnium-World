@@ -1,6 +1,7 @@
 use super::{
     asset_loader::{FirstContactAtlasHandles, FirstContactAtlasManifest},
     campaign_flow::CampaignFlow,
+    frame_timing::OnlineFrameTiming,
     map_loader::FirstContactMap,
     online_authority::{OnlineAuthorityClient, OnlineClientEvent},
     renderer::{
@@ -1496,6 +1497,7 @@ pub(super) fn advance_first_contact_simulation(
     mut adapter: ResMut<FirstContactSimulationAdapter>,
     mut flow: ResMut<CampaignFlow>,
     mut online: Option<ResMut<OnlineAuthorityClient>>,
+    mut frame_timing: Option<ResMut<OnlineFrameTiming>>,
     mut units: Query<
         (
             &mut Sprite,
@@ -1565,15 +1567,23 @@ pub(super) fn advance_first_contact_simulation(
             match event {
                 OnlineClientEvent::Snapshot(authoritative) => flow.mission = Some(*authoritative),
                 OnlineClientEvent::CommandAccepted(event) => {
+                    if let Some(timing) = frame_timing.as_deref_mut() {
+                        timing
+                            .record_command_ack(event.round_trip_ms, event.input_to_durable_ack_ms);
+                    }
                     if let Some(authoritative) = event.mission {
                         flow.mission = Some(*authoritative);
                     }
                     adapter.accepted_orders.push(event.order);
                     runtime.command_feedback = format!(
-                        "ONLINE ACK total={} input={} effect={} rtt={:.0}ms {}",
+                        "ONLINE ACK total={} input={} effect={} input-ack={} net={:.0}ms {}",
                         event.receipt.sequence,
                         event.receipt.input_sequence,
                         event.receipt.accepted_tick,
+                        event
+                            .input_to_durable_ack_ms
+                            .map(|value| format!("{value:.0}ms"))
+                            .unwrap_or_else(|| "recovered".to_string()),
                         event.round_trip_ms,
                         event.label
                     );

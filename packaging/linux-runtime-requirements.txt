@@ -1,0 +1,11 @@
+TRNM Linux x86_64 runtime requirements
+
+- glibc-compatible x86_64 Linux
+- X11 or Wayland desktop session for the native clients
+- ALSA-compatible audio runtime
+- Vulkan, OpenGL, or supported software-rendering path exposed through wgpu
+- Network access to explicitly configured loopback/private TRNM services for online play
+
+The portable launcher resolves the bundled binary and assets relative to its
+own location. Public Internet exposure is disabled by the current product
+boundary and is not enabled by this package.

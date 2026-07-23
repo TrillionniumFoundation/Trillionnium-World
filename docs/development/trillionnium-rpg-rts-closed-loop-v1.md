@@ -257,7 +257,7 @@ Current authored content expansion:
   counterattack waves and hold/capture. Field resources can be spent on aid or
   fortification. Tested routes require 8-12 consequential orders and complete
   in 3-5 simulated minutes; four-order idle play cannot win.
-- Gameplay P2: complete. The root workspace contains only five product crates;
+- Gameplay P2: complete. The root workspace contains only eight product crates;
   platform has 12 crates and the removed 14-crate legacy workspace is absent
   from the current checkout. The product uses only the lightweight RPG and
   order-protocol cores; historical sources require an explicit Git worktree.
