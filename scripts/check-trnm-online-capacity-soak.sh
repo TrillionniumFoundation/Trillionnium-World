@@ -17,6 +17,7 @@ readonly EXPECTED_SCOPE_MEMORY_MAX_BYTES=2147483648
 readonly EXPECTED_SCOPE_MEMORY_SWAP_MAX_BYTES=536870912
 readonly EXPECTED_SCOPE_CPU_MAX="150000 100000"
 readonly EXPECTED_SCOPE_TASKS_MAX=512
+readonly EXPECTED_SCOPE_MANAGED_OOM_PREFERENCE="omit"
 readonly FORMAL_MIN_CONCURRENCY=4
 readonly FORMAL_MAX_CONCURRENCY=32
 readonly FORMAL_MIN_DURATION_SECONDS=7200
@@ -132,7 +133,8 @@ case "${TRNM_CAPACITY_RESOURCE_SCOPE_ACTIVE:-0}" in
     --unit="trnm-capacity-$capacity_scope_nonce" \
     --description='TRNM bounded online capacity harness' \
     -p CPUAccounting=true -p CPUWeight=100 -p CPUQuota=150% \
-    -p MemoryAccounting=true -p MemoryHigh=1536M -p MemoryMax=2048M \
+    -p MemoryAccounting=true -p ManagedOOMPreference=omit \
+    -p MemoryHigh=1536M -p MemoryMax=2048M \
     -p MemorySwapMax=512M -p IOAccounting=true -p IOWeight=100 \
     -p TasksAccounting=true -p TasksMax=512 \
     env TRNM_CAPACITY_RESOURCE_SCOPE_ACTIVE=1 "$SCRIPT_PATH" "$@"
@@ -148,6 +150,7 @@ RESOURCE_CGROUP="$(awk -F: '$1 == "0" {print $3}' /proc/self/cgroup)"
 RESOURCE_CGROUP_ROOT="/sys/fs/cgroup$RESOURCE_CGROUP"
 validate_resource_scope() {
   local memory_high memory_max memory_swap_max cpu_max tasks_max scope_unit
+  local managed_oom_preference
   scope_unit="${RESOURCE_CGROUP##*/}"
   [[ -n "$RESOURCE_CGROUP" && "$RESOURCE_CGROUP" != / \
       && "$scope_unit" =~ ^trnm-capacity-[0-9]{8}T[0-9]{6}-[0-9]+\.(scope|service)$ \
@@ -169,11 +172,16 @@ validate_resource_scope() {
   memory_swap_max="$(<"$RESOURCE_CGROUP_ROOT/memory.swap.max")"
   cpu_max="$(<"$RESOURCE_CGROUP_ROOT/cpu.max")"
   tasks_max="$(<"$RESOURCE_CGROUP_ROOT/pids.max")"
+  managed_oom_preference="$(
+    systemctl --user show "$scope_unit" -p ManagedOOMPreference --value
+  )"
   [[ "$memory_high" == "$EXPECTED_SCOPE_MEMORY_HIGH_BYTES" \
       && "$memory_max" == "$EXPECTED_SCOPE_MEMORY_MAX_BYTES" \
       && "$memory_swap_max" == "$EXPECTED_SCOPE_MEMORY_SWAP_MAX_BYTES" \
       && "$cpu_max" == "$EXPECTED_SCOPE_CPU_MAX" \
-      && "$tasks_max" == "$EXPECTED_SCOPE_TASKS_MAX" ]] \
+      && "$tasks_max" == "$EXPECTED_SCOPE_TASKS_MAX" \
+      && "$managed_oom_preference" == \
+        "$EXPECTED_SCOPE_MANAGED_OOM_PREFERENCE" ]] \
     || early_fail "actual cgroup limits do not match the formal capacity contract"
 }
 validate_resource_scope
@@ -188,6 +196,10 @@ case "${TRNM_CAPACITY_SCOPE_PROBE:-0}" in
     --arg memory_max "$(<"$RESOURCE_CGROUP_ROOT/memory.max")" \
     --arg memory_swap_max "$(<"$RESOURCE_CGROUP_ROOT/memory.swap.max")" \
     --arg cpu_max "$(<"$RESOURCE_CGROUP_ROOT/cpu.max")" \
+    --arg managed_oom_preference "$(
+      systemctl --user show "${RESOURCE_CGROUP##*/}" \
+        -p ManagedOOMPreference --value
+    )" \
     --arg tasks_max "$(<"$RESOURCE_CGROUP_ROOT/pids.max")" \
     'def limit: if . == "max" then . else tonumber end;
     {status:"passed",contract_version:"trnm_capacity_resource_scope_probe_v1",
@@ -195,6 +207,7 @@ case "${TRNM_CAPACITY_SCOPE_PROBE:-0}" in
       memory_high_bytes:($memory_high|limit),
       memory_max_bytes:($memory_max|limit),
       memory_swap_max_bytes:($memory_swap_max|limit),cpu_max:$cpu_max,
+      managed_oom_preference:$managed_oom_preference,
       tasks_max:($tasks_max|limit)}'
   exit 0
   ;;
@@ -456,32 +469,32 @@ unit_property() (
 unit_contract_values() {
   case "$1" in
   trnm-game-server.service)
-    printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+    printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
       "$HOME/.config/systemd/user/trnm-game-server.service" \
       "$ROOT_DIR/scripts/run-trnm-game-server.sh" \
       "$ROOT_DIR/scripts/run-trnm-game-server.sh" \
-      2s 402653184 536870912 134217728 256 '200000 100000'
+      2s 402653184 536870912 134217728 256 '200000 100000' avoid
     ;;
   trnm-entitlement-signer.service)
-    printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+    printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
       "$HOME/.config/systemd/user/trnm-entitlement-signer.service" \
       "$ROOT_DIR/scripts/run-trnm-entitlement-signer.sh" \
       "$ROOT_DIR/scripts/run-trnm-entitlement-signer.sh" \
-      500ms 67108864 100663296 33554432 128 '50000 100000'
+      500ms 67108864 100663296 33554432 128 '50000 100000' avoid
     ;;
   cex-trnm-ledger.service)
-    printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+    printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
       "$HOME/.config/systemd/user/cex-trnm-ledger.service" \
       "$CEX_ROOT/scripts/run-trnm-economy-service.sh" \
       "$CEX_ROOT/scripts/run-trnm-economy-service.sh ledger" \
-      1s 268435456 402653184 134217728 256 '100000 100000'
+      1s 268435456 402653184 134217728 256 '100000 100000' avoid
     ;;
   cex-trnm-consumer.service)
-    printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+    printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
       "$HOME/.config/systemd/user/cex-trnm-consumer.service" \
       "$CEX_ROOT/scripts/run-trnm-economy-service.sh" \
       "$CEX_ROOT/scripts/run-trnm-economy-service.sh consumer" \
-      1s 402653184 536870912 134217728 256 '100000 100000'
+      1s 402653184 536870912 134217728 256 '100000 100000' avoid
     ;;
   *) return 1 ;;
   esac
@@ -490,9 +503,11 @@ unit_contract_values() {
 effective_unit_matches_source_contract() {
   local unit="$1" fragment expected_exec expected_argv expected_cpu
   local expected_high expected_max expected_swap expected_tasks expected_cpu_max
+  local expected_oom_preference
   local exec_start
   IFS=$'\t' read -r fragment expected_exec expected_argv expected_cpu \
     expected_high expected_max expected_swap expected_tasks expected_cpu_max \
+    expected_oom_preference \
     < <(unit_contract_values "$unit") || return 1
   [[ -z "$(unit_property "$unit" DropInPaths)" \
       && "$(realpath -e -- "$(unit_property "$unit" FragmentPath)")" == \
@@ -500,6 +515,8 @@ effective_unit_matches_source_contract() {
       && "$(unit_property "$unit" CPUAccounting)" == yes \
       && "$(unit_property "$unit" CPUQuotaPerSecUSec)" == "$expected_cpu" \
       && "$(unit_property "$unit" MemoryAccounting)" == yes \
+      && "$(unit_property "$unit" ManagedOOMPreference)" == \
+        "$expected_oom_preference" \
       && "$(unit_property "$unit" MemoryHigh)" == "$expected_high" \
       && "$(unit_property "$unit" MemoryMax)" == "$expected_max" \
       && "$(unit_property "$unit" MemorySwapMax)" == "$expected_swap" \
@@ -514,8 +531,10 @@ effective_unit_matches_source_contract() {
 
 active_unit_cgroup_matches_source_contract() {
   local unit="$1" _fragment _exec _argv _cpu high max swap tasks cpu_max
+  local oom_preference
   local cgroup pid process_cgroup root
   IFS=$'\t' read -r _fragment _exec _argv _cpu high max swap tasks cpu_max \
+    oom_preference \
     < <(unit_contract_values "$unit") || return 1
   cgroup="$(unit_property "$unit" ControlGroup)" || return 1
   pid="$(unit_property "$unit" MainPID)" || return 1
@@ -524,6 +543,7 @@ active_unit_cgroup_matches_source_contract() {
   [[ "$process_cgroup" == "$cgroup" ]] || return 1
   root="/sys/fs/cgroup$cgroup"
   [[ -d "$root" \
+      && "$(unit_property "$unit" ManagedOOMPreference)" == "$oom_preference" \
       && "$(<"$root/memory.high")" == "$high" \
       && "$(<"$root/memory.max")" == "$max" \
       && "$(<"$root/memory.swap.max")" == "$swap" \

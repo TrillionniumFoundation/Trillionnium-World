@@ -17,6 +17,7 @@ The bounded v2 checklist remains historical evidence; this page records the newe
 - Engineering posture: technical alpha. Player-facing posture: pre-alpha. Public RPG+RTS MMO/commercial beta: **NO-GO**.
 - Active route: the current worktree closes the Stage 0 source tranche (real-clock frame/input/network timing v3, background CEX economy I/O, canonical status and a verifiable Linux bundle) and starts Stage 1 with a responsive player-first shell for one coherent 10–15 minute `NEW -> RPG -> RTS -> debrief -> town` vertical slice. New endpoints, systems and evidence-only scripts remain frozen unless they remove a current P0.
 - Current P0s: release-bound 30/60 FPS plus input/network runtime evidence, clean isolated 24-hour authority evidence, real-human comprehension/play evidence, Windows/macOS signing and public distribution, and public multi-host/regional operations.
+- The formal capacity service is hard-capped and excluded from `systemd-oomd` victim selection while the four smaller, hard-capped TRNM/CEX runtime services use `ManagedOOMPreference=avoid`. Source, installed-unit and actual transient-cgroup checks enforce this isolation contract; it reduces collateral-kill risk but does not grant endurance credit before a clean 24-hour run completes.
 - `RELEASE_READINESS.md` remains the repository-wide chain/mainnet release verdict; it is not a second native-game status page. Native product scope and evidence are canonical here.
 
 ## Product boundary

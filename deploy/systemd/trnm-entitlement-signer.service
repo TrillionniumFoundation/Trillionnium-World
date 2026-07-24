@@ -17,6 +17,7 @@ CPUAccounting=true
 CPUWeight=100
 CPUQuota=50%
 MemoryAccounting=true
+ManagedOOMPreference=avoid
 MemoryHigh=64M
 MemoryMax=96M
 MemorySwapMax=32M

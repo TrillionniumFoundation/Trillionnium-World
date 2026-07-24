@@ -14,12 +14,14 @@ require_line() {
 game_unit="$ROOT_DIR/deploy/systemd/trnm-game-server.service"
 signer_unit="$ROOT_DIR/deploy/systemd/trnm-entitlement-signer.service"
 for setting in CPUAccounting=true CPUWeight=200 CPUQuota=200% \
-  MemoryAccounting=true MemoryHigh=384M MemoryMax=512M MemorySwapMax=128M \
+  MemoryAccounting=true ManagedOOMPreference=avoid \
+  MemoryHigh=384M MemoryMax=512M MemorySwapMax=128M \
   IOAccounting=true IOWeight=200 TasksAccounting=true TasksMax=256; do
   require_line "$game_unit" "$setting"
 done
 for setting in CPUAccounting=true CPUWeight=100 CPUQuota=50% \
-  MemoryAccounting=true MemoryHigh=64M MemoryMax=96M MemorySwapMax=32M \
+  MemoryAccounting=true ManagedOOMPreference=avoid \
+  MemoryHigh=64M MemoryMax=96M MemorySwapMax=32M \
   IOAccounting=true IOWeight=100 TasksAccounting=true TasksMax=128; do
   require_line "$signer_unit" "$setting"
 done
@@ -40,6 +42,7 @@ if rg -Fq 'register_cleanup_process "$!" group "$(command -v setsid)"' \
   exit 1
 fi
 for setting in '--property=KillMode=mixed' \
+  '--property=ManagedOOMPreference=omit' \
   'TRNM_CAPACITY_RESOURCE_SCOPE_ACTIVE=1' \
   '--property=MemoryHigh=1536M' '--property=MemoryMax=2048M' \
   '--property=MemorySwapMax=512M' '--property=CPUQuota=150%' \
@@ -63,15 +66,18 @@ if [[ "${TRNM_REQUIRE_INSTALLED_RESOURCE_BUDGETS:-0}" == 1 ]]; then
   [[ "$(systemctl --user show trnm-game-server.service -p CPUQuotaPerSecUSec --value)" == 2s ]]
   [[ "$(systemctl --user show trnm-game-server.service -p MemoryHigh --value)" == 402653184 ]]
   [[ "$(systemctl --user show trnm-game-server.service -p MemoryMax --value)" == 536870912 ]]
+  [[ "$(systemctl --user show trnm-game-server.service -p ManagedOOMPreference --value)" == avoid ]]
   [[ "$(systemctl --user show trnm-entitlement-signer.service -p CPUQuotaPerSecUSec --value)" == 500ms ]]
   [[ "$(systemctl --user show trnm-entitlement-signer.service -p MemoryHigh --value)" == 67108864 ]]
   [[ "$(systemctl --user show trnm-entitlement-signer.service -p MemoryMax --value)" == 100663296 ]]
+  [[ "$(systemctl --user show trnm-entitlement-signer.service -p ManagedOOMPreference --value)" == avoid ]]
   probe="$(TRNM_CAPACITY_SCOPE_PROBE=1 "$capacity_script")"
   jq -e '.status == "passed"
     and .memory_high_bytes == 1610612736
     and .memory_max_bytes == 2147483648
     and .memory_swap_max_bytes == 536870912
     and .cpu_max == "150000 100000"
+    and .managed_oom_preference == "omit"
     and .tasks_max == 512' >/dev/null <<<"$probe"
 fi
 
@@ -80,5 +86,7 @@ jq -n --argjson installed "$installed" \
     game_server_readiness_pool_min:4,game_server_readiness_pool_max:12,signer_pool_max:4,
     game_server_total_pool_max:24,formal_database_connection_ceiling:40,
     game_server_memory_max_mib:512,capacity_harness_memory_max_mib:2048,
+    runtime_managed_oom_preference:"avoid",
+    capacity_harness_managed_oom_preference:"omit",
     capacity_harness_min_available_memory_mib:3072,
     systemd_unit_budgets:true,installed_runtime_verified:$installed}'

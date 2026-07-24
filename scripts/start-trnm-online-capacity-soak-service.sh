@@ -41,6 +41,7 @@ systemd-run --user --collect --unit="$unit" \
   --property=CPUWeight=100 \
   --property=CPUQuota=150% \
   --property=MemoryAccounting=true \
+  --property=ManagedOOMPreference=omit \
   --property=MemoryHigh=1536M \
   --property=MemoryMax=2048M \
   --property=MemorySwapMax=512M \
