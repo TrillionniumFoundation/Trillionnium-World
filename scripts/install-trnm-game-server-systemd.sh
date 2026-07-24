@@ -50,7 +50,7 @@ for _ in $(seq 1 60); do
       .database_pool_saturation_healthy == true and .database_pool_max_connections == 12 and
       .readiness_database_pool_saturation_healthy == true and
       .readiness_database_pool_min_connections == 4 and
-      .readiness_database_pool_max_connections == 4' \
+      .readiness_database_pool_max_connections == 12' \
       >/dev/null 2>&1 && break
   sleep 0.5
 done
@@ -59,7 +59,7 @@ curl -fsS http://127.0.0.1:7005/v1/online/readiness \
     .database_pool_saturation_healthy == true and .database_pool_max_connections == 12 and
     .readiness_database_pool_saturation_healthy == true and
     .readiness_database_pool_min_connections == 4 and
-    .readiness_database_pool_max_connections == 4' >/dev/null
+    .readiness_database_pool_max_connections == 12' >/dev/null
 TRNM_REQUIRE_INSTALLED_RESOURCE_BUDGETS=1 \
   "$ROOT_DIR/scripts/check-trnm-online-resource-budgets.sh" >/dev/null
 trap - EXIT

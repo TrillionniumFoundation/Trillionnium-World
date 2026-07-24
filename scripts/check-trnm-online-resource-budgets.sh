@@ -59,6 +59,13 @@ rg -q 'READINESS_DATABASE_MAX_CONNECTIONS: u32 = 12' \
   "$ROOT_DIR/trillionnium/crates/trnm-game-server/src/lib.rs"
 rg -q 'SIGNER_DATABASE_MAX_CONNECTIONS: u32 = 4' \
   "$ROOT_DIR/trillionnium/crates/trnm-game-server/src/bin/trnm-entitlement-signer.rs"
+install_script="$ROOT_DIR/scripts/install-trnm-game-server-systemd.sh"
+bash -n "$install_script"
+if [[ "$(rg -cF '.readiness_database_pool_max_connections == 12' \
+    "$install_script")" != 2 ]]; then
+  echo "game-server installer must enforce the 12-connection readiness pool" >&2
+  exit 1
+fi
 
 installed=false
 if [[ "${TRNM_REQUIRE_INSTALLED_RESOURCE_BUDGETS:-0}" == 1 ]]; then
