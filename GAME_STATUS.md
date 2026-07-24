@@ -1,6 +1,6 @@
 # TRNM Game Status
 
-Updated: 2026-07-23
+Updated: 2026-07-24
 
 This is the one-page status source for the current native RPG + real-time-strategy product. The older finite checklist in `docs/development/trnm-deep-rpg-complete-rts-v1-dod.md` is retained as a completed historical baseline, not as a claim that the broader deep-RPG + complete-RTS vision is 100%. The current local CEX economy integration, Online Authority v3 with exact-v2 rolling compatibility, Online Product v2, Online Operations v2 and Online Production v2 slices are enumerated below; none grants Android or public-launch credit.
 
@@ -13,7 +13,7 @@ The bounded v2 checklist remains historical evidence; this page records the newe
 
 ## Current decision
 
-- Promoted online-authority baseline: `a3e1d6d7f`. The 2026-07-23 client candidate passes 59 focused First Contact tests, focused strict Clippy, format, Bash syntax and ShellCheck after the v3 evidence hardening. A clean-source native run, the complete locked workspace sweep and CI promotion remain required before this tranche receives release credit.
+- Promoted online-authority baseline: `a3e1d6d7f`. Post-release native-client checkpoint `81f5a9f0b` passes 60 focused First Contact tests, the complete 300-test locked workspace sweep, workspace strict Clippy, format, Bash syntax and ShellCheck. Its clean-source command-journal SIGKILL recovery sub-gate is release-credit eligible, but the combined native v3 gate still fails the release-bound frame targets on this X230 software-rendered evidence host and has not been promoted as a complete native release.
 - Engineering posture: technical alpha. Player-facing posture: pre-alpha. Public RPG+RTS MMO/commercial beta: **NO-GO**.
 - Active route: the current worktree closes the Stage 0 source tranche (real-clock frame/input/network timing v3, background CEX economy I/O, canonical status and a verifiable Linux bundle) and starts Stage 1 with a responsive player-first shell for one coherent 10–15 minute `NEW -> RPG -> RTS -> debrief -> town` vertical slice. New endpoints, systems and evidence-only scripts remain frozen unless they remove a current P0.
 - Current P0s: release-bound 30/60 FPS plus input/network runtime evidence, clean isolated 24-hour authority evidence, real-human comprehension/play evidence, Windows/macOS signing and public distribution, and public multi-host/regional operations.
@@ -173,10 +173,12 @@ being grandfathered. Release `a3e1d6d7ffe4-e777cf2c4aa5-5524a70f78e8`
 promoted this authority tranche and passed the release-bound 100-ms PostgreSQL
 RTT profile. PostgreSQL kill-before-ACK, rollback and ambiguous-commit matrices
 remain open. Current post-release client work adds fail-closed frame/input/network timing v3,
-moves connected CEX reconciliation off the Bevy update thread and introduces
-the responsive player-first shell. It passes the full locked workspace test and
-strict-lint sweep plus a local rendered smoke pass, but has no promoted runtime
-or human-play credit yet.
+moves connected CEX reconciliation off the Bevy update thread, introduces
+the responsive player-first shell and proves that a command durably journaled
+before client SIGKILL is submitted exactly once after restart. It passes the
+full locked workspace test and strict-lint sweep plus a local rendered smoke
+pass. The command-recovery sub-gate has clean-source runtime credit; the complete
+native frame gate and human-play gate do not.
 
 Positive online wallet rewards are match/result/participant-bound Ed25519
 `ServerSignedValueEntitlementV2` values. Online Production v1 removes the
@@ -311,6 +313,22 @@ deployed.
 
 ## Current local evidence
 
+- post-release native-client checkpoint `81f5a9f0b` passes 60/60 focused First
+  Contact tests, 300/300 locked workspace/all-target tests, format, workspace
+  strict Clippy `-D warnings`, Bash syntax, ShellCheck and diff checks;
+- clean-source native command-journal recovery sub-gate
+  `acceptance/online-native/online-native-1784851686-2124/journal-sigkill-recovery.json`,
+  match `3f57b51e-50b0-4d27-b237-cbd5f5665108`: release binary
+  `17639301...084f29d` at exact source `81f5a9f0b` durably exposes input sequence
+  1, receives SIGKILL before any server commit, retains the database count at
+  1, then restarts with the same command ID and reaches exactly 2 commands while
+  draining the mode-600 journal. The sub-gate reports
+  `release_credit_eligible=true`. The enclosing native v3 run correctly exits
+  nonzero: Xvfb Vulkan llvmpipe measured host 21.12 average / 13.68 one-percent-low
+  FPS and guest 20.31 / 12.90 against the fixed 60/30 targets. Both clients kept
+  network I/O off the render thread and passed native input-to-durable-ACK at
+  32.24/39.07 ms. This is command-durability credit, not a complete native
+  performance, human, public-network or regional pass;
 - committed baseline `a3e1d6d7f` passed the 2026-07-22 serial source audit:
   292 locked workspace/all-target tests, format and workspace/all-target Clippy
   with `-D warnings`. Earlier 2026-07-15 authority-specific gates also passed
