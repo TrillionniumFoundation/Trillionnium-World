@@ -80,6 +80,12 @@ struct NetworkCommandJob {
     input_accepted_at: Option<Instant>,
 }
 
+struct CommandWorkerChannels {
+    requests: Receiver<JournalRequest>,
+    mutation_tx: SyncSender<JournalRequest>,
+    events: SyncSender<WorkerEvent>,
+}
+
 enum WorkerEvent {
     CommandAccepted(Box<WorkerCommandAccepted>),
     SnapshotRefreshCompleted,
@@ -148,6 +154,7 @@ const ONLINE_STREAM_RECONNECT_MIN: Duration = Duration::from_millis(250);
 const ONLINE_STREAM_RECONNECT_MAX: Duration = Duration::from_secs(5);
 const ONLINE_STREAM_READ_TIMEOUT: Duration = Duration::from_secs(5);
 const ONLINE_STREAM_MAX_MESSAGE_BYTES: usize = 4 * 1024 * 1024;
+const ONLINE_TEST_FAULT_MAX_HOLD: Duration = Duration::from_secs(120);
 
 #[derive(Clone)]
 struct StreamCursor {
@@ -227,6 +234,7 @@ impl OnlineAuthorityClient {
             config.player_id.clone(),
             config.account_id.clone(),
         );
+        let test_hold_after_durable_enqueue = command_journal_test_fault_from_env()?;
         let journal_path = command_journal_path(&config)?;
         let mut command_journal = OnlineCommandJournal::load_or_new(journal_path, journal_scope)?;
         if member.next_input_sequence > command_journal.next_input_sequence {
@@ -262,11 +270,14 @@ impl OnlineAuthorityClient {
         spawn_command_workers(
             config.clone(),
             build_http_client()?,
-            command_rx,
-            command_tx.clone(),
-            event_tx.clone(),
+            CommandWorkerChannels {
+                requests: command_rx,
+                mutation_tx: command_tx.clone(),
+                events: event_tx.clone(),
+            },
             command_journal,
             Arc::clone(&pending_commands),
+            test_hold_after_durable_enqueue,
         )?;
         spawn_stream_worker(
             config.clone(),
@@ -934,12 +945,16 @@ fn validate_stream_snapshot(
 fn spawn_command_workers(
     config: NetworkConfig,
     client: reqwest::blocking::Client,
-    requests: Receiver<JournalRequest>,
-    mutation_tx: SyncSender<JournalRequest>,
-    events: SyncSender<WorkerEvent>,
+    channels: CommandWorkerChannels,
     journal: OnlineCommandJournal,
     pending_commands: Arc<AtomicUsize>,
+    test_hold_after_durable_enqueue: Option<Duration>,
 ) -> Result<(), String> {
+    let CommandWorkerChannels {
+        requests,
+        mutation_tx,
+        events,
+    } = channels;
     let recovered = journal
         .pending_exact_attempts
         .iter()
@@ -980,7 +995,16 @@ fn spawn_command_workers(
         .map_err(|error| format!("spawn online command network worker: {error}"))?;
     thread::Builder::new()
         .name("trnm-online-command-journal".to_string())
-        .spawn(move || run_journal_owner(journal, recovered, requests, network_tx, events))
+        .spawn(move || {
+            run_journal_owner(
+                journal,
+                recovered,
+                requests,
+                network_tx,
+                events,
+                test_hold_after_durable_enqueue,
+            )
+        })
         .map(|_| ())
         .map_err(|error| format!("spawn online command journal worker: {error}"))
 }
@@ -991,6 +1015,7 @@ fn run_journal_owner(
     requests: Receiver<JournalRequest>,
     network: SyncSender<NetworkCommandJob>,
     events: SyncSender<WorkerEvent>,
+    test_hold_after_durable_enqueue: Option<Duration>,
 ) {
     for job in recovered {
         if network.send(job).is_err() {
@@ -1011,6 +1036,14 @@ fn run_journal_owner(
                 });
                 match result {
                     Ok(job) => {
+                        // The release fault matrix uses this explicit dual-opt-in
+                        // hold to SIGKILL the client after the exact command is
+                        // durably installed but before the network worker can
+                        // observe it. Normal clients cannot enable the hold with
+                        // the duration variable alone.
+                        if let Some(duration) = test_hold_after_durable_enqueue {
+                            thread::sleep(duration);
+                        }
                         if network.send(job).is_err() {
                             fail_stop_journal_owner(
                                 &events,
@@ -1500,6 +1533,40 @@ fn command_journal_path(config: &NetworkConfig) -> Result<PathBuf, String> {
         .join(format!("{}-{}.json", config.match_id, config.account_id)))
 }
 
+fn command_journal_test_fault_from_env() -> Result<Option<Duration>, String> {
+    parse_command_journal_test_fault(
+        env::var("TRNM_ENABLE_TEST_FAULT_INJECTION").ok().as_deref(),
+        env::var("TRNM_ONLINE_TEST_HOLD_AFTER_DURABLE_ENQUEUE_MS")
+            .ok()
+            .as_deref(),
+    )
+}
+
+fn parse_command_journal_test_fault(
+    enabled: Option<&str>,
+    hold_ms: Option<&str>,
+) -> Result<Option<Duration>, String> {
+    let Some(raw_hold_ms) = hold_ms.filter(|value| !value.trim().is_empty()) else {
+        return Ok(None);
+    };
+    if enabled != Some("1") {
+        return Err("TRNM_ONLINE_TEST_HOLD_AFTER_DURABLE_ENQUEUE_MS requires \
+             TRNM_ENABLE_TEST_FAULT_INJECTION=1"
+            .to_string());
+    }
+    let milliseconds = raw_hold_ms.parse::<u64>().map_err(|_| {
+        "TRNM_ONLINE_TEST_HOLD_AFTER_DURABLE_ENQUEUE_MS must be an integer".to_string()
+    })?;
+    let duration = Duration::from_millis(milliseconds);
+    if duration.is_zero() || duration > ONLINE_TEST_FAULT_MAX_HOLD {
+        return Err(format!(
+            "TRNM_ONLINE_TEST_HOLD_AFTER_DURABLE_ENQUEUE_MS must be between 1 and {}",
+            ONLINE_TEST_FAULT_MAX_HOLD.as_millis()
+        ));
+    }
+    Ok(Some(duration))
+}
+
 fn compare_snapshot_freshness(
     candidate: &OnlineSnapshotResponse,
     current: &OnlineSnapshotResponse,
@@ -1607,6 +1674,28 @@ mod tests {
     use trnm_rts_protocol::{RtsOrderKind, RtsTile};
 
     static TEST_JOURNAL_SEQUENCE: AtomicU64 = AtomicU64::new(0);
+
+    #[test]
+    fn durable_enqueue_fault_hold_requires_explicit_bounded_dual_opt_in() {
+        assert_eq!(parse_command_journal_test_fault(None, None).unwrap(), None);
+        assert_eq!(
+            parse_command_journal_test_fault(Some("0"), Some("")).unwrap(),
+            None
+        );
+
+        let missing_opt_in = parse_command_journal_test_fault(None, Some("30000")).unwrap_err();
+        assert!(
+            missing_opt_in.contains("TRNM_ENABLE_TEST_FAULT_INJECTION=1"),
+            "{missing_opt_in}"
+        );
+        assert!(parse_command_journal_test_fault(Some("1"), Some("0")).is_err());
+        assert!(parse_command_journal_test_fault(Some("1"), Some("120001")).is_err());
+        assert!(parse_command_journal_test_fault(Some("1"), Some("not-a-number")).is_err());
+        assert_eq!(
+            parse_command_journal_test_fault(Some("1"), Some("30000")).unwrap(),
+            Some(Duration::from_secs(30))
+        );
+    }
 
     #[test]
     fn snapshot_transport_never_blocks_the_render_caller() {

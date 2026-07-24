@@ -24,9 +24,12 @@ FRAME_MAX_DELTA_MS=100
 FRAME_MIN_COVERAGE_RATIO=0.90
 FRAME_MAX_COVERAGE_RATIO=1.10
 INPUT_ACK_MAX_MS=1000
+JOURNAL_CRASH_HOLD_MS=30000
 HOST_PID=""
 GUEST_PID=""
 XVFB_PID=""
+HOST_CRASH_WINDOW=""
+HOST_RECOVERY_WINDOW=""
 NETEM_APPLIED=0
 CHAOS_RTT_MS="${TRNM_NATIVE_CHAOS_RTT_MS:-}"
 CHAOS_LOSS_PERCENT="${TRNM_NATIVE_CHAOS_LOSS_PERCENT:-0}"
@@ -66,6 +69,7 @@ fi
 CLIENT_BINARY_SHA256="$(sha256sum "$BIN" | awk '{print $1}')"
 mkdir -p "$EVIDENCE/host-save" "$EVIDENCE/guest-save" \
   "$EVIDENCE/host-journal" "$EVIDENCE/guest-journal"
+JOURNAL_RECOVERY_EVIDENCE="$EVIDENCE/journal-sigkill-recovery.json"
 
 process_environment_value() {
   local pid="$1" name="$2" entry
@@ -309,12 +313,14 @@ wait_for_frame_measurement_start() {
   return 1
 }
 
-wait_for_bound_input_command() {
-  local player="$1" injected_at_ms="$2"
+wait_for_bound_command_row() {
+  local player="$1" expected_input_sequence="$2"
   local row=""
+  [[ "$expected_input_sequence" =~ ^[0-9]+$ ]]
   for _ in $(seq 1 40); do
     row="$(cex_psql_stdin -Atc "select json_build_object(
       'command_id',command_id,
+      'request_hash',request_hash,
       'sequence',sequence,
       'input_sequence',input_sequence,
       'created_at_unix_ms',floor(extract(epoch from created_at) * 1000)::bigint,
@@ -323,26 +329,76 @@ wait_for_bound_input_command() {
       'raw_command_label',order_json->>'raw_command_label'
     ) from trnm_online_commands
       where match_id = '$MATCH_ID'::uuid and player_id = '$player'
+        and input_sequence = $expected_input_sequence
       order by sequence desc limit 1")"
-    if [[ -n "$row" ]] && jq -e '
+    if [[ -n "$row" ]] && jq -e --argjson expected "$expected_input_sequence" '
         (.command_id | startswith("native:"))
-        and .input_sequence == 0
+        and (.request_hash | length) == 64
+        and .input_sequence == $expected
         and .source == "local_input"
         and .kind == "move"
         and .raw_command_label == "FIRST_CONTACT:MOVE"
       ' >/dev/null 2>&1 <<<"$row"; then
-      jq -cn --argjson row "$row" --argjson injected_at_ms "$injected_at_ms" \
-        '$row + {
-          injected_at_unix_ms:$injected_at_ms,
-          database_commit_after_injection_ms:
-            ($row.created_at_unix_ms - $injected_at_ms)
-        }'
+      printf '%s\n' "$row"
       return 0
     fi
     sleep 0.25
   done
-  echo "native input did not produce one bound durable local-input command for $player" >&2
+  echo "native input did not produce durable input sequence $expected_input_sequence for $player" >&2
   return 1
+}
+
+wait_for_bound_input_command() {
+  local player="$1" injected_at_ms="$2" expected_input_sequence="$3" row
+  row="$(wait_for_bound_command_row "$player" "$expected_input_sequence")"
+  jq -cn --argjson row "$row" --argjson injected_at_ms "$injected_at_ms" \
+    '$row + {
+      injected_at_unix_ms:$injected_at_ms,
+      database_commit_after_injection_ms:
+        ($row.created_at_unix_ms - $injected_at_ms)
+    }'
+}
+
+wait_for_pending_journal_command() {
+  local journal="$1" expected_input_sequence="$2" pending=""
+  for _ in $(seq 1 80); do
+    if [[ -s "$journal" ]]; then
+      pending="$(jq -ce --argjson expected "$expected_input_sequence" '
+        select(.contract_version == "trnm_online_command_journal_v1")
+        | .pending_exact_attempts
+        | select(length == 1)
+        | .[0]
+        | select(.request.input_sequence == $expected)
+      ' "$journal" 2>/dev/null || true)"
+      if [[ -n "$pending" ]]; then
+        printf '%s\n' "$pending"
+        return 0
+      fi
+    fi
+    sleep 0.05
+  done
+  echo "native command journal never exposed durable pending input sequence $expected_input_sequence" >&2
+  return 1
+}
+
+wait_for_journal_drain() {
+  local journal="$1"
+  for _ in $(seq 1 80); do
+    if [[ -s "$journal" ]] \
+        && jq -e '.pending_exact_attempts | length == 0' \
+          "$journal" >/dev/null 2>&1; then
+      return 0
+    fi
+    sleep 0.25
+  done
+  echo "native command journal did not drain after restart: $journal" >&2
+  return 1
+}
+
+player_command_count() {
+  local player="$1"
+  cex_psql_stdin -Atc "select count(*) from trnm_online_commands
+    where match_id = '$MATCH_ID'::uuid and player_id = '$player'"
 }
 
 netem_packet_count() {
@@ -477,7 +533,9 @@ capture "$HOST_WINDOW" "$EVIDENCE/host-attached.png"
 wait_for_frame_measurement_start "$EVIDENCE/host-frame-timing.json"
 host_input_injected_at_ms="$(date +%s%3N)"
 "$ROOT_DIR/scripts/x11_key_inject.py" "$HOST_WINDOW" q
-host_input_command="$(wait_for_bound_input_command "$HOST_PLAYER" "$host_input_injected_at_ms")"
+host_input_command="$(
+  wait_for_bound_input_command "$HOST_PLAYER" "$host_input_injected_at_ms" 0
+)"
 jq -e --argjson maximum_ms "$INPUT_ACK_MAX_MS" '
   .database_commit_after_injection_ms >= 0
   and .database_commit_after_injection_ms <= $maximum_ms
@@ -518,7 +576,9 @@ capture "$GUEST_WINDOW" "$EVIDENCE/guest-attached.png"
 wait_for_frame_measurement_start "$EVIDENCE/guest-frame-timing.json"
 guest_input_injected_at_ms="$(date +%s%3N)"
 "$ROOT_DIR/scripts/x11_key_inject.py" "$GUEST_WINDOW" q
-guest_input_command="$(wait_for_bound_input_command "$GUEST_PLAYER" "$guest_input_injected_at_ms")"
+guest_input_command="$(
+  wait_for_bound_input_command "$GUEST_PLAYER" "$guest_input_injected_at_ms" 0
+)"
 jq -e --argjson maximum_ms "$INPUT_ACK_MAX_MS" '
   .database_commit_after_injection_ms >= 0
   and .database_commit_after_injection_ms <= $maximum_ms
@@ -531,6 +591,119 @@ kill -CONT "$GUEST_PID" >/dev/null 2>&1 || true
 kill "$GUEST_PID" >/dev/null 2>&1 || true
 wait "$GUEST_PID" 2>/dev/null || true
 GUEST_PID=""
+
+host_commands_before_crash="$(player_command_count "$HOST_PLAYER")"
+[[ "$host_commands_before_crash" =~ ^[0-9]+$ ]]
+(( host_commands_before_crash == 1 ))
+TRNM_CAMPAIGN_SAVE_PATH="$EVIDENCE/host-save/campaign.json" \
+TRNM_ONLINE_AUTHORITY_URL="$ONLINE_URL" TRNM_ONLINE_MATCH_ID="$MATCH_ID" \
+TRNM_CEX_ACTOR_ID="$HOST_PLAYER" TRNM_CEX_ACCOUNT_ID="$HOST_ACCOUNT" \
+TRNM_CEX_PLAYER_SESSION="$HOST_SESSION" \
+TRNM_ONLINE_COMMAND_JOURNAL_PATH="$EVIDENCE/host-journal/journal.json" \
+TRNM_ENABLE_TEST_FAULT_INJECTION=1 \
+TRNM_ONLINE_TEST_HOLD_AFTER_DURABLE_ENQUEUE_MS="$JOURNAL_CRASH_HOLD_MS" \
+  "$BIN" >"$EVIDENCE/host-journal-crash.log" 2>&1 &
+HOST_PID=$!
+HOST_CRASH_WINDOW="$(wait_for_window "$HOST_PID")"
+"$ROOT_DIR/scripts/x11_window_move.py" "$HOST_CRASH_WINDOW" 0 0
+sleep 1
+"$ROOT_DIR/scripts/x11_key_inject.py" "$HOST_CRASH_WINDOW" q
+host_crash_pending="$(
+  wait_for_pending_journal_command \
+    "$EVIDENCE/host-journal/journal.json" 1
+)"
+kill -KILL "$HOST_PID"
+wait "$HOST_PID" 2>/dev/null || true
+HOST_PID=""
+host_commands_after_crash="$(player_command_count "$HOST_PLAYER")"
+[[ "$host_commands_after_crash" =~ ^[0-9]+$ ]]
+(( host_commands_after_crash == host_commands_before_crash ))
+
+TRNM_CAMPAIGN_SAVE_PATH="$EVIDENCE/host-save/campaign.json" \
+TRNM_ONLINE_AUTHORITY_URL="$ONLINE_URL" TRNM_ONLINE_MATCH_ID="$MATCH_ID" \
+TRNM_CEX_ACTOR_ID="$HOST_PLAYER" TRNM_CEX_ACCOUNT_ID="$HOST_ACCOUNT" \
+TRNM_CEX_PLAYER_SESSION="$HOST_SESSION" \
+TRNM_ONLINE_COMMAND_JOURNAL_PATH="$EVIDENCE/host-journal/journal.json" \
+  "$BIN" >"$EVIDENCE/host-journal-recovery.log" 2>&1 &
+HOST_PID=$!
+HOST_RECOVERY_WINDOW="$(wait_for_window "$HOST_PID")"
+"$ROOT_DIR/scripts/x11_window_move.py" "$HOST_RECOVERY_WINDOW" 0 0
+host_recovered_command="$(wait_for_bound_command_row "$HOST_PLAYER" 1)"
+wait_for_journal_drain "$EVIDENCE/host-journal/journal.json"
+host_commands_after_recovery="$(player_command_count "$HOST_PLAYER")"
+[[ "$host_commands_after_recovery" =~ ^[0-9]+$ ]]
+(( host_commands_after_recovery == host_commands_before_crash + 1 ))
+kill "$HOST_PID" >/dev/null 2>&1 || true
+wait "$HOST_PID" 2>/dev/null || true
+HOST_PID=""
+
+jq -n \
+  --arg run_id "$RUN_ID" \
+  --arg match_id "$MATCH_ID" \
+  --arg client_binary "$BIN" \
+  --arg client_binary_sha256 "$CLIENT_BINARY_SHA256" \
+  --arg source_commit "$SOURCE_COMMIT" \
+  --arg source_tree "$SOURCE_TREE" \
+  --argjson source_dirty "$SOURCE_DIRTY" \
+  --argjson clean_evidence_required "$REQUIRE_CLEAN_EVIDENCE" \
+  --argjson crash_hold_ms "$JOURNAL_CRASH_HOLD_MS" \
+  --argjson commands_before_crash "$host_commands_before_crash" \
+  --argjson commands_after_crash "$host_commands_after_crash" \
+  --argjson commands_after_recovery "$host_commands_after_recovery" \
+  --argjson pending "$host_crash_pending" \
+  --argjson recovered "$host_recovered_command" '
+  (
+    $commands_after_crash == $commands_before_crash
+    and $commands_after_recovery == ($commands_before_crash + 1)
+    and $recovered.input_sequence == $pending.request.input_sequence
+    and $recovered.command_id == $pending.request.command_id
+    and ($recovered.request_hash | length) == 64
+  ) as $passed | {
+    contract_version:"trnm_online_command_journal_sigkill_recovery_v1",
+    status:(if $passed then "passed" else "failed" end),
+    run_id:$run_id,
+    match_id:$match_id,
+    client_binary:{
+      path:$client_binary,
+      sha256:$client_binary_sha256,
+      source_commit:$source_commit,
+      source_tree:$source_tree,
+      source_dirty:$source_dirty,
+      clean_evidence_required:($clean_evidence_required == 1),
+      build_fresh:true
+    },
+    fault:{
+      explicit_test_opt_in:true,
+      hold_after_durable_enqueue_ms:$crash_hold_ms,
+      process_signal:"SIGKILL"
+    },
+    pending_before_sigkill:$pending,
+    recovered_command:$recovered,
+    commands_before_sigkill:$commands_before_crash,
+    commands_after_sigkill:$commands_after_crash,
+    commands_after_recovery:$commands_after_recovery,
+    no_pre_crash_network_commit:
+      ($commands_after_crash == $commands_before_crash),
+    exact_once_recovery:(
+      $commands_after_recovery == ($commands_before_crash + 1)
+      and $recovered.input_sequence == $pending.request.input_sequence
+      and $recovered.command_id == $pending.request.command_id
+      and ($recovered.request_hash | length) == 64
+    ),
+    journal_drained:true,
+    release_credit_eligible:
+      ($passed and ($clean_evidence_required == 1) and ($source_dirty == false)),
+    passed:$passed,
+    boundary:"native client journal durability and exact-once recovery sub-gate only; not frame-performance, human-play, public-network, multi-host, or regional evidence"
+  }' >"$JOURNAL_RECOVERY_EVIDENCE"
+jq -e '
+  .contract_version == "trnm_online_command_journal_sigkill_recovery_v1"
+  and .status == "passed"
+  and .no_pre_crash_network_commit == true
+  and .exact_once_recovery == true
+  and .journal_drained == true
+  and .passed == true
+' "$JOURNAL_RECOVERY_EVIDENCE" >/dev/null
 
 jq -e '.contract_version == "trnm_online_render_frame_timing_v3" and
   .clock == "bevy_time_real" and
@@ -626,9 +799,11 @@ journal_evidence="$(jq -cn \
   --arg host_file_mode "$(stat -c '%a' "$EVIDENCE/host-journal/journal.json")" \
   --arg guest_directory_mode "$(stat -c '%a' "$EVIDENCE/guest-journal")" \
   --arg guest_file_mode "$(stat -c '%a' "$EVIDENCE/guest-journal/journal.json")" \
+  --argjson recovery "$(jq -c . "$JOURNAL_RECOVERY_EVIDENCE")" \
   '{host_directory_mode:$host_directory_mode,host_file_mode:$host_file_mode,
     guest_directory_mode:$guest_directory_mode,guest_file_mode:$guest_file_mode,
-    pending_after_ack:0,rejected_after_ack:0,credentials_absent:true}')"
+    pending_after_ack:0,rejected_after_ack:0,credentials_absent:true,
+    sigkill_recovery:$recovery}')"
 
 database="$(cex_psql_stdin -Atc "select json_build_object(
   'lobby_status',(select status from trnm_online_lobbies where lobby_id = '$LOBBY_ID'::uuid),
@@ -640,7 +815,7 @@ database="$(cex_psql_stdin -Atc "select json_build_object(
   'distinct_control_sets',(select count(distinct controlled_unit_ids) from trnm_online_match_members where match_id = '$MATCH_ID'::uuid)
 )" | jq -c .)"
 jq -e '.lobby_status == "matched" and .allocations == 1 and
-  .members == 2 and .host_commands == 1 and .guest_commands == 1 and
+  .members == 2 and .host_commands == 2 and .guest_commands == 1 and
   .fingerprinted_commands == (.host_commands + .guest_commands) and
   .distinct_control_sets == 2' <<<"$database" >/dev/null
 
@@ -685,6 +860,7 @@ jq -n --arg run_id "$RUN_ID" --arg match_id "$MATCH_ID" --arg evidence "$EVIDENC
       netem_packets:$netem_packets
     },
     native_x11_clients:2,distinct_windows:($host_window != $guest_window),
+    native_client_process_launches:4,
     client_execution_model:"sequential_on_single_evidence_host_models_separate_player_devices",
     closed_alpha_product_lobby_flow:true,
     server_authoritative_commands:true,database:$database,
