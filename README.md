@@ -1,6 +1,8 @@
-# Trillionnium Chain (TRNM)
+# Trillionnium World
 
-**TRNM** is a Rust-native Layer 1 focused on **Decentralized AI Compute** (PoCO).
+This is the `game-product` repository for Trillionnium World. Historical Chain
+wording remains in older sections as migration context; it is not the active
+ownership boundary. See `PROJECT_BOUNDARY.md` before development.
 
 - Active game workspace: `trillionnium/Cargo.toml` (8 product crates only)
 - Current one-page game status: `GAME_STATUS.md`
@@ -107,8 +109,8 @@ TrillionniumChain/
 ### 4.2 Clone
 
 ```bash
-git clone https://github.com/ProfAlexQI/TrillionniumChain.git
-cd TrillionniumChain
+git clone https://github.com/TrillionniumFoundation/Trillionnium-World.git
+cd Trillionnium-World
 ```
 
 ### 4.3 Rust mainline smoke
