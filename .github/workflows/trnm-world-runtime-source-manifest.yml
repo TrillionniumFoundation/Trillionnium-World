@@ -1,0 +1,78 @@
+name: trnm-world-runtime-source-manifest
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'contracts/world-runtime/v1/**'
+      - 'docs/protocol/trnm-world-runtime-v1.md'
+      - 'scripts/verify-trnm-world-runtime-v1.py'
+      - 'scripts/emit-trnm-world-runtime-v1-source-manifest.py'
+      - '.github/workflows/trnm-world-runtime-source-manifest.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'contracts/world-runtime/v1/**'
+      - 'docs/protocol/trnm-world-runtime-v1.md'
+      - 'scripts/verify-trnm-world-runtime-v1.py'
+      - 'scripts/emit-trnm-world-runtime-v1-source-manifest.py'
+      - '.github/workflows/trnm-world-runtime-source-manifest.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trnm-world-runtime-source-manifest-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  exact-source:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 1
+      - name: Compile source tools
+        run: |
+          python3 -m py_compile scripts/verify-trnm-world-runtime-v1.py
+          python3 -m py_compile scripts/emit-trnm-world-runtime-v1-source-manifest.py
+      - name: Reverify deterministic contract
+        run: |
+          mkdir -p run/world-runtime-source
+          python3 scripts/verify-trnm-world-runtime-v1.py \
+            | tee run/world-runtime-source/contract-report.json
+      - name: Emit exact commit, tree and blob manifest
+        run: |
+          python3 scripts/emit-trnm-world-runtime-v1-source-manifest.py \
+            | tee run/world-runtime-source/source-manifest.json
+      - name: Validate source provenance and authority boundary
+        run: |
+          jq -e '
+            .status == "source_exact" and
+            .contract_version == "trnm_world_runtime_source_manifest_v1" and
+            (.commit | test("^[0-9a-f]{40}$")) and
+            (.tree | test("^[0-9a-f]{40}$")) and
+            (.blobs | length == 5) and
+            ([.blobs[] | select((.git_blob_sha1 | test("^[0-9a-f]{40}$")) and (.sha256 | test("^[0-9a-f]{64}$")) and (.bytes > 0))] | length == 5) and
+            .authority.world_deterministic_game_domain == true and
+            .authority.nakama_global_ordering == false and
+            .authority.nakama_completion_signing == false and
+            .authority.chain_finality == false and
+            .authority.cex_custody == false and
+            (.limitations | length > 0)
+          ' run/world-runtime-source/source-manifest.json >/dev/null
+          jq -e '
+            .status == "ok" and
+            .contract_version == "trnm_world_runtime_v1" and
+            .authority_signing == false and
+            .global_ordering == false and
+            .chain_finality == false
+          ' run/world-runtime-source/contract-report.json >/dev/null
+      - name: Upload exact source evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: trnm-world-runtime-source-${{ github.sha }}
+          path: run/world-runtime-source/*.json
+          if-no-files-found: error
