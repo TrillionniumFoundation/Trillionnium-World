@@ -1,0 +1,20 @@
+[package]
+name = "trnm-world-runtime-host"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "Bevy-free World runtime execution host and shadow-diff evidence adapter"
+license = "Apache-2.0"
+
+[workspace]
+
+[dependencies]
+serde_json = "=1.0.140"
+trnm-world-runtime-adapter = { path = "../rust" }
+
+[lints.rust]
+unsafe_code = "forbid"
+
+[lints.clippy]
+all = "deny"
+pedantic = "deny"
