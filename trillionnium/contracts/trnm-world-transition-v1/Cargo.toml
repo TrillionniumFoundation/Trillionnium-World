@@ -1,0 +1,13 @@
+[package]
+name = "trnm-world-transition-contract"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.85"
+license = "Apache-2.0"
+publish = false
+description = "Versioned deterministic transition contract owned by Trillionnium World"
+
+[lib]
+path = "src/lib.rs"
+
+[workspace]
