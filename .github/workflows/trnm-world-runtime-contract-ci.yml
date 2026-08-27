@@ -1,0 +1,61 @@
+name: trnm-world-runtime-contract-ci
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'contracts/world-runtime/v1/**'
+      - 'docs/protocol/trnm-world-runtime-v1.md'
+      - 'scripts/verify-trnm-world-runtime-v1.py'
+      - '.github/workflows/trnm-world-runtime-contract-ci.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'contracts/world-runtime/v1/**'
+      - 'docs/protocol/trnm-world-runtime-v1.md'
+      - 'scripts/verify-trnm-world-runtime-v1.py'
+      - '.github/workflows/trnm-world-runtime-contract-ci.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trnm-world-runtime-contract-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Compile reference verifier
+        run: python3 -m py_compile scripts/verify-trnm-world-runtime-v1.py
+      - name: Verify schema, canonical vectors and authority negatives
+        run: |
+          mkdir -p run/world-runtime-contract
+          python3 scripts/verify-trnm-world-runtime-v1.py \
+            | tee run/world-runtime-contract/report.json
+          jq -e '
+            .status == "ok" and
+            .contract_version == "trnm_world_runtime_v1" and
+            .authority_signing == false and
+            .global_ordering == false and
+            .chain_finality == false and
+            .canonicalization_vectors >= 4 and
+            .negative_vectors >= 5 and
+            (.runtime_request_domain_hash | test("^[0-9a-f]{64}$"))
+          ' run/world-runtime-contract/report.json >/dev/null
+      - name: Independent jq/sha256 canonical object check
+        run: |
+          canonical="$(jq -cS '.canonicalization_vectors[] | select(.name == "object-key-order") | .value' contracts/world-runtime/v1/golden-vectors.json)"
+          test "$canonical" = '{"a":1,"b":2}'
+          printf '%s' "$canonical" | sha256sum \
+            | grep -q '^43258cff783fe7036d8a43033f830adfc60ec037382473548ac742b888292777 '
+      - name: Upload exact conformance report
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: trnm-world-runtime-contract-${{ github.sha }}
+          path: run/world-runtime-contract/report.json
+          if-no-files-found: error
