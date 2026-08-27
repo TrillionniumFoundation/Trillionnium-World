@@ -1,0 +1,16 @@
+[package]
+name = "trnm-world-rules-contract-v1"
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+publish = false
+description = "Deterministic World rules transition contract; no online authority or signing responsibilities."
+
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "trnm-world-rules-vector"
+path = "src/bin/trnm-world-rules-vector.rs"
+
+[workspace]
