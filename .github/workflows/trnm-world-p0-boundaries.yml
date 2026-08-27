@@ -16,6 +16,7 @@ on:
       - 'trillionnium/crates/trnm-game-server/migrations/0017_online_settlement_worker_runtime_v1.sql'
       - 'trillionnium/crates/trnm-game-server/src/**'
       - 'trillionnium/crates/trnm-game-server/tests/p0_boundary_contract.rs'
+      - 'trillionnium/crates/trnm-game-server/tests/settlement_worker_contract.rs'
       - 'scripts/check-trnm-world-authority-boundary.sh'
       - 'scripts/test-trnm-world-authority-boundary-negative.sh'
       - 'scripts/check-trnm-settlement-transaction-boundary.sh'
@@ -24,7 +25,7 @@ on:
       - 'scripts/install-trnm-game-server-systemd.sh'
       - '.github/workflows/trnm-world-p0-boundaries.yml'
   push:
-    branches: [main]
+    branches: [main, feature/world-p0-execution-v3]
     paths:
       - 'PROJECT_BOUNDARY.*'
       - 'docs/adr/**'
@@ -38,6 +39,7 @@ on:
       - 'trillionnium/crates/trnm-game-server/migrations/0017_online_settlement_worker_runtime_v1.sql'
       - 'trillionnium/crates/trnm-game-server/src/**'
       - 'trillionnium/crates/trnm-game-server/tests/p0_boundary_contract.rs'
+      - 'trillionnium/crates/trnm-game-server/tests/settlement_worker_contract.rs'
       - 'scripts/check-trnm-world-authority-boundary.sh'
       - 'scripts/test-trnm-world-authority-boundary-negative.sh'
       - 'scripts/check-trnm-settlement-transaction-boundary.sh'
@@ -101,5 +103,7 @@ jobs:
         run: cargo fmt --all -- --check
       - name: Test transaction-free settlement worker target
         run: cargo test --locked -p trnm-game-server --bin trnm-settlement-worker
+      - name: Test settlement source and SQL contracts
+        run: cargo test --locked -p trnm-game-server --test settlement_worker_contract
       - name: Lint transaction-free settlement worker target
         run: cargo clippy --locked -p trnm-game-server --bin trnm-settlement-worker -- -D warnings
