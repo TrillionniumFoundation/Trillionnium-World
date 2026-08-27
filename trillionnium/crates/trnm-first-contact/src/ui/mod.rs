@@ -9,6 +9,7 @@ use super::{
     online_authority::OnlineAuthorityClient,
 };
 use bevy::prelude::*;
+use bevy::ui::FocusPolicy;
 use bevy::window::PrimaryWindow;
 use layout::{UiLayoutMetrics, UiViewportClass};
 use model::{WorldUiPage, WorldUiSnapshot};
@@ -493,13 +494,16 @@ pub(super) fn sync_world_ui(
                 (value, palette.muted, 9.0)
             }
             WorldUiTextSlot::Observer => {
-                let value = if viewport == UiViewportClass::Wide {
-                    format!(
-                        "NEXT · {}  ·  {}",
-                        snapshot.next_action, snapshot.progress_label
-                    )
-                } else {
-                    format!("NEXT · {}", snapshot.next_action)
+                let value = match viewport {
+                    UiViewportClass::Compact => format!("NEXT · {}", snapshot.next_action),
+                    UiViewportClass::Standard => format!(
+                        "NEXT · {}  ·  OBJECTIVE · {}",
+                        snapshot.next_action, snapshot.objective
+                    ),
+                    UiViewportClass::Wide => format!(
+                        "NEXT · {}  ·  OBJECTIVE · {}  ·  {}",
+                        snapshot.next_action, snapshot.objective, snapshot.progress_label
+                    ),
                 };
                 (value, palette.accent, 12.0)
             }
