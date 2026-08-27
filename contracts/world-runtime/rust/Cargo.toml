@@ -1,0 +1,30 @@
+[package]
+name = "trnm-world-runtime-adapter"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "Unsigned deterministic TRNM World runtime v1 adapter"
+license = "Apache-2.0"
+
+# Keep this contract adapter independently buildable until the parent game
+# workspace deliberately adopts it.  Its local TRNM dependencies remain inside
+# this repository and continue to resolve their own workspace inheritance.
+[workspace]
+
+[dependencies]
+serde = { version = "=1.0.219", features = ["derive"] }
+serde_json = "=1.0.140"
+sha2 = "=0.10.9"
+unicode-normalization = "=0.1.24"
+trnm-rts-protocol = { path = "../../../trillionnium/crates/trnm-rts-protocol" }
+trnm-rts-sim = { path = "../../../trillionnium/crates/trnm-rts-sim" }
+
+[dev-dependencies]
+serde_json = "=1.0.140"
+
+[lints.rust]
+unsafe_code = "forbid"
+
+[lints.clippy]
+all = "deny"
+pedantic = "deny"
