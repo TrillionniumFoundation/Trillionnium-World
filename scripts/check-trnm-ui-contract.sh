@@ -5,6 +5,7 @@ ROOT_DIR="${1:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 CLIENT_ROOT="$ROOT_DIR/trillionnium/crates/trnm-first-contact/src"
 UI_ROOT="$CLIENT_ROOT/ui"
 ACCEPTANCE="$ROOT_DIR/docs/development/trnm-world-ui-acceptance-v1.json"
+HUMAN_SCHEMA="$ROOT_DIR/docs/evidence/ui/trnm-world-ui-human-session-v1.schema.json"
 
 fail() {
   printf 'TRNM UI contract failed: %s\n' "$*" >&2
@@ -18,7 +19,9 @@ required_files=(
   "$UI_ROOT/model.rs"
   "$UI_ROOT/theme.rs"
   "$ROOT_DIR/docs/development/trnm-world-ui-vertical-slice-v1.md"
+  "$ROOT_DIR/docs/evidence/ui/README.md"
   "$ACCEPTANCE"
+  "$HUMAN_SCHEMA"
 )
 for file in "${required_files[@]}"; do
   [[ -f "$file" ]] || fail "required UI artifact is missing: ${file#$ROOT_DIR/}"
@@ -58,13 +61,15 @@ if grep -RniE --include='*.rs' "$forbidden_pattern" "$UI_ROOT"; then
   fail 'UI source contains a forbidden authority or public-market claim'
 fi
 
-python3 - "$ACCEPTANCE" <<'PY'
+python3 - "$ACCEPTANCE" "$HUMAN_SCHEMA" <<'PY'
 import json
 import pathlib
 import sys
 
-path = pathlib.Path(sys.argv[1])
-data = json.loads(path.read_text())
+acceptance_path = pathlib.Path(sys.argv[1])
+human_schema_path = pathlib.Path(sys.argv[2])
+data = json.loads(acceptance_path.read_text())
+schema = json.loads(human_schema_path.read_text())
 if data.get("contract_version") != "trnm_world_ui_acceptance_v1":
     raise SystemExit("unexpected UI acceptance contract")
 profiles = data.get("authority_profiles", {})
@@ -76,12 +81,26 @@ if profiles.get("nakama_canonical_claimed") is not False:
     raise SystemExit("UI acceptance may not claim Nakama canonical authority")
 if data.get("public_player_market_enabled") is not False:
     raise SystemExit("public player market must remain disabled")
+human = data.get("human_evidence_contract", {})
+if human.get("schema") != "docs/evidence/ui/trnm-world-ui-human-session-v1.schema.json":
+    raise SystemExit("human evidence schema binding drift")
+if human.get("validator") != "scripts/check-trnm-ui-human-evidence.sh":
+    raise SystemExit("human evidence validator binding drift")
+if human.get("automation_may_satisfy_claims") is not False:
+    raise SystemExit("automation may not satisfy human UI claims")
+required_human = {"UI-HUMAN-001", "UI-HUMAN-002", "UI-HUMAN-003"}
+if set(human.get("required_claims", [])) != required_human:
+    raise SystemExit("human UI claim set is incomplete")
+if schema.get("properties", {}).get("generated_by_automation", {}).get("const") is not False:
+    raise SystemExit("human evidence schema must reject automation")
 checks = data.get("checks")
-if not isinstance(checks, list) or len(checks) < 8:
+if not isinstance(checks, list) or len(checks) < 9:
     raise SystemExit("UI acceptance matrix is incomplete")
 ids = [check.get("id") for check in checks]
 if len(ids) != len(set(ids)):
     raise SystemExit("duplicate UI acceptance check ID")
+if not required_human.issubset(ids):
+    raise SystemExit("UI human acceptance rows are missing")
 for check in checks:
     if check.get("state") not in {"implemented", "pending", "blocked"}:
         raise SystemExit(f"invalid UI check state: {check}")
