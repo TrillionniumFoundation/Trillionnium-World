@@ -100,19 +100,43 @@ The dedicated UI workflow runs:
 
 1. static UI architecture and authority-label contract;
 2. a negative fixture proving forbidden authority claims are rejected;
-3. Rust formatting;
-4. `trnm-first-contact` library tests;
-5. Clippy with warnings denied.
+3. validation of every committed human-evidence packet;
+4. negative fixtures proving automation and underpowered samples cannot close a
+   human gate;
+5. Rust formatting;
+6. `trnm-first-contact` library tests;
+7. Clippy with warnings denied.
+
+## Human evidence contract
+
+Human packets are governed by:
+
+- `docs/evidence/ui/trnm-world-ui-human-session-v1.schema.json`;
+- `docs/evidence/ui/README.md`;
+- `scripts/check-trnm-ui-human-evidence.sh`;
+- `scripts/test-trnm-ui-human-evidence-negative.sh`.
+
+Packets must bind exact commit/tree/release/component-lock/binary identities,
+privacy-bounded anonymous participants, consent, environment, structured
+answers, artifact hashes, limitations and an independent reviewer decision.
+`generated_by_automation` is fixed to `false`.
+
+A release gate may run the validator with
+`TRNM_REQUIRE_UI_HUMAN_EVIDENCE=1`; this requires all three human claims to have
+approved `passed` packets. Normal source CI accepts an empty sessions directory
+only as **pending**, never as passed.
 
 ## Human evidence still required
 
 This change does not satisfy W7 human-validation rows. Promotion still requires:
 
-- three independent five-second-observer sessions;
-- one non-developer unguided 10–15 minute NEW → RPG → RTS → debrief → town run;
-- keyboard-only, mouse-only, high-contrast and subtitles sessions on supported
-  desktop platforms;
-- consented evidence with exact build/commit identity and limitations.
+- **UI-HUMAN-001:** three independent five-second-observer sessions;
+- **UI-HUMAN-002:** one non-developer unguided 10–15 minute
+  NEW → RPG → RTS → debrief → town run;
+- **UI-HUMAN-003:** keyboard-only, mouse-only, high-contrast, subtitles on/off,
+  low-motion, 1280x720 and wide-viewport sessions on supported desktop
+  platforms;
+- consented artifacts with exact build/commit identity and limitations.
 
-Until those rows are attached, this slice is **implemented**, not
+Until those rows are attached and approved, this slice is **implemented**, not
 `verified_human`, `release_ready`, or public-online approval.
