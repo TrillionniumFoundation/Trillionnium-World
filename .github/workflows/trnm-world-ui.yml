@@ -6,6 +6,7 @@ on:
     paths:
       - 'trillionnium/crates/trnm-first-contact/src/ui/**'
       - 'trillionnium/crates/trnm-first-contact/src/lib.rs'
+      - 'docs/README.md'
       - 'docs/development/trnm-world-ui-**'
       - 'scripts/check-trnm-ui-contract.sh'
       - 'scripts/test-trnm-ui-contract-negative.sh'
@@ -15,6 +16,7 @@ on:
     paths:
       - 'trillionnium/crates/trnm-first-contact/src/ui/**'
       - 'trillionnium/crates/trnm-first-contact/src/lib.rs'
+      - 'docs/README.md'
       - 'docs/development/trnm-world-ui-**'
       - 'scripts/check-trnm-ui-contract.sh'
       - 'scripts/test-trnm-ui-contract-negative.sh'
