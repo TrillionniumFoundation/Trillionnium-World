@@ -1,0 +1,91 @@
+{
+  "contract_version": "trnm_world_transition_delivery_v1",
+  "backlog_id": "WORLD-P0-002",
+  "status": "implemented_pending_exact_commit_ci",
+  "owner": "trillionnium-world",
+  "authority_scope": {
+    "world_owns": [
+      "ruleset_and_content_interpretation",
+      "deterministic_transition",
+      "unsigned_replay_material",
+      "unsigned_outcome_material",
+      "world_request_hash",
+      "world_transition_hash",
+      "world_outcome_hash"
+    ],
+    "world_does_not_own": [
+      "online_participant_admission",
+      "canonical_global_event_order",
+      "online_command_idempotency",
+      "canonical_archive_root",
+      "match_completed_v1",
+      "match_evidence_signing_key",
+      "chain_finality",
+      "wallet_or_ledger_settlement"
+    ]
+  },
+  "artifacts": {
+    "protocol": "docs/protocol/trnm-world-transition-v1.md",
+    "schema": "docs/protocol/schemas/trnm-world-transition-v1.schema.json",
+    "vectors": "docs/protocol/vectors/trnm-world-transition-v1.json",
+    "reference_package": "trillionnium/contracts/trnm-world-transition-v1",
+    "static_check": "scripts/check-trnm-world-transition-contract.sh",
+    "negative_check": "scripts/test-trnm-world-transition-contract-negative.sh",
+    "workflow": ".github/workflows/trnm-world-transition-contract.yml"
+  },
+  "hash_domains": {
+    "request": "trnm.world.transition.request.v1",
+    "transition": "trnm.world.transition.accepted.v1",
+    "outcome": "trnm.world.outcome.v1"
+  },
+  "resource_budgets": {
+    "state_bytes": 2097152,
+    "command_bytes": 131072,
+    "replay_bytes": 2097152,
+    "outcome_bytes": 524288
+  },
+  "acceptance": [
+    {
+      "id": "WORLD-P0-002-A1",
+      "claim": "Request, accepted result, rejection and payload schemas reject unknown fields",
+      "evidence_kind": "schema_static",
+      "state": "implemented"
+    },
+    {
+      "id": "WORLD-P0-002-A2",
+      "claim": "Canonical serialization and SHA-256 core vectors are fixed",
+      "evidence_kind": "golden_vectors",
+      "state": "implemented"
+    },
+    {
+      "id": "WORLD-P0-002-A3",
+      "claim": "Identical requests and adapter output produce identical transition hashes",
+      "evidence_kind": "rust_unit",
+      "state": "implemented_pending_ci"
+    },
+    {
+      "id": "WORLD-P0-002-A4",
+      "claim": "Unknown revisions, corrupt hashes, noncanonical payloads and authority crossings fail closed",
+      "evidence_kind": "rust_unit_and_negative",
+      "state": "implemented_pending_ci"
+    },
+    {
+      "id": "WORLD-P0-002-A5",
+      "claim": "Reference package has no third-party dependencies or external I/O",
+      "evidence_kind": "metadata_static",
+      "state": "implemented_pending_ci"
+    },
+    {
+      "id": "WORLD-P0-002-A6",
+      "claim": "Nakama independently reproduces exact accept/reject and hash vectors",
+      "evidence_kind": "cross_repository_shadow",
+      "state": "pending_WORLD-P0-003"
+    }
+  ],
+  "promotion_blockers": [
+    "exact_head_workflow_runs_missing_or_not_green",
+    "nakama_shadow_conformance_not_yet_implemented",
+    "integration_component_lock_not_yet_published"
+  ],
+  "next_dependency": "WORLD-P0-003"
+}
