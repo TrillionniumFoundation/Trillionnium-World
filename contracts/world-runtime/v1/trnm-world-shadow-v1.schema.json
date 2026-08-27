@@ -1,0 +1,243 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.trillionnium.invalid/world/runtime/trnm-world-shadow-v1.schema.json",
+  "title": "TRNM World deterministic shadow evidence v1",
+  "description": "Unsigned deterministic comparison of one World runtime observation and one independent candidate observation. It carries no participant authority, global order, canonical roots, completion signature, Chain finality or CEX custody state.",
+  "oneOf": [
+    { "$ref": "#/$defs/runtimeObservation" },
+    { "$ref": "#/$defs/shadowInput" },
+    { "$ref": "#/$defs/shadowReport" }
+  ],
+  "$defs": {
+    "hex40": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "hex64": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "identifier": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[a-z0-9][a-z0-9._:-]*$"
+    },
+    "nonNegativeI64": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9223372036854775807
+    },
+    "positiveI64": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9223372036854775807
+    },
+    "runtimeError": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["contract_version", "error_code", "error", "recoverable"],
+      "properties": {
+        "contract_version": { "const": "trnm_world_runtime_error_v1" },
+        "error_code": { "$ref": "#/$defs/identifier" },
+        "error": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4096
+        },
+        "recoverable": { "type": "boolean" }
+      }
+    },
+    "runtimeResponse": {
+      "oneOf": [
+        {
+          "$ref": "trnm-world-runtime-v1.schema.json#/$defs/executeResult"
+        },
+        {
+          "$ref": "#/$defs/runtimeError"
+        }
+      ]
+    },
+    "runtimeObservation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "contract_version",
+        "implementation_id",
+        "implementation_revision",
+        "request_hash",
+        "response",
+        "duration_micros",
+        "response_bytes"
+      ],
+      "properties": {
+        "contract_version": { "const": "trnm_world_runtime_observation_v1" },
+        "implementation_id": { "$ref": "#/$defs/identifier" },
+        "implementation_revision": { "$ref": "#/$defs/hex40" },
+        "request_hash": { "$ref": "#/$defs/hex64" },
+        "response": { "$ref": "#/$defs/runtimeResponse" },
+        "duration_micros": { "$ref": "#/$defs/nonNegativeI64" },
+        "response_bytes": { "$ref": "#/$defs/nonNegativeI64" }
+      }
+    },
+    "budgets": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "max_candidate_duration_micros",
+        "max_candidate_response_bytes"
+      ],
+      "properties": {
+        "max_candidate_duration_micros": { "$ref": "#/$defs/positiveI64" },
+        "max_candidate_response_bytes": { "$ref": "#/$defs/positiveI64" }
+      }
+    },
+    "shadowInput": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["contract_version", "world", "candidate", "budgets"],
+      "properties": {
+        "contract_version": { "const": "trnm_world_shadow_input_v1" },
+        "world": { "$ref": "#/$defs/runtimeObservation" },
+        "candidate": { "$ref": "#/$defs/runtimeObservation" },
+        "budgets": { "$ref": "#/$defs/budgets" }
+      }
+    },
+    "implementationSummary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "revision",
+        "request_hash",
+        "response_kind",
+        "response_hash",
+        "duration_micros",
+        "response_bytes"
+      ],
+      "properties": {
+        "id": { "$ref": "#/$defs/identifier" },
+        "revision": { "$ref": "#/$defs/hex40" },
+        "request_hash": { "$ref": "#/$defs/hex64" },
+        "response_kind": {
+          "enum": ["success", "error"]
+        },
+        "response_hash": { "$ref": "#/$defs/hex64" },
+        "duration_micros": { "$ref": "#/$defs/nonNegativeI64" },
+        "response_bytes": { "$ref": "#/$defs/nonNegativeI64" }
+      }
+    },
+    "hashSummary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["canonical_hash"],
+      "properties": {
+        "canonical_hash": {
+          "oneOf": [
+            { "$ref": "#/$defs/hex64" },
+            { "const": "unavailable" }
+          ]
+        }
+      }
+    },
+    "summaryValue": {
+      "oneOf": [
+        { "type": "null" },
+        { "type": "boolean" },
+        {
+          "type": "integer",
+          "minimum": -9223372036854775808,
+          "maximum": 9223372036854775807
+        },
+        { "type": "string" },
+        { "$ref": "#/$defs/hashSummary" }
+      ]
+    },
+    "divergence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "path", "expected", "actual"],
+      "properties": {
+        "code": { "$ref": "#/$defs/identifier" },
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "expected": { "$ref": "#/$defs/summaryValue" },
+        "actual": { "$ref": "#/$defs/summaryValue" }
+      }
+    },
+    "authorityClaims": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "participant_admission",
+        "global_ordering",
+        "canonical_roots",
+        "completion_signing",
+        "chain_finality",
+        "cex_custody"
+      ],
+      "properties": {
+        "participant_admission": { "const": false },
+        "global_ordering": { "const": false },
+        "canonical_roots": { "const": false },
+        "completion_signing": { "const": false },
+        "chain_finality": { "const": false },
+        "cex_custody": { "const": false }
+      }
+    },
+    "nullableBoolean": {
+      "oneOf": [
+        { "type": "null" },
+        { "type": "boolean" }
+      ]
+    },
+    "shadowReport": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "contract_version",
+        "equivalent",
+        "world_implementation",
+        "candidate_implementation",
+        "input_binding_equal",
+        "final_state_equal",
+        "outcome_equal",
+        "replay_equal",
+        "error_equal",
+        "resource_budget_ok",
+        "divergences",
+        "authority_claims",
+        "limitations"
+      ],
+      "properties": {
+        "contract_version": { "const": "trnm_world_shadow_report_v1" },
+        "equivalent": { "type": "boolean" },
+        "world_implementation": { "$ref": "#/$defs/implementationSummary" },
+        "candidate_implementation": { "$ref": "#/$defs/implementationSummary" },
+        "input_binding_equal": { "type": "boolean" },
+        "final_state_equal": { "$ref": "#/$defs/nullableBoolean" },
+        "outcome_equal": { "$ref": "#/$defs/nullableBoolean" },
+        "replay_equal": { "$ref": "#/$defs/nullableBoolean" },
+        "error_equal": { "$ref": "#/$defs/nullableBoolean" },
+        "resource_budget_ok": { "type": "boolean" },
+        "divergences": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/divergence" }
+        },
+        "authority_claims": { "$ref": "#/$defs/authorityClaims" },
+        "limitations": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024
+          }
+        }
+      }
+    }
+  }
+}
