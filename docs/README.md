@@ -16,6 +16,8 @@
 - Current native game/CEX economy contract: `development/trnm-cex-economy-integration-v1.md`
 - Current native UI vertical slice: `development/trnm-world-ui-vertical-slice-v1.md`
 - Machine-readable UI acceptance matrix: `development/trnm-world-ui-acceptance-v1.json`
+- Privacy-bounded UI human evidence contract: `evidence/ui/README.md`
+- UI human evidence JSON Schema: `evidence/ui/trnm-world-ui-human-session-v1.schema.json`
 
 ## Current implementation references
 
@@ -37,6 +39,8 @@
 - Legacy settlement-debt upper bound: `../scripts/check_trnm_settlement_transaction_boundary.sh`
 - Native UI architecture and honest-authority contract: `../scripts/check-trnm-ui-contract.sh`
 - Native UI forbidden-claim negative fixtures: `../scripts/test-trnm-ui-contract-negative.sh`
+- UI human evidence validator: `../scripts/check-trnm-ui-human-evidence.sh`
+- UI human evidence negative fixtures: `../scripts/test-trnm-ui-human-evidence-negative.sh`
 
 ## Historical material
 
