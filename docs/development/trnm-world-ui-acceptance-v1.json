@@ -1,0 +1,80 @@
+{
+  "contract_version": "trnm_world_ui_acceptance_v1",
+  "status": "implemented",
+  "owner": "trillionnium-world",
+  "plan_workstreams": ["W3", "W7"],
+  "authority_profiles": {
+    "offline": "offline_world_v1",
+    "compatibility_lab": "world_legacy_local_alpha_v1",
+    "nakama_canonical_claimed": false
+  },
+  "public_player_market_enabled": false,
+  "viewport_contract": {
+    "compact_max_exclusive": 960,
+    "standard_max_exclusive": 1440,
+    "wide_min_inclusive": 1440
+  },
+  "human_evidence_contract": {
+    "schema": "docs/evidence/ui/trnm-world-ui-human-session-v1.schema.json",
+    "sessions_directory": "docs/evidence/ui/sessions",
+    "validator": "scripts/check-trnm-ui-human-evidence.sh",
+    "required_claims": ["UI-HUMAN-001", "UI-HUMAN-002", "UI-HUMAN-003"],
+    "automation_may_satisfy_claims": false
+  },
+  "checks": [
+    {
+      "id": "UI-ARCH-001",
+      "claim": "UI control-centre logic is isolated under trnm-first-contact/src/ui",
+      "evidence_kind": "source_and_unit",
+      "state": "implemented"
+    },
+    {
+      "id": "UI-READ-001",
+      "claim": "NOW, SYSTEM and HELP provide distinct five-second reading orders",
+      "evidence_kind": "source_and_unit",
+      "state": "implemented"
+    },
+    {
+      "id": "UI-RESP-001",
+      "claim": "Compact, standard and wide layouts reserve non-overlapping campaign space",
+      "evidence_kind": "source_and_unit",
+      "state": "implemented"
+    },
+    {
+      "id": "UI-A11Y-001",
+      "claim": "High contrast and input/accessibility profile state are represented",
+      "evidence_kind": "source_and_unit",
+      "state": "implemented"
+    },
+    {
+      "id": "UI-AUTH-001",
+      "claim": "Offline and compatibility-lab labels cannot claim Nakama canonical authority",
+      "evidence_kind": "source_static_negative",
+      "state": "implemented"
+    },
+    {
+      "id": "UI-ECON-001",
+      "claim": "CEX pending/dead-letter state is visible and public market stays disabled",
+      "evidence_kind": "source_and_unit",
+      "state": "implemented"
+    },
+    {
+      "id": "UI-HUMAN-001",
+      "claim": "Three independent observers identify phase, objective and next action in five seconds",
+      "evidence_kind": "human",
+      "state": "pending"
+    },
+    {
+      "id": "UI-HUMAN-002",
+      "claim": "A non-developer completes the 10-15 minute vertical slice unguided",
+      "evidence_kind": "human",
+      "state": "pending"
+    },
+    {
+      "id": "UI-HUMAN-003",
+      "claim": "Keyboard-only, mouse-only, high-contrast, subtitles, low-motion and viewport coverage pass",
+      "evidence_kind": "human",
+      "state": "pending"
+    }
+  ]
+}

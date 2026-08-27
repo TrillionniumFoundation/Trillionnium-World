@@ -10,6 +10,7 @@ mod online_authority;
 mod online_command_journal;
 mod renderer;
 mod simulation_adapter;
+mod ui;
 mod view_math;
 
 use asset_loader::{load_first_contact_atlas, FirstContactAtlasManifest};
@@ -39,6 +40,10 @@ use simulation_adapter::{
     FirstContactRuntime, FirstContactSimulationAdapter, MouseSelectionState,
 };
 use std::path::{Path, PathBuf};
+use ui::{
+    handle_world_ui_input, handle_world_ui_interactions, spawn_world_ui, sync_world_ui,
+    WorldUiState,
+};
 
 pub use evidence_adapter::{FirstContactVisualAcceptance as VisualAcceptance, ObserverAnswer};
 
@@ -114,12 +119,14 @@ impl Plugin for FirstContactLivePlugin {
             .init_resource::<CampaignUiIntents>()
             .init_resource::<MouseSelectionState>()
             .init_resource::<FirstContactVisualAcceptance>()
+            .init_resource::<WorldUiState>()
             .add_systems(
                 Startup,
                 (
                     prepare_first_contact_live_scene,
                     spawn_first_contact_hud,
                     spawn_campaign_ui,
+                    spawn_world_ui,
                     spawn_trnm_audio,
                 )
                     .chain(),
@@ -130,6 +137,8 @@ impl Plugin for FirstContactLivePlugin {
                     begin_online_frame_timing,
                     pump_campaign_economy_tasks,
                     collect_campaign_ui_intents,
+                    handle_world_ui_input,
+                    handle_world_ui_interactions,
                     handle_campaign_input,
                     handle_campaign_ui_intents,
                     sync_first_contact_authored_map,
@@ -143,6 +152,7 @@ impl Plugin for FirstContactLivePlugin {
                     pan_first_contact_camera,
                     update_first_contact_hud,
                     update_campaign_ui,
+                    sync_world_ui,
                     sync_trnm_audio,
                     animate_identity_geometry,
                     record_online_frame_timing,
