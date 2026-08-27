@@ -1,0 +1,28 @@
+{
+  "fixture_id": "first-contact-vector-0001",
+  "contract_release": "trnm_world_rules_v1@1.0.0-alpha.1",
+  "request": {
+    "contract_version": "trnm_world_rules_v1",
+    "ruleset_revision": "first_contact_v1",
+    "content_revision": "content_2026_08_27",
+    "transition_id": "vector-0001",
+    "state_canonical_hex": "73746174652d7631",
+    "command_canonical_hex": "636f6d6d616e642d7631",
+    "resource_budget": {
+      "max_steps": 100,
+      "max_output_bytes": 4096,
+      "max_replay_bytes": 4096
+    }
+  },
+  "expected_canonical_request_utf8": "TRNM-WORLD-RULES-REQUEST/1\ncontract=trnm_world_rules_v1\nruleset=first_contact_v1\ncontent=content_2026_08_27\ntransition=vector-0001\nmax_steps=100\nmax_output_bytes=4096\nmax_replay_bytes=4096\nstate=73746174652d7631\ncommand=636f6d6d616e642d7631\n",
+  "reference_engine": {
+    "state_after_canonical_hex": "73746174652d76317c636f6d6d616e642d7631",
+    "outcome_canonical_hex": "6f7574636f6d653a766963746f7279",
+    "replay_canonical_hex": "7265706c61793a6672616d652d30",
+    "steps_used": 3
+  },
+  "standard_hash_vector": {
+    "input_utf8": "abc",
+    "sha256": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+  }
+}
