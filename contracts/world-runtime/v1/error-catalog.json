@@ -1,0 +1,122 @@
+{
+  "contract_version": "trnm_world_runtime_error_catalog_v1",
+  "runtime_error_envelope": "trnm_world_runtime_error_v1",
+  "errors": [
+    {
+      "code": "unsupported_contract",
+      "owner": "contract",
+      "recoverable": false,
+      "meaning": "The contract or observation version is not supported by this exact implementation.",
+      "caller_action": "Select an advertised exact version; never silently downgrade."
+    },
+    {
+      "code": "invalid_contract",
+      "owner": "contract",
+      "recoverable": false,
+      "meaning": "The envelope, required fields, field types, identifiers, digests or exact shape are invalid.",
+      "caller_action": "Reject the request or evidence packet and correct the producer."
+    },
+    {
+      "code": "invalid_canonical_json",
+      "owner": "canonicalization",
+      "recoverable": false,
+      "meaning": "Input contains duplicate keys, floats, normalized-key collisions, trailing data or another forbidden canonical JSON form.",
+      "caller_action": "Re-encode with the v1 canonical profile; do not reinterpret the invalid bytes."
+    },
+    {
+      "code": "resource_limit_exceeded",
+      "owner": "runtime",
+      "recoverable": false,
+      "meaning": "Input depth, node count, byte size, advance steps or an observation integer exceeds the v1 bound.",
+      "caller_action": "Split or reject the workload under an explicitly versioned higher limit."
+    },
+    {
+      "code": "ruleset_unavailable",
+      "owner": "runtime-selection",
+      "recoverable": false,
+      "meaning": "The requested ruleset id/version/digest does not match the installed exact selection.",
+      "caller_action": "Use the Integration component lock to select an installed exact ruleset."
+    },
+    {
+      "code": "content_unavailable",
+      "owner": "runtime-selection",
+      "recoverable": false,
+      "meaning": "The requested authored-content digest does not match the installed exact content.",
+      "caller_action": "Install or select the exact locked content; never substitute by label alone."
+    },
+    {
+      "code": "ordinal_discontinuity",
+      "owner": "game-command-batch",
+      "recoverable": false,
+      "meaning": "Local batch ordinals are missing, duplicated, negative or not contiguous from zero.",
+      "caller_action": "Rebuild the already ordered local batch without promoting the ordinal to a global sequence."
+    },
+    {
+      "code": "invalid_game_state",
+      "owner": "world-ruleset",
+      "recoverable": false,
+      "meaning": "The deterministic initial state cannot be decoded or violates ruleset preconditions.",
+      "caller_action": "Reject the state and inspect the producing ruleset/content revision."
+    },
+    {
+      "code": "invalid_game_command",
+      "owner": "world-ruleset",
+      "recoverable": false,
+      "meaning": "A deterministic game-domain command is unknown, malformed, regressive or invalid in the supplied state.",
+      "caller_action": "Preserve the rejection code in shadow comparison; Nakama owns command receipt/idempotency semantics."
+    },
+    {
+      "code": "deterministic_execution_failed",
+      "owner": "world-ruleset",
+      "recoverable": false,
+      "meaning": "A validated deterministic transition failed while advancing the exact ruleset.",
+      "caller_action": "Fail closed, retain the exact request, and investigate a ruleset defect or corrupted state."
+    },
+    {
+      "code": "output_contract_violation",
+      "owner": "world-runtime",
+      "recoverable": false,
+      "meaning": "Produced material is not canonical or a claimed material hash does not bind its value.",
+      "caller_action": "Quarantine the implementation revision; do not use the output for shadow or cutover credit."
+    },
+    {
+      "code": "authority_boundary_violation",
+      "owner": "architecture",
+      "recoverable": false,
+      "meaning": "World runtime material contains participant, global-order, canonical-root, completion-signing, Chain-finality or CEX-custody fields.",
+      "caller_action": "Reject immediately and require an ADR/version review before any boundary change."
+    },
+    {
+      "code": "invalid_host_configuration",
+      "owner": "execution-host",
+      "recoverable": false,
+      "meaning": "CLI arguments, explicit input path, implementation identity or stdout operation are invalid.",
+      "caller_action": "Correct the host invocation; this is not a deterministic game-domain rejection."
+    }
+  ],
+  "shadow_divergence_codes": [
+    "request_hash_mismatch",
+    "execution_kind_mismatch",
+    "ruleset_mismatch",
+    "content_digest_mismatch",
+    "initial_state_hash_mismatch",
+    "command_batch_hash_mismatch",
+    "final_state_hash_mismatch",
+    "final_state_material_mismatch",
+    "outcome_hash_mismatch",
+    "outcome_material_mismatch",
+    "replay_material_hash_mismatch",
+    "replay_material_mismatch",
+    "error_code_mismatch",
+    "error_recoverability_mismatch",
+    "candidate_duration_budget_exceeded",
+    "candidate_response_budget_exceeded"
+  ],
+  "authority": {
+    "world_owns_deterministic_game_domain": true,
+    "nakama_global_ordering": false,
+    "nakama_completion_signing": false,
+    "chain_finality": false,
+    "cex_custody": false
+  }
+}
