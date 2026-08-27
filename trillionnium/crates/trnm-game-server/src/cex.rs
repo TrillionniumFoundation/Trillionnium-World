@@ -1,26 +1,25 @@
 use crate::signer_protocol::{
-    EntitlementIssuerKeyStatusRequest, EntitlementIssuerKeyStatusResponse, EntitlementSignRequest,
-    EntitlementSignResponse, EntitlementSignerAttestationRequest,
-    EntitlementSignerAttestationResponse, EntitlementSignerReadiness, ENTITLEMENT_SIGNER_CONTRACT,
-    ENTITLEMENT_SIGNER_ISSUER, SIGNER_AUTH_HEADER,
+    EntitlementIssuerKeyStatusRequest, EntitlementIssuerKeyStatusResponse,
+    EntitlementSignerAttestationRequest, EntitlementSignerAttestationResponse,
+    EntitlementSignerReadiness, ENTITLEMENT_SIGNER_CONTRACT, ENTITLEMENT_SIGNER_ISSUER,
+    SIGNER_AUTH_HEADER,
 };
 use base64::{engine::general_purpose::STANDARD, Engine as _};
-use chrono::{Datelike, Utc};
+use chrono::Utc;
 use ed25519_dalek::{Signature, Verifier, VerifyingKey};
 use reqwest::header::HeaderMap;
 use serde::{Deserialize, Serialize};
-use serde_json::json;
 use sha2::{Digest, Sha256};
 use std::{sync::Arc, time::Duration};
 use trnm_campaign_core::EconomyBackend;
 use trnm_economy_protocol::{
-    EconomicIntent, EconomicIntentKind, EconomicReceipt, EconomyAccountBinding,
-    ServerSignedValueEntitlementV2, ValueEntitlementSource, WalletSnapshot,
-    SERVER_SIGNED_VALUE_ENTITLEMENT_METADATA_KEY, SERVER_SIGNED_VALUE_ENTITLEMENT_V2_CONTRACT,
+    EconomicIntent, EconomicReceipt, EconomyAccountBinding, WalletSnapshot,
 };
 
 const PLAYER_SESSION_HEADER: &str = "x-trnm-player-session";
 const GAME_AUTHORITY_HEADER: &str = "x-trnm-game-authority";
+const SETTLEMENT_OUTBOX_REQUIRED: &str =
+    "external economy settlement is owned by trnm-settlement-worker; synchronous EconomyBackend I/O is prohibited";
 
 #[derive(Debug, Clone, Serialize)]
 struct SessionVerifyRequest<'a> {
@@ -46,7 +45,6 @@ pub struct CexClient {
     signer_url: Arc<String>,
     signer_token: Arc<String>,
     async_client: reqwest::Client,
-    blocking_client: reqwest::blocking::Client,
 }
 
 impl CexClient {
@@ -69,17 +67,12 @@ impl CexClient {
             .timeout(Duration::from_secs(10))
             .build()
             .map_err(|error| format!("build asynchronous CEX/signer client: {error}"))?;
-        let blocking_client = reqwest::blocking::Client::builder()
-            .timeout(Duration::from_secs(10))
-            .build()
-            .map_err(|error| format!("build blocking CEX/signer client: {error}"))?;
         Ok(Self {
             base_url: Arc::new(base_url.trim_end_matches('/').to_string()),
             game_authority_token: Arc::new(game_authority_token),
             signer_url: Arc::new(signer_url.trim_end_matches('/').to_string()),
             signer_token: Arc::new(signer_token),
             async_client,
-            blocking_client,
         })
     }
 
@@ -184,7 +177,7 @@ impl CexClient {
                 "{}/v1/trnm/economy/issuer-keys/status",
                 self.base_url
             ))
-            .header("x-trnm-game-authority", self.game_authority_token.as_str())
+            .header(GAME_AUTHORITY_HEADER, self.game_authority_token.as_str())
             .json(&EntitlementIssuerKeyStatusRequest {
                 key_id: attestation.key_id.clone(),
             })
@@ -243,160 +236,71 @@ impl CexClient {
         }
         Ok(verified)
     }
-
-    fn authority_headers(&self) -> Result<HeaderMap, String> {
-        let mut headers = HeaderMap::new();
-        headers.insert(
-            GAME_AUTHORITY_HEADER,
-            self.game_authority_token
-                .parse()
-                .map_err(|_| "game authority token is not a valid header".to_string())?,
-        );
-        Ok(headers)
-    }
-
-    fn execute_authoritative(&self, intent: &EconomicIntent) -> Result<EconomicReceipt, String> {
-        let mut authorized = intent.clone();
-        if matches!(authorized.kind, EconomicIntentKind::ReleaseReward)
-            && authorized.amount_credits.unwrap_or_default() > 0
-        {
-            let actor = authorized
-                .actors
-                .first()
-                .ok_or_else(|| "reward intent has no primary actor".to_string())?;
-            let account_id = actor
-                .account_id
-                .clone()
-                .ok_or_else(|| "reward intent has no account".to_string())?;
-            let metadata_string = |key: &str| -> Result<String, String> {
-                authorized
-                    .metadata
-                    .get(key)
-                    .and_then(|value| value.as_str())
-                    .filter(|value| !value.is_empty())
-                    .map(str::to_string)
-                    .ok_or_else(|| format!("online reward is missing authoritative {key}"))
-            };
-            let now = Utc::now();
-            let mut entitlement = ServerSignedValueEntitlementV2 {
-                contract_version: SERVER_SIGNED_VALUE_ENTITLEMENT_V2_CONTRACT.to_string(),
-                entitlement_id: format!("trnm-online-entitlement:{}", uuid::Uuid::new_v4()),
-                issuer: ENTITLEMENT_SIGNER_ISSUER.to_string(),
-                key_id: String::new(),
-                signature_algorithm: "ed25519".to_string(),
-                actor_id: actor.actor_id.clone(),
-                account_id,
-                source: ValueEntitlementSource::Battle,
-                source_id: authorized
-                    .metadata
-                    .get("value_event_id")
-                    .and_then(|value| value.as_str())
-                    .unwrap_or(&authorized.intent_id)
-                    .to_string(),
-                intent_id: authorized.intent_id.clone(),
-                amount_credits: authorized.amount_credits.unwrap_or_default(),
-                currency: "wallet_credits".to_string(),
-                budget_day: (now.year() as u32) * 10_000 + now.month() * 100 + now.day(),
-                issued_at_epoch: now.timestamp(),
-                expires_at_epoch: now.timestamp().saturating_add(600),
-                match_id: metadata_string("online_match_id")?,
-                rules_version: metadata_string("online_rules_version")?,
-                build_id: metadata_string("online_build_id")?,
-                result_hash: metadata_string("online_result_hash")?,
-                participants_hash: metadata_string("online_participants_hash")?,
-                nonce: uuid::Uuid::new_v4().to_string(),
-                signature: String::new(),
-            };
-            let response = self
-                .blocking_client
-                .post(format!("{}/v1/signer/sign", self.signer_url))
-                .header(SIGNER_AUTH_HEADER, self.signer_token.as_str())
-                .json(&EntitlementSignRequest {
-                    contract_version: ENTITLEMENT_SIGNER_CONTRACT.to_string(),
-                    request_id: authorized.intent_id.clone(),
-                    entitlement: entitlement.clone(),
-                })
-                .send()
-                .map_err(|error| format!("isolated signer transport: {error}"))?;
-            if !response.status().is_success() {
-                let status = response.status();
-                let body = response.text().unwrap_or_default();
-                return Err(format!(
-                    "isolated signer rejected entitlement ({status}): {body}"
-                ));
-            }
-            let signed = response
-                .json::<EntitlementSignResponse>()
-                .map_err(|error| format!("decode isolated signer response: {error}"))?;
-            if signed.contract_version != ENTITLEMENT_SIGNER_CONTRACT
-                || signed.request_id != authorized.intent_id
-                || signed.issuer != ENTITLEMENT_SIGNER_ISSUER
-                || signed.key_id.is_empty()
-                || signed.signature.is_empty()
-            {
-                return Err("isolated signer response failed binding validation".to_string());
-            }
-            entitlement.key_id = signed.key_id;
-            entitlement.signature = signed.signature;
-            let payload = entitlement.signing_payload()?;
-            let request_hash = format!("{:x}", Sha256::digest(&payload));
-            if request_hash != signed.request_hash {
-                return Err("isolated signer response request hash mismatch".to_string());
-            }
-            authorized.metadata[SERVER_SIGNED_VALUE_ENTITLEMENT_METADATA_KEY] =
-                serde_json::to_value(entitlement).map_err(|error| error.to_string())?;
-        }
-        let response = self
-            .blocking_client
-            .post(format!("{}/v1/trnm/economy/intents", self.base_url))
-            .headers(self.authority_headers()?)
-            .json(&json!({"intent": authorized}))
-            .send()
-            .map_err(|error| format!("CEX intent transport: {error}"))?;
-        if !response.status().is_success() {
-            let status = response.status();
-            let body = response.text().unwrap_or_default();
-            return Err(format!("CEX intent rejected ({status}): {body}"));
-        }
-        response
-            .json::<EconomicReceipt>()
-            .map_err(|error| format!("decode CEX receipt: {error}"))
-    }
 }
 
 impl EconomyBackend for CexClient {
     fn backend_id(&self) -> &str {
-        "cex-trnm-online-authority-v2"
+        "cex-trnm-settlement-outbox-v1"
     }
 
-    fn execute(&self, intent: &EconomicIntent) -> Result<EconomicReceipt, String> {
-        self.execute_authoritative(intent)
+    fn execute(&self, _intent: &EconomicIntent) -> Result<EconomicReceipt, String> {
+        Err(SETTLEMENT_OUTBOX_REQUIRED.to_string())
     }
 
     fn wallet_snapshot(
         &self,
-        binding: &EconomyAccountBinding,
-        cursor: u64,
+        _binding: &EconomyAccountBinding,
+        _cursor: u64,
     ) -> Result<Option<WalletSnapshot>, String> {
-        let response = self
-            .blocking_client
-            .post(format!("{}/v1/trnm/economy/wallet", self.base_url))
-            .headers(self.authority_headers()?)
-            .json(&json!({
-                "actor_id": binding.actor_id,
-                "account_id": binding.account_id,
-                "reconciliation_cursor": cursor
-            }))
-            .send()
-            .map_err(|error| format!("CEX wallet transport: {error}"))?;
-        if !response.status().is_success() {
-            let status = response.status();
-            let body = response.text().unwrap_or_default();
-            return Err(format!("CEX wallet rejected ({status}): {body}"));
-        }
-        response
-            .json::<WalletSnapshot>()
-            .map(Some)
-            .map_err(|error| format!("decode CEX wallet: {error}"))
+        Ok(None)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{CexClient, SETTLEMENT_OUTBOX_REQUIRED};
+    use trnm_campaign_core::EconomyBackend;
+    use trnm_economy_protocol::{
+        ActorRef, EconomicIntent, EconomicIntentKind, IdempotencyKey,
+        TERM_EXCHANGE_PROTOCOL_VERSION,
+    };
+
+    #[test]
+    fn synchronous_backend_never_performs_external_settlement() {
+        let client = CexClient::new(
+            "http://127.0.0.1:1".to_string(),
+            "g".repeat(24),
+            "http://127.0.0.1:2".to_string(),
+            "s".repeat(32),
+        )
+        .unwrap();
+        let intent = EconomicIntent {
+            protocol_version: TERM_EXCHANGE_PROTOCOL_VERSION.to_string(),
+            intent_id: "intent-a".to_string(),
+            term_id: "term-a".to_string(),
+            term_version: "1".to_string(),
+            domain: "trnm_game".to_string(),
+            kind: EconomicIntentKind::CompleteContract,
+            idempotency_key: IdempotencyKey {
+                scope: "test".to_string(),
+                key: "intent-a".to_string(),
+            },
+            actors: vec![ActorRef {
+                actor_id: "actor-a".to_string(),
+                actor_kind: "player".to_string(),
+                account_id: None,
+            }],
+            assets: Vec::new(),
+            amount_credits: Some(0),
+            currency: None,
+            metadata: serde_json::json!({}),
+            created_at_epoch: 0,
+        };
+        assert_eq!(client.execute(&intent), Err(SETTLEMENT_OUTBOX_REQUIRED.to_string()));
+        assert_eq!(client.wallet_snapshot(&trnm_economy_protocol::EconomyAccountBinding {
+            actor_id: "actor-a".to_string(),
+            account_id: "account-a".to_string(),
+            binding_revision: 1,
+        }, 0), Ok(None));
     }
 }
