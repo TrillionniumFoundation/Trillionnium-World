@@ -9,11 +9,23 @@
 - Authority ownership decision: `adr/0001-realtime-authority-and-match-evidence-ownership.md`
 - External-settlement transaction decision: `adr/0002-transaction-free-external-settlement.md`
 - World match-evidence boundary: `protocol/trnm-match-evidence-commitment-v1.md`
+- World deterministic runtime protocol: `protocol/trnm-world-runtime-v1.md`
+- World → Nakama shadow program: `development/trnm-world-nakama-shadow-v1.md`
+- Authority cutover and rollback runbook: `runbooks/trnm-world-authority-cutover-v1.md`
 - Settlement outbox design: `development/trnm-settlement-outbox-v1.md`
 - Runtime configuration: `operations/trnm-game-server-runtime-configuration.md`
 - Native release gates: `development/trnm-native-game-release-gates-v1.md`
 - Current RPG/RTS product contract: `development/trillionnium-rpg-rts-closed-loop-v1.md`
 - Current native game/CEX economy contract: `development/trnm-cex-economy-integration-v1.md`
+
+## Current contract references
+
+- Runtime request/result schema: `../contracts/world-runtime/v1/trnm-world-runtime-v1.schema.json`
+- Runtime observation/shadow schema: `../contracts/world-runtime/v1/trnm-world-shadow-v1.schema.json`
+- Runtime canonical vectors: `../contracts/world-runtime/v1/golden-vectors.json`
+- Shadow comparison vectors: `../contracts/world-runtime/v1/shadow-vectors.json`
+- Stable runtime/error catalogue: `../contracts/world-runtime/v1/error-catalog.json`
+- Authority compatibility matrix: `../contracts/world-runtime/v1/compatibility-matrix.json`
 
 ## Current implementation references
 
@@ -24,6 +36,8 @@
 - Online wire compatibility: `../trillionnium/crates/trnm-online-protocol`
 - World-local compatibility authority enclave: `../trillionnium/crates/trnm-game-server`
 - Settlement outbox invariant contract: `../trillionnium/tools/trnm-settlement-outbox-contract`
+- Bevy-free deterministic runtime adapter: `../contracts/world-runtime/rust`
+- Runtime execution host and shadow comparator: `../contracts/world-runtime/host`
 
 ## Current checks
 
@@ -32,6 +46,11 @@
 - Runtime configuration boundary: `../scripts/check_trnm_runtime_configuration.sh`
 - Settlement outbox contract: `../scripts/check_trnm_settlement_outbox_contract.sh`
 - Legacy settlement-debt upper bound: `../scripts/check_trnm_settlement_transaction_boundary.sh`
+- Runtime canonical-vector verifier: `../scripts/verify-trnm-world-runtime-v1.py`
+- Independent shadow-vector verifier: `../scripts/verify-trnm-world-shadow-v1.py`
+- Runtime/host authority boundary: `../scripts/check-trnm-world-runtime-boundary.sh`
+- Runtime authority negative fixtures: `../scripts/test-trnm-world-runtime-boundary-negative.sh`
+- Exact runtime source manifest: `../scripts/emit-trnm-world-runtime-v1-source-manifest.py`
 
 ## Historical material
 
