@@ -1,0 +1,443 @@
+{
+  "contract_version": "trnm_world_shadow_golden_vectors_v1",
+  "vectors": [
+    {
+      "name": "identical-success",
+      "input": {
+        "contract_version": "trnm_world_shadow_input_v1",
+        "world": {
+          "contract_version": "trnm_world_runtime_observation_v1",
+          "implementation_id": "world-rust",
+          "implementation_revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "request_hash": "1aacae43c0b6e40458b5d13ff4dfde2a80f3c9f7aa15b05ab13798118db8f717",
+          "response": {
+            "contract_version": "trnm_world_runtime_v1",
+            "message_type": "execute_result",
+            "ruleset": {
+              "id": "fixture",
+              "version": "1",
+              "digest": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "content_digest": "2222222222222222222222222222222222222222222222222222222222222222",
+            "initial_state_hash": "3333333333333333333333333333333333333333333333333333333333333333",
+            "command_batch_hash": "4444444444444444444444444444444444444444444444444444444444444444",
+            "final_state": {
+              "tick": 2,
+              "value": 7
+            },
+            "final_state_hash": "7ced141c9e2e726223409ec6253e8e058f77c088f1eab52c8117c82bc84f78d8",
+            "outcome": {
+              "terminal": true,
+              "value": 7
+            },
+            "outcome_hash": "1cf42e823f6766f641262cf65ea8c2bb31a8488fac63e378ea2e03f98b5d4f4b",
+            "replay_material": {
+              "commands": 1,
+              "final_tick": 2
+            },
+            "replay_material_hash": "c8785bd736c04e4edaeb38f287cf32805213356ba40db01570825129d370234b"
+          },
+          "duration_micros": 10,
+          "response_bytes": 832
+        },
+        "candidate": {
+          "contract_version": "trnm_world_runtime_observation_v1",
+          "implementation_id": "nakama-consumer",
+          "implementation_revision": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "request_hash": "1aacae43c0b6e40458b5d13ff4dfde2a80f3c9f7aa15b05ab13798118db8f717",
+          "response": {
+            "contract_version": "trnm_world_runtime_v1",
+            "message_type": "execute_result",
+            "ruleset": {
+              "id": "fixture",
+              "version": "1",
+              "digest": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "content_digest": "2222222222222222222222222222222222222222222222222222222222222222",
+            "initial_state_hash": "3333333333333333333333333333333333333333333333333333333333333333",
+            "command_batch_hash": "4444444444444444444444444444444444444444444444444444444444444444",
+            "final_state": {
+              "tick": 2,
+              "value": 7
+            },
+            "final_state_hash": "7ced141c9e2e726223409ec6253e8e058f77c088f1eab52c8117c82bc84f78d8",
+            "outcome": {
+              "terminal": true,
+              "value": 7
+            },
+            "outcome_hash": "1cf42e823f6766f641262cf65ea8c2bb31a8488fac63e378ea2e03f98b5d4f4b",
+            "replay_material": {
+              "commands": 1,
+              "final_tick": 2
+            },
+            "replay_material_hash": "c8785bd736c04e4edaeb38f287cf32805213356ba40db01570825129d370234b"
+          },
+          "duration_micros": 11,
+          "response_bytes": 832
+        },
+        "budgets": {
+          "max_candidate_duration_micros": 1000,
+          "max_candidate_response_bytes": 100000
+        }
+      },
+      "expected_equivalent": true,
+      "expected_divergence_codes": []
+    },
+    {
+      "name": "typed-outcome-divergence",
+      "input": {
+        "contract_version": "trnm_world_shadow_input_v1",
+        "world": {
+          "contract_version": "trnm_world_runtime_observation_v1",
+          "implementation_id": "world-rust",
+          "implementation_revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "request_hash": "1aacae43c0b6e40458b5d13ff4dfde2a80f3c9f7aa15b05ab13798118db8f717",
+          "response": {
+            "contract_version": "trnm_world_runtime_v1",
+            "message_type": "execute_result",
+            "ruleset": {
+              "id": "fixture",
+              "version": "1",
+              "digest": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "content_digest": "2222222222222222222222222222222222222222222222222222222222222222",
+            "initial_state_hash": "3333333333333333333333333333333333333333333333333333333333333333",
+            "command_batch_hash": "4444444444444444444444444444444444444444444444444444444444444444",
+            "final_state": {
+              "tick": 2,
+              "value": 7
+            },
+            "final_state_hash": "7ced141c9e2e726223409ec6253e8e058f77c088f1eab52c8117c82bc84f78d8",
+            "outcome": {
+              "terminal": true,
+              "value": 7
+            },
+            "outcome_hash": "1cf42e823f6766f641262cf65ea8c2bb31a8488fac63e378ea2e03f98b5d4f4b",
+            "replay_material": {
+              "commands": 1,
+              "final_tick": 2
+            },
+            "replay_material_hash": "c8785bd736c04e4edaeb38f287cf32805213356ba40db01570825129d370234b"
+          },
+          "duration_micros": 10,
+          "response_bytes": 832
+        },
+        "candidate": {
+          "contract_version": "trnm_world_runtime_observation_v1",
+          "implementation_id": "nakama-consumer",
+          "implementation_revision": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "request_hash": "1aacae43c0b6e40458b5d13ff4dfde2a80f3c9f7aa15b05ab13798118db8f717",
+          "response": {
+            "contract_version": "trnm_world_runtime_v1",
+            "message_type": "execute_result",
+            "ruleset": {
+              "id": "fixture",
+              "version": "1",
+              "digest": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "content_digest": "2222222222222222222222222222222222222222222222222222222222222222",
+            "initial_state_hash": "3333333333333333333333333333333333333333333333333333333333333333",
+            "command_batch_hash": "4444444444444444444444444444444444444444444444444444444444444444",
+            "final_state": {
+              "tick": 2,
+              "value": 8
+            },
+            "final_state_hash": "a8f57f5d6c9fb63088964496ad659e862f02826d2076138885fd55eeedc80a97",
+            "outcome": {
+              "terminal": true,
+              "value": 8
+            },
+            "outcome_hash": "2b243e89b992d685e0239a798baff5714e1034dde22a2d4dac0a91271fb6b045",
+            "replay_material": {
+              "commands": 1,
+              "final_tick": 2
+            },
+            "replay_material_hash": "c8785bd736c04e4edaeb38f287cf32805213356ba40db01570825129d370234b"
+          },
+          "duration_micros": 11,
+          "response_bytes": 832
+        },
+        "budgets": {
+          "max_candidate_duration_micros": 1000,
+          "max_candidate_response_bytes": 100000
+        }
+      },
+      "expected_equivalent": false,
+      "expected_divergence_codes": [
+        "final_state_hash_mismatch",
+        "final_state_material_mismatch",
+        "outcome_hash_mismatch",
+        "outcome_material_mismatch"
+      ]
+    },
+    {
+      "name": "equivalent-error-code",
+      "input": {
+        "contract_version": "trnm_world_shadow_input_v1",
+        "world": {
+          "contract_version": "trnm_world_runtime_observation_v1",
+          "implementation_id": "world-rust",
+          "implementation_revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "request_hash": "1aacae43c0b6e40458b5d13ff4dfde2a80f3c9f7aa15b05ab13798118db8f717",
+          "response": {
+            "contract_version": "trnm_world_runtime_error_v1",
+            "error_code": "invalid_game_command",
+            "error": "World wording",
+            "recoverable": false
+          },
+          "duration_micros": 10,
+          "response_bytes": 130
+        },
+        "candidate": {
+          "contract_version": "trnm_world_runtime_observation_v1",
+          "implementation_id": "nakama-consumer",
+          "implementation_revision": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "request_hash": "1aacae43c0b6e40458b5d13ff4dfde2a80f3c9f7aa15b05ab13798118db8f717",
+          "response": {
+            "contract_version": "trnm_world_runtime_error_v1",
+            "error_code": "invalid_game_command",
+            "error": "Consumer wording",
+            "recoverable": false
+          },
+          "duration_micros": 11,
+          "response_bytes": 133
+        },
+        "budgets": {
+          "max_candidate_duration_micros": 1000,
+          "max_candidate_response_bytes": 100000
+        }
+      },
+      "expected_equivalent": true,
+      "expected_divergence_codes": []
+    },
+    {
+      "name": "success-error-budget",
+      "input": {
+        "contract_version": "trnm_world_shadow_input_v1",
+        "world": {
+          "contract_version": "trnm_world_runtime_observation_v1",
+          "implementation_id": "world-rust",
+          "implementation_revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "request_hash": "1aacae43c0b6e40458b5d13ff4dfde2a80f3c9f7aa15b05ab13798118db8f717",
+          "response": {
+            "contract_version": "trnm_world_runtime_v1",
+            "message_type": "execute_result",
+            "ruleset": {
+              "id": "fixture",
+              "version": "1",
+              "digest": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "content_digest": "2222222222222222222222222222222222222222222222222222222222222222",
+            "initial_state_hash": "3333333333333333333333333333333333333333333333333333333333333333",
+            "command_batch_hash": "4444444444444444444444444444444444444444444444444444444444444444",
+            "final_state": {
+              "tick": 2,
+              "value": 7
+            },
+            "final_state_hash": "7ced141c9e2e726223409ec6253e8e058f77c088f1eab52c8117c82bc84f78d8",
+            "outcome": {
+              "terminal": true,
+              "value": 7
+            },
+            "outcome_hash": "1cf42e823f6766f641262cf65ea8c2bb31a8488fac63e378ea2e03f98b5d4f4b",
+            "replay_material": {
+              "commands": 1,
+              "final_tick": 2
+            },
+            "replay_material_hash": "c8785bd736c04e4edaeb38f287cf32805213356ba40db01570825129d370234b"
+          },
+          "duration_micros": 10,
+          "response_bytes": 832
+        },
+        "candidate": {
+          "contract_version": "trnm_world_runtime_observation_v1",
+          "implementation_id": "nakama-consumer",
+          "implementation_revision": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "request_hash": "1aacae43c0b6e40458b5d13ff4dfde2a80f3c9f7aa15b05ab13798118db8f717",
+          "response": {
+            "contract_version": "trnm_world_runtime_error_v1",
+            "error_code": "invalid_game_command",
+            "error": "Consumer wording",
+            "recoverable": false
+          },
+          "duration_micros": 2000,
+          "response_bytes": 133
+        },
+        "budgets": {
+          "max_candidate_duration_micros": 1000,
+          "max_candidate_response_bytes": 100000
+        }
+      },
+      "expected_equivalent": false,
+      "expected_divergence_codes": [
+        "candidate_duration_budget_exceeded",
+        "execution_kind_mismatch"
+      ]
+    },
+    {
+      "name": "request-binding-mismatch",
+      "input": {
+        "contract_version": "trnm_world_shadow_input_v1",
+        "world": {
+          "contract_version": "trnm_world_runtime_observation_v1",
+          "implementation_id": "world-rust",
+          "implementation_revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "request_hash": "1aacae43c0b6e40458b5d13ff4dfde2a80f3c9f7aa15b05ab13798118db8f717",
+          "response": {
+            "contract_version": "trnm_world_runtime_v1",
+            "message_type": "execute_result",
+            "ruleset": {
+              "id": "fixture",
+              "version": "1",
+              "digest": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "content_digest": "2222222222222222222222222222222222222222222222222222222222222222",
+            "initial_state_hash": "3333333333333333333333333333333333333333333333333333333333333333",
+            "command_batch_hash": "4444444444444444444444444444444444444444444444444444444444444444",
+            "final_state": {
+              "tick": 2,
+              "value": 7
+            },
+            "final_state_hash": "7ced141c9e2e726223409ec6253e8e058f77c088f1eab52c8117c82bc84f78d8",
+            "outcome": {
+              "terminal": true,
+              "value": 7
+            },
+            "outcome_hash": "1cf42e823f6766f641262cf65ea8c2bb31a8488fac63e378ea2e03f98b5d4f4b",
+            "replay_material": {
+              "commands": 1,
+              "final_tick": 2
+            },
+            "replay_material_hash": "c8785bd736c04e4edaeb38f287cf32805213356ba40db01570825129d370234b"
+          },
+          "duration_micros": 10,
+          "response_bytes": 832
+        },
+        "candidate": {
+          "contract_version": "trnm_world_runtime_observation_v1",
+          "implementation_id": "nakama-consumer",
+          "implementation_revision": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "request_hash": "4865fb2edc182d9f29054500614bb71cf0ad516fe714d09d4d89e40f335218a3",
+          "response": {
+            "contract_version": "trnm_world_runtime_v1",
+            "message_type": "execute_result",
+            "ruleset": {
+              "id": "fixture",
+              "version": "1",
+              "digest": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "content_digest": "2222222222222222222222222222222222222222222222222222222222222222",
+            "initial_state_hash": "3333333333333333333333333333333333333333333333333333333333333333",
+            "command_batch_hash": "4444444444444444444444444444444444444444444444444444444444444444",
+            "final_state": {
+              "tick": 2,
+              "value": 7
+            },
+            "final_state_hash": "7ced141c9e2e726223409ec6253e8e058f77c088f1eab52c8117c82bc84f78d8",
+            "outcome": {
+              "terminal": true,
+              "value": 7
+            },
+            "outcome_hash": "1cf42e823f6766f641262cf65ea8c2bb31a8488fac63e378ea2e03f98b5d4f4b",
+            "replay_material": {
+              "commands": 1,
+              "final_tick": 2
+            },
+            "replay_material_hash": "c8785bd736c04e4edaeb38f287cf32805213356ba40db01570825129d370234b"
+          },
+          "duration_micros": 11,
+          "response_bytes": 832
+        },
+        "budgets": {
+          "max_candidate_duration_micros": 1000,
+          "max_candidate_response_bytes": 100000
+        }
+      },
+      "expected_equivalent": false,
+      "expected_divergence_codes": [
+        "request_hash_mismatch"
+      ]
+    },
+    {
+      "name": "invalid-candidate-self-hash",
+      "input": {
+        "contract_version": "trnm_world_shadow_input_v1",
+        "world": {
+          "contract_version": "trnm_world_runtime_observation_v1",
+          "implementation_id": "world-rust",
+          "implementation_revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "request_hash": "1aacae43c0b6e40458b5d13ff4dfde2a80f3c9f7aa15b05ab13798118db8f717",
+          "response": {
+            "contract_version": "trnm_world_runtime_v1",
+            "message_type": "execute_result",
+            "ruleset": {
+              "id": "fixture",
+              "version": "1",
+              "digest": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "content_digest": "2222222222222222222222222222222222222222222222222222222222222222",
+            "initial_state_hash": "3333333333333333333333333333333333333333333333333333333333333333",
+            "command_batch_hash": "4444444444444444444444444444444444444444444444444444444444444444",
+            "final_state": {
+              "tick": 2,
+              "value": 7
+            },
+            "final_state_hash": "7ced141c9e2e726223409ec6253e8e058f77c088f1eab52c8117c82bc84f78d8",
+            "outcome": {
+              "terminal": true,
+              "value": 7
+            },
+            "outcome_hash": "1cf42e823f6766f641262cf65ea8c2bb31a8488fac63e378ea2e03f98b5d4f4b",
+            "replay_material": {
+              "commands": 1,
+              "final_tick": 2
+            },
+            "replay_material_hash": "c8785bd736c04e4edaeb38f287cf32805213356ba40db01570825129d370234b"
+          },
+          "duration_micros": 10,
+          "response_bytes": 832
+        },
+        "candidate": {
+          "contract_version": "trnm_world_runtime_observation_v1",
+          "implementation_id": "nakama-consumer",
+          "implementation_revision": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "request_hash": "1aacae43c0b6e40458b5d13ff4dfde2a80f3c9f7aa15b05ab13798118db8f717",
+          "response": {
+            "contract_version": "trnm_world_runtime_v1",
+            "message_type": "execute_result",
+            "ruleset": {
+              "id": "fixture",
+              "version": "1",
+              "digest": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "content_digest": "2222222222222222222222222222222222222222222222222222222222222222",
+            "initial_state_hash": "3333333333333333333333333333333333333333333333333333333333333333",
+            "command_batch_hash": "4444444444444444444444444444444444444444444444444444444444444444",
+            "final_state": {
+              "tick": 2,
+              "value": 7
+            },
+            "final_state_hash": "7ced141c9e2e726223409ec6253e8e058f77c088f1eab52c8117c82bc84f78d8",
+            "outcome": {
+              "terminal": true,
+              "value": 8
+            },
+            "outcome_hash": "1cf42e823f6766f641262cf65ea8c2bb31a8488fac63e378ea2e03f98b5d4f4b",
+            "replay_material": {
+              "commands": 1,
+              "final_tick": 2
+            },
+            "replay_material_hash": "c8785bd736c04e4edaeb38f287cf32805213356ba40db01570825129d370234b"
+          },
+          "duration_micros": 11,
+          "response_bytes": 832
+        },
+        "budgets": {
+          "max_candidate_duration_micros": 1000,
+          "max_candidate_response_bytes": 100000
+        }
+      },
+      "expected_error": "outcome_hash does not bind outcome"
+    }
+  ]
+}
