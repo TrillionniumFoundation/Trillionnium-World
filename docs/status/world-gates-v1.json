@@ -1,0 +1,101 @@
+{
+  "schema_version": 1,
+  "project_id": "trillionnium-world",
+  "as_of": "2026-08-27",
+  "source_plan": "docs/development/trnm-world-development-plan-v3.md",
+  "gates": [
+    {
+      "id": "deterministic_runtime_alpha",
+      "status": "implemented",
+      "authority_profile": "world_game_domain",
+      "evidence": [],
+      "blockers": [
+        "exact remote golden-vector evidence is not registered in this record"
+      ],
+      "limitations": [
+        "source implementation is not equivalent to remote verification or deployment"
+      ]
+    },
+    {
+      "id": "native_software_alpha",
+      "status": "blocked",
+      "authority_profile": "world_native_client",
+      "evidence": [],
+      "blockers": [
+        "current integration commit has not completed the remote package and platform evidence matrix"
+      ],
+      "limitations": [
+        "no Windows/macOS signed distribution credit",
+        "no external human usability credit"
+      ]
+    },
+    {
+      "id": "trusted_cex_settlement",
+      "status": "blocked",
+      "authority_profile": "world_legacy_local_alpha_plus_cex",
+      "evidence": [],
+      "blockers": [
+        "settlement capture/execute/apply implementation and remote ambiguous-commit fault evidence are not fully registered",
+        "production credential custody is not attested"
+      ],
+      "limitations": [
+        "local/single-node profile only",
+        "no public wallet or market credit"
+      ]
+    },
+    {
+      "id": "closed_online_nakama",
+      "status": "blocked",
+      "authority_profile": "nakama_target",
+      "evidence": [],
+      "blockers": [
+        "Nakama-only admission, ordering, idempotency, recovery and signed completion are not fully migrated",
+        "exact World/Nakama/Integration compatibility evidence is not registered"
+      ],
+      "limitations": [
+        "World-local Online Authority remains migration-era legacy_local_alpha",
+        "no dual-authority release credit"
+      ]
+    },
+    {
+      "id": "public_online",
+      "status": "no_go",
+      "authority_profile": "nakama_target",
+      "evidence": [],
+      "blockers": [
+        "closed-online authority migration is incomplete",
+        "public TLS, WAF/DDoS, KMS/HSM, replicated durability, 24-hour endurance, capacity and human gates are incomplete"
+      ],
+      "limitations": [
+        "loopback/local evidence only",
+        "cross-host RPO=0 is not implemented or attested",
+        "no public ingress approval"
+      ]
+    },
+    {
+      "id": "public_player_market",
+      "status": "disabled",
+      "authority_profile": "separate_future_approval",
+      "evidence": [],
+      "blockers": [
+        "public online is no-go",
+        "custody, market abuse, legal, economic and governance approvals are absent"
+      ],
+      "limitations": [
+        "must not be enabled by a game-source or local test change"
+      ]
+    },
+    {
+      "id": "commercial_single_player",
+      "status": "blocked",
+      "authority_profile": "world_native_client",
+      "evidence": [],
+      "blockers": [
+        "distribution, accessibility, support, legal and external human evidence are incomplete"
+      ],
+      "limitations": [
+        "technical-alpha evidence does not imply commercial readiness"
+      ]
+    }
+  ]
+}
