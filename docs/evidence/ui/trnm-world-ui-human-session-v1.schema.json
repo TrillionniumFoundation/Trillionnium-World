@@ -1,0 +1,314 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://trillionnium.invalid/schemas/trnm-world-ui-human-session-v1.schema.json",
+  "title": "Trillionnium World UI human evidence packet v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract_version",
+    "claim_id",
+    "evidence_status",
+    "source_type",
+    "generated_by_automation",
+    "exact_build",
+    "sessions",
+    "artifacts",
+    "limitations",
+    "review"
+  ],
+  "properties": {
+    "contract_version": {
+      "const": "trnm_world_ui_human_session_v1"
+    },
+    "claim_id": {
+      "enum": ["UI-HUMAN-001", "UI-HUMAN-002", "UI-HUMAN-003"]
+    },
+    "evidence_status": {
+      "enum": ["recorded", "reviewed", "passed", "failed"]
+    },
+    "source_type": {
+      "const": "human"
+    },
+    "generated_by_automation": {
+      "const": false
+    },
+    "exact_build": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "commit_sha",
+        "tree_sha",
+        "release_id",
+        "binary_sha256",
+        "component_lock_id"
+      ],
+      "properties": {
+        "commit_sha": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        },
+        "tree_sha": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        },
+        "release_id": {
+          "type": "string",
+          "minLength": 8,
+          "maxLength": 256
+        },
+        "binary_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "component_lock_id": {
+          "type": "string",
+          "minLength": 8,
+          "maxLength": 256
+        }
+      }
+    },
+    "sessions": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/session"
+      }
+    },
+    "artifacts": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["artifact_id", "kind", "sha256", "consent_scope"],
+        "properties": {
+          "artifact_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "kind": {
+            "enum": [
+              "structured_observation",
+              "interaction_timeline",
+              "screenshot",
+              "video",
+              "metrics_export",
+              "review_record"
+            ]
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "consent_scope": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512
+          }
+        }
+      }
+    },
+    "limitations": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 1024
+      }
+    },
+    "review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reviewer", "reviewed_at", "decision", "notes"],
+      "properties": {
+        "reviewer": {
+          "type": "string",
+          "pattern": "^@[A-Za-z0-9-]+$"
+        },
+        "reviewed_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "decision": {
+          "enum": ["pending", "approved", "rejected"]
+        },
+        "notes": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2048
+        }
+      }
+    }
+  },
+  "$defs": {
+    "session": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "session_id",
+        "participant_alias",
+        "participant_role",
+        "consent_obtained",
+        "platform",
+        "display",
+        "input_mode",
+        "accessibility",
+        "started_at",
+        "ended_at",
+        "facilitator_gameplay_hints",
+        "five_second_answers",
+        "vertical_slice",
+        "notes"
+      ],
+      "properties": {
+        "session_id": {
+          "type": "string",
+          "pattern": "^ui-session-[0-9a-z-]+$"
+        },
+        "participant_alias": {
+          "type": "string",
+          "pattern": "^anon-[0-9a-z-]+$"
+        },
+        "participant_role": {
+          "enum": ["independent_observer", "non_developer"]
+        },
+        "consent_obtained": {
+          "const": true
+        },
+        "platform": {
+          "enum": ["linux", "windows", "macos"]
+        },
+        "display": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["width", "height", "scale_factor"],
+          "properties": {
+            "width": {
+              "type": "integer",
+              "minimum": 640,
+              "maximum": 7680
+            },
+            "height": {
+              "type": "integer",
+              "minimum": 480,
+              "maximum": 4320
+            },
+            "scale_factor": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "maximum": 4
+            }
+          }
+        },
+        "input_mode": {
+          "enum": ["hybrid", "keyboard_only", "mouse_only"]
+        },
+        "accessibility": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["high_contrast", "subtitles", "low_motion"],
+          "properties": {
+            "high_contrast": {
+              "type": "boolean"
+            },
+            "subtitles": {
+              "type": "boolean"
+            },
+            "low_motion": {
+              "type": "boolean"
+            }
+          }
+        },
+        "started_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "ended_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "facilitator_gameplay_hints": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "five_second_answers": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "location_correct",
+            "phase_correct",
+            "objective_correct",
+            "next_action_correct",
+            "authority_posture_correct",
+            "economy_posture_correct",
+            "misread_compatibility_as_nakama",
+            "misread_pending_as_settled"
+          ],
+          "properties": {
+            "location_correct": {
+              "type": "boolean"
+            },
+            "phase_correct": {
+              "type": "boolean"
+            },
+            "objective_correct": {
+              "type": "boolean"
+            },
+            "next_action_correct": {
+              "type": "boolean"
+            },
+            "authority_posture_correct": {
+              "type": "boolean"
+            },
+            "economy_posture_correct": {
+              "type": "boolean"
+            },
+            "misread_compatibility_as_nakama": {
+              "type": "boolean"
+            },
+            "misread_pending_as_settled": {
+              "type": "boolean"
+            }
+          }
+        },
+        "vertical_slice": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["completed", "duration_seconds", "stages_completed"],
+          "properties": {
+            "completed": {
+              "type": "boolean"
+            },
+            "duration_seconds": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 3600
+            },
+            "stages_completed": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "enum": [
+                  "new_campaign",
+                  "character_confirmation",
+                  "rpg_mentor_loop",
+                  "mission_preparation",
+                  "rts_battle",
+                  "debrief",
+                  "town_return"
+                ]
+              }
+            }
+          }
+        },
+        "notes": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4096
+        }
+      }
+    }
+  }
+}
