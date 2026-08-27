@@ -8,7 +8,8 @@ trap 'rm -rf "$TEMP_ROOT"' EXIT
 
 mkdir -p \
   "$TEMP_ROOT/trillionnium/crates/trnm-first-contact/src" \
-  "$TEMP_ROOT/docs/development"
+  "$TEMP_ROOT/docs/development" \
+  "$TEMP_ROOT/docs/evidence/ui"
 cp "$ROOT_DIR/trillionnium/crates/trnm-first-contact/src/lib.rs" \
   "$TEMP_ROOT/trillionnium/crates/trnm-first-contact/src/lib.rs"
 cp -a "$ROOT_DIR/trillionnium/crates/trnm-first-contact/src/ui" \
@@ -17,6 +18,10 @@ cp "$ROOT_DIR/docs/development/trnm-world-ui-vertical-slice-v1.md" \
   "$TEMP_ROOT/docs/development/trnm-world-ui-vertical-slice-v1.md"
 cp "$ROOT_DIR/docs/development/trnm-world-ui-acceptance-v1.json" \
   "$TEMP_ROOT/docs/development/trnm-world-ui-acceptance-v1.json"
+cp "$ROOT_DIR/docs/evidence/ui/README.md" \
+  "$TEMP_ROOT/docs/evidence/ui/README.md"
+cp "$ROOT_DIR/docs/evidence/ui/trnm-world-ui-human-session-v1.schema.json" \
+  "$TEMP_ROOT/docs/evidence/ui/trnm-world-ui-human-session-v1.schema.json"
 
 cat > "$TEMP_ROOT/trillionnium/crates/trnm-first-contact/src/ui/forbidden.rs" <<'RUST'
 struct MatchCompletedV1;
