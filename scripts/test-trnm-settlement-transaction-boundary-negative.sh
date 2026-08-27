@@ -8,31 +8,38 @@ trap 'rm -rf "$TMP_DIR"' EXIT
 
 mkdir -p "$TMP_DIR/src"
 cat >"$TMP_DIR/src/lib.rs" <<'RS'
-async fn capture_pending_settlement(pool: &Pool) {
+async fn capture_match(pool: &Pool) {
     let mut transaction = pool.begin().await.unwrap();
     transaction.commit().await.unwrap();
 }
 
-async fn execute_pending_settlement(mut campaign: Campaign, cex: Cex) {
-    tokio::task::spawn_blocking(move || campaign.reconcile_economy(&cex, 8)).await;
+async fn process_claimed_job(cex: &Cex, intent: &Intent) {
+    let authorized = cex
+        .authorize_settlement_intent(intent, "request", 1, 2, "nonce")
+        .await
+        .unwrap();
+    cex.submit_authorized_settlement_intent(&authorized.intent)
+        .await
+        .unwrap();
 }
 
-async fn apply_pending_settlement(pool: &Pool) {
+async fn apply_capture(pool: &Pool) {
     let mut transaction = pool.begin().await.unwrap();
     transaction.commit().await.unwrap();
 }
 RS
-bash "$CHECKER" full "$TMP_DIR/src" >/dev/null
+bash "$CHECKER" scan-only "$TMP_DIR/src" >/dev/null
 
 cat >"$TMP_DIR/src/lib.rs" <<'RS'
-async fn capture_pending_settlement(pool: &Pool) {
+async fn capture_match(pool: &Pool, cex: &Cex, intent: &Intent) {
     let mut transaction = pool.begin().await.unwrap();
-    let mut campaign = load_campaign(&mut transaction).await;
-    campaign.reconcile_economy(&state.cex, 8);
+    cex.submit_authorized_settlement_intent(intent)
+        .await
+        .unwrap();
     transaction.commit().await.unwrap();
 }
 
-async fn apply_pending_settlement(pool: &Pool) {
+async fn apply_capture(pool: &Pool) {
     let mut transaction = pool.begin().await.unwrap();
     transaction.commit().await.unwrap();
 }

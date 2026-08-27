@@ -1,0 +1,52 @@
+[Unit]
+Description=TRNM Transaction-Free Settlement Outbox Worker
+After=network-online.target cex-trnm-ledger.service trnm-entitlement-signer.service trnm-game-server.service
+Wants=network-online.target cex-trnm-ledger.service trnm-entitlement-signer.service
+StartLimitIntervalSec=120
+StartLimitBurst=5
+
+[Service]
+Type=simple
+Environment=TRNM_WORLD_ROOT=@TRNM_WORLD_ROOT@
+Environment=TRNM_STATE_HOME=@TRNM_STATE_HOME@
+EnvironmentFile=@TRNM_CONFIG_HOME@/settlement-worker.env
+WorkingDirectory=@TRNM_WORLD_ROOT@
+ExecStart=@TRNM_WORLD_ROOT@/scripts/run-trnm-settlement-worker.sh
+Restart=on-failure
+RestartSec=5
+TimeoutStartSec=45
+TimeoutStopSec=30
+KillSignal=SIGTERM
+UMask=0077
+CPUAccounting=true
+CPUWeight=100
+CPUQuota=100%
+MemoryAccounting=true
+ManagedOOMPreference=avoid
+MemoryHigh=192M
+MemoryMax=256M
+MemorySwapMax=64M
+IOAccounting=true
+IOWeight=100
+TasksAccounting=true
+TasksMax=128
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=read-only
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+ProtectClock=true
+ProtectHostname=true
+LockPersonality=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+SystemCallArchitectures=native
+ReadWritePaths=@TRNM_STATE_HOME@ @TRNM_WORLD_ROOT@/run
+
+[Install]
+WantedBy=default.target
