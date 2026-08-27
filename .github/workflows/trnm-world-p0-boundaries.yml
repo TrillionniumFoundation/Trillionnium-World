@@ -1,0 +1,61 @@
+name: trnm-world-p0-boundaries
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'PROJECT_BOUNDARY.*'
+      - 'docs/adr/**'
+      - 'docs/development/trnm-world-**'
+      - 'trillionnium/Cargo.toml'
+      - 'trillionnium/crates/**/Cargo.toml'
+      - 'trillionnium/crates/trnm-game-server/src/**'
+      - 'scripts/check-trnm-world-authority-boundary.sh'
+      - 'scripts/test-trnm-world-authority-boundary-negative.sh'
+      - 'scripts/check-trnm-settlement-transaction-boundary.sh'
+      - 'scripts/test-trnm-settlement-transaction-boundary-negative.sh'
+      - '.github/workflows/trnm-world-p0-boundaries.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'PROJECT_BOUNDARY.*'
+      - 'docs/adr/**'
+      - 'docs/development/trnm-world-**'
+      - 'trillionnium/Cargo.toml'
+      - 'trillionnium/crates/**/Cargo.toml'
+      - 'trillionnium/crates/trnm-game-server/src/**'
+      - 'scripts/check-trnm-world-authority-boundary.sh'
+      - 'scripts/test-trnm-world-authority-boundary-negative.sh'
+      - 'scripts/check-trnm-settlement-transaction-boundary.sh'
+      - 'scripts/test-trnm-settlement-transaction-boundary-negative.sh'
+      - '.github/workflows/trnm-world-p0-boundaries.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trnm-world-p0-boundaries-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  authority-boundary:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact revision
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Verify World/Nakama authority ownership boundary
+        run: bash scripts/check-trnm-world-authority-boundary.sh
+      - name: Prove authority boundary rejects forbidden fixtures
+        run: bash scripts/test-trnm-world-authority-boundary-negative.sh
+
+  settlement-transaction-boundary:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact revision
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Verify external settlement work is outside DB transactions
+        run: bash scripts/check-trnm-settlement-transaction-boundary.sh
+      - name: Prove settlement boundary rejects transaction-spanning I/O
+        run: bash scripts/test-trnm-settlement-transaction-boundary-negative.sh
