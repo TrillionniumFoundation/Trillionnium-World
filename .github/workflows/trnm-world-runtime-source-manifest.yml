@@ -4,17 +4,29 @@ on:
   workflow_dispatch:
   pull_request:
     paths:
-      - 'contracts/world-runtime/v1/**'
+      - 'contracts/world-runtime/**'
       - 'docs/protocol/trnm-world-runtime-v1.md'
+      - 'docs/development/trnm-world-nakama-shadow-v1.md'
+      - 'docs/runbooks/trnm-world-authority-cutover-v1.md'
       - 'scripts/verify-trnm-world-runtime-v1.py'
+      - 'scripts/verify-trnm-world-shadow-v1.py'
+      - 'scripts/check-trnm-world-runtime-boundary.sh'
+      - 'scripts/test-trnm-world-runtime-boundary-negative.sh'
       - 'scripts/emit-trnm-world-runtime-v1-source-manifest.py'
       - '.github/workflows/trnm-world-runtime-source-manifest.yml'
   push:
-    branches: [main]
+    branches:
+      - main
+      - feature/world-runtime-contract-v1
     paths:
-      - 'contracts/world-runtime/v1/**'
+      - 'contracts/world-runtime/**'
       - 'docs/protocol/trnm-world-runtime-v1.md'
+      - 'docs/development/trnm-world-nakama-shadow-v1.md'
+      - 'docs/runbooks/trnm-world-authority-cutover-v1.md'
       - 'scripts/verify-trnm-world-runtime-v1.py'
+      - 'scripts/verify-trnm-world-shadow-v1.py'
+      - 'scripts/check-trnm-world-runtime-boundary.sh'
+      - 'scripts/test-trnm-world-runtime-boundary-negative.sh'
       - 'scripts/emit-trnm-world-runtime-v1-source-manifest.py'
       - '.github/workflows/trnm-world-runtime-source-manifest.yml'
 
@@ -28,7 +40,7 @@ concurrency:
 jobs:
   exact-source:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - name: Checkout exact source
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
@@ -37,12 +49,17 @@ jobs:
       - name: Compile source tools
         run: |
           python3 -m py_compile scripts/verify-trnm-world-runtime-v1.py
+          python3 -m py_compile scripts/verify-trnm-world-shadow-v1.py
           python3 -m py_compile scripts/emit-trnm-world-runtime-v1-source-manifest.py
-      - name: Reverify deterministic contract
+      - name: Reverify deterministic runtime and shadow contracts
         run: |
           mkdir -p run/world-runtime-source
           python3 scripts/verify-trnm-world-runtime-v1.py \
-            | tee run/world-runtime-source/contract-report.json
+            | tee run/world-runtime-source/runtime-report.json
+          python3 scripts/verify-trnm-world-shadow-v1.py \
+            | tee run/world-runtime-source/shadow-report.json
+          bash scripts/check-trnm-world-runtime-boundary.sh
+          bash scripts/test-trnm-world-runtime-boundary-negative.sh
       - name: Emit exact commit, tree and blob manifest
         run: |
           python3 scripts/emit-trnm-world-runtime-v1-source-manifest.py \
@@ -52,16 +69,25 @@ jobs:
           jq -e '
             .status == "source_exact" and
             .contract_version == "trnm_world_runtime_source_manifest_v1" and
+            .runtime_contract == "trnm_world_runtime_v1" and
+            .shadow_contract == "trnm_world_shadow_input_v1" and
             (.commit | test("^[0-9a-f]{40}$")) and
             (.tree | test("^[0-9a-f]{40}$")) and
-            (.blobs | length == 5) and
-            ([.blobs[] | select((.git_blob_sha1 | test("^[0-9a-f]{40}$")) and (.sha256 | test("^[0-9a-f]{64}$")) and (.bytes > 0))] | length == 5) and
+            .file_count == 21 and
+            (.blobs | length == 21) and
+            ([.blobs[] | select((.git_blob_sha1 | test("^[0-9a-f]{40}$")) and (.sha256 | test("^[0-9a-f]{64}$")) and (.bytes > 0))] | length == 21) and
             .authority.world_deterministic_game_domain == true and
             .authority.nakama_global_ordering == false and
             .authority.nakama_completion_signing == false and
             .authority.chain_finality == false and
             .authority.cex_custody == false and
-            (.limitations | length > 0)
+            .promotion.independent_nakama_consumer == "pending" and
+            .promotion.integration_component_lock == "pending" and
+            .promotion.canonical_cutover == false and
+            .promotion.active_match_takeover_claimed == false and
+            .promotion.public_online_enabled == false and
+            .promotion.public_player_market_enabled == false and
+            (.limitations | length >= 5)
           ' run/world-runtime-source/source-manifest.json >/dev/null
           jq -e '
             .status == "ok" and
@@ -69,7 +95,14 @@ jobs:
             .authority_signing == false and
             .global_ordering == false and
             .chain_finality == false
-          ' run/world-runtime-source/contract-report.json >/dev/null
+          ' run/world-runtime-source/runtime-report.json >/dev/null
+          jq -e '
+            .status == "ok" and
+            .contract_version == "trnm_world_shadow_verifier_report_v1" and
+            .valid_vectors >= 5 and
+            .invalid_vectors >= 1 and
+            .authority.completion_signing == false
+          ' run/world-runtime-source/shadow-report.json >/dev/null
       - name: Upload exact source evidence
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
