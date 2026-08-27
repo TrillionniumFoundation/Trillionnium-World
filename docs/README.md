@@ -14,10 +14,13 @@
 - Native release gates: `development/trnm-native-game-release-gates-v1.md`
 - Current RPG/RTS product contract: `development/trillionnium-rpg-rts-closed-loop-v1.md`
 - Current native game/CEX economy contract: `development/trnm-cex-economy-integration-v1.md`
+- Current native UI vertical slice: `development/trnm-world-ui-vertical-slice-v1.md`
+- Machine-readable UI acceptance matrix: `development/trnm-world-ui-acceptance-v1.json`
 
 ## Current implementation references
 
 - Native client: `../trillionnium/crates/trnm-first-contact`
+- Native player control surface: `../trillionnium/crates/trnm-first-contact/src/ui`
 - Deterministic RTS simulation: `../trillionnium/crates/trnm-rts-sim`
 - Campaign/save/progression authority: `../trillionnium/crates/trnm-campaign-core`
 - Economy intent/receipt vocabulary: `../trillionnium/crates/trnm-economy-protocol`
@@ -32,6 +35,8 @@
 - Runtime configuration boundary: `../scripts/check_trnm_runtime_configuration.sh`
 - Settlement outbox contract: `../scripts/check_trnm_settlement_outbox_contract.sh`
 - Legacy settlement-debt upper bound: `../scripts/check_trnm_settlement_transaction_boundary.sh`
+- Native UI architecture and honest-authority contract: `../scripts/check-trnm-ui-contract.sh`
+- Native UI forbidden-claim negative fixtures: `../scripts/test-trnm-ui-contract-negative.sh`
 
 ## Historical material
 
