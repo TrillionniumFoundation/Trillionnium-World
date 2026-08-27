@@ -12,7 +12,9 @@ on:
       - 'scripts/test-trnm-ui-contract-negative.sh'
       - '.github/workflows/trnm-world-ui.yml'
   push:
-    branches: [main]
+    branches:
+      - main
+      - feature/world-ui-vertical-slice-v1
     paths:
       - 'trillionnium/crates/trnm-first-contact/src/ui/**'
       - 'trillionnium/crates/trnm-first-contact/src/lib.rs'
