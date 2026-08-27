@@ -4,13 +4,20 @@ on:
   workflow_dispatch:
   pull_request:
     paths:
+      - 'PROJECT_BOUNDARY.md'
+      - 'PROJECT_BOUNDARY.json'
+      - 'CURRENT_PLAN.md'
+      - 'docs/**'
+      - 'config/trnm-*.env.example'
       - 'trillionnium/Cargo.toml'
       - 'trillionnium/Cargo.lock'
       - 'trillionnium/deny.toml'
       - 'trillionnium/crates/trnm-*/**'
+      - 'trillionnium/tools/trnm-settlement-outbox-contract/**'
       - 'assets/first_contact/**'
       - 'deploy/systemd/trnm-*.service'
       - 'scripts/check-trnm-online-*.sh'
+      - 'scripts/check_trnm_*.sh'
       - 'scripts/run-trnm-*.sh'
       - 'scripts/install-trnm-game-server-systemd.sh'
       - 'scripts/package-trnm-game-release.sh'
@@ -21,13 +28,20 @@ on:
   push:
     branches: [main]
     paths:
+      - 'PROJECT_BOUNDARY.md'
+      - 'PROJECT_BOUNDARY.json'
+      - 'CURRENT_PLAN.md'
+      - 'docs/**'
+      - 'config/trnm-*.env.example'
       - 'trillionnium/Cargo.toml'
       - 'trillionnium/Cargo.lock'
       - 'trillionnium/deny.toml'
       - 'trillionnium/crates/trnm-*/**'
+      - 'trillionnium/tools/trnm-settlement-outbox-contract/**'
       - 'assets/first_contact/**'
       - 'deploy/systemd/trnm-*.service'
       - 'scripts/check-trnm-online-*.sh'
+      - 'scripts/check_trnm_*.sh'
       - 'scripts/run-trnm-*.sh'
       - 'scripts/install-trnm-game-server-systemd.sh'
       - 'scripts/package-trnm-game-release.sh'
@@ -50,6 +64,25 @@ env:
   RUST_TEST_THREADS: '1'
 
 jobs:
+  architecture-contracts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - name: Install boundary-check dependencies
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends jq
+      - name: Authority ownership boundary
+        run: ./scripts/check_trnm_authority_boundary.sh
+      - name: Runtime configuration boundary
+        run: ./scripts/check_trnm_runtime_configuration.sh
+      - name: Settlement outbox invariant contract
+        run: ./scripts/check_trnm_settlement_outbox_contract.sh
+      - name: Settlement transaction migration-debt boundary
+        run: ./scripts/check_trnm_settlement_transaction_boundary.sh
+
   game-workspace:
     runs-on: ubuntu-latest
     timeout-minutes: 60
@@ -63,6 +96,14 @@ jobs:
           components: rustfmt, clippy
       - name: Install native build dependencies
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends jq libasound2-dev libudev-dev libx11-dev libxi-dev libxkbcommon-dev libwayland-dev pkg-config
+      - name: Product workspace and repository boundary
+        run: ../scripts/check_trnm_game_product.sh
+      - name: Authority ownership boundary
+        run: ../scripts/check_trnm_authority_boundary.sh
+      - name: Runtime configuration boundary
+        run: ../scripts/check_trnm_runtime_configuration.sh
+      - name: Settlement transaction migration-debt boundary
+        run: ../scripts/check_trnm_settlement_transaction_boundary.sh
       - name: Resource budget contract
         run: ../scripts/check-trnm-online-resource-budgets.sh
       - name: Format
@@ -71,7 +112,7 @@ jobs:
         run: cargo test --workspace --all-targets --locked
       - name: Clippy
         run: cargo clippy --workspace --all-targets --locked -- -D warnings
-      - name: Release player and online services
+      - name: Release player and online compatibility services
         run: cargo build --release --locked -p trnm-first-contact -p trnm-game-server --bins
       - name: Package complete Linux distribution
         run: ../scripts/package-trnm-game-release.sh --require-clean --output-dir ../run/ci-distribution

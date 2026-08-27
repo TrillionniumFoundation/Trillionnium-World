@@ -1,28 +1,46 @@
-# Trillionnium Docs Index
+# Trillionnium World Documentation Index
 
-## Core
+## Current truth sources
 
-- Architecture entry: `architecture/README.md`
-- Protocol docs: `protocol/`
-- Runbooks: `runbooks/`
-- Strategy notes: `strategy/`
-- Alpha run records: `alpha-runs/`
+- Current development plan: `development/TRILLIONNIUM_WORLD_DEVELOPMENT_PLAN_2026-08-27.md`
+- Machine-readable execution manifest: `development/trillionnium-world-development-plan-2026-08-27.json`
+- Product status and honest open gates: `../GAME_STATUS.md`
+- Repository and authority boundary: `../PROJECT_BOUNDARY.md`
+- Authority ownership decision: `adr/0001-realtime-authority-and-match-evidence-ownership.md`
+- External-settlement transaction decision: `adr/0002-transaction-free-external-settlement.md`
+- World match-evidence boundary: `protocol/trnm-match-evidence-commitment-v1.md`
+- Settlement outbox design: `development/trnm-settlement-outbox-v1.md`
+- Runtime configuration: `operations/trnm-game-server-runtime-configuration.md`
+- Native release gates: `development/trnm-native-game-release-gates-v1.md`
+- Current RPG/RTS product contract: `development/trillionnium-rpg-rts-closed-loop-v1.md`
+- Current native game/CEX economy contract: `development/trnm-cex-economy-integration-v1.md`
 
-## Rust L1 quick links
+## Current implementation references
 
-- Current one-page game status: `../GAME_STATUS.md`
-- Current RPG/RTS game truth: `development/trillionnium-rpg-rts-closed-loop-v1.md`
-- Historical July World review/evidence queue: `archive/world-review-2026-07/README.md`
-- Frozen World/Bevy plans and reviews: `archive/world-bevy/README.md`
-- Term Exchange Kernel: `development/trillionnium-term-exchange-kernel-v1.md`
-- Current native game / CEX economy integration: `development/trnm-cex-economy-integration-v1.md`
-- CEX runtime plugin split for Trillionnium World: `development/trillionnium-cex-runtime-plugin-split-v1.md`
-- Repo layout: `architecture/rust-l1-repo-layout.md`
-- PoCO sequence draft: `../trillionnium/docs/protocol/poco-proof-of-consumption-v1-draft.md`
-  - BL09 retirement-prep note: retained `trnm-pouw` naming on migration surfaces is a compatibility label and provenance / audit evidence only, not ongoing payout authority.
-- v1 interface freeze: `protocol/rust-l1-v1-interface-freeze.md`
-- PR-5 challenge treasury 对账 runbook: `runbooks/pr5-challenge-treasury-reconcile.md`
-- PR-6 alert rules runbook: `runbooks/pr6-alert-rules.md`
-- PR-6 nightly security summary runbook: `runbooks/pr6-nightly-security-summary.md`
-- PR-7 alert delivery runbook: `runbooks/pr7-alert-delivery.md`
-- PR-9 weekly alert governance runbook: `runbooks/pr9-weekly-alert-governance.md`
+- Native client: `../trillionnium/crates/trnm-first-contact`
+- Deterministic RTS simulation: `../trillionnium/crates/trnm-rts-sim`
+- Campaign/save/progression authority: `../trillionnium/crates/trnm-campaign-core`
+- Economy intent/receipt vocabulary: `../trillionnium/crates/trnm-economy-protocol`
+- Online wire compatibility: `../trillionnium/crates/trnm-online-protocol`
+- World-local compatibility authority enclave: `../trillionnium/crates/trnm-game-server`
+- Settlement outbox invariant contract: `../trillionnium/tools/trnm-settlement-outbox-contract`
+
+## Current checks
+
+- Product workspace boundary: `../scripts/check_trnm_game_product.sh`
+- Authority ownership boundary: `../scripts/check_trnm_authority_boundary.sh`
+- Runtime configuration boundary: `../scripts/check_trnm_runtime_configuration.sh`
+- Settlement outbox contract: `../scripts/check_trnm_settlement_outbox_contract.sh`
+- Legacy settlement-debt upper bound: `../scripts/check_trnm_settlement_transaction_boundary.sh`
+
+## Historical material
+
+Historical Chain, Web4, World/Bevy, Android, public-launch and old release-review
+material remains under `archive/` or legacy directories for provenance. It is
+not a current architecture, product gate or release truth source unless a
+current document explicitly cites a bounded artifact from it.
+
+Documents under `architecture/`, `protocol/`, `runbooks/` or `release/` that
+primarily describe the former Rust L1/shared repository should be migrated to
+the owning repository or moved under `archive/legacy-chain/`. Their directory
+name alone does not make them current World documentation.

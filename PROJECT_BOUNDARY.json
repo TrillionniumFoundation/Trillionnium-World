@@ -1,5 +1,5 @@
 {
-  "schema": 1,
+  "schema": 2,
   "project_id": "trillionnium-world",
   "canonical_dir": "trillionnium-world",
   "lane": "game-product",
@@ -31,6 +31,49 @@
       "trnm-runtime"
     ],
     "external_path_dependencies": "forbid"
+  },
+  "authority": {
+    "world": [
+      "game-rulesets",
+      "deterministic-simulation",
+      "game-outcome-hash",
+      "unsigned-replay-material",
+      "native-client",
+      "player-facing-economy-intents"
+    ],
+    "online_match_authority": "Trillionnium-Nakama",
+    "chain_finality_authority": "Trillionnium-Chain",
+    "wallet_settlement_authority": "CEX",
+    "cross_repository_evidence_authority": "Trillionnium-Integration",
+    "forbidden_world_claims": [
+      "canonical-online-global-order",
+      "canonical-match-completion-signature",
+      "chain-finality",
+      "wallet-ledger-custody"
+    ]
+  },
+  "compatibility_enclaves": [
+    {
+      "path": "trillionnium/crates/trnm-game-server",
+      "purpose": "world-local-online-authority-migration-and-rollback-evidence",
+      "new_public_authority_contracts": "forbid",
+      "canonical_match_evidence": false,
+      "sunset_gate": "world-to-nakama-authority-adapter-and-cross-repository-recovery-matrix"
+    }
+  ],
+  "documentation": {
+    "current_plan": "docs/development/TRILLIONNIUM_WORLD_DEVELOPMENT_PLAN_2026-08-27.md",
+    "authority_adr": "docs/adr/0001-realtime-authority-and-match-evidence-ownership.md",
+    "settlement_adr": "docs/adr/0002-transaction-free-external-settlement.md",
+    "match_evidence_contract": "docs/protocol/trnm-match-evidence-commitment-v1.md",
+    "current_plan_manifest": "docs/development/trillionnium-world-development-plan-2026-08-27.json"
+  },
+  "runtime": {
+    "forbid_personal_absolute_paths": true,
+    "forbid_sibling_repository_environment_loading": true,
+    "require_distinct_role_credentials": true,
+    "require_verified_release_in_production": true,
+    "development_binary_fallback": "explicit-opt-in-only"
   },
   "deny_changed_paths_regex": "^trillionnium/crates/platform/"
 }
