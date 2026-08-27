@@ -8,8 +8,11 @@ on:
       - 'trillionnium/crates/trnm-first-contact/src/lib.rs'
       - 'docs/README.md'
       - 'docs/development/trnm-world-ui-**'
+      - 'docs/evidence/ui/**'
       - 'scripts/check-trnm-ui-contract.sh'
       - 'scripts/test-trnm-ui-contract-negative.sh'
+      - 'scripts/check-trnm-ui-human-evidence.sh'
+      - 'scripts/test-trnm-ui-human-evidence-negative.sh'
       - '.github/workflows/trnm-world-ui.yml'
   push:
     branches:
@@ -20,8 +23,11 @@ on:
       - 'trillionnium/crates/trnm-first-contact/src/lib.rs'
       - 'docs/README.md'
       - 'docs/development/trnm-world-ui-**'
+      - 'docs/evidence/ui/**'
       - 'scripts/check-trnm-ui-contract.sh'
       - 'scripts/test-trnm-ui-contract-negative.sh'
+      - 'scripts/check-trnm-ui-human-evidence.sh'
+      - 'scripts/test-trnm-ui-human-evidence-negative.sh'
       - '.github/workflows/trnm-world-ui.yml'
 
 permissions:
@@ -42,6 +48,10 @@ jobs:
         run: bash scripts/check-trnm-ui-contract.sh
       - name: Prove UI contract rejects forbidden fixtures
         run: bash scripts/test-trnm-ui-contract-negative.sh
+      - name: Validate any committed human evidence packets
+        run: bash scripts/check-trnm-ui-human-evidence.sh
+      - name: Prove human evidence cannot be automated or underpowered
+        run: bash scripts/test-trnm-ui-human-evidence-negative.sh
 
   ui-rust:
     runs-on: ubuntu-latest
