@@ -1,0 +1,105 @@
+{
+  "contract_version": "trnm_world_p0_execution_registry_v1",
+  "project_id": "trillionnium-world",
+  "updated_at": "2026-08-27T00:00:00Z",
+  "target_architecture": {
+    "world": "deterministic_game_domain",
+    "nakama": "online_match_authority_and_completion_signing",
+    "chain": "ingress_finality_and_inclusion_proof",
+    "cex": "wallet_ledger_and_custody",
+    "integration": "cross_repository_lock_and_e2e_evidence"
+  },
+  "slices": [
+    {
+      "slice_id": "P0.1",
+      "title": "authority ownership convergence",
+      "status": "in_review",
+      "repository": "TrillionniumFoundation/Trillionnium-World",
+      "branch": "feature/world-plan-p0-foundation",
+      "commit": null,
+      "workflow_run": null,
+      "evidence_level": "source_implemented",
+      "checks": [
+        "authority ADR",
+        "repository boundary checker",
+        "negative authority fixture",
+        "current documentation index"
+      ],
+      "limitations": [
+        "not merged to main",
+        "Nakama authority migration not completed",
+        "no public-online release credit"
+      ]
+    },
+    {
+      "slice_id": "P0.2",
+      "title": "settlement capture execute apply",
+      "status": "in_review",
+      "repository": "TrillionniumFoundation/Trillionnium-World",
+      "branch": "feature/world-settlement-outbox-runtime",
+      "commit": null,
+      "workflow_run": null,
+      "evidence_level": "source_implemented",
+      "checks": [
+        "transaction split implementation",
+        "ambiguous remote commit model",
+        "stale revision and hash model",
+        "terminal marker drift model",
+        "two-worker apply model",
+        "source transaction-boundary conformance"
+      ],
+      "limitations": [
+        "remote CI result pending",
+        "black-box signer/CEX/PostgreSQL kill matrix still required",
+        "legacy local authority only"
+      ]
+    },
+    {
+      "slice_id": "P0.3",
+      "title": "remote merge governance",
+      "status": "in_review",
+      "repository": "TrillionniumFoundation/Trillionnium-World",
+      "branch": "feature/world-plan-p0-foundation",
+      "commit": null,
+      "workflow_run": null,
+      "evidence_level": "source_implemented",
+      "checks": [
+        "product boundary CI job",
+        "authority boundary CI job",
+        "workspace test and strict clippy",
+        "package and supply-chain jobs"
+      ],
+      "limitations": [
+        "server-side main branch protection must be independently verified",
+        "third-party actions are not yet all pinned to immutable commits"
+      ]
+    },
+    {
+      "slice_id": "P0.4",
+      "title": "current truth and evidence registry",
+      "status": "in_review",
+      "repository": "TrillionniumFoundation/Trillionnium-World",
+      "branch": "feature/world-plan-p0-foundation",
+      "commit": null,
+      "workflow_run": null,
+      "evidence_level": "source_implemented",
+      "checks": [
+        "machine-readable P0 registry",
+        "registry conformance test",
+        "current-first documentation index"
+      ],
+      "limitations": [
+        "full historical document migration remains pending",
+        "GAME_STATUS generation remains pending"
+      ]
+    }
+  ],
+  "release_gates": {
+    "native_software_alpha": "blocked_pending_exact_remote_ci",
+    "commercial_single_player": "blocked",
+    "closed_online_alpha_nakama": "blocked",
+    "trusted_cex_settlement": "blocked_pending_fault_evidence",
+    "public_online": "no_go",
+    "public_player_market": "disabled"
+  }
+}
