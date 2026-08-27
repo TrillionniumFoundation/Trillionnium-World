@@ -1,0 +1,390 @@
+-- Runtime integration for the transaction-free terminal settlement outbox.
+--
+-- This migration adds immutable capture fences, stable authorization material,
+-- lease-fenced remote completion, and a separate campaign-apply marker. External
+-- signer/CEX calls remain outside PostgreSQL transactions in
+-- trnm-settlement-worker.
+
+alter table public.trnm_online_settlement_jobs
+    add column if not exists expected_campaign_state_hash text;
+
+update public.trnm_online_settlement_jobs job
+   set expected_campaign_state_hash = campaign.state_hash
+  from public.trnm_online_campaigns campaign
+ where campaign.campaign_id = job.campaign_id
+   and job.expected_campaign_state_hash is null;
+
+alter table public.trnm_online_settlement_jobs
+    alter column expected_campaign_state_hash set not null;
+
+alter table public.trnm_online_settlement_jobs
+    drop constraint if exists trnm_online_settlement_jobs_expected_state_hash_check;
+alter table public.trnm_online_settlement_jobs
+    add constraint trnm_online_settlement_jobs_expected_state_hash_check
+    check (expected_campaign_state_hash ~ '^[0-9a-f]{64}$');
+
+alter table public.trnm_online_settlement_jobs
+    add column if not exists capture_id text;
+alter table public.trnm_online_settlement_jobs
+    add column if not exists capture_generation bigint not null default 1
+        check (capture_generation > 0);
+alter table public.trnm_online_settlement_jobs
+    add column if not exists authorization_request_id text;
+alter table public.trnm_online_settlement_jobs
+    add column if not exists remote_attempts integer not null default 0
+        check (remote_attempts between 0 and 16);
+alter table public.trnm_online_settlement_jobs
+    add column if not exists remote_completed_at timestamptz;
+alter table public.trnm_online_settlement_jobs
+    add column if not exists campaign_applied_at timestamptz;
+alter table public.trnm_online_settlement_jobs
+    add column if not exists failure_class text
+        check (failure_class is null or failure_class in ('retryable', 'permanent', 'stale'));
+
+alter table public.trnm_online_settlement_jobs
+    drop constraint if exists trnm_online_settlement_jobs_capture_id_check;
+alter table public.trnm_online_settlement_jobs
+    add constraint trnm_online_settlement_jobs_capture_id_check
+    check (capture_id is null or capture_id ~ '^trnm-settlement-capture-v1:[0-9a-f]{64}$');
+
+alter table public.trnm_online_settlement_jobs
+    drop constraint if exists trnm_online_settlement_jobs_authorization_check;
+alter table public.trnm_online_settlement_jobs
+    add constraint trnm_online_settlement_jobs_authorization_check check (
+        authorized_intent_json is null
+        or (
+            authorization_request_id is not null
+            and btrim(authorization_request_id) <> ''
+            and length(authorization_request_id) <= 256
+        )
+    );
+
+alter table public.trnm_online_settlement_jobs
+    drop constraint if exists trnm_online_settlement_jobs_apply_check;
+alter table public.trnm_online_settlement_jobs
+    add constraint trnm_online_settlement_jobs_apply_check check (
+        campaign_applied_at is null
+        or (state = 'succeeded' and receipt_json is not null)
+    );
+
+create table if not exists public.trnm_online_settlement_captures (
+    capture_id text primary key
+        check (capture_id ~ '^trnm-settlement-capture-v1:[0-9a-f]{64}$'),
+    contract_version text not null
+        check (contract_version = 'trnm_settlement_capture_v1'),
+    match_id uuid not null
+        references public.trnm_online_matches(match_id) on delete restrict,
+    capture_generation bigint not null check (capture_generation > 0),
+    terminal_identity_hash text not null
+        check (terminal_identity_hash ~ '^[0-9a-f]{64}$'),
+    terminal_identity_json jsonb not null
+        check (jsonb_typeof(terminal_identity_json) = 'object'),
+    campaign_fences_json jsonb not null
+        check (jsonb_typeof(campaign_fences_json) = 'object'),
+    head_intent_ids_json jsonb not null
+        check (jsonb_typeof(head_intent_ids_json) = 'object'),
+    state text not null default 'active'
+        check (state in ('active', 'applied', 'finalized', 'stale', 'dead_letter')),
+    last_error text check (last_error is null or length(last_error) <= 1024),
+    created_at timestamptz not null default clock_timestamp(),
+    updated_at timestamptz not null default clock_timestamp(),
+    applied_at timestamptz,
+    unique (match_id, capture_generation),
+    check (
+        (state = 'active' and applied_at is null)
+        or (state in ('applied', 'finalized') and applied_at is not null)
+        or state in ('stale', 'dead_letter')
+    )
+);
+
+create unique index if not exists idx_trnm_online_settlement_capture_active
+    on public.trnm_online_settlement_captures(match_id)
+    where state = 'active';
+
+create index if not exists idx_trnm_online_settlement_capture_apply
+    on public.trnm_online_settlement_captures(created_at, capture_id)
+    where state = 'active';
+
+alter table public.trnm_online_settlement_jobs
+    drop constraint if exists trnm_online_settlement_jobs_match_id_campaign_id_intent_id_key;
+
+create unique index if not exists idx_trnm_online_settlement_job_capture_intent
+    on public.trnm_online_settlement_jobs(capture_id, campaign_id, intent_id)
+    where capture_id is not null;
+
+create index if not exists idx_trnm_online_settlement_job_unapplied_success
+    on public.trnm_online_settlement_jobs(capture_id, campaign_id, created_at)
+    where state = 'succeeded' and campaign_applied_at is null;
+
+create or replace function public.trnm_online_claim_settlement_job_v2(
+    p_owner text,
+    p_lease_milliseconds bigint
+)
+returns setof public.trnm_online_settlement_jobs
+language plpgsql
+security invoker
+set search_path = pg_catalog, public
+as $function$
+declare
+    claimed public.trnm_online_settlement_jobs%rowtype;
+begin
+    if p_owner is null or btrim(p_owner) = '' or length(p_owner) > 256 then
+        raise exception 'invalid settlement lease owner';
+    end if;
+    if p_lease_milliseconds <= 0 or p_lease_milliseconds > 300000 then
+        raise exception 'invalid settlement lease duration';
+    end if;
+
+    with candidate as materialized (
+        select job.job_id
+          from public.trnm_online_settlement_jobs job
+          join public.trnm_online_settlement_captures capture
+            on capture.capture_id = job.capture_id
+         where capture.state = 'active'
+           and job.campaign_applied_at is null
+           and job.remote_attempts < 16
+           and (
+               job.state = 'pending'
+               or (job.state = 'retryable' and job.next_attempt_at <= pg_catalog.clock_timestamp())
+               or (job.state = 'leased' and job.lease_expires_at <= pg_catalog.clock_timestamp())
+           )
+         order by
+           case job.queue_lane when 'compensation' then 0 else 1 end,
+           coalesce(job.next_attempt_at, job.created_at),
+           job.created_at,
+           job.job_id
+         for update of job skip locked
+         limit 1
+    )
+    update public.trnm_online_settlement_jobs job
+       set state = 'leased',
+           attempts = least(job.attempts + 1, 16),
+           lease_owner = p_owner,
+           lease_generation = job.lease_generation + 1,
+           lease_expires_at = pg_catalog.clock_timestamp()
+               + pg_catalog.make_interval(secs => p_lease_milliseconds::double precision / 1000.0),
+           next_attempt_at = null,
+           last_error = null,
+           failure_class = null,
+           entitlement_issued_at_epoch = coalesce(
+               job.entitlement_issued_at_epoch,
+               floor(extract(epoch from pg_catalog.clock_timestamp()))::bigint
+           ),
+           entitlement_expires_at_epoch = coalesce(
+               job.entitlement_expires_at_epoch,
+               floor(extract(epoch from pg_catalog.clock_timestamp()))::bigint + 600
+           ),
+           entitlement_nonce = coalesce(job.entitlement_nonce, job.job_id),
+           authorization_request_id = coalesce(job.authorization_request_id, job.job_id),
+           updated_at = pg_catalog.clock_timestamp()
+      from candidate
+     where job.job_id = candidate.job_id
+     returning job.* into claimed;
+
+    if found then
+        return next claimed;
+    end if;
+    return;
+end
+$function$;
+
+create or replace function public.trnm_online_store_settlement_authorization_v1(
+    p_job_id text,
+    p_owner text,
+    p_lease_generation bigint,
+    p_authorization_request_id text,
+    p_authorized_intent_json jsonb,
+    p_signer_receipt_hash text
+)
+returns boolean
+language plpgsql
+security invoker
+set search_path = pg_catalog, public
+as $function$
+declare
+    changed bigint;
+begin
+    if p_authorization_request_id is null
+       or btrim(p_authorization_request_id) = ''
+       or length(p_authorization_request_id) > 256
+       or p_authorized_intent_json is null
+       or jsonb_typeof(p_authorized_intent_json) <> 'object'
+       or (p_signer_receipt_hash is not null
+           and p_signer_receipt_hash !~ '^[0-9a-f]{64}$') then
+        raise exception 'invalid settlement authorization payload';
+    end if;
+
+    update public.trnm_online_settlement_jobs
+       set authorization_request_id = p_authorization_request_id,
+           authorized_intent_json = p_authorized_intent_json,
+           signer_receipt_hash = p_signer_receipt_hash,
+           updated_at = pg_catalog.clock_timestamp()
+     where job_id = p_job_id
+       and state = 'leased'
+       and lease_owner = p_owner
+       and lease_generation = p_lease_generation
+       and lease_expires_at > pg_catalog.clock_timestamp()
+       and (
+           authorized_intent_json is null
+           or (
+               authorization_request_id = p_authorization_request_id
+               and authorized_intent_json = p_authorized_intent_json
+               and signer_receipt_hash is not distinct from p_signer_receipt_hash
+           )
+       );
+    get diagnostics changed = row_count;
+    return changed = 1;
+end
+$function$;
+
+create or replace function public.trnm_online_begin_settlement_remote_attempt_v1(
+    p_job_id text,
+    p_owner text,
+    p_lease_generation bigint
+)
+returns integer
+language plpgsql
+security invoker
+set search_path = pg_catalog, public
+as $function$
+declare
+    next_attempt integer;
+begin
+    update public.trnm_online_settlement_jobs
+       set remote_attempts = remote_attempts + 1,
+           updated_at = pg_catalog.clock_timestamp()
+     where job_id = p_job_id
+       and state = 'leased'
+       and lease_owner = p_owner
+       and lease_generation = p_lease_generation
+       and lease_expires_at > pg_catalog.clock_timestamp()
+       and remote_attempts < 16
+     returning remote_attempts into next_attempt;
+    return next_attempt;
+end
+$function$;
+
+create or replace function public.trnm_online_complete_settlement_job_v1(
+    p_job_id text,
+    p_owner text,
+    p_lease_generation bigint,
+    p_receipt_id text,
+    p_receipt_hash text,
+    p_receipt_json jsonb,
+    p_wallet_snapshot_json jsonb
+)
+returns boolean
+language plpgsql
+security invoker
+set search_path = pg_catalog, public
+as $function$
+declare
+    changed bigint;
+begin
+    if p_receipt_id is null
+       or btrim(p_receipt_id) = ''
+       or p_receipt_hash !~ '^[0-9a-f]{64}$'
+       or p_receipt_json is null
+       or jsonb_typeof(p_receipt_json) <> 'object'
+       or (p_wallet_snapshot_json is not null
+           and jsonb_typeof(p_wallet_snapshot_json) <> 'object') then
+        raise exception 'invalid terminal settlement receipt';
+    end if;
+
+    update public.trnm_online_settlement_jobs
+       set state = 'succeeded',
+           receipt_id = p_receipt_id,
+           receipt_hash = p_receipt_hash,
+           receipt_json = p_receipt_json,
+           wallet_snapshot_json = p_wallet_snapshot_json,
+           remote_completed_at = pg_catalog.clock_timestamp(),
+           completed_at = pg_catalog.clock_timestamp(),
+           lease_owner = null,
+           lease_expires_at = null,
+           next_attempt_at = null,
+           last_error = null,
+           failure_class = null,
+           updated_at = pg_catalog.clock_timestamp()
+     where job_id = p_job_id
+       and state = 'leased'
+       and lease_owner = p_owner
+       and lease_generation = p_lease_generation
+       and lease_expires_at > pg_catalog.clock_timestamp();
+    get diagnostics changed = row_count;
+    return changed = 1;
+end
+$function$;
+
+create or replace function public.trnm_online_retry_settlement_job_v1(
+    p_job_id text,
+    p_owner text,
+    p_lease_generation bigint,
+    p_error text,
+    p_delay_milliseconds bigint
+)
+returns text
+language plpgsql
+security invoker
+set search_path = pg_catalog, public
+as $function$
+declare
+    next_state text;
+begin
+    if p_delay_milliseconds < 0 or p_delay_milliseconds > 3600000 then
+        raise exception 'invalid settlement retry delay';
+    end if;
+
+    update public.trnm_online_settlement_jobs
+       set state = case when remote_attempts >= 16 then 'dead_letter' else 'retryable' end,
+           next_attempt_at = case
+               when remote_attempts >= 16 then null
+               else pg_catalog.clock_timestamp()
+                   + pg_catalog.make_interval(secs => p_delay_milliseconds::double precision / 1000.0)
+           end,
+           last_error = left(coalesce(p_error, 'remote settlement retry'), 1024),
+           failure_class = case when remote_attempts >= 16 then 'permanent' else 'retryable' end,
+           completed_at = case when remote_attempts >= 16
+               then pg_catalog.clock_timestamp() else null end,
+           lease_owner = null,
+           lease_expires_at = null,
+           updated_at = pg_catalog.clock_timestamp()
+     where job_id = p_job_id
+       and state = 'leased'
+       and lease_owner = p_owner
+       and lease_generation = p_lease_generation
+     returning state into next_state;
+    return next_state;
+end
+$function$;
+
+create or replace function public.trnm_online_dead_letter_settlement_job_v1(
+    p_job_id text,
+    p_owner text,
+    p_lease_generation bigint,
+    p_error text
+)
+returns boolean
+language plpgsql
+security invoker
+set search_path = pg_catalog, public
+as $function$
+declare
+    changed bigint;
+begin
+    update public.trnm_online_settlement_jobs
+       set state = 'dead_letter',
+           next_attempt_at = null,
+           last_error = left(coalesce(p_error, 'permanent settlement failure'), 1024),
+           failure_class = 'permanent',
+           completed_at = pg_catalog.clock_timestamp(),
+           lease_owner = null,
+           lease_expires_at = null,
+           updated_at = pg_catalog.clock_timestamp()
+     where job_id = p_job_id
+       and state = 'leased'
+       and lease_owner = p_owner
+       and lease_generation = p_lease_generation;
+    get diagnostics changed = row_count;
+    return changed = 1;
+end
+$function$;
