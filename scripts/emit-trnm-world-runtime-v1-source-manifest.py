@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Emit an exact source manifest for the World runtime v1 contract.
 
-The manifest is generated from the checked-out Git commit and contract blobs.
-It is source provenance only. Integration must independently vendor/verify the
-blobs and bind an exact Nakama consumer before cross-repository credit exists.
+The manifest is generated from the checked-out Git commit and all World-owned
+runtime, host, shadow, policy and cutover source blobs. It is source provenance
+only. Integration must independently vendor and verify these blobs and bind an
+exact Nakama consumer before cross-repository credit exists.
 """
 
 from __future__ import annotations
@@ -17,9 +18,25 @@ from pathlib import Path
 CONTRACT_FILES = [
     "contracts/world-runtime/v1/README.md",
     "contracts/world-runtime/v1/trnm-world-runtime-v1.schema.json",
+    "contracts/world-runtime/v1/trnm-world-shadow-v1.schema.json",
     "contracts/world-runtime/v1/golden-vectors.json",
+    "contracts/world-runtime/v1/shadow-vectors.json",
+    "contracts/world-runtime/v1/error-catalog.json",
+    "contracts/world-runtime/v1/compatibility-matrix.json",
+    "contracts/world-runtime/rust/Cargo.toml",
+    "contracts/world-runtime/rust/src/lib.rs",
+    "contracts/world-runtime/host/Cargo.toml",
+    "contracts/world-runtime/host/README.md",
+    "contracts/world-runtime/host/src/lib.rs",
+    "contracts/world-runtime/host/src/bin/trnm-world-runtime-exec.rs",
+    "contracts/world-runtime/host/src/bin/trnm-world-runtime-shadow-diff.rs",
     "docs/protocol/trnm-world-runtime-v1.md",
+    "docs/development/trnm-world-nakama-shadow-v1.md",
+    "docs/runbooks/trnm-world-authority-cutover-v1.md",
     "scripts/verify-trnm-world-runtime-v1.py",
+    "scripts/verify-trnm-world-shadow-v1.py",
+    "scripts/check-trnm-world-runtime-boundary.sh",
+    "scripts/test-trnm-world-runtime-boundary-negative.sh",
 ]
 
 
@@ -35,7 +52,7 @@ def git(root: Path, *args: str) -> str:
 
 
 def exact_sha(value: str) -> bool:
-    return len(value) == 40 and all(ch in "0123456789abcdef" for ch in value)
+    return len(value) == 40 and all(char in "0123456789abcdef" for char in value)
 
 
 def main() -> int:
@@ -72,6 +89,8 @@ def main() -> int:
             "commit": commit,
             "tree": tree,
             "runtime_contract": "trnm_world_runtime_v1",
+            "shadow_contract": "trnm_world_shadow_input_v1",
+            "file_count": len(CONTRACT_FILES),
             "blobs": blobs,
             "authority": {
                 "world_deterministic_game_domain": True,
@@ -80,10 +99,20 @@ def main() -> int:
                 "chain_finality": False,
                 "cex_custody": False,
             },
+            "promotion": {
+                "independent_nakama_consumer": "pending",
+                "integration_component_lock": "pending",
+                "canonical_cutover": False,
+                "active_match_takeover_claimed": False,
+                "public_online_enabled": False,
+                "public_player_market_enabled": False,
+            },
             "limitations": [
-                "Source provenance is not deployment or release evidence.",
+                "Source provenance is not deployment, binary or release evidence.",
+                "Generated CI lockfiles are evidence artifacts and are not committed release locks.",
                 "Integration must independently verify vendored blobs and bind an exact Nakama consumer.",
-                "Public online and public player market remain blocked."
+                "World output is unsigned and cannot establish canonical completion or Chain finality.",
+                "Public online and public player markets remain blocked.",
             ],
         }
         print(json.dumps(report, sort_keys=True))
