@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 #[path = "../cex.rs"]
 mod cex;
 #[path = "../settlement_worker.rs"]
