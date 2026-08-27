@@ -1,0 +1,124 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.trillionnium.invalid/world/runtime/trnm-world-runtime-v1.schema.json",
+  "title": "TRNM World Deterministic Runtime v1",
+  "description": "Unsigned deterministic World game-domain execution contract. Online authority, participant framing, canonical match roots, signatures, finality and custody are outside this schema.",
+  "oneOf": [
+    { "$ref": "#/$defs/executeRequest" },
+    { "$ref": "#/$defs/executeResult" }
+  ],
+  "$defs": {
+    "hex64": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "identifier": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[a-z0-9][a-z0-9._:-]*$"
+    },
+    "canonicalValue": {
+      "description": "Value accepted by the canonical JSON profile. Semantic validation rejects duplicate keys, floats, non-NFC key collisions, excessive depth/nodes/bytes and integers outside signed 64-bit range.",
+      "oneOf": [
+        { "type": "null" },
+        { "type": "boolean" },
+        {
+          "type": "integer",
+          "minimum": -9223372036854775808,
+          "maximum": 9223372036854775807
+        },
+        { "type": "string" },
+        {
+          "type": "array",
+          "items": { "$ref": "#/$defs/canonicalValue" }
+        },
+        {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/canonicalValue" }
+        }
+      ]
+    },
+    "ruleset": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "version", "digest"],
+      "properties": {
+        "id": { "$ref": "#/$defs/identifier" },
+        "version": { "$ref": "#/$defs/identifier" },
+        "digest": { "$ref": "#/$defs/hex64" }
+      }
+    },
+    "command": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["batch_ordinal", "kind", "payload"],
+      "properties": {
+        "batch_ordinal": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9223372036854775807,
+          "description": "Contiguous local position in this request only; never a global authority sequence."
+        },
+        "kind": { "$ref": "#/$defs/identifier" },
+        "payload": { "$ref": "#/$defs/canonicalValue" }
+      }
+    },
+    "executeRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "contract_version",
+        "message_type",
+        "ruleset",
+        "content_digest",
+        "initial_state",
+        "commands"
+      ],
+      "properties": {
+        "contract_version": { "const": "trnm_world_runtime_v1" },
+        "message_type": { "const": "execute_request" },
+        "ruleset": { "$ref": "#/$defs/ruleset" },
+        "content_digest": { "$ref": "#/$defs/hex64" },
+        "initial_state": { "$ref": "#/$defs/canonicalValue" },
+        "commands": {
+          "type": "array",
+          "maxItems": 100000,
+          "items": { "$ref": "#/$defs/command" }
+        }
+      }
+    },
+    "executeResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "contract_version",
+        "message_type",
+        "ruleset",
+        "content_digest",
+        "initial_state_hash",
+        "command_batch_hash",
+        "final_state",
+        "final_state_hash",
+        "outcome",
+        "outcome_hash",
+        "replay_material",
+        "replay_material_hash"
+      ],
+      "properties": {
+        "contract_version": { "const": "trnm_world_runtime_v1" },
+        "message_type": { "const": "execute_result" },
+        "ruleset": { "$ref": "#/$defs/ruleset" },
+        "content_digest": { "$ref": "#/$defs/hex64" },
+        "initial_state_hash": { "$ref": "#/$defs/hex64" },
+        "command_batch_hash": { "$ref": "#/$defs/hex64" },
+        "final_state": { "$ref": "#/$defs/canonicalValue" },
+        "final_state_hash": { "$ref": "#/$defs/hex64" },
+        "outcome": { "$ref": "#/$defs/canonicalValue" },
+        "outcome_hash": { "$ref": "#/$defs/hex64" },
+        "replay_material": { "$ref": "#/$defs/canonicalValue" },
+        "replay_material_hash": { "$ref": "#/$defs/hex64" }
+      }
+    }
+  }
+}
