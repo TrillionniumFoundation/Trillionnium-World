@@ -1,0 +1,54 @@
+{
+  "contract_version": "trnm_world_runtime_compatibility_matrix_v1",
+  "runtime_contract": {
+    "version": "trnm_world_runtime_v1",
+    "status": "source_implemented_pending_remote_checks",
+    "canonical_json": "nfc_sorted_utf8_i64_only_v1",
+    "world_rust_adapter": "implemented",
+    "bevy_free_execution_host": "implemented",
+    "shadow_diff": "implemented",
+    "independent_python_shadow_verifier": "implemented"
+  },
+  "consumers": {
+    "nakama": {
+      "status": "pending_independent_consumer",
+      "owns_participant_admission": true,
+      "owns_global_ordering": true,
+      "owns_restart_recovery": true,
+      "owns_canonical_roots": true,
+      "owns_match_completed_signing": true,
+      "exact_revision": null
+    },
+    "integration": {
+      "status": "pending_component_lock_and_cross_repository_evidence",
+      "exact_revision": null
+    }
+  },
+  "world_compatibility_enclave": {
+    "profile": "legacy_local_alpha",
+    "status": "laboratory_only_pending_drain",
+    "new_public_canonical_admission_allowed": false,
+    "completion_signing_allowed": false
+  },
+  "promotion_gates": [
+    "exact World source manifest",
+    "independent Nakama consumer conformance",
+    "Integration component lock",
+    "zero unexplained fixture shadow divergence",
+    "zero unexplained load shadow divergence",
+    "active-match drain or separately approved takeover matrix",
+    "authority disablement and rollback rehearsal",
+    "exact-head CI evidence"
+  ],
+  "flags": {
+    "public_online_enabled": false,
+    "public_player_market_enabled": false,
+    "canonical_cutover_complete": false,
+    "active_match_takeover_claimed": false
+  },
+  "limitations": [
+    "World source implementation does not prove an independent Nakama consumer.",
+    "Shadow equality is unsigned game-domain evidence, not completion or finality evidence.",
+    "No public-online, public-market, cross-host or commercial credit is granted."
+  ]
+}
