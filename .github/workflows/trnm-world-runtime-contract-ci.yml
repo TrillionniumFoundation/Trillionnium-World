@@ -4,16 +4,28 @@ on:
   workflow_dispatch:
   pull_request:
     paths:
-      - 'contracts/world-runtime/v1/**'
+      - 'contracts/world-runtime/**'
       - 'docs/protocol/trnm-world-runtime-v1.md'
+      - 'docs/development/trnm-world-nakama-shadow-v1.md'
+      - 'docs/runbooks/trnm-world-authority-cutover-v1.md'
       - 'scripts/verify-trnm-world-runtime-v1.py'
+      - 'scripts/verify-trnm-world-shadow-v1.py'
+      - 'scripts/check-trnm-world-runtime-boundary.sh'
+      - 'scripts/test-trnm-world-runtime-boundary-negative.sh'
       - '.github/workflows/trnm-world-runtime-contract-ci.yml'
   push:
-    branches: [main]
+    branches:
+      - main
+      - feature/world-runtime-contract-v1
     paths:
-      - 'contracts/world-runtime/v1/**'
+      - 'contracts/world-runtime/**'
       - 'docs/protocol/trnm-world-runtime-v1.md'
+      - 'docs/development/trnm-world-nakama-shadow-v1.md'
+      - 'docs/runbooks/trnm-world-authority-cutover-v1.md'
       - 'scripts/verify-trnm-world-runtime-v1.py'
+      - 'scripts/verify-trnm-world-shadow-v1.py'
+      - 'scripts/check-trnm-world-runtime-boundary.sh'
+      - 'scripts/test-trnm-world-runtime-boundary-negative.sh'
       - '.github/workflows/trnm-world-runtime-contract-ci.yml'
 
 permissions:
@@ -26,17 +38,21 @@ concurrency:
 jobs:
   contract:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - name: Checkout exact source
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-      - name: Compile reference verifier
-        run: python3 -m py_compile scripts/verify-trnm-world-runtime-v1.py
-      - name: Verify schema, canonical vectors and authority negatives
+      - name: Compile independent verifiers
+        run: |
+          python3 -m py_compile scripts/verify-trnm-world-runtime-v1.py
+          python3 -m py_compile scripts/verify-trnm-world-shadow-v1.py
+      - name: Verify runtime and shadow vectors
         run: |
           mkdir -p run/world-runtime-contract
           python3 scripts/verify-trnm-world-runtime-v1.py \
-            | tee run/world-runtime-contract/report.json
+            | tee run/world-runtime-contract/runtime-report.json
+          python3 scripts/verify-trnm-world-shadow-v1.py \
+            | tee run/world-runtime-contract/shadow-report.json
           jq -e '
             .status == "ok" and
             .contract_version == "trnm_world_runtime_v1" and
@@ -46,16 +62,73 @@ jobs:
             .canonicalization_vectors >= 4 and
             .negative_vectors >= 5 and
             (.runtime_request_domain_hash | test("^[0-9a-f]{64}$"))
-          ' run/world-runtime-contract/report.json >/dev/null
-      - name: Independent jq/sha256 canonical object check
+          ' run/world-runtime-contract/runtime-report.json >/dev/null
+          jq -e '
+            .status == "ok" and
+            .contract_version == "trnm_world_shadow_verifier_report_v1" and
+            .valid_vectors >= 5 and
+            .invalid_vectors >= 1 and
+            (.typed_divergence_codes | length >= 6) and
+            .authority.participant_admission == false and
+            .authority.global_ordering == false and
+            .authority.canonical_roots == false and
+            .authority.completion_signing == false and
+            .authority.chain_finality == false and
+            .authority.cex_custody == false
+          ' run/world-runtime-contract/shadow-report.json >/dev/null
+      - name: Verify runtime architecture and authority boundary
+        run: bash scripts/check-trnm-world-runtime-boundary.sh
+      - name: Prove forbidden capability and authority fixtures fail
+        run: bash scripts/test-trnm-world-runtime-boundary-negative.sh
+      - name: Independent jq and sha256 canonical-object check
         run: |
           canonical="$(jq -cS '.canonicalization_vectors[] | select(.name == "object-key-order") | .value' contracts/world-runtime/v1/golden-vectors.json)"
           test "$canonical" = '{"a":1,"b":2}'
           printf '%s' "$canonical" | sha256sum \
             | grep -q '^43258cff783fe7036d8a43033f830adfc60ec037382473548ac742b888292777 '
-      - name: Upload exact conformance report
+      - name: Upload exact contract reports
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: trnm-world-runtime-contract-${{ github.sha }}
-          path: run/world-runtime-contract/report.json
+          path: run/world-runtime-contract/*.json
+          if-no-files-found: error
+
+  rust-adapters:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout exact source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Install exact stable Rust action revision
+        uses: dtolnay/rust-toolchain@4360b52568e2003a75bf9bc1d59f33a8e3fc893c
+        with:
+          components: rustfmt, clippy
+      - name: Generate isolated dependency locks
+        run: |
+          cargo generate-lockfile --manifest-path contracts/world-runtime/rust/Cargo.toml
+          cargo generate-lockfile --manifest-path contracts/world-runtime/host/Cargo.toml
+      - name: Format deterministic adapters
+        run: |
+          cargo fmt --manifest-path contracts/world-runtime/rust/Cargo.toml -- --check
+          cargo fmt --manifest-path contracts/world-runtime/host/Cargo.toml -- --check
+      - name: Test deterministic adapters and CLIs
+        run: |
+          cargo test --manifest-path contracts/world-runtime/rust/Cargo.toml --locked --all-targets
+          cargo test --manifest-path contracts/world-runtime/host/Cargo.toml --locked --all-targets
+      - name: Clippy deterministic adapters and CLIs
+        run: |
+          cargo clippy --manifest-path contracts/world-runtime/rust/Cargo.toml --locked --all-targets -- -D warnings
+          cargo clippy --manifest-path contracts/world-runtime/host/Cargo.toml --locked --all-targets -- -D warnings
+      - name: Record generated lock digests
+        run: |
+          mkdir -p run/world-runtime-rust
+          sha256sum \
+            contracts/world-runtime/rust/Cargo.lock \
+            contracts/world-runtime/host/Cargo.lock \
+            > run/world-runtime-rust/generated-locks.sha256
+      - name: Upload Rust adapter evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: trnm-world-runtime-rust-${{ github.sha }}
+          path: run/world-runtime-rust/generated-locks.sha256
           if-no-files-found: error
