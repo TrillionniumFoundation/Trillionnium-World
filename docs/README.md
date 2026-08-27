@@ -8,6 +8,9 @@
 - Repository and authority boundary: `../PROJECT_BOUNDARY.md`
 - Authority ownership decision: `adr/0001-realtime-authority-and-match-evidence-ownership.md`
 - External-settlement transaction decision: `adr/0002-transaction-free-external-settlement.md`
+- World deterministic transition contract: `protocol/trnm-world-transition-v1.md`
+- World transition JSON Schema: `protocol/schemas/trnm-world-transition-v1.schema.json`
+- World transition golden vectors: `protocol/vectors/trnm-world-transition-v1.json`
 - World match-evidence boundary: `protocol/trnm-match-evidence-commitment-v1.md`
 - Settlement outbox design: `development/trnm-settlement-outbox-v1.md`
 - Runtime configuration: `operations/trnm-game-server-runtime-configuration.md`
@@ -22,6 +25,7 @@
 - Campaign/save/progression authority: `../trillionnium/crates/trnm-campaign-core`
 - Economy intent/receipt vocabulary: `../trillionnium/crates/trnm-economy-protocol`
 - Online wire compatibility: `../trillionnium/crates/trnm-online-protocol`
+- Dependency-free World transition reference package: `../trillionnium/contracts/trnm-world-transition-v1`
 - World-local compatibility authority enclave: `../trillionnium/crates/trnm-game-server`
 - Settlement outbox invariant contract: `../trillionnium/tools/trnm-settlement-outbox-contract`
 
@@ -32,6 +36,8 @@
 - Runtime configuration boundary: `../scripts/check_trnm_runtime_configuration.sh`
 - Settlement outbox contract: `../scripts/check_trnm_settlement_outbox_contract.sh`
 - Legacy settlement-debt upper bound: `../scripts/check_trnm_settlement_transaction_boundary.sh`
+- World deterministic transition contract: `../scripts/check-trnm-world-transition-contract.sh`
+- World transition forbidden/corrupt negative fixtures: `../scripts/test-trnm-world-transition-contract-negative.sh`
 
 ## Historical material
 
