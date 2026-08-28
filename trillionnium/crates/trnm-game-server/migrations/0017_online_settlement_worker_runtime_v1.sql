@@ -1,6 +1,6 @@
 -- Runtime integration for the transaction-free terminal settlement outbox.
 --
--- This migration adds immutable capture fences, stable authorization material,
+-- This migration adds immutable capture fences, stable remote request identity,
 -- lease-fenced remote completion, and a separate campaign-apply marker. External
 -- signer/CEX calls remain outside PostgreSQL transactions in
 -- trnm-settlement-worker.
@@ -29,6 +29,8 @@ alter table public.trnm_online_settlement_jobs
     add column if not exists capture_generation bigint not null default 1
         check (capture_generation > 0);
 alter table public.trnm_online_settlement_jobs
+    add column if not exists remote_request_id text;
+alter table public.trnm_online_settlement_jobs
     add column if not exists authorization_request_id text;
 alter table public.trnm_online_settlement_jobs
     add column if not exists remote_attempts integer not null default 0
@@ -41,11 +43,32 @@ alter table public.trnm_online_settlement_jobs
     add column if not exists failure_class text
         check (failure_class is null or failure_class in ('retryable', 'permanent', 'stale'));
 
+-- job_id remains the capture-scoped worker row identity. remote_request_id is
+-- the stable signer/CEX idempotency identity and deliberately excludes
+-- capture_id/capture_generation. md5(campaign_id) is used only to compact the
+-- namespace; intent_hash remains the SHA-256 integrity binding.
+update public.trnm_online_settlement_jobs
+   set remote_request_id = 'trnm-settlement-remote-v1:'
+       || match_id::text || ':' || md5(campaign_id) || ':' || intent_hash
+ where remote_request_id is null;
+
+alter table public.trnm_online_settlement_jobs
+    alter column remote_request_id set not null;
+
 alter table public.trnm_online_settlement_jobs
     drop constraint if exists trnm_online_settlement_jobs_capture_id_check;
 alter table public.trnm_online_settlement_jobs
     add constraint trnm_online_settlement_jobs_capture_id_check
     check (capture_id is null or capture_id ~ '^trnm-settlement-capture-v1:[0-9a-f]{64}$');
+
+alter table public.trnm_online_settlement_jobs
+    drop constraint if exists trnm_online_settlement_jobs_remote_request_id_check;
+alter table public.trnm_online_settlement_jobs
+    add constraint trnm_online_settlement_jobs_remote_request_id_check
+    check (
+        remote_request_id ~ '^trnm-settlement-remote-v1:[0-9a-f-]{36}:[0-9a-f]{32}:[0-9a-f]{64}$'
+        and length(remote_request_id) <= 256
+    );
 
 alter table public.trnm_online_settlement_jobs
     drop constraint if exists trnm_online_settlement_jobs_authorization_check;
@@ -112,6 +135,9 @@ create unique index if not exists idx_trnm_online_settlement_job_capture_intent
     on public.trnm_online_settlement_jobs(capture_id, campaign_id, intent_id)
     where capture_id is not null;
 
+create index if not exists idx_trnm_online_settlement_job_remote_request
+    on public.trnm_online_settlement_jobs(remote_request_id, created_at, job_id);
+
 create index if not exists idx_trnm_online_settlement_job_unapplied_success
     on public.trnm_online_settlement_jobs(capture_id, campaign_id, created_at)
     where state = 'succeeded' and campaign_applied_at is null;
@@ -174,8 +200,11 @@ begin
                job.entitlement_expires_at_epoch,
                floor(extract(epoch from pg_catalog.clock_timestamp()))::bigint + 600
            ),
-           entitlement_nonce = coalesce(job.entitlement_nonce, job.job_id),
-           authorization_request_id = coalesce(job.authorization_request_id, job.job_id),
+           entitlement_nonce = coalesce(job.entitlement_nonce, job.remote_request_id),
+           authorization_request_id = coalesce(
+               job.authorization_request_id,
+               job.remote_request_id
+           ),
            updated_at = pg_catalog.clock_timestamp()
       from candidate
      where job.job_id = candidate.job_id
@@ -224,6 +253,7 @@ begin
        and lease_owner = p_owner
        and lease_generation = p_lease_generation
        and lease_expires_at > pg_catalog.clock_timestamp()
+       and p_authorization_request_id = remote_request_id
        and (
            authorized_intent_json is null
            or (
@@ -352,6 +382,7 @@ begin
        and state = 'leased'
        and lease_owner = p_owner
        and lease_generation = p_lease_generation
+       and lease_expires_at > pg_catalog.clock_timestamp()
      returning state into next_state;
     return next_state;
 end
@@ -383,8 +414,41 @@ begin
      where job_id = p_job_id
        and state = 'leased'
        and lease_owner = p_owner
-       and lease_generation = p_lease_generation;
+       and lease_generation = p_lease_generation
+       and lease_expires_at > pg_catalog.clock_timestamp();
     get diagnostics changed = row_count;
     return changed = 1;
 end
 $function$;
+
+-- Raw state='succeeded' means the remote receipt is durably stored. It does not
+-- mean campaign progression has been applied. This projection forces operators
+-- and player-facing adapters to carry both dimensions explicitly.
+create or replace view public.trnm_online_settlement_job_status_v1 as
+select
+    job.job_id,
+    job.remote_request_id,
+    job.capture_id,
+    job.match_id,
+    job.campaign_id,
+    job.intent_id,
+    job.queue_lane,
+    case job.state
+        when 'succeeded' then 'remote_succeeded'
+        when 'dead_letter' then 'remote_dead_letter'
+        else 'remote_' || job.state
+    end as remote_state,
+    case
+        when job.campaign_applied_at is not null then 'applied'
+        when job.state = 'succeeded' then 'pending_apply'
+        when job.state = 'dead_letter' then 'blocked'
+        else 'waiting_remote'
+    end as application_state,
+    job.attempts,
+    job.remote_attempts,
+    job.lease_generation,
+    job.next_attempt_at,
+    job.remote_completed_at,
+    job.campaign_applied_at,
+    job.updated_at
+from public.trnm_online_settlement_jobs job;
