@@ -65,6 +65,17 @@ def functions(text: str, path: pathlib.Path):
             yield match.group(1), text[match.start():end], path
 
 
+def sql_function(source: str, name: str, next_marker: str) -> str:
+    marker = f"create or replace function public.{name}"
+    start = source.find(marker)
+    if start < 0:
+        return ""
+    end_offset = source[start:].find(next_marker)
+    if end_offset < 0:
+        return ""
+    return source[start : start + end_offset]
+
+
 rust_files = sorted(root.rglob("*.rs"))
 if not rust_files:
     raise SystemExit(f"no Rust files found under {root}")
@@ -114,6 +125,7 @@ if mode == "full":
         repo / "trillionnium/crates/trnm-game-server/src/cex.rs",
         repo / "trillionnium/crates/trnm-game-server/migrations/0016_online_settlement_outbox_v1.sql",
         repo / "trillionnium/crates/trnm-game-server/migrations/0017_online_settlement_worker_runtime_v1.sql",
+        repo / "trillionnium/crates/trnm-game-server/tests/settlement_remote_identity_contract.rs",
     ]
     for path in required_paths:
         if not path.is_file() or path.stat().st_size == 0:
@@ -175,9 +187,9 @@ if mode == "full":
         if required not in worker_source:
             errors.append(f"settlement worker lost durable invariant {required}")
 
-    migration_source = "\n".join(
-        path.read_text(encoding="utf-8") for path in required_paths[-2:]
-    )
+    outbox_migration = required_paths[3].read_text(encoding="utf-8")
+    worker_migration = required_paths[4].read_text(encoding="utf-8")
+    migration_source = f"{outbox_migration}\n{worker_migration}"
     for required in (
         "trnm_online_settlement_captures",
         "trnm_online_claim_settlement_job_v2",
@@ -186,9 +198,93 @@ if mode == "full":
         "trnm_online_complete_settlement_job_v1",
         "trnm_online_retry_settlement_job_v1",
         "trnm_online_dead_letter_settlement_job_v1",
+        "remote_request_id",
+        "trnm_online_settlement_job_status_v1",
     ):
         if required not in migration_source:
             errors.append(f"settlement migration lost database contract {required}")
+
+    for forbidden in (
+        "references public.trnm_online_matches(match_id) on delete cascade",
+        "references public.trnm_online_campaigns(campaign_id) on delete cascade",
+    ):
+        if forbidden in outbox_migration:
+            errors.append(
+                "settlement economic evidence may not be removed by upstream cascade"
+            )
+
+    identity_start = worker_migration.find(
+        "set remote_request_id = 'trnm-settlement-remote-v1:'"
+    )
+    identity_end = worker_migration.find(
+        "where remote_request_id is null", identity_start
+    )
+    if identity_start < 0 or identity_end < 0:
+        errors.append("settlement migration has no stable remote request identity")
+    else:
+        identity = worker_migration[identity_start:identity_end]
+        for required in ("match_id::text", "md5(campaign_id)", "intent_hash"):
+            if required not in identity:
+                errors.append(f"remote request identity lost binding {required}")
+        for forbidden in ("capture_id", "capture_generation"):
+            if forbidden in identity:
+                errors.append(
+                    f"remote request identity incorrectly depends on {forbidden}"
+                )
+
+    for required in (
+        "entitlement_nonce = coalesce(job.entitlement_nonce, job.remote_request_id)",
+        "job.authorization_request_id,\n               job.remote_request_id",
+        "p_authorization_request_id = remote_request_id",
+    ):
+        if required not in worker_migration:
+            errors.append(f"stable remote retry contract lost marker: {required}")
+    if "coalesce(job.authorization_request_id, job.job_id)" in worker_migration:
+        errors.append("capture-scoped job_id is being reused as remote request identity")
+
+    lease_functions = (
+        (
+            "trnm_online_store_settlement_authorization_v1",
+            "create or replace function public.trnm_online_begin_settlement_remote_attempt_v1",
+        ),
+        (
+            "trnm_online_begin_settlement_remote_attempt_v1",
+            "create or replace function public.trnm_online_complete_settlement_job_v1",
+        ),
+        (
+            "trnm_online_complete_settlement_job_v1",
+            "create or replace function public.trnm_online_retry_settlement_job_v1",
+        ),
+        (
+            "trnm_online_retry_settlement_job_v1",
+            "create or replace function public.trnm_online_dead_letter_settlement_job_v1",
+        ),
+        (
+            "trnm_online_dead_letter_settlement_job_v1",
+            "create or replace view public.trnm_online_settlement_job_status_v1",
+        ),
+    )
+    for function_name, next_marker in lease_functions:
+        body = sql_function(worker_migration, function_name, next_marker)
+        if not body:
+            errors.append(f"cannot inspect settlement SQL function {function_name}")
+            continue
+        for required in (
+            "state = 'leased'",
+            "lease_owner = p_owner",
+            "lease_generation = p_lease_generation",
+            "lease_expires_at > pg_catalog.clock_timestamp()",
+        ):
+            if required not in body:
+                errors.append(f"{function_name} lost live-lease fence {required}")
+
+    for required in (
+        "when 'succeeded' then 'remote_succeeded'",
+        "when job.state = 'succeeded' then 'pending_apply'",
+        "when job.campaign_applied_at is not null then 'applied'",
+    ):
+        if required not in worker_migration:
+            errors.append(f"settlement status projection lost semantic marker: {required}")
 
     legacy_calls = combined_source.count("reconcile_economy(&state.cex")
     if legacy_calls > 1:
@@ -205,8 +301,9 @@ if errors:
 legacy_calls = combined_source.count("reconcile_economy(&state.cex")
 if mode == "full" and legacy_calls == 1:
     print(
-        "TRNM settlement transaction-boundary check passed: runtime worker is split; "
-        "one inert compatibility reconciliation caller remains registered for deletion"
+        "TRNM settlement transaction-boundary check passed: capture/execute/apply, "
+        "stable remote identity, live-lease fencing and durable evidence retention "
+        "are enforced; one inert compatibility caller remains registered for deletion"
     )
 else:
     print("TRNM settlement transaction-boundary check passed")
