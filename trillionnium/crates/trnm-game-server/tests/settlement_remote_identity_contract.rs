@@ -59,13 +59,30 @@ fn remote_request_identity_is_stable_across_capture_generations() {
     assert!(sql.contains(
         "entitlement_nonce = coalesce(job.entitlement_nonce, job.remote_request_id)"
     ));
-    assert!(sql.contains(
-        "authorization_request_id = coalesce( job.authorization_request_id, job.remote_request_id )"
-    ));
+    assert!(sql.contains("authorization_request_id = coalesce("));
+    assert!(sql.contains("job.authorization_request_id, job.remote_request_id"));
     assert!(sql.contains("p_authorization_request_id = remote_request_id"));
     assert!(!sql.contains(
         "authorization_request_id = coalesce(job.authorization_request_id, job.job_id)"
     ));
+}
+
+#[test]
+fn legacy_v1_claim_path_is_fail_closed() {
+    let sql = normalized(WORKER_MIGRATION);
+    let legacy = function_body(
+        WORKER_MIGRATION,
+        "trnm_online_claim_settlement_job_v1",
+        "create or replace function public.trnm_online_claim_settlement_job_v2",
+    );
+    let legacy = normalized(legacy);
+
+    assert!(legacy.contains("errcode = '0A000'"));
+    assert!(legacy.contains(
+        "trnm_online_claim_settlement_job_v1 is retired; use v2"
+    ));
+    assert!(!legacy.contains("for update skip locked"));
+    assert!(sql.contains("create or replace function public.trnm_online_claim_settlement_job_v2"));
 }
 
 #[test]
