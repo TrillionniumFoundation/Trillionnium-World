@@ -2,9 +2,8 @@
 """Fail-closed validator for WORLD-P0-001 settlement runtime status.
 
 The status document is a source/evidence projection, not a place to hand-edit a
-release claim. This checker deliberately validates promotion prerequisites in
-addition to basic JSON shape so an empty CI/evidence collection cannot be
-reported as verified.
+release claim. Source integration, local fixtures, exact-commit CI, deployed
+fault evidence, and release promotion remain distinct states.
 """
 
 from __future__ import annotations
@@ -22,8 +21,8 @@ CLAIM_ID = "WORLD-P0-001-settlement-fencing-v1"
 WORK_ITEM = "WORLD-P0-001"
 OWNER_REPOSITORY = "TrillionniumFoundation/Trillionnium-World"
 AUTHORITY_PROFILE = "world_legacy_local_alpha"
-EXPECTED_BRANCH = "fix/world-settlement-fencing-v1"
-EXPECTED_BASE = "6d9546beed9b075d625849d7f371b9b88ea20f96"
+EXPECTED_BRANCH = "fix/world-settlement-recovery-v1"
+EXPECTED_BASE = "39e223aa93d55e115353972d3175542a202427e8"
 SHA1 = re.compile(r"^[0-9a-f]{40}$")
 TOKEN = re.compile(r"^[a-z0-9][a-z0-9_]*$")
 CHECK = re.compile(r"^trnm-settlement-fencing/[a-z0-9-]+$")
@@ -45,7 +44,14 @@ REQUIRED_CONTROLS = {
     "authorization_and_entitlement_nonce_bind_remote_request_identity",
     "authorization_attempt_completion_retry_and_dead_letter_require_live_lease",
     "legacy_claim_v1_fails_closed",
+    "signer_receipt_lookup_precedes_sign",
+    "cex_receipt_lookup_precedes_submit",
+    "cex_receipt_lookup_binds_intent_id_and_hash",
+    "ambiguous_remote_commit_fixtures_reuse_one_submit",
+    "account_or_campaign_work_is_serialized_without_global_fifo",
+    "postgresql_serialization_and_lease_tests_are_required",
     "remote_success_is_distinct_from_campaign_application",
+    "operator_backlog_and_age_projection",
     "settlement_evidence_uses_restrictive_foreign_keys",
     "synchronous_cex_economy_backend_fails_closed",
     "static_positive_and_negative_contract_checks",
@@ -54,11 +60,11 @@ REQUIRED_CONTROLS = {
 REQUIRED_OPEN_GATES = {
     "remove_inert_legacy_reconcile_economy_caller",
     "prove_no_external_request_before_capture_commit_in_postgresql_black_box_test",
-    "prove_stale_lease_and_two_worker_contention_in_postgresql",
-    "prove_signer_response_loss_and_cex_ambiguous_commit_recovery",
-    "add_exact_remote_receipt_lookup_and_recovery",
+    "land_cex_receipt_lookup_endpoint_in_owner_repository",
+    "obtain_exact_commit_postgresql_recovery_and_serialization_evidence",
+    "prove_deployed_signer_and_cex_response_loss_recovery",
     "prove_process_kill_cancellation_shutdown_and_apply_rollback_matrix",
-    "add_operator_metrics_dashboards_replay_and_retention_runbooks",
+    "add_reviewed_operator_replay_and_retention_controls",
     "obtain_exact_commit_github_actions_evidence",
     "obtain_reviewer_signoff",
 }
@@ -70,6 +76,7 @@ REQUIRED_CHECKS = {
 
 REQUIRED_LIMITATIONS = {
     "source implementation is not remote verification",
+    "CEX receipt lookup remains an owner-repository dependency",
     "no production deployment credit",
     "no trusted CEX settlement promotion",
     "no public online or public market credit",
@@ -134,11 +141,9 @@ def validate_schema(schema: dict[str, Any]) -> set[str]:
     if schema.get("type") != "object" or schema.get("additionalProperties") is not False:
         fail("status schema must be a closed JSON object")
     required = schema.get("required")
-    if not isinstance(required, list) or not required:
-        fail("status schema must publish required fields")
     properties = schema.get("properties")
-    if not isinstance(properties, dict):
-        fail("status schema must publish properties")
+    if not isinstance(required, list) or not required or not isinstance(properties, dict):
+        fail("status schema must publish required fields and properties")
     if set(required) != set(properties):
         fail("status schema required/properties sets must match exactly")
     consts = {
@@ -185,9 +190,7 @@ def validate_status(status: dict[str, Any], schema_keys: set[str]) -> None:
 
     controls = set(
         require_unique_strings(
-            status["implemented_controls"],
-            "implemented_controls",
-            pattern=TOKEN,
+            status["implemented_controls"], "implemented_controls", pattern=TOKEN
         )
     )
     missing_controls = sorted(REQUIRED_CONTROLS - controls)
@@ -215,7 +218,6 @@ def validate_status(status: dict[str, Any], schema_keys: set[str]) -> None:
         {"remote_workflow_runs", "artifacts", "reviewers", "limitations"},
         "evidence",
     )
-
     runs = evidence["remote_workflow_runs"]
     if not isinstance(runs, list) or any(
         not isinstance(item, int) or isinstance(item, bool) or item < 1 for item in runs
@@ -269,27 +271,56 @@ def function_body(source: str, name: str, next_marker: str) -> str:
     return source[start : start + end_offset]
 
 
+def read_required(repo: pathlib.Path, relative: str) -> str:
+    path = repo / relative
+    try:
+        text = path.read_text(encoding="utf-8")
+    except OSError as error:
+        fail(f"cannot read required source {relative}: {error}")
+    if not text:
+        fail(f"required source is empty: {relative}")
+    return text
+
+
+def require_markers(source: str, markers: tuple[str, ...], context: str) -> None:
+    for marker in markers:
+        if marker not in source:
+            fail(f"{context} lost marker: {marker}")
+
+
 def validate_source(repo: pathlib.Path) -> None:
-    outbox = (
-        repo
-        / "trillionnium/crates/trnm-game-server/migrations/0016_online_settlement_outbox_v1.sql"
-    ).read_text(encoding="utf-8")
-    worker = (
-        repo
-        / "trillionnium/crates/trnm-game-server/migrations/0017_online_settlement_worker_runtime_v1.sql"
-    ).read_text(encoding="utf-8")
-    cex = (repo / "trillionnium/crates/trnm-game-server/src/cex.rs").read_text(
-        encoding="utf-8"
+    outbox = read_required(
+        repo, "trillionnium/crates/trnm-game-server/migrations/0016_online_settlement_outbox_v1.sql"
     )
+    worker = read_required(
+        repo, "trillionnium/crates/trnm-game-server/migrations/0017_online_settlement_worker_runtime_v1.sql"
+    )
+    cex = read_required(repo, "trillionnium/crates/trnm-game-server/src/cex.rs")
+    signer_protocol = read_required(
+        repo, "trillionnium/crates/trnm-game-server/src/signer_protocol.rs"
+    )
+    signer_binary = read_required(
+        repo, "trillionnium/crates/trnm-game-server/src/bin/trnm-entitlement-signer.rs"
+    )
+    database_test = read_required(
+        repo, "trillionnium/crates/trnm-game-server/tests/settlement_database_contract.rs"
+    )
+    serialization_test = read_required(
+        repo, "trillionnium/crates/trnm-game-server/tests/settlement_serialization_database.rs"
+    )
+    workflow = read_required(repo, ".github/workflows/trnm-settlement-fencing.yml")
+    recovery_doc = read_required(repo, "docs/protocol/trnm-settlement-receipt-recovery-v1.md")
+    operations_runbook = read_required(repo, "docs/runbooks/trnm-settlement-operations-v1.md")
     normalized_worker = " ".join(worker.split())
 
-    required_outbox = {
-        "references public.trnm_online_matches(match_id) on delete restrict",
-        "references public.trnm_online_campaigns(campaign_id) on delete restrict",
-    }
-    for marker in required_outbox:
-        if marker not in outbox:
-            fail(f"outbox source lost retention marker: {marker}")
+    require_markers(
+        outbox,
+        (
+            "references public.trnm_online_matches(match_id) on delete restrict",
+            "references public.trnm_online_campaigns(campaign_id) on delete restrict",
+        ),
+        "outbox retention",
+    )
     if "on delete cascade" in outbox:
         fail("outbox source reintroduced cascade deletion")
 
@@ -300,52 +331,135 @@ def validate_source(repo: pathlib.Path) -> None:
     )
     if not identity:
         fail("worker migration lost stable remote request identity function")
-    for marker in (
-        "pg_catalog.sha256(",
-        "pg_catalog.encode(",
-        "pg_catalog.convert_to(",
-        "p_match_id::text",
-        "p_campaign_id",
-        "p_intent_id",
-    ):
-        if marker not in identity:
-            fail(f"remote request identity lost {marker}")
+    require_markers(
+        identity,
+        (
+            "pg_catalog.sha256(",
+            "pg_catalog.encode(",
+            "pg_catalog.convert_to(",
+            "p_match_id::text",
+            "p_campaign_id",
+            "p_intent_id",
+        ),
+        "remote request identity",
+    )
     if identity.count("pg_catalog.octet_length(") < 4:
         fail("remote request identity is not length-prefixed")
     for forbidden in ("capture_id", "capture_generation", "intent_hash", "md5("):
         if forbidden in identity:
             fail(f"remote request identity incorrectly depends on {forbidden}")
 
-    for marker in (
-        "add column if not exists remote_request_id text",
-        "remote_request_id must be an ordinary stored column",
-        "set remote_request_id = public.trnm_online_remote_request_id_v1(",
-        "alter column remote_request_id set not null",
-        "message = 'settlement match, campaign and intent identity fields are immutable'",
-        "message = 'remote_request_id does not match durable settlement identity'",
-        "create trigger trnm_online_settlement_remote_id_insert_v1 before insert",
-        "create trigger trnm_online_settlement_remote_id_update_v1 before update of match_id, campaign_id, intent_id, remote_request_id",
-        "authorization_request_id is null or authorization_request_id = remote_request_id",
-        "entitlement_nonce is null or entitlement_nonce = remote_request_id",
-        "trnm_online_claim_settlement_job_v1 is retired; use v2",
-        "p_authorization_request_id = remote_request_id",
-        "create or replace view public.trnm_online_settlement_job_status_v1",
-        "when job.state = 'succeeded' then 'pending_apply'",
-    ):
-        if marker not in normalized_worker:
-            fail(f"worker migration lost P0 marker: {marker}")
+    require_markers(
+        normalized_worker,
+        (
+            "remote_request_id must be an ordinary stored column",
+            "settlement match, campaign and intent identity fields are immutable",
+            "remote_request_id does not match durable settlement identity",
+            "authorization_request_id is null or authorization_request_id = remote_request_id",
+            "entitlement_nonce is null or entitlement_nonce = remote_request_id",
+            "trnm_online_claim_settlement_job_v1 is retired; use v2",
+            "p_authorization_request_id = remote_request_id",
+            "create or replace function public.trnm_online_settlement_serialization_key_v1",
+            "pg_catalog.pg_try_advisory_xact_lock",
+            "pg_catalog.hashtextextended",
+            "create or replace view public.trnm_online_settlement_job_status_v1",
+            "create or replace view public.trnm_online_settlement_metrics_v1",
+            "when job.state = 'succeeded' then 'pending_apply'",
+            "oldest_eligible_age",
+            "oldest_pending_apply_age",
+        ),
+        "worker migration",
+    )
     if worker.count("lease_expires_at > pg_catalog.clock_timestamp()") < 5:
         fail("worker migration does not fence every remote mutation with a live lease")
-    if "Err(SETTLEMENT_OUTBOX_REQUIRED.to_string())" not in cex:
-        fail("synchronous CEX EconomyBackend no longer fails closed")
+
+    require_markers(
+        cex,
+        (
+            "async fn lookup_signer_receipt",
+            "ENTITLEMENT_SIGNER_RECEIPT_PATH",
+            "async fn lookup_authorized_settlement_receipt",
+            "CEX_SETTLEMENT_RECEIPT_LOOKUP_PATH",
+            "CEX_SETTLEMENT_RECEIPT_LOOKUP_CONTRACT",
+            "INTENT_HASH_HEADER",
+            "signer_response_loss_recovers_by_lookup_without_a_second_sign",
+            "cex_response_loss_recovers_by_lookup_without_a_second_submit",
+            "cex_lookup_with_a_mismatched_hash_fails_closed",
+            "Err(SETTLEMENT_OUTBOX_REQUIRED.to_string())",
+        ),
+        "CEX/signer client",
+    )
+    require_markers(
+        signer_protocol,
+        ('ENTITLEMENT_SIGNER_RECEIPT_PATH: &str = "/v1/signer/receipts"',),
+        "signer protocol",
+    )
+    require_markers(
+        signer_binary,
+        (
+            '"/v1/signer/receipts/:request_id"',
+            "get(get_signing_receipt)",
+            "entitlement.nonce != request.request_id",
+        ),
+        "signer service",
+    )
+    if "entitlement.intent_id != request.request_id" in signer_binary:
+        fail("transport request identity is incorrectly aliased to economic intent identity")
+
+    require_markers(
+        database_test,
+        (
+            "settlement_database_identity_lease_and_retention_contract",
+            "TRNM_REQUIRE_SETTLEMENT_DATABASE_TEST",
+        ),
+        "PostgreSQL identity test",
+    )
+    require_markers(
+        serialization_test,
+        (
+            "account_serialization_does_not_block_unrelated_work",
+            "tokio::join!",
+            "trnm_online_settlement_metrics_v1",
+            "TRNM_REQUIRE_SETTLEMENT_DATABASE_TEST",
+        ),
+        "PostgreSQL serialization test",
+    )
+    require_markers(
+        workflow,
+        (
+            "fix/world-settlement-recovery-v1",
+            "postgres:16.4-alpine",
+            "TRNM_REQUIRE_SETTLEMENT_DATABASE_TEST: '1'",
+            "--test settlement_database_contract",
+            "--test settlement_serialization_database",
+            "--bin trnm-entitlement-signer",
+        ),
+        "settlement workflow",
+    )
+    require_markers(
+        recovery_doc,
+        (
+            "lookup before submit",
+            "trnm_cex_settlement_receipt_lookup_v1",
+            "/v1/signer/receipts/{request_id}",
+        ),
+        "receipt recovery protocol",
+    )
+    require_markers(
+        operations_runbook,
+        (
+            "trnm_online_settlement_metrics_v1",
+            "pending_apply",
+            "dead_letter",
+        ),
+        "settlement operations runbook",
+    )
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--repo",
-        type=pathlib.Path,
-        default=pathlib.Path(__file__).resolve().parents[1],
+        "--repo", type=pathlib.Path, default=pathlib.Path(__file__).resolve().parents[1]
     )
     parser.add_argument(
         "--status",
