@@ -1,0 +1,52 @@
+{
+  "schema": "trnm_world_settlement_runtime_status_v1",
+  "claim_id": "WORLD-P0-001-settlement-fencing-v1",
+  "work_item": "WORLD-P0-001",
+  "status": "implemented_pending_exact_commit_ci",
+  "as_of": "2026-08-28",
+  "owner_repository": "TrillionniumFoundation/Trillionnium-World",
+  "branch": "fix/world-settlement-fencing-v1",
+  "base_commit": "6d9546beed9b075d625849d7f371b9b88ea20f96",
+  "verified_commit": null,
+  "authority_profile": "world_legacy_local_alpha",
+  "release_effect": "none",
+  "public_online": "no_go",
+  "public_player_market": "disabled",
+  "implemented_controls": [
+    "capture_execute_apply_transaction_split",
+    "stable_remote_request_identity_excludes_capture_generation",
+    "authorization_and_entitlement_nonce_bind_remote_request_identity",
+    "authorization_attempt_completion_retry_and_dead_letter_require_live_lease",
+    "legacy_claim_v1_fails_closed",
+    "remote_success_is_distinct_from_campaign_application",
+    "settlement_evidence_uses_restrictive_foreign_keys",
+    "synchronous_cex_economy_backend_fails_closed",
+    "static_positive_and_negative_contract_checks"
+  ],
+  "open_gates": [
+    "remove_inert_legacy_reconcile_economy_caller",
+    "prove_no_external_request_before_capture_commit_in_postgresql_black_box_test",
+    "prove_stale_lease_and_two_worker_contention_in_postgresql",
+    "prove_signer_response_loss_and_cex_ambiguous_commit_recovery",
+    "add_exact_remote_receipt_lookup_and_recovery",
+    "prove_process_kill_cancellation_shutdown_and_apply_rollback_matrix",
+    "add_operator_metrics_dashboards_replay_and_retention_runbooks",
+    "obtain_exact_commit_github_actions_evidence",
+    "obtain_reviewer_signoff"
+  ],
+  "required_checks": [
+    "trnm-settlement-fencing/static-contracts",
+    "trnm-settlement-fencing/rust-contracts"
+  ],
+  "evidence": {
+    "remote_workflow_runs": [],
+    "artifacts": [],
+    "reviewers": [],
+    "limitations": [
+      "source implementation is not remote verification",
+      "no production deployment credit",
+      "no trusted CEX settlement promotion",
+      "no public online or public market credit"
+    ]
+  }
+}
