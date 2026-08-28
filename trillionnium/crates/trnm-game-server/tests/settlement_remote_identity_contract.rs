@@ -39,24 +39,26 @@ fn settlement_evidence_is_not_deleted_by_upstream_cascade() {
 }
 
 #[test]
-fn remote_request_identity_is_generated_and_stable_across_capture_generations() {
+fn remote_request_identity_is_database_derived_and_capture_independent() {
     let sql = normalized(WORKER_MIGRATION);
-    let identity_start = sql
-        .find("add column if not exists remote_request_id text generated always as")
-        .expect("remote request identity generated column must exist");
-    let identity_end = sql[identity_start..]
-        .find("alter table public.trnm_online_settlement_jobs add column if not exists authorization_request_id")
-        .map(|offset| identity_start + offset)
-        .expect("remote request identity definition must be bounded");
-    let identity = &sql[identity_start..identity_end];
+    let identity = normalized(function_body(
+        WORKER_MIGRATION,
+        "trnm_online_remote_request_id_v1",
+        "create or replace function public.trnm_online_set_remote_request_id_v1",
+    ));
+
+    assert!(sql.contains("add column if not exists remote_request_id text"));
+    assert!(sql.contains("alter column remote_request_id set not null"));
+    assert!(sql.contains("remote_request_id must be an ordinary stored column"));
+    assert!(sql.contains("set remote_request_id = public.trnm_online_remote_request_id_v1("));
 
     assert!(identity.contains("pg_catalog.sha256("));
     assert!(identity.contains("pg_catalog.encode("));
     assert!(identity.contains("pg_catalog.convert_to("));
     assert!(identity.matches("pg_catalog.octet_length(").count() >= 4);
-    assert!(identity.contains("match_id::text"));
-    assert!(identity.contains("campaign_id"));
-    assert!(identity.contains("intent_id"));
+    assert!(identity.contains("p_match_id::text"));
+    assert!(identity.contains("p_campaign_id"));
+    assert!(identity.contains("p_intent_id"));
     assert!(!identity.contains("capture_id"));
     assert!(!identity.contains("capture_generation"));
     assert!(!identity.contains("intent_hash"));
@@ -71,6 +73,34 @@ fn remote_request_identity_is_generated_and_stable_across_capture_generations() 
     assert!(!sql.contains(
         "authorization_request_id = coalesce(job.authorization_request_id, job.job_id)"
     ));
+}
+
+#[test]
+fn insert_and_direct_update_cannot_inject_an_alternate_remote_identity() {
+    let sql = normalized(WORKER_MIGRATION);
+    let trigger = normalized(function_body(
+        WORKER_MIGRATION,
+        "trnm_online_set_remote_request_id_v1",
+        "drop trigger if exists trnm_online_settlement_remote_id_insert_v1",
+    ));
+
+    assert!(trigger.contains("expected := public.trnm_online_remote_request_id_v1("));
+    assert!(trigger.contains("new.remote_request_id <> expected"));
+    assert!(trigger.contains("errcode = '23514'"));
+    assert!(trigger.contains(
+        "message = 'remote_request_id does not match durable settlement identity'"
+    ));
+    assert!(trigger.contains("new.remote_request_id := expected"));
+
+    assert!(sql.contains(
+        "create trigger trnm_online_settlement_remote_id_insert_v1 before insert"
+    ));
+    assert!(sql.contains(
+        "create trigger trnm_online_settlement_remote_id_update_v1 before update of match_id, campaign_id, intent_id, remote_request_id"
+    ));
+    assert!(sql.matches(
+        "execute function public.trnm_online_set_remote_request_id_v1()"
+    ).count() >= 2);
 }
 
 #[test]
