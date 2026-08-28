@@ -4,6 +4,8 @@ const WORKER_MIGRATION: &str =
     include_str!("../migrations/0017_online_settlement_worker_runtime_v1.sql");
 const WORKER_SOURCE: &str = include_str!("../src/settlement_worker.rs");
 const CEX_SOURCE: &str = include_str!("../src/cex.rs");
+const SIGNER_PROTOCOL: &str = include_str!("../src/signer_protocol.rs");
+const SIGNER_BINARY: &str = include_str!("../src/bin/trnm-entitlement-signer.rs");
 const WORKER_BINARY: &str = include_str!("../src/bin/trnm-settlement-worker.rs");
 
 fn normalized(source: &str) -> String {
@@ -21,11 +23,14 @@ fn capture_claim_and_apply_are_persisted_as_separate_contracts() {
         "campaign_fences_json jsonb not null",
         "head_intent_ids_json jsonb not null",
         "create or replace function public.trnm_online_remote_request_id_v1",
+        "create or replace function public.trnm_online_settlement_serialization_key_v1",
         "create or replace function public.trnm_online_claim_settlement_job_v2",
+        "pg_catalog.pg_try_advisory_xact_lock",
         "for update of job skip locked",
         "create or replace function public.trnm_online_complete_settlement_job_v1",
         "campaign_applied_at timestamptz",
         "create or replace view public.trnm_online_settlement_job_status_v1",
+        "create or replace view public.trnm_online_settlement_metrics_v1",
     ] {
         assert!(sql.contains(required), "missing settlement contract: {required}");
     }
@@ -58,6 +63,29 @@ fn remote_retries_reuse_stable_authorization_material() {
 }
 
 #[test]
+fn ambiguous_remote_outcomes_use_lookup_before_submit() {
+    for required in [
+        "async fn lookup_signer_receipt",
+        "ENTITLEMENT_SIGNER_RECEIPT_PATH",
+        "async fn lookup_authorized_settlement_receipt",
+        "CEX_SETTLEMENT_RECEIPT_LOOKUP_PATH",
+        "CEX_SETTLEMENT_RECEIPT_LOOKUP_CONTRACT",
+        "signer_response_loss_recovers_by_lookup_without_a_second_sign",
+        "cex_response_loss_recovers_by_lookup_without_a_second_submit",
+        "cex_lookup_with_a_mismatched_hash_fails_closed",
+    ] {
+        assert!(CEX_SOURCE.contains(required), "missing recovery contract: {required}");
+    }
+    assert!(SIGNER_PROTOCOL.contains(
+        "pub const ENTITLEMENT_SIGNER_RECEIPT_PATH: &str = \"/v1/signer/receipts\""
+    ));
+    assert!(SIGNER_BINARY.contains("/v1/signer/receipts/:request_id"));
+    assert!(SIGNER_BINARY.contains("get(get_signing_receipt)"));
+    assert!(SIGNER_BINARY.contains("entitlement.nonce != request.request_id"));
+    assert!(!SIGNER_BINARY.contains("entitlement.intent_id != request.request_id"));
+}
+
+#[test]
 fn stale_or_expired_workers_cannot_mutate_another_lease() {
     let sql = normalized(WORKER_MIGRATION);
     let lease_fence = "state = 'leased' and lease_owner = p_owner and lease_generation = p_lease_generation and lease_expires_at > pg_catalog.clock_timestamp()";
@@ -65,6 +93,22 @@ fn stale_or_expired_workers_cannot_mutate_another_lease() {
         sql.matches(lease_fence).count() >= 5,
         "authorization/attempt/completion/retry/dead-letter must all share the live lease fence"
     );
+}
+
+#[test]
+fn account_serialization_preserves_unrelated_progress() {
+    let sql = normalized(WORKER_MIGRATION);
+    for required in [
+        "nullif(p_intent_json #>> '{actors,0,account_id}', '')",
+        "'campaign:' || p_campaign_id",
+        "pg_catalog.pg_try_advisory_xact_lock",
+        "pg_catalog.hashtextextended",
+        "blocker.state = 'succeeded'",
+        "blocker.lease_expires_at > pg_catalog.clock_timestamp()",
+        "limit 16",
+    ] {
+        assert!(sql.contains(required), "missing serialization control: {required}");
+    }
 }
 
 #[test]
