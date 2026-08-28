@@ -56,7 +56,7 @@ env:
 
 jobs:
   static-contracts:
-    name: static-contracts
+    name: trnm-settlement-fencing/static-contracts
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
@@ -90,9 +90,9 @@ jobs:
           ./scripts/check_trnm_settlement_transaction_boundary.sh
 
   rust-contracts:
-    name: rust-contracts
+    name: trnm-settlement-fencing/rust-contracts
     runs-on: ubuntu-24.04
-    timeout-minutes: 40
+    timeout-minutes: 50
     defaults:
       run:
         working-directory: trillionnium
@@ -101,17 +101,21 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       - name: Install pinned Rust toolchain
         run: |
-          rustup toolchain install 1.85.1 --profile minimal --component rustfmt,clippy
-          rustup default 1.85.1
+          rustup toolchain install 1.98.0 --profile minimal --component rustfmt,clippy
+          rustup default 1.98.0
           rustc --version --verbose
           cargo --version --verbose
+      - name: Resolve locked workspace metadata
+        run: cargo metadata --locked --no-deps --format-version 1 > /dev/null
       - name: Format
         run: cargo fmt --all -- --check
+      - name: Game-server library contracts
+        run: cargo test -p trnm-game-server --lib --locked
       - name: Settlement remote identity contract
         run: cargo test -p trnm-game-server --test settlement_remote_identity_contract --locked
       - name: Settlement worker contract
         run: cargo test -p trnm-game-server --test settlement_worker_contract --locked
       - name: Settlement fault model
         run: cargo test -p trnm-game-server --test settlement_fault_model --locked
-      - name: Strict settlement contract lint
-        run: cargo clippy -p trnm-game-server --test settlement_remote_identity_contract --locked -- -D warnings
+      - name: Strict game-server lint
+        run: cargo clippy -p trnm-game-server --all-targets --locked -- -D warnings
