@@ -15,7 +15,7 @@ review_due: 2026-09-11
 
 This runbook covers the migration-era World settlement worker only. It does not
 authorize public player-market operation, direct wallet mutation, manual receipt
-fabrication, or silent replay of terminal records.
+fabrication, silent queue reset, or bypass of immutable settlement identity.
 
 The operator must distinguish:
 
@@ -37,7 +37,7 @@ select *
 
 Important columns:
 
-- `remote_request_id` — stable signer request identity;
+- `remote_request_id` — stable signer/CEX request identity;
 - `serialization_key` — account ID or campaign fallback;
 - `remote_state` — pending, leased, retryable, succeeded, or dead letter;
 - `application_state` — waiting remote, pending apply, applied, or blocked;
@@ -48,29 +48,31 @@ Important columns:
 
 ```sql
 select * from public.trnm_online_settlement_metrics_v1;
+select * from public.trnm_online_settlement_operator_alerts_v1;
+select * from public.trnm_online_settlement_operator_policy_current_v1;
 ```
 
-The projection includes:
+The projections include:
 
 - remote pending/leased/retryable/succeeded/dead-letter counts;
 - `pending_apply` and applied counts;
 - expired lease count;
-- oldest eligible job age;
-- oldest pending-apply age;
-- maximum remote attempts.
+- oldest eligible and pending-apply ages;
+- replay volume and earliest evidence retention deadline;
+- the exact policy revision and candidate thresholds used for alerts.
 
-A dashboard may render this view, but it must not rename `pending_apply` as
-“settled.”
+A dashboard must not rename `pending_apply` as “settled.” Candidate defaults are
+not production SLO approval.
 
 ## 3. Triage order
 
-1. Confirm the exact deployed World, signer, and CEX component revisions.
+1. Confirm the exact deployed World, signer, CEX and component-lock revisions.
 2. Confirm `trnm-settlement-worker` readiness and PostgreSQL connectivity.
-3. Inspect aggregate metrics.
+3. Inspect aggregate metrics and the current operator policy revision.
 4. Inspect the oldest eligible and oldest pending-apply jobs.
 5. Group incidents by `serialization_key`, not globally.
-6. Verify signer/CEX lookup availability before considering a retry problem.
-7. Preserve job, capture, intent, receipt, and terminal-publication evidence.
+6. Verify signer/CEX lookup availability before considering replay.
+7. Preserve job, capture, intent, receipt and terminal-publication evidence.
 
 Never delete the match or campaign to clear a queue. Foreign-key restriction is
 intentional economic evidence retention.
@@ -80,14 +82,13 @@ intentional economic evidence retention.
 For an eligible pending/retryable job:
 
 - confirm its capture remains `active`;
-- confirm `remote_request_id`, `intent_id`, and `intent_hash` are stable;
+- confirm `remote_request_id`, `intent_id` and `intent_hash` are stable;
 - confirm no live lease or `pending_apply` job owns the same serialization key;
 - confirm lookup endpoints are available;
 - allow the normal worker claim/retry loop to proceed.
 
-Do not manually change `remote_request_id`, authorization request ID,
-entitlement nonce, intent ID, or intent hash. Database constraints and triggers
-reject those changes because they are durable identities.
+Do not manually change request identity, authorization identity, entitlement
+nonce, intent identity or payload hash. Database constraints reject drift.
 
 ## 5. Expired leases
 
@@ -101,114 +102,146 @@ new owner claims with higher generation
 old worker authorization/attempt/complete/retry/dead-letter writes fail
 ```
 
-Investigate repeated lease expiry for:
-
-- signer/CEX latency beyond the configured lease;
-- database pool starvation;
-- process pauses or shutdown handling;
-- unavailable receipt lookup;
-- excessively large batch size.
-
-Do not extend a lease by direct SQL. Adjust reviewed configuration and rerun the
-fault evidence matrix.
+Investigate repeated expiry for signer/CEX latency, pool starvation, process
+pauses, unavailable lookup or an oversized batch. Do not extend a lease by
+direct SQL.
 
 ## 6. Signer ambiguity
 
 When signing may have committed but the response was lost:
 
-1. query `/v1/signer/receipts/{remote_request_id}` using the signer principal;
+1. query `/v1/signer/receipts/{remote_request_id}`;
 2. `200` — validate and reuse the durable response;
 3. `404` — one exact sign submission is allowed;
-4. transport/`5xx` — stop and retry lookup later; do not sign;
-5. hash, issuer, key, signature, or receipt mismatch — dead-letter/fail closed
-   and preserve evidence.
+4. transport/`5xx` — stop and retry lookup later;
+5. any binding mismatch — dead-letter and preserve evidence.
 
 A different signer request ID must never be minted for the same job.
 
 ## 7. CEX ambiguity
 
-When the CEX intent may have committed but the response was lost:
+When a CEX intent may have committed but the response was lost:
 
 1. query the CEX receipt endpoint with exact `intent_id` and
    `x-trnm-intent-sha256`;
 2. `200` — validate wrapper ID/hash and `EconomicReceipt::validate_for`;
 3. `404` — one exact intent submission is allowed;
 4. `409` — immutable intent conflict; fail closed;
-5. transport/`5xx` — stop and retry lookup later; do not submit;
+5. transport/`5xx` — stop and retry lookup later;
 6. malformed or mismatched receipt — dead-letter/fail closed.
 
-The CEX owner-repository endpoint remains a deployment blocker until its exact
-revision and evidence are locked.
+A timeout or `5xx` is never equivalent to `404`.
 
 ## 8. Pending apply
 
 A `remote_succeeded + pending_apply` job has a durable remote result but has not
 yet changed campaign progression.
 
-Check:
+Check that terminal publication identity, campaign revision/state hash, campaign
+head and every captured receipt still match. Do not force
+`campaign_applied_at` or advance match settlement manually.
 
-- terminal publication identity and cold seal remain exact;
-- campaign revision and state hash still match the capture;
-- campaign head still contains the captured intent/hash;
-- every job in the capture has a validated receipt;
-- no prior apply transaction is still running.
+## 9. Dead letters and audited replay
 
-A stale capture must be marked stale through reviewed application logic. Do not
-force `campaign_applied_at` or advance match settlement manually.
-
-## 9. Dead letters
-
-A `dead_letter` record is terminal evidence, not a queue item to edit in place.
-Collect:
+A dead letter is terminal evidence. Before considering replay, collect:
 
 - job and capture IDs;
 - stable remote request ID;
 - intent ID/hash and serialization key;
 - owner/generation/attempt counts;
-- signer/CEX lookup responses;
-- receipt or mismatch evidence;
-- exact component revisions and timestamps.
+- signer/CEX lookup evidence;
+- exact component revisions and incident ticket.
 
-Operator replay requires a separately versioned control that creates an
-auditable new execution generation without overwriting the historical terminal
-record. That replay control is not yet approved; direct SQL replay is prohibited.
+Replay is permitted only through:
 
-## 10. Alerting recommendations
+```sql
+select public.trnm_online_authorize_settlement_replay_v1(
+    :request_id,
+    :job_id,
+    :capture_id,
+    :intent_id,
+    :intent_hash,
+    :remote_request_id,
+    :operator_id,
+    :change_ticket,
+    :reason
+);
+```
 
-Alert when any of the following exceeds the reviewed environment threshold:
+The caller must use a dedicated database role that has explicit `EXECUTE` on
+this function. The migration revokes execution from `PUBLIC`.
 
-- oldest eligible age;
-- oldest pending-apply age;
-- expired lease count or reclaim rate;
-- retryable backlog;
-- dead-letter count;
-- maximum remote attempts;
-- signer/CEX lookup error rate;
-- immutable binding mismatch;
-- campaign revision conflict.
+The function requires all of the following:
 
-Thresholds must be defined by deployment profile and attached to release
-evidence. This source runbook does not invent production SLO credit.
+- job and capture are both `dead_letter`;
+- exact job/capture/intent/hash/remote-request binding;
+- no durable receipt, remote completion or campaign-apply marker;
+- a valid operator identity, change ticket and bounded reason;
+- an active append-only policy revision.
+
+A successful authorization:
+
+- appends an immutable replay evidence row;
+- preserves the previous state, attempt counts and error;
+- reactivates the same capture and stable remote identity;
+- sets `remote_attempts = 15`, so normal processing receives exactly one more
+  attempt before returning to dead letter;
+- never deletes or overwrites prior replay or policy evidence.
+
+An exact duplicate `request_id` is idempotent. Reusing the request ID with
+changed material fails closed. A new request while the job is already retryable,
+leased, succeeded, applied, or receipt-bearing fails closed.
+
+Direct SQL such as `update ... set state = 'pending'` remains prohibited.
+
+## 10. Policy, retention and alert changes
+
+Policy changes are append-only:
+
+```sql
+select public.trnm_online_append_settlement_operator_policy_v1(
+    :retention_days,
+    :dead_letter_threshold,
+    :expired_lease_threshold,
+    :oldest_eligible_seconds,
+    :oldest_pending_apply_seconds,
+    :replay_24h_threshold,
+    :approved_by,
+    :change_ticket,
+    :reason
+);
+```
+
+The database enforces a minimum retention of 365 days. The candidate default is
+2555 days. Production retention, archive, purge, backup and legal-hold behavior
+must be approved separately; this migration intentionally exposes no purge
+function.
+
+Alert routing must bind the exact policy revision, environment, dashboard,
+paging destination and accountable operator. Candidate thresholds alone earn no
+production evidence.
 
 ## 11. Shutdown and incident preservation
 
 During shutdown:
 
 - stop new work admission;
-- allow bounded in-flight network/database operations to finish or expire;
-- preserve leased rows for generation-fenced takeover;
-- do not mark ambiguous remote work successful or failed without lookup;
-- preserve logs without credentials or private signing material.
+- allow bounded in-flight operations to finish or expire;
+- preserve leases for generation-fenced takeover;
+- do not classify ambiguous remote work without lookup;
+- preserve logs without credentials or signing material.
 
-A cancelled or interrupted fault run earns no release credit. Record the exact
-commit, artifact, environment, commands, failure point, and limitations.
+A cancelled or interrupted fault run earns no release credit. Record exact
+commit, artifact, environment, commands, failure point and limitations.
 
 ## 12. Prohibited actions
 
-- deleting settlement evidence to unblock a match;
+- deleting settlement, replay or policy evidence;
+- updating, deleting or truncating append-only replay/policy tables;
 - editing immutable IDs or hashes;
 - setting `campaign_applied_at` by hand;
-- changing `state` from dead letter to pending;
+- changing dead letter state by direct SQL;
+- granting replay functions to broad/public roles;
 - treating lookup timeout as `404`;
 - submitting after an ambiguous lookup;
 - sharing signer and game-authority credentials;
