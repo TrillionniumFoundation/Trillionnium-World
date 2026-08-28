@@ -76,13 +76,23 @@ def sql_function(source: str, name: str, next_marker: str) -> str:
     return source[start : start + end_offset]
 
 
-rust_files = sorted(root.rglob("*.rs"))
-if not rust_files:
-    raise SystemExit(f"no Rust files found under {root}")
+def required_text(path: pathlib.Path, errors: list[str]) -> str:
+    if not path.is_file() or path.stat().st_size == 0:
+        errors.append(f"missing settlement runtime component: {path.relative_to(repo)}")
+        return ""
+    return path.read_text(encoding="utf-8")
+
+
+# Runtime logic is stored in checked-in `.rs.in` templates and emitted by
+# build.rs into OUT_DIR. Scan both ordinary Rust sources and templates so the
+# checker cannot mistake an `include!` entrypoint for an empty implementation.
+source_files = sorted(root.rglob("*.rs")) + sorted(root.rglob("*.rs.in"))
+if not source_files:
+    raise SystemExit(f"no Rust source or template files found under {root}")
 
 all_functions = []
 combined = []
-for path in rust_files:
+for path in source_files:
     try:
         text = path.read_text(encoding="utf-8")
     except UnicodeDecodeError:
@@ -119,17 +129,54 @@ for name, body, path in all_functions:
         )
 
 if mode == "full":
-    required_paths = [
-        repo / "trillionnium/crates/trnm-game-server/src/settlement_worker.rs",
-        repo / "trillionnium/crates/trnm-game-server/src/bin/trnm-settlement-worker.rs",
-        repo / "trillionnium/crates/trnm-game-server/src/cex.rs",
-        repo / "trillionnium/crates/trnm-game-server/migrations/0016_online_settlement_outbox_v1.sql",
-        repo / "trillionnium/crates/trnm-game-server/migrations/0017_online_settlement_worker_runtime_v1.sql",
-        repo / "trillionnium/crates/trnm-game-server/tests/settlement_remote_identity_contract.rs",
-    ]
-    for path in required_paths:
-        if not path.is_file() or path.stat().st_size == 0:
-            errors.append(f"missing settlement runtime component: {path.relative_to(repo)}")
+    server = repo / "trillionnium/crates/trnm-game-server"
+    entry = server / "src/lib.rs"
+    entry_template = server / "src/lib.rs.in"
+    worker_entry = server / "src/settlement_worker.rs"
+    worker_template = server / "src/settlement_worker.rs.in"
+    build = server / "build.rs"
+    cex_path = server / "src/cex.rs"
+    signer_path = server / "src/bin/trnm-entitlement-signer.rs"
+    outbox_path = server / "migrations/0016_online_settlement_outbox_v1.sql"
+    worker_migration_path = server / "migrations/0017_online_settlement_worker_runtime_v1.sql"
+    operator_path = server / "migrations/0018_online_settlement_operator_controls_v1.sql"
+    identity_test_path = server / "tests/settlement_remote_identity_contract.rs"
+    capture_test_path = server / "tests/settlement_capture_commit_boundary.rs"
+    operator_test_path = server / "tests/settlement_operator_controls_database.rs"
+    boundary_test_path = server / "tests/settlement_game_server_boundary.rs"
+
+    entry_source = required_text(entry, errors)
+    entry_template_source = required_text(entry_template, errors)
+    worker_entry_source = required_text(worker_entry, errors)
+    worker_source = required_text(worker_template, errors)
+    build_source = required_text(build, errors)
+    cex_source = required_text(cex_path, errors)
+    signer_source = required_text(signer_path, errors)
+    outbox_migration = required_text(outbox_path, errors)
+    worker_migration = required_text(worker_migration_path, errors)
+    operator_migration = required_text(operator_path, errors)
+    identity_test = required_text(identity_test_path, errors)
+    capture_test = required_text(capture_test_path, errors)
+    operator_test = required_text(operator_test_path, errors)
+    boundary_test = required_text(boundary_test_path, errors)
+
+    if 'include!(concat!(env!("OUT_DIR"), "/trnm_game_server_lib_generated.rs"))' not in entry_source:
+        errors.append("game-server entrypoint no longer includes the generated runtime source")
+    if 'include!(concat!(env!("OUT_DIR"), "/trnm_settlement_worker_generated.rs"))' not in worker_entry_source:
+        errors.append("settlement-worker entrypoint no longer includes the generated runtime source")
+    if "reconcile_economy(&state.cex" in entry_source:
+        errors.append("compiled game-server entrypoint reintroduced synchronous settlement")
+    if entry_template_source.count("reconcile_economy(&state.cex") != 1:
+        errors.append("reviewed game-server template debt must remain exactly one removable call")
+    for marker in (
+        'source.contains("reconcile_economy(&state.cex")',
+        'source.contains("settle_pending_matches(&settlement_state")',
+        "WORLD-P0-001 source transform failed closed",
+        "terminal settlement is owned by trnm-settlement-worker",
+        "0018_online_settlement_operator_controls_v1",
+    ):
+        if marker not in build_source:
+            errors.append(f"generated runtime transform lost fail-closed marker: {marker}")
 
     for required_name in ("capture_match", "apply_capture", "process_claimed_job"):
         if required_name not in function_map:
@@ -139,42 +186,23 @@ if mode == "full":
         for body, path in function_map.get(phase_name, []):
             if not transaction_pattern.search(body):
                 errors.append(
-                    f"{path.relative_to(root)}:{phase_name}: phase does not own its "
-                    "short PostgreSQL transaction"
+                    f"{path.relative_to(root)}:{phase_name}: phase does not own its short PostgreSQL transaction"
                 )
             if remote_pattern.search(body):
-                errors.append(
-                    f"{path.relative_to(root)}:{phase_name}: phase performs remote I/O"
-                )
+                errors.append(f"{path.relative_to(root)}:{phase_name}: phase performs remote I/O")
 
-    execute_bodies = function_map.get("process_claimed_job", [])
-    if execute_bodies:
-        for body, path in execute_bodies:
-            if transaction_pattern.search(body):
-                errors.append(
-                    f"{path.relative_to(root)}:process_claimed_job: execute phase owns "
-                    "a PostgreSQL transaction"
-                )
-            for marker in (
-                ".authorize_settlement_intent(",
-                ".submit_authorized_settlement_intent(",
-            ):
-                if marker not in body:
-                    errors.append(
-                        f"{path.relative_to(root)}:process_claimed_job: missing {marker}"
-                    )
+    for body, path in function_map.get("process_claimed_job", []):
+        if transaction_pattern.search(body):
+            errors.append(
+                f"{path.relative_to(root)}:process_claimed_job: execute phase owns a PostgreSQL transaction"
+            )
+        for marker in (
+            ".authorize_settlement_intent(",
+            ".submit_authorized_settlement_intent(",
+        ):
+            if marker not in body:
+                errors.append(f"{path.relative_to(root)}:process_claimed_job: missing {marker}")
 
-    cex_source = (repo / "trillionnium/crates/trnm-game-server/src/cex.rs").read_text(
-        encoding="utf-8"
-    )
-    if "Err(SETTLEMENT_OUTBOX_REQUIRED.to_string())" not in cex_source:
-        errors.append("synchronous CexClient EconomyBackend no longer fails closed")
-    if "blocking_client" in cex_source or "reqwest::blocking" in cex_source:
-        errors.append("CEX client reintroduced blocking HTTP transport")
-
-    worker_source = (
-        repo / "trillionnium/crates/trnm-game-server/src/settlement_worker.rs"
-    ).read_text(encoding="utf-8")
     for required in (
         "expected_campaign_state_hash",
         "authorization_request_id",
@@ -185,12 +213,24 @@ if mode == "full":
         "ReceiptProgressionClass::RecoverableHold",
     ):
         if required not in worker_source:
-            errors.append(f"settlement worker lost durable invariant {required}")
+            errors.append(f"settlement worker template lost durable invariant {required}")
 
-    outbox_migration = required_paths[3].read_text(encoding="utf-8")
-    worker_migration = required_paths[4].read_text(encoding="utf-8")
-    normalized_worker_migration = " ".join(worker_migration.split())
-    migration_source = f"{outbox_migration}\n{worker_migration}"
+    if "Err(SETTLEMENT_OUTBOX_REQUIRED.to_string())" not in cex_source:
+        errors.append("synchronous CexClient EconomyBackend no longer fails closed")
+    if "blocking_client" in cex_source or "reqwest::blocking" in cex_source:
+        errors.append("CEX client reintroduced blocking HTTP transport")
+    for marker in (
+        "async fn lookup_signer_receipt",
+        "async fn lookup_authorized_settlement_receipt",
+        "CEX_SETTLEMENT_RECEIPT_LOOKUP_PATH",
+        "Err(SETTLEMENT_OUTBOX_REQUIRED.to_string())",
+    ):
+        if marker not in cex_source:
+            errors.append(f"CEX recovery client lost marker {marker}")
+    if '"/v1/signer/receipts/:request_id"' not in signer_source:
+        errors.append("signer service lost durable receipt lookup route")
+
+    migration_source = f"{outbox_migration}\n{worker_migration}\n{operator_migration}"
     for required in (
         "trnm_online_settlement_captures",
         "trnm_online_claim_settlement_job_v2",
@@ -201,18 +241,15 @@ if mode == "full":
         "trnm_online_dead_letter_settlement_job_v1",
         "remote_request_id",
         "trnm_online_settlement_job_status_v1",
+        "trnm_online_settlement_operator_replay",
+        "trnm_online_settlement_operator_replay_requests",
     ):
         if required not in migration_source:
-            errors.append(f"settlement migration lost database contract {required}")
-
-    for forbidden in (
-        "references public.trnm_online_matches(match_id) on delete cascade",
-        "references public.trnm_online_campaigns(campaign_id) on delete cascade",
-    ):
-        if forbidden in outbox_migration:
-            errors.append(
-                "settlement economic evidence may not be removed by upstream cascade"
-            )
+            errors.append(f"settlement migration chain lost database contract {required}")
+    if "on delete cascade" in outbox_migration:
+        errors.append("settlement evidence must not use upstream cascade deletion")
+    if "on delete restrict" not in outbox_migration:
+        errors.append("settlement evidence is not protected by restrictive foreign keys")
 
     identity = sql_function(
         worker_migration,
@@ -236,66 +273,44 @@ if mode == "full":
             errors.append("remote request identity is not length-prefixed")
         for forbidden in ("capture_id", "capture_generation", "intent_hash", "md5("):
             if forbidden in identity:
-                errors.append(
-                    f"remote request identity incorrectly depends on {forbidden}"
-                )
+                errors.append(f"remote request identity incorrectly depends on {forbidden}")
 
+    normalized_worker = " ".join(worker_migration.split())
     for required in (
         "add column if not exists remote_request_id text",
         "remote_request_id must be an ordinary stored column",
         "set remote_request_id = public.trnm_online_remote_request_id_v1(",
         "alter column remote_request_id set not null",
-        "message = 'settlement match, campaign and intent identity fields are immutable'",
-        "message = 'remote_request_id does not match durable settlement identity'",
-        "create trigger trnm_online_settlement_remote_id_insert_v1 before insert",
-        "create trigger trnm_online_settlement_remote_id_update_v1 before update of match_id, campaign_id, intent_id, remote_request_id",
+        "settlement match, campaign and intent identity fields are immutable",
+        "remote_request_id does not match durable settlement identity",
         "authorization_request_id is null or authorization_request_id = remote_request_id",
         "entitlement_nonce is null or entitlement_nonce = remote_request_id",
-        "entitlement_nonce = coalesce(job.entitlement_nonce, job.remote_request_id)",
-        "authorization_request_id = coalesce( job.authorization_request_id, job.remote_request_id )",
         "p_authorization_request_id = remote_request_id",
     ):
-        if required not in normalized_worker_migration:
+        if required not in normalized_worker:
             errors.append(f"stable remote retry contract lost marker: {required}")
-    if "coalesce(job.authorization_request_id, job.job_id)" in normalized_worker_migration:
-        errors.append("capture-scoped job_id is being reused as remote request identity")
 
     legacy_claim = sql_function(
         worker_migration,
         "trnm_online_claim_settlement_job_v1",
         "create or replace function public.trnm_online_claim_settlement_job_v2",
     )
-    normalized_legacy_claim = " ".join(legacy_claim.split())
+    normalized_claim = " ".join(legacy_claim.split())
     for required in (
         "errcode = '0A000'",
         "trnm_online_claim_settlement_job_v1 is retired; use v2",
     ):
-        if required not in normalized_legacy_claim:
+        if required not in normalized_claim:
             errors.append(f"legacy v1 settlement claim is not fail-closed: {required}")
-    if "for update skip locked" in normalized_legacy_claim:
+    if "for update skip locked" in normalized_claim:
         errors.append("legacy v1 settlement claim still leases work")
 
     lease_functions = (
-        (
-            "trnm_online_store_settlement_authorization_v1",
-            "create or replace function public.trnm_online_begin_settlement_remote_attempt_v1",
-        ),
-        (
-            "trnm_online_begin_settlement_remote_attempt_v1",
-            "create or replace function public.trnm_online_complete_settlement_job_v1",
-        ),
-        (
-            "trnm_online_complete_settlement_job_v1",
-            "create or replace function public.trnm_online_retry_settlement_job_v1",
-        ),
-        (
-            "trnm_online_retry_settlement_job_v1",
-            "create or replace function public.trnm_online_dead_letter_settlement_job_v1",
-        ),
-        (
-            "trnm_online_dead_letter_settlement_job_v1",
-            "create or replace view public.trnm_online_settlement_job_status_v1",
-        ),
+        ("trnm_online_store_settlement_authorization_v1", "create or replace function public.trnm_online_begin_settlement_remote_attempt_v1"),
+        ("trnm_online_begin_settlement_remote_attempt_v1", "create or replace function public.trnm_online_complete_settlement_job_v1"),
+        ("trnm_online_complete_settlement_job_v1", "create or replace function public.trnm_online_retry_settlement_job_v1"),
+        ("trnm_online_retry_settlement_job_v1", "create or replace function public.trnm_online_dead_letter_settlement_job_v1"),
+        ("trnm_online_dead_letter_settlement_job_v1", "create or replace view public.trnm_online_settlement_job_status_v1"),
     )
     for function_name, next_marker in lease_functions:
         body = sql_function(worker_migration, function_name, next_marker)
@@ -319,11 +334,25 @@ if mode == "full":
         if required not in worker_migration:
             errors.append(f"settlement status projection lost semantic marker: {required}")
 
-    legacy_calls = combined_source.count("reconcile_economy(&state.cex")
-    if legacy_calls > 1:
-        errors.append(
-            f"legacy compatibility settlement caller expanded from one to {legacy_calls}"
-        )
+    normalized_operator = " ".join(operator_migration.lower().split())
+    for required in (
+        "before update or delete",
+        "before truncate",
+        "remote_attempts",
+        "retention",
+    ):
+        if required not in normalized_operator:
+            errors.append(f"operator controls lost append-only/replay marker: {required}")
+
+    for source, markers, label in (
+        (identity_test, ("remote_request_id", "lease_generation"), "identity test"),
+        (capture_test, ("capture", "claim", "remote"), "capture commit test"),
+        (operator_test, ("settlement_operator_replay_is_exact_audited_one_attempt_and_append_only", "remote_attempts"), "operator test"),
+        (boundary_test, ("GENERATED_GAME_SERVER_SOURCE", "terminal settlement is owned by trnm-settlement-worker"), "generated ownership test"),
+    ):
+        for marker in markers:
+            if marker not in source:
+                errors.append(f"{label} lost marker {marker}")
 
 if errors:
     print("TRNM settlement transaction-boundary check failed:", file=sys.stderr)
@@ -331,14 +360,9 @@ if errors:
         print(f" - {error}", file=sys.stderr)
     raise SystemExit(1)
 
-legacy_calls = combined_source.count("reconcile_economy(&state.cex")
-if mode == "full" and legacy_calls == 1:
-    print(
-        "TRNM settlement transaction-boundary check passed: capture/execute/apply, "
-        "immutable trigger-derived SHA-256 remote identity, v1 claim retirement, "
-        "live-lease fencing and durable evidence retention are enforced; one inert "
-        "compatibility caller remains registered for deletion"
-    )
-else:
-    print("TRNM settlement transaction-boundary check passed")
+print(
+    "TRNM settlement transaction-boundary check passed: checked-in templates, "
+    "fail-closed generation, capture/execute/apply separation, immutable remote "
+    "identity, live-lease fencing, operator replay and append-only evidence are enforced"
+)
 PY
