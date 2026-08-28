@@ -4,8 +4,7 @@ use sqlx_postgres::{PgPool, PgPoolOptions};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use uuid::Uuid;
 
-const OUTBOX_MIGRATION: &str =
-    include_str!("../migrations/0016_online_settlement_outbox_v1.sql");
+const OUTBOX_MIGRATION: &str = include_str!("../migrations/0016_online_settlement_outbox_v1.sql");
 const WORKER_MIGRATION: &str =
     include_str!("../migrations/0017_online_settlement_worker_runtime_v1.sql");
 
