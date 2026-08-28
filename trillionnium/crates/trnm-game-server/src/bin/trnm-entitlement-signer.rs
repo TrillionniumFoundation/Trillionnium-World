@@ -200,8 +200,8 @@ fn validate_request(request: &EntitlementSignRequest) -> Result<(), ApiError> {
         || entitlement.match_id.is_empty()
         || entitlement.result_hash.len() != 64
         || entitlement.participants_hash.len() != 64
-        || entitlement.nonce.is_empty()
-        || entitlement.intent_id != request.request_id
+        || entitlement.intent_id.is_empty()
+        || entitlement.nonce != request.request_id
     {
         return Err(error(
             StatusCode::UNPROCESSABLE_ENTITY,
