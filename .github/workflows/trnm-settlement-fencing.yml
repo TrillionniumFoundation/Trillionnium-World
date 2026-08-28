@@ -1,0 +1,117 @@
+name: trnm-settlement-fencing
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - feature/world-p0-execution-v3
+    paths:
+      - '.github/workflows/trnm-settlement-fencing.yml'
+      - 'docs/development/trnm-settlement-outbox-v1.md'
+      - 'docs/status/settlement-runtime-v1.json'
+      - 'docs/status/settlement-runtime-v1.schema.json'
+      - 'scripts/check-trnm-settlement-runtime-status.py'
+      - 'scripts/test-trnm-settlement-runtime-status-negative.py'
+      - 'scripts/check-trnm-settlement-transaction-boundary.sh'
+      - 'scripts/check_trnm_settlement_transaction_boundary.sh'
+      - 'trillionnium/crates/trnm-game-server/migrations/0016_online_settlement_outbox_v1.sql'
+      - 'trillionnium/crates/trnm-game-server/migrations/0017_online_settlement_worker_runtime_v1.sql'
+      - 'trillionnium/crates/trnm-game-server/tests/settlement_remote_identity_contract.rs'
+      - 'trillionnium/crates/trnm-game-server/tests/settlement_worker_contract.rs'
+      - 'trillionnium/crates/trnm-game-server/tests/settlement_fault_model.rs'
+      - 'trillionnium/crates/trnm-game-server/src/cex.rs'
+      - 'trillionnium/crates/trnm-game-server/src/settlement_worker.rs'
+  push:
+    branches:
+      - fix/world-settlement-fencing-v1
+    paths:
+      - '.github/workflows/trnm-settlement-fencing.yml'
+      - 'docs/development/trnm-settlement-outbox-v1.md'
+      - 'docs/status/settlement-runtime-v1.json'
+      - 'docs/status/settlement-runtime-v1.schema.json'
+      - 'scripts/check-trnm-settlement-runtime-status.py'
+      - 'scripts/test-trnm-settlement-runtime-status-negative.py'
+      - 'scripts/check-trnm-settlement-transaction-boundary.sh'
+      - 'scripts/check_trnm_settlement_transaction_boundary.sh'
+      - 'trillionnium/crates/trnm-game-server/migrations/0016_online_settlement_outbox_v1.sql'
+      - 'trillionnium/crates/trnm-game-server/migrations/0017_online_settlement_worker_runtime_v1.sql'
+      - 'trillionnium/crates/trnm-game-server/tests/settlement_remote_identity_contract.rs'
+      - 'trillionnium/crates/trnm-game-server/tests/settlement_worker_contract.rs'
+      - 'trillionnium/crates/trnm-game-server/tests/settlement_fault_model.rs'
+      - 'trillionnium/crates/trnm-game-server/src/cex.rs'
+      - 'trillionnium/crates/trnm-game-server/src/settlement_worker.rs'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trnm-settlement-fencing-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: never
+  CARGO_INCREMENTAL: '0'
+  RUST_BACKTRACE: '1'
+  RUST_TEST_THREADS: '1'
+
+jobs:
+  static-contracts:
+    name: static-contracts
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout exact source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Parse Python and JSON artifacts
+        run: |
+          python3 -m py_compile \
+            scripts/check-trnm-settlement-runtime-status.py \
+            scripts/test-trnm-settlement-runtime-status-negative.py
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          for path in (
+              Path('docs/status/settlement-runtime-v1.json'),
+              Path('docs/status/settlement-runtime-v1.schema.json'),
+          ):
+              json.loads(path.read_text(encoding='utf-8'))
+          PY
+      - name: Validate machine-readable settlement posture
+        run: python3 scripts/check-trnm-settlement-runtime-status.py
+      - name: Reject status overclaims
+        run: python3 scripts/test-trnm-settlement-runtime-status-negative.py
+      - name: Validate settlement shell syntax
+        run: |
+          bash -n scripts/check-trnm-settlement-transaction-boundary.sh
+          bash -n scripts/check_trnm_settlement_transaction_boundary.sh
+      - name: Enforce transaction, identity and evidence boundaries
+        run: |
+          ./scripts/check-trnm-settlement-transaction-boundary.sh
+          ./scripts/check_trnm_settlement_transaction_boundary.sh
+
+  rust-contracts:
+    name: rust-contracts
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    defaults:
+      run:
+        working-directory: trillionnium
+    steps:
+      - name: Checkout exact source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Install pinned Rust toolchain
+        run: |
+          rustup toolchain install 1.85.1 --profile minimal --component rustfmt,clippy
+          rustup default 1.85.1
+          rustc --version --verbose
+          cargo --version --verbose
+      - name: Format
+        run: cargo fmt --all -- --check
+      - name: Settlement remote identity contract
+        run: cargo test -p trnm-game-server --test settlement_remote_identity_contract --locked
+      - name: Settlement worker contract
+        run: cargo test -p trnm-game-server --test settlement_worker_contract --locked
+      - name: Settlement fault model
+        run: cargo test -p trnm-game-server --test settlement_fault_model --locked
+      - name: Strict settlement contract lint
+        run: cargo clippy -p trnm-game-server --test settlement_remote_identity_contract --locked -- -D warnings
