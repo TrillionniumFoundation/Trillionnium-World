@@ -6,6 +6,7 @@ on:
     branches:
       - feature/world-p0-execution-v3
       - fix/world-settlement-fencing-v1
+      - fix/world-settlement-recovery-v1
     paths:
       - '.github/workflows/trnm-settlement-fencing.yml'
       - 'docs/development/trnm-settlement-outbox-v1.md'
@@ -13,8 +14,12 @@ on:
       - 'docs/runbooks/trnm-settlement-operations-v1.md'
       - 'docs/status/settlement-runtime-v1.json'
       - 'docs/status/settlement-runtime-v1.schema.json'
+      - 'docs/status/settlement-cex-component-lock-v1.json'
+      - 'docs/status/settlement-cex-component-lock-v1.schema.json'
       - 'scripts/check-trnm-settlement-runtime-status.py'
       - 'scripts/test-trnm-settlement-runtime-status-negative.py'
+      - 'scripts/check-trnm-settlement-cex-component-lock.py'
+      - 'scripts/test-trnm-settlement-cex-component-lock-negative.py'
       - 'scripts/check-trnm-settlement-transaction-boundary.sh'
       - 'scripts/check_trnm_settlement_transaction_boundary.sh'
       - 'trillionnium/crates/trnm-game-server/migrations/0016_online_settlement_outbox_v1.sql'
@@ -24,6 +29,7 @@ on:
       - 'trillionnium/crates/trnm-game-server/src/cex.rs'
       - 'trillionnium/crates/trnm-game-server/src/settlement_worker.rs'
       - 'trillionnium/crates/trnm-game-server/src/signer_protocol.rs'
+      - 'trillionnium/crates/trnm-game-server/tests/settlement_capture_commit_boundary.rs'
       - 'trillionnium/crates/trnm-game-server/tests/settlement_database_contract.rs'
       - 'trillionnium/crates/trnm-game-server/tests/settlement_fault_model.rs'
       - 'trillionnium/crates/trnm-game-server/tests/settlement_remote_identity_contract.rs'
@@ -33,6 +39,7 @@ on:
     branches:
       - fix/world-settlement-fencing-v1
       - fix/world-settlement-recovery-v1
+      - fix/world-settlement-cex-component-lock-v1
     paths:
       - '.github/workflows/trnm-settlement-fencing.yml'
       - 'docs/development/trnm-settlement-outbox-v1.md'
@@ -40,8 +47,12 @@ on:
       - 'docs/runbooks/trnm-settlement-operations-v1.md'
       - 'docs/status/settlement-runtime-v1.json'
       - 'docs/status/settlement-runtime-v1.schema.json'
+      - 'docs/status/settlement-cex-component-lock-v1.json'
+      - 'docs/status/settlement-cex-component-lock-v1.schema.json'
       - 'scripts/check-trnm-settlement-runtime-status.py'
       - 'scripts/test-trnm-settlement-runtime-status-negative.py'
+      - 'scripts/check-trnm-settlement-cex-component-lock.py'
+      - 'scripts/test-trnm-settlement-cex-component-lock-negative.py'
       - 'scripts/check-trnm-settlement-transaction-boundary.sh'
       - 'scripts/check_trnm_settlement_transaction_boundary.sh'
       - 'trillionnium/crates/trnm-game-server/migrations/0016_online_settlement_outbox_v1.sql'
@@ -51,6 +62,7 @@ on:
       - 'trillionnium/crates/trnm-game-server/src/cex.rs'
       - 'trillionnium/crates/trnm-game-server/src/settlement_worker.rs'
       - 'trillionnium/crates/trnm-game-server/src/signer_protocol.rs'
+      - 'trillionnium/crates/trnm-game-server/tests/settlement_capture_commit_boundary.rs'
       - 'trillionnium/crates/trnm-game-server/tests/settlement_database_contract.rs'
       - 'trillionnium/crates/trnm-game-server/tests/settlement_fault_model.rs'
       - 'trillionnium/crates/trnm-game-server/tests/settlement_remote_identity_contract.rs'
@@ -152,6 +164,8 @@ jobs:
         run: cargo test -p trnm-game-server --test settlement_worker_contract --locked
       - name: Settlement fault model
         run: cargo test -p trnm-game-server --test settlement_fault_model --locked
+      - name: PostgreSQL capture commit boundary
+        run: cargo test -p trnm-game-server --test settlement_capture_commit_boundary --locked
       - name: PostgreSQL identity and lease contract
         run: cargo test -p trnm-game-server --test settlement_database_contract --locked
       - name: PostgreSQL account serialization contract
