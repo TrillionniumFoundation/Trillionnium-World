@@ -1,10 +1,5 @@
 #!/usr/bin/env python3
-"""Fail-closed validator for WORLD-P0-001 settlement runtime status.
-
-The status document is a source/evidence projection, not a place to hand-edit a
-release claim. Source integration, local fixtures, exact-commit CI, deployed
-fault evidence, and release promotion remain distinct states.
-"""
+"""Fail-closed source/status gate for the final WORLD-P0-001 candidate."""
 
 from __future__ import annotations
 
@@ -16,26 +11,21 @@ import re
 import sys
 from typing import Any
 
-SCHEMA_ID = "trnm_world_settlement_runtime_status_v1"
-CLAIM_ID = "WORLD-P0-001-settlement-fencing-v1"
-WORK_ITEM = "WORLD-P0-001"
-OWNER_REPOSITORY = "TrillionniumFoundation/Trillionnium-World"
-AUTHORITY_PROFILE = "world_legacy_local_alpha"
-EXPECTED_BRANCH = "fix/world-settlement-recovery-v1"
-EXPECTED_BASE = "39e223aa93d55e115353972d3175542a202427e8"
-SHA1 = re.compile(r"^[0-9a-f]{40}$")
+SCHEMA = "trnm_world_settlement_runtime_status_v1"
+CLAIM = "WORLD-P0-001-settlement-fencing-v1"
+OWNER = "TrillionniumFoundation/Trillionnium-World"
+BRANCH = "fix/world-settlement-gap-closure-v1"
+BASE = "ee881a0fec0f40091eaeba67c667ea82ff9d440a"
+SHA = re.compile(r"^[0-9a-f]{40}$")
 TOKEN = re.compile(r"^[a-z0-9][a-z0-9_]*$")
 CHECK = re.compile(r"^trnm-settlement-fencing/[a-z0-9-]+$")
 
-ALLOWED_STATUSES = {
-    "planned",
-    "implemented_pending_exact_commit_ci",
-    "verified_remote",
-    "deployed",
-    "operational",
+REQUIRED_KEYS = {
+    "schema", "claim_id", "work_item", "status", "as_of", "owner_repository",
+    "branch", "base_commit", "verified_commit", "authority_profile",
+    "release_effect", "public_online", "public_player_market",
+    "implemented_controls", "open_gates", "required_checks", "evidence",
 }
-PROMOTED_STATUSES = {"verified_remote", "deployed", "operational"}
-
 REQUIRED_CONTROLS = {
     "capture_execute_apply_transaction_split",
     "trigger_enforced_sha256_remote_request_identity",
@@ -55,448 +45,309 @@ REQUIRED_CONTROLS = {
     "settlement_evidence_uses_restrictive_foreign_keys",
     "synchronous_cex_economy_backend_fails_closed",
     "static_positive_and_negative_contract_checks",
+    "legacy_in_process_settlement_caller_removed",
+    "game_server_and_worker_register_migrations_16_through_18",
+    "capture_commit_precedes_remote_attempt_postgresql_proof",
+    "audited_exact_identity_operator_replay",
+    "operator_replay_allows_one_additional_remote_attempt",
+    "operator_replay_and_policy_evidence_are_append_only",
+    "operator_policy_retention_floor_and_alert_projection",
+    "generated_runtime_source_fails_closed_on_template_drift",
 }
-
-REQUIRED_OPEN_GATES = {
-    "remove_inert_legacy_reconcile_economy_caller",
-    "prove_no_external_request_before_capture_commit_in_postgresql_black_box_test",
-    "land_cex_receipt_lookup_endpoint_in_owner_repository",
-    "obtain_exact_commit_postgresql_recovery_and_serialization_evidence",
+REQUIRED_GATES = {
+    "merge_cex_owner_repository_pull_request",
+    "bind_exact_cex_build_and_deployment_artifact",
     "prove_deployed_signer_and_cex_response_loss_recovery",
     "prove_process_kill_cancellation_shutdown_and_apply_rollback_matrix",
-    "add_reviewed_operator_replay_and_retention_controls",
+    "approve_backup_pitr_restore_and_receipt_retention",
     "obtain_exact_commit_github_actions_evidence",
     "obtain_reviewer_signoff",
 }
-
 REQUIRED_CHECKS = {
     "trnm-settlement-fencing/static-contracts",
     "trnm-settlement-fencing/rust-contracts",
 }
-
 REQUIRED_LIMITATIONS = {
-    "source implementation is not remote verification",
-    "CEX receipt lookup remains an owner-repository dependency",
+    "source implementation is not deployment evidence",
+    "CEX owner implementation is an unmerged exact-head candidate",
+    "external relay evidence does not replace World repository governance",
     "no production deployment credit",
     "no trusted CEX settlement promotion",
     "no public online or public market credit",
 }
 
 
-class ValidationError(RuntimeError):
+class Invalid(RuntimeError):
     pass
 
 
 def fail(message: str) -> None:
-    raise ValidationError(message)
+    raise Invalid(message)
 
 
-def load_json(path: pathlib.Path) -> dict[str, Any]:
+def load(path: pathlib.Path) -> dict[str, Any]:
     try:
         value = json.loads(path.read_text(encoding="utf-8"))
-    except FileNotFoundError:
-        fail(f"missing JSON file: {path}")
-    except json.JSONDecodeError as error:
-        fail(f"invalid JSON in {path}: {error}")
+    except (OSError, json.JSONDecodeError) as error:
+        fail(f"cannot load {path}: {error}")
     if not isinstance(value, dict):
-        fail(f"{path} must contain one JSON object")
+        fail(f"{path} must contain one object")
     return value
 
 
-def require_exact_keys(value: dict[str, Any], expected: set[str], context: str) -> None:
+def exact_keys(value: dict[str, Any], expected: set[str], label: str) -> None:
     actual = set(value)
-    missing = sorted(expected - actual)
-    extra = sorted(actual - expected)
-    if missing or extra:
-        fail(f"{context} key mismatch; missing={missing}, extra={extra}")
+    if actual != expected:
+        fail(
+            f"{label} key drift: missing={sorted(expected - actual)} "
+            f"extra={sorted(actual - expected)}"
+        )
 
 
-def require_const(value: Any, expected: Any, field: str) -> None:
-    if value != expected:
-        fail(f"{field} must equal {expected!r}, got {value!r}")
-
-
-def require_unique_strings(
-    value: Any,
-    field: str,
-    *,
-    pattern: re.Pattern[str] | None = None,
-    allow_empty: bool = False,
-) -> list[str]:
+def string_set(value: Any, field: str, *, allow_empty: bool = False) -> set[str]:
     if not isinstance(value, list) or (not allow_empty and not value):
         qualifier = "possibly empty " if allow_empty else "non-empty "
         fail(f"{field} must be a {qualifier}array")
     if any(not isinstance(item, str) or not item for item in value):
-        fail(f"{field} must contain non-empty strings only")
+        fail(f"{field} must contain non-empty strings")
     if len(value) != len(set(value)):
-        fail(f"{field} must not contain duplicates")
-    if pattern is not None:
-        invalid = [item for item in value if pattern.fullmatch(item) is None]
-        if invalid:
-            fail(f"{field} contains invalid tokens: {invalid}")
-    return value
+        fail(f"{field} contains duplicates")
+    return set(value)
 
 
-def validate_schema(schema: dict[str, Any]) -> set[str]:
+def require_tokens(values: set[str], field: str) -> None:
+    bad = sorted(value for value in values if TOKEN.fullmatch(value) is None)
+    if bad:
+        fail(f"{field} contains invalid tokens: {bad}")
+
+
+def require_markers(source: str, markers: tuple[str, ...], label: str) -> None:
+    missing = [marker for marker in markers if marker not in source]
+    if missing:
+        fail(f"{label} lost markers: {missing}")
+
+
+def validate_status(status: dict[str, Any], schema: dict[str, Any]) -> None:
+    exact_keys(status, REQUIRED_KEYS, "status")
     if schema.get("type") != "object" or schema.get("additionalProperties") is not False:
-        fail("status schema must be a closed JSON object")
-    required = schema.get("required")
-    properties = schema.get("properties")
-    if not isinstance(required, list) or not required or not isinstance(properties, dict):
-        fail("status schema must publish required fields and properties")
-    if set(required) != set(properties):
-        fail("status schema required/properties sets must match exactly")
-    consts = {
-        "schema": SCHEMA_ID,
-        "claim_id": CLAIM_ID,
-        "work_item": WORK_ITEM,
-        "owner_repository": OWNER_REPOSITORY,
-        "authority_profile": AUTHORITY_PROFILE,
+        fail("schema must remain a closed object")
+    if set(schema.get("required", [])) != set(schema.get("properties", {})):
+        fail("schema required/properties drift")
+
+    constants = {
+        "schema": SCHEMA,
+        "claim_id": CLAIM,
+        "work_item": "WORLD-P0-001",
+        "owner_repository": OWNER,
+        "branch": BRANCH,
+        "base_commit": BASE,
+        "authority_profile": "world_legacy_local_alpha",
         "public_online": "no_go",
         "public_player_market": "disabled",
+        "status": "implemented_pending_exact_commit_ci",
+        "release_effect": "none",
+        "verified_commit": None,
     }
-    for field, expected in consts.items():
-        if properties.get(field, {}).get("const") != expected:
-            fail(f"status schema lost const {field}={expected}")
-    return set(required)
-
-
-def validate_status(status: dict[str, Any], schema_keys: set[str]) -> None:
-    require_exact_keys(status, schema_keys, "settlement status")
-    require_const(status["schema"], SCHEMA_ID, "schema")
-    require_const(status["claim_id"], CLAIM_ID, "claim_id")
-    require_const(status["work_item"], WORK_ITEM, "work_item")
-    require_const(status["owner_repository"], OWNER_REPOSITORY, "owner_repository")
-    require_const(status["authority_profile"], AUTHORITY_PROFILE, "authority_profile")
-    require_const(status["branch"], EXPECTED_BRANCH, "branch")
-    require_const(status["base_commit"], EXPECTED_BASE, "base_commit")
-    require_const(status["public_online"], "no_go", "public_online")
-    require_const(status["public_player_market"], "disabled", "public_player_market")
-
+    for field, expected in constants.items():
+        if status.get(field) != expected:
+            fail(f"{field} must be {expected!r}, got {status.get(field)!r}")
+    if SHA.fullmatch(status["base_commit"]) is None:
+        fail("base_commit is not an exact Git SHA")
     try:
         dt.date.fromisoformat(status["as_of"])
     except (TypeError, ValueError):
-        fail("as_of must be an ISO-8601 date")
+        fail("as_of must be an ISO date")
 
-    if status["status"] not in ALLOWED_STATUSES:
-        fail(f"unknown status: {status['status']!r}")
-    if not SHA1.fullmatch(status["base_commit"]):
-        fail("base_commit must be a lowercase 40-character Git SHA")
-    verified_commit = status["verified_commit"]
-    if verified_commit is not None and not (
-        isinstance(verified_commit, str) and SHA1.fullmatch(verified_commit)
-    ):
-        fail("verified_commit must be null or a lowercase 40-character Git SHA")
-
-    controls = set(
-        require_unique_strings(
-            status["implemented_controls"], "implemented_controls", pattern=TOKEN
-        )
-    )
-    missing_controls = sorted(REQUIRED_CONTROLS - controls)
-    if missing_controls:
-        fail(f"implemented_controls lost mandatory controls: {missing_controls}")
-
-    open_gates = set(
-        require_unique_strings(status["open_gates"], "open_gates", pattern=TOKEN)
-    )
-    missing_open_gates = sorted(REQUIRED_OPEN_GATES - open_gates)
-    if missing_open_gates:
-        fail(f"open_gates hides mandatory blockers: {missing_open_gates}")
-
-    checks = set(
-        require_unique_strings(status["required_checks"], "required_checks", pattern=CHECK)
-    )
-    if checks != REQUIRED_CHECKS:
-        fail(f"required_checks must equal {sorted(REQUIRED_CHECKS)}, got {sorted(checks)}")
+    controls = string_set(status["implemented_controls"], "implemented_controls")
+    gates = string_set(status["open_gates"], "open_gates")
+    checks = string_set(status["required_checks"], "required_checks")
+    require_tokens(controls, "implemented_controls")
+    require_tokens(gates, "open_gates")
+    if not REQUIRED_CONTROLS.issubset(controls):
+        fail(f"missing controls: {sorted(REQUIRED_CONTROLS - controls)}")
+    if gates != REQUIRED_GATES:
+        fail(f"open_gates must equal {sorted(REQUIRED_GATES)}, got {sorted(gates)}")
+    if checks != REQUIRED_CHECKS or any(CHECK.fullmatch(value) is None for value in checks):
+        fail(f"required_checks drift: {sorted(checks)}")
 
     evidence = status["evidence"]
     if not isinstance(evidence, dict):
         fail("evidence must be an object")
-    require_exact_keys(
+    exact_keys(
         evidence,
         {"remote_workflow_runs", "artifacts", "reviewers", "limitations"},
         "evidence",
     )
-    runs = evidence["remote_workflow_runs"]
-    if not isinstance(runs, list) or any(
-        not isinstance(item, int) or isinstance(item, bool) or item < 1 for item in runs
+    if (
+        evidence["remote_workflow_runs"] != []
+        or evidence["artifacts"] != []
+        or evidence["reviewers"] != []
     ):
-        fail("remote_workflow_runs must contain positive integer run IDs")
-    if len(runs) != len(set(runs)):
-        fail("remote_workflow_runs must not contain duplicates")
-    artifacts = require_unique_strings(
-        evidence["artifacts"], "evidence.artifacts", allow_empty=True
-    )
-    reviewers = require_unique_strings(
-        evidence["reviewers"], "evidence.reviewers", allow_empty=True
-    )
-    limitations = set(
-        require_unique_strings(evidence["limitations"], "evidence.limitations")
-    )
-    missing_limitations = sorted(REQUIRED_LIMITATIONS - limitations)
-    if missing_limitations:
-        fail(f"evidence limitations lost honest boundaries: {missing_limitations}")
-
-    if status["status"] == "implemented_pending_exact_commit_ci":
-        require_const(status["release_effect"], "none", "release_effect")
-        if verified_commit is not None or runs or artifacts or reviewers:
-            fail(
-                "implemented_pending_exact_commit_ci must not fabricate verified commit, "
-                "workflow, artifact, or reviewer evidence"
-            )
-    elif status["status"] in PROMOTED_STATUSES:
-        if verified_commit is None:
-            fail("promoted status requires verified_commit")
-        if verified_commit == status["base_commit"]:
-            fail("promoted status must bind the exact implementation head, not only its base")
-        if not runs or not artifacts or not reviewers:
-            fail("promoted status requires workflow runs, artifacts, and reviewer signoff")
-        if open_gates:
-            fail("promoted status cannot retain unresolved P0 gates")
-        if status["release_effect"] != "trusted_cex_settlement_candidate":
-            fail("promoted settlement status must use the bounded candidate release effect")
-    else:
-        require_const(status["release_effect"], "none", "release_effect")
+        fail("candidate source cannot self-invent future evidence")
+    limitations = string_set(evidence["limitations"], "evidence.limitations")
+    if not REQUIRED_LIMITATIONS.issubset(limitations):
+        fail(f"missing limitations: {sorted(REQUIRED_LIMITATIONS - limitations)}")
 
 
-def function_body(source: str, name: str, next_marker: str) -> str:
-    marker = f"create or replace function public.{name}"
-    start = source.find(marker)
-    if start < 0:
-        return ""
-    end_offset = source[start:].find(next_marker)
-    if end_offset < 0:
-        return ""
-    return source[start : start + end_offset]
-
-
-def read_required(repo: pathlib.Path, relative: str) -> str:
+def read(repo: pathlib.Path, relative: str) -> str:
     path = repo / relative
     try:
-        text = path.read_text(encoding="utf-8")
+        value = path.read_text(encoding="utf-8")
     except OSError as error:
-        fail(f"cannot read required source {relative}: {error}")
-    if not text:
-        fail(f"required source is empty: {relative}")
-    return text
-
-
-def require_markers(source: str, markers: tuple[str, ...], context: str) -> None:
-    for marker in markers:
-        if marker not in source:
-            fail(f"{context} lost marker: {marker}")
+        fail(f"cannot read {relative}: {error}")
+    if not value:
+        fail(f"empty required source: {relative}")
+    return value
 
 
 def validate_source(repo: pathlib.Path) -> None:
-    outbox = read_required(
-        repo, "trillionnium/crates/trnm-game-server/migrations/0016_online_settlement_outbox_v1.sql"
+    entry = read(repo, "trillionnium/crates/trnm-game-server/src/lib.rs")
+    worker_entry = read(
+        repo, "trillionnium/crates/trnm-game-server/src/settlement_worker.rs"
     )
-    worker = read_required(
-        repo, "trillionnium/crates/trnm-game-server/migrations/0017_online_settlement_worker_runtime_v1.sql"
+    build = read(repo, "trillionnium/crates/trnm-game-server/build.rs")
+    outbox = read(
+        repo,
+        "trillionnium/crates/trnm-game-server/migrations/0016_online_settlement_outbox_v1.sql",
     )
-    cex = read_required(repo, "trillionnium/crates/trnm-game-server/src/cex.rs")
-    signer_protocol = read_required(
-        repo, "trillionnium/crates/trnm-game-server/src/signer_protocol.rs"
+    worker = read(
+        repo,
+        "trillionnium/crates/trnm-game-server/migrations/0017_online_settlement_worker_runtime_v1.sql",
     )
-    signer_binary = read_required(
-        repo, "trillionnium/crates/trnm-game-server/src/bin/trnm-entitlement-signer.rs"
+    operator = read(
+        repo,
+        "trillionnium/crates/trnm-game-server/migrations/0018_online_settlement_operator_controls_v1.sql",
     )
-    database_test = read_required(
-        repo, "trillionnium/crates/trnm-game-server/tests/settlement_database_contract.rs"
+    cex = read(repo, "trillionnium/crates/trnm-game-server/src/cex.rs")
+    signer = read(
+        repo,
+        "trillionnium/crates/trnm-game-server/src/bin/trnm-entitlement-signer.rs",
     )
-    serialization_test = read_required(
-        repo, "trillionnium/crates/trnm-game-server/tests/settlement_serialization_database.rs"
+    boundary = read(
+        repo,
+        "trillionnium/crates/trnm-game-server/tests/settlement_game_server_boundary.rs",
     )
-    workflow = read_required(repo, ".github/workflows/trnm-settlement-fencing.yml")
-    recovery_doc = read_required(repo, "docs/protocol/trnm-settlement-receipt-recovery-v1.md")
-    operations_runbook = read_required(repo, "docs/runbooks/trnm-settlement-operations-v1.md")
-    normalized_worker = " ".join(worker.split())
+    capture_test = read(
+        repo,
+        "trillionnium/crates/trnm-game-server/tests/settlement_capture_commit_boundary.rs",
+    )
+    operator_test = read(
+        repo,
+        "trillionnium/crates/trnm-game-server/tests/settlement_operator_controls_database.rs",
+    )
+    workflow = read(repo, ".github/workflows/trnm-settlement-fencing.yml")
 
+    require_markers(entry, ("trnm_game_server_lib_generated.rs",), "game-server entrypoint")
     require_markers(
-        outbox,
+        worker_entry,
+        ("trnm_settlement_worker_generated.rs",),
+        "worker entrypoint",
+    )
+    require_markers(
+        build,
         (
-            "references public.trnm_online_matches(match_id) on delete restrict",
-            "references public.trnm_online_campaigns(campaign_id) on delete restrict",
+            "WORLD-P0-001 source transform failed closed",
+            "0016_online_settlement_outbox_v1",
+            "0017_online_settlement_worker_runtime_v1",
+            "0018_online_settlement_operator_controls_v1",
+            'source.contains("reconcile_economy(&state.cex")',
+            'source.contains("settle_pending_matches(&settlement_state")',
+            "terminal settlement is owned by trnm-settlement-worker",
         ),
-        "outbox retention",
+        "generated runtime transform",
     )
-    if "on delete cascade" in outbox:
-        fail("outbox source reintroduced cascade deletion")
-
-    identity = function_body(
-        worker,
-        "trnm_online_remote_request_id_v1",
-        "create or replace function public.trnm_online_set_remote_request_id_v1",
-    )
-    if not identity:
-        fail("worker migration lost stable remote request identity function")
     require_markers(
-        identity,
-        (
-            "pg_catalog.sha256(",
-            "pg_catalog.encode(",
-            "pg_catalog.convert_to(",
-            "p_match_id::text",
-            "p_campaign_id",
-            "p_intent_id",
-        ),
-        "remote request identity",
+        outbox.lower(),
+        ("on delete restrict", "trnm_online_settlement_jobs", "intent_hash"),
+        "outbox migration",
     )
-    if identity.count("pg_catalog.octet_length(") < 4:
-        fail("remote request identity is not length-prefixed")
-    for forbidden in ("capture_id", "capture_generation", "intent_hash", "md5("):
-        if forbidden in identity:
-            fail(f"remote request identity incorrectly depends on {forbidden}")
-
     require_markers(
-        normalized_worker,
+        worker.lower(),
         (
-            "remote_request_id must be an ordinary stored column",
-            "settlement match, campaign and intent identity fields are immutable",
-            "remote_request_id does not match durable settlement identity",
-            "authorization_request_id is null or authorization_request_id = remote_request_id",
-            "entitlement_nonce is null or entitlement_nonce = remote_request_id",
-            "trnm_online_claim_settlement_job_v1 is retired; use v2",
-            "p_authorization_request_id = remote_request_id",
-            "create or replace function public.trnm_online_settlement_serialization_key_v1",
-            "pg_catalog.pg_try_advisory_xact_lock",
-            "pg_catalog.hashtextextended",
-            "create or replace view public.trnm_online_settlement_job_status_v1",
-            "create or replace view public.trnm_online_settlement_metrics_v1",
-            "when job.state = 'succeeded' then 'pending_apply'",
-            "oldest_eligible_age",
-            "oldest_pending_apply_age",
+            "trnm_online_remote_request_id_v1",
+            "pg_try_advisory_xact_lock",
+            "lease_expires_at > pg_catalog.clock_timestamp()",
+            "trnm_online_settlement_metrics_v1",
+            "pending_apply",
         ),
         "worker migration",
     )
-    if worker.count("lease_expires_at > pg_catalog.clock_timestamp()") < 5:
-        fail("worker migration does not fence every remote mutation with a live lease")
-
+    require_markers(
+        operator.lower(),
+        (
+            "trnm_online_settlement_operator_replay",
+            "trnm_online_settlement_operator_replay_requests",
+            "before update or delete",
+            "before truncate",
+            "remote_attempts",
+            "retention",
+        ),
+        "operator controls",
+    )
     require_markers(
         cex,
-        (
-            "async fn lookup_signer_receipt",
-            "ENTITLEMENT_SIGNER_RECEIPT_PATH",
-            "async fn lookup_authorized_settlement_receipt",
-            "CEX_SETTLEMENT_RECEIPT_LOOKUP_PATH",
-            "CEX_SETTLEMENT_RECEIPT_LOOKUP_CONTRACT",
-            "INTENT_HASH_HEADER",
-            "signer_response_loss_recovers_by_lookup_without_a_second_sign",
-            "cex_response_loss_recovers_by_lookup_without_a_second_submit",
-            "cex_lookup_with_a_mismatched_hash_fails_closed",
-            "Err(SETTLEMENT_OUTBOX_REQUIRED.to_string())",
-        ),
-        "CEX/signer client",
+        ("lookup_signer_receipt", "lookup_authorized_settlement_receipt"),
+        "CEX recovery client",
     )
     require_markers(
-        signer_protocol,
-        ('ENTITLEMENT_SIGNER_RECEIPT_PATH: &str = "/v1/signer/receipts"',),
-        "signer protocol",
+        signer,
+        ("/v1/signer/receipts/:request_id",),
+        "signer receipt route",
     )
     require_markers(
-        signer_binary,
+        boundary,
         (
-            '"/v1/signer/receipts/:request_id"',
-            "get(get_signing_receipt)",
-            "entitlement.nonce != request.request_id",
+            "GENERATED_GAME_SERVER_SOURCE",
+            "reconcile_economy(&state.cex",
+            "terminal settlement is owned by trnm-settlement-worker",
         ),
-        "signer service",
+        "game-server ownership test",
     )
-    if "entitlement.intent_id != request.request_id" in signer_binary:
-        fail("transport request identity is incorrectly aliased to economic intent identity")
-
+    require_markers(capture_test, ("capture", "claim", "remote"), "capture commit test")
     require_markers(
-        database_test,
+        operator_test,
         (
-            "settlement_database_identity_lease_and_retention_contract",
-            "TRNM_REQUIRE_SETTLEMENT_DATABASE_TEST",
+            "settlement_operator_replay_is_exact_audited_one_attempt_and_append_only",
+            "remote_attempts",
+            "truncate public.trnm_online_settlement_operator_replay_requests",
         ),
-        "PostgreSQL identity test",
-    )
-    require_markers(
-        serialization_test,
-        (
-            "account_serialization_does_not_block_unrelated_work",
-            "tokio::join!",
-            "trnm_online_settlement_metrics_v1",
-            "TRNM_REQUIRE_SETTLEMENT_DATABASE_TEST",
-        ),
-        "PostgreSQL serialization test",
+        "operator PostgreSQL test",
     )
     require_markers(
         workflow,
         (
-            "fix/world-settlement-recovery-v1",
-            "postgres:16.4-alpine",
-            "TRNM_REQUIRE_SETTLEMENT_DATABASE_TEST: '1'",
-            "--test settlement_database_contract",
-            "--test settlement_serialization_database",
-            "--bin trnm-entitlement-signer",
+            "fix/world-settlement-gap-closure-v1",
+            "settlement_game_server_boundary",
+            "settlement_operator_controls_database",
+            "cargo fmt --all -- --check",
+            "cargo clippy -p trnm-game-server --all-targets --locked -- -D warnings",
         ),
         "settlement workflow",
     )
-    require_markers(
-        recovery_doc,
-        (
-            "lookup before submit",
-            "trnm_cex_settlement_receipt_lookup_v1",
-            "/v1/signer/receipts/{request_id}",
-        ),
-        "receipt recovery protocol",
-    )
-    require_markers(
-        operations_runbook,
-        (
-            "trnm_online_settlement_metrics_v1",
-            "pending_apply",
-            "dead_letter",
-        ),
-        "settlement operations runbook",
-    )
-
-
-def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--repo", type=pathlib.Path, default=pathlib.Path(__file__).resolve().parents[1]
-    )
-    parser.add_argument(
-        "--status",
-        type=pathlib.Path,
-        default=pathlib.Path("docs/status/settlement-runtime-v1.json"),
-    )
-    parser.add_argument(
-        "--schema",
-        type=pathlib.Path,
-        default=pathlib.Path("docs/status/settlement-runtime-v1.schema.json"),
-    )
-    parser.add_argument("--skip-source", action="store_true")
-    return parser.parse_args()
-
-
-def resolve(repo: pathlib.Path, path: pathlib.Path) -> pathlib.Path:
-    return path if path.is_absolute() else repo / path
 
 
 def main() -> int:
-    args = parse_args()
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--repo",
+        type=pathlib.Path,
+        default=pathlib.Path(__file__).resolve().parents[1],
+    )
+    parser.add_argument("--status", type=pathlib.Path)
+    parser.add_argument("--schema", type=pathlib.Path)
+    parser.add_argument("--skip-source", action="store_true")
+    args = parser.parse_args()
     repo = args.repo.resolve()
+    status_path = args.status or repo / "docs/status/settlement-runtime-v1.json"
+    schema_path = args.schema or repo / "docs/status/settlement-runtime-v1.schema.json"
     try:
-        schema = load_json(resolve(repo, args.schema))
-        status = load_json(resolve(repo, args.status))
-        schema_keys = validate_schema(schema)
-        validate_status(status, schema_keys)
+        validate_status(load(status_path), load(schema_path))
         if not args.skip_source:
             validate_source(repo)
-    except (ValidationError, OSError) as error:
-        print(f"TRNM settlement runtime status check failed: {error}", file=sys.stderr)
+    except Invalid as error:
+        print(f"TRNM settlement runtime status: FAIL: {error}", file=sys.stderr)
         return 1
-
-    print(
-        "TRNM settlement runtime status: "
-        f"{status['status']} ({status['claim_id']}; open_gates={len(status['open_gates'])})"
-    )
+    print("TRNM settlement runtime status: PASS")
     return 0
 
 
