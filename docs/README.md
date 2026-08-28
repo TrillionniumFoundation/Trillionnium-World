@@ -10,6 +10,9 @@
 - External-settlement transaction decision: `adr/0002-transaction-free-external-settlement.md`
 - World match-evidence boundary: `protocol/trnm-match-evidence-commitment-v1.md`
 - Settlement outbox design: `development/trnm-settlement-outbox-v1.md`
+- Settlement PostgreSQL black-box contract: `development/trnm-settlement-database-contract-v1.md`
+- Settlement machine-readable status: `status/settlement-runtime-v1.json`
+- Settlement status schema: `status/settlement-runtime-v1.schema.json`
 - Runtime configuration: `operations/trnm-game-server-runtime-configuration.md`
 - Native release gates: `development/trnm-native-game-release-gates-v1.md`
 - Current RPG/RTS product contract: `development/trillionnium-rpg-rts-closed-loop-v1.md`
@@ -24,6 +27,8 @@
 - Online wire compatibility: `../trillionnium/crates/trnm-online-protocol`
 - World-local compatibility authority enclave: `../trillionnium/crates/trnm-game-server`
 - Settlement outbox invariant contract: `../trillionnium/tools/trnm-settlement-outbox-contract`
+- Settlement runtime worker: `../trillionnium/crates/trnm-game-server/src/settlement_worker.rs`
+- Settlement PostgreSQL contract test: `../trillionnium/crates/trnm-game-server/tests/settlement_database_contract.rs`
 
 ## Current checks
 
@@ -31,7 +36,11 @@
 - Authority ownership boundary: `../scripts/check_trnm_authority_boundary.sh`
 - Runtime configuration boundary: `../scripts/check_trnm_runtime_configuration.sh`
 - Settlement outbox contract: `../scripts/check_trnm_settlement_outbox_contract.sh`
-- Legacy settlement-debt upper bound: `../scripts/check_trnm_settlement_transaction_boundary.sh`
+- Legacy settlement-debt boundary: `../scripts/check_trnm_settlement_transaction_boundary.sh`
+- Transaction/identity/lease boundary: `../scripts/check-trnm-settlement-transaction-boundary.sh`
+- Settlement machine-status validator: `../scripts/check-trnm-settlement-runtime-status.py`
+- Settlement status negative fixtures: `../scripts/test-trnm-settlement-runtime-status-negative.py`
+- Exact-head settlement workflow: `../.github/workflows/trnm-settlement-fencing.yml`
 
 ## Historical material
 
