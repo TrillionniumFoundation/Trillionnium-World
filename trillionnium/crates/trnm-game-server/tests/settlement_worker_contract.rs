@@ -20,10 +20,12 @@ fn capture_claim_and_apply_are_persisted_as_separate_contracts() {
         "terminal_identity_hash text not null",
         "campaign_fences_json jsonb not null",
         "head_intent_ids_json jsonb not null",
+        "create or replace function public.trnm_online_remote_request_id_v1",
         "create or replace function public.trnm_online_claim_settlement_job_v2",
         "for update of job skip locked",
         "create or replace function public.trnm_online_complete_settlement_job_v1",
         "campaign_applied_at timestamptz",
+        "create or replace view public.trnm_online_settlement_job_status_v1",
     ] {
         assert!(sql.contains(required), "missing settlement contract: {required}");
     }
@@ -33,30 +35,49 @@ fn capture_claim_and_apply_are_persisted_as_separate_contracts() {
 fn remote_retries_reuse_stable_authorization_material() {
     let sql = normalized(WORKER_MIGRATION);
     for required in [
-        "authorization_request_id = coalesce(job.authorization_request_id, job.job_id)",
+        "authorization_request_id = coalesce( job.authorization_request_id, job.remote_request_id )",
         "entitlement_issued_at_epoch = coalesce",
         "entitlement_expires_at_epoch = coalesce",
-        "entitlement_nonce = coalesce(job.entitlement_nonce, job.job_id)",
+        "entitlement_nonce = coalesce(job.entitlement_nonce, job.remote_request_id)",
+        "p_authorization_request_id = remote_request_id",
+        "authorization_request_id is null or authorization_request_id = remote_request_id",
+        "entitlement_nonce is null or entitlement_nonce = remote_request_id",
         "authorized_intent_json = p_authorized_intent_json",
         "signer_receipt_hash = p_signer_receipt_hash",
         "remote_attempts = remote_attempts + 1",
     ] {
         assert!(sql.contains(required), "missing stable retry material: {required}");
     }
+    assert!(!sql.contains(
+        "authorization_request_id = coalesce(job.authorization_request_id, job.job_id)"
+    ));
+    assert!(!sql.contains("entitlement_nonce = coalesce(job.entitlement_nonce, job.job_id)"));
     assert!(CEX_SOURCE.contains("stable_entitlement_id(authorization_request_id)"));
     assert!(CEX_SOURCE.contains("signed.request_id != authorization_request_id"));
     assert!(CEX_SOURCE.contains("request_hash != signed.request_hash"));
 }
 
 #[test]
-fn stale_workers_cannot_complete_or_retry_another_lease() {
+fn stale_or_expired_workers_cannot_mutate_another_lease() {
     let sql = normalized(WORKER_MIGRATION);
-    let lease_fence = "state = 'leased' and lease_owner = p_owner and lease_generation = p_lease_generation";
+    let lease_fence = "state = 'leased' and lease_owner = p_owner and lease_generation = p_lease_generation and lease_expires_at > pg_catalog.clock_timestamp()";
     assert!(
-        sql.matches(lease_fence).count() >= 4,
-        "completion/retry/dead-letter/authorization must all share the lease fence"
+        sql.matches(lease_fence).count() >= 5,
+        "authorization/attempt/completion/retry/dead-letter must all share the live lease fence"
     );
-    assert!(sql.contains("lease_expires_at > pg_catalog.clock_timestamp()"));
+}
+
+#[test]
+fn durable_identity_fields_cannot_be_rebound() {
+    let sql = normalized(WORKER_MIGRATION);
+    for required in [
+        "settlement match, campaign and intent identity fields are immutable",
+        "remote_request_id does not match durable settlement identity",
+        "before update of match_id, campaign_id, intent_id, remote_request_id",
+        "errcode = '23514'",
+    ] {
+        assert!(sql.contains(required), "missing immutable identity fence: {required}");
+    }
 }
 
 #[test]
