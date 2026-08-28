@@ -206,24 +206,24 @@ async fn account_serialization_does_not_block_unrelated_work() {
     let account_b =
         insert_match_campaign_job(&pool, 3, "campaign-b", "account-b", "intent-b").await;
 
-    let (first, second) = tokio::join!(claim(&pool, "worker-a"), claim(&pool, "worker-b"));
-    let first = first.expect("first worker must claim work");
-    let second = second.expect("second worker must claim unrelated work");
-    let claimed = [first.0.clone(), second.0.clone()];
-    assert!(claimed.contains(&account_b));
-    let same_account_claims = claimed
-        .iter()
-        .filter(|job| {
-            job.as_str() == account_a_first.as_str()
-                || job.as_str() == account_a_second.as_str()
-        })
-        .count();
-    assert_eq!(same_account_claims, 1);
-    assert_ne!(first.2, second.2);
+    let account_a_lease = claim(&pool, "worker-a")
+        .await
+        .expect("oldest account-a job must be claimable");
+    assert_eq!(account_a_lease.0, account_a_first);
+    assert_eq!(account_a_lease.2, "account-a");
 
-    assert_eq!(claim(&pool, "worker-c").await, None);
+    let (second, third) = tokio::join!(claim(&pool, "worker-b"), claim(&pool, "worker-c"));
+    let claimed_unrelated = [second, third]
+        .into_iter()
+        .flatten()
+        .collect::<Vec<_>>();
+    assert_eq!(claimed_unrelated.len(), 1);
+    assert_eq!(claimed_unrelated[0].0, account_b);
+    assert_eq!(claimed_unrelated[0].2, "account-b");
+    assert_ne!(claimed_unrelated[0].0, account_a_second);
 
-    let account_a_lease = if first.2 == "account-a" { first } else { second };
+    assert_eq!(claim(&pool, "worker-d").await, None);
+
     sqlx::query::query(
         "update public.trnm_online_settlement_jobs
             set lease_expires_at = clock_timestamp() - interval '1 second'
@@ -234,15 +234,16 @@ async fn account_serialization_does_not_block_unrelated_work() {
     .await
     .unwrap();
 
-    let reclaimed = claim(&pool, "worker-c")
+    let reclaimed = claim(&pool, "worker-d")
         .await
         .expect("expired account lease must become recoverable");
+    assert_eq!(reclaimed.0, account_a_lease.0);
     assert_eq!(reclaimed.2, "account-a");
     assert!(reclaimed.1 > account_a_lease.1);
 
     let completed = sqlx::query_scalar::query_scalar::<_, bool>(
         "select public.trnm_online_complete_settlement_job_v1(
-            $1, 'worker-c', $2, 'receipt-a', $3, $4, null
+            $1, 'worker-d', $2, 'receipt-a', $3, $4, null
          )",
     )
     .bind(&reclaimed.0)
@@ -253,7 +254,7 @@ async fn account_serialization_does_not_block_unrelated_work() {
     .await
     .unwrap();
     assert!(completed);
-    assert_eq!(claim(&pool, "worker-d").await, None);
+    assert_eq!(claim(&pool, "worker-e").await, None);
 
     let metrics = sqlx::query::query(
         "select remote_succeeded, pending_apply, remote_leased,
@@ -278,9 +279,9 @@ async fn account_serialization_does_not_block_unrelated_work() {
     .await
     .unwrap();
 
-    let next_account_a = claim(&pool, "worker-d")
+    let next_account_a = claim(&pool, "worker-e")
         .await
         .expect("next account job must become eligible after application");
+    assert_eq!(next_account_a.0, account_a_second);
     assert_eq!(next_account_a.2, "account-a");
-    assert_ne!(next_account_a.0, reclaimed.0);
 }
