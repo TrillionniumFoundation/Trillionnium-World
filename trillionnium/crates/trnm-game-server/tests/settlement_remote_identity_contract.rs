@@ -1,5 +1,6 @@
 //! Static P0 contract coverage for remote settlement identity, lease fencing,
-//! evidence retention, and operator-visible two-phase completion semantics.
+//! account/campaign serialization, evidence retention, and operator-visible
+//! two-phase completion semantics.
 
 const OUTBOX_MIGRATION: &str =
     include_str!("../migrations/0016_online_settlement_outbox_v1.sql");
@@ -186,6 +187,31 @@ fn every_remote_mutation_requires_a_live_lease() {
 }
 
 #[test]
+fn account_or_campaign_serialization_is_explicit_and_bounded() {
+    let sql = normalized(WORKER_MIGRATION);
+    let serialization = normalized(function_body(
+        WORKER_MIGRATION,
+        "trnm_online_settlement_serialization_key_v1",
+        "create index if not exists idx_trnm_online_settlement_job_serialization",
+    ));
+    let claim = normalized(function_body(
+        WORKER_MIGRATION,
+        "trnm_online_claim_settlement_job_v2",
+        "create or replace function public.trnm_online_store_settlement_authorization_v1",
+    ));
+
+    assert!(serialization.contains("p_intent_json #>> '{actors,0,account_id}'"));
+    assert!(serialization.contains("'campaign:' || p_campaign_id"));
+    assert!(claim.contains("pg_catalog.pg_try_advisory_xact_lock("));
+    assert!(claim.contains("pg_catalog.hashtextextended("));
+    assert!(claim.contains("blocker.state = 'succeeded'"));
+    assert!(claim.contains("blocker.state = 'leased'"));
+    assert!(claim.contains("blocker.lease_expires_at > pg_catalog.clock_timestamp()"));
+    assert!(claim.contains("for update of job skip locked"));
+    assert!(claim.contains("limit 16"));
+}
+
+#[test]
 fn remote_success_and_campaign_application_are_never_aliased() {
     let sql = normalized(WORKER_MIGRATION);
     assert!(sql.contains(
@@ -197,4 +223,24 @@ fn remote_success_and_campaign_application_are_never_aliased() {
         "when job.campaign_applied_at is not null then 'applied'"
     ));
     assert!(sql.contains("when job.state = 'dead_letter' then 'blocked'"));
+}
+
+#[test]
+fn operator_metrics_expose_backlog_age_and_pending_apply() {
+    let sql = normalized(WORKER_MIGRATION);
+    for required in [
+        "create or replace view public.trnm_online_settlement_metrics_v1",
+        "remote_pending",
+        "remote_leased",
+        "remote_retryable",
+        "remote_succeeded",
+        "remote_dead_letter",
+        "pending_apply",
+        "expired_leases",
+        "oldest_eligible_age",
+        "oldest_pending_apply_age",
+        "maximum_remote_attempts",
+    ] {
+        assert!(sql.contains(required), "missing operator metric: {required}");
+    }
 }
