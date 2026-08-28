@@ -1,0 +1,37 @@
+{
+  "schema": "trnm_world_main_governance_status_v1",
+  "as_of": "2026-08-29",
+  "repository": "TrillionniumFoundation/Trillionnium-World",
+  "default_branch": "main",
+  "source_controls": {
+    "codeowners_present": true,
+    "codeowner_principals": [
+      "Tomasrgbsf"
+    ],
+    "required_check_registry_present": true,
+    "governance_workflow_present": true
+  },
+  "server_controls": {
+    "ruleset_observed": false,
+    "branch_protection_observed": false,
+    "required_checks_observed": [],
+    "enforce_admins_observed": false,
+    "code_owner_review_observed": false
+  },
+  "status": "source_ready_server_controls_unverified",
+  "release_effect": "none",
+  "public_online": false,
+  "open_gates": [
+    "create_or_verify_main_ruleset",
+    "require_current_exact_named_checks",
+    "require_code_owner_review",
+    "enforce_rules_for_administrators",
+    "disable_force_push_and_branch_deletion",
+    "obtain_server_side_governance_snapshot"
+  ],
+  "evidence": {
+    "ruleset_ids": [],
+    "snapshot_sha256": null,
+    "reviewers": []
+  }
+}
