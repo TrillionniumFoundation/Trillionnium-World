@@ -39,7 +39,7 @@ PROMOTED_STATUSES = {"verified_remote", "deployed", "operational"}
 
 REQUIRED_CONTROLS = {
     "capture_execute_apply_transaction_split",
-    "generated_sha256_remote_request_identity",
+    "trigger_enforced_sha256_remote_request_identity",
     "stable_remote_request_identity_excludes_capture_generation",
     "authorization_and_entitlement_nonce_bind_remote_request_identity",
     "authorization_attempt_completion_retry_and_dead_letter_require_live_lease",
@@ -257,6 +257,17 @@ def validate_status(status: dict[str, Any], schema_keys: set[str]) -> None:
         require_const(status["release_effect"], "none", "release_effect")
 
 
+def function_body(source: str, name: str, next_marker: str) -> str:
+    marker = f"create or replace function public.{name}"
+    start = source.find(marker)
+    if start < 0:
+        return ""
+    end_offset = source[start:].find(next_marker)
+    if end_offset < 0:
+        return ""
+    return source[start : start + end_offset]
+
+
 def validate_source(repo: pathlib.Path) -> None:
     outbox = (
         repo
@@ -269,6 +280,7 @@ def validate_source(repo: pathlib.Path) -> None:
     cex = (repo / "trillionnium/crates/trnm-game-server/src/cex.rs").read_text(
         encoding="utf-8"
     )
+    normalized_worker = " ".join(worker.split())
 
     required_outbox = {
         "references public.trnm_online_matches(match_id) on delete restrict",
@@ -280,23 +292,20 @@ def validate_source(repo: pathlib.Path) -> None:
     if "on delete cascade" in outbox:
         fail("outbox source reintroduced cascade deletion")
 
-    identity_start = worker.find(
-        "add column if not exists remote_request_id text generated always as"
+    identity = function_body(
+        worker,
+        "trnm_online_remote_request_id_v1",
+        "create or replace function public.trnm_online_set_remote_request_id_v1",
     )
-    identity_end = worker.find(
-        "add column if not exists authorization_request_id", identity_start
-    )
-    if identity_start < 0 or identity_end < 0:
-        fail("worker migration lost generated stable remote request identity")
-    identity = worker[identity_start:identity_end]
+    if not identity:
+        fail("worker migration lost stable remote request identity function")
     for marker in (
         "pg_catalog.sha256(",
         "pg_catalog.encode(",
         "pg_catalog.convert_to(",
-        "match_id::text",
-        "campaign_id",
-        "intent_id",
-        "remote_request_id must be a stored generated column",
+        "p_match_id::text",
+        "p_campaign_id",
+        "p_intent_id",
     ):
         if marker not in identity:
             fail(f"remote request identity lost {marker}")
@@ -307,12 +316,19 @@ def validate_source(repo: pathlib.Path) -> None:
             fail(f"remote request identity incorrectly depends on {forbidden}")
 
     for marker in (
+        "add column if not exists remote_request_id text",
+        "remote_request_id must be an ordinary stored column",
+        "set remote_request_id = public.trnm_online_remote_request_id_v1(",
+        "alter column remote_request_id set not null",
+        "message = 'remote_request_id does not match durable settlement identity'",
+        "create trigger trnm_online_settlement_remote_id_insert_v1 before insert",
+        "create trigger trnm_online_settlement_remote_id_update_v1 before update of match_id, campaign_id, intent_id, remote_request_id",
         "trnm_online_claim_settlement_job_v1 is retired; use v2",
         "p_authorization_request_id = remote_request_id",
         "create or replace view public.trnm_online_settlement_job_status_v1",
         "when job.state = 'succeeded' then 'pending_apply'",
     ):
-        if marker not in worker:
+        if marker not in normalized_worker:
             fail(f"worker migration lost P0 marker: {marker}")
     if worker.count("lease_expires_at > pg_catalog.clock_timestamp()") < 5:
         fail("worker migration does not fence every remote mutation with a live lease")
