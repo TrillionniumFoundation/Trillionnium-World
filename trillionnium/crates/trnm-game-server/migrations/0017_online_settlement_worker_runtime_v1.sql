@@ -151,6 +151,17 @@ as $function$
 declare
     expected text;
 begin
+    if tg_op = 'UPDATE'
+       and (
+           new.match_id is distinct from old.match_id
+           or new.campaign_id is distinct from old.campaign_id
+           or new.intent_id is distinct from old.intent_id
+       ) then
+        raise exception using
+            errcode = '23514',
+            message = 'settlement match, campaign and intent identity fields are immutable';
+    end if;
+
     expected := public.trnm_online_remote_request_id_v1(
         new.match_id,
         new.campaign_id,
@@ -208,6 +219,24 @@ alter table public.trnm_online_settlement_jobs
     check (
         remote_request_id ~ '^trnm-settlement-remote-v1:[0-9a-f]{64}$'
         and length(remote_request_id) <= 256
+    );
+
+alter table public.trnm_online_settlement_jobs
+    drop constraint if exists trnm_online_settlement_jobs_authorization_identity_check;
+alter table public.trnm_online_settlement_jobs
+    add constraint trnm_online_settlement_jobs_authorization_identity_check
+    check (
+        authorization_request_id is null
+        or authorization_request_id = remote_request_id
+    );
+
+alter table public.trnm_online_settlement_jobs
+    drop constraint if exists trnm_online_settlement_jobs_entitlement_nonce_identity_check;
+alter table public.trnm_online_settlement_jobs
+    add constraint trnm_online_settlement_jobs_entitlement_nonce_identity_check
+    check (
+        entitlement_nonce is null
+        or entitlement_nonce = remote_request_id
     );
 
 alter table public.trnm_online_settlement_jobs
