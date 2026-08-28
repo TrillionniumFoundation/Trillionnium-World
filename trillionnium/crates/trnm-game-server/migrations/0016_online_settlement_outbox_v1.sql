@@ -3,6 +3,10 @@
 -- Claim/apply transactions remain PostgreSQL-only. Signer and CEX calls are
 -- executed by trnm-settlement-worker after a lease has committed and before a
 -- second lease-fenced apply transaction begins.
+--
+-- Settlement rows are durable economic evidence. Upstream match/campaign
+-- deletion is therefore restricted rather than cascading through intent,
+-- receipt, retry, compensation, and dead-letter history.
 
 create table if not exists public.trnm_online_settlement_jobs (
     job_id text primary key
@@ -10,9 +14,9 @@ create table if not exists public.trnm_online_settlement_jobs (
     contract_version text not null
         check (contract_version = 'trnm_settlement_outbox_v1'),
     match_id uuid not null
-        references public.trnm_online_matches(match_id) on delete cascade,
+        references public.trnm_online_matches(match_id) on delete restrict,
     campaign_id text not null
-        references public.trnm_online_campaigns(campaign_id) on delete cascade,
+        references public.trnm_online_campaigns(campaign_id) on delete restrict,
     intent_id text not null check (btrim(intent_id) <> ''),
     intent_hash text not null check (intent_hash ~ '^[0-9a-f]{64}$'),
     expected_campaign_revision bigint not null
