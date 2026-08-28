@@ -211,8 +211,14 @@ async fn account_serialization_does_not_block_unrelated_work() {
     let second = second.expect("second worker must claim unrelated work");
     let claimed = [first.0.clone(), second.0.clone()];
     assert!(claimed.contains(&account_b));
-    assert_eq!(claimed.iter().filter(|job| **job == account_a_first).count()
-        + claimed.iter().filter(|job| **job == account_a_second).count(), 1);
+    let same_account_claims = claimed
+        .iter()
+        .filter(|job| {
+            job.as_str() == account_a_first.as_str()
+                || job.as_str() == account_a_second.as_str()
+        })
+        .count();
+    assert_eq!(same_account_claims, 1);
     assert_ne!(first.2, second.2);
 
     assert_eq!(claim(&pool, "worker-c").await, None);
