@@ -31,9 +31,12 @@ alter table public.trnm_online_settlement_jobs
 
 -- job_id remains the capture-scoped worker row identity. remote_request_id is
 -- the stable signer/CEX idempotency identity and deliberately excludes
--- capture_id/capture_generation. It is generated for every existing and future
--- row from a SHA-256 over unambiguous u32-big-endian length-prefixed UTF-8
--- components: contract domain, match ID, campaign ID, intent ID and intent hash.
+-- capture_id/capture_generation and intent_hash. It is generated for every
+-- existing and future row from a SHA-256 over unambiguous u32-big-endian
+-- length-prefixed UTF-8 components: contract domain, match ID, campaign ID and
+-- intent ID. The immutable intent_hash remains a separate payload-integrity
+-- fence, so reusing one intent ID with different bytes produces an exact remote
+-- conflict instead of silently minting a second request identity.
 -- PostgreSQL core SHA-256 is used; no optional extension is required.
 alter table public.trnm_online_settlement_jobs
     add column if not exists remote_request_id text generated always as (
@@ -77,19 +80,30 @@ alter table public.trnm_online_settlement_jobs
                     'hex'
                 )
                 || pg_catalog.convert_to(intent_id, 'UTF8')
-                || pg_catalog.decode(
-                    pg_catalog.lpad(
-                        pg_catalog.to_hex(pg_catalog.octet_length(intent_hash)),
-                        8,
-                        '0'
-                    ),
-                    'hex'
-                )
-                || pg_catalog.convert_to(intent_hash, 'UTF8')
             ),
             'hex'
         )
     ) stored;
+
+-- IF NOT EXISTS must never silently preserve a stale ordinary column left by a
+-- locally applied pre-review migration. The migration checksum already blocks
+-- changed deployed revisions; this catalogue assertion also fails closed when
+-- the DDL shape itself is wrong.
+do $function$
+begin
+    if not exists (
+        select 1
+          from pg_catalog.pg_attribute attribute
+         where attribute.attrelid =
+               'public.trnm_online_settlement_jobs'::pg_catalog.regclass
+           and attribute.attname = 'remote_request_id'
+           and attribute.attgenerated = 's'
+           and not attribute.attisdropped
+    ) then
+        raise exception 'remote_request_id must be a stored generated column';
+    end if;
+end
+$function$;
 
 alter table public.trnm_online_settlement_jobs
     add column if not exists authorization_request_id text;
