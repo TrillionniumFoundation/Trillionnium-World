@@ -53,8 +53,9 @@ from:
 - `campaign_id`;
 - `intent_id`.
 
-Its deterministic contract job ID is independent of a worker lease or capture
-generation.
+Its deterministic contract job ID is independent of a worker lease, capture
+generation, or mutable payload bytes. `intent_hash` is validated as a separate
+immutable fingerprint.
 
 ### Runtime capture row and remote request identity
 
@@ -63,24 +64,39 @@ that exact campaign revision/state-hash and terminal-publication fences remain
 reviewable per capture. That local row ID must never be used as the signer/CEX
 idempotency identity.
 
-The runtime therefore persists a separate `remote_request_id`:
+The runtime therefore stores a generated request ID:
 
 ```text
-trnm-settlement-remote-v1:
-  <match UUID>:
-  <md5(campaign_id)>:
-  <intent SHA-256>
+remote_request_id =
+  "trnm-settlement-remote-v1:" ||
+  hex(SHA-256(length_prefixed_utf8(
+    "trnm_settlement_remote_v1",
+    match_id,
+    campaign_id,
+    intent_id
+  )))
 ```
 
-`md5(campaign_id)` is only a compact namespace component; it is not treated as
-an integrity proof. The full immutable `intent_hash` is the SHA-256 binding.
-`remote_request_id` deliberately excludes `capture_id` and
-`capture_generation`, so a fresh capture after a stale local apply reuses the
-same signer/CEX request identity.
+Each component is prefixed by its unsigned 32-bit big-endian byte length. The
+preimage deliberately excludes `capture_id`, `capture_generation`, and
+`intent_hash`:
+
+- excluding capture state makes the request identity survive stale apply and
+  recapture;
+- excluding `intent_hash` ensures reusing one intent ID with changed payload
+  bytes reaches the same remote idempotency key and produces a conflict rather
+  than minting a second entitlement/request identity;
+- the full `intent_hash` remains mandatory as the independent payload-integrity
+  and receipt-binding fence.
+
+`remote_request_id` is a PostgreSQL stored generated column, so all historical
+rows are projected consistently and every future capture receives the identity
+automatically without relying on an application INSERT field. A catalogue check
+fails the migration if a stale ordinary column exists under that name.
 
 The signer authorization request ID and entitlement nonce are initialized from
 `remote_request_id`. The database rejects an authorization result whose request
-ID differs from the durable remote identity.
+ID differs from the generated remote identity.
 
 The local runtime representation is still migration debt relative to the
 standalone contract's single stable job record. A later schema normalization may
@@ -144,8 +160,8 @@ The runtime is implemented by:
 
 - `0016_online_settlement_outbox_v1.sql`—base outbox table and readiness
   predicate;
-- `0017_online_settlement_worker_runtime_v1.sql`—capture fences, stable remote
-  identity, live-lease mutation functions, and status projection;
+- `0017_online_settlement_worker_runtime_v1.sql`—capture fences, generated stable
+  remote identity, live-lease mutation functions, and status projection;
 - `trnm-settlement-worker`—bounded async signer/CEX execution outside business
   transactions;
 - `settlement_worker.rs`—capture, execute, and exact apply orchestration.
@@ -169,7 +185,8 @@ The claim transaction:
 5. initializes stable authorization/nonce material from `remote_request_id`;
 6. commits before any network call.
 
-It never calls signer or CEX.
+The retired v1 claim function fails with SQLSTATE `0A000`; only v2 may lease
+work. The claim transaction never calls signer or CEX.
 
 ## External execution
 
@@ -271,8 +288,10 @@ progression loss, or an expired worker mutation.
 - [x] Add reviewed migration and indexes.
 - [x] Add async signer/CEX clients.
 - [x] Add capture, claim, remote execution, and exact apply phases.
-- [x] Persist stable remote request identity independent of capture generation.
+- [x] Persist generated SHA-256 remote request identity independent of capture
+  generation and payload fingerprint.
 - [x] Require a live lease for every remote mutation.
+- [x] Retire the weaker v1 claim path.
 - [x] Separate remote success from campaign application in operator status.
 - [x] Prevent upstream cascade deletion of settlement evidence.
 - [x] Add static guards and focused contract tests.
