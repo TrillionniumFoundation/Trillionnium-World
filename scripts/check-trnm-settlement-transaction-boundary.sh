@@ -189,6 +189,7 @@ if mode == "full":
 
     outbox_migration = required_paths[3].read_text(encoding="utf-8")
     worker_migration = required_paths[4].read_text(encoding="utf-8")
+    normalized_worker_migration = " ".join(worker_migration.split())
     migration_source = f"{outbox_migration}\n{worker_migration}"
     for required in (
         "trnm_online_settlement_captures",
@@ -234,13 +235,28 @@ if mode == "full":
 
     for required in (
         "entitlement_nonce = coalesce(job.entitlement_nonce, job.remote_request_id)",
-        "job.authorization_request_id,\n               job.remote_request_id",
+        "authorization_request_id = coalesce( job.authorization_request_id, job.remote_request_id )",
         "p_authorization_request_id = remote_request_id",
     ):
-        if required not in worker_migration:
+        if required not in normalized_worker_migration:
             errors.append(f"stable remote retry contract lost marker: {required}")
-    if "coalesce(job.authorization_request_id, job.job_id)" in worker_migration:
+    if "coalesce(job.authorization_request_id, job.job_id)" in normalized_worker_migration:
         errors.append("capture-scoped job_id is being reused as remote request identity")
+
+    legacy_claim = sql_function(
+        worker_migration,
+        "trnm_online_claim_settlement_job_v1",
+        "create or replace function public.trnm_online_claim_settlement_job_v2",
+    )
+    normalized_legacy_claim = " ".join(legacy_claim.split())
+    for required in (
+        "errcode = '0A000'",
+        "trnm_online_claim_settlement_job_v1 is retired; use v2",
+    ):
+        if required not in normalized_legacy_claim:
+            errors.append(f"legacy v1 settlement claim is not fail-closed: {required}")
+    if "for update skip locked" in normalized_legacy_claim:
+        errors.append("legacy v1 settlement claim still leases work")
 
     lease_functions = (
         (
@@ -302,8 +318,9 @@ legacy_calls = combined_source.count("reconcile_economy(&state.cex")
 if mode == "full" and legacy_calls == 1:
     print(
         "TRNM settlement transaction-boundary check passed: capture/execute/apply, "
-        "stable remote identity, live-lease fencing and durable evidence retention "
-        "are enforced; one inert compatibility caller remains registered for deletion"
+        "stable remote identity, v1 claim retirement, live-lease fencing and durable "
+        "evidence retention are enforced; one inert compatibility caller remains "
+        "registered for deletion"
     )
 else:
     print("TRNM settlement transaction-boundary check passed")
