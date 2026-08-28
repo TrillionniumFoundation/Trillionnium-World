@@ -76,7 +76,7 @@ fn remote_request_identity_is_database_derived_and_capture_independent() {
 }
 
 #[test]
-fn insert_and_direct_update_cannot_inject_an_alternate_remote_identity() {
+fn settlement_identity_fields_and_remote_aliases_are_immutable() {
     let sql = normalized(WORKER_MIGRATION);
     let trigger = normalized(function_body(
         WORKER_MIGRATION,
@@ -84,9 +84,16 @@ fn insert_and_direct_update_cannot_inject_an_alternate_remote_identity() {
         "drop trigger if exists trnm_online_settlement_remote_id_insert_v1",
     ));
 
+    assert!(trigger.contains("tg_op = 'UPDATE'"));
+    assert!(trigger.contains("new.match_id is distinct from old.match_id"));
+    assert!(trigger.contains("new.campaign_id is distinct from old.campaign_id"));
+    assert!(trigger.contains("new.intent_id is distinct from old.intent_id"));
+    assert!(trigger.contains(
+        "message = 'settlement match, campaign and intent identity fields are immutable'"
+    ));
     assert!(trigger.contains("expected := public.trnm_online_remote_request_id_v1("));
     assert!(trigger.contains("new.remote_request_id <> expected"));
-    assert!(trigger.contains("errcode = '23514'"));
+    assert!(trigger.matches("errcode = '23514'").count() >= 2);
     assert!(trigger.contains(
         "message = 'remote_request_id does not match durable settlement identity'"
     ));
@@ -98,9 +105,17 @@ fn insert_and_direct_update_cannot_inject_an_alternate_remote_identity() {
     assert!(sql.contains(
         "create trigger trnm_online_settlement_remote_id_update_v1 before update of match_id, campaign_id, intent_id, remote_request_id"
     ));
-    assert!(sql.matches(
-        "execute function public.trnm_online_set_remote_request_id_v1()"
-    ).count() >= 2);
+    assert!(
+        sql.matches("execute function public.trnm_online_set_remote_request_id_v1()")
+            .count()
+            >= 2
+    );
+    assert!(sql.contains(
+        "authorization_request_id is null or authorization_request_id = remote_request_id"
+    ));
+    assert!(sql.contains(
+        "entitlement_nonce is null or entitlement_nonce = remote_request_id"
+    ));
 }
 
 #[test]
