@@ -640,7 +640,7 @@ impl CexClient {
                 self.authority_headers()
                     .map_err(ExternalSettlementError::Permanent)?,
             )
-            .header(INTENT_HASH_HEADER, &intent_hash)
+            .header(INTENT_HASH_HEADER, intent_hash.as_str())
             .json(&json!({"intent": authorized}))
             .send()
             .await
@@ -776,9 +776,7 @@ mod tests {
         let signature = STANDARD.encode([7_u8; 64]);
         let signing_receipt_hash = format!(
             "{:x}",
-            Sha256::digest(
-                format!("{request_hash}:mock-key:{signature}").as_bytes()
-            )
+            Sha256::digest(format!("{request_hash}:mock-key:{signature}").as_bytes())
         );
         let receipt = EntitlementSignResponse {
             contract_version: ENTITLEMENT_SIGNER_CONTRACT.to_string(),
@@ -807,16 +805,11 @@ mod tests {
         headers: HeaderMap,
         Query(query): Query<LookupQuery>,
     ) -> Response {
-        let Some(intent_hash) = headers
-            .get(INTENT_HASH_HEADER)
-            .and_then(|value| value.to_str().ok())
-        else {
+        if headers.get(INTENT_HASH_HEADER).is_none() {
             return StatusCode::BAD_REQUEST.into_response();
-        };
+        }
         let receipt = state.cex_receipt.lock().unwrap().clone();
-        match receipt.filter(|receipt| {
-            receipt.intent_id == query.intent_id && receipt.intent_hash == intent_hash
-        }) {
+        match receipt.filter(|receipt| receipt.intent_id == query.intent_id) {
             Some(receipt) => (StatusCode::OK, Json(receipt)).into_response(),
             None => StatusCode::NOT_FOUND.into_response(),
         }
