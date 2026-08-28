@@ -215,19 +215,30 @@ if mode == "full":
             )
 
     identity_start = worker_migration.find(
-        "set remote_request_id = 'trnm-settlement-remote-v1:'"
+        "add column if not exists remote_request_id text generated always as"
     )
     identity_end = worker_migration.find(
-        "where remote_request_id is null", identity_start
+        "alter table public.trnm_online_settlement_jobs\n    add column if not exists authorization_request_id",
+        identity_start,
     )
     if identity_start < 0 or identity_end < 0:
-        errors.append("settlement migration has no stable remote request identity")
+        errors.append("settlement migration has no generated stable remote request identity")
     else:
         identity = worker_migration[identity_start:identity_end]
-        for required in ("match_id::text", "md5(campaign_id)", "intent_hash"):
+        for required in (
+            "pg_catalog.sha256(",
+            "pg_catalog.encode(",
+            "pg_catalog.convert_to(",
+            "match_id::text",
+            "campaign_id",
+            "intent_id",
+            "remote_request_id must be a stored generated column",
+        ):
             if required not in identity:
                 errors.append(f"remote request identity lost binding {required}")
-        for forbidden in ("capture_id", "capture_generation"):
+        if identity.count("pg_catalog.octet_length(") < 4:
+            errors.append("remote request identity is not length-prefixed")
+        for forbidden in ("capture_id", "capture_generation", "intent_hash", "md5("):
             if forbidden in identity:
                 errors.append(
                     f"remote request identity incorrectly depends on {forbidden}"
@@ -318,9 +329,9 @@ legacy_calls = combined_source.count("reconcile_economy(&state.cex")
 if mode == "full" and legacy_calls == 1:
     print(
         "TRNM settlement transaction-boundary check passed: capture/execute/apply, "
-        "stable remote identity, v1 claim retirement, live-lease fencing and durable "
-        "evidence retention are enforced; one inert compatibility caller remains "
-        "registered for deletion"
+        "generated stable remote identity, v1 claim retirement, live-lease fencing "
+        "and durable evidence retention are enforced; one inert compatibility caller "
+        "remains registered for deletion"
     )
 else:
     print("TRNM settlement transaction-boundary check passed")
