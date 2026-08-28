@@ -7,38 +7,6 @@ on:
       - feature/world-p0-execution-v3
       - fix/world-settlement-fencing-v1
       - fix/world-settlement-recovery-v1
-    paths:
-      - '.github/workflows/trnm-settlement-fencing.yml'
-      - 'docs/development/trnm-settlement-outbox-v1.md'
-      - 'docs/protocol/trnm-settlement-receipt-recovery-v1.md'
-      - 'docs/runbooks/trnm-settlement-operations-v1.md'
-      - 'docs/status/settlement-runtime-v1.json'
-      - 'docs/status/settlement-runtime-v1.schema.json'
-      - 'docs/status/settlement-cex-component-lock-v1.json'
-      - 'docs/status/settlement-cex-component-lock-v1.schema.json'
-      - 'scripts/check-trnm-settlement-runtime-status.py'
-      - 'scripts/test-trnm-settlement-runtime-status-negative.py'
-      - 'scripts/check-trnm-settlement-cex-component-lock.py'
-      - 'scripts/test-trnm-settlement-cex-component-lock-negative.py'
-      - 'scripts/check-trnm-settlement-transaction-boundary.sh'
-      - 'scripts/check_trnm_settlement_transaction_boundary.sh'
-      - 'trillionnium/crates/trnm-game-server/migrations/0016_online_settlement_outbox_v1.sql'
-      - 'trillionnium/crates/trnm-game-server/migrations/0017_online_settlement_worker_runtime_v1.sql'
-      - 'trillionnium/crates/trnm-game-server/src/bin/trnm-entitlement-signer.rs'
-      - 'trillionnium/crates/trnm-game-server/src/bin/trnm-settlement-worker.rs'
-      - 'trillionnium/crates/trnm-game-server/src/cex.rs'
-      - 'trillionnium/crates/trnm-game-server/src/settlement_worker.rs'
-      - 'trillionnium/crates/trnm-game-server/src/signer_protocol.rs'
-      - 'trillionnium/crates/trnm-game-server/tests/settlement_capture_commit_boundary.rs'
-      - 'trillionnium/crates/trnm-game-server/tests/settlement_database_contract.rs'
-      - 'trillionnium/crates/trnm-game-server/tests/settlement_fault_model.rs'
-      - 'trillionnium/crates/trnm-game-server/tests/settlement_remote_identity_contract.rs'
-      - 'trillionnium/crates/trnm-game-server/tests/settlement_serialization_database.rs'
-      - 'trillionnium/crates/trnm-game-server/tests/settlement_worker_contract.rs'
-  push:
-    branches:
-      - fix/world-settlement-fencing-v1
-      - fix/world-settlement-recovery-v1
       - fix/world-settlement-cex-component-lock-v1
     paths:
       - '.github/workflows/trnm-settlement-fencing.yml'
@@ -47,24 +15,66 @@ on:
       - 'docs/runbooks/trnm-settlement-operations-v1.md'
       - 'docs/status/settlement-runtime-v1.json'
       - 'docs/status/settlement-runtime-v1.schema.json'
-      - 'docs/status/settlement-cex-component-lock-v1.json'
-      - 'docs/status/settlement-cex-component-lock-v1.schema.json'
       - 'scripts/check-trnm-settlement-runtime-status.py'
       - 'scripts/test-trnm-settlement-runtime-status-negative.py'
-      - 'scripts/check-trnm-settlement-cex-component-lock.py'
-      - 'scripts/test-trnm-settlement-cex-component-lock-negative.py'
       - 'scripts/check-trnm-settlement-transaction-boundary.sh'
       - 'scripts/check_trnm_settlement_transaction_boundary.sh'
+      - 'trillionnium/crates/trnm-game-server/Cargo.toml'
+      - 'trillionnium/crates/trnm-game-server/build.rs'
       - 'trillionnium/crates/trnm-game-server/migrations/0016_online_settlement_outbox_v1.sql'
       - 'trillionnium/crates/trnm-game-server/migrations/0017_online_settlement_worker_runtime_v1.sql'
+      - 'trillionnium/crates/trnm-game-server/migrations/0018_online_settlement_operator_controls_v1.sql'
+      - 'trillionnium/crates/trnm-game-server/src/lib.rs'
+      - 'trillionnium/crates/trnm-game-server/src/lib.rs.in'
+      - 'trillionnium/crates/trnm-game-server/src/settlement_worker.rs'
+      - 'trillionnium/crates/trnm-game-server/src/settlement_worker.rs.in'
       - 'trillionnium/crates/trnm-game-server/src/bin/trnm-entitlement-signer.rs'
       - 'trillionnium/crates/trnm-game-server/src/bin/trnm-settlement-worker.rs'
       - 'trillionnium/crates/trnm-game-server/src/cex.rs'
-      - 'trillionnium/crates/trnm-game-server/src/settlement_worker.rs'
       - 'trillionnium/crates/trnm-game-server/src/signer_protocol.rs'
       - 'trillionnium/crates/trnm-game-server/tests/settlement_capture_commit_boundary.rs'
       - 'trillionnium/crates/trnm-game-server/tests/settlement_database_contract.rs'
       - 'trillionnium/crates/trnm-game-server/tests/settlement_fault_model.rs'
+      - 'trillionnium/crates/trnm-game-server/tests/settlement_game_server_boundary.rs'
+      - 'trillionnium/crates/trnm-game-server/tests/settlement_operator_controls_database.rs'
+      - 'trillionnium/crates/trnm-game-server/tests/settlement_remote_identity_contract.rs'
+      - 'trillionnium/crates/trnm-game-server/tests/settlement_serialization_database.rs'
+      - 'trillionnium/crates/trnm-game-server/tests/settlement_worker_contract.rs'
+  push:
+    branches:
+      - fix/world-settlement-fencing-v1
+      - fix/world-settlement-recovery-v1
+      - fix/world-settlement-cex-component-lock-v1
+      - fix/world-settlement-gap-closure-v1
+    paths:
+      - '.github/workflows/trnm-settlement-fencing.yml'
+      - 'docs/development/trnm-settlement-outbox-v1.md'
+      - 'docs/protocol/trnm-settlement-receipt-recovery-v1.md'
+      - 'docs/runbooks/trnm-settlement-operations-v1.md'
+      - 'docs/status/settlement-runtime-v1.json'
+      - 'docs/status/settlement-runtime-v1.schema.json'
+      - 'scripts/check-trnm-settlement-runtime-status.py'
+      - 'scripts/test-trnm-settlement-runtime-status-negative.py'
+      - 'scripts/check-trnm-settlement-transaction-boundary.sh'
+      - 'scripts/check_trnm_settlement_transaction_boundary.sh'
+      - 'trillionnium/crates/trnm-game-server/Cargo.toml'
+      - 'trillionnium/crates/trnm-game-server/build.rs'
+      - 'trillionnium/crates/trnm-game-server/migrations/0016_online_settlement_outbox_v1.sql'
+      - 'trillionnium/crates/trnm-game-server/migrations/0017_online_settlement_worker_runtime_v1.sql'
+      - 'trillionnium/crates/trnm-game-server/migrations/0018_online_settlement_operator_controls_v1.sql'
+      - 'trillionnium/crates/trnm-game-server/src/lib.rs'
+      - 'trillionnium/crates/trnm-game-server/src/lib.rs.in'
+      - 'trillionnium/crates/trnm-game-server/src/settlement_worker.rs'
+      - 'trillionnium/crates/trnm-game-server/src/settlement_worker.rs.in'
+      - 'trillionnium/crates/trnm-game-server/src/bin/trnm-entitlement-signer.rs'
+      - 'trillionnium/crates/trnm-game-server/src/bin/trnm-settlement-worker.rs'
+      - 'trillionnium/crates/trnm-game-server/src/cex.rs'
+      - 'trillionnium/crates/trnm-game-server/src/signer_protocol.rs'
+      - 'trillionnium/crates/trnm-game-server/tests/settlement_capture_commit_boundary.rs'
+      - 'trillionnium/crates/trnm-game-server/tests/settlement_database_contract.rs'
+      - 'trillionnium/crates/trnm-game-server/tests/settlement_fault_model.rs'
+      - 'trillionnium/crates/trnm-game-server/tests/settlement_game_server_boundary.rs'
+      - 'trillionnium/crates/trnm-game-server/tests/settlement_operator_controls_database.rs'
       - 'trillionnium/crates/trnm-game-server/tests/settlement_remote_identity_contract.rs'
       - 'trillionnium/crates/trnm-game-server/tests/settlement_serialization_database.rs'
       - 'trillionnium/crates/trnm-game-server/tests/settlement_worker_contract.rs'
@@ -95,15 +105,8 @@ jobs:
           python3 -m py_compile \
             scripts/check-trnm-settlement-runtime-status.py \
             scripts/test-trnm-settlement-runtime-status-negative.py
-          python3 - <<'PY'
-          import json
-          from pathlib import Path
-          for path in (
-              Path('docs/status/settlement-runtime-v1.json'),
-              Path('docs/status/settlement-runtime-v1.schema.json'),
-          ):
-              json.loads(path.read_text(encoding='utf-8'))
-          PY
+          python3 -m json.tool docs/status/settlement-runtime-v1.json > /dev/null
+          python3 -m json.tool docs/status/settlement-runtime-v1.schema.json > /dev/null
       - name: Validate machine-readable settlement posture
         run: python3 scripts/check-trnm-settlement-runtime-status.py
       - name: Reject status overclaims
@@ -120,7 +123,7 @@ jobs:
   rust-contracts:
     name: trnm-settlement-fencing/rust-contracts
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
+    timeout-minutes: 90
     services:
       postgres:
         image: postgres:16.4-alpine
@@ -154,8 +157,10 @@ jobs:
         run: cargo metadata --locked --no-deps --format-version 1 > /dev/null
       - name: Format
         run: cargo fmt --all -- --check
-      - name: Game-server library and remote recovery contracts
-        run: cargo test -p trnm-game-server --lib --locked
+      - name: Game-server library and generated ownership contracts
+        run: |
+          cargo test -p trnm-game-server --lib --locked
+          cargo test -p trnm-game-server --test settlement_game_server_boundary --locked
       - name: Entitlement signer route and policy contracts
         run: cargo test -p trnm-game-server --bin trnm-entitlement-signer --locked
       - name: Settlement remote identity contract
@@ -170,5 +175,7 @@ jobs:
         run: cargo test -p trnm-game-server --test settlement_database_contract --locked
       - name: PostgreSQL account serialization contract
         run: cargo test -p trnm-game-server --test settlement_serialization_database --locked
+      - name: PostgreSQL operator replay and retention controls
+        run: cargo test -p trnm-game-server --test settlement_operator_controls_database --locked
       - name: Strict game-server lint
         run: cargo clippy -p trnm-game-server --all-targets --locked -- -D warnings
