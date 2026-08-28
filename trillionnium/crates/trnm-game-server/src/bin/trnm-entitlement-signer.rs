@@ -12,7 +12,7 @@ use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use sqlx::row::Row;
 use sqlx_postgres::{PgPool, PgPoolOptions};
-use std::{net::SocketAddr, path::Path, sync::Arc, time::Duration};
+use std::{net::SocketAddr, path::Path as FsPath, sync::Arc, time::Duration};
 use trnm_economy_protocol::{
     ServerSignedValueEntitlementV2, ValueEntitlementSource,
     SERVER_SIGNED_VALUE_ENTITLEMENT_V2_CONTRACT,
@@ -361,7 +361,7 @@ async fn sign_entitlement(
 }
 
 #[cfg(unix)]
-fn verify_private_key_permissions(path: &Path) -> Result<(), String> {
+fn verify_private_key_permissions(path: &FsPath) -> Result<(), String> {
     use std::os::unix::fs::PermissionsExt;
     let metadata =
         std::fs::metadata(path).map_err(|error| format!("inspect signer private seed: {error}"))?;
@@ -372,7 +372,7 @@ fn verify_private_key_permissions(path: &Path) -> Result<(), String> {
 }
 
 #[cfg(not(unix))]
-fn verify_private_key_permissions(path: &Path) -> Result<(), String> {
+fn verify_private_key_permissions(path: &FsPath) -> Result<(), String> {
     if !path.is_file() {
         return Err("signer private seed must be a regular file".to_string());
     }
@@ -401,7 +401,7 @@ async fn main() -> Result<(), String> {
     }
     let key_path = std::env::var("TRNM_ENTITLEMENT_ED25519_PRIVATE_KEY_FILE")
         .map_err(|_| "TRNM_ENTITLEMENT_ED25519_PRIVATE_KEY_FILE is required".to_string())?;
-    verify_private_key_permissions(Path::new(&key_path))?;
+    verify_private_key_permissions(FsPath::new(&key_path))?;
     let seed = STANDARD
         .decode(
             std::fs::read_to_string(&key_path)
