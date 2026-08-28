@@ -64,7 +64,7 @@ that exact campaign revision/state-hash and terminal-publication fences remain
 reviewable per capture. That local row ID must never be used as the signer/CEX
 idempotency identity.
 
-The runtime therefore stores a generated request ID:
+The runtime derives a stable request ID:
 
 ```text
 remote_request_id =
@@ -89,14 +89,23 @@ preimage deliberately excludes `capture_id`, `capture_generation`, and
 - the full `intent_hash` remains mandatory as the independent payload-integrity
   and receipt-binding fence.
 
-`remote_request_id` is a PostgreSQL stored generated column, so all historical
-rows are projected consistently and every future capture receives the identity
-automatically without relying on an application INSERT field. A catalogue check
-fails the migration if a stale ordinary column exists under that name.
+`remote_request_id` is an ordinary `NOT NULL` database column whose value is
+owned by `trnm_online_remote_request_id_v1`. The migration backfills historical
+rows, then installs two database triggers:
+
+- `trnm_online_settlement_remote_id_insert_v1` derives every new row;
+- `trnm_online_settlement_remote_id_update_v1` covers match, campaign, intent,
+  and `remote_request_id` updates.
+
+A caller may omit the value or supply the exact derived value. Any alternate
+value fails with SQLSTATE `23514`; changing an identity-bearing field also fails
+rather than silently rebinding an existing economic job. A catalogue assertion
+rejects an unexpected generated or otherwise incompatible column left by a
+pre-review local migration.
 
 The signer authorization request ID and entitlement nonce are initialized from
 `remote_request_id`. The database rejects an authorization result whose request
-ID differs from the generated remote identity.
+ID differs from the durable remote identity.
 
 The local runtime representation is still migration debt relative to the
 standalone contract's single stable job record. A later schema normalization may
@@ -160,8 +169,8 @@ The runtime is implemented by:
 
 - `0016_online_settlement_outbox_v1.sql`—base outbox table and readiness
   predicate;
-- `0017_online_settlement_worker_runtime_v1.sql`—capture fences, generated stable
-  remote identity, live-lease mutation functions, and status projection;
+- `0017_online_settlement_worker_runtime_v1.sql`—capture fences, trigger-enforced
+  stable remote identity, live-lease mutation functions, and status projection;
 - `trnm-settlement-worker`—bounded async signer/CEX execution outside business
   transactions;
 - `settlement_worker.rs`—capture, execute, and exact apply orchestration.
@@ -288,8 +297,9 @@ progression loss, or an expired worker mutation.
 - [x] Add reviewed migration and indexes.
 - [x] Add async signer/CEX clients.
 - [x] Add capture, claim, remote execution, and exact apply phases.
-- [x] Persist generated SHA-256 remote request identity independent of capture
-  generation and payload fingerprint.
+- [x] Persist trigger-enforced SHA-256 remote request identity independent of
+  capture generation and payload fingerprint.
+- [x] Reject direct or indirect mutation of the derived remote identity.
 - [x] Require a live lease for every remote mutation.
 - [x] Retire the weaker v1 claim path.
 - [x] Separate remote success from campaign application in operator status.
