@@ -142,6 +142,25 @@ create index if not exists idx_trnm_online_settlement_job_unapplied_success
     on public.trnm_online_settlement_jobs(capture_id, campaign_id, created_at)
     where state = 'succeeded' and campaign_applied_at is null;
 
+-- The v1 claim function predates active-capture fencing and stable remote
+-- identity. Leaving it callable would create a second, weaker claim path.
+create or replace function public.trnm_online_claim_settlement_job_v1(
+    p_owner text,
+    p_lease_milliseconds bigint
+)
+returns setof public.trnm_online_settlement_jobs
+language plpgsql
+security invoker
+set search_path = pg_catalog, public
+as $function$
+begin
+    raise exception using
+        errcode = '0A000',
+        message = 'trnm_online_claim_settlement_job_v1 is retired; use v2';
+    return;
+end
+$function$;
+
 create or replace function public.trnm_online_claim_settlement_job_v2(
     p_owner text,
     p_lease_milliseconds bigint
