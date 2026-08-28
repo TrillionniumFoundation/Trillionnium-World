@@ -39,22 +39,28 @@ fn settlement_evidence_is_not_deleted_by_upstream_cascade() {
 }
 
 #[test]
-fn remote_request_identity_is_stable_across_capture_generations() {
+fn remote_request_identity_is_generated_and_stable_across_capture_generations() {
     let sql = normalized(WORKER_MIGRATION);
     let identity_start = sql
-        .find("set remote_request_id = 'trnm-settlement-remote-v1:'")
-        .expect("remote request identity backfill must exist");
+        .find("add column if not exists remote_request_id text generated always as")
+        .expect("remote request identity generated column must exist");
     let identity_end = sql[identity_start..]
-        .find("where remote_request_id is null")
+        .find("alter table public.trnm_online_settlement_jobs add column if not exists authorization_request_id")
         .map(|offset| identity_start + offset)
-        .expect("remote request identity backfill must be bounded");
+        .expect("remote request identity definition must be bounded");
     let identity = &sql[identity_start..identity_end];
 
+    assert!(identity.contains("pg_catalog.sha256("));
+    assert!(identity.contains("pg_catalog.encode("));
+    assert!(identity.contains("pg_catalog.convert_to("));
+    assert!(identity.matches("pg_catalog.octet_length(").count() >= 4);
     assert!(identity.contains("match_id::text"));
-    assert!(identity.contains("md5(campaign_id)"));
-    assert!(identity.contains("intent_hash"));
+    assert!(identity.contains("campaign_id"));
+    assert!(identity.contains("intent_id"));
     assert!(!identity.contains("capture_id"));
     assert!(!identity.contains("capture_generation"));
+    assert!(!identity.contains("intent_hash"));
+    assert!(!identity.contains("md5("));
 
     assert!(sql.contains(
         "entitlement_nonce = coalesce(job.entitlement_nonce, job.remote_request_id)"
