@@ -16,6 +16,7 @@
     "capture_execute_apply_transaction_split",
     "trigger_enforced_sha256_remote_request_identity",
     "stable_remote_request_identity_excludes_capture_generation",
+    "settlement_identity_fields_and_aliases_are_immutable",
     "authorization_and_entitlement_nonce_bind_remote_request_identity",
     "authorization_attempt_completion_retry_and_dead_letter_require_live_lease",
     "legacy_claim_v1_fails_closed",
