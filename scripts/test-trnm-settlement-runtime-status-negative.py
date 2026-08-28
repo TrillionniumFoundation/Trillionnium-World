@@ -60,6 +60,12 @@ def mutate_capture_scoped_identity_claim(value: dict[str, Any]) -> None:
     )
 
 
+def mutate_mutable_identity_alias_claim(value: dict[str, Any]) -> None:
+    value["implemented_controls"].remove(
+        "settlement_identity_fields_and_aliases_are_immutable"
+    )
+
+
 def main() -> int:
     baseline = json.loads(STATUS.read_text(encoding="utf-8"))
     with tempfile.TemporaryDirectory(prefix="trnm-settlement-status-negative-") as directory:
@@ -81,6 +87,7 @@ def main() -> int:
             ("hidden-ci-blocker", mutate_hidden_blocker),
             ("extra-release-claim", mutate_extra_claim),
             ("capture-scoped-identity-regression", mutate_capture_scoped_identity_claim),
+            ("mutable-identity-alias-regression", mutate_mutable_identity_alias_claim),
         ]
         for name, mutator in cases:
             fixture = copy.deepcopy(baseline)
@@ -95,7 +102,7 @@ def main() -> int:
                 print(f"negative fixture unexpectedly passed: {name}", file=sys.stderr)
                 return 1
 
-    print("TRNM settlement runtime status negative fixtures: passed (5/5 rejected)")
+    print("TRNM settlement runtime status negative fixtures: passed (6/6 rejected)")
     return 0
 
 
