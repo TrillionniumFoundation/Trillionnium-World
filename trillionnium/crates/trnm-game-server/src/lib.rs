@@ -12,4 +12,7 @@ mod stream;
 // The full reviewed server body is generated from src/lib.rs.in by build.rs.
 // The transform fails closed on source drift, removes the in-process settlement
 // loop/caller, and registers settlement migrations 16 through 18.
-include!(concat!(env!("OUT_DIR"), "/trnm_game_server_lib_generated.rs"));
+include!(concat!(
+    env!("OUT_DIR"),
+    "/trnm_game_server_lib_generated.rs"
+));
