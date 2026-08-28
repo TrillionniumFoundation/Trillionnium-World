@@ -214,25 +214,21 @@ if mode == "full":
                 "settlement economic evidence may not be removed by upstream cascade"
             )
 
-    identity_start = worker_migration.find(
-        "add column if not exists remote_request_id text generated always as"
+    identity = sql_function(
+        worker_migration,
+        "trnm_online_remote_request_id_v1",
+        "create or replace function public.trnm_online_set_remote_request_id_v1",
     )
-    identity_end = worker_migration.find(
-        "alter table public.trnm_online_settlement_jobs\n    add column if not exists authorization_request_id",
-        identity_start,
-    )
-    if identity_start < 0 or identity_end < 0:
-        errors.append("settlement migration has no generated stable remote request identity")
+    if not identity:
+        errors.append("settlement migration has no stable remote request identity function")
     else:
-        identity = worker_migration[identity_start:identity_end]
         for required in (
             "pg_catalog.sha256(",
             "pg_catalog.encode(",
             "pg_catalog.convert_to(",
-            "match_id::text",
-            "campaign_id",
-            "intent_id",
-            "remote_request_id must be a stored generated column",
+            "p_match_id::text",
+            "p_campaign_id",
+            "p_intent_id",
         ):
             if required not in identity:
                 errors.append(f"remote request identity lost binding {required}")
@@ -245,6 +241,13 @@ if mode == "full":
                 )
 
     for required in (
+        "add column if not exists remote_request_id text",
+        "remote_request_id must be an ordinary stored column",
+        "set remote_request_id = public.trnm_online_remote_request_id_v1(",
+        "alter column remote_request_id set not null",
+        "message = 'remote_request_id does not match durable settlement identity'",
+        "create trigger trnm_online_settlement_remote_id_insert_v1 before insert",
+        "create trigger trnm_online_settlement_remote_id_update_v1 before update of match_id, campaign_id, intent_id, remote_request_id",
         "entitlement_nonce = coalesce(job.entitlement_nonce, job.remote_request_id)",
         "authorization_request_id = coalesce( job.authorization_request_id, job.remote_request_id )",
         "p_authorization_request_id = remote_request_id",
@@ -329,9 +332,9 @@ legacy_calls = combined_source.count("reconcile_economy(&state.cex")
 if mode == "full" and legacy_calls == 1:
     print(
         "TRNM settlement transaction-boundary check passed: capture/execute/apply, "
-        "generated stable remote identity, v1 claim retirement, live-lease fencing "
-        "and durable evidence retention are enforced; one inert compatibility caller "
-        "remains registered for deletion"
+        "database-derived SHA-256 remote identity, v1 claim retirement, live-lease "
+        "fencing and durable evidence retention are enforced; one inert compatibility "
+        "caller remains registered for deletion"
     )
 else:
     print("TRNM settlement transaction-boundary check passed")
