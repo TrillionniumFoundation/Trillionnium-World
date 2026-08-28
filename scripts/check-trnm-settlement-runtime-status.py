@@ -39,6 +39,7 @@ PROMOTED_STATUSES = {"verified_remote", "deployed", "operational"}
 
 REQUIRED_CONTROLS = {
     "capture_execute_apply_transaction_split",
+    "generated_sha256_remote_request_identity",
     "stable_remote_request_identity_excludes_capture_generation",
     "authorization_and_entitlement_nonce_bind_remote_request_identity",
     "authorization_attempt_completion_retry_and_dead_letter_require_live_lease",
@@ -85,7 +86,7 @@ def fail(message: str) -> None:
 def load_json(path: pathlib.Path) -> dict[str, Any]:
     try:
         value = json.loads(path.read_text(encoding="utf-8"))
-    except FileNotFoundError as error:
+    except FileNotFoundError:
         fail(f"missing JSON file: {path}")
     except json.JSONDecodeError as error:
         fail(f"invalid JSON in {path}: {error}")
@@ -115,7 +116,8 @@ def require_unique_strings(
     allow_empty: bool = False,
 ) -> list[str]:
     if not isinstance(value, list) or (not allow_empty and not value):
-        fail(f"{field} must be a {'possibly empty ' if allow_empty else 'non-empty '}array")
+        qualifier = "possibly empty " if allow_empty else "non-empty "
+        fail(f"{field} must be a {qualifier}array")
     if any(not isinstance(item, str) or not item for item in value):
         fail(f"{field} must contain non-empty strings only")
     if len(value) != len(set(value)):
@@ -181,18 +183,26 @@ def validate_status(status: dict[str, Any], schema_keys: set[str]) -> None:
         fail("verified_commit must be null or a lowercase 40-character Git SHA")
 
     controls = set(
-        require_unique_strings(status["implemented_controls"], "implemented_controls", pattern=TOKEN)
+        require_unique_strings(
+            status["implemented_controls"],
+            "implemented_controls",
+            pattern=TOKEN,
+        )
     )
     missing_controls = sorted(REQUIRED_CONTROLS - controls)
     if missing_controls:
         fail(f"implemented_controls lost mandatory controls: {missing_controls}")
 
-    open_gates = set(require_unique_strings(status["open_gates"], "open_gates", pattern=TOKEN))
+    open_gates = set(
+        require_unique_strings(status["open_gates"], "open_gates", pattern=TOKEN)
+    )
     missing_open_gates = sorted(REQUIRED_OPEN_GATES - open_gates)
     if missing_open_gates:
         fail(f"open_gates hides mandatory blockers: {missing_open_gates}")
 
-    checks = set(require_unique_strings(status["required_checks"], "required_checks", pattern=CHECK))
+    checks = set(
+        require_unique_strings(status["required_checks"], "required_checks", pattern=CHECK)
+    )
     if checks != REQUIRED_CHECKS:
         fail(f"required_checks must equal {sorted(REQUIRED_CHECKS)}, got {sorted(checks)}")
 
@@ -270,16 +280,31 @@ def validate_source(repo: pathlib.Path) -> None:
     if "on delete cascade" in outbox:
         fail("outbox source reintroduced cascade deletion")
 
-    identity_start = worker.find("set remote_request_id = 'trnm-settlement-remote-v1:'")
-    identity_end = worker.find("where remote_request_id is null", identity_start)
+    identity_start = worker.find(
+        "add column if not exists remote_request_id text generated always as"
+    )
+    identity_end = worker.find(
+        "add column if not exists authorization_request_id", identity_start
+    )
     if identity_start < 0 or identity_end < 0:
-        fail("worker migration lost stable remote request identity")
+        fail("worker migration lost generated stable remote request identity")
     identity = worker[identity_start:identity_end]
-    for marker in ("match_id::text", "md5(campaign_id)", "intent_hash"):
+    for marker in (
+        "pg_catalog.sha256(",
+        "pg_catalog.encode(",
+        "pg_catalog.convert_to(",
+        "match_id::text",
+        "campaign_id",
+        "intent_id",
+        "remote_request_id must be a stored generated column",
+    ):
         if marker not in identity:
             fail(f"remote request identity lost {marker}")
-    if "capture_id" in identity or "capture_generation" in identity:
-        fail("remote request identity depends on capture generation")
+    if identity.count("pg_catalog.octet_length(") < 4:
+        fail("remote request identity is not length-prefixed")
+    for forbidden in ("capture_id", "capture_generation", "intent_hash", "md5("):
+        if forbidden in identity:
+            fail(f"remote request identity incorrectly depends on {forbidden}")
 
     for marker in (
         "trnm_online_claim_settlement_job_v1 is retired; use v2",
