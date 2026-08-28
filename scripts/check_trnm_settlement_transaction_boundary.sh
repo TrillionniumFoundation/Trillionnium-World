@@ -52,8 +52,8 @@ grep -Fq 'External signer, wallet, ledger, custody, webhook or other network I/O
   || fail "ADR-0002 no longer states the external-I/O transaction prohibition"
 grep -Fq 'runtime_status: integrated-pending-p0-evidence' "$design" \
   || fail "settlement design no longer reports its exact runtime/evidence posture"
-grep -Fq 'remote_request_id' "$design" \
-  || fail "settlement design lost the stable remote identity contract"
+grep -Fq 'generated request ID' "$design" \
+  || fail "settlement design lost the generated remote identity contract"
 grep -Fq 'remote_succeeded' "$design" \
   || fail "settlement design aliases remote success with campaign application"
 grep -Fq 'pub const SETTLEMENT_OUTBOX_CONTRACT: &str = "trnm_settlement_outbox_v1"' "$contract" \
@@ -64,8 +64,12 @@ grep -Fq 'on delete restrict' "$outbox_migration" \
 ! grep -Fq 'on delete cascade' "$outbox_migration" \
   || fail "settlement evidence must not use upstream cascade deletion"
 
-grep -Fq "set remote_request_id = 'trnm-settlement-remote-v1:'" "$worker_migration" \
-  || fail "worker migration lost stable remote request identity"
+grep -Fq 'add column if not exists remote_request_id text generated always as' "$worker_migration" \
+  || fail "worker migration lost generated remote request identity"
+grep -Fq 'pg_catalog.sha256(' "$worker_migration" \
+  || fail "worker migration remote identity is not SHA-256 bound"
+grep -Fq 'remote_request_id must be a stored generated column' "$worker_migration" \
+  || fail "worker migration does not fail closed on stale remote identity shape"
 grep -Fq 'entitlement_nonce = coalesce(job.entitlement_nonce, job.remote_request_id)' "$worker_migration" \
   || fail "entitlement nonce no longer uses stable remote identity"
 grep -Fq 'p_authorization_request_id = remote_request_id' "$worker_migration" \
@@ -84,4 +88,4 @@ grep -Fq 'WORLD-P0-001' \
   || fail "the registered migration debt has no machine-readable P0 work item"
 
 printf '%s\n' \
-  'TRNM settlement transaction boundary: amber (runtime split, stable remote identity, live-lease fencing and evidence retention implemented; legacy caller and remote fault evidence remain open)'
+  'TRNM settlement transaction boundary: amber (runtime split, generated SHA-256 remote identity, live-lease fencing and evidence retention implemented; legacy caller and remote fault evidence remain open)'
