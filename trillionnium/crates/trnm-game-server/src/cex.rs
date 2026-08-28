@@ -2,7 +2,7 @@ use crate::signer_protocol::{
     EntitlementIssuerKeyStatusRequest, EntitlementIssuerKeyStatusResponse, EntitlementSignRequest,
     EntitlementSignResponse, EntitlementSignerAttestationRequest,
     EntitlementSignerAttestationResponse, EntitlementSignerReadiness, ENTITLEMENT_SIGNER_CONTRACT,
-    ENTITLEMENT_SIGNER_ISSUER, SIGNER_AUTH_HEADER,
+    ENTITLEMENT_SIGNER_ISSUER, ENTITLEMENT_SIGNER_RECEIPT_PATH, SIGNER_AUTH_HEADER,
 };
 use base64::{engine::general_purpose::STANDARD, Engine as _};
 use chrono::{Datelike, DateTime, Utc};
@@ -21,6 +21,10 @@ use trnm_economy_protocol::{
 
 const PLAYER_SESSION_HEADER: &str = "x-trnm-player-session";
 const GAME_AUTHORITY_HEADER: &str = "x-trnm-game-authority";
+const INTENT_HASH_HEADER: &str = "x-trnm-intent-sha256";
+const CEX_SETTLEMENT_RECEIPT_LOOKUP_CONTRACT: &str =
+    "trnm_cex_settlement_receipt_lookup_v1";
+const CEX_SETTLEMENT_RECEIPT_LOOKUP_PATH: &str = "/v1/trnm/economy/receipts/by-intent";
 const SETTLEMENT_OUTBOX_REQUIRED: &str =
     "external economy settlement is owned by trnm-settlement-worker; synchronous EconomyBackend I/O is prohibited";
 
@@ -46,6 +50,14 @@ pub struct AuthorizedSettlementIntent {
     pub intent: EconomicIntent,
     pub authorization_request_id: String,
     pub signer_receipt_hash: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct CexSettlementReceiptLookupResponse {
+    contract_version: String,
+    intent_id: String,
+    intent_hash: String,
+    receipt: EconomicReceipt,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -97,9 +109,65 @@ fn canonical_sha256(value: &str) -> bool {
             .all(|byte| byte.is_ascii_digit() || matches!(byte, b'a'..=b'f'))
 }
 
+fn serialized_intent_hash(intent: &EconomicIntent) -> Result<String, ExternalSettlementError> {
+    let encoded = serde_json::to_vec(intent).map_err(|error| {
+        ExternalSettlementError::Permanent(format!("encode settlement intent for hashing: {error}"))
+    })?;
+    Ok(format!("{:x}", Sha256::digest(encoded)))
+}
+
 fn stable_entitlement_id(request_id: &str) -> String {
     let digest = format!("{:x}", Sha256::digest(request_id.as_bytes()));
     format!("trnm-online-entitlement:{}", &digest[..32])
+}
+
+fn validate_signer_response(
+    mut entitlement: ServerSignedValueEntitlementV2,
+    authorization_request_id: &str,
+    signed: EntitlementSignResponse,
+) -> Result<(ServerSignedValueEntitlementV2, String), ExternalSettlementError> {
+    if signed.contract_version != ENTITLEMENT_SIGNER_CONTRACT
+        || signed.request_id != authorization_request_id
+        || signed.issuer != ENTITLEMENT_SIGNER_ISSUER
+        || signed.key_id.is_empty()
+        || signed.signature.is_empty()
+        || !canonical_sha256(&signed.request_hash)
+        || !canonical_sha256(&signed.signing_receipt_hash)
+    {
+        return Err(ExternalSettlementError::Permanent(
+            "isolated signer response failed durable binding validation".to_string(),
+        ));
+    }
+    entitlement.key_id = signed.key_id.clone();
+    entitlement.signature = signed.signature.clone();
+    entitlement
+        .validate_shape()
+        .map_err(ExternalSettlementError::Permanent)?;
+    let payload = entitlement
+        .signing_payload()
+        .map_err(ExternalSettlementError::Permanent)?;
+    let request_hash = format!("{:x}", Sha256::digest(&payload));
+    if request_hash != signed.request_hash {
+        return Err(ExternalSettlementError::Permanent(
+            "isolated signer response request hash mismatch".to_string(),
+        ));
+    }
+    let signing_receipt_hash = format!(
+        "{:x}",
+        Sha256::digest(
+            format!(
+                "{}:{}:{}",
+                signed.request_hash, signed.key_id, signed.signature
+            )
+            .as_bytes()
+        )
+    );
+    if signing_receipt_hash != signed.signing_receipt_hash {
+        return Err(ExternalSettlementError::Permanent(
+            "isolated signer response receipt hash mismatch".to_string(),
+        ));
+    }
+    Ok((entitlement, signed.signing_receipt_hash))
 }
 
 #[derive(Clone)]
@@ -305,6 +373,83 @@ impl CexClient {
         Ok(verified)
     }
 
+    async fn lookup_signer_receipt(
+        &self,
+        authorization_request_id: &str,
+    ) -> Result<Option<EntitlementSignResponse>, ExternalSettlementError> {
+        let response = self
+            .async_client
+            .get(format!(
+                "{}{}/{}",
+                self.signer_url, ENTITLEMENT_SIGNER_RECEIPT_PATH, authorization_request_id
+            ))
+            .header(SIGNER_AUTH_HEADER, self.signer_token.as_str())
+            .send()
+            .await
+            .map_err(|error| {
+                ExternalSettlementError::transport("isolated signer receipt lookup transport", error)
+            })?;
+        if response.status() == StatusCode::NOT_FOUND {
+            return Ok(None);
+        }
+        if !response.status().is_success() {
+            let status = response.status();
+            let body = response.text().await.unwrap_or_default();
+            return Err(ExternalSettlementError::status(
+                "isolated signer receipt lookup failed",
+                status,
+                body,
+            ));
+        }
+        response
+            .json::<EntitlementSignResponse>()
+            .await
+            .map(Some)
+            .map_err(|error| {
+                ExternalSettlementError::Permanent(format!(
+                    "decode isolated signer receipt lookup: {error}"
+                ))
+            })
+    }
+
+    async fn create_signer_receipt(
+        &self,
+        authorization_request_id: &str,
+        entitlement: &ServerSignedValueEntitlementV2,
+    ) -> Result<EntitlementSignResponse, ExternalSettlementError> {
+        let response = self
+            .async_client
+            .post(format!("{}/v1/signer/sign", self.signer_url))
+            .header(SIGNER_AUTH_HEADER, self.signer_token.as_str())
+            .json(&EntitlementSignRequest {
+                contract_version: ENTITLEMENT_SIGNER_CONTRACT.to_string(),
+                request_id: authorization_request_id.to_string(),
+                entitlement: entitlement.clone(),
+            })
+            .send()
+            .await
+            .map_err(|error| {
+                ExternalSettlementError::transport("isolated signer transport", error)
+            })?;
+        if !response.status().is_success() {
+            let status = response.status();
+            let body = response.text().await.unwrap_or_default();
+            return Err(ExternalSettlementError::status(
+                "isolated signer rejected entitlement",
+                status,
+                body,
+            ));
+        }
+        response
+            .json::<EntitlementSignResponse>()
+            .await
+            .map_err(|error| {
+                ExternalSettlementError::Permanent(format!(
+                    "decode isolated signer response: {error}"
+                ))
+            })
+    }
+
     pub async fn authorize_settlement_intent(
         &self,
         intent: &EconomicIntent,
@@ -318,7 +463,7 @@ impl CexClient {
             .map_err(ExternalSettlementError::Permanent)?;
         if authorization_request_id.trim().is_empty()
             || authorization_request_id.len() > 256
-            || nonce.trim().is_empty()
+            || nonce != authorization_request_id
             || expires_at_epoch <= issued_at_epoch
             || expires_at_epoch > issued_at_epoch.saturating_add(600)
         {
@@ -358,7 +503,7 @@ impl CexClient {
                     "settlement entitlement issued_at is outside chrono range".to_string(),
                 )
             })?;
-            let mut entitlement = ServerSignedValueEntitlementV2 {
+            let entitlement = ServerSignedValueEntitlementV2 {
                 contract_version: SERVER_SIGNED_VALUE_ENTITLEMENT_V2_CONTRACT.to_string(),
                 entitlement_id: stable_entitlement_id(authorization_request_id),
                 issuer: ENTITLEMENT_SIGNER_ISSUER.to_string(),
@@ -389,64 +534,19 @@ impl CexClient {
                 nonce: nonce.to_string(),
                 signature: String::new(),
             };
-            let response = self
-                .async_client
-                .post(format!("{}/v1/signer/sign", self.signer_url))
-                .header(SIGNER_AUTH_HEADER, self.signer_token.as_str())
-                .json(&EntitlementSignRequest {
-                    contract_version: ENTITLEMENT_SIGNER_CONTRACT.to_string(),
-                    request_id: authorization_request_id.to_string(),
-                    entitlement: entitlement.clone(),
-                })
-                .send()
-                .await
-                .map_err(|error| {
-                    ExternalSettlementError::transport("isolated signer transport", error)
-                })?;
-            if !response.status().is_success() {
-                let status = response.status();
-                let body = response.text().await.unwrap_or_default();
-                return Err(ExternalSettlementError::status(
-                    "isolated signer rejected entitlement",
-                    status,
-                    body,
-                ));
-            }
-            let signed = response
-                .json::<EntitlementSignResponse>()
-                .await
-                .map_err(|error| {
-                    ExternalSettlementError::Permanent(format!(
-                        "decode isolated signer response: {error}"
-                    ))
-                })?;
-            if signed.contract_version != ENTITLEMENT_SIGNER_CONTRACT
-                || signed.request_id != authorization_request_id
-                || signed.issuer != ENTITLEMENT_SIGNER_ISSUER
-                || signed.key_id.is_empty()
-                || signed.signature.is_empty()
-                || !canonical_sha256(&signed.request_hash)
-                || !canonical_sha256(&signed.signing_receipt_hash)
+            let signed = match self
+                .lookup_signer_receipt(authorization_request_id)
+                .await?
             {
-                return Err(ExternalSettlementError::Permanent(
-                    "isolated signer response failed durable binding validation".to_string(),
-                ));
-            }
-            entitlement.key_id = signed.key_id;
-            entitlement.signature = signed.signature;
-            entitlement
-                .validate_shape()
-                .map_err(ExternalSettlementError::Permanent)?;
-            let payload = entitlement
-                .signing_payload()
-                .map_err(ExternalSettlementError::Permanent)?;
-            let request_hash = format!("{:x}", Sha256::digest(&payload));
-            if request_hash != signed.request_hash {
-                return Err(ExternalSettlementError::Permanent(
-                    "isolated signer response request hash mismatch".to_string(),
-                ));
-            }
-            signer_receipt_hash = Some(signed.signing_receipt_hash);
+                Some(existing) => existing,
+                None => {
+                    self.create_signer_receipt(authorization_request_id, &entitlement)
+                        .await?
+                }
+            };
+            let (entitlement, receipt_hash) =
+                validate_signer_response(entitlement, authorization_request_id, signed)?;
+            signer_receipt_hash = Some(receipt_hash);
             authorized.metadata[SERVER_SIGNED_VALUE_ENTITLEMENT_METADATA_KEY] =
                 serde_json::to_value(entitlement).map_err(|error| {
                     ExternalSettlementError::Permanent(format!(
@@ -462,6 +562,63 @@ impl CexClient {
         })
     }
 
+    async fn lookup_authorized_settlement_receipt(
+        &self,
+        authorized: &EconomicIntent,
+        intent_hash: &str,
+    ) -> Result<Option<EconomicReceipt>, ExternalSettlementError> {
+        let response = self
+            .async_client
+            .get(format!(
+                "{}{}",
+                self.base_url, CEX_SETTLEMENT_RECEIPT_LOOKUP_PATH
+            ))
+            .headers(
+                self.authority_headers()
+                    .map_err(ExternalSettlementError::Permanent)?,
+            )
+            .header(INTENT_HASH_HEADER, intent_hash)
+            .query(&[("intent_id", authorized.intent_id.as_str())])
+            .send()
+            .await
+            .map_err(|error| {
+                ExternalSettlementError::transport("CEX receipt lookup transport", error)
+            })?;
+        if response.status() == StatusCode::NOT_FOUND {
+            return Ok(None);
+        }
+        if !response.status().is_success() {
+            let status = response.status();
+            let body = response.text().await.unwrap_or_default();
+            return Err(ExternalSettlementError::status(
+                "CEX receipt lookup failed",
+                status,
+                body,
+            ));
+        }
+        let lookup = response
+            .json::<CexSettlementReceiptLookupResponse>()
+            .await
+            .map_err(|error| {
+                ExternalSettlementError::Permanent(format!(
+                    "decode CEX receipt lookup: {error}"
+                ))
+            })?;
+        if lookup.contract_version != CEX_SETTLEMENT_RECEIPT_LOOKUP_CONTRACT
+            || lookup.intent_id != authorized.intent_id
+            || lookup.intent_hash != intent_hash
+        {
+            return Err(ExternalSettlementError::Permanent(
+                "CEX receipt lookup failed immutable intent binding".to_string(),
+            ));
+        }
+        lookup
+            .receipt
+            .validate_for(authorized)
+            .map_err(ExternalSettlementError::Permanent)?;
+        Ok(Some(lookup.receipt))
+    }
+
     pub async fn submit_authorized_settlement_intent(
         &self,
         authorized: &EconomicIntent,
@@ -469,10 +626,21 @@ impl CexClient {
         authorized
             .validate()
             .map_err(ExternalSettlementError::Permanent)?;
+        let intent_hash = serialized_intent_hash(authorized)?;
+        if let Some(receipt) = self
+            .lookup_authorized_settlement_receipt(authorized, &intent_hash)
+            .await?
+        {
+            return Ok(receipt);
+        }
         let response = self
             .async_client
             .post(format!("{}/v1/trnm/economy/intents", self.base_url))
-            .headers(self.authority_headers().map_err(ExternalSettlementError::Permanent)?)
+            .headers(
+                self.authority_headers()
+                    .map_err(ExternalSettlementError::Permanent)?,
+            )
+            .header(INTENT_HASH_HEADER, &intent_hash)
             .json(&json!({"intent": authorized}))
             .send()
             .await
@@ -528,14 +696,219 @@ impl EconomyBackend for CexClient {
 #[cfg(test)]
 mod tests {
     use super::{
-        retryable_status, stable_entitlement_id, CexClient, SETTLEMENT_OUTBOX_REQUIRED,
+        retryable_status, serialized_intent_hash, stable_entitlement_id,
+        CexSettlementReceiptLookupResponse, CexClient, ExternalSettlementError,
+        CEX_SETTLEMENT_RECEIPT_LOOKUP_CONTRACT, INTENT_HASH_HEADER, SETTLEMENT_OUTBOX_REQUIRED,
     };
-    use reqwest::StatusCode;
+    use crate::signer_protocol::{
+        EntitlementSignRequest, EntitlementSignResponse, ENTITLEMENT_SIGNER_CONTRACT,
+        ENTITLEMENT_SIGNER_ISSUER, SIGNER_AUTH_HEADER,
+    };
+    use axum::{
+        extract::{Path, Query, State},
+        http::{HeaderMap, StatusCode},
+        response::{IntoResponse, Response},
+        routing::{get, post},
+        Json, Router,
+    };
+    use base64::{engine::general_purpose::STANDARD, Engine as _};
+    use chrono::Utc;
+    use serde::Deserialize;
+    use serde_json::json;
+    use sha2::{Digest, Sha256};
+    use std::sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc, Mutex,
+    };
+    use tokio::task::JoinHandle;
     use trnm_campaign_core::EconomyBackend;
     use trnm_economy_protocol::{
-        ActorRef, EconomicIntent, EconomicIntentKind, IdempotencyKey,
-        TERM_EXCHANGE_PROTOCOL_VERSION,
+        ActorRef, EconomicIntent, EconomicIntentKind, EconomicReceipt, IdempotencyKey,
+        ReceiptStatus, SettlementBackendKind, TERM_EXCHANGE_PROTOCOL_VERSION,
     };
+
+    #[derive(Clone, Default)]
+    struct RemoteMockState {
+        signer_receipt: Arc<Mutex<Option<EntitlementSignResponse>>>,
+        cex_receipt: Arc<Mutex<Option<CexSettlementReceiptLookupResponse>>>,
+        signer_posts: Arc<AtomicUsize>,
+        cex_posts: Arc<AtomicUsize>,
+    }
+
+    #[derive(Deserialize)]
+    struct LookupQuery {
+        intent_id: String,
+    }
+
+    #[derive(Deserialize)]
+    struct SubmitIntent {
+        intent: EconomicIntent,
+    }
+
+    async fn signer_lookup(
+        State(state): State<RemoteMockState>,
+        headers: HeaderMap,
+        Path(request_id): Path<String>,
+    ) -> Response {
+        if headers.get(SIGNER_AUTH_HEADER).is_none() {
+            return StatusCode::UNAUTHORIZED.into_response();
+        }
+        let receipt = state.signer_receipt.lock().unwrap().clone();
+        match receipt.filter(|receipt| receipt.request_id == request_id) {
+            Some(receipt) => (StatusCode::OK, Json(receipt)).into_response(),
+            None => StatusCode::NOT_FOUND.into_response(),
+        }
+    }
+
+    async fn signer_submit(
+        State(state): State<RemoteMockState>,
+        headers: HeaderMap,
+        Json(request): Json<EntitlementSignRequest>,
+    ) -> Response {
+        if headers.get(SIGNER_AUTH_HEADER).is_none() {
+            return StatusCode::UNAUTHORIZED.into_response();
+        }
+        let mut entitlement = request.entitlement;
+        entitlement.key_id = "mock-key".to_string();
+        entitlement.signature.clear();
+        let payload = entitlement.signing_payload().unwrap();
+        let request_hash = format!("{:x}", Sha256::digest(payload));
+        let signature = STANDARD.encode([7_u8; 64]);
+        let signing_receipt_hash = format!(
+            "{:x}",
+            Sha256::digest(
+                format!("{request_hash}:mock-key:{signature}").as_bytes()
+            )
+        );
+        let receipt = EntitlementSignResponse {
+            contract_version: ENTITLEMENT_SIGNER_CONTRACT.to_string(),
+            request_id: request.request_id,
+            request_hash,
+            signing_receipt_hash,
+            key_id: "mock-key".to_string(),
+            issuer: ENTITLEMENT_SIGNER_ISSUER.to_string(),
+            signature,
+            duplicate: false,
+        };
+        *state.signer_receipt.lock().unwrap() = Some(receipt.clone());
+        let attempt = state.signer_posts.fetch_add(1, Ordering::SeqCst);
+        if attempt == 0 {
+            return (
+                StatusCode::BAD_GATEWAY,
+                Json(json!({"error": "response lost after signer commit"})),
+            )
+                .into_response();
+        }
+        (StatusCode::OK, Json(receipt)).into_response()
+    }
+
+    async fn cex_lookup(
+        State(state): State<RemoteMockState>,
+        headers: HeaderMap,
+        Query(query): Query<LookupQuery>,
+    ) -> Response {
+        let Some(intent_hash) = headers
+            .get(INTENT_HASH_HEADER)
+            .and_then(|value| value.to_str().ok())
+        else {
+            return StatusCode::BAD_REQUEST.into_response();
+        };
+        let receipt = state.cex_receipt.lock().unwrap().clone();
+        match receipt.filter(|receipt| {
+            receipt.intent_id == query.intent_id && receipt.intent_hash == intent_hash
+        }) {
+            Some(receipt) => (StatusCode::OK, Json(receipt)).into_response(),
+            None => StatusCode::NOT_FOUND.into_response(),
+        }
+    }
+
+    async fn cex_submit(
+        State(state): State<RemoteMockState>,
+        headers: HeaderMap,
+        Json(request): Json<SubmitIntent>,
+    ) -> Response {
+        let Some(intent_hash) = headers
+            .get(INTENT_HASH_HEADER)
+            .and_then(|value| value.to_str().ok())
+            .map(str::to_string)
+        else {
+            return StatusCode::BAD_REQUEST.into_response();
+        };
+        let receipt = EconomicReceipt::from_intent(
+            format!("receipt:{}", request.intent.intent_id),
+            &request.intent,
+            "mock-cex",
+            SettlementBackendKind::Cex,
+            ReceiptStatus::Settled,
+            Utc::now().timestamp(),
+        );
+        let lookup = CexSettlementReceiptLookupResponse {
+            contract_version: CEX_SETTLEMENT_RECEIPT_LOOKUP_CONTRACT.to_string(),
+            intent_id: request.intent.intent_id,
+            intent_hash,
+            receipt: receipt.clone(),
+        };
+        *state.cex_receipt.lock().unwrap() = Some(lookup);
+        let attempt = state.cex_posts.fetch_add(1, Ordering::SeqCst);
+        if attempt == 0 {
+            return (
+                StatusCode::BAD_GATEWAY,
+                Json(json!({"error": "response lost after CEX commit"})),
+            )
+                .into_response();
+        }
+        (StatusCode::OK, Json(receipt)).into_response()
+    }
+
+    async fn spawn_remote_mock() -> (String, RemoteMockState, JoinHandle<()>) {
+        let state = RemoteMockState::default();
+        let app = Router::new()
+            .route("/v1/signer/receipts/:request_id", get(signer_lookup))
+            .route("/v1/signer/sign", post(signer_submit))
+            .route("/v1/trnm/economy/receipts/by-intent", get(cex_lookup))
+            .route("/v1/trnm/economy/intents", post(cex_submit))
+            .with_state(state.clone());
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+            .await
+            .unwrap();
+        let address = listener.local_addr().unwrap();
+        let task = tokio::spawn(async move {
+            axum::serve(listener, app).await.unwrap();
+        });
+        (format!("http://{address}"), state, task)
+    }
+
+    fn base_intent(kind: EconomicIntentKind, amount: i64) -> EconomicIntent {
+        EconomicIntent {
+            protocol_version: TERM_EXCHANGE_PROTOCOL_VERSION.to_string(),
+            intent_id: "intent-a".to_string(),
+            term_id: "term-a".to_string(),
+            term_version: "1".to_string(),
+            domain: "trnm_game".to_string(),
+            kind,
+            idempotency_key: IdempotencyKey {
+                scope: "campaign-a".to_string(),
+                key: "intent-a".to_string(),
+            },
+            actors: vec![ActorRef {
+                actor_id: "actor-a".to_string(),
+                actor_kind: "player".to_string(),
+                account_id: Some("account-a".to_string()),
+            }],
+            assets: Vec::new(),
+            amount_credits: Some(amount),
+            currency: Some("wallet_credits".to_string()),
+            metadata: json!({
+                "value_event_id": "event-a",
+                "online_match_id": "match-a",
+                "online_rules_version": "rules-a",
+                "online_build_id": "build-a",
+                "online_result_hash": "a".repeat(64),
+                "online_participants_hash": "b".repeat(64)
+            }),
+            created_at_epoch: Utc::now().timestamp(),
+        }
+    }
 
     #[test]
     fn synchronous_backend_never_performs_external_settlement() {
@@ -546,28 +919,7 @@ mod tests {
             "s".repeat(32),
         )
         .unwrap();
-        let intent = EconomicIntent {
-            protocol_version: TERM_EXCHANGE_PROTOCOL_VERSION.to_string(),
-            intent_id: "intent-a".to_string(),
-            term_id: "term-a".to_string(),
-            term_version: "1".to_string(),
-            domain: "trnm_game".to_string(),
-            kind: EconomicIntentKind::CompleteContract,
-            idempotency_key: IdempotencyKey {
-                scope: "test".to_string(),
-                key: "intent-a".to_string(),
-            },
-            actors: vec![ActorRef {
-                actor_id: "actor-a".to_string(),
-                actor_kind: "player".to_string(),
-                account_id: None,
-            }],
-            assets: Vec::new(),
-            amount_credits: Some(0),
-            currency: None,
-            metadata: serde_json::json!({}),
-            created_at_epoch: 0,
-        };
+        let intent = base_intent(EconomicIntentKind::CompleteContract, 0);
         assert_eq!(client.execute(&intent), Err(SETTLEMENT_OUTBOX_REQUIRED.to_string()));
         assert_eq!(
             client.wallet_snapshot(
@@ -584,12 +936,12 @@ mod tests {
 
     #[test]
     fn authorization_identity_is_stable_across_ambiguous_retries() {
-        let first = stable_entitlement_id("trnm-settlement-outbox-v1:abc");
-        let second = stable_entitlement_id("trnm-settlement-outbox-v1:abc");
+        let first = stable_entitlement_id("trnm-settlement-remote-v1:abc");
+        let second = stable_entitlement_id("trnm-settlement-remote-v1:abc");
         assert_eq!(first, second);
         assert_ne!(
             first,
-            stable_entitlement_id("trnm-settlement-outbox-v1:def")
+            stable_entitlement_id("trnm-settlement-remote-v1:def")
         );
     }
 
@@ -600,5 +952,84 @@ mod tests {
         assert!(retryable_status(StatusCode::BAD_GATEWAY));
         assert!(!retryable_status(StatusCode::BAD_REQUEST));
         assert!(!retryable_status(StatusCode::UNAUTHORIZED));
+    }
+
+    #[tokio::test]
+    async fn signer_response_loss_recovers_by_lookup_without_a_second_sign() {
+        let (url, state, task) = spawn_remote_mock().await;
+        let client = CexClient::new(url.clone(), "g".repeat(24), url, "s".repeat(32)).unwrap();
+        let intent = base_intent(EconomicIntentKind::ReleaseReward, 25);
+        let request_id = format!("trnm-settlement-remote-v1:{}", "1".repeat(64));
+        let issued_at = Utc::now().timestamp();
+
+        let first = client
+            .authorize_settlement_intent(
+                &intent,
+                &request_id,
+                issued_at,
+                issued_at + 600,
+                &request_id,
+            )
+            .await;
+        assert!(matches!(first, Err(ExternalSettlementError::Retryable(_))));
+
+        let recovered = client
+            .authorize_settlement_intent(
+                &intent,
+                &request_id,
+                issued_at,
+                issued_at + 600,
+                &request_id,
+            )
+            .await
+            .unwrap();
+        assert_eq!(recovered.authorization_request_id, request_id);
+        assert!(recovered.signer_receipt_hash.is_some());
+        assert_eq!(state.signer_posts.load(Ordering::SeqCst), 1);
+        task.abort();
+    }
+
+    #[tokio::test]
+    async fn cex_response_loss_recovers_by_lookup_without_a_second_submit() {
+        let (url, state, task) = spawn_remote_mock().await;
+        let client = CexClient::new(url.clone(), "g".repeat(24), url, "s".repeat(32)).unwrap();
+        let intent = base_intent(EconomicIntentKind::CompleteContract, 0);
+
+        let first = client.submit_authorized_settlement_intent(&intent).await;
+        assert!(matches!(first, Err(ExternalSettlementError::Retryable(_))));
+
+        let recovered = client
+            .submit_authorized_settlement_intent(&intent)
+            .await
+            .unwrap();
+        recovered.validate_for(&intent).unwrap();
+        assert_eq!(state.cex_posts.load(Ordering::SeqCst), 1);
+        task.abort();
+    }
+
+    #[tokio::test]
+    async fn cex_lookup_with_a_mismatched_hash_fails_closed() {
+        let (url, state, task) = spawn_remote_mock().await;
+        let client = CexClient::new(url.clone(), "g".repeat(24), url, "s".repeat(32)).unwrap();
+        let intent = base_intent(EconomicIntentKind::CompleteContract, 0);
+        let receipt = EconomicReceipt::from_intent(
+            "receipt-a",
+            &intent,
+            "mock-cex",
+            SettlementBackendKind::Cex,
+            ReceiptStatus::Settled,
+            Utc::now().timestamp(),
+        );
+        *state.cex_receipt.lock().unwrap() = Some(CexSettlementReceiptLookupResponse {
+            contract_version: CEX_SETTLEMENT_RECEIPT_LOOKUP_CONTRACT.to_string(),
+            intent_id: intent.intent_id.clone(),
+            intent_hash: "f".repeat(64),
+            receipt,
+        });
+        let expected_hash = serialized_intent_hash(&intent).unwrap();
+        assert_ne!(expected_hash, "f".repeat(64));
+        let result = client.submit_authorized_settlement_intent(&intent).await;
+        assert!(matches!(result, Err(ExternalSettlementError::Permanent(_))));
+        task.abort();
     }
 }
