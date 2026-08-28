@@ -177,7 +177,7 @@ execute function public.trnm_online_set_remote_request_id_v1();
 drop trigger if exists trnm_online_settlement_remote_id_update_v1
     on public.trnm_online_settlement_jobs;
 create trigger trnm_online_settlement_remote_id_update_v1
-before update of match_id, campaign_id, intent_id
+before update of match_id, campaign_id, intent_id, remote_request_id
 on public.trnm_online_settlement_jobs
 for each row
 execute function public.trnm_online_set_remote_request_id_v1();
