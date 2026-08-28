@@ -245,9 +245,12 @@ if mode == "full":
         "remote_request_id must be an ordinary stored column",
         "set remote_request_id = public.trnm_online_remote_request_id_v1(",
         "alter column remote_request_id set not null",
+        "message = 'settlement match, campaign and intent identity fields are immutable'",
         "message = 'remote_request_id does not match durable settlement identity'",
         "create trigger trnm_online_settlement_remote_id_insert_v1 before insert",
         "create trigger trnm_online_settlement_remote_id_update_v1 before update of match_id, campaign_id, intent_id, remote_request_id",
+        "authorization_request_id is null or authorization_request_id = remote_request_id",
+        "entitlement_nonce is null or entitlement_nonce = remote_request_id",
         "entitlement_nonce = coalesce(job.entitlement_nonce, job.remote_request_id)",
         "authorization_request_id = coalesce( job.authorization_request_id, job.remote_request_id )",
         "p_authorization_request_id = remote_request_id",
@@ -332,9 +335,9 @@ legacy_calls = combined_source.count("reconcile_economy(&state.cex")
 if mode == "full" and legacy_calls == 1:
     print(
         "TRNM settlement transaction-boundary check passed: capture/execute/apply, "
-        "database-derived SHA-256 remote identity, v1 claim retirement, live-lease "
-        "fencing and durable evidence retention are enforced; one inert compatibility "
-        "caller remains registered for deletion"
+        "immutable trigger-derived SHA-256 remote identity, v1 claim retirement, "
+        "live-lease fencing and durable evidence retention are enforced; one inert "
+        "compatibility caller remains registered for deletion"
     )
 else:
     print("TRNM settlement transaction-boundary check passed")
