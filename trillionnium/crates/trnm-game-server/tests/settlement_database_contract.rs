@@ -1,4 +1,4 @@
-use sqlx::{Executor, Row};
+use sqlx::{executor::Executor, row::Row};
 use sqlx_postgres::{PgPool, PgPoolOptions};
 use uuid::Uuid;
 
