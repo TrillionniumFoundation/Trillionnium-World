@@ -76,8 +76,18 @@ grep -Fq 'trnm_online_settlement_remote_id_insert_v1' "$worker_migration" \
   || fail "worker migration lost the insert identity trigger"
 grep -Fq 'before update of match_id, campaign_id, intent_id, remote_request_id' "$worker_migration" \
   || fail "worker migration permits direct or indirect remote identity mutation"
+grep -Fq 'settlement match, campaign and intent identity fields are immutable' "$worker_migration" \
+  || fail "worker migration permits durable economic identity rebinding"
 grep -Fq 'remote_request_id does not match durable settlement identity' "$worker_migration" \
   || fail "worker migration does not reject caller-supplied identity drift"
+grep -Fq 'authorization_request_id is null' "$worker_migration" \
+  || fail "authorization request identity is not constrained"
+grep -Fq 'authorization_request_id = remote_request_id' "$worker_migration" \
+  || fail "authorization request identity can diverge from remote identity"
+grep -Fq 'entitlement_nonce is null' "$worker_migration" \
+  || fail "entitlement nonce identity is not constrained"
+grep -Fq 'entitlement_nonce = remote_request_id' "$worker_migration" \
+  || fail "entitlement nonce can diverge from remote identity"
 grep -Fq 'entitlement_nonce = coalesce(job.entitlement_nonce, job.remote_request_id)' "$worker_migration" \
   || fail "entitlement nonce no longer uses stable remote identity"
 grep -Fq 'p_authorization_request_id = remote_request_id' "$worker_migration" \
@@ -96,4 +106,4 @@ grep -Fq 'WORLD-P0-001' \
   || fail "the registered migration debt has no machine-readable P0 work item"
 
 printf '%s\n' \
-  'TRNM settlement transaction boundary: amber (runtime split, trigger-enforced SHA-256 remote identity, live-lease fencing and evidence retention implemented; legacy caller and remote fault evidence remain open)'
+  'TRNM settlement transaction boundary: amber (runtime split, immutable trigger-enforced SHA-256 identity, live-lease fencing and evidence retention implemented; legacy caller and remote fault evidence remain open)'
