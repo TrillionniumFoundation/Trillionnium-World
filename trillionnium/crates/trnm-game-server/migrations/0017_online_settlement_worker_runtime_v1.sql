@@ -31,64 +31,19 @@ alter table public.trnm_online_settlement_jobs
 
 -- job_id remains the capture-scoped worker row identity. remote_request_id is
 -- the stable signer/CEX idempotency identity and deliberately excludes
--- capture_id/capture_generation and intent_hash. It is generated for every
+-- capture_id/capture_generation and intent_hash. It is derived for every
 -- existing and future row from a SHA-256 over unambiguous u32-big-endian
 -- length-prefixed UTF-8 components: contract domain, match ID, campaign ID and
 -- intent ID. The immutable intent_hash remains a separate payload-integrity
 -- fence, so reusing one intent ID with different bytes produces an exact remote
 -- conflict instead of silently minting a second request identity.
--- PostgreSQL core SHA-256 is used; no optional extension is required.
 alter table public.trnm_online_settlement_jobs
-    add column if not exists remote_request_id text generated always as (
-        'trnm-settlement-remote-v1:' || pg_catalog.encode(
-            pg_catalog.sha256(
-                pg_catalog.decode(
-                    pg_catalog.lpad(
-                        pg_catalog.to_hex(
-                            pg_catalog.octet_length('trnm_settlement_remote_v1'::text)
-                        ),
-                        8,
-                        '0'
-                    ),
-                    'hex'
-                )
-                || pg_catalog.convert_to('trnm_settlement_remote_v1', 'UTF8')
-                || pg_catalog.decode(
-                    pg_catalog.lpad(
-                        pg_catalog.to_hex(pg_catalog.octet_length(match_id::text)),
-                        8,
-                        '0'
-                    ),
-                    'hex'
-                )
-                || pg_catalog.convert_to(match_id::text, 'UTF8')
-                || pg_catalog.decode(
-                    pg_catalog.lpad(
-                        pg_catalog.to_hex(pg_catalog.octet_length(campaign_id)),
-                        8,
-                        '0'
-                    ),
-                    'hex'
-                )
-                || pg_catalog.convert_to(campaign_id, 'UTF8')
-                || pg_catalog.decode(
-                    pg_catalog.lpad(
-                        pg_catalog.to_hex(pg_catalog.octet_length(intent_id)),
-                        8,
-                        '0'
-                    ),
-                    'hex'
-                )
-                || pg_catalog.convert_to(intent_id, 'UTF8')
-            ),
-            'hex'
-        )
-    ) stored;
+    add column if not exists remote_request_id text;
 
--- IF NOT EXISTS must never silently preserve a stale ordinary column left by a
--- locally applied pre-review migration. The migration checksum already blocks
--- changed deployed revisions; this catalogue assertion also fails closed when
--- the DDL shape itself is wrong.
+-- IF NOT EXISTS must never silently preserve a stored-generated or otherwise
+-- incompatible column left by a locally applied pre-review migration. The
+-- migration checksum blocks changed deployed revisions; this catalogue check
+-- also fails closed on an unexpected DDL shape.
 do $function$
 begin
     if not exists (
@@ -97,13 +52,135 @@ begin
          where attribute.attrelid =
                'public.trnm_online_settlement_jobs'::pg_catalog.regclass
            and attribute.attname = 'remote_request_id'
-           and attribute.attgenerated = 's'
+           and attribute.attgenerated = ''
            and not attribute.attisdropped
     ) then
-        raise exception 'remote_request_id must be a stored generated column';
+        raise exception 'remote_request_id must be an ordinary stored column';
     end if;
-end
+end;
 $function$;
+
+create or replace function public.trnm_online_remote_request_id_v1(
+    p_match_id uuid,
+    p_campaign_id text,
+    p_intent_id text
+)
+returns text
+language sql
+stable
+strict
+security invoker
+set search_path = pg_catalog, public
+as $function$
+    select 'trnm-settlement-remote-v1:' || pg_catalog.encode(
+        pg_catalog.sha256(
+            pg_catalog.decode(
+                pg_catalog.lpad(
+                    pg_catalog.to_hex(
+                        pg_catalog.octet_length(
+                            pg_catalog.convert_to('trnm_settlement_remote_v1', 'UTF8')
+                        )
+                    ),
+                    8,
+                    '0'
+                ),
+                'hex'
+            )
+            || pg_catalog.convert_to('trnm_settlement_remote_v1', 'UTF8')
+            || pg_catalog.decode(
+                pg_catalog.lpad(
+                    pg_catalog.to_hex(
+                        pg_catalog.octet_length(
+                            pg_catalog.convert_to(p_match_id::text, 'UTF8')
+                        )
+                    ),
+                    8,
+                    '0'
+                ),
+                'hex'
+            )
+            || pg_catalog.convert_to(p_match_id::text, 'UTF8')
+            || pg_catalog.decode(
+                pg_catalog.lpad(
+                    pg_catalog.to_hex(
+                        pg_catalog.octet_length(
+                            pg_catalog.convert_to(p_campaign_id, 'UTF8')
+                        )
+                    ),
+                    8,
+                    '0'
+                ),
+                'hex'
+            )
+            || pg_catalog.convert_to(p_campaign_id, 'UTF8')
+            || pg_catalog.decode(
+                pg_catalog.lpad(
+                    pg_catalog.to_hex(
+                        pg_catalog.octet_length(
+                            pg_catalog.convert_to(p_intent_id, 'UTF8')
+                        )
+                    ),
+                    8,
+                    '0'
+                ),
+                'hex'
+            )
+            || pg_catalog.convert_to(p_intent_id, 'UTF8')
+        ),
+        'hex'
+    )
+$function$;
+
+update public.trnm_online_settlement_jobs job
+   set remote_request_id = public.trnm_online_remote_request_id_v1(
+       job.match_id,
+       job.campaign_id,
+       job.intent_id
+   )
+ where job.remote_request_id is null;
+
+alter table public.trnm_online_settlement_jobs
+    alter column remote_request_id set not null;
+
+create or replace function public.trnm_online_set_remote_request_id_v1()
+returns trigger
+language plpgsql
+security invoker
+set search_path = pg_catalog, public
+as $function$
+declare
+    expected text;
+begin
+    expected := public.trnm_online_remote_request_id_v1(
+        new.match_id,
+        new.campaign_id,
+        new.intent_id
+    );
+    if new.remote_request_id is not null
+       and new.remote_request_id <> expected then
+        raise exception using
+            errcode = '23514',
+            message = 'remote_request_id does not match durable settlement identity';
+    end if;
+    new.remote_request_id := expected;
+    return new;
+end;
+$function$;
+
+drop trigger if exists trnm_online_settlement_remote_id_insert_v1
+    on public.trnm_online_settlement_jobs;
+create trigger trnm_online_settlement_remote_id_insert_v1
+before insert on public.trnm_online_settlement_jobs
+for each row
+execute function public.trnm_online_set_remote_request_id_v1();
+
+drop trigger if exists trnm_online_settlement_remote_id_update_v1
+    on public.trnm_online_settlement_jobs;
+create trigger trnm_online_settlement_remote_id_update_v1
+before update of match_id, campaign_id, intent_id
+on public.trnm_online_settlement_jobs
+for each row
+execute function public.trnm_online_set_remote_request_id_v1();
 
 alter table public.trnm_online_settlement_jobs
     add column if not exists authorization_request_id text;
@@ -221,7 +298,7 @@ begin
         errcode = '0A000',
         message = 'trnm_online_claim_settlement_job_v1 is retired; use v2';
     return;
-end
+end;
 $function$;
 
 create or replace function public.trnm_online_claim_settlement_job_v2(
@@ -296,7 +373,7 @@ begin
         return next claimed;
     end if;
     return;
-end
+end;
 $function$;
 
 create or replace function public.trnm_online_store_settlement_authorization_v1(
@@ -346,7 +423,7 @@ begin
        );
     get diagnostics changed = row_count;
     return changed = 1;
-end
+end;
 $function$;
 
 create or replace function public.trnm_online_begin_settlement_remote_attempt_v1(
@@ -373,7 +450,7 @@ begin
        and remote_attempts < 16
      returning remote_attempts into next_attempt;
     return next_attempt;
-end
+end;
 $function$;
 
 create or replace function public.trnm_online_complete_settlement_job_v1(
@@ -424,7 +501,7 @@ begin
        and lease_expires_at > pg_catalog.clock_timestamp();
     get diagnostics changed = row_count;
     return changed = 1;
-end
+end;
 $function$;
 
 create or replace function public.trnm_online_retry_settlement_job_v1(
@@ -467,7 +544,7 @@ begin
        and lease_expires_at > pg_catalog.clock_timestamp()
      returning state into next_state;
     return next_state;
-end
+end;
 $function$;
 
 create or replace function public.trnm_online_dead_letter_settlement_job_v1(
@@ -500,7 +577,7 @@ begin
        and lease_expires_at > pg_catalog.clock_timestamp();
     get diagnostics changed = row_count;
     return changed = 1;
-end
+end;
 $function$;
 
 -- Raw state='succeeded' means the remote receipt is durably stored. It does not
