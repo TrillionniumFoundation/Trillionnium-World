@@ -14,7 +14,10 @@ mod stream;
 "#;
 
 fn fail(message: impl AsRef<str>) -> ! {
-    panic!("WORLD-P0-001 source transform failed closed: {}", message.as_ref());
+    panic!(
+        "WORLD-P0-001 source transform failed closed: {}",
+        message.as_ref()
+    );
 }
 
 fn replace_once(source: &mut String, old: &str, new: &str, label: &str) {
@@ -195,9 +198,7 @@ const MIGRATION_V18: &str =
 fn main() {
     println!("cargo:rerun-if-changed=src/lib.rs.in");
     println!("cargo:rerun-if-changed=src/settlement_worker.rs.in");
-    for version in 1..=18 {
-        println!("cargo:rerun-if-changed=migrations/{version:04}_");
-    }
+    println!("cargo:rerun-if-changed=migrations");
     let out_dir = PathBuf::from(env::var_os("OUT_DIR").expect("OUT_DIR is required"));
     generate_game_server(&out_dir);
     generate_settlement_worker(&out_dir);
