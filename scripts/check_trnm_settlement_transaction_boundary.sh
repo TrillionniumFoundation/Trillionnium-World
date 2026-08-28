@@ -52,8 +52,8 @@ grep -Fq 'External signer, wallet, ledger, custody, webhook or other network I/O
   || fail "ADR-0002 no longer states the external-I/O transaction prohibition"
 grep -Fq 'runtime_status: integrated-pending-p0-evidence' "$design" \
   || fail "settlement design no longer reports its exact runtime/evidence posture"
-grep -Fq 'generated request ID' "$design" \
-  || fail "settlement design lost the generated remote identity contract"
+grep -Fq 'remote_request_id =' "$design" \
+  || fail "settlement design lost the derived remote identity contract"
 grep -Fq 'remote_succeeded' "$design" \
   || fail "settlement design aliases remote success with campaign application"
 grep -Fq 'pub const SETTLEMENT_OUTBOX_CONTRACT: &str = "trnm_settlement_outbox_v1"' "$contract" \
@@ -64,12 +64,20 @@ grep -Fq 'on delete restrict' "$outbox_migration" \
 ! grep -Fq 'on delete cascade' "$outbox_migration" \
   || fail "settlement evidence must not use upstream cascade deletion"
 
-grep -Fq 'add column if not exists remote_request_id text generated always as' "$worker_migration" \
-  || fail "worker migration lost generated remote request identity"
+grep -Fq 'add column if not exists remote_request_id text' "$worker_migration" \
+  || fail "worker migration lost the durable remote request column"
+grep -Fq 'create or replace function public.trnm_online_remote_request_id_v1' "$worker_migration" \
+  || fail "worker migration lost the remote identity derivation function"
 grep -Fq 'pg_catalog.sha256(' "$worker_migration" \
   || fail "worker migration remote identity is not SHA-256 bound"
-grep -Fq 'remote_request_id must be a stored generated column' "$worker_migration" \
+grep -Fq 'remote_request_id must be an ordinary stored column' "$worker_migration" \
   || fail "worker migration does not fail closed on stale remote identity shape"
+grep -Fq 'trnm_online_settlement_remote_id_insert_v1' "$worker_migration" \
+  || fail "worker migration lost the insert identity trigger"
+grep -Fq 'before update of match_id, campaign_id, intent_id, remote_request_id' "$worker_migration" \
+  || fail "worker migration permits direct or indirect remote identity mutation"
+grep -Fq 'remote_request_id does not match durable settlement identity' "$worker_migration" \
+  || fail "worker migration does not reject caller-supplied identity drift"
 grep -Fq 'entitlement_nonce = coalesce(job.entitlement_nonce, job.remote_request_id)' "$worker_migration" \
   || fail "entitlement nonce no longer uses stable remote identity"
 grep -Fq 'p_authorization_request_id = remote_request_id' "$worker_migration" \
@@ -88,4 +96,4 @@ grep -Fq 'WORLD-P0-001' \
   || fail "the registered migration debt has no machine-readable P0 work item"
 
 printf '%s\n' \
-  'TRNM settlement transaction boundary: amber (runtime split, generated SHA-256 remote identity, live-lease fencing and evidence retention implemented; legacy caller and remote fault evidence remain open)'
+  'TRNM settlement transaction boundary: amber (runtime split, trigger-enforced SHA-256 remote identity, live-lease fencing and evidence retention implemented; legacy caller and remote fault evidence remain open)'
