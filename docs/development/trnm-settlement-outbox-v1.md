@@ -2,9 +2,11 @@
 status: current-design
 owner: trillionnium-world
 contract: trnm_settlement_outbox_v1
-runtime_status: foundation-only
+runtime_status: integrated-pending-p0-evidence
+verified_commit: pending-merge
 related_adr: ../adr/0002-transaction-free-external-settlement.md
-last_reviewed: 2026-08-27
+last_reviewed: 2026-08-28
+review_due: 2026-09-11
 ---
 
 # TRNM Settlement Outbox v1
@@ -12,29 +14,82 @@ last_reviewed: 2026-08-27
 ## Purpose
 
 This contract separates durable game state from external signer/CEX latency.
-It is the migration target for the compatibility server's current settlement
-loop, which can perform blocking external calls while campaign rows are locked.
+The compatibility server now contains a dedicated PostgreSQL-backed settlement
+worker with capture, external execution, and apply phases. The implementation is
+source-integrated, but it is not yet remotely verified and therefore does not
+close `WORLD-P0-001`.
+
+The remaining P0 blockers are explicit:
+
+- one inert compatibility caller remains in `trnm-game-server/src/lib.rs` and
+  must be deleted rather than used as a fallback;
+- exact-commit GitHub Actions evidence is absent;
+- database black-box tests have not yet proved every response-loss, cancellation,
+  process-kill, lease-takeover, and apply-rollback boundary;
+- operator dashboards, receipt lookup/recovery, and promotion evidence are not
+  complete.
 
 The standalone reference implementation lives at
-`trillionnium/tools/trnm-settlement-outbox-contract`. It defines state-machine
-invariants and tests. It is not yet wired into production runtime and therefore
-does not close the settlement P0 by itself.
+`trillionnium/tools/trnm-settlement-outbox-contract`. It defines the stable
+state-machine invariants and remains the normative model for lease fencing and
+receipt binding.
 
-## Job identity
+## Identity model
 
-A job key contains:
+Three different identities must not be conflated.
+
+### Stable economic intent identity
+
+The game-owned `EconomicIntent` contains the immutable `intent_id`,
+`idempotency_key`, and canonical `intent_hash`. Those values survive transport
+ambiguity, worker restart, stale apply, and recapture.
+
+### Contract job identity
+
+The standalone `trnm_settlement_outbox_v1` contract derives its stable job key
+from:
 
 - `match_id`;
 - `campaign_id`;
 - `intent_id`.
 
-The deterministic job ID is the contract domain plus an unambiguous,
-length-prefixed hexadecimal encoding of the three UTF-8 fields. The ID is an
-idempotency identity, not a secret or a cryptographic proof. The immutable
-`intent_hash` remains the cryptographic binding to the serialized economic
-intent.
+Its deterministic contract job ID is independent of a worker lease or capture
+generation.
+
+### Runtime capture row and remote request identity
+
+The current migration-era runtime retains a capture-scoped local `job_id` row so
+that exact campaign revision/state-hash and terminal-publication fences remain
+reviewable per capture. That local row ID must never be used as the signer/CEX
+idempotency identity.
+
+The runtime therefore persists a separate `remote_request_id`:
+
+```text
+trnm-settlement-remote-v1:
+  <match UUID>:
+  <md5(campaign_id)>:
+  <intent SHA-256>
+```
+
+`md5(campaign_id)` is only a compact namespace component; it is not treated as
+an integrity proof. The full immutable `intent_hash` is the SHA-256 binding.
+`remote_request_id` deliberately excludes `capture_id` and
+`capture_generation`, so a fresh capture after a stale local apply reuses the
+same signer/CEX request identity.
+
+The signer authorization request ID and entitlement nonce are initialized from
+`remote_request_id`. The database rejects an authorization result whose request
+ID differs from the durable remote identity.
+
+The local runtime representation is still migration debt relative to the
+standalone contract's single stable job record. A later schema normalization may
+rename or split the capture-scoped row, but it must preserve remote identity and
+historical evidence.
 
 ## State machine
+
+The normative remote execution state machine is:
 
 ```text
 Pending
@@ -45,45 +100,62 @@ Pending
 
 Retryable when due -> Leased with a higher generation
 Expired Leased     -> Leased with a higher generation
-Succeeded          -> terminal, exact duplicate completion is idempotent
-DeadLetter         -> terminal
+Succeeded          -> terminal remote result
+DeadLetter         -> terminal remote failure
 ```
 
-A lease increments both `attempts` and `lease_generation`. A worker may mutate a
-leased job only when owner and generation match the current lease and the lease
-has not expired. A reclaimed lease invalidates every stale worker result.
+A lease increments both `attempts` and `lease_generation`. Every durable remote
+mutation—authorization persistence, attempt start, receipt completion, retry,
+and dead-letter transition—requires all of:
 
-## Database target
+- `state = leased`;
+- exact owner;
+- exact generation;
+- `lease_expires_at > clock_timestamp()`.
 
-The runtime migration should use a table equivalent to:
+An expired worker cannot write a retry or dead letter after a new generation has
+become eligible.
 
-```sql
-create table trnm_settlement_jobs (
-    job_id text primary key,
-    contract_version text not null,
-    match_id uuid not null,
-    campaign_id text not null,
-    intent_id text not null,
-    expected_campaign_revision bigint not null,
-    intent_hash text not null,
-    state text not null,
-    attempts integer not null,
-    lease_owner text,
-    lease_generation bigint not null,
-    lease_expires_at timestamptz,
-    next_attempt_at timestamptz,
-    last_error text,
-    receipt_id text,
-    receipt_hash text,
-    created_at timestamptz not null,
-    updated_at timestamptz not null,
-    completed_at timestamptz,
-    unique (match_id, campaign_id, intent_id)
-);
-```
+## Remote success is not campaign application
 
-Exact DDL is deferred until the runtime integration tranche because it must be
-reviewed with existing campaign revision and terminal-publication locks.
+Raw database `state = succeeded` means only that a validated remote receipt is
+durably stored. It does **not** mean campaign progression was applied.
+
+The operator projection `trnm_online_settlement_job_status_v1` exposes two
+separate dimensions:
+
+- `remote_state`, including `remote_succeeded`;
+- `application_state`, including `pending_apply`, `applied`, `blocked`, and
+  `waiting_remote`.
+
+Player UI, readiness, dashboards, and release evidence must never collapse
+`remote_succeeded + pending_apply` into a completed settlement claim.
+
+## Durable evidence retention
+
+Settlement jobs and captures are economic/audit evidence. Foreign keys from the
+outbox to match and campaign rows use `ON DELETE RESTRICT`, not cascade.
+Deletion requires a separately reviewed retention/archive operation that
+preserves intent, receipt, compensation, retry, and dead-letter history.
+
+## Database implementation
+
+The runtime is implemented by:
+
+- `0016_online_settlement_outbox_v1.sql`—base outbox table and readiness
+  predicate;
+- `0017_online_settlement_worker_runtime_v1.sql`—capture fences, stable remote
+  identity, live-lease mutation functions, and status projection;
+- `trnm-settlement-worker`—bounded async signer/CEX execution outside business
+  transactions;
+- `settlement_worker.rs`—capture, execute, and exact apply orchestration.
+
+A capture binds:
+
+- exact terminal publication identity;
+- match ID and capture generation;
+- every campaign revision and state hash;
+- the current compensation/ordinary head intent and hash.
 
 ## Claim transaction
 
@@ -91,104 +163,127 @@ The claim transaction:
 
 1. selects an eligible `Pending`, due `Retryable`, or expired `Leased` job using
    `FOR UPDATE SKIP LOCKED`;
-2. verifies the job is not terminal and attempts remain;
+2. requires an active capture and unapplied campaign state;
 3. increments attempt and generation;
 4. writes owner and expiry;
-5. commits before any network call.
+5. initializes stable authorization/nonce material from `remote_request_id`;
+6. commits before any network call.
 
-The transaction does not deserialize and rewrite campaign state unless needed
-to verify the immutable intent/revision binding. It never calls signer or CEX.
+It never calls signer or CEX.
 
 ## External execution
 
-The worker uses asynchronous clients and the immutable job data. Recommended
-sequence for positive rewards:
+The worker uses asynchronous clients and immutable job data:
 
-1. retrieve or create the exact entitlement using job ID as request identity;
-2. query signer receipt when a previous response is ambiguous;
-3. submit/query the exact CEX intent using the immutable intent ID/hash;
-4. produce a `SettlementReceiptBindingV1`;
-5. enter the apply transaction.
+1. authorize or recover the exact entitlement under `remote_request_id`;
+2. persist the exact authorized intent and signer receipt under a live lease;
+3. submit/query the exact CEX economic intent using its immutable intent ID and
+   idempotency key;
+4. validate the returned receipt against the authorized intent;
+5. durably store remote success under the same live lease;
+6. leave campaign state untouched until a separate apply transaction.
 
-A network timeout is not evidence that the remote side failed. Retrying the same
-idempotency identity or querying the receipt is mandatory.
+A timeout is not evidence that the remote side failed. Retrying or querying the
+same durable identity is mandatory; minting a replacement intent/request ID is
+forbidden.
 
 ## Apply transaction
 
 The apply transaction:
 
-1. locks the settlement job;
-2. verifies current owner, generation and nonexpired lease;
-3. verifies receipt job/intent/hash binding;
-4. locks the campaign and verifies expected revision or an allowed idempotent
-   successor;
-5. applies receipt/progression exactly once;
-6. marks the job `Succeeded` and commits.
+1. locks the active capture and exact match;
+2. revalidates terminal publication, cold seal, result, generation, host, tick,
+   sequence, and snapshot identity;
+3. locks all member campaigns in deterministic order;
+4. verifies every captured campaign revision/state hash before the first write;
+5. verifies the current campaign head still matches the captured intent/hash;
+6. validates each durable remote receipt against that exact intent;
+7. applies campaign updates with revision/state-hash compare-and-swap;
+8. marks every job `campaign_applied_at`;
+9. advances the match only when no economic head remains;
+10. commits atomically.
 
-A stale lease, mismatched receipt, unexpected revision or quarantined terminal
-projection fails closed.
+Any mismatch produces a stale or dead-letter outcome without partial campaign
+writes.
 
 ## Retry and dead letter
 
-- Maximum attempts in the reference contract: 16.
+- Maximum remote attempts: 16.
 - Lease duration must be positive and no more than five minutes.
-- Retry time must be strictly after the failed attempt time.
+- Retry delay is bounded and deterministic with stable jitter.
 - Errors are bounded before persistence and must not contain credentials.
-- The final failed attempt becomes `DeadLetter`.
-- Operator replay requires a new lease generation and an auditable reason; it
-  must not overwrite the historical terminal record silently.
+- The final failed remote attempt becomes `DeadLetter`.
+- Retry and dead-letter writes require a still-live lease.
+- Operator replay requires a separately versioned, auditable control; it must not
+  overwrite terminal history silently.
 
-## Ordering
+## Ordering and isolation
 
-Jobs that can change the same spendable or reversible balance must be serialized
-by account/campaign semantics. Unrelated jobs should execute concurrently.
-Global FIFO is prohibited because one poisoned job must not block refunds,
-chargebacks or unrelated players.
+Compensation work is selected before ordinary settlement work. One active
+capture exists per match. Unrelated matches may progress independently; a
+poisoned job must not become a global FIFO blocker.
 
-## Telemetry
+Account/campaign serialization and contention behavior still require database
+black-box evidence before trusted-settlement promotion.
 
-Required metrics:
+## Telemetry requirements
 
-- eligible, leased, retryable, succeeded and dead-letter counts;
-- oldest eligible job age;
-- lease expiration/reclaim count;
-- attempts histogram;
+Required metrics and projections include:
+
+- remote pending/leased/retryable/succeeded/dead-letter counts;
+- application waiting/pending-apply/applied/blocked counts;
+- oldest eligible and oldest pending-apply ages;
+- lease expiration/reclaim and stale-generation rejection counts;
+- attempts and remote-attempt histograms;
 - signer and CEX latency/outcome;
 - ambiguous remote outcome count;
-- stale-generation rejection count;
-- receipt mismatch count;
-- campaign revision conflict count;
-- settlement completion lag from match terminal publication.
+- receipt mismatch and campaign revision conflict counts;
+- settlement completion lag from terminal publication.
 
-Required logs bind job ID, match ID, campaign ID, intent ID, attempt and lease
-generation, but never credentials or private entitlement material.
+Logs may bind job ID, remote request ID, match ID, campaign ID, intent ID,
+attempt, and lease generation. Credentials, private keys, raw tokens, and full
+private entitlement material must never be logged.
 
 ## Fault matrix
 
-At minimum inject process death or response loss:
+At minimum inject process death, timeout, cancellation, or response loss:
 
-1. before claim commit;
-2. after claim commit and before signer call;
-3. after signer commit and before response;
-4. after signer response and before CEX call;
-5. after CEX commit and before response;
-6. after receipt verification and before apply transaction;
-7. during campaign update before commit;
-8. after apply commit and before worker acknowledgement;
-9. after lease expiry while the old worker is still running;
-10. during dead-letter transition.
+1. before capture commit;
+2. after capture commit and before claim;
+3. after claim commit and before signer call;
+4. after signer commit and before response;
+5. after authorization persistence and before CEX call;
+6. after CEX commit and before response;
+7. after receipt verification and before remote-success persistence;
+8. after remote-success persistence and before apply;
+9. during campaign update before apply commit;
+10. after apply commit and before worker acknowledgement;
+11. after lease expiry while the old worker is still running;
+12. during retry and dead-letter transitions;
+13. during worker shutdown with queued and in-flight work;
+14. during concurrent claim/apply attempts by two workers.
 
-Every row must converge without duplicate payout or silent progression loss.
+Every row must converge without duplicate value, stale local writes, silent
+progression loss, or an expired worker mutation.
 
 ## Runtime migration checklist
 
-- [ ] Add reviewed migration and indexes.
-- [ ] Add async signer/CEX clients.
-- [ ] Add claim worker and per-account/campaign scheduling.
-- [ ] Add exact remote receipt query/idempotency support.
-- [ ] Add apply transaction and campaign revision policy.
-- [ ] Remove the legacy transaction-held `reconcile_economy` call.
-- [ ] Add static guard for external calls under mutable transactions.
-- [ ] Add dashboards and operator runbook.
-- [ ] Execute the complete fault matrix.
-- [ ] Bind promoted release and evidence to the exact commit/binary/toolchain.
+- [x] Add reviewed migration and indexes.
+- [x] Add async signer/CEX clients.
+- [x] Add capture, claim, remote execution, and exact apply phases.
+- [x] Persist stable remote request identity independent of capture generation.
+- [x] Require a live lease for every remote mutation.
+- [x] Separate remote success from campaign application in operator status.
+- [x] Prevent upstream cascade deletion of settlement evidence.
+- [x] Add static guards and focused contract tests.
+- [ ] Add explicit remote receipt lookup/recovery for every ambiguous dependency
+  response.
+- [ ] Prove account/campaign ordering and two-worker contention in PostgreSQL.
+- [ ] Remove the inert legacy `reconcile_economy` caller.
+- [ ] Add dashboards and operator replay/retention runbooks.
+- [ ] Execute the complete black-box fault matrix.
+- [ ] Bind exact-commit remote CI, artifact, toolchain, environment, and reviewer
+  evidence.
+
+Until every unchecked row is closed, `trusted_cex_settlement` remains blocked
+and public player markets remain disabled.
