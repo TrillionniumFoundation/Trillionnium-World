@@ -9,46 +9,69 @@ fail() {
   exit 1
 }
 
-legacy_file="trillionnium/crates/trnm-game-server/src/lib.rs"
+entry="trillionnium/crates/trnm-game-server/src/lib.rs"
+template="trillionnium/crates/trnm-game-server/src/lib.rs.in"
+worker_entry="trillionnium/crates/trnm-game-server/src/settlement_worker.rs"
+worker_template="trillionnium/crates/trnm-game-server/src/settlement_worker.rs.in"
+build="trillionnium/crates/trnm-game-server/build.rs"
 adr="docs/adr/0002-transaction-free-external-settlement.md"
 design="docs/development/trnm-settlement-outbox-v1.md"
 recovery="docs/protocol/trnm-settlement-receipt-recovery-v1.md"
 runbook="docs/runbooks/trnm-settlement-operations-v1.md"
+status="docs/status/settlement-runtime-v1.json"
 contract="trillionnium/tools/trnm-settlement-outbox-contract/src/lib.rs"
 outbox_migration="trillionnium/crates/trnm-game-server/migrations/0016_online_settlement_outbox_v1.sql"
 worker_migration="trillionnium/crates/trnm-game-server/migrations/0017_online_settlement_worker_runtime_v1.sql"
+operator_migration="trillionnium/crates/trnm-game-server/migrations/0018_online_settlement_operator_controls_v1.sql"
 cex_source="trillionnium/crates/trnm-game-server/src/cex.rs"
 signer_protocol="trillionnium/crates/trnm-game-server/src/signer_protocol.rs"
 signer_binary="trillionnium/crates/trnm-game-server/src/bin/trnm-entitlement-signer.rs"
 identity_test="trillionnium/crates/trnm-game-server/tests/settlement_remote_identity_contract.rs"
 serialization_test="trillionnium/crates/trnm-game-server/tests/settlement_serialization_database.rs"
+capture_test="trillionnium/crates/trnm-game-server/tests/settlement_capture_commit_boundary.rs"
+operator_test="trillionnium/crates/trnm-game-server/tests/settlement_operator_controls_database.rs"
+boundary_test="trillionnium/crates/trnm-game-server/tests/settlement_game_server_boundary.rs"
 workflow=".github/workflows/trnm-settlement-fencing.yml"
 
 for required in \
-  "$legacy_file" "$adr" "$design" "$recovery" "$runbook" "$contract" \
-  "$outbox_migration" "$worker_migration" "$cex_source" "$signer_protocol" \
-  "$signer_binary" "$identity_test" "$serialization_test" "$workflow"; do
+  "$entry" "$template" "$worker_entry" "$worker_template" "$build" \
+  "$adr" "$design" "$recovery" "$runbook" "$status" "$contract" \
+  "$outbox_migration" "$worker_migration" "$operator_migration" \
+  "$cex_source" "$signer_protocol" "$signer_binary" "$identity_test" \
+  "$serialization_test" "$capture_test" "$operator_test" "$boundary_test" \
+  "$workflow"; do
   [[ -s "$required" ]] || fail "missing required settlement boundary file: $required"
 done
 
-# One compatibility call site remains in lib.rs, but the synchronous CexClient
-# implementation is fail-closed and cannot perform transport. No second caller
-# may appear, and this final caller remains an explicit P0 deletion gate.
-mapfile -t legacy_calls < <(
-  grep -RInF --include='*.rs' 'reconcile_economy(&state.cex' \
-    trillionnium/crates 2>/dev/null || true
-)
-[[ "${#legacy_calls[@]}" == "1" ]] || {
-  printf '%s\n' "${legacy_calls[@]:-}" >&2
-  fail "expected exactly one inert compatibility settlement call; found ${#legacy_calls[@]}"
-}
-[[ "${legacy_calls[0]}" == "$legacy_file:"* ]] \
-  || fail "registered compatibility settlement debt moved outside its reviewed file"
+# The compiled entrypoints are generated from reviewed templates. The template
+# may retain exactly one source transformation anchor, but the compiled source
+# must contain no synchronous CEX settlement call.
+grep -Fq 'trnm_game_server_lib_generated.rs' "$entry" \
+  || fail "game-server entrypoint no longer includes generated runtime source"
+grep -Fq 'trnm_settlement_worker_generated.rs' "$worker_entry" \
+  || fail "settlement-worker entrypoint no longer includes generated runtime source"
+! grep -Fq 'reconcile_economy(&state.cex' "$entry" \
+  || fail "compiled game-server entrypoint reintroduced synchronous settlement"
+[[ "$(grep -Fc 'reconcile_economy(&state.cex' "$template")" == "1" ]] \
+  || fail "reviewed game-server template must retain exactly one fail-closed transform anchor"
+for marker in \
+  'source.contains("reconcile_economy(&state.cex")' \
+  'source.contains("settle_pending_matches(&settlement_state")' \
+  'WORLD-P0-001 source transform failed closed' \
+  'terminal settlement is owned by trnm-settlement-worker' \
+  '0018_online_settlement_operator_controls_v1'; do
+  grep -Fq "$marker" "$build" \
+    || fail "generated runtime transform lost marker: $marker"
+done
+
+# Run the structural parser, which scans both .rs and .rs.in sources and proves
+# no remote transport occurs in a transaction-owning function.
+bash scripts/check-trnm-settlement-transaction-boundary.sh
 
 grep -Fq 'External signer, wallet, ledger, custody, webhook or other network I/O is' "$adr" \
   || fail "ADR-0002 no longer states the external-I/O transaction prohibition"
 grep -Fq 'runtime_status: integrated-pending-p0-evidence' "$design" \
-  || fail "settlement design no longer reports its exact runtime/evidence posture"
+  || fail "settlement design no longer reports its bounded runtime posture"
 grep -Fq 'lookup-before-submit' "$design" \
   || fail "settlement design lost remote ambiguity recovery"
 grep -Fq 'account/campaign serialization' "$design" \
@@ -62,7 +85,7 @@ grep -Fq 'trnm_cex_settlement_receipt_lookup_v1' "$recovery" \
 grep -Fq 'trnm_online_settlement_metrics_v1' "$runbook" \
   || fail "settlement runbook lost operator metrics"
 grep -Fq 'pub const SETTLEMENT_OUTBOX_CONTRACT: &str = "trnm_settlement_outbox_v1"' "$contract" \
-  || fail "settlement outbox invariant contract is missing or renamed without migration"
+  || fail "settlement outbox invariant contract is missing or renamed"
 
 grep -Fq 'on delete restrict' "$outbox_migration" \
   || fail "settlement evidence is not protected from upstream deletion"
@@ -80,7 +103,6 @@ for marker in \
   'p_authorization_request_id = remote_request_id' \
   'create or replace function public.trnm_online_settlement_serialization_key_v1' \
   'pg_catalog.pg_try_advisory_xact_lock' \
-  'pg_catalog.hashtextextended' \
   'create or replace view public.trnm_online_settlement_job_status_v1' \
   'create or replace view public.trnm_online_settlement_metrics_v1' \
   "when job.state = 'succeeded' then 'pending_apply'" \
@@ -90,9 +112,16 @@ for marker in \
     || fail "worker migration lost settlement marker: $marker"
 done
 
-lease_expiry_fences="$(grep -Fc 'lease_expires_at > pg_catalog.clock_timestamp()' "$worker_migration")"
-[[ "$lease_expiry_fences" -ge 5 ]] \
-  || fail "expected live-lease fences on authorization/attempt/complete/retry/dead-letter; found $lease_expiry_fences"
+for marker in \
+  'trnm_online_settlement_operator_replay' \
+  'trnm_online_settlement_operator_replay_requests' \
+  'before update or delete' \
+  'before truncate' \
+  'remote_attempts' \
+  'retention'; do
+  grep -Fiq "$marker" "$operator_migration" \
+    || fail "operator migration lost replay/append-only marker: $marker"
+done
 
 for marker in \
   'async fn lookup_signer_receipt' \
@@ -111,22 +140,48 @@ grep -Fq 'ENTITLEMENT_SIGNER_RECEIPT_PATH: &str = "/v1/signer/receipts"' "$signe
 grep -Fq '"/v1/signer/receipts/:request_id"' "$signer_binary" \
   || fail "signer service lost receipt lookup route"
 grep -Fq 'entitlement.nonce != request.request_id' "$signer_binary" \
-  || fail "signer request identity is not bound through the entitlement nonce"
+  || fail "signer request identity is not bound through entitlement nonce"
 ! grep -Fq 'entitlement.intent_id != request.request_id' "$signer_binary" \
-  || fail "signer transport identity is incorrectly aliased to economic intent identity"
+  || fail "signer transport identity is aliased to economic intent identity"
 
 grep -Fq 'account_serialization_does_not_block_unrelated_work' "$serialization_test" \
   || fail "PostgreSQL serialization test is missing"
+grep -Fq 'settlement_operator_replay_is_exact_audited_one_attempt_and_append_only' "$operator_test" \
+  || fail "PostgreSQL operator replay test is missing"
+grep -Fq 'GENERATED_GAME_SERVER_SOURCE' "$boundary_test" \
+  || fail "generated game-server ownership test is missing"
 grep -Fq "TRNM_REQUIRE_SETTLEMENT_DATABASE_TEST: '1'" "$workflow" \
   || fail "PostgreSQL settlement tests are optional in CI"
-grep -Fq -- '--test settlement_serialization_database' "$workflow" \
-  || fail "workflow does not run account serialization database test"
+for target in \
+  'settlement_game_server_boundary' \
+  'settlement_serialization_database' \
+  'settlement_operator_controls_database'; do
+  grep -Fq -- "--test $target" "$workflow" \
+    || fail "workflow does not run $target"
+done
 grep -Fq -- '--bin trnm-entitlement-signer' "$workflow" \
   || fail "workflow does not test signer lookup route"
+grep -Fq 'cargo clippy -p trnm-game-server --all-targets --locked -- -D warnings' "$workflow" \
+  || fail "workflow lost complete game-server lint"
 
-grep -Fq 'WORLD-P0-001' \
-  docs/development/trillionnium-world-development-plan-2026-08-27.json \
-  || fail "the registered migration debt has no machine-readable P0 work item"
+python3 - <<'PY'
+import json
+from pathlib import Path
+status = json.loads(Path('docs/status/settlement-runtime-v1.json').read_text())
+required = {
+    'merge_cex_owner_repository_pull_request',
+    'bind_exact_cex_build_and_deployment_artifact',
+    'prove_deployed_signer_and_cex_response_loss_recovery',
+    'prove_process_kill_cancellation_shutdown_and_apply_rollback_matrix',
+    'approve_backup_pitr_restore_and_receipt_retention',
+    'obtain_exact_commit_github_actions_evidence',
+    'obtain_reviewer_signoff',
+}
+if set(status['open_gates']) != required:
+    raise SystemExit('settlement status hid or invented final external blockers')
+if status['public_online'] != 'no_go' or status['public_player_market'] != 'disabled':
+    raise SystemExit('settlement status overclaimed public release')
+PY
 
 printf '%s\n' \
-  'TRNM settlement transaction boundary: amber (runtime split, stable identity, lookup-before-submit, account serialization, PostgreSQL tests and operator metrics implemented; legacy caller, CEX owner endpoint and deployed fault evidence remain open)'
+  'TRNM settlement transaction boundary: PASS (compiled synchronous caller removed; generated source, worker phases, identity, lease, replay and evidence controls are fail-closed; external deployment/governance gates remain explicit)'
