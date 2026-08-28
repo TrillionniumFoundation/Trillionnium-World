@@ -28,8 +28,69 @@ alter table public.trnm_online_settlement_jobs
 alter table public.trnm_online_settlement_jobs
     add column if not exists capture_generation bigint not null default 1
         check (capture_generation > 0);
+
+-- job_id remains the capture-scoped worker row identity. remote_request_id is
+-- the stable signer/CEX idempotency identity and deliberately excludes
+-- capture_id/capture_generation. It is generated for every existing and future
+-- row from a SHA-256 over unambiguous u32-big-endian length-prefixed UTF-8
+-- components: contract domain, match ID, campaign ID, intent ID and intent hash.
+-- PostgreSQL core SHA-256 is used; no optional extension is required.
 alter table public.trnm_online_settlement_jobs
-    add column if not exists remote_request_id text;
+    add column if not exists remote_request_id text generated always as (
+        'trnm-settlement-remote-v1:' || pg_catalog.encode(
+            pg_catalog.sha256(
+                pg_catalog.decode(
+                    pg_catalog.lpad(
+                        pg_catalog.to_hex(
+                            pg_catalog.octet_length('trnm_settlement_remote_v1'::text)
+                        ),
+                        8,
+                        '0'
+                    ),
+                    'hex'
+                )
+                || pg_catalog.convert_to('trnm_settlement_remote_v1', 'UTF8')
+                || pg_catalog.decode(
+                    pg_catalog.lpad(
+                        pg_catalog.to_hex(pg_catalog.octet_length(match_id::text)),
+                        8,
+                        '0'
+                    ),
+                    'hex'
+                )
+                || pg_catalog.convert_to(match_id::text, 'UTF8')
+                || pg_catalog.decode(
+                    pg_catalog.lpad(
+                        pg_catalog.to_hex(pg_catalog.octet_length(campaign_id)),
+                        8,
+                        '0'
+                    ),
+                    'hex'
+                )
+                || pg_catalog.convert_to(campaign_id, 'UTF8')
+                || pg_catalog.decode(
+                    pg_catalog.lpad(
+                        pg_catalog.to_hex(pg_catalog.octet_length(intent_id)),
+                        8,
+                        '0'
+                    ),
+                    'hex'
+                )
+                || pg_catalog.convert_to(intent_id, 'UTF8')
+                || pg_catalog.decode(
+                    pg_catalog.lpad(
+                        pg_catalog.to_hex(pg_catalog.octet_length(intent_hash)),
+                        8,
+                        '0'
+                    ),
+                    'hex'
+                )
+                || pg_catalog.convert_to(intent_hash, 'UTF8')
+            ),
+            'hex'
+        )
+    ) stored;
+
 alter table public.trnm_online_settlement_jobs
     add column if not exists authorization_request_id text;
 alter table public.trnm_online_settlement_jobs
@@ -43,18 +104,6 @@ alter table public.trnm_online_settlement_jobs
     add column if not exists failure_class text
         check (failure_class is null or failure_class in ('retryable', 'permanent', 'stale'));
 
--- job_id remains the capture-scoped worker row identity. remote_request_id is
--- the stable signer/CEX idempotency identity and deliberately excludes
--- capture_id/capture_generation. md5(campaign_id) is used only to compact the
--- namespace; intent_hash remains the SHA-256 integrity binding.
-update public.trnm_online_settlement_jobs
-   set remote_request_id = 'trnm-settlement-remote-v1:'
-       || match_id::text || ':' || md5(campaign_id) || ':' || intent_hash
- where remote_request_id is null;
-
-alter table public.trnm_online_settlement_jobs
-    alter column remote_request_id set not null;
-
 alter table public.trnm_online_settlement_jobs
     drop constraint if exists trnm_online_settlement_jobs_capture_id_check;
 alter table public.trnm_online_settlement_jobs
@@ -66,7 +115,7 @@ alter table public.trnm_online_settlement_jobs
 alter table public.trnm_online_settlement_jobs
     add constraint trnm_online_settlement_jobs_remote_request_id_check
     check (
-        remote_request_id ~ '^trnm-settlement-remote-v1:[0-9a-f-]{36}:[0-9a-f]{32}:[0-9a-f]{64}$'
+        remote_request_id ~ '^trnm-settlement-remote-v1:[0-9a-f]{64}$'
         and length(remote_request_id) <= 256
     );
 
