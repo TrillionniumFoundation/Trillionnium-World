@@ -1,9 +1,9 @@
 -- Runtime integration for the transaction-free terminal settlement outbox.
 --
 -- This migration adds immutable capture fences, stable remote request identity,
--- lease-fenced remote completion, and a separate campaign-apply marker. External
--- signer/CEX calls remain outside PostgreSQL transactions in
--- trnm-settlement-worker.
+-- lease-fenced remote completion, account/campaign serialization, and a separate
+-- campaign-apply marker. External signer/CEX calls remain outside PostgreSQL
+-- transactions in trnm-settlement-worker.
 
 alter table public.trnm_online_settlement_jobs
     add column if not exists expected_campaign_state_hash text;
@@ -311,6 +311,35 @@ create index if not exists idx_trnm_online_settlement_job_unapplied_success
     on public.trnm_online_settlement_jobs(capture_id, campaign_id, created_at)
     where state = 'succeeded' and campaign_applied_at is null;
 
+-- Economic work is serialized by the primary account carried in the immutable
+-- intent. Intents without an account fall back to their campaign namespace.
+-- This keeps one account/campaign mutation in flight while allowing unrelated
+-- accounts and compensation work to continue independently.
+create or replace function public.trnm_online_settlement_serialization_key_v1(
+    p_campaign_id text,
+    p_intent_json jsonb
+)
+returns text
+language sql
+immutable
+strict
+security invoker
+set search_path = pg_catalog, public
+as $function$
+    select coalesce(
+        nullif(p_intent_json #>> '{actors,0,account_id}', ''),
+        'campaign:' || p_campaign_id
+    )
+$function$;
+
+create index if not exists idx_trnm_online_settlement_job_serialization
+    on public.trnm_online_settlement_jobs (
+        public.trnm_online_settlement_serialization_key_v1(campaign_id, intent_json),
+        created_at,
+        job_id
+    )
+    where campaign_applied_at is null;
+
 -- The v1 claim function predates active-capture fencing and stable remote
 -- identity. Leaving it callable would create a second, weaker claim path.
 create or replace function public.trnm_online_claim_settlement_job_v1(
@@ -349,8 +378,21 @@ begin
         raise exception 'invalid settlement lease duration';
     end if;
 
-    with candidate as materialized (
-        select job.job_id
+    -- The first CTE locks only a bounded candidate window. The second CTE takes
+    -- a transaction-scoped advisory lock for the immutable account/campaign key.
+    -- A concurrent claimant for the same key fails pg_try_advisory_xact_lock and
+    -- may claim an unrelated key instead. Once the transaction commits, the
+    -- live lease/pending-apply blocker below preserves serialization.
+    with eligible as materialized (
+        select
+            job.job_id,
+            public.trnm_online_settlement_serialization_key_v1(
+                job.campaign_id,
+                job.intent_json
+            ) as serialization_key,
+            case job.queue_lane when 'compensation' then 0 else 1 end as lane_priority,
+            coalesce(job.next_attempt_at, job.created_at) as eligible_at,
+            job.created_at
           from public.trnm_online_settlement_jobs job
           join public.trnm_online_settlement_captures capture
             on capture.capture_id = job.capture_id
@@ -362,12 +404,51 @@ begin
                or (job.state = 'retryable' and job.next_attempt_at <= pg_catalog.clock_timestamp())
                or (job.state = 'leased' and job.lease_expires_at <= pg_catalog.clock_timestamp())
            )
+           and not exists (
+               select 1
+                 from public.trnm_online_settlement_jobs blocker
+                 join public.trnm_online_settlement_captures blocker_capture
+                   on blocker_capture.capture_id = blocker.capture_id
+                where blocker.job_id <> job.job_id
+                  and blocker_capture.state = 'active'
+                  and blocker.campaign_applied_at is null
+                  and public.trnm_online_settlement_serialization_key_v1(
+                      blocker.campaign_id,
+                      blocker.intent_json
+                  ) = public.trnm_online_settlement_serialization_key_v1(
+                      job.campaign_id,
+                      job.intent_json
+                  )
+                  and (
+                      blocker.state = 'succeeded'
+                      or (
+                          blocker.state = 'leased'
+                          and blocker.lease_expires_at > pg_catalog.clock_timestamp()
+                      )
+                  )
+           )
          order by
            case job.queue_lane when 'compensation' then 0 else 1 end,
            coalesce(job.next_attempt_at, job.created_at),
            job.created_at,
            job.job_id
          for update of job skip locked
+         limit 16
+    ),
+    candidate as materialized (
+        select eligible.job_id
+          from eligible
+         where pg_catalog.pg_try_advisory_xact_lock(
+             pg_catalog.hashtextextended(
+                 eligible.serialization_key,
+                 6075999279403313481
+             )
+         )
+         order by
+           eligible.lane_priority,
+           eligible.eligible_at,
+           eligible.created_at,
+           eligible.job_id
          limit 1
     )
     update public.trnm_online_settlement_jobs job
@@ -621,6 +702,10 @@ select
     job.campaign_id,
     job.intent_id,
     job.queue_lane,
+    public.trnm_online_settlement_serialization_key_v1(
+        job.campaign_id,
+        job.intent_json
+    ) as serialization_key,
     case job.state
         when 'succeeded' then 'remote_succeeded'
         when 'dead_letter' then 'remote_dead_letter'
@@ -639,4 +724,39 @@ select
     job.remote_completed_at,
     job.campaign_applied_at,
     job.updated_at
+from public.trnm_online_settlement_jobs job;
+
+-- One-row operator projection. It intentionally separates remote terminal state
+-- from local campaign application and exposes age, not only queue counts.
+create or replace view public.trnm_online_settlement_metrics_v1 as
+select
+    count(*) filter (where job.state = 'pending') as remote_pending,
+    count(*) filter (
+        where job.state = 'leased'
+          and job.lease_expires_at > pg_catalog.clock_timestamp()
+    ) as remote_leased,
+    count(*) filter (where job.state = 'retryable') as remote_retryable,
+    count(*) filter (where job.state = 'succeeded') as remote_succeeded,
+    count(*) filter (where job.state = 'dead_letter') as remote_dead_letter,
+    count(*) filter (
+        where job.state = 'succeeded'
+          and job.campaign_applied_at is null
+    ) as pending_apply,
+    count(*) filter (where job.campaign_applied_at is not null) as applied,
+    count(*) filter (
+        where job.state = 'leased'
+          and job.lease_expires_at <= pg_catalog.clock_timestamp()
+    ) as expired_leases,
+    min(pg_catalog.clock_timestamp() - job.created_at) filter (
+        where job.state in ('pending', 'retryable')
+           or (
+               job.state = 'leased'
+               and job.lease_expires_at <= pg_catalog.clock_timestamp()
+           )
+    ) as oldest_eligible_age,
+    min(pg_catalog.clock_timestamp() - job.remote_completed_at) filter (
+        where job.state = 'succeeded'
+          and job.campaign_applied_at is null
+    ) as oldest_pending_apply_age,
+    max(job.remote_attempts) as maximum_remote_attempts
 from public.trnm_online_settlement_jobs job;
