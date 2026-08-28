@@ -10,7 +10,9 @@
 - External-settlement transaction decision: `adr/0002-transaction-free-external-settlement.md`
 - World match-evidence boundary: `protocol/trnm-match-evidence-commitment-v1.md`
 - Settlement outbox design: `development/trnm-settlement-outbox-v1.md`
+- Settlement receipt-recovery protocol: `protocol/trnm-settlement-receipt-recovery-v1.md`
 - Settlement PostgreSQL black-box contract: `development/trnm-settlement-database-contract-v1.md`
+- Settlement operator runbook: `runbooks/trnm-settlement-operations-v1.md`
 - Settlement machine-readable status: `status/settlement-runtime-v1.json`
 - Settlement status schema: `status/settlement-runtime-v1.schema.json`
 - Runtime configuration: `operations/trnm-game-server-runtime-configuration.md`
@@ -28,7 +30,10 @@
 - World-local compatibility authority enclave: `../trillionnium/crates/trnm-game-server`
 - Settlement outbox invariant contract: `../trillionnium/tools/trnm-settlement-outbox-contract`
 - Settlement runtime worker: `../trillionnium/crates/trnm-game-server/src/settlement_worker.rs`
-- Settlement PostgreSQL contract test: `../trillionnium/crates/trnm-game-server/tests/settlement_database_contract.rs`
+- Signer receipt lookup: `../trillionnium/crates/trnm-game-server/src/bin/trnm-entitlement-signer.rs`
+- Settlement remote clients: `../trillionnium/crates/trnm-game-server/src/cex.rs`
+- Settlement PostgreSQL identity test: `../trillionnium/crates/trnm-game-server/tests/settlement_database_contract.rs`
+- Settlement PostgreSQL serialization test: `../trillionnium/crates/trnm-game-server/tests/settlement_serialization_database.rs`
 
 ## Current checks
 
