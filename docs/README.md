@@ -67,7 +67,7 @@ Active code references:
 - World-local compatibility server: `../trillionnium/crates/trnm-game-server`
 - deterministic World transition contract: `../trillionnium/contracts/trnm-world-transition-v1`
 
-The current game-server still has a review-integrity debt: `build.rs` semantically transforms `lib.rs.in`, `settlement_worker.rs.in`, and `cex.rs.in` into the actually compiled source. Plan V4 closure requires direct, checked-in compiled source and removal of semantic build-time rewriting.
+The CEX/signer transport is now directly compiled from `trnm-game-server/src/cex.rs`; its template and CEX build-time generation are removed. Review-integrity debt remains for `lib.rs.in` and `settlement_worker.rs.in`, which `build.rs` still transforms into the actually compiled game-server library and settlement worker. Plan V4 closure requires materializing those two sources and retiring the remaining semantic build-time rewriting.
 
 ## 5. Security, operations and release
 
@@ -95,7 +95,7 @@ Operational documents must state scope, preconditions, owner, exact commands, ex
 
 CI workflows must have read-only repository permissions. They may upload immutable evidence artifacts, but may not modify, commit, push, tag or promote candidate source.
 
-A workflow definition does not prove execution. On 2026-08-30, GitHub exposed no check runs for either V4 candidate and no run for a dedicated push probe. Until repository or organization Actions policy permits a non-empty exact-head run, remote verification remains `repository_control_blocked`.
+A workflow definition does not prove execution. On 2026-08-30, GitHub exposed no check runs for either V4 parent candidate and no run for a dedicated push probe. Until repository or organization Actions policy permits a non-empty exact-head run, remote verification remains `repository_control_blocked`.
 
 ## 7. Evidence classes and states
 
