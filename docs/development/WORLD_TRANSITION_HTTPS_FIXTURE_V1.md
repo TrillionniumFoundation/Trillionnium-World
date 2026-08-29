@@ -29,13 +29,30 @@ checkout.
 
 For a canonical request, the request hash is the durable idempotency key.
 Before a successful result is exposed, the service writes exact result bytes to
-an owning-directory result store using file fsync, atomic rename and directory
-fsync. A repeated request returns the stored bytes and never recomputes a
-second, potentially divergent result.
+a private owning-directory result store using:
+
+```text
+same-directory exclusive temporary file
+-> file fsync
+-> atomic hard-link publication with no replacement
+-> directory fsync
+-> temporary-link removal
+-> directory fsync
+```
+
+A competing process that loses publication loads and returns the existing
+committed result; it cannot overwrite it. The store rejects symlinked result
+directories and symlinked/non-regular cached results. A repeated request returns
+the stored bytes and never recomputes a second result after a committed value is
+visible.
 
 The response-drop proxy remains an Integration/Game test component. The World
 fixture itself does not simulate a network failure after persistence; it simply
 provides the durable upstream behavior needed to prove exact retry.
+
+This is a single-host fixture boundary. Sharing one result directory across
+hosts is prohibited; multi-host fencing remains a promotion blocker rather than
+an inferred property of the local filesystem protocol.
 
 ## Supported fixture domain
 
@@ -59,7 +76,7 @@ The exact-head workflow must run:
 - source and authority boundary checks;
 - malicious negative fixtures;
 - Go formatting;
-- unit tests;
+- unit tests, including no-replace publication and symlink rejection;
 - race tests;
 - vet;
 - static binary build;

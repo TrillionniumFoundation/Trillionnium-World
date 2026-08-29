@@ -21,6 +21,7 @@ required=(
   tools/trnm-world-transition-https-v1/internal/fixture/store.go
   tools/trnm-world-transition-https-v1/internal/fixture/server.go
   tools/trnm-world-transition-https-v1/internal/fixture/fixture_test.go
+  tools/trnm-world-transition-https-v1/internal/fixture/store_security_test.go
   docs/development/WORLD_TRANSITION_HTTPS_FIXTURE_V1.md
   docs/development/world-transition-https-fixture-v1-status.json
 )
@@ -87,9 +88,14 @@ grep -q 'RequestHashDomain' "$module/internal/fixture/contract.go" || fail 'requ
 grep -q 'TransitionHashDomain' "$module/internal/fixture/contract.go" || fail 'transition hash domain is missing'
 grep -q 'OutcomeHashDomain' "$module/internal/fixture/contract.go" || fail 'outcome hash domain is missing'
 
-for token in 'temporary.Sync()' 'os.Rename' 'directory.Sync()'; do
-  grep -q "$token" "$module/internal/fixture/store.go" || fail "durable result publication lacks $token"
+for token in 'temporary.Sync()' 'publishResultNoReplace' 'os.Link' 'os.Lstat' 'directory.Sync()'; do
+  grep -q "$token" "$module/internal/fixture/store.go" || fail "durable no-replace result publication lacks $token"
 done
+if grep -q 'os.Rename' "$module/internal/fixture/store.go"; then
+  fail 'result publication may replace an already committed result'
+fi
+grep -q 'TestPublishResultNoReplacePreservesCommittedBytes' "$module/internal/fixture/store_security_test.go" || fail 'no-replace collision regression test is missing'
+grep -q 'TestResultStoreRejectsSymlinkedResult' "$module/internal/fixture/store_security_test.go" || fail 'symlinked-result regression test is missing'
 
 grep -q '^FROM scratch$' "$module/Dockerfile.prebuilt" || fail 'final container is not scratch'
 grep -q '^USER 65532:65532$' "$module/Dockerfile.prebuilt" || fail 'final container is not non-root'

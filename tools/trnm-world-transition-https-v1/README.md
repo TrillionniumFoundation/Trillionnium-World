@@ -17,14 +17,19 @@ transition hashes, outcome hashes, resource limits and forbidden authority
 surfaces. Successful result bytes are persisted by request hash using:
 
 ```text
-exclusive temporary file
+exclusive same-directory temporary file
 -> file fsync
--> atomic rename
+-> atomic hard-link publication that cannot replace an existing result
+-> directory fsync
+-> temporary-link removal
 -> directory fsync
 ```
 
-A retry after upstream success and downstream response loss therefore receives
-the exact previously committed bytes.
+The result directory must be a real private directory rather than a symlink,
+and cached result paths must be regular owner-only files rather than symlinks.
+Two processes racing on the same request hash therefore preserve the first
+committed bytes; a retry after upstream success and downstream response loss
+receives those exact bytes.
 
 ## HTTP surface
 
@@ -49,7 +54,10 @@ TRNM_WORLD_FIXTURE_MAX_REQUEST_BYTES=<optional bounded integer>
 ```
 
 `TRNM_WORLD_FIXTURE_RESULT_DIR` must be an absolute writable directory owned by
-the non-root runtime user.
+the non-root runtime user. It must not be shared across hosts; multi-host
+fencing remains an explicit external gate. Filesystems that cannot provide
+same-directory hard-link publication are rejected rather than weakened to an
+overwriting fallback.
 
 ## Validation
 
