@@ -12,6 +12,11 @@ from dataclasses import dataclass
 from typing import Any, Iterable
 
 CONTRACT_VERSION = "trnm_world_rules_v1"
+RESULT_DOMAIN = "TRNM-WORLD-RULES-RESULT/1"
+ZERO_HASH = "0" * 64
+MAX_STEPS = 10_000_000
+MAX_OUTPUT_BYTES = 5 * 1024 * 1024
+MAX_REPLAY_BYTES = 16 * 1024 * 1024
 REQUIRED_FIELDS = {
     "fixture_id",
     "contract_version",
@@ -41,7 +46,50 @@ HASH_FIELDS = {
     "replay_hash",
     "transition_hash",
 }
-TOKEN_FIELDS = {"fixture_id", "ruleset_revision", "content_revision", "transition_id"}
+TOKEN_LIMITS = {
+    "fixture_id": 192,
+    "ruleset_revision": 128,
+    "content_revision": 128,
+    "transition_id": 192,
+}
+NUMERIC_LIMITS = {
+    "steps_used": MAX_STEPS,
+    "output_bytes": MAX_OUTPUT_BYTES,
+    "replay_bytes": MAX_REPLAY_BYTES,
+}
+STABLE_ERROR_CODES = frozenset(
+    {
+        "unsupported_contract_version",
+        "unknown_ruleset_revision",
+        "invalid_content_revision",
+        "invalid_transition_id",
+        "malformed_state",
+        "malformed_command",
+        "invalid_resource_budget",
+        "resource_budget_exceeded",
+        "domain_rejected",
+        "output_too_large",
+        "nondeterministic_result",
+        "internal_contract_error",
+    }
+)
+RECEIPT_FIELD_ORDER = (
+    ("contract_version", "contract"),
+    ("ruleset_revision", "ruleset"),
+    ("content_revision", "content"),
+    ("transition_id", "transition"),
+    ("request_hash", "request_hash"),
+    ("state_before_hash", "state_before_hash"),
+    ("command_hash", "command_hash"),
+    ("disposition", "disposition"),
+    ("error_code", "error_code"),
+    ("state_after_hash", "state_after_hash"),
+    ("outcome_hash", "outcome_hash"),
+    ("replay_hash", "replay_hash"),
+    ("steps_used", "steps_used"),
+    ("output_bytes", "output_bytes"),
+    ("replay_bytes", "replay_bytes"),
+)
 
 
 class ShadowDiffError(ValueError):
@@ -55,23 +103,50 @@ class LoadedRecords:
     records: dict[str, dict[str, Any]]
 
 
-def file_sha256(path: pathlib.Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as handle:
-        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
+def _unique_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise ShadowDiffError(f"duplicate JSON key: {key}")
+        result[key] = value
+    return result
+
+
+def _reject_constant(value: str) -> None:
+    raise ShadowDiffError(f"non-finite JSON number: {value}")
+
+
+def canonical_receipt_without_transition_hash(record: dict[str, Any]) -> bytes:
+    lines = [RESULT_DOMAIN]
+    for field, wire_name in RECEIPT_FIELD_ORDER:
+        lines.append(f"{wire_name}={record[field]}")
+    try:
+        return ("\n".join(lines) + "\n").encode("ascii")
+    except UnicodeEncodeError as error:
+        raise ShadowDiffError("receipt contains non-ASCII canonical material") from error
 
 
 def load_jsonl(path: pathlib.Path) -> LoadedRecords:
+    try:
+        payload = path.read_bytes()
+        text = payload.decode("utf-8")
+    except (OSError, UnicodeDecodeError) as error:
+        raise ShadowDiffError(f"{path}: cannot read canonical UTF-8 JSONL: {error}") from error
+
     records: dict[str, dict[str, Any]] = {}
-    for line_number, raw_line in enumerate(path.read_text().splitlines(), start=1):
+    for line_number, raw_line in enumerate(text.splitlines(), start=1):
         if not raw_line.strip():
             continue
         try:
-            record = json.loads(raw_line)
+            record = json.loads(
+                raw_line,
+                object_pairs_hook=_unique_object,
+                parse_constant=_reject_constant,
+            )
         except json.JSONDecodeError as error:
             raise ShadowDiffError(f"{path}:{line_number}: invalid JSON: {error}") from error
+        except ShadowDiffError as error:
+            raise ShadowDiffError(f"{path}:{line_number}: {error}") from error
         validate_record(record, f"{path}:{line_number}")
         fixture_id = record["fixture_id"]
         if fixture_id in records:
@@ -79,7 +154,7 @@ def load_jsonl(path: pathlib.Path) -> LoadedRecords:
         records[fixture_id] = record
     if not records:
         raise ShadowDiffError(f"{path}: no shadow records")
-    return LoadedRecords(path, file_sha256(path), records)
+    return LoadedRecords(path, hashlib.sha256(payload).hexdigest(), records)
 
 
 def validate_record(record: Any, context: str) -> None:
@@ -88,33 +163,50 @@ def validate_record(record: Any, context: str) -> None:
         raise ShadowDiffError(f"{context}: record fields differ: {actual}")
     if record["contract_version"] != CONTRACT_VERSION:
         raise ShadowDiffError(f"{context}: unsupported contract version")
-    for field in TOKEN_FIELDS:
+    for field, maximum in TOKEN_LIMITS.items():
         value = record[field]
-        if not isinstance(value, str) or not value or len(value) > 192:
+        if not isinstance(value, str) or not value or len(value) > maximum:
             raise ShadowDiffError(f"{context}: invalid {field}")
-        if any(character not in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._:@-" for character in value):
+        if any(
+            character
+            not in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._:@-"
+            for character in value
+        ):
             raise ShadowDiffError(f"{context}: noncanonical {field}")
     for field in HASH_FIELDS:
         value = record[field]
-        if not isinstance(value, str) or len(value) != 64 or any(character not in "0123456789abcdef" for character in value):
+        if (
+            not isinstance(value, str)
+            or len(value) != 64
+            or any(character not in "0123456789abcdef" for character in value)
+        ):
             raise ShadowDiffError(f"{context}: invalid {field}")
-    if record["disposition"] not in {"applied", "rejected"}:
+    disposition = record["disposition"]
+    if disposition not in {"applied", "rejected"}:
         raise ShadowDiffError(f"{context}: invalid disposition")
-    if not isinstance(record["error_code"], str) or not record["error_code"]:
+    error_code = record["error_code"]
+    if not isinstance(error_code, str):
         raise ShadowDiffError(f"{context}: invalid error_code")
-    for field in ("steps_used", "output_bytes", "replay_bytes"):
+    for field, maximum in NUMERIC_LIMITS.items():
         value = record[field]
-        if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+        if isinstance(value, bool) or not isinstance(value, int) or not 0 <= value <= maximum:
             raise ShadowDiffError(f"{context}: invalid {field}")
-    if record["disposition"] == "applied" and record["error_code"] != "none":
-        raise ShadowDiffError(f"{context}: applied record has an error")
-    if record["disposition"] == "rejected":
-        if record["error_code"] == "none":
-            raise ShadowDiffError(f"{context}: rejected record lacks an error")
-        if any(record[field] != "0" * 64 for field in ("state_after_hash", "outcome_hash", "replay_hash")):
+    if disposition == "applied":
+        if error_code != "none":
+            raise ShadowDiffError(f"{context}: applied record has an error")
+    else:
+        if error_code not in STABLE_ERROR_CODES:
+            raise ShadowDiffError(f"{context}: rejected record has an unknown error code")
+        if any(record[field] != ZERO_HASH for field in ("state_after_hash", "outcome_hash", "replay_hash")):
             raise ShadowDiffError(f"{context}: rejected record commits game output")
-        if any(record[field] != 0 for field in ("steps_used", "output_bytes", "replay_bytes")):
+        if any(record[field] != 0 for field in NUMERIC_LIMITS):
             raise ShadowDiffError(f"{context}: rejected record commits resource usage")
+
+    expected_transition_hash = hashlib.sha256(
+        canonical_receipt_without_transition_hash(record)
+    ).hexdigest()
+    if record["transition_hash"] != expected_transition_hash:
+        raise ShadowDiffError(f"{context}: transition_hash is not self-consistent")
 
 
 def compare(world: LoadedRecords, candidate: LoadedRecords) -> dict[str, Any]:
@@ -171,7 +263,7 @@ def write_summary(summary: dict[str, Any], destination: pathlib.Path | None) -> 
         sys.stdout.write(encoded)
     else:
         destination.parent.mkdir(parents=True, exist_ok=True)
-        destination.write_text(encoded)
+        destination.write_text(encoded, encoding="utf-8")
 
 
 def parse_args(argv: Iterable[str] | None = None) -> argparse.Namespace:
@@ -190,7 +282,7 @@ def main(argv: Iterable[str] | None = None) -> int:
         summary = compare(world, candidate)
         write_summary(summary, arguments.summary)
         return 0 if summary["comparison_status"] == "passed" else 1
-    except (OSError, ShadowDiffError) as error:
+    except ShadowDiffError as error:
         sys.stderr.write(f"trnm-world-shadow-diff: {error}\n")
         return 2
 
