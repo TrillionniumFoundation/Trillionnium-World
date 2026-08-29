@@ -8,8 +8,11 @@ on:
       - 'docs/protocol/trnm-world-transition-v1.md'
       - 'docs/protocol/schemas/trnm-world-transition-v1.schema.json'
       - 'docs/protocol/vectors/trnm-world-transition-v1.json'
+      - 'docs/development/trnm-world-transition-contract-v1.json'
       - 'scripts/check-trnm-world-transition-contract.sh'
       - 'scripts/test-trnm-world-transition-contract-negative.sh'
+      - 'scripts/package-trnm-world-transition-contract.py'
+      - 'scripts/check-trnm-world-transition-package.sh'
       - '.github/workflows/trnm-world-transition-contract.yml'
   push:
     branches:
@@ -20,8 +23,11 @@ on:
       - 'docs/protocol/trnm-world-transition-v1.md'
       - 'docs/protocol/schemas/trnm-world-transition-v1.schema.json'
       - 'docs/protocol/vectors/trnm-world-transition-v1.json'
+      - 'docs/development/trnm-world-transition-contract-v1.json'
       - 'scripts/check-trnm-world-transition-contract.sh'
       - 'scripts/test-trnm-world-transition-contract-negative.sh'
+      - 'scripts/package-trnm-world-transition-contract.py'
+      - 'scripts/check-trnm-world-transition-package.sh'
       - '.github/workflows/trnm-world-transition-contract.yml'
 
 permissions:
@@ -34,7 +40,7 @@ concurrency:
 jobs:
   contract-static:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - name: Checkout exact revision
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
@@ -42,6 +48,8 @@ jobs:
         run: bash scripts/check-trnm-world-transition-contract.sh
       - name: Prove forbidden and corrupt fixtures fail closed
         run: bash scripts/test-trnm-world-transition-contract-negative.sh
+      - name: Rebuild and verify the exact-revision deterministic bundle twice
+        run: bash scripts/check-trnm-world-transition-package.sh
 
   contract-rust:
     runs-on: ubuntu-latest
