@@ -1,60 +1,59 @@
-# Trillionnium World Documentation Index
+# Trillionnium World Documentation
 
-## Current truth sources
+This index lists current product truth. Historical Chain, Web4, legacy
+World/Bevy and superseded plans are not active architecture unless explicitly
+linked below.
 
-- Current development plan: `development/TRILLIONNIUM_WORLD_DEVELOPMENT_PLAN_2026-08-27.md`
-- Machine-readable execution manifest: `development/trillionnium-world-development-plan-2026-08-27.json`
-- Product status and honest open gates: `../GAME_STATUS.md`
-- Repository and authority boundary: `../PROJECT_BOUNDARY.md`
-- Authority ownership decision: `adr/0001-realtime-authority-and-match-evidence-ownership.md`
-- External-settlement transaction decision: `adr/0002-transaction-free-external-settlement.md`
-- World match-evidence boundary: `protocol/trnm-match-evidence-commitment-v1.md`
-- Settlement outbox design: `development/trnm-settlement-outbox-v1.md`
-- Settlement receipt-recovery protocol: `protocol/trnm-settlement-receipt-recovery-v1.md`
-- Settlement PostgreSQL black-box contract: `development/trnm-settlement-database-contract-v1.md`
-- Settlement operator runbook: `runbooks/trnm-settlement-operations-v1.md`
-- Settlement machine-readable status: `status/settlement-runtime-v1.json`
-- Settlement status schema: `status/settlement-runtime-v1.schema.json`
-- Runtime configuration: `operations/trnm-game-server-runtime-configuration.md`
-- Native release gates: `development/trnm-native-game-release-gates-v1.md`
-- Current RPG/RTS product contract: `development/trillionnium-rpg-rts-closed-loop-v1.md`
-- Current native game/CEX economy contract: `development/trnm-cex-economy-integration-v1.md`
+## Start here
 
-## Current implementation references
+1. [`../PROJECT_BOUNDARY.md`](../PROJECT_BOUNDARY.md)
+2. [`../CURRENT_PLAN.md`](../CURRENT_PLAN.md)
+3. [`development/TRILLIONNIUM_WORLD_DEVELOPMENT_PLAN_V4_2026-08-29.md`](development/TRILLIONNIUM_WORLD_DEVELOPMENT_PLAN_V4_2026-08-29.md)
+4. [`status/CURRENT.md`](status/CURRENT.md)
+5. [`status/world-gap-registry-v2.json`](status/world-gap-registry-v2.json)
 
-- Native client: `../trillionnium/crates/trnm-first-contact`
-- Deterministic RTS simulation: `../trillionnium/crates/trnm-rts-sim`
-- Campaign/save/progression authority: `../trillionnium/crates/trnm-campaign-core`
-- Economy intent/receipt vocabulary: `../trillionnium/crates/trnm-economy-protocol`
-- Online wire compatibility: `../trillionnium/crates/trnm-online-protocol`
-- World-local compatibility authority enclave: `../trillionnium/crates/trnm-game-server`
-- Settlement outbox invariant contract: `../trillionnium/tools/trnm-settlement-outbox-contract`
-- Settlement runtime worker: `../trillionnium/crates/trnm-game-server/src/settlement_worker.rs`
-- Signer receipt lookup: `../trillionnium/crates/trnm-game-server/src/bin/trnm-entitlement-signer.rs`
-- Settlement remote clients: `../trillionnium/crates/trnm-game-server/src/cex.rs`
-- Settlement PostgreSQL identity test: `../trillionnium/crates/trnm-game-server/tests/settlement_database_contract.rs`
-- Settlement PostgreSQL serialization test: `../trillionnium/crates/trnm-game-server/tests/settlement_serialization_database.rs`
+## Architecture and decisions
 
-## Current checks
+- [`architecture/trnm-world-system-architecture-v1.md`](architecture/trnm-world-system-architecture-v1.md)
+- [`adr/0001-realtime-authority-and-match-evidence-ownership.md`](adr/0001-realtime-authority-and-match-evidence-ownership.md)
+- [`adr/0002-transaction-free-external-settlement.md`](adr/0002-transaction-free-external-settlement.md)
+- [`adr/0003-reviewable-source-and-non-self-modifying-ci.md`](adr/0003-reviewable-source-and-non-self-modifying-ci.md)
 
-- Product workspace boundary: `../scripts/check_trnm_game_product.sh`
-- Authority ownership boundary: `../scripts/check_trnm_authority_boundary.sh`
-- Runtime configuration boundary: `../scripts/check_trnm_runtime_configuration.sh`
-- Settlement outbox contract: `../scripts/check_trnm_settlement_outbox_contract.sh`
-- Legacy settlement-debt boundary: `../scripts/check_trnm_settlement_transaction_boundary.sh`
-- Transaction/identity/lease boundary: `../scripts/check-trnm-settlement-transaction-boundary.sh`
-- Settlement machine-status validator: `../scripts/check-trnm-settlement-runtime-status.py`
-- Settlement status negative fixtures: `../scripts/test-trnm-settlement-runtime-status-negative.py`
-- Exact-head settlement workflow: `../.github/workflows/trnm-settlement-fencing.yml`
+## Development and correctness
 
-## Historical material
+- [`development/trnm-world-module-decomposition-v1.md`](development/trnm-world-module-decomposition-v1.md)
+- [`development/trnm-world-protocol-and-database-contract-plan-v1.md`](development/trnm-world-protocol-and-database-contract-plan-v1.md)
+- [`development/trnm-settlement-outbox-v1.md`](development/trnm-settlement-outbox-v1.md)
+- [`development/trnm-settlement-fault-evidence-plan-v1.md`](development/trnm-settlement-fault-evidence-plan-v1.md)
+- [`development/trnm-world-nakama-authority-migration-v1.md`](development/trnm-world-nakama-authority-migration-v1.md)
 
-Historical Chain, Web4, World/Bevy, Android, public-launch and old release-review
-material remains under `archive/` or legacy directories for provenance. It is
-not a current architecture, product gate or release truth source unless a
-current document explicitly cites a bounded artifact from it.
+## Protocols
 
-Documents under `architecture/`, `protocol/`, `runbooks/` or `release/` that
-primarily describe the former Rust L1/shared repository should be migrated to
-the owning repository or moved under `archive/legacy-chain/`. Their directory
-name alone does not make them current World documentation.
+- [`protocol/trnm-match-evidence-commitment-v1.md`](protocol/trnm-match-evidence-commitment-v1.md)
+- [`protocol/trnm-settlement-receipt-recovery-v1.md`](protocol/trnm-settlement-receipt-recovery-v1.md)
+- World transition v1 remains on its isolated contract PR until exact-head
+  validation and review are complete.
+
+## Security, operations and release
+
+- [`security/trnm-world-threat-model-v1.md`](security/trnm-world-threat-model-v1.md)
+- [`operations/trnm-game-server-runtime-configuration.md`](operations/trnm-game-server-runtime-configuration.md)
+- [`runbooks/trnm-settlement-operations-v1.md`](runbooks/trnm-settlement-operations-v1.md)
+- [`runbooks/trnm-world-gap-closure-operations-v1.md`](runbooks/trnm-world-gap-closure-operations-v1.md)
+- [`release/trnm-world-release-evidence-contract-v1.md`](release/trnm-world-release-evidence-contract-v1.md)
+
+## Evidence classification
+
+Every claim must be classified as one of:
+
+- source/static;
+- unit/property;
+- local black-box;
+- deployed single-host;
+- deployed cross-host/public-network;
+- human;
+- custody/security approval;
+- commercial/legal approval.
+
+A stronger denominator cannot be inferred from a weaker one. Empty, skipped,
+cancelled, stale or environment-unbound evidence fails closed.

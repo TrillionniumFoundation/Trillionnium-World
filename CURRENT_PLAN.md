@@ -2,20 +2,25 @@
 
 The current executable development plan is:
 
-`docs/development/TRILLIONNIUM_WORLD_DEVELOPMENT_PLAN_2026-08-27.md`
+`docs/development/TRILLIONNIUM_WORLD_DEVELOPMENT_PLAN_V4_2026-08-29.md`
 
-Machine-readable backlog and gates:
+Machine-readable plan and gap truth:
 
-`docs/development/trillionnium-world-development-plan-2026-08-27.json`
+- `docs/development/trillionnium-world-development-plan-v4-2026-08-29.json`
+- `docs/status/world-gap-registry-v2.json`
+- `docs/status/CURRENT.md`
 
-The current architecture decision is:
+Binding architecture decisions:
 
-`docs/adr/0001-realtime-authority-and-match-evidence-ownership.md`
+- `docs/adr/0001-realtime-authority-and-match-evidence-ownership.md`
+- `docs/adr/0002-transaction-free-external-settlement.md`
+- `docs/adr/0003-reviewable-source-and-non-self-modifying-ci.md`
 
-Key decision: Nakama is the canonical online match/evidence authority. World
-owns deterministic game rules, simulation, outcomes and unsigned game-domain
-material. The existing World-local online authority is a compatibility enclave
-pending adapter migration and must not expand into a second public authority.
+The target architecture has one accountable owner for every canonical cursor,
+root, receipt and signature. World owns deterministic game-domain behavior;
+Nakama owns target online authority; Chain owns finality; CEX owns wallet
+settlement; Integration owns cross-repository release locks.
 
-Public online, public player market and commercial-release claims remain gated
-by the exact evidence rows described in the plan and `GAME_STATUS.md`.
+Public online, public player markets, custody and commercial-release claims
+remain disabled until their distinct machine, deployed, human and approval
+evidence rows are explicitly green.

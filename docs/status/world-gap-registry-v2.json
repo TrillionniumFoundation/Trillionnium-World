@@ -1,0 +1,186 @@
+{
+  "schema": "trnm_world_gap_registry_v2",
+  "as_of": "2026-08-29",
+  "repository": "TrillionniumFoundation/Trillionnium-World",
+  "source_base_commit": "1d4dee6d5add45a64f5c138f424e3bdab369ecd4",
+  "candidate_branch": "fix/world-plan-v4-source-gap-closure",
+  "release_posture": {
+    "engineering": "technical_alpha",
+    "player_product": "pre_alpha",
+    "public_online": "no_go",
+    "public_player_market": "disabled",
+    "commercial_release": "no_go"
+  },
+  "counts": {
+    "closed": 0,
+    "implemented_unverified": 2,
+    "source_gap": 4,
+    "planned_or_partial": 6,
+    "blocked_upstream": 2,
+    "server_configuration_required": 1,
+    "external_evidence_required_or_blocked": 5
+  },
+  "gaps": [
+    {
+      "id": "WORLD-P0-001",
+      "class": "implemented_unverified",
+      "owner": "Trillionnium-World",
+      "summary": "Transaction-free settlement outbox exists but exact-head/deployed fault evidence is incomplete",
+      "next_gate": "non-empty exact-head PostgreSQL/Rust checks plus deployed ambiguity/process/rollback evidence",
+      "release_effect": "blocks_trusted_settlement"
+    },
+    {
+      "id": "WORLD-P0-002",
+      "class": "implemented_unverified",
+      "owner": "Trillionnium-World",
+      "summary": "Deterministic transition contract is isolated on Draft PR #21",
+      "next_gate": "strict canonical conformance, exact-head CI, independent review and ordered merge",
+      "release_effect": "blocks_nakama_adapter"
+    },
+    {
+      "id": "WORLD-P0-003",
+      "class": "blocked_upstream",
+      "owner": "Trillionnium-Nakama",
+      "summary": "Canonical adapter and shadow runner are not closed",
+      "next_gate": "Nakama-owned exact implementation and zero unexplained divergence",
+      "release_effect": "blocks_authority_cutover"
+    },
+    {
+      "id": "WORLD-P0-004",
+      "class": "blocked_upstream",
+      "owner": "Trillionnium-Integration",
+      "summary": "Cross-repository component lock and cutover rehearsal are not closed",
+      "next_gate": "exact World/Nakama/CEX lock, drain/cutover/rollback matrix",
+      "release_effect": "blocks_public_online"
+    },
+    {
+      "id": "WORLD-P0-005",
+      "class": "server_configuration_required",
+      "owner": "repository-admins",
+      "summary": "Main protection and required checks are not observed server-side",
+      "next_gate": "apply ruleset and retain server snapshot plus negative rehearsal",
+      "release_effect": "blocks_all_release_credit"
+    },
+    {
+      "id": "WORLD-P0-006",
+      "class": "source_gap",
+      "owner": "Trillionnium-World",
+      "summary": "Settlement worker needs shutdown, poison isolation, bounded concurrency and ambiguity hardening",
+      "next_gate": "source fixes and complete fault tests",
+      "release_effect": "blocks_settlement_source_closure"
+    },
+    {
+      "id": "WORLD-P0-007",
+      "class": "source_gap",
+      "owner": "Trillionnium-World",
+      "summary": "Canonical JSON must be fully parsed and matched across Rust and Go",
+      "next_gate": "shared malicious corpus and exact byte/hash conformance",
+      "release_effect": "blocks_transition_contract_freeze"
+    },
+    {
+      "id": "WORLD-P0-008",
+      "class": "source_gap",
+      "owner": "Trillionnium-World",
+      "summary": "Campaign and RTS rejected commands can leave partial state in audited paths",
+      "next_gate": "candidate-commit pattern and property/fuzz state-preservation tests",
+      "release_effect": "blocks_deterministic_integrity"
+    },
+    {
+      "id": "WORLD-P0-009",
+      "class": "source_gap",
+      "owner": "Trillionnium-World",
+      "summary": "Self-modifying workflows and build-time semantic source rewriting reduce review integrity",
+      "next_gate": "read-only CI and directly reviewable compiled source",
+      "release_effect": "blocks_independent_review"
+    },
+    {
+      "id": "WORLD-P1-001",
+      "class": "planned_or_partial",
+      "owner": "Trillionnium-World",
+      "summary": "Game-server and client correctness modules remain too broad",
+      "next_gate": "behavior-preserving decomposition with invariant interfaces",
+      "release_effect": "maintainability_and_review_risk"
+    },
+    {
+      "id": "WORLD-P1-002",
+      "class": "planned_or_partial",
+      "owner": "Trillionnium-World",
+      "summary": "HTTP/WebSocket/error contracts are not fully published",
+      "next_gate": "OpenAPI/schemas/golden fixtures and retirement matrix",
+      "release_effect": "blocks_stable_integrations"
+    },
+    {
+      "id": "WORLD-P1-003",
+      "class": "planned_or_partial",
+      "owner": "Trillionnium-World",
+      "summary": "Stored procedures, privileges and lock order lack one complete contract catalogue",
+      "next_gate": "generated catalogue, lock graph and migration/rollback tests",
+      "release_effect": "database_operational_risk"
+    },
+    {
+      "id": "WORLD-P1-004",
+      "class": "planned_or_partial",
+      "owner": "Trillionnium-World",
+      "summary": "Portable installation is partial",
+      "next_gate": "verified clean-host install, rollback and uninstall",
+      "release_effect": "blocks_distribution"
+    },
+    {
+      "id": "WORLD-P1-005",
+      "class": "planned_or_partial",
+      "owner": "Trillionnium-World-and-CEX",
+      "summary": "Role identity, rotation, mTLS and KMS/HSM are incomplete",
+      "next_gate": "rotation/revocation and role-compromise drills",
+      "release_effect": "blocks_custody"
+    },
+    {
+      "id": "WORLD-P1-006",
+      "class": "planned_or_partial",
+      "owner": "Trillionnium-World",
+      "summary": "Toolchain/action pinning, SBOM, provenance and signatures are partial",
+      "next_gate": "reproducible immutable signed artifact",
+      "release_effect": "blocks_release_provenance"
+    },
+    {
+      "id": "WORLD-P1-007",
+      "class": "external_evidence_required_or_blocked",
+      "owner": "Trillionnium-World-and-Integration",
+      "summary": "Complete deployed authority/settlement fault matrix is absent",
+      "next_gate": "exact deployed crash/ambiguity/rollback evidence",
+      "release_effect": "blocks_production"
+    },
+    {
+      "id": "WORLD-P1-008",
+      "class": "external_evidence_required_or_blocked",
+      "owner": "Trillionnium-World",
+      "summary": "No clean isolated 24-hour endurance pass",
+      "next_gate": "complete valid summary bound to artifact and environment",
+      "release_effect": "blocks_production"
+    },
+    {
+      "id": "WORLD-P2-001",
+      "class": "external_evidence_required_or_blocked",
+      "owner": "Integration-and-Operations",
+      "summary": "Public edge, cross-host and regional evidence is absent",
+      "next_gate": "TLS/WAF/DDoS/capacity and cross-host recovery",
+      "release_effect": "blocks_public_online"
+    },
+    {
+      "id": "WORLD-P2-002",
+      "class": "external_evidence_required_or_blocked",
+      "owner": "World-Product",
+      "summary": "Independent human single-player and multiplayer validation is absent",
+      "next_gate": "consented signed participant packets and review",
+      "release_effect": "blocks_commercial_usability"
+    },
+    {
+      "id": "WORLD-P2-003",
+      "class": "external_evidence_required_or_blocked",
+      "owner": "CEX-and-Business",
+      "summary": "Custody, fraud, dispute, support, privacy and legal approval are absent",
+      "next_gate": "explicit enablement approval after all dependencies",
+      "release_effect": "blocks_public_player_market"
+    }
+  ],
+  "closure_rule": "A gap is closed only by the evidence kind stated in the V4 plan and release evidence contract; source text cannot self-promote a stronger denominator."
+}

@@ -8,7 +8,7 @@
   "remote": {
     "policy": "required",
     "canonical_slug": "TrillionniumFoundation/Trillionnium-World",
-    "visibility": "private",
+    "visibility": "public",
     "upstream_required": true
   },
   "branch": {
@@ -62,11 +62,13 @@
     }
   ],
   "documentation": {
-    "current_plan": "docs/development/TRILLIONNIUM_WORLD_DEVELOPMENT_PLAN_2026-08-27.md",
+    "current_plan": "docs/development/TRILLIONNIUM_WORLD_DEVELOPMENT_PLAN_V4_2026-08-29.md",
+    "current_plan_manifest": "docs/development/trillionnium-world-development-plan-v4-2026-08-29.json",
+    "current_gap_registry": "docs/status/world-gap-registry-v2.json",
     "authority_adr": "docs/adr/0001-realtime-authority-and-match-evidence-ownership.md",
     "settlement_adr": "docs/adr/0002-transaction-free-external-settlement.md",
-    "match_evidence_contract": "docs/protocol/trnm-match-evidence-commitment-v1.md",
-    "current_plan_manifest": "docs/development/trillionnium-world-development-plan-2026-08-27.json"
+    "reviewable_source_adr": "docs/adr/0003-reviewable-source-and-non-self-modifying-ci.md",
+    "match_evidence_contract": "docs/protocol/trnm-match-evidence-commitment-v1.md"
   },
   "runtime": {
     "forbid_personal_absolute_paths": true,
@@ -74,6 +76,11 @@
     "require_distinct_role_credentials": true,
     "require_verified_release_in_production": true,
     "development_binary_fallback": "explicit-opt-in-only"
+  },
+  "evidence": {
+    "exact_commit_tree_binary_toolchain_environment_binding": "required",
+    "automated_may_satisfy_human_or_public_rows": false,
+    "empty_or_skipped_checks_are_success": false
   },
   "deny_changed_paths_regex": "^trillionnium/crates/platform/"
 }
