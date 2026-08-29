@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Negative fixtures for the final WORLD-P0-001 status contract."""
+"""Negative fixtures for the WORLD-P0-001 v4 status contract."""
 
 from __future__ import annotations
 
@@ -47,70 +47,37 @@ def remove_gate(name: str) -> Callable[[dict[str, Any]], None]:
 def main() -> int:
     baseline = json.loads(STATUS.read_text(encoding="utf-8"))
     cases: list[tuple[str, Callable[[dict[str, Any]], None]]] = [
-        (
-            "verified-without-evidence",
-            lambda value: value.__setitem__("status", "verified_remote"),
-        ),
-        (
-            "verified-commit-invented",
-            lambda value: value.__setitem__("verified_commit", "1" * 40),
-        ),
-        (
-            "public-online-overclaim",
-            lambda value: value.__setitem__("public_online", "enabled"),
-        ),
-        (
-            "market-overclaim",
-            lambda value: value.__setitem__("public_player_market", "enabled"),
-        ),
+        ("verified-without-evidence", lambda value: value.__setitem__("status", "verified_remote")),
+        ("verified-commit-invented", lambda value: value.__setitem__("verified_commit", "1" * 40)),
+        ("public-online-overclaim", lambda value: value.__setitem__("public_online", "enabled")),
+        ("market-overclaim", lambda value: value.__setitem__("public_player_market", "enabled")),
         (
             "release-overclaim",
-            lambda value: value.__setitem__(
-                "release_effect", "trusted_cex_settlement_candidate"
-            ),
+            lambda value: value.__setitem__("release_effect", "trusted_cex_settlement_candidate"),
         ),
         ("wrong-branch", lambda value: value.__setitem__("branch", "main")),
-        (
-            "hidden-ci-gate",
-            remove_gate("obtain_exact_commit_github_actions_evidence"),
-        ),
-        (
-            "hidden-cex-merge-gate",
-            remove_gate("merge_cex_owner_repository_pull_request"),
-        ),
-        (
-            "hidden-deployment-gate",
-            remove_gate("bind_exact_cex_build_and_deployment_artifact"),
-        ),
+        ("wrong-base", lambda value: value.__setitem__("base_commit", "0" * 40)),
+        ("hidden-ci-gate", remove_gate("run_exact_head_v4_checks")),
+        ("hidden-cex-merge-gate", remove_gate("merge_cex_owner_repository_pull_request")),
+        ("hidden-deployment-gate", remove_gate("bind_exact_cex_build_and_deployment_artifact")),
         ("hidden-review-gate", remove_gate("obtain_reviewer_signoff")),
+        ("shutdown-control-removed", remove_control("sigint_sigterm_stop_new_admission")),
+        ("quarantine-control-removed", remove_control("poison_match_job_capture_quarantine")),
+        ("ambiguity-control-removed", remove_control("malformed_success_is_ambiguous_retryable")),
+        ("migration-chain-control-removed", remove_control("game_server_and_worker_register_migrations_16_through_19")),
         (
-            "legacy-caller-control-removed",
-            remove_control("legacy_in_process_settlement_caller_removed"),
+            "required-context-replaced",
+            lambda value: value["required_checks"].__setitem__(0, "trnm-world-v4/fake"),
         ),
-        (
-            "migration-chain-control-removed",
-            remove_control("game_server_and_worker_register_migrations_16_through_18"),
-        ),
-        (
-            "operator-replay-control-removed",
-            remove_control("audited_exact_identity_operator_replay"),
-        ),
-        (
-            "generated-source-control-removed",
-            remove_control("generated_runtime_source_fails_closed_on_template_drift"),
-        ),
-        (
-            "future-run-invented",
-            lambda value: value["evidence"]["remote_workflow_runs"].append(1),
-        ),
+        ("future-run-invented", lambda value: value["evidence"]["remote_workflow_runs"].append(1)),
+        ("review-invented", lambda value: value["evidence"]["reviewers"].append("reviewer")),
         ("extra-claim", lambda value: value.__setitem__("release_ready", True)),
     ]
+
     with tempfile.TemporaryDirectory(prefix="trnm-settlement-negative-") as directory:
         directory_path = pathlib.Path(directory)
         baseline_path = directory_path / "baseline.json"
-        baseline_path.write_text(
-            json.dumps(baseline, indent=2) + "\n", encoding="utf-8"
-        )
+        baseline_path.write_text(json.dumps(baseline, indent=2) + "\n", encoding="utf-8")
         result = invoke(baseline_path)
         if result.returncode != 0:
             print(result.stdout, result.stderr, file=sys.stderr)
@@ -123,6 +90,7 @@ def main() -> int:
             if invoke(path).returncode == 0:
                 print(f"negative fixture unexpectedly passed: {name}", file=sys.stderr)
                 return 1
+
     print(
         "TRNM settlement runtime status negative fixtures: "
         f"PASS ({len(cases)}/{len(cases)} rejected)"
