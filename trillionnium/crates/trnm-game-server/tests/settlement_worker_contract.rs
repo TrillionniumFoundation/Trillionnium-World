@@ -1,8 +1,7 @@
-const OUTBOX_MIGRATION: &str =
-    include_str!("../migrations/0016_online_settlement_outbox_v1.sql");
+const OUTBOX_MIGRATION: &str = include_str!("../migrations/0016_online_settlement_outbox_v1.sql");
 const WORKER_MIGRATION: &str =
     include_str!("../migrations/0017_online_settlement_worker_runtime_v1.sql");
-const WORKER_SOURCE: &str = include_str!("../src/settlement_worker.rs");
+const WORKER_SOURCE: &str = include_str!("../src/settlement_worker.rs.in");
 const CEX_SOURCE: &str = include_str!("../src/cex.rs");
 const SIGNER_PROTOCOL: &str = include_str!("../src/signer_protocol.rs");
 const SIGNER_BINARY: &str = include_str!("../src/bin/trnm-entitlement-signer.rs");
@@ -32,7 +31,10 @@ fn capture_claim_and_apply_are_persisted_as_separate_contracts() {
         "create or replace view public.trnm_online_settlement_job_status_v1",
         "create or replace view public.trnm_online_settlement_metrics_v1",
     ] {
-        assert!(sql.contains(required), "missing settlement contract: {required}");
+        assert!(
+            sql.contains(required),
+            "missing settlement contract: {required}"
+        );
     }
 }
 
@@ -53,9 +55,8 @@ fn remote_retries_reuse_stable_authorization_material() {
     ] {
         assert!(sql.contains(required), "missing stable retry material: {required}");
     }
-    assert!(!sql.contains(
-        "authorization_request_id = coalesce(job.authorization_request_id, job.job_id)"
-    ));
+    assert!(!sql
+        .contains("authorization_request_id = coalesce(job.authorization_request_id, job.job_id)"));
     assert!(!sql.contains("entitlement_nonce = coalesce(job.entitlement_nonce, job.job_id)"));
     assert!(CEX_SOURCE.contains("stable_entitlement_id(authorization_request_id)"));
     assert!(CEX_SOURCE.contains("signed.request_id != authorization_request_id"));
@@ -74,11 +75,13 @@ fn ambiguous_remote_outcomes_use_lookup_before_submit() {
         "cex_response_loss_recovers_by_lookup_without_a_second_submit",
         "cex_lookup_with_a_mismatched_hash_fails_closed",
     ] {
-        assert!(CEX_SOURCE.contains(required), "missing recovery contract: {required}");
+        assert!(
+            CEX_SOURCE.contains(required),
+            "missing recovery contract: {required}"
+        );
     }
-    assert!(SIGNER_PROTOCOL.contains(
-        "pub const ENTITLEMENT_SIGNER_RECEIPT_PATH: &str = \"/v1/signer/receipts\""
-    ));
+    assert!(SIGNER_PROTOCOL
+        .contains("pub const ENTITLEMENT_SIGNER_RECEIPT_PATH: &str = \"/v1/signer/receipts\""));
     assert!(SIGNER_BINARY.contains("/v1/signer/receipts/:request_id"));
     assert!(SIGNER_BINARY.contains("get(get_signing_receipt)"));
     assert!(SIGNER_BINARY.contains("entitlement.nonce != request.request_id"));
@@ -107,7 +110,10 @@ fn account_serialization_preserves_unrelated_progress() {
         "blocker.lease_expires_at > pg_catalog.clock_timestamp()",
         "limit 16",
     ] {
-        assert!(sql.contains(required), "missing serialization control: {required}");
+        assert!(
+            sql.contains(required),
+            "missing serialization control: {required}"
+        );
     }
 }
 
@@ -120,7 +126,10 @@ fn durable_identity_fields_cannot_be_rebound() {
         "before update of match_id, campaign_id, intent_id, remote_request_id",
         "errcode = '23514'",
     ] {
-        assert!(sql.contains(required), "missing immutable identity fence: {required}");
+        assert!(
+            sql.contains(required),
+            "missing immutable identity fence: {required}"
+        );
     }
 }
 

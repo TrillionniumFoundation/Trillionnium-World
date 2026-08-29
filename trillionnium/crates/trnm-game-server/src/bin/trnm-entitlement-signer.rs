@@ -452,10 +452,7 @@ async fn main() -> Result<(), String> {
             .route("/v1/signer/readiness", get(readiness))
             .route("/v1/signer/attest", post(attest_signer))
             .route("/v1/signer/sign", post(sign_entitlement))
-            .route(
-                "/v1/signer/receipts/:request_id",
-                get(get_signing_receipt),
-            )
+            .route("/v1/signer/receipts/:request_id", get(get_signing_receipt))
             .layer(DefaultBodyLimit::max(64 * 1024))
             .with_state(state),
     )

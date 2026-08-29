@@ -191,7 +191,10 @@ fn ambiguous_remote_commit_retries_the_exact_intent_once() {
     let mut remote = IdempotentRemoteLedger::default();
     remote.lose_next_response_after_commit("intent-a");
 
-    assert_eq!(execute(&capture, &mut remote), Err("ambiguous transport outcome"));
+    assert_eq!(
+        execute(&capture, &mut remote),
+        Err("ambiguous transport outcome")
+    );
     let executed = execute(&capture, &mut remote).expect("same intent IDs must be replayable");
     assert_eq!(executed[0].receipt_ids, vec!["receipt:intent-a"]);
     assert_eq!(remote.commit_count.get("intent-a"), Some(&1));
@@ -209,13 +212,7 @@ fn remote_success_followed_by_revision_drift_never_applies_stale_state() {
     changed.revision += 1;
     changed.state_hash = "concurrent-change".to_owned();
     assert_eq!(
-        apply(
-            &capture,
-            &executed,
-            "match-a",
-            "terminal-a",
-            &mut campaigns,
-        ),
+        apply(&capture, &executed, "match-a", "terminal-a", &mut campaigns,),
         ApplyOutcome::StaleCapture,
     );
     assert!(campaigns
@@ -225,13 +222,7 @@ fn remote_success_followed_by_revision_drift_never_applies_stale_state() {
     let fresh = capture("match-a", "terminal-a", &campaigns, &baseline_intents());
     let replayed = execute(&fresh, &mut remote).unwrap();
     assert_eq!(
-        apply(
-            &fresh,
-            &replayed,
-            "match-a",
-            "terminal-a",
-            &mut campaigns,
-        ),
+        apply(&fresh, &replayed, "match-a", "terminal-a", &mut campaigns,),
         ApplyOutcome::AppliedSettled,
     );
     assert_eq!(remote.commit_count.get("intent-a"), Some(&1));
@@ -246,13 +237,7 @@ fn same_revision_with_a_different_persisted_hash_is_stale() {
     let executed = execute(&capture, &mut remote).unwrap();
     campaigns.get_mut("campaign-b").unwrap().state_hash = "tampered".to_owned();
     assert_eq!(
-        apply(
-            &capture,
-            &executed,
-            "match-a",
-            "terminal-a",
-            &mut campaigns,
-        ),
+        apply(&capture, &executed, "match-a", "terminal-a", &mut campaigns,),
         ApplyOutcome::StaleCapture,
     );
 }
@@ -264,13 +249,7 @@ fn terminal_marker_drift_blocks_every_campaign_write() {
     let mut remote = IdempotentRemoteLedger::default();
     let executed = execute(&capture, &mut remote).unwrap();
     assert_eq!(
-        apply(
-            &capture,
-            &executed,
-            "match-a",
-            "terminal-b",
-            &mut campaigns,
-        ),
+        apply(&capture, &executed, "match-a", "terminal-b", &mut campaigns,),
         ApplyOutcome::NotClaimable,
     );
     assert!(campaigns
@@ -287,23 +266,11 @@ fn two_workers_cannot_apply_one_capture_twice() {
     let second = execute(&capture, &mut remote).unwrap();
 
     assert_eq!(
-        apply(
-            &capture,
-            &first,
-            "match-a",
-            "terminal-a",
-            &mut campaigns,
-        ),
+        apply(&capture, &first, "match-a", "terminal-a", &mut campaigns,),
         ApplyOutcome::AppliedSettled,
     );
     assert_eq!(
-        apply(
-            &capture,
-            &second,
-            "match-a",
-            "terminal-a",
-            &mut campaigns,
-        ),
+        apply(&capture, &second, "match-a", "terminal-a", &mut campaigns,),
         ApplyOutcome::StaleCapture,
     );
     assert_eq!(remote.commit_count.get("intent-a"), Some(&1));
@@ -318,13 +285,7 @@ fn partial_member_execution_keeps_the_match_pending() {
     let mut executed = execute(&capture, &mut remote).unwrap();
     executed[1].fully_reconciled = false;
     assert_eq!(
-        apply(
-            &capture,
-            &executed,
-            "match-a",
-            "terminal-a",
-            &mut campaigns,
-        ),
+        apply(&capture, &executed, "match-a", "terminal-a", &mut campaigns,),
         ApplyOutcome::AppliedPending,
     );
 }
@@ -351,7 +312,10 @@ fn production_source_never_reconciles_cex_while_its_function_has_an_open_transac
         let prefix = &source[body_start..call];
         let function_name = header
             .strip_prefix("async fn ")
-            .and_then(|rest| rest.split(|ch: char| !(ch.is_ascii_alphanumeric() || ch == '_')).next())
+            .and_then(|rest| {
+                rest.split(|ch: char| !(ch.is_ascii_alphanumeric() || ch == '_'))
+                    .next()
+            })
             .unwrap_or("unknown");
         let begins = prefix.matches(".begin()").count();
         let commits = prefix.matches(".commit()").count();

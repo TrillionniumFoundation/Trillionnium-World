@@ -3,8 +3,7 @@ use sqlx::{executor::Executor, row::Row};
 use sqlx_postgres::{PgPool, PgPoolOptions};
 use uuid::Uuid;
 
-const OUTBOX_MIGRATION: &str =
-    include_str!("../migrations/0016_online_settlement_outbox_v1.sql");
+const OUTBOX_MIGRATION: &str = include_str!("../migrations/0016_online_settlement_outbox_v1.sql");
 const WORKER_MIGRATION: &str =
     include_str!("../migrations/0017_online_settlement_worker_runtime_v1.sql");
 
@@ -213,10 +212,7 @@ async fn account_serialization_does_not_block_unrelated_work() {
     assert_eq!(account_a_lease.2, "account-a");
 
     let (second, third) = tokio::join!(claim(&pool, "worker-b"), claim(&pool, "worker-c"));
-    let claimed_unrelated = [second, third]
-        .into_iter()
-        .flatten()
-        .collect::<Vec<_>>();
+    let claimed_unrelated = [second, third].into_iter().flatten().collect::<Vec<_>>();
     assert_eq!(claimed_unrelated.len(), 1);
     assert_eq!(claimed_unrelated[0].0, account_b);
     assert_eq!(claimed_unrelated[0].2, "account-b");

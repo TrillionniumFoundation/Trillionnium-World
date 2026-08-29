@@ -1,5 +1,9 @@
 #![recursion_limit = "512"]
 
+// Async CEX transport is invoked only by the independently deployed settlement worker.
+// The game-server library retains the shared type boundary but never calls these APIs.
+#[rustfmt::skip]
+#[allow(dead_code)]
 mod cex;
 mod map;
 mod operations_v1;

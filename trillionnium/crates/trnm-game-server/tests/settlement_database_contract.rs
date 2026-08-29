@@ -2,8 +2,7 @@ use sqlx::{executor::Executor, row::Row};
 use sqlx_postgres::{PgPool, PgPoolOptions};
 use uuid::Uuid;
 
-const OUTBOX_MIGRATION: &str =
-    include_str!("../migrations/0016_online_settlement_outbox_v1.sql");
+const OUTBOX_MIGRATION: &str = include_str!("../migrations/0016_online_settlement_outbox_v1.sql");
 const WORKER_MIGRATION: &str =
     include_str!("../migrations/0017_online_settlement_worker_runtime_v1.sql");
 
@@ -287,7 +286,10 @@ async fn settlement_database_identity_lease_and_retention_contract() {
         first_lease.get::<String, _>("authorization_request_id"),
         remote_ids[1]
     );
-    assert_eq!(first_lease.get::<String, _>("entitlement_nonce"), remote_ids[1]);
+    assert_eq!(
+        first_lease.get::<String, _>("entitlement_nonce"),
+        remote_ids[1]
+    );
 
     sqlx::query::query(
         "update public.trnm_online_settlement_jobs
@@ -417,7 +419,10 @@ async fn settlement_database_identity_lease_and_retention_contract() {
     .await
     .unwrap();
     assert_eq!(status.get::<String, _>("remote_state"), "remote_succeeded");
-    assert_eq!(status.get::<String, _>("application_state"), "pending_apply");
+    assert_eq!(
+        status.get::<String, _>("application_state"),
+        "pending_apply"
+    );
 
     sqlx::query::query(
         "update public.trnm_online_settlement_jobs
@@ -439,22 +444,20 @@ async fn settlement_database_identity_lease_and_retention_contract() {
     .unwrap();
     assert_eq!(application_state, "applied");
 
-    let delete_match = sqlx::query::query(
-        "delete from public.trnm_online_matches where match_id = $1",
-    )
-    .bind(match_id)
-    .execute(&pool)
-    .await
-    .unwrap_err();
+    let delete_match =
+        sqlx::query::query("delete from public.trnm_online_matches where match_id = $1")
+            .bind(match_id)
+            .execute(&pool)
+            .await
+            .unwrap_err();
     assert_sqlstate(delete_match, "23503");
 
-    let delete_campaign = sqlx::query::query(
-        "delete from public.trnm_online_campaigns where campaign_id = $1",
-    )
-    .bind(campaign_id)
-    .execute(&pool)
-    .await
-    .unwrap_err();
+    let delete_campaign =
+        sqlx::query::query("delete from public.trnm_online_campaigns where campaign_id = $1")
+            .bind(campaign_id)
+            .execute(&pool)
+            .await
+            .unwrap_err();
     assert_sqlstate(delete_campaign, "23503");
 
     pool.close().await;

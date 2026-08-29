@@ -2,8 +2,7 @@ use sqlx::{executor::Executor, row::Row};
 use sqlx_postgres::{PgPool, PgPoolOptions};
 use uuid::Uuid;
 
-const OUTBOX_MIGRATION: &str =
-    include_str!("../migrations/0016_online_settlement_outbox_v1.sql");
+const OUTBOX_MIGRATION: &str = include_str!("../migrations/0016_online_settlement_outbox_v1.sql");
 const WORKER_MIGRATION: &str =
     include_str!("../migrations/0017_online_settlement_worker_runtime_v1.sql");
 const OPERATOR_MIGRATION: &str =
@@ -269,7 +268,10 @@ async fn settlement_operator_replay_is_exact_audited_one_attempt_and_append_only
     assert!(replayed
         .get::<Option<chrono::DateTime<chrono::Utc>>, _>("completed_at")
         .is_none());
-    assert_eq!(replayed.get::<String, _>("remote_request_id"), remote_request_id);
+    assert_eq!(
+        replayed.get::<String, _>("remote_request_id"),
+        remote_request_id
+    );
     assert_eq!(replayed.get::<String, _>("intent_hash"), intent_hash);
 
     let capture_state = sqlx::query_scalar::query_scalar::<_, String>(

@@ -2,8 +2,7 @@
 //! account/campaign serialization, evidence retention, and operator-visible
 //! two-phase completion semantics.
 
-const OUTBOX_MIGRATION: &str =
-    include_str!("../migrations/0016_online_settlement_outbox_v1.sql");
+const OUTBOX_MIGRATION: &str = include_str!("../migrations/0016_online_settlement_outbox_v1.sql");
 const WORKER_MIGRATION: &str =
     include_str!("../migrations/0017_online_settlement_worker_runtime_v1.sql");
 
@@ -25,18 +24,10 @@ fn function_body<'a>(source: &'a str, function_name: &str, next_marker: &str) ->
 #[test]
 fn settlement_evidence_is_not_deleted_by_upstream_cascade() {
     let sql = normalized(OUTBOX_MIGRATION);
-    assert!(sql.contains(
-        "references public.trnm_online_matches(match_id) on delete restrict"
-    ));
-    assert!(sql.contains(
-        "references public.trnm_online_campaigns(campaign_id) on delete restrict"
-    ));
-    assert!(!sql.contains(
-        "references public.trnm_online_matches(match_id) on delete cascade"
-    ));
-    assert!(!sql.contains(
-        "references public.trnm_online_campaigns(campaign_id) on delete cascade"
-    ));
+    assert!(sql.contains("references public.trnm_online_matches(match_id) on delete restrict"));
+    assert!(sql.contains("references public.trnm_online_campaigns(campaign_id) on delete restrict"));
+    assert!(!sql.contains("references public.trnm_online_matches(match_id) on delete cascade"));
+    assert!(!sql.contains("references public.trnm_online_campaigns(campaign_id) on delete cascade"));
 }
 
 #[test]
@@ -65,15 +56,14 @@ fn remote_request_identity_is_database_derived_and_capture_independent() {
     assert!(!identity.contains("intent_hash"));
     assert!(!identity.contains("md5("));
 
-    assert!(sql.contains(
-        "entitlement_nonce = coalesce(job.entitlement_nonce, job.remote_request_id)"
-    ));
+    assert!(
+        sql.contains("entitlement_nonce = coalesce(job.entitlement_nonce, job.remote_request_id)")
+    );
     assert!(sql.contains("authorization_request_id = coalesce("));
     assert!(sql.contains("job.authorization_request_id, job.remote_request_id"));
     assert!(sql.contains("p_authorization_request_id = remote_request_id"));
-    assert!(!sql.contains(
-        "authorization_request_id = coalesce(job.authorization_request_id, job.job_id)"
-    ));
+    assert!(!sql
+        .contains("authorization_request_id = coalesce(job.authorization_request_id, job.job_id)"));
 }
 
 #[test]
@@ -95,14 +85,11 @@ fn settlement_identity_fields_and_remote_aliases_are_immutable() {
     assert!(trigger.contains("expected := public.trnm_online_remote_request_id_v1("));
     assert!(trigger.contains("new.remote_request_id <> expected"));
     assert!(trigger.matches("errcode = '23514'").count() >= 2);
-    assert!(trigger.contains(
-        "message = 'remote_request_id does not match durable settlement identity'"
-    ));
+    assert!(trigger
+        .contains("message = 'remote_request_id does not match durable settlement identity'"));
     assert!(trigger.contains("new.remote_request_id := expected"));
 
-    assert!(sql.contains(
-        "create trigger trnm_online_settlement_remote_id_insert_v1 before insert"
-    ));
+    assert!(sql.contains("create trigger trnm_online_settlement_remote_id_insert_v1 before insert"));
     assert!(sql.contains(
         "create trigger trnm_online_settlement_remote_id_update_v1 before update of match_id, campaign_id, intent_id, remote_request_id"
     ));
@@ -114,9 +101,7 @@ fn settlement_identity_fields_and_remote_aliases_are_immutable() {
     assert!(sql.contains(
         "authorization_request_id is null or authorization_request_id = remote_request_id"
     ));
-    assert!(sql.contains(
-        "entitlement_nonce is null or entitlement_nonce = remote_request_id"
-    ));
+    assert!(sql.contains("entitlement_nonce is null or entitlement_nonce = remote_request_id"));
 }
 
 #[test]
@@ -130,9 +115,7 @@ fn legacy_v1_claim_path_is_fail_closed() {
     let legacy = normalized(legacy);
 
     assert!(legacy.contains("errcode = '0A000'"));
-    assert!(legacy.contains(
-        "trnm_online_claim_settlement_job_v1 is retired; use v2"
-    ));
+    assert!(legacy.contains("trnm_online_claim_settlement_job_v1 is retired; use v2"));
     assert!(!legacy.contains("for update skip locked"));
     assert!(sql.contains("create or replace function public.trnm_online_claim_settlement_job_v2"));
 }
@@ -174,7 +157,10 @@ fn every_remote_mutation_requires_a_live_lease() {
     ] {
         let body = normalized(body);
         assert!(body.contains("state = 'leased'"), "{name} lost state fence");
-        assert!(body.contains("lease_owner = p_owner"), "{name} lost owner fence");
+        assert!(
+            body.contains("lease_owner = p_owner"),
+            "{name} lost owner fence"
+        );
         assert!(
             body.contains("lease_generation = p_lease_generation"),
             "{name} lost generation fence"
@@ -188,7 +174,6 @@ fn every_remote_mutation_requires_a_live_lease() {
 
 #[test]
 fn account_or_campaign_serialization_is_explicit_and_bounded() {
-    let sql = normalized(WORKER_MIGRATION);
     let serialization = normalized(function_body(
         WORKER_MIGRATION,
         "trnm_online_settlement_serialization_key_v1",
@@ -214,14 +199,10 @@ fn account_or_campaign_serialization_is_explicit_and_bounded() {
 #[test]
 fn remote_success_and_campaign_application_are_never_aliased() {
     let sql = normalized(WORKER_MIGRATION);
-    assert!(sql.contains(
-        "create or replace view public.trnm_online_settlement_job_status_v1"
-    ));
+    assert!(sql.contains("create or replace view public.trnm_online_settlement_job_status_v1"));
     assert!(sql.contains("when 'succeeded' then 'remote_succeeded'"));
     assert!(sql.contains("when job.state = 'succeeded' then 'pending_apply'"));
-    assert!(sql.contains(
-        "when job.campaign_applied_at is not null then 'applied'"
-    ));
+    assert!(sql.contains("when job.campaign_applied_at is not null then 'applied'"));
     assert!(sql.contains("when job.state = 'dead_letter' then 'blocked'"));
 }
 
@@ -241,6 +222,9 @@ fn operator_metrics_expose_backlog_age_and_pending_apply() {
         "oldest_pending_apply_age",
         "maximum_remote_attempts",
     ] {
-        assert!(sql.contains(required), "missing operator metric: {required}");
+        assert!(
+            sql.contains(required),
+            "missing operator metric: {required}"
+        );
     }
 }

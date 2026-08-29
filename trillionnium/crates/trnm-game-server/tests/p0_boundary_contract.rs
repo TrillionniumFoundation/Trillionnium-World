@@ -109,7 +109,9 @@ fn settlement_external_io_is_not_owned_by_a_database_transaction_function() {
             .unwrap_or_else(|error| panic!("read {}: {error}", path.display()));
         for (name, body) in function_bodies(&source) {
             let has_external = external_markers.iter().any(|marker| body.contains(marker));
-            let has_transaction = transaction_markers.iter().any(|marker| body.contains(marker));
+            let has_transaction = transaction_markers
+                .iter()
+                .any(|marker| body.contains(marker));
             if body.contains(".reconcile_economy(") {
                 reconcile_count += 1;
             }
@@ -167,10 +169,9 @@ fn world_source_does_not_acquire_target_nakama_key_or_completion_signer_custody(
 #[test]
 fn current_plan_keeps_public_online_and_market_fail_closed() {
     let repository = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../..");
-    let plan = fs::read_to_string(
-        repository.join("docs/development/trnm-world-development-plan-v3.md"),
-    )
-    .expect("read current World plan");
+    let plan =
+        fs::read_to_string(repository.join("docs/development/trnm-world-development-plan-v3.md"))
+            .expect("read current World plan");
     let gates = fs::read_to_string(repository.join("docs/status/world-gates-v1.json"))
         .expect("read World gate registry");
 
