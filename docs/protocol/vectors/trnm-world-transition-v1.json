@@ -1,0 +1,55 @@
+{
+  "vector_contract": "trnm_world_transition_vectors_v1",
+  "contract_version": "trnm_world_transition_v1",
+  "canonical_profile": "trnm_world_canonical_json_v1",
+  "hash_domains": {
+    "request": "trnm.world.transition.request.v1",
+    "transition": "trnm.world.transition.accepted.v1",
+    "outcome": "trnm.world.outcome.v1"
+  },
+  "sha256_core_vectors": [
+    {
+      "name": "empty",
+      "input_utf8": "",
+      "expected_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "abc",
+      "input_utf8": "abc",
+      "expected_sha256": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+    }
+  ],
+  "canonical_vectors": [
+    {
+      "name": "empty_object",
+      "canonical_utf8": "{}",
+      "expected_sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+    },
+    {
+      "name": "nested_integer_string_array",
+      "canonical_utf8": "{\"a\":[-1,0,true,false,null,\"世界\"],\"b\":{\"c\":\"x\\n\"}}",
+      "expected_sha256": "cce64694112405ff1472f9c9edbbfa2f3b6875b3a1bc168f4cbd178f0a5f75b3"
+    }
+  ],
+  "request_vectors": [
+    {
+      "name": "empty_state_empty_command",
+      "canonical_utf8": "{\"command\":{\"command_id\":\"command-0001\",\"payload\":{\"canonical_json\":{},\"schema_id\":\"command-v1\",\"sha256\":\"44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a\"}},\"content_revision\":\"content-v1\",\"contract_version\":\"trnm_world_transition_v1\",\"expected_tick\":7,\"previous_state\":{\"canonical_json\":{},\"schema_id\":\"state-v1\",\"sha256\":\"44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a\"},\"ruleset_revision\":\"ruleset-v1\",\"transition_id\":\"transition-0001\"}",
+      "expected_request_hash": "134c0257d4b51fe1061779a84680900726034a7b333fc20410bd3575f738c130"
+    }
+  ],
+  "stable_error_codes": [
+    "invalid_contract_version",
+    "invalid_request",
+    "unknown_ruleset_revision",
+    "unknown_content_revision",
+    "payload_hash_mismatch",
+    "invalid_canonical_payload",
+    "forbidden_authority_surface",
+    "resource_budget_exceeded",
+    "invalid_command",
+    "domain_rejected",
+    "nondeterministic_output",
+    "internal_unavailable"
+  ]
+}
