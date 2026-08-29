@@ -9,7 +9,17 @@
       "Tomasrgbsf"
     ],
     "required_check_registry_present": true,
-    "governance_workflow_present": true
+    "governance_workflow_present": true,
+    "workflow": ".github/workflows/trnm-world-gap-closure-v4.yml",
+    "workflow_contents_permission": "read",
+    "self_mutating_workflows_present": false,
+    "required_check_contexts_candidate": [
+      "trnm-world-v4/docs-governance",
+      "trnm-world-v4/transition-contract",
+      "trnm-world-v4/settlement-postgres",
+      "trnm-world-v4/game-workspace-release",
+      "trnm-world-v4/supply-chain"
+    ]
   },
   "server_controls": {
     "ruleset_observed": false,
@@ -22,6 +32,7 @@
   "release_effect": "none",
   "public_online": false,
   "open_gates": [
+    "run_candidate_checks_at_least_once",
     "create_or_verify_main_ruleset",
     "require_current_exact_named_checks",
     "require_code_owner_review",
@@ -32,6 +43,7 @@
   "evidence": {
     "ruleset_ids": [],
     "snapshot_sha256": null,
-    "reviewers": []
+    "reviewers": [],
+    "workflow_runs": []
   }
 }
