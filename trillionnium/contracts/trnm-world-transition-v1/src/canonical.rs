@@ -186,7 +186,8 @@ fn reject_forbidden_authority_keys(value: &CanonicalValue) -> Result<(), Canonic
         }
         CanonicalValue::Object(entries) => {
             for (key, value) in entries {
-                if FORBIDDEN_AUTHORITY_KEYS.contains(&key.as_str()) {
+                let normalized_key = key.to_ascii_lowercase();
+                if FORBIDDEN_AUTHORITY_KEYS.contains(&normalized_key.as_str()) {
                     return Err(CanonicalError::ForbiddenAuthorityKey { key: key.clone() });
                 }
                 reject_forbidden_authority_keys(value)?;
@@ -459,6 +460,20 @@ mod tests {
             4096,
         )
         .is_err());
+    }
+
+    #[test]
+    fn case_folded_authority_key_still_fails_closed() {
+        for raw in [
+            "{\"Nakama_Private_Key\":\"x\"}",
+            "{\"MATCH_COMPLETED_V1\":{}}",
+            "{\"a\":{\"Chain_App_Hash\":\"x\"}}",
+        ] {
+            assert!(matches!(
+                parse_canonical(raw, 4096),
+                Err(CanonicalError::ForbiddenAuthorityKey { .. })
+            ));
+        }
     }
 
     #[test]
