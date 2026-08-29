@@ -166,12 +166,12 @@
       "id": "WORLD-P0-009",
       "owner": "Trillionnium-World",
       "state": "source_open",
-      "claim": "directly reviewable compiled game-server, settlement-worker and CEX source",
+      "claim": "directly reviewable compiled game-server and settlement-worker source; CEX transport is now direct source",
       "evidence_required": [
         "no_semantic_build_rewrite",
         "direct_source_tests"
       ],
-      "next_gate": "materialize generated source and remove semantic build.rs transforms"
+      "next_gate": "materialize lib.rs and settlement_worker.rs, then remove their semantic build.rs transforms"
     },
     {
       "id": "WORLD-P0-010",
