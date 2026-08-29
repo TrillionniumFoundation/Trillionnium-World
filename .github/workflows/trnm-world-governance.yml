@@ -3,25 +3,16 @@ name: trnm-world-governance
 on:
   workflow_dispatch:
   pull_request:
-    branches:
-      - main
-      - fix/world-settlement-cex-component-lock-v1
-    paths:
-      - '.github/CODEOWNERS'
-      - '.github/workflows/trnm-world-governance.yml'
-      - 'docs/status/world-main-governance-v1.json'
-      - 'scripts/check-world-main-governance.py'
   push:
     branches:
-      - fix/world-settlement-gap-closure-v1
-    paths:
-      - '.github/CODEOWNERS'
-      - '.github/workflows/trnm-world-governance.yml'
-      - 'docs/status/world-main-governance-v1.json'
-      - 'scripts/check-world-main-governance.py'
+      - fix/world-plan-v4-source-gap-closure
 
 permissions:
   contents: read
+
+concurrency:
+  group: trnm-world-governance-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   source-contract:
@@ -36,3 +27,5 @@ jobs:
           python3 -m py_compile scripts/check-world-main-governance.py
           python3 -m json.tool docs/status/world-main-governance-v1.json > /dev/null
           python3 scripts/check-world-main-governance.py
+      - name: Enforce read-only review integrity
+        run: bash scripts/check-trnm-review-integrity.sh

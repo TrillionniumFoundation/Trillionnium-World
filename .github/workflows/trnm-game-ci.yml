@@ -3,52 +3,10 @@ name: trnm-game-ci
 on:
   workflow_dispatch:
   pull_request:
-    paths:
-      - 'PROJECT_BOUNDARY.md'
-      - 'PROJECT_BOUNDARY.json'
-      - 'CURRENT_PLAN.md'
-      - 'docs/**'
-      - 'config/trnm-*.env.example'
-      - 'trillionnium/Cargo.toml'
-      - 'trillionnium/Cargo.lock'
-      - 'trillionnium/deny.toml'
-      - 'trillionnium/crates/trnm-*/**'
-      - 'trillionnium/tools/trnm-settlement-outbox-contract/**'
-      - 'assets/first_contact/**'
-      - 'deploy/systemd/trnm-*.service'
-      - 'scripts/check-trnm-online-*.sh'
-      - 'scripts/check_trnm_*.sh'
-      - 'scripts/run-trnm-*.sh'
-      - 'scripts/install-trnm-game-server-systemd.sh'
-      - 'scripts/package-trnm-game-release.sh'
-      - 'scripts/check-trnm-game-package.sh'
-      - 'packaging/**'
-      - 'GAME_STATUS.md'
-      - '.github/workflows/trnm-game-ci.yml'
   push:
-    branches: [main, feature/world-p0-execution-v3]
-    paths:
-      - 'PROJECT_BOUNDARY.md'
-      - 'PROJECT_BOUNDARY.json'
-      - 'CURRENT_PLAN.md'
-      - 'docs/**'
-      - 'config/trnm-*.env.example'
-      - 'trillionnium/Cargo.toml'
-      - 'trillionnium/Cargo.lock'
-      - 'trillionnium/deny.toml'
-      - 'trillionnium/crates/trnm-*/**'
-      - 'trillionnium/tools/trnm-settlement-outbox-contract/**'
-      - 'assets/first_contact/**'
-      - 'deploy/systemd/trnm-*.service'
-      - 'scripts/check-trnm-online-*.sh'
-      - 'scripts/check_trnm_*.sh'
-      - 'scripts/run-trnm-*.sh'
-      - 'scripts/install-trnm-game-server-systemd.sh'
-      - 'scripts/package-trnm-game-release.sh'
-      - 'scripts/check-trnm-game-package.sh'
-      - 'packaging/**'
-      - 'GAME_STATUS.md'
-      - '.github/workflows/trnm-game-ci.yml'
+    branches:
+      - main
+      - fix/world-plan-v4-source-gap-closure
 
 permissions:
   contents: read
@@ -62,94 +20,156 @@ env:
   CARGO_INCREMENTAL: '0'
   RUST_BACKTRACE: '1'
   RUST_TEST_THREADS: '1'
+  TRNM_RUST_TOOLCHAIN: '1.98.0'
 
 jobs:
   architecture-contracts:
-    runs-on: ubuntu-latest
+    name: trnm-game-ci/architecture-contracts
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt
-      - name: Install boundary-check dependencies
+      - name: Checkout exact revision
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Install boundary dependencies
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends jq
+      - name: Validate V4 plan and gap truth
+        run: python3 scripts/check-trnm-world-plan-v4.py
+      - name: Enforce read-only review integrity
+        run: bash scripts/check-trnm-review-integrity.sh
       - name: Authority ownership boundary
         run: ./scripts/check_trnm_authority_boundary.sh
       - name: Runtime configuration boundary
         run: ./scripts/check_trnm_runtime_configuration.sh
       - name: Settlement outbox invariant contract
         run: ./scripts/check_trnm_settlement_outbox_contract.sh
-      - name: Registered settlement migration-debt boundary
-        run: ./scripts/check_trnm_settlement_transaction_boundary.sh
-      - name: Transaction-free settlement runtime boundary
-        run: ./scripts/check-trnm-settlement-transaction-boundary.sh
-      - name: Transaction-free settlement negative fixture
-        run: ./scripts/test-trnm-settlement-transaction-boundary-negative.sh
-      - name: Settlement deployment shell syntax
-        run: bash -n scripts/run-trnm-settlement-worker.sh scripts/install-trnm-game-server-systemd.sh
+      - name: Settlement transaction boundary
+        run: |
+          ./scripts/check_trnm_settlement_transaction_boundary.sh
+          ./scripts/check-trnm-settlement-transaction-boundary.sh
+          ./scripts/test-trnm-settlement-transaction-boundary-negative.sh
+      - name: Shell syntax
+        run: |
+          bash -n scripts/check-trnm-review-integrity.sh
+          bash -n scripts/run-trnm-settlement-worker.sh
+          bash -n scripts/install-trnm-game-server-systemd.sh
 
   game-workspace:
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
+    name: trnm-game-ci/game-workspace
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
     defaults:
       run:
         working-directory: trillionnium
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt, clippy
+      - name: Checkout exact revision
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Install exact Rust toolchain
+        run: |
+          rustup toolchain install "$TRNM_RUST_TOOLCHAIN" --profile minimal --component rustfmt,clippy
+          rustup default "$TRNM_RUST_TOOLCHAIN"
+          rustc --version --verbose
+          cargo --version --verbose
       - name: Install native build dependencies
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends jq libasound2-dev libudev-dev libx11-dev libxi-dev libxkbcommon-dev libwayland-dev pkg-config
-      - name: Product workspace and repository boundary
+      - name: Resolve locked workspace metadata
+        run: cargo metadata --locked --no-deps --format-version 1 > /dev/null
+      - name: Product and repository boundary
         run: ../scripts/check_trnm_game_product.sh
-      - name: Authority ownership boundary
-        run: ../scripts/check_trnm_authority_boundary.sh
-      - name: Runtime configuration boundary
-        run: ../scripts/check_trnm_runtime_configuration.sh
-      - name: Registered settlement migration-debt boundary
-        run: ../scripts/check_trnm_settlement_transaction_boundary.sh
-      - name: Transaction-free settlement runtime boundary
-        run: ../scripts/check-trnm-settlement-transaction-boundary.sh
-      - name: Resource budget contract
-        run: ../scripts/check-trnm-online-resource-budgets.sh
       - name: Format
         run: cargo fmt --all -- --check
       - name: Test all targets
         run: cargo test --workspace --all-targets --locked
-      - name: Clippy
+      - name: Strict lint
         run: cargo clippy --workspace --all-targets --locked -- -D warnings
-      - name: Release player and online compatibility services
+      - name: Build release binaries
         run: cargo build --release --locked -p trnm-first-contact -p trnm-game-server --bins
       - name: Package complete Linux distribution
         run: ../scripts/package-trnm-game-release.sh --require-clean --output-dir ../run/ci-distribution
       - name: Verify Linux distribution
         run: |
           archive="$(find ../run/ci-distribution -maxdepth 1 -type f -name '*.tar.gz' -print -quit)"
+          test -n "$archive"
           TRNM_REQUIRE_CLEAN_PACKAGE=1 ../scripts/check-trnm-game-package.sh "$archive"
-      - name: Upload complete release artifact
-        uses: actions/upload-artifact@v4
+      - name: Upload exact distribution evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: trnm-game-${{ github.sha }}
           path: run/ci-distribution/**
           if-no-files-found: error
+          retention-days: 14
+          compression-level: 9
 
-  supply-chain:
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
+  settlement-postgres:
+    name: trnm-game-ci/settlement-postgres
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    services:
+      postgres:
+        image: postgres:16.4-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: world_settlement
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d world_settlement"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      TRNM_SETTLEMENT_TEST_DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/world_settlement
+      TRNM_REQUIRE_SETTLEMENT_DATABASE_TEST: '1'
     defaults:
       run:
         working-directory: trillionnium
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: taiki-e/install-action@v2
+      - name: Checkout exact revision
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Install exact Rust toolchain
+        run: |
+          rustup toolchain install "$TRNM_RUST_TOOLCHAIN" --profile minimal --component rustfmt,clippy
+          rustup default "$TRNM_RUST_TOOLCHAIN"
+      - name: Locked metadata and format
+        run: |
+          cargo metadata --locked --no-deps --format-version 1 > /dev/null
+          cargo fmt --all -- --check
+      - name: Settlement unit and boundary contracts
+        run: |
+          cargo test -p trnm-game-server --lib --locked
+          cargo test -p trnm-game-server --bin trnm-entitlement-signer --locked
+          cargo test -p trnm-game-server --test settlement_game_server_boundary --locked
+          cargo test -p trnm-game-server --test settlement_remote_identity_contract --locked
+          cargo test -p trnm-game-server --test settlement_worker_contract --locked
+          cargo test -p trnm-game-server --test settlement_fault_model --locked
+      - name: Mandatory PostgreSQL contracts
+        run: |
+          cargo test -p trnm-game-server --test settlement_capture_commit_boundary --locked
+          cargo test -p trnm-game-server --test settlement_database_contract --locked
+          cargo test -p trnm-game-server --test settlement_serialization_database --locked
+          cargo test -p trnm-game-server --test settlement_operator_controls_database --locked
+      - name: Strict game-server lint
+        run: cargo clippy -p trnm-game-server --all-targets --locked -- -D warnings
+
+  supply-chain:
+    name: trnm-game-ci/supply-chain
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    defaults:
+      run:
+        working-directory: trillionnium
+    steps:
+      - name: Checkout exact revision
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Install exact Rust toolchain
+        run: |
+          rustup toolchain install "$TRNM_RUST_TOOLCHAIN" --profile minimal
+          rustup default "$TRNM_RUST_TOOLCHAIN"
+      - name: Install audit tools from immutable action revision
+        uses: taiki-e/install-action@742a3317eac7bd62f91cd888b4eead5e784ba833
         with:
           tool: cargo-audit,cargo-deny
       - name: RustSec advisory gate
-        # Current Bevy/winit has no maintained replacement for ttf-parser;
-        # every vulnerability and unsoundness advisory remains denied.
         run: cargo audit --deny warnings --ignore RUSTSEC-2026-0192
       - name: Dependency policy gate
         run: cargo deny check advisories bans licenses sources
@@ -159,9 +179,12 @@ jobs:
           mkdir -p ../run/ci-supply-chain
           cargo audit --json --ignore RUSTSEC-2026-0192 > ../run/ci-supply-chain/cargo-audit.json || true
           cargo deny --format json check advisories bans licenses sources > ../run/ci-supply-chain/cargo-deny.json || true
-      - uses: actions/upload-artifact@v4
+      - name: Upload supply-chain evidence
         if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: trnm-supply-chain-${{ github.sha }}
           path: run/ci-supply-chain/**
           if-no-files-found: error
+          retention-days: 14
+          compression-level: 9

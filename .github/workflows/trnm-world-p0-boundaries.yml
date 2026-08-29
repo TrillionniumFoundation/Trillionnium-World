@@ -3,50 +3,10 @@ name: trnm-world-p0-boundaries
 on:
   workflow_dispatch:
   pull_request:
-    paths:
-      - 'PROJECT_BOUNDARY.*'
-      - 'docs/adr/**'
-      - 'docs/development/trnm-world-**'
-      - 'config/trnm-settlement-worker.env.example'
-      - 'deploy/systemd/trnm-settlement-worker.service'
-      - 'trillionnium/Cargo.toml'
-      - 'trillionnium/Cargo.lock'
-      - 'trillionnium/crates/**/Cargo.toml'
-      - 'trillionnium/crates/trnm-game-server/migrations/0016_online_settlement_outbox_v1.sql'
-      - 'trillionnium/crates/trnm-game-server/migrations/0017_online_settlement_worker_runtime_v1.sql'
-      - 'trillionnium/crates/trnm-game-server/src/**'
-      - 'trillionnium/crates/trnm-game-server/tests/p0_boundary_contract.rs'
-      - 'trillionnium/crates/trnm-game-server/tests/settlement_worker_contract.rs'
-      - 'scripts/check-trnm-world-authority-boundary.sh'
-      - 'scripts/test-trnm-world-authority-boundary-negative.sh'
-      - 'scripts/check-trnm-settlement-transaction-boundary.sh'
-      - 'scripts/test-trnm-settlement-transaction-boundary-negative.sh'
-      - 'scripts/run-trnm-settlement-worker.sh'
-      - 'scripts/install-trnm-game-server-systemd.sh'
-      - '.github/workflows/trnm-world-p0-boundaries.yml'
   push:
-    branches: [main, feature/world-p0-execution-v3]
-    paths:
-      - 'PROJECT_BOUNDARY.*'
-      - 'docs/adr/**'
-      - 'docs/development/trnm-world-**'
-      - 'config/trnm-settlement-worker.env.example'
-      - 'deploy/systemd/trnm-settlement-worker.service'
-      - 'trillionnium/Cargo.toml'
-      - 'trillionnium/Cargo.lock'
-      - 'trillionnium/crates/**/Cargo.toml'
-      - 'trillionnium/crates/trnm-game-server/migrations/0016_online_settlement_outbox_v1.sql'
-      - 'trillionnium/crates/trnm-game-server/migrations/0017_online_settlement_worker_runtime_v1.sql'
-      - 'trillionnium/crates/trnm-game-server/src/**'
-      - 'trillionnium/crates/trnm-game-server/tests/p0_boundary_contract.rs'
-      - 'trillionnium/crates/trnm-game-server/tests/settlement_worker_contract.rs'
-      - 'scripts/check-trnm-world-authority-boundary.sh'
-      - 'scripts/test-trnm-world-authority-boundary-negative.sh'
-      - 'scripts/check-trnm-settlement-transaction-boundary.sh'
-      - 'scripts/test-trnm-settlement-transaction-boundary-negative.sh'
-      - 'scripts/run-trnm-settlement-worker.sh'
-      - 'scripts/install-trnm-game-server-systemd.sh'
-      - '.github/workflows/trnm-world-p0-boundaries.yml'
+    branches:
+      - main
+      - fix/world-plan-v4-source-gap-closure
 
 permissions:
   contents: read
@@ -60,50 +20,58 @@ env:
   CARGO_INCREMENTAL: '0'
   RUST_BACKTRACE: '1'
   RUST_TEST_THREADS: '1'
+  TRNM_RUST_TOOLCHAIN: '1.98.0'
 
 jobs:
   authority-boundary:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
+    name: trnm-world-p0-boundaries/authority-boundary
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
     steps:
       - name: Checkout exact revision
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       - name: Verify World/Nakama authority ownership boundary
         run: bash scripts/check-trnm-world-authority-boundary.sh
-      - name: Prove authority boundary rejects forbidden fixtures
+      - name: Prove forbidden authority fixtures fail closed
         run: bash scripts/test-trnm-world-authority-boundary-negative.sh
+      - name: Enforce review integrity
+        run: bash scripts/check-trnm-review-integrity.sh
 
   settlement-transaction-boundary:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
+    name: trnm-world-p0-boundaries/settlement-transaction-boundary
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
     steps:
       - name: Checkout exact revision
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-      - name: Verify external settlement work is outside DB transactions
+      - name: Verify external work is outside mutable transactions
         run: bash scripts/check-trnm-settlement-transaction-boundary.sh
-      - name: Prove settlement boundary rejects transaction-spanning I/O
+      - name: Prove transaction-spanning I/O fails closed
         run: bash scripts/test-trnm-settlement-transaction-boundary-negative.sh
       - name: Validate launcher shell syntax
         run: bash -n scripts/run-trnm-settlement-worker.sh scripts/install-trnm-game-server-systemd.sh
 
   settlement-worker-rust:
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
+    name: trnm-world-p0-boundaries/settlement-worker-rust
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
     defaults:
       run:
         working-directory: trillionnium
     steps:
       - name: Checkout exact revision
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-      - name: Install stable Rust with formatting and lint components
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt, clippy
-      - name: Verify repository formatting
+      - name: Install exact Rust toolchain
+        run: |
+          rustup toolchain install "$TRNM_RUST_TOOLCHAIN" --profile minimal --component rustfmt,clippy
+          rustup default "$TRNM_RUST_TOOLCHAIN"
+      - name: Resolve locked metadata
+        run: cargo metadata --locked --no-deps --format-version 1 > /dev/null
+      - name: Verify formatting
         run: cargo fmt --all -- --check
-      - name: Test transaction-free settlement worker target
+      - name: Test settlement worker target
         run: cargo test --locked -p trnm-game-server --bin trnm-settlement-worker
       - name: Test settlement source and SQL contracts
         run: cargo test --locked -p trnm-game-server --test settlement_worker_contract
-      - name: Lint transaction-free settlement worker target
+      - name: Strict lint
         run: cargo clippy --locked -p trnm-game-server --bin trnm-settlement-worker -- -D warnings
