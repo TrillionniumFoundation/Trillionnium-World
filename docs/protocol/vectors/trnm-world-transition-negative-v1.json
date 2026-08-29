@@ -1,0 +1,27 @@
+{
+  "vector_contract": "trnm_world_transition_negative_vectors_v1",
+  "canonical_profile": "trnm_world_canonical_json_v1",
+  "vectors": [
+    { "name": "empty", "utf8": "", "error": "empty" },
+    { "name": "scalar_root", "utf8": "1", "error": "invalid_root" },
+    { "name": "missing_value", "utf8": "{\"a\":}", "error": "invalid_syntax" },
+    { "name": "trailing_comma_object", "utf8": "{\"a\":1,}", "error": "invalid_syntax" },
+    { "name": "trailing_comma_array", "utf8": "[1,]", "error": "invalid_syntax" },
+    { "name": "unsorted_keys", "utf8": "{\"b\":1,\"a\":2}", "error": "duplicate_or_unsorted_key" },
+    { "name": "duplicate_key", "utf8": "{\"a\":1,\"a\":2}", "error": "duplicate_or_unsorted_key" },
+    { "name": "leading_zero", "utf8": "[01]", "error": "invalid_number" },
+    { "name": "negative_zero", "utf8": "[-0]", "error": "invalid_number" },
+    { "name": "float", "utf8": "[1.0]", "error": "invalid_number" },
+    { "name": "exponent", "utf8": "[1e3]", "error": "invalid_number" },
+    { "name": "nan", "utf8": "[NaN]", "error": "invalid_number" },
+    { "name": "positive_i64_overflow", "utf8": "[9223372036854775808]", "error": "integer_out_of_range" },
+    { "name": "negative_i64_overflow", "utf8": "[-9223372036854775809]", "error": "integer_out_of_range" },
+    { "name": "nonminimal_slash_escape", "utf8": "{\"a\":\"\\/\"}", "error": "nonminimal_escape" },
+    { "name": "nonminimal_unicode_escape", "utf8": "{\"a\":\"\\u0061\"}", "error": "nonminimal_escape" },
+    { "name": "uppercase_unicode_hex", "utf8": "{\"a\":\"\\u001F\"}", "error": "nonminimal_escape" },
+    { "name": "insignificant_whitespace", "utf8": "{ \"a\":1}", "error": "noncanonical_encoding" },
+    { "name": "trailing_bytes", "utf8": "{}x", "error": "trailing_data" },
+    { "name": "escaped_authority_key", "utf8": "{\"nakama_\\u0070rivate_key\":\"x\"}", "error": "forbidden_authority_key" },
+    { "name": "nested_authority_key", "utf8": "{\"a\":{\"match_completed_v1\":{}}}", "error": "forbidden_authority_key" }
+  ]
+}
