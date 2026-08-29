@@ -1,5 +1,5 @@
 {
-  "schema": 2,
+  "schema": 3,
   "project_id": "trillionnium-world",
   "canonical_dir": "trillionnium-world",
   "lane": "game-product",
@@ -8,15 +8,13 @@
   "remote": {
     "policy": "required",
     "canonical_slug": "TrillionniumFoundation/Trillionnium-World",
-    "visibility": "private",
+    "visibility": "public",
     "upstream_required": true
   },
   "branch": {
-    "protected": [
-      "main",
-      "master"
-    ],
-    "development_regex": "^(feature|fix|chore|docs|test)/world-[a-z0-9][a-z0-9._-]*$"
+    "protected_policy_targets": ["main", "master"],
+    "development_regex": "^(feature|fix|chore|docs|test)/world-[a-z0-9][a-z0-9._-]*$",
+    "direct_development_on_policy_target": "forbid"
   },
   "cargo": {
     "workspace_manifest": "trillionnium/Cargo.toml",
@@ -36,6 +34,7 @@
     "world": [
       "game-rulesets",
       "deterministic-simulation",
+      "game-transition-hash",
       "game-outcome-hash",
       "unsigned-replay-material",
       "native-client",
@@ -49,12 +48,14 @@
       "canonical-online-global-order",
       "canonical-match-completion-signature",
       "chain-finality",
-      "wallet-ledger-custody"
+      "wallet-ledger-custody",
+      "public-player-market-enablement"
     ]
   },
   "compatibility_enclaves": [
     {
       "path": "trillionnium/crates/trnm-game-server",
+      "profile": "world_legacy_local_alpha",
       "purpose": "world-local-online-authority-migration-and-rollback-evidence",
       "new_public_authority_contracts": "forbid",
       "canonical_match_evidence": false,
@@ -62,18 +63,36 @@
     }
   ],
   "documentation": {
-    "current_plan": "docs/development/TRILLIONNIUM_WORLD_DEVELOPMENT_PLAN_2026-08-27.md",
+    "current_plan": "docs/development/TRILLIONNIUM_WORLD_DEVELOPMENT_PLAN_2026-08-29.md",
+    "current_plan_manifest": "docs/development/trillionnium-world-development-plan-2026-08-29.json",
+    "gap_ledger": "docs/development/trnm-world-gap-closure-ledger-v4.json",
     "authority_adr": "docs/adr/0001-realtime-authority-and-match-evidence-ownership.md",
     "settlement_adr": "docs/adr/0002-transaction-free-external-settlement.md",
-    "match_evidence_contract": "docs/protocol/trnm-match-evidence-commitment-v1.md",
-    "current_plan_manifest": "docs/development/trillionnium-world-development-plan-2026-08-27.json"
+    "release_matrix": "docs/release/trnm-world-release-gate-matrix-v2.md",
+    "current_status": "docs/status/CURRENT.md"
   },
   "runtime": {
     "forbid_personal_absolute_paths": true,
     "forbid_sibling_repository_environment_loading": true,
     "require_distinct_role_credentials": true,
     "require_verified_release_in_production": true,
-    "development_binary_fallback": "explicit-opt-in-only"
+    "development_binary_fallback": "explicit-opt-in-only",
+    "external_settlement_under_mutable_transaction": "forbid"
+  },
+  "ci": {
+    "validation_repository_permissions": "read_only",
+    "self_modifying_candidate_source": "forbid",
+    "exact_head_required_for_credit": true,
+    "missing_skipped_cancelled_stale_checks": "block"
+  },
+  "source_review": {
+    "semantic_build_time_source_rewrite": "forbid_for_new_code",
+    "generated_contracts": "must_be_reproducible_and_diff_reviewable"
+  },
+  "release": {
+    "public_online": "no_go",
+    "public_player_market": "disabled",
+    "source_change_may_enable_public_claim": false
   },
   "deny_changed_paths_regex": "^trillionnium/crates/platform/"
 }
