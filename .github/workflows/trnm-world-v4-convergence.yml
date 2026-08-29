@@ -1,0 +1,82 @@
+name: trnm-world-v4-convergence
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - main
+      - fix/world-settlement-gap-closure-v1
+      - ci/world-v4-validation-base
+  push:
+    branches:
+      - fix/world-plan-v4-convergence-2026-08-30
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trnm-world-v4-convergence-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: never
+  CARGO_INCREMENTAL: "0"
+  RUST_BACKTRACE: "1"
+  RUST_TEST_THREADS: "1"
+  RUST_TOOLCHAIN: "1.98.0"
+
+jobs:
+  convergence-truth:
+    name: trnm-world-v4-convergence/truth
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout exact candidate without retained credentials
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Record exact immutable identity
+        run: |
+          set -euo pipefail
+          git rev-parse HEAD
+          git rev-parse 'HEAD^{tree}'
+          test -z "$(git status --porcelain)"
+      - name: Parse convergence truth
+        run: |
+          set -euo pipefail
+          python3 -m py_compile scripts/check-trnm-world-v4-convergence.py
+          python3 -m json.tool docs/status/world-v4-convergence-state-2026-08-30.json >/dev/null
+          python3 -m json.tool docs/status/world-v4-convergence-state-2026-08-30.schema.json >/dev/null
+          python3 -m json.tool docs/protocol/vectors/trnm-world-transition-negative-v1.json >/dev/null
+      - name: Reject evidence and release overclaims
+        run: python3 scripts/check-trnm-world-v4-convergence.py --self-test
+      - name: Enforce current CI integrity
+        run: python3 scripts/check-trnm-world-ci-integrity.py
+
+  canonical-contract:
+    name: trnm-world-v4-convergence/canonical-contract
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout exact candidate without retained credentials
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Install exact Rust toolchain
+        run: |
+          set -euo pipefail
+          rustup toolchain install "${RUST_TOOLCHAIN}" --profile minimal --component rustfmt,clippy
+          rustup default "${RUST_TOOLCHAIN}"
+          rustc --version --verbose
+          cargo --version --verbose
+      - name: Run independent vectors
+        run: python3 scripts/check-trnm-world-transition-conformance.py
+      - name: Resolve, format, test and lint the contract
+        run: |
+          set -euo pipefail
+          manifest=trillionnium/contracts/trnm-world-transition-v1/Cargo.toml
+          cargo metadata --manifest-path "$manifest" --locked --no-deps --format-version 1 >/dev/null
+          cargo fmt --manifest-path "$manifest" -- --check
+          cargo test --manifest-path "$manifest" --locked
+          cargo clippy --manifest-path "$manifest" --all-targets --locked -- -D warnings
