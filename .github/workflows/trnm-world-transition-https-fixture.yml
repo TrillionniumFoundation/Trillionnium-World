@@ -1,0 +1,136 @@
+name: trnm-world-transition-https-fixture
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'tools/trnm-world-transition-https-v1/**'
+      - 'docs/development/WORLD_TRANSITION_HTTPS_FIXTURE_V1.md'
+      - 'docs/development/world-transition-https-fixture-v1-status.json'
+      - 'scripts/check-trnm-world-transition-https-fixture.sh'
+      - 'scripts/test-trnm-world-transition-https-fixture-negative.sh'
+      - 'scripts/check-trnm-world-transition-https-fixture-local.sh'
+      - 'scripts/run-trnm-world-transition-https-fixture-smoke.sh'
+      - '.github/workflows/trnm-world-transition-https-fixture.yml'
+  push:
+    branches:
+      - main
+      - feature/world-transition-https-fixture-v1
+    paths:
+      - 'tools/trnm-world-transition-https-v1/**'
+      - 'docs/development/WORLD_TRANSITION_HTTPS_FIXTURE_V1.md'
+      - 'docs/development/world-transition-https-fixture-v1-status.json'
+      - 'scripts/check-trnm-world-transition-https-fixture.sh'
+      - 'scripts/test-trnm-world-transition-https-fixture-negative.sh'
+      - 'scripts/check-trnm-world-transition-https-fixture-local.sh'
+      - 'scripts/run-trnm-world-transition-https-fixture-smoke.sh'
+      - '.github/workflows/trnm-world-transition-https-fixture.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trnm-world-transition-https-fixture-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  source-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout exact revision
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - name: Set up exact Go toolchain
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
+        with:
+          go-version: '1.23.2'
+          cache: false
+
+      - name: Validate entrypoint syntax and JSON
+        run: |
+          bash -n scripts/check-trnm-world-transition-https-fixture.sh
+          bash -n scripts/test-trnm-world-transition-https-fixture-negative.sh
+          bash -n scripts/check-trnm-world-transition-https-fixture-local.sh
+          bash -n scripts/run-trnm-world-transition-https-fixture-smoke.sh
+          python3 -m json.tool docs/development/world-transition-https-fixture-v1-status.json >/dev/null
+
+      - name: Execute aggregate source gate
+        run: bash scripts/check-trnm-world-transition-https-fixture-local.sh
+
+      - name: Record exact source identity
+        run: |
+          mkdir -p run/world-transition-https-fixture-v1-source
+          git rev-parse HEAD >run/world-transition-https-fixture-v1-source/commit.txt
+          git rev-parse 'HEAD^{tree}' >run/world-transition-https-fixture-v1-source/tree.txt
+          git ls-tree -r HEAD tools/trnm-world-transition-https-v1 \
+            >run/world-transition-https-fixture-v1-source/source-tree.txt
+          find tools/trnm-world-transition-https-v1 \
+               docs/development/WORLD_TRANSITION_HTTPS_FIXTURE_V1.md \
+               docs/development/world-transition-https-fixture-v1-status.json \
+               scripts/check-trnm-world-transition-https-fixture.sh \
+               scripts/test-trnm-world-transition-https-fixture-negative.sh \
+               scripts/check-trnm-world-transition-https-fixture-local.sh \
+               scripts/run-trnm-world-transition-https-fixture-smoke.sh \
+               -type f -print0 \
+            | sort -z \
+            | xargs -0 sha256sum \
+            >run/world-transition-https-fixture-v1-source/SHA256SUMS
+
+      - name: Upload exact source evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: world-transition-https-fixture-source-${{ github.sha }}
+          path: run/world-transition-https-fixture-v1-source
+          if-no-files-found: error
+          retention-days: 30
+
+  container-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    needs: source-contract
+    steps:
+      - name: Checkout exact revision
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - name: Set up exact Go toolchain
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
+        with:
+          go-version: '1.23.2'
+          cache: false
+
+      - name: Build scratch image and execute TLS 1.3 smoke
+        env:
+          TRNM_WORLD_FIXTURE_EVIDENCE_DIR: ${{ github.workspace }}/run/world-transition-https-fixture-v1
+        run: timeout 20m bash scripts/run-trnm-world-transition-https-fixture-smoke.sh
+
+      - name: Validate exact-head smoke posture
+        env:
+          EXPECTED_COMMIT: ${{ github.sha }}
+        run: |
+          jq -e '
+            .contract_version == "trnm_world_transition_https_fixture_smoke_v1" and
+            .repository == "TrillionniumFoundation/Trillionnium-World" and
+            .commit == env.EXPECTED_COMMIT and
+            .tls_profile == "TLS_1_3_only" and
+            .exact_duplicate_result == true and
+            .durable_result_lookup == true and
+            .fixture_only == true and
+            .cutover_authorized == false and
+            .public_online_enabled == false and
+            .public_player_market_enabled == false and
+            (.limitations | length >= 5)
+          ' run/world-transition-https-fixture-v1/report.json >/dev/null
+          cmp run/world-transition-https-fixture-v1/result-first.json \
+              run/world-transition-https-fixture-v1/result-second.json
+          cmp run/world-transition-https-fixture-v1/result-first.json \
+              run/world-transition-https-fixture-v1/result-lookup.json
+          sha256sum --check run/world-transition-https-fixture-v1/SHA256SUMS
+
+      - name: Upload exact container evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: world-transition-https-fixture-container-${{ github.sha }}
+          path: run/world-transition-https-fixture-v1
+          if-no-files-found: error
+          retention-days: 30

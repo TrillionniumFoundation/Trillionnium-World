@@ -1,0 +1,4 @@
+FROM scratch
+COPY --chown=65532:65532 trnm-world-transition-https-v1 /app
+USER 65532:65532
+ENTRYPOINT ["/app"]
