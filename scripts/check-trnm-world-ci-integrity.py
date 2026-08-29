@@ -32,13 +32,32 @@ REQUIRED_DOCS = {
     "docs/protocol/schemas/trnm-world-transition-v1.schema.json",
     "docs/protocol/vectors/trnm-world-transition-v1.json",
     "docs/protocol/vectors/trnm-world-transition-negative-v1.json",
+    "docs/status/v4-candidate-v1.json",
+    "docs/status/v4-candidate-v1.schema.json",
     "scripts/check-trnm-world-documentation.py",
     "scripts/check-trnm-world-transition-conformance.py",
+    "scripts/check-trnm-world-v4-candidate.py",
+    "scripts/test-trnm-world-v4-candidate-negative.py",
 }
 
 
 def fail(message: str) -> None:
     raise SystemExit(f"TRNM World CI integrity: FAIL: {message}")
+
+
+def run_python(path: str, *args: str) -> None:
+    result = subprocess.run(
+        [sys.executable, str(ROOT / path), *args],
+        check=False,
+        capture_output=True,
+        text=True,
+        cwd=ROOT,
+    )
+    if result.returncode != 0:
+        fail(
+            f"{path} failed: "
+            + (result.stderr.strip() or result.stdout.strip())
+        )
 
 
 files = sorted([*WORKFLOWS.glob("*.yml"), *WORKFLOWS.glob("*.yaml")])
@@ -83,20 +102,12 @@ for relative in sorted(REQUIRED_DOCS):
     if not path.is_file() or not path.read_text(encoding="utf-8").strip():
         fail(f"required current documentation is missing or empty: {relative}")
 
-documentation = subprocess.run(
-    [sys.executable, str(ROOT / "scripts/check-trnm-world-documentation.py"), str(ROOT)],
-    check=False,
-    capture_output=True,
-    text=True,
-)
-if documentation.returncode != 0:
-    fail(
-        "documentation consistency failed: "
-        + (documentation.stderr.strip() or documentation.stdout.strip())
-    )
+run_python("scripts/check-trnm-world-documentation.py", str(ROOT))
+run_python("scripts/check-trnm-world-v4-candidate.py")
+run_python("scripts/test-trnm-world-v4-candidate-negative.py")
 
 print(
     "TRNM World CI integrity: PASS "
     f"({len(files)} workflow file, {len(required_contexts)} required contexts, "
-    f"{len(REQUIRED_DOCS)} current docs)"
+    f"{len(REQUIRED_DOCS)} current docs/status/check files)"
 )
