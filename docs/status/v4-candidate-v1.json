@@ -1,0 +1,28 @@
+{
+  "schema": "trnm_world_v4_candidate_status_v1",
+  "candidate_branch": "fix/world-plan-gap-closure-v4",
+  "base_branch": "fix/world-settlement-gap-closure-v1",
+  "base_commit": "1d4dee6d5add45a64f5c138f424e3bdab369ecd4",
+  "candidate_commit": null,
+  "candidate_tree": null,
+  "status": "implemented_pending_exact_head_ci",
+  "required_checks": [
+    "trnm-world-v4/docs-governance",
+    "trnm-world-v4/transition-contract",
+    "trnm-world-v4/settlement-postgres",
+    "trnm-world-v4/game-workspace-release",
+    "trnm-world-v4/supply-chain"
+  ],
+  "workflow_runs": [],
+  "artifacts": [],
+  "reviewers": [],
+  "release_effect": "none",
+  "public_online": "no_go",
+  "public_player_market": "disabled",
+  "limitations": [
+    "exact-head CI has not yet completed",
+    "repository server-side rules remain unverified",
+    "Nakama and Integration cutover gates are external",
+    "deployment, PITR, cross-host, human, custody, and commercial evidence remain external"
+  ]
+}
