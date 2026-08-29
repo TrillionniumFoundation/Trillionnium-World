@@ -3,7 +3,8 @@ set -euo pipefail
 
 ROOT_DIR="${1:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 CONTRACT_ROOT="$ROOT_DIR/trillionnium/contracts/trnm-world-transition-v1"
-SOURCE="$CONTRACT_ROOT/src/lib.rs"
+SOURCE="$CONTRACT_ROOT/src/contract.rs"
+LEGACY_SOURCE="$CONTRACT_ROOT/src/lib.rs"
 CARGO="$CONTRACT_ROOT/Cargo.toml"
 LOCK="$CONTRACT_ROOT/Cargo.lock"
 DOC="$ROOT_DIR/docs/protocol/trnm-world-transition-v1.md"
@@ -18,6 +19,10 @@ fail() {
 for file in "$SOURCE" "$CARGO" "$LOCK" "$DOC" "$SCHEMA" "$VECTORS"; do
   [[ -f "$file" ]] || fail "missing required artifact: ${file#$ROOT_DIR/}"
 done
+[[ ! -e "$LEGACY_SOURCE" ]] \
+  || fail 'duplicate legacy src/lib.rs would let checks and builds drift'
+grep -q '^path = "src/contract.rs"$' "$CARGO" \
+  || fail 'Cargo must compile the same strict source root that is checked and packaged'
 
 if grep -q '^\[dependencies\]' "$CARGO"; then
   fail 'reference contract package must remain dependency-free'
