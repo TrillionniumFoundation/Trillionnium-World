@@ -4,19 +4,21 @@ set -euo pipefail
 ROOT_DIR="${1:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 CONTRACT_ROOT="$ROOT_DIR/trillionnium/contracts/trnm-world-transition-v1"
 SOURCE="$CONTRACT_ROOT/src/contract.rs"
+CANONICAL_SOURCE="$CONTRACT_ROOT/src/canonical_json.rs"
 LEGACY_SOURCE="$CONTRACT_ROOT/src/lib.rs"
 CARGO="$CONTRACT_ROOT/Cargo.toml"
 LOCK="$CONTRACT_ROOT/Cargo.lock"
 DOC="$ROOT_DIR/docs/protocol/trnm-world-transition-v1.md"
 SCHEMA="$ROOT_DIR/docs/protocol/schemas/trnm-world-transition-v1.schema.json"
 VECTORS="$ROOT_DIR/docs/protocol/vectors/trnm-world-transition-v1.json"
+STATUS="$ROOT_DIR/docs/development/trnm-world-transition-contract-v1.json"
 
 fail() {
   printf 'TRNM World transition contract failed: %s\n' "$*" >&2
   exit 1
 }
 
-for file in "$SOURCE" "$CARGO" "$LOCK" "$DOC" "$SCHEMA" "$VECTORS"; do
+for file in "$SOURCE" "$CANONICAL_SOURCE" "$CARGO" "$LOCK" "$DOC" "$SCHEMA" "$VECTORS" "$STATUS"; do
   [[ -f "$file" ]] || fail "missing required artifact: ${file#$ROOT_DIR/}"
 done
 [[ ! -e "$LEGACY_SOURCE" ]] \
@@ -46,7 +48,7 @@ if grep -nE '(^|[^A-Za-z0-9_])(struct|enum|type)[[:space:]]+MatchCompletedV1|pub
   fail 'reference package acquired a forbidden authority field or completion type'
 fi
 
-python3 - "$SCHEMA" "$VECTORS" "$SOURCE" <<'PY'
+python3 - "$SCHEMA" "$VECTORS" "$SOURCE" "$STATUS" <<'PY'
 from __future__ import annotations
 
 import hashlib
@@ -59,6 +61,7 @@ from typing import Any
 schema_path = pathlib.Path(sys.argv[1])
 vectors_path = pathlib.Path(sys.argv[2])
 source_path = pathlib.Path(sys.argv[3])
+status_path = pathlib.Path(sys.argv[4])
 
 
 def reject(message: str) -> None:
@@ -81,7 +84,7 @@ def no_duplicates(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
 
 def load_json(path: pathlib.Path) -> Any:
     return json.loads(
-        path.read_text(),
+        path.read_text(encoding="utf-8"),
         object_pairs_hook=no_duplicates,
         parse_constant=lambda value: reject(f"non-finite JSON number: {value}"),
     )
@@ -122,7 +125,8 @@ def property_names(node: Any) -> set[str]:
 
 schema = load_json(schema_path)
 vectors = load_json(vectors_path)
-source = source_path.read_text()
+status = load_json(status_path)
+source = source_path.read_text(encoding="utf-8")
 
 expect(schema.get("$schema") == "https://json-schema.org/draft/2020-12/schema", "unexpected JSON Schema draft")
 expect(schema.get("$defs", {}).get("request", {}).get("additionalProperties") is False, "request must reject unknown fields")
@@ -199,7 +203,42 @@ expect(schema["$defs"]["commandPayload"]["x-trnm-max-canonical-bytes"] == 128 * 
 expect(schema["$defs"]["replayPayload"]["x-trnm-max-canonical-bytes"] == 2 * 1024 * 1024, "replay budget drift")
 expect(schema["$defs"]["outcomePayload"]["x-trnm-max-canonical-bytes"] == 512 * 1024, "outcome budget drift")
 
-print("TRNM World transition schema, vectors, hashes and authority boundary passed.")
+expect(status.get("contract_version") == "trnm_world_transition_delivery_v1", "delivery contract version drift")
+expect(status.get("backlog_id") == "WORLD-P0-002", "delivery backlog identity drift")
+expect(status.get("status") == "implemented_pending_exact_commit_ci", "delivery status overclaim")
+expect(status.get("production_candidate") is False, "transition contract may not become a production candidate here")
+artifacts = status.get("artifacts", {})
+expect(artifacts.get("compiled_source") == "trillionnium/contracts/trnm-world-transition-v1/src/contract.rs", "delivery truth points at the wrong compiled source")
+expect(artifacts.get("canonical_json_source") == "trillionnium/contracts/trnm-world-transition-v1/src/canonical_json.rs", "delivery truth points at the wrong canonical source")
+expect(artifacts.get("package_builder") == "scripts/package-trnm-world-transition-contract.py", "delivery truth omits the package builder")
+expect(artifacts.get("package_check") == "scripts/check-trnm-world-transition-package.sh", "delivery truth omits the package gate")
+verification = status.get("verification", {})
+expect(verification.get("github_actions_runs") == "missing", "missing exact-head CI may not be promoted")
+expect(verification.get("remote_ci_covers_current_head") is False, "delivery truth falsely claims current-head CI")
+expect(verification.get("independent_exact_head_review") == "pending", "delivery truth falsely claims independent review")
+acceptance = status.get("acceptance", [])
+expect(isinstance(acceptance, list) and {item.get("id") for item in acceptance} == {f"WORLD-P0-002-A{index}" for index in range(1, 8)}, "delivery acceptance catalogue drift")
+expect(all(item.get("state") in {"implemented_pending_ci", "pending_WORLD-P0-003"} for item in acceptance), "delivery acceptance contains a promoted state")
+blockers = set(status.get("promotion_blockers", []))
+expect({
+    "exact_head_workflow_runs_missing_or_not_green",
+    "nakama_cross_repository_shadow_not_yet_green",
+    "integration_exact_commit_lock_not_yet_published",
+    "independent_exact_head_review_pending",
+}.issubset(blockers), "delivery promotion blockers were weakened")
+not_owned = set(status.get("authority_scope", {}).get("world_does_not_own", []))
+expect({
+    "online_participant_admission",
+    "canonical_global_event_order",
+    "online_command_idempotency",
+    "canonical_archive_root",
+    "match_completed_v1",
+    "match_evidence_signing_key",
+    "chain_finality",
+    "wallet_or_ledger_settlement",
+}.issubset(not_owned), "delivery authority exclusions were weakened")
+
+print("TRNM World transition schema, vectors, hashes, delivery truth and authority boundary passed.")
 PY
 
 printf '%s\n' 'TRNM World deterministic transition contract passed.'

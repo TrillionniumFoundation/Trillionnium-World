@@ -3,6 +3,7 @@
   "backlog_id": "WORLD-P0-002",
   "status": "implemented_pending_exact_commit_ci",
   "owner": "trillionnium-world",
+  "production_candidate": false,
   "authority_scope": {
     "world_owns": [
       "ruleset_and_content_interpretation",
@@ -29,8 +30,12 @@
     "schema": "docs/protocol/schemas/trnm-world-transition-v1.schema.json",
     "vectors": "docs/protocol/vectors/trnm-world-transition-v1.json",
     "reference_package": "trillionnium/contracts/trnm-world-transition-v1",
+    "compiled_source": "trillionnium/contracts/trnm-world-transition-v1/src/contract.rs",
+    "canonical_json_source": "trillionnium/contracts/trnm-world-transition-v1/src/canonical_json.rs",
     "static_check": "scripts/check-trnm-world-transition-contract.sh",
     "negative_check": "scripts/test-trnm-world-transition-contract-negative.sh",
+    "package_builder": "scripts/package-trnm-world-transition-contract.py",
+    "package_check": "scripts/check-trnm-world-transition-package.sh",
     "workflow": ".github/workflows/trnm-world-transition-contract.yml"
   },
   "hash_domains": {
@@ -44,18 +49,25 @@
     "replay_bytes": 2097152,
     "outcome_bytes": 524288
   },
+  "verification": {
+    "github_actions_runs": "missing",
+    "remote_ci_covers_current_head": false,
+    "deterministic_bundle_check": "implemented_pending_exact_head_ci",
+    "cross_repository_shadow": "pending_WORLD-P0-003",
+    "independent_exact_head_review": "pending"
+  },
   "acceptance": [
     {
       "id": "WORLD-P0-002-A1",
       "claim": "Request, accepted result, rejection and payload schemas reject unknown fields",
       "evidence_kind": "schema_static",
-      "state": "implemented"
+      "state": "implemented_pending_ci"
     },
     {
       "id": "WORLD-P0-002-A2",
       "claim": "Canonical serialization and SHA-256 core vectors are fixed",
       "evidence_kind": "golden_vectors",
-      "state": "implemented"
+      "state": "implemented_pending_ci"
     },
     {
       "id": "WORLD-P0-002-A3",
@@ -80,12 +92,19 @@
       "claim": "Nakama independently reproduces exact accept/reject and hash vectors",
       "evidence_kind": "cross_repository_shadow",
       "state": "pending_WORLD-P0-003"
+    },
+    {
+      "id": "WORLD-P0-002-A7",
+      "claim": "The exact-revision transition bundle is byte-reproducible and binds source commit and tree",
+      "evidence_kind": "deterministic_package_gate",
+      "state": "implemented_pending_ci"
     }
   ],
   "promotion_blockers": [
     "exact_head_workflow_runs_missing_or_not_green",
-    "nakama_shadow_conformance_not_yet_implemented",
-    "integration_component_lock_not_yet_published"
+    "nakama_cross_repository_shadow_not_yet_green",
+    "integration_exact_commit_lock_not_yet_published",
+    "independent_exact_head_review_pending"
   ],
   "next_dependency": "WORLD-P0-003"
 }
