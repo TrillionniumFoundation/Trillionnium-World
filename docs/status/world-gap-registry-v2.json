@@ -13,8 +13,8 @@
   },
   "counts": {
     "closed": 0,
-    "implemented_unverified": 2,
-    "source_gap": 4,
+    "implemented_unverified": 3,
+    "source_gap": 3,
     "planned_or_partial": 6,
     "blocked_upstream": 2,
     "server_configuration_required": 1,
@@ -63,11 +63,11 @@
     },
     {
       "id": "WORLD-P0-006",
-      "class": "source_gap",
+      "class": "implemented_unverified",
       "owner": "Trillionnium-World",
-      "summary": "Settlement worker needs shutdown, poison isolation, bounded concurrency and ambiguity hardening",
-      "next_gate": "source fixes and complete fault tests",
-      "release_effect": "blocks_settlement_source_closure"
+      "summary": "Source now implements SIGTERM/SIGINT drain, poison isolation, bounded unrelated concurrency, duplicate-job fencing and ambiguous-response recovery",
+      "next_gate": "non-empty exact-head compile, lint and PostgreSQL tests plus deployed signal/kill/response-loss evidence",
+      "release_effect": "blocks_settlement_source_closure_until_verified"
     },
     {
       "id": "WORLD-P0-007",
@@ -89,8 +89,8 @@
       "id": "WORLD-P0-009",
       "class": "source_gap",
       "owner": "Trillionnium-World",
-      "summary": "Self-modifying workflows and build-time semantic source rewriting reduce review integrity",
-      "next_gate": "read-only CI and directly reviewable compiled source",
+      "summary": "Self-modifying workflows are removed, but build-time semantic source rewriting still reduces review integrity",
+      "next_gate": "materialize directly reviewable compiled settlement modules and remove semantic source transforms",
       "release_effect": "blocks_independent_review"
     },
     {
@@ -137,8 +137,8 @@
       "id": "WORLD-P1-006",
       "class": "planned_or_partial",
       "owner": "Trillionnium-World",
-      "summary": "Toolchain/action pinning, SBOM, provenance and signatures are partial",
-      "next_gate": "reproducible immutable signed artifact",
+      "summary": "Toolchain/action pinning is implemented on the candidate, while SBOM, provenance and signatures remain incomplete",
+      "next_gate": "exact-head supply-chain checks and reproducible immutable signed artifact",
       "release_effect": "blocks_release_provenance"
     },
     {
