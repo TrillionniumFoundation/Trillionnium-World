@@ -270,8 +270,8 @@ begin
             message = 'settlement replay request identity was reused with different material';
     end if;
 
-    select job_row, capture.state
-      into job, capture_state
+    select job_row.*
+      into job
       from public.trnm_online_settlement_jobs job_row
       join public.trnm_online_settlement_captures capture
         on capture.capture_id = job_row.capture_id
@@ -281,6 +281,16 @@ begin
         raise exception using
             errcode = 'P0002',
             message = 'settlement replay target does not exist';
+    end if;
+
+    select capture.state
+      into capture_state
+      from public.trnm_online_settlement_captures capture
+     where capture.capture_id = job.capture_id;
+    if not found then
+        raise exception using
+            errcode = '55000',
+            message = 'settlement replay capture disappeared after lock';
     end if;
 
     if job.capture_id <> p_capture_id
