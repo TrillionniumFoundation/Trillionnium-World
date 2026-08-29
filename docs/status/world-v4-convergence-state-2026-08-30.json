@@ -1,0 +1,316 @@
+{
+  "$schema": "./world-v4-convergence-state-2026-08-30.schema.json",
+  "schema": "trnm_world_v4_convergence_state_v1",
+  "as_of": "2026-08-30",
+  "repository": "TrillionniumFoundation/Trillionnium-World",
+  "plan": "docs/development/TRILLIONNIUM_WORLD_DEVELOPMENT_PLAN_2026-08-29.md",
+  "addendum": "docs/development/TRILLIONNIUM_WORLD_PLAN_V4_CONVERGENCE_ADDENDUM_2026-08-30.md",
+  "candidate": {
+    "branch": "fix/world-plan-v4-convergence-2026-08-30",
+    "parent_branch": "fix/world-plan-gap-closure-v4",
+    "parent_commit": "0e256625f0c8a64e4079527672b689ee782d6152",
+    "main_observed": "efcf0420f6edabc32b7f85332467f25e291cdc63",
+    "overlapping_candidate": {
+      "branch": "fix/world-plan-v4-source-gap-closure",
+      "commit": "366becfb33e9992b61611e7aa4924f1fe1b157cc",
+      "disposition": "supersede_after_unique_change_review"
+    }
+  },
+  "observed_repository_controls": {
+    "candidate_check_runs": 0,
+    "overlapping_candidate_check_runs": 0,
+    "ruleset_count": 0,
+    "actions_probe": {
+      "branch": "ci/world-v4-validation-base",
+      "commit": "2e465c56ba159301796261963204269c9c4cf3c3",
+      "workflow_runs": 0,
+      "interpretation": "repository_or_organization_actions_execution_not_observed"
+    },
+    "branch_protection_observed": false,
+    "required_checks_observed": [],
+    "code_owner_review_enforced_observed": false,
+    "administrators_enforced_observed": false
+  },
+  "release_posture": {
+    "technical_source_candidate": "in_progress",
+    "exact_head_remote_verification": "repository_control_blocked",
+    "trusted_deployed_settlement": "environment_evidence_required",
+    "canonical_nakama_online_authority": "blocked_upstream",
+    "public_online": "no_go",
+    "public_player_market": "disabled",
+    "commercial_release": "no_go"
+  },
+  "counts": {
+    "source_open": 3,
+    "source_implemented_unverified": 4,
+    "source_verified": 0,
+    "repository_control_blocked": 3,
+    "blocked_upstream": 3,
+    "environment_evidence_required": 6,
+    "human_evidence_required": 2,
+    "commercial_approval_required": 1,
+    "closed": 0
+  },
+  "items": [
+    {
+      "id": "WORLD-P0-001",
+      "owner": "Trillionnium-World",
+      "state": "source_implemented_unverified",
+      "claim": "transaction-free settlement capture, execute and apply source",
+      "evidence_required": [
+        "exact_head_rust",
+        "mandatory_postgresql",
+        "independent_review"
+      ],
+      "next_gate": "enable Actions and run all exact-head settlement jobs"
+    },
+    {
+      "id": "WORLD-P0-002",
+      "owner": "Trillionnium-World",
+      "state": "source_implemented_unverified",
+      "claim": "strict deterministic transition and canonical JSON contract",
+      "evidence_required": [
+        "exact_head_rust",
+        "independent_conformance",
+        "negative_vectors"
+      ],
+      "next_gate": "run strict parser package and independent conformance on the exact head"
+    },
+    {
+      "id": "WORLD-P0-003",
+      "owner": "Trillionnium-Nakama",
+      "state": "blocked_upstream",
+      "claim": "Nakama adapter, shadow comparison and canonical runtime authority",
+      "evidence_required": [
+        "cross_repository_shadow",
+        "zero_unexplained_divergence"
+      ],
+      "next_gate": "Nakama owner implementation"
+    },
+    {
+      "id": "WORLD-P0-004",
+      "owner": "Trillionnium-Integration",
+      "state": "blocked_upstream",
+      "claim": "exact component lock, authority cutover and rollback",
+      "evidence_required": [
+        "exact_component_lock",
+        "drain_cutover_rollback"
+      ],
+      "next_gate": "Integration owner evidence"
+    },
+    {
+      "id": "WORLD-P0-005A",
+      "owner": "repository_administrator",
+      "state": "repository_control_blocked",
+      "claim": "GitHub Actions executes candidate workflows",
+      "evidence_required": [
+        "non_empty_exact_head_run"
+      ],
+      "next_gate": "enable repository and organization Actions policy"
+    },
+    {
+      "id": "WORLD-P0-005B",
+      "owner": "repository_administrator",
+      "state": "repository_control_blocked",
+      "claim": "main ruleset and required exact checks",
+      "evidence_required": [
+        "ruleset_api_snapshot",
+        "negative_merge_rehearsal"
+      ],
+      "next_gate": "apply server-side ruleset"
+    },
+    {
+      "id": "WORLD-P0-005C",
+      "owner": "independent_reviewer",
+      "state": "repository_control_blocked",
+      "claim": "independent code-owner and security approval",
+      "evidence_required": [
+        "approval_after_last_push"
+      ],
+      "next_gate": "independent review after exact-head checks"
+    },
+    {
+      "id": "WORLD-P0-006",
+      "owner": "Trillionnium-World",
+      "state": "source_implemented_unverified",
+      "claim": "bounded settlement shutdown, concurrency, quarantine and ambiguity recovery",
+      "evidence_required": [
+        "exact_head_rust",
+        "mandatory_postgresql",
+        "deployed_fault_matrix"
+      ],
+      "next_gate": "exact-head source tests followed by deployed fault injection"
+    },
+    {
+      "id": "WORLD-P0-007",
+      "owner": "Trillionnium-World",
+      "state": "source_implemented_unverified",
+      "claim": "read-only SHA-pinned current workflow definitions",
+      "evidence_required": [
+        "workflow_execution",
+        "artifact_hashes"
+      ],
+      "next_gate": "repository Actions execution"
+    },
+    {
+      "id": "WORLD-P0-008",
+      "owner": "runtime_operations",
+      "state": "environment_evidence_required",
+      "claim": "deployed signer/CEX ambiguity, process death, cancellation and apply rollback",
+      "evidence_required": [
+        "deployed_fault_matrix"
+      ],
+      "next_gate": "run against immutable deployed artifacts"
+    },
+    {
+      "id": "WORLD-P0-009",
+      "owner": "Trillionnium-World",
+      "state": "source_open",
+      "claim": "directly reviewable compiled game-server, settlement-worker and CEX source",
+      "evidence_required": [
+        "no_semantic_build_rewrite",
+        "direct_source_tests"
+      ],
+      "next_gate": "materialize generated source and remove semantic build.rs transforms"
+    },
+    {
+      "id": "WORLD-P0-010",
+      "owner": "Trillionnium-World",
+      "state": "source_open",
+      "claim": "single non-overlapping current V4 candidate and truth source",
+      "evidence_required": [
+        "superseded_duplicate_prs",
+        "one_current_candidate"
+      ],
+      "next_gate": "reconcile and close overlapping V4 candidates"
+    },
+    {
+      "id": "WORLD-P1-001",
+      "owner": "Trillionnium-World",
+      "state": "source_open",
+      "claim": "complete correctness-oriented game-server module decomposition",
+      "evidence_required": [
+        "module_invariant_tests",
+        "no_catch_all_correctness_module"
+      ],
+      "next_gate": "finish direct module ownership and lock-order extraction"
+    },
+    {
+      "id": "WORLD-P1-006",
+      "owner": "release_engineering",
+      "state": "environment_evidence_required",
+      "claim": "reproducible immutable signed release and multi-platform distribution",
+      "evidence_required": [
+        "sbom",
+        "provenance",
+        "release_signature",
+        "windows_macos_linux_signing"
+      ],
+      "next_gate": "build and independently reproduce immutable release artifacts"
+    },
+    {
+      "id": "WORLD-P1-007",
+      "owner": "runtime_operations",
+      "state": "environment_evidence_required",
+      "claim": "PostgreSQL PITR, old-primary isolation and backup restore",
+      "evidence_required": [
+        "pitr_timeline",
+        "old_primary_fencing",
+        "restore_rehearsal"
+      ],
+      "next_gate": "execute restore matrix"
+    },
+    {
+      "id": "WORLD-P1-008",
+      "owner": "runtime_operations",
+      "state": "environment_evidence_required",
+      "claim": "complete 86400-second isolated endurance run",
+      "evidence_required": [
+        "full_duration_summary"
+      ],
+      "next_gate": "run full endurance candidate"
+    },
+    {
+      "id": "WORLD-P2-001",
+      "owner": "Trillionnium-Integration",
+      "state": "environment_evidence_required",
+      "claim": "public edge, multi-host, KMS/HSM and capacity evidence",
+      "evidence_required": [
+        "public_network",
+        "cross_host",
+        "custody_security"
+      ],
+      "next_gate": "production-like environment validation"
+    },
+    {
+      "id": "WORLD-P2-002A",
+      "owner": "Trillionnium-World",
+      "state": "human_evidence_required",
+      "claim": "single-player five-second, unguided and accessibility validation",
+      "evidence_required": [
+        "consented_human_sessions"
+      ],
+      "next_gate": "collect independent participant evidence"
+    },
+    {
+      "id": "WORLD-P2-002B",
+      "owner": "Trillionnium-Nakama",
+      "state": "human_evidence_required",
+      "claim": "multiplayer comprehension and recovery validation",
+      "evidence_required": [
+        "canonical_multiplayer_human_sessions"
+      ],
+      "next_gate": "run after canonical authority cutover"
+    },
+    {
+      "id": "WORLD-P2-003",
+      "owner": "CEX_and_commercial_owners",
+      "state": "commercial_approval_required",
+      "claim": "public player market enablement",
+      "evidence_required": [
+        "custody",
+        "fraud",
+        "dispute",
+        "chargeback",
+        "support",
+        "privacy",
+        "legal",
+        "commercial"
+      ],
+      "next_gate": "explicit accountable-owner approvals after public-online prerequisites"
+    },
+    {
+      "id": "WORLD-XR-001",
+      "owner": "CEX",
+      "state": "blocked_upstream",
+      "claim": "exact CEX receipt lookup and deployed ledger component binding",
+      "evidence_required": [
+        "cex_owner_merge",
+        "exact_artifact_lock"
+      ],
+      "next_gate": "CEX owner delivery"
+    },
+    {
+      "id": "WORLD-OPS-001",
+      "owner": "runtime_operations",
+      "state": "environment_evidence_required",
+      "claim": "journal corruption and cross-host fencing matrix",
+      "evidence_required": [
+        "journal_faults",
+        "cross_host_fencing"
+      ],
+      "next_gate": "execute on isolated hosts"
+    }
+  ],
+  "no_go": [
+    "dual_canonical_world_and_nakama_authority",
+    "external_io_under_mutable_game_row_locks",
+    "expired_lease_mutation",
+    "blind_retry_after_ambiguous_remote_success",
+    "semantic_difference_between_reviewed_and_compiled_source",
+    "write_capable_candidate_ci",
+    "missing_exact_head_checks",
+    "ruleset_inferred_from_source_files",
+    "automated_evidence_used_as_human_public_network_custody_or_commercial_credit"
+  ]
+}
