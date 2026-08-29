@@ -12,7 +12,6 @@ import hashlib
 import json
 import pathlib
 import re
-import sys
 from dataclasses import dataclass
 from typing import Any
 
@@ -102,7 +101,11 @@ def check_value(value: Any, depth: int = 0) -> None:
 def check_string(value: str) -> None:
     for character in value:
         codepoint = ord(character)
-        if codepoint == 0x7F or (codepoint < 0x20 and character not in "\b\f\n\r\t"):
+        # U+0000..U+001F are legal decoded values only when their exact wire
+        # encoding is canonical; encode(value) below proves the short or lower-
+        # case unicode escape. DEL and C1 controls are prohibited outright,
+        # matching the independent Rust parser.
+        if codepoint == 0x7F or 0x80 <= codepoint <= 0x9F:
             raise CanonicalFailure("string contains forbidden control character")
 
 
