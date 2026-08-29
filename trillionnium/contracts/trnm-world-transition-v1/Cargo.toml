@@ -8,6 +8,6 @@ publish = false
 description = "Versioned deterministic transition contract owned by Trillionnium World"
 
 [lib]
-path = "src/lib.rs"
+path = "src/contract.rs"
 
 [workspace]
