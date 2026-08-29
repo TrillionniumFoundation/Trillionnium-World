@@ -27,11 +27,14 @@ CANONICAL_SOURCE = (
 NEGATIVE_VECTORS = (
     ROOT / "docs/protocol/vectors/trnm-world-transition-negative-v1.json"
 )
-BUILD_SCRIPT = ROOT / "trillionnium/crates/trnm-game-server/build.rs"
+GAME_SERVER_ROOT = ROOT / "trillionnium/crates/trnm-game-server"
+BUILD_SCRIPT = GAME_SERVER_ROOT / "build.rs"
+DIRECT_CEX_SOURCE = GAME_SERVER_ROOT / "src/cex.rs"
+CEX_TEMPLATE = GAME_SERVER_ROOT / "src/cex.rs.in"
+DIRECT_CEX_CONTRACT = GAME_SERVER_ROOT / "tests/direct_cex_source_contract.rs"
 GENERATED_AUTHORITIES = [
-    ROOT / "trillionnium/crates/trnm-game-server/src/lib.rs.in",
-    ROOT / "trillionnium/crates/trnm-game-server/src/settlement_worker.rs.in",
-    ROOT / "trillionnium/crates/trnm-game-server/src/cex.rs.in",
+    GAME_SERVER_ROOT / "src/lib.rs.in",
+    GAME_SERVER_ROOT / "src/settlement_worker.rs.in",
 ]
 
 SHA_RE = re.compile(r"^[0-9a-f]{40}$")
@@ -228,9 +231,12 @@ def validate_repository() -> None:
         CANONICAL_SOURCE,
         NEGATIVE_VECTORS,
         BUILD_SCRIPT,
+        DIRECT_CEX_SOURCE,
+        DIRECT_CEX_CONTRACT,
         *GENERATED_AUTHORITIES,
     ):
         require(path.exists(), f"missing {path.relative_to(ROOT)}")
+    require(not CEX_TEMPLATE.exists(), "CEX template authority was reintroduced")
 
     state = load_json(STATE_PATH)
     schema = load_json(SCHEMA_PATH)
@@ -266,13 +272,27 @@ def validate_repository() -> None:
     build = BUILD_SCRIPT.read_text(encoding="utf-8")
     for path in GENERATED_AUTHORITIES:
         require(path.name in build, f"build script no longer names {path.name}; update status")
-    for marker in (
-        "generate_game_server",
-        "generate_settlement_worker",
-        "generate_cex",
-        "OUT_DIR",
-    ):
+    for marker in ("generate_game_server", "generate_settlement_worker", "OUT_DIR"):
         require(marker in build, f"semantic source transform marker missing: {marker}")
+    for forbidden in ("generate_cex", "src/cex.rs.in", "trnm_cex_generated.rs"):
+        require(forbidden not in build, f"retired CEX transform reintroduced: {forbidden}")
+
+    cex = DIRECT_CEX_SOURCE.read_text(encoding="utf-8")
+    for marker in (
+        "pub struct CexClient",
+        "MAX_REMOTE_ERROR_BODY_BYTES",
+        "bounded_error_body",
+        "StatusCode::CONFLICT",
+        "decode isolated signer response after possible commit",
+        "decode CEX receipt after possible commit",
+        "synchronous EconomyBackend I/O is prohibited",
+    ):
+        require(marker in cex, f"direct CEX source missing {marker}")
+    for forbidden in ("OUT_DIR", "trnm_cex_generated.rs", "reqwest::blocking", "blocking_client"):
+        require(forbidden not in cex, f"direct CEX source contains forbidden {forbidden}")
+
+    direct_contract = DIRECT_CEX_CONTRACT.read_text(encoding="utf-8")
+    require("cex_transport_is_directly_compiled_reviewed_source" in direct_contract, "direct CEX contract missing")
 
     current_plan = CURRENT_PLAN_PATH.read_text(encoding="utf-8")
     docs_index = DOCS_INDEX_PATH.read_text(encoding="utf-8")
