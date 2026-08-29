@@ -15,8 +15,12 @@ ExecStart=@TRNM_WORLD_ROOT@/scripts/run-trnm-settlement-worker.sh
 Restart=on-failure
 RestartSec=5
 TimeoutStartSec=45
-TimeoutStopSec=30
+# Must exceed TRNM_SETTLEMENT_SHUTDOWN_GRACE_MILLISECONDS so runtime v2 can
+# stop admission and drain already-started remote work before systemd escalates.
+TimeoutStopSec=45
 KillSignal=SIGTERM
+SendSIGKILL=yes
+KillMode=mixed
 UMask=0077
 CPUAccounting=true
 CPUWeight=100
