@@ -1,12 +1,16 @@
 const DEFAULT_SHUTDOWN_GRACE_MILLISECONDS_V2: u64 = 20_000;
 const MAX_SHUTDOWN_GRACE_MILLISECONDS_V2: u64 = 120_000;
 const DEFAULT_QUARANTINE_RETRY_SECONDS_V2: i64 = 300;
+const MIGRATION_V18_V2: &str =
+    include_str!("../migrations/0018_online_settlement_operator_controls_v1.sql");
+const MIGRATION_V19_V2: &str =
+    include_str!("../migrations/0019_online_settlement_quarantine_v1.sql");
 
 /// Runtime v2 stops admission on SIGINT/SIGTERM, drains already-started remote
 /// work for a bounded interval, and leaves unfinished leases to expire. Capture,
 /// claim/decode, remote execution, and apply failures are isolated so one bad
 /// match/account cannot block unrelated settlement work.
-pub async fn run(config: WorkerConfig) -> Result<(), String> {
+pub async fn run_v2(config: WorkerConfig) -> Result<(), String> {
     let pool = PgPoolOptions::new()
         .min_connections(1)
         .max_connections(config.pool_max_connections)
@@ -14,7 +18,7 @@ pub async fn run(config: WorkerConfig) -> Result<(), String> {
         .connect(&config.database_url)
         .await
         .map_err(|error| format!("connect settlement worker PostgreSQL pool: {error}"))?;
-    apply_worker_migrations(&pool).await?;
+    apply_worker_migrations_v2(&pool).await?;
 
     let cex = CexClient::new(
         config.cex_url.clone(),
@@ -111,6 +115,104 @@ pub async fn run(config: WorkerConfig) -> Result<(), String> {
     );
     drain_remote_work_v2(&mut in_flight, shutdown_grace).await;
     tracing::info!(worker_id = %config.worker_id, "settlement worker shutdown complete");
+    Ok(())
+}
+
+async fn apply_worker_migrations_v2(pool: &PgPool) -> Result<(), String> {
+    apply_worker_migrations(pool).await?;
+
+    let mut connection = pool
+        .acquire()
+        .await
+        .map_err(|error| format!("acquire v2 migration connection: {error}"))?;
+    connection
+        .execute(MIGRATION_LEDGER_DDL)
+        .await
+        .map_err(|error| format!("create v2 migration ledger: {error}"))?;
+    sqlx::query::query("select pg_advisory_lock($1)")
+        .bind(MIGRATION_ADVISORY_LOCK)
+        .execute(&mut *connection)
+        .await
+        .map_err(|error| format!("acquire v2 migration advisory lock: {error}"))?;
+
+    let result = apply_worker_migrations_v2_locked(&mut connection).await;
+    let unlock = sqlx::query_scalar::query_scalar::<_, bool>("select pg_advisory_unlock($1)")
+        .bind(MIGRATION_ADVISORY_LOCK)
+        .fetch_one(&mut *connection)
+        .await
+        .map_err(|error| format!("release v2 migration advisory lock: {error}"));
+    match (result, unlock) {
+        (Err(error), _) => Err(error),
+        (Ok(()), Err(error)) => Err(error),
+        (Ok(()), Ok(true)) => Ok(()),
+        (Ok(()), Ok(false)) => Err("v2 migration advisory lock was not held".to_string()),
+    }
+}
+
+async fn apply_worker_migrations_v2_locked(
+    connection: &mut PgConnection,
+) -> Result<(), String> {
+    for (version, name, sql) in [
+        (
+            18_i32,
+            "0018_online_settlement_operator_controls_v1",
+            MIGRATION_V18_V2,
+        ),
+        (
+            19_i32,
+            "0019_online_settlement_quarantine_v1",
+            MIGRATION_V19_V2,
+        ),
+    ] {
+        let checksum = hash_bytes(sql.as_bytes());
+        let recorded = sqlx::query::query(
+            "select migration_name, checksum_sha256
+               from public.trnm_online_schema_migrations
+              where migration_version = $1",
+        )
+        .bind(version)
+        .fetch_optional(&mut *connection)
+        .await
+        .map_err(|error| format!("read settlement migration {version}: {error}"))?;
+        if let Some(recorded) = recorded {
+            let recorded_name: String = recorded
+                .try_get("migration_name")
+                .map_err(|error| error.to_string())?;
+            let recorded_checksum: String = recorded
+                .try_get("checksum_sha256")
+                .map_err(|error| error.to_string())?;
+            if recorded_name != name || recorded_checksum != checksum {
+                return Err(format!(
+                    "settlement migration {version} checksum/name drift: {recorded_name} {recorded_checksum}"
+                ));
+            }
+            continue;
+        }
+
+        let mut transaction = connection
+            .begin()
+            .await
+            .map_err(|error| format!("begin settlement migration {version}: {error}"))?;
+        transaction
+            .execute(sql)
+            .await
+            .map_err(|error| format!("execute settlement migration {version}: {error}"))?;
+        sqlx::query::query(
+            "insert into public.trnm_online_schema_migrations (
+                migration_version, migration_name, checksum_sha256
+             ) values ($1, $2, $3)",
+        )
+        .bind(version)
+        .bind(name)
+        .bind(checksum)
+        .execute(&mut *transaction)
+        .await
+        .map_err(|error| format!("record settlement migration {version}: {error}"))?;
+        transaction
+            .commit()
+            .await
+            .map_err(|error| format!("commit settlement migration {version}: {error}"))?;
+    }
     Ok(())
 }
 
