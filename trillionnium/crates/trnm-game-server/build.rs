@@ -164,68 +164,9 @@ pub async fn settle_pending_matches(_state: &AppState, _limit: i64) -> Result<u6
         .unwrap_or_else(|error| fail(format!("write generated game server: {error}")));
 }
 
-fn generate_settlement_worker(out_dir: &Path) {
-    let template_path = PathBuf::from("src/settlement_worker.rs.in");
-    let mut source = fs::read_to_string(&template_path)
-        .unwrap_or_else(|error| fail(format!("read {}: {error}", template_path.display())));
-
-    replace_once(
-        &mut source,
-        "const MIGRATION_V17: &str = include_str!(\"../migrations/0017_online_settlement_worker_runtime_v1.sql\");",
-        r#"const MIGRATION_V17: &str = include_str!("../migrations/0017_online_settlement_worker_runtime_v1.sql");
-const MIGRATION_V18: &str =
-    include_str!("../migrations/0018_online_settlement_operator_controls_v1.sql");
-const MIGRATION_V19: &str =
-    include_str!("../migrations/0019_online_settlement_quarantine_v1.sql");"#,
-        "settlement-worker migration constants",
-    );
-    replace_once(
-        &mut source,
-        r#"        (
-            17_i32,
-            "0017_online_settlement_worker_runtime_v1",
-            MIGRATION_V17,
-        ),
-"#,
-        r#"        (
-            17_i32,
-            "0017_online_settlement_worker_runtime_v1",
-            MIGRATION_V17,
-        ),
-        (
-            18_i32,
-            "0018_online_settlement_operator_controls_v1",
-            MIGRATION_V18,
-        ),
-        (
-            19_i32,
-            "0019_online_settlement_quarantine_v1",
-            MIGRATION_V19,
-        ),
-"#,
-        "settlement-worker migration ledger",
-    );
-    replace_once(
-        &mut source,
-        "pub async fn run(config: WorkerConfig) -> Result<(), String> {",
-        "#[allow(dead_code)]\nasync fn run_legacy_disabled(config: WorkerConfig) -> Result<(), String> {",
-        "legacy settlement worker run loop retirement",
-    );
-
-    let generated = rewrite_migration_includes(&source);
-    fs::write(
-        out_dir.join("trnm_settlement_worker_generated.rs"),
-        generated,
-    )
-    .unwrap_or_else(|error| fail(format!("write generated settlement worker: {error}")));
-}
-
 fn main() {
     println!("cargo:rerun-if-changed=src/lib.rs.in");
-    println!("cargo:rerun-if-changed=src/settlement_worker.rs.in");
-    println!("cargo:rerun-if-changed=src/settlement_worker_runtime_v2.rs");
     println!("cargo:rerun-if-changed=migrations");
     let out_dir = PathBuf::from(env::var_os("OUT_DIR").expect("OUT_DIR is required"));
     generate_game_server(&out_dir);
-    generate_settlement_worker(&out_dir);
 }
