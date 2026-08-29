@@ -58,8 +58,21 @@ grep -q 'execute_transition_verified' "$CONTRACT_ROOT/src/engine.rs" \
   || fail 'determinism verifier is missing'
 grep -q 'NondeterministicResult' "$CONTRACT_ROOT/src/engine.rs" \
   || fail 'nondeterminism does not fail closed'
+grep -q 'fn supports_ruleset' "$CONTRACT_ROOT/src/engine.rs" \
+  || fail 'ruleset support must be classified independently'
+grep -q 'fn supports_content' "$CONTRACT_ROOT/src/engine.rs" \
+  || fail 'content support must be classified independently'
+grep -q 'StableErrorCode::InvalidContentRevision' "$CONTRACT_ROOT/src/engine.rs" \
+  || fail 'unsupported content does not use its stable error code'
 grep -q 'There is no automatic cross-generation live takeover' "$RUNBOOK" \
   || fail 'cutover runbook must explicitly reject automatic live takeover'
+
+grep -q 'object_pairs_hook=_unique_object' "$SHADOW_ROOT/trnm_world_shadow_diff.py" \
+  || fail 'shadow records do not reject duplicate JSON keys'
+grep -q 'canonical_receipt_without_transition_hash' "$SHADOW_ROOT/trnm_world_shadow_diff.py" \
+  || fail 'shadow records do not verify their transition commitment'
+grep -q 'STABLE_ERROR_CODES' "$SHADOW_ROOT/trnm_world_shadow_diff.py" \
+  || fail 'shadow records do not enforce the stable error catalogue'
 
 python3 - "$ROOT_DIR" <<'PY'
 from __future__ import annotations
@@ -68,31 +81,57 @@ import json
 import pathlib
 import re
 import sys
+from typing import Any
 
 root = pathlib.Path(sys.argv[1])
 contract = root / "trillionnium/contracts/trnm-world-rules-contract-v1"
-manifest = json.loads((contract / "contract-manifest-v1.json").read_text())
-request_schema = json.loads((contract / "schema/transition-request-v1.schema.json").read_text())
-receipt_schema = json.loads((contract / "schema/transition-receipt-v1.schema.json").read_text())
-error_catalog = json.loads((contract / "schema/error-catalog-v1.json").read_text())
-vector = json.loads((contract / "vectors/first-contact-vector-0001.json").read_text())
-lock = json.loads((root / "integration/component-locks/trnm-world-rules-v1.lock.json").read_text())
-source = (contract / "src/model.rs").read_text()
-error_source = (contract / "src/error.rs").read_text()
+
+
+def reject(message: str) -> None:
+    raise SystemExit(message)
+
+
+def no_duplicates(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    output: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in output:
+            reject(f"duplicate JSON key: {key}")
+        output[key] = value
+    return output
+
+
+def load_json(path: pathlib.Path) -> Any:
+    return json.loads(
+        path.read_text(encoding="utf-8"),
+        object_pairs_hook=no_duplicates,
+        parse_constant=lambda value: reject(f"non-finite JSON number: {value}"),
+    )
+
+
+manifest = load_json(contract / "contract-manifest-v1.json")
+request_schema = load_json(contract / "schema/transition-request-v1.schema.json")
+receipt_schema = load_json(contract / "schema/transition-receipt-v1.schema.json")
+error_catalog = load_json(contract / "schema/error-catalog-v1.json")
+vector = load_json(contract / "vectors/first-contact-vector-0001.json")
+lock = load_json(root / "integration/component-locks/trnm-world-rules-v1.lock.json")
+source = (contract / "src/model.rs").read_text(encoding="utf-8")
+error_source = (contract / "src/error.rs").read_text(encoding="utf-8")
 
 
 def expect(condition: bool, message: str) -> None:
     if not condition:
-        raise SystemExit(message)
+        reject(message)
 
 
 expect(manifest.get("contract_id") == "trnm_world_rules_v1", "contract ID drift")
 expect(manifest.get("release_id") == "trnm_world_rules_v1@1.0.0-alpha.1", "release drift")
+expect(manifest.get("status") == "candidate", "rules contract status was promoted")
 expect(manifest.get("authority_scope") == "deterministic_world_rules_only", "authority scope drift")
 expect(manifest.get("canonical_encoding") == "trnm-canonical-lines-v1", "canonical encoding drift")
 expect(manifest.get("hash_algorithm") == "sha256", "hash algorithm drift")
 expect(manifest.get("compatibility", {}).get("unknown_contract") == "reject", "unknown contract must reject")
 expect(manifest.get("compatibility", {}).get("unknown_ruleset") == "reject", "unknown ruleset must reject")
+expect(manifest.get("compatibility", {}).get("unknown_error") == "reject_as_internal_contract_error", "unknown errors must fail closed")
 expect(manifest.get("compatibility", {}).get("diagnostics_committed") is False, "diagnostics must not be committed")
 
 request_fields = {
@@ -173,9 +212,10 @@ expect(lock.get("activation") == "shadow_only", "component lock may only activat
 expect(lock.get("producer", {}).get("immutable_release") == manifest.get("release_id"), "component lock release drift")
 expect(lock.get("producer", {}).get("authority_scope") == "deterministic_world_rules_only", "component lock authority drift")
 expect(lock.get("consumer", {}).get("required_contract_version") == manifest.get("contract_id"), "consumer contract drift")
+expect(lock.get("compatibility", {}).get("unknown_error") == "reject_as_internal_contract_error", "consumer lock must reject unknown errors")
 expect(lock.get("compatibility", {}).get("unexplained_shadow_divergence") == "block_promotion", "divergence must block promotion")
 expect(lock.get("compatibility", {}).get("world_local_authority_public") is False, "compatibility enclave may not become public")
-lock_text = json.dumps(lock)
+lock_text = json.dumps(lock, sort_keys=True)
 for forbidden_path in ("/home/", "/Users/", "../CEX", "../Nakama", "file://"):
     expect(forbidden_path not in lock_text, f"component lock contains local path coupling: {forbidden_path}")
 PY

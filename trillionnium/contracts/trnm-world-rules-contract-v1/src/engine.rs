@@ -7,7 +7,11 @@ use crate::{
 /// session, admission, global sequence, archive-root, signing, wallet, or Chain
 /// finality surface. Those responsibilities stay with their owning systems.
 pub trait WorldRulesEngine {
-    fn supports(&self, ruleset_revision: &str, content_revision: &str) -> bool;
+    /// Returns whether this engine implements the named ruleset revision.
+    fn supports_ruleset(&self, ruleset_revision: &str) -> bool;
+
+    /// Returns whether the named content revision is available to this engine.
+    fn supports_content(&self, content_revision: &str) -> bool;
 
     fn execute(&self, request: &TransitionRequest) -> Result<EngineOutput, TransitionFailure>;
 }
@@ -47,10 +51,16 @@ fn evaluate<E: WorldRulesEngine>(
     engine: &E,
     request: &TransitionRequest,
 ) -> TransitionDisposition {
-    if !engine.supports(&request.ruleset_revision, &request.content_revision) {
+    if !engine.supports_ruleset(&request.ruleset_revision) {
         return TransitionDisposition::Rejected(TransitionFailure::new(
             StableErrorCode::UnknownRulesetRevision,
-            "engine does not advertise this ruleset/content pair",
+            "engine does not advertise this ruleset revision",
+        ));
+    }
+    if !engine.supports_content(&request.content_revision) {
+        return TransitionDisposition::Rejected(TransitionFailure::new(
+            StableErrorCode::InvalidContentRevision,
+            "engine does not advertise this content revision",
         ));
     }
     match engine.execute(request) {
@@ -96,8 +106,12 @@ mod tests {
     struct EchoEngine;
 
     impl WorldRulesEngine for EchoEngine {
-        fn supports(&self, ruleset_revision: &str, content_revision: &str) -> bool {
-            ruleset_revision == "first_contact_v1" && content_revision == "content_2026_08_27"
+        fn supports_ruleset(&self, ruleset_revision: &str) -> bool {
+            ruleset_revision == "first_contact_v1"
+        }
+
+        fn supports_content(&self, content_revision: &str) -> bool {
+            content_revision == "content_2026_08_27"
         }
 
         fn execute(&self, request: &TransitionRequest) -> Result<EngineOutput, TransitionFailure> {
@@ -143,11 +157,15 @@ mod tests {
         );
     }
 
-    struct UnsupportedEngine;
+    struct UnsupportedRulesetEngine;
 
-    impl WorldRulesEngine for UnsupportedEngine {
-        fn supports(&self, _: &str, _: &str) -> bool {
+    impl WorldRulesEngine for UnsupportedRulesetEngine {
+        fn supports_ruleset(&self, _: &str) -> bool {
             false
+        }
+
+        fn supports_content(&self, _: &str) -> bool {
+            panic!("content support must not be queried for an unsupported ruleset")
         }
 
         fn execute(&self, _: &TransitionRequest) -> Result<EngineOutput, TransitionFailure> {
@@ -157,11 +175,38 @@ mod tests {
 
     #[test]
     fn unknown_ruleset_fails_closed_with_stable_code() {
-        let receipt = execute_transition(&UnsupportedEngine, &request()).unwrap();
+        let receipt = execute_transition(&UnsupportedRulesetEngine, &request()).unwrap();
         assert!(!receipt.applied);
         assert_eq!(
             receipt.error_code,
             Some(StableErrorCode::UnknownRulesetRevision)
+        );
+        assert!(receipt.verify_self_consistency());
+    }
+
+    struct UnsupportedContentEngine;
+
+    impl WorldRulesEngine for UnsupportedContentEngine {
+        fn supports_ruleset(&self, _: &str) -> bool {
+            true
+        }
+
+        fn supports_content(&self, _: &str) -> bool {
+            false
+        }
+
+        fn execute(&self, _: &TransitionRequest) -> Result<EngineOutput, TransitionFailure> {
+            panic!("unsupported content must not execute")
+        }
+    }
+
+    #[test]
+    fn unsupported_content_fails_closed_with_its_stable_code() {
+        let receipt = execute_transition(&UnsupportedContentEngine, &request()).unwrap();
+        assert!(!receipt.applied);
+        assert_eq!(
+            receipt.error_code,
+            Some(StableErrorCode::InvalidContentRevision)
         );
         assert!(receipt.verify_self_consistency());
     }
@@ -171,7 +216,11 @@ mod tests {
     }
 
     impl WorldRulesEngine for FlakyEngine {
-        fn supports(&self, _: &str, _: &str) -> bool {
+        fn supports_ruleset(&self, _: &str) -> bool {
+            true
+        }
+
+        fn supports_content(&self, _: &str) -> bool {
             true
         }
 
@@ -202,7 +251,11 @@ mod tests {
     struct OversizedEngine;
 
     impl WorldRulesEngine for OversizedEngine {
-        fn supports(&self, _: &str, _: &str) -> bool {
+        fn supports_ruleset(&self, _: &str) -> bool {
+            true
+        }
+
+        fn supports_content(&self, _: &str) -> bool {
             true
         }
 

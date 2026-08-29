@@ -6,8 +6,12 @@ use trnm_world_rules_contract_v1::{
 struct VectorEngine;
 
 impl WorldRulesEngine for VectorEngine {
-    fn supports(&self, ruleset_revision: &str, content_revision: &str) -> bool {
-        ruleset_revision == "first_contact_v1" && content_revision == "content_2026_08_27"
+    fn supports_ruleset(&self, ruleset_revision: &str) -> bool {
+        ruleset_revision == "first_contact_v1"
+    }
+
+    fn supports_content(&self, content_revision: &str) -> bool {
+        content_revision == "content_2026_08_27"
     }
 
     fn execute(&self, request: &TransitionRequest) -> Result<EngineOutput, TransitionFailure> {
