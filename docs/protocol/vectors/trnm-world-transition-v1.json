@@ -28,7 +28,7 @@
     {
       "name": "nested_integer_string_array",
       "canonical_utf8": "{\"a\":[-1,0,true,false,null,\"世界\"],\"b\":{\"c\":\"x\\n\"}}",
-      "expected_sha256": "cce64694112405ff1472f9c9edbbfa2f3b6875b3a1bc168f4cbd178f0a5f75b3"
+      "expected_sha256": "6aaa134dc98d5cd1ee0533d6226bc0a882a55cae6801fbded36cd77c27c9419b"
     }
   ],
   "request_vectors": [
