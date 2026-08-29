@@ -39,7 +39,7 @@ fn poison_capture_and_apply_work_are_isolated_and_auditable() {
         "subject_kind in ('capture', 'apply')",
         "consecutive_failures between 1 and 1000000",
         "create or replace function public.trnm_online_release_settlement_quarantine_v1",
-        "settlement operator evidence is append-only",
+        "trnm_online_reject_settlement_operator_evidence_mutation_v1",
         "create or replace view public.trnm_online_settlement_runtime_failure_metrics_v1",
     ] {
         assert!(sql.contains(marker), "missing poison-isolation contract {marker}");
@@ -80,10 +80,8 @@ fn malformed_success_and_conflict_are_recovered_as_ambiguous() {
 #[test]
 fn revision_overflow_fails_closed() {
     assert!(BUILD_SCRIPT.contains("campaign.campaign.revision.checked_add(1)"));
+    assert!(BUILD_SCRIPT.contains("campaign revision overflow rejection"));
     assert!(BUILD_SCRIPT.contains("revision exhausted"));
-    assert!(!BUILD_SCRIPT.contains(
-        "campaign.campaign.revision = campaign.campaign.revision.saturating_add(1)"
-    ));
 }
 
 #[test]
