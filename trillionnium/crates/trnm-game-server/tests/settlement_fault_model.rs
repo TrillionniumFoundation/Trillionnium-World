@@ -204,15 +204,21 @@ fn ambiguous_remote_commit_retries_the_exact_intent_once() {
 #[test]
 fn remote_success_followed_by_revision_drift_never_applies_stale_state() {
     let mut campaigns = baseline_campaigns();
-    let capture = capture("match-a", "terminal-a", &campaigns, &baseline_intents());
+    let captured = capture("match-a", "terminal-a", &campaigns, &baseline_intents());
     let mut remote = IdempotentRemoteLedger::default();
-    let executed = execute(&capture, &mut remote).unwrap();
+    let executed = execute(&captured, &mut remote).unwrap();
 
     let changed = campaigns.get_mut("campaign-a").unwrap();
     changed.revision += 1;
     changed.state_hash = "concurrent-change".to_owned();
     assert_eq!(
-        apply(&capture, &executed, "match-a", "terminal-a", &mut campaigns,),
+        apply(
+            &captured,
+            &executed,
+            "match-a",
+            "terminal-a",
+            &mut campaigns,
+        ),
         ApplyOutcome::StaleCapture,
     );
     assert!(campaigns
@@ -291,7 +297,7 @@ fn partial_member_execution_keeps_the_match_pending() {
 }
 
 #[test]
-fn production_source_never_reconciles_cex_while_its_function_has_an_open_transaction() {
+fn production_source_contains_no_synchronous_cex_reconciliation_call() {
     let source_path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/lib.rs");
     let source = fs::read_to_string(source_path).expect("read game-server source");
     let needle = ".reconcile_economy(";
@@ -333,5 +339,8 @@ fn production_source_never_reconciles_cex_while_its_function_has_an_open_transac
         calls += 1;
     }
 
-    assert!(calls > 0, "settlement source no longer contains an economy reconciliation call; update this conformance test with the replacement boundary");
+    assert_eq!(
+        calls, 0,
+        "the compiled game-server source reintroduced synchronous CEX reconciliation"
+    );
 }
