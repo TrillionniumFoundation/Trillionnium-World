@@ -22,6 +22,9 @@
     { "name": "insignificant_whitespace", "utf8": "{ \"a\":1}", "error": "noncanonical_encoding" },
     { "name": "trailing_bytes", "utf8": "{}x", "error": "trailing_data" },
     { "name": "escaped_authority_key", "utf8": "{\"nakama_\\u0070rivate_key\":\"x\"}", "error": "forbidden_authority_key" },
-    { "name": "nested_authority_key", "utf8": "{\"a\":{\"match_completed_v1\":{}}}", "error": "forbidden_authority_key" }
+    { "name": "nested_authority_key", "utf8": "{\"a\":{\"match_completed_v1\":{}}}", "error": "forbidden_authority_key" },
+    { "name": "case_folded_nakama_key", "utf8": "{\"Nakama_Private_Key\":\"x\"}", "error": "forbidden_authority_key" },
+    { "name": "case_folded_completion_key", "utf8": "{\"MATCH_COMPLETED_V1\":{}}", "error": "forbidden_authority_key" },
+    { "name": "nested_case_folded_chain_key", "utf8": "{\"a\":{\"Chain_App_Hash\":\"x\"}}", "error": "forbidden_authority_key" }
   ]
 }
