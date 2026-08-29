@@ -1,9 +1,14 @@
-// The reviewed worker body is generated from src/settlement_worker.rs.in by
-// build.rs. The transform fails closed on drift and registers migrations
-// 0016 through 0019 before remote work starts. The legacy unbounded run loop is
-// compiled only as disabled migration evidence; runtime ownership is below.
-include!(concat!(
-    env!("OUT_DIR"),
-    "/trnm_settlement_worker_generated.rs"
-));
-include!("settlement_worker_runtime_v2.rs");
+// Directly compiled settlement implementation.
+//
+// `settlement_worker_legacy.rs` retains the reviewed capture/execute/apply
+// primitives and historical single-loop entrypoint as migration evidence.
+// `settlement_worker_runtime_v2.rs` owns the exported runtime, bounded shutdown,
+// poison isolation, and migrations 18-19. Neither file is rewritten at build
+// time; the only public entrypoint is runtime v2.
+#[allow(dead_code)]
+mod implementation {
+    include!("settlement_worker_legacy.rs");
+    include!("settlement_worker_runtime_v2.rs");
+}
+
+pub use implementation::{run_v2 as run, WorkerConfig};
