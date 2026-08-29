@@ -1,0 +1,52 @@
+{
+  "contract_id": "trnm_world_rules_v1",
+  "release_id": "trnm_world_rules_v1@1.0.0-alpha.1",
+  "status": "candidate",
+  "owner": "TrillionniumFoundation/Trillionnium-World",
+  "authority_scope": "deterministic_world_rules_only",
+  "canonical_encoding": "trnm-canonical-lines-v1",
+  "hash_algorithm": "sha256",
+  "request_domain": "TRNM-WORLD-RULES-REQUEST/1",
+  "result_domain": "TRNM-WORLD-RULES-RESULT/1",
+  "schemas": {
+    "request": "schema/transition-request-v1.schema.json",
+    "receipt": "schema/transition-receipt-v1.schema.json",
+    "errors": "schema/error-catalog-v1.json"
+  },
+  "vectors": [
+    "vectors/first-contact-vector-0001.json"
+  ],
+  "compatibility": {
+    "minimum_consumer_contract": "trnm_world_rules_v1",
+    "unknown_contract": "reject",
+    "unknown_ruleset": "reject",
+    "unknown_error": "reject_as_internal_contract_error",
+    "diagnostics_committed": false
+  },
+  "maximums": {
+    "state_bytes": 4194304,
+    "command_bytes": 262144,
+    "outcome_bytes": 1048576,
+    "replay_bytes": 16777216,
+    "steps": 10000000
+  },
+  "forbidden_responsibilities": [
+    "player_admission",
+    "session_authentication",
+    "canonical_global_event_order",
+    "command_idempotency_authority",
+    "restart_recovery_authority",
+    "canonical_archive_root",
+    "match_completion_signature",
+    "nakama_private_key",
+    "chain_finality",
+    "wallet_settlement"
+  ],
+  "promotion_requires": [
+    "rust_reference_tests",
+    "python_reference_vectors",
+    "nakama_shadow_zero_unexplained_divergence",
+    "integration_component_lock",
+    "cutover_and_rollback_rehearsal"
+  ]
+}

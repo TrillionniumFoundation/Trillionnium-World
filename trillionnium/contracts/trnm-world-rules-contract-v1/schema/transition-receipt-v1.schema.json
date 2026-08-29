@@ -1,0 +1,169 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://trillionnium.invalid/schemas/trnm-world-rules-transition-receipt-v1.schema.json",
+  "title": "Trillionnium World deterministic transition receipt v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract_version",
+    "ruleset_revision",
+    "content_revision",
+    "transition_id",
+    "request_hash",
+    "state_before_hash",
+    "command_hash",
+    "disposition",
+    "error_code",
+    "state_after_hash",
+    "outcome_hash",
+    "replay_hash",
+    "steps_used",
+    "output_bytes",
+    "replay_bytes",
+    "transition_hash"
+  ],
+  "properties": {
+    "contract_version": {
+      "const": "trnm_world_rules_v1"
+    },
+    "ruleset_revision": {
+      "$ref": "#/$defs/token128"
+    },
+    "content_revision": {
+      "$ref": "#/$defs/token128"
+    },
+    "transition_id": {
+      "$ref": "#/$defs/token192"
+    },
+    "request_hash": {
+      "$ref": "#/$defs/sha256"
+    },
+    "state_before_hash": {
+      "$ref": "#/$defs/sha256"
+    },
+    "command_hash": {
+      "$ref": "#/$defs/sha256"
+    },
+    "disposition": {
+      "enum": ["applied", "rejected"]
+    },
+    "error_code": {
+      "enum": [
+        "none",
+        "unsupported_contract_version",
+        "unknown_ruleset_revision",
+        "invalid_content_revision",
+        "invalid_transition_id",
+        "malformed_state",
+        "malformed_command",
+        "invalid_resource_budget",
+        "resource_budget_exceeded",
+        "domain_rejected",
+        "output_too_large",
+        "nondeterministic_result",
+        "internal_contract_error"
+      ]
+    },
+    "state_after_hash": {
+      "$ref": "#/$defs/sha256"
+    },
+    "outcome_hash": {
+      "$ref": "#/$defs/sha256"
+    },
+    "replay_hash": {
+      "$ref": "#/$defs/sha256"
+    },
+    "steps_used": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 10000000
+    },
+    "output_bytes": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 5242880
+    },
+    "replay_bytes": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 16777216
+    },
+    "transition_hash": {
+      "$ref": "#/$defs/sha256"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "disposition": {
+            "const": "applied"
+          }
+        },
+        "required": ["disposition"]
+      },
+      "then": {
+        "properties": {
+          "error_code": {
+            "const": "none"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "disposition": {
+            "const": "rejected"
+          }
+        },
+        "required": ["disposition"]
+      },
+      "then": {
+        "properties": {
+          "error_code": {
+            "not": {
+              "const": "none"
+            }
+          },
+          "state_after_hash": {
+            "const": "0000000000000000000000000000000000000000000000000000000000000000"
+          },
+          "outcome_hash": {
+            "const": "0000000000000000000000000000000000000000000000000000000000000000"
+          },
+          "replay_hash": {
+            "const": "0000000000000000000000000000000000000000000000000000000000000000"
+          },
+          "steps_used": {
+            "const": 0
+          },
+          "output_bytes": {
+            "const": 0
+          },
+          "replay_bytes": {
+            "const": 0
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "token128": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9._:@-]+$"
+    },
+    "token192": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 192,
+      "pattern": "^[A-Za-z0-9._:@-]+$"
+    }
+  }
+}

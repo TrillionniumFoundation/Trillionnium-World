@@ -1,0 +1,56 @@
+{
+  "lock_version": "trnm_integration_component_lock_v1",
+  "lock_id": "world-rules-v1-alpha-1",
+  "status": "candidate",
+  "activation": "shadow_only",
+  "producer": {
+    "repository": "TrillionniumFoundation/Trillionnium-World",
+    "package_path": "trillionnium/contracts/trnm-world-rules-contract-v1",
+    "immutable_release": "trnm_world_rules_v1@1.0.0-alpha.1",
+    "contract_version": "trnm_world_rules_v1",
+    "authority_scope": "deterministic_world_rules_only"
+  },
+  "consumer": {
+    "repository": "TrillionniumFoundation/Trillionnium-Nakama",
+    "adapter_role": "canonical_online_authority_consumer",
+    "required_contract_version": "trnm_world_rules_v1",
+    "required_canonical_encoding": "trnm-canonical-lines-v1",
+    "required_hash_algorithm": "sha256"
+  },
+  "artifacts": {
+    "manifest": "trillionnium/contracts/trnm-world-rules-contract-v1/contract-manifest-v1.json",
+    "request_schema": "trillionnium/contracts/trnm-world-rules-contract-v1/schema/transition-request-v1.schema.json",
+    "receipt_schema": "trillionnium/contracts/trnm-world-rules-contract-v1/schema/transition-receipt-v1.schema.json",
+    "error_catalog": "trillionnium/contracts/trnm-world-rules-contract-v1/schema/error-catalog-v1.json",
+    "golden_vector": "trillionnium/contracts/trnm-world-rules-contract-v1/vectors/first-contact-vector-0001.json",
+    "shadow_runner": "tools/trnm-world-shadow-diff/trnm_world_shadow_diff.py"
+  },
+  "compatibility": {
+    "unknown_contract": "reject",
+    "unknown_ruleset": "reject",
+    "unknown_error": "reject_as_internal_contract_error",
+    "unexplained_shadow_divergence": "block_promotion",
+    "world_local_authority_profile": "world_legacy_local_alpha_v1",
+    "world_local_authority_public": false
+  },
+  "promotion_gates": [
+    "world_reference_contract_green",
+    "nakama_adapter_conformance_green",
+    "shadow_fixture_set_green",
+    "zero_unexplained_divergence",
+    "exact_source_commit_bound_by_integration_release",
+    "drain_cutover_rollback_rehearsed"
+  ],
+  "prohibited_transfer": [
+    "nakama_session_token",
+    "match_authority_private_key",
+    "canonical_archive_root_ownership",
+    "match_completion_signature_ownership",
+    "chain_finality_claim",
+    "wallet_custody"
+  ],
+  "limitations": [
+    "Candidate lock binds an immutable package release and artifact paths; Integration must bind exact repository commits before activation.",
+    "Shadow equality does not establish admission, ordering, signing, finality, public-network, or commercial readiness."
+  ]
+}

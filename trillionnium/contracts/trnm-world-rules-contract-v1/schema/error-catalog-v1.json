@@ -1,0 +1,67 @@
+{
+  "catalog_version": "trnm_world_rules_errors_v1",
+  "contract_version": "trnm_world_rules_v1",
+  "unknown_error_policy": "fail_closed_as_internal_contract_error",
+  "errors": [
+    {
+      "code": "unsupported_contract_version",
+      "retry": "never_without_contract_negotiation",
+      "authority_effect": "no_transition"
+    },
+    {
+      "code": "unknown_ruleset_revision",
+      "retry": "never_without_component_lock_update",
+      "authority_effect": "no_transition"
+    },
+    {
+      "code": "invalid_content_revision",
+      "retry": "never_without_content_lock_update",
+      "authority_effect": "no_transition"
+    },
+    {
+      "code": "invalid_transition_id",
+      "retry": "after_request_correction",
+      "authority_effect": "no_transition"
+    },
+    {
+      "code": "malformed_state",
+      "retry": "after_request_correction",
+      "authority_effect": "no_transition"
+    },
+    {
+      "code": "malformed_command",
+      "retry": "after_request_correction",
+      "authority_effect": "no_transition"
+    },
+    {
+      "code": "invalid_resource_budget",
+      "retry": "after_request_correction",
+      "authority_effect": "no_transition"
+    },
+    {
+      "code": "resource_budget_exceeded",
+      "retry": "only_with_reviewed_budget_or_rules_change",
+      "authority_effect": "no_transition"
+    },
+    {
+      "code": "domain_rejected",
+      "retry": "only_after_game_state_or_command_change",
+      "authority_effect": "no_transition"
+    },
+    {
+      "code": "output_too_large",
+      "retry": "only_after_rules_or_content_change",
+      "authority_effect": "no_transition"
+    },
+    {
+      "code": "nondeterministic_result",
+      "retry": "never_until_divergence_is_resolved",
+      "authority_effect": "no_transition"
+    },
+    {
+      "code": "internal_contract_error",
+      "retry": "operator_review_required",
+      "authority_effect": "no_transition"
+    }
+  ]
+}
