@@ -86,6 +86,13 @@ create table if not exists public.trnm_online_settlement_quarantine_releases (
         on delete restrict,
     released_at timestamptz not null default pg_catalog.clock_timestamp(),
     retain_until timestamptz not null,
+    check (
+        (subject_kind = 'capture'
+         and subject_id ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$')
+        or
+        (subject_kind = 'apply'
+         and subject_id ~ '^trnm-settlement-capture-v1:[0-9a-f]{64}$')
+    ),
     check (retain_until >= released_at + interval '365 days')
 );
 
@@ -96,11 +103,15 @@ create index if not exists idx_trnm_online_settlement_quarantine_release_subject
         released_at
     );
 
+drop trigger if exists trnm_online_settlement_quarantine_release_no_update_delete_v1
+    on public.trnm_online_settlement_quarantine_releases;
 create trigger trnm_online_settlement_quarantine_release_no_update_delete_v1
 before update or delete on public.trnm_online_settlement_quarantine_releases
 for each statement
 execute function public.trnm_online_reject_settlement_operator_evidence_mutation_v1();
 
+drop trigger if exists trnm_online_settlement_quarantine_release_no_truncate_v1
+    on public.trnm_online_settlement_quarantine_releases;
 create trigger trnm_online_settlement_quarantine_release_no_truncate_v1
 before truncate on public.trnm_online_settlement_quarantine_releases
 for each statement
@@ -127,9 +138,18 @@ declare
 begin
     if p_release_id is null
        or p_release_id !~ '^trnm-settlement-quarantine-release-v1:[0-9a-f]{64}$'
+       or p_subject_kind is null
        or p_subject_kind not in ('capture', 'apply')
        or p_subject_id is null
        or btrim(p_subject_id) = ''
+       or (
+           p_subject_kind = 'capture'
+           and p_subject_id !~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+       )
+       or (
+           p_subject_kind = 'apply'
+           and p_subject_id !~ '^trnm-settlement-capture-v1:[0-9a-f]{64}$'
+       )
        or p_operator_id is null
        or length(btrim(p_operator_id)) not between 1 and 256
        or p_change_ticket is null
