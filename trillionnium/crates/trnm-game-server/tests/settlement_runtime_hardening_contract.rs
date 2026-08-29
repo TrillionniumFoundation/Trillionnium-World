@@ -1,10 +1,15 @@
-const BUILD_SCRIPT: &str = include_str!("../build.rs");
+const BUILD_BASE: &str = include_str!("../build_generated_base.rs");
+const BUILD_WRAPPER: &str = include_str!("../build.rs");
 const MIGRATION_V19: &str =
     include_str!("../migrations/0019_online_settlement_runtime_hardening_v1.sql");
 const GAME_CI: &str = include_str!("../../../../.github/workflows/trnm-game-ci.yml");
 
 fn normalized(source: &str) -> String {
     source.split_whitespace().collect::<Vec<_>>().join(" ")
+}
+
+fn build_sources_contain(marker: &str) -> bool {
+    BUILD_BASE.contains(marker) || BUILD_WRAPPER.contains(marker)
 }
 
 #[test]
@@ -14,7 +19,7 @@ fn migration_19_is_registered_by_both_runtime_entrypoints() {
         "0019_online_settlement_runtime_hardening_v1",
         "MIGRATION_V19",
     ] {
-        assert!(BUILD_SCRIPT.contains(marker), "missing migration marker {marker}");
+        assert!(build_sources_contain(marker), "missing migration marker {marker}");
     }
 }
 
@@ -27,7 +32,16 @@ fn runtime_lifecycle_handles_sigterm_and_drains_bounded_inflight_work() {
         "claimed settlement job failed in isolation",
         "settlement task join failed; durable lease recovery remains active",
     ] {
-        assert!(BUILD_SCRIPT.contains(marker), "missing lifecycle control {marker}");
+        assert!(build_sources_contain(marker), "missing lifecycle control {marker}");
+    }
+    for marker in [
+        "operation_timeout_millis",
+        "settlement capture scan timed out",
+        "settlement claim timed out",
+        "settlement remote phase exceeded",
+        "settlement apply scan timed out",
+    ] {
+        assert!(BUILD_WRAPPER.contains(marker), "missing operation deadline {marker}");
     }
 }
 
@@ -50,7 +64,7 @@ fn poison_capture_and_apply_work_are_isolated_and_auditable() {
         "settlement capture candidate failed in isolation",
         "settlement apply failed in isolation",
     ] {
-        assert!(BUILD_SCRIPT.contains(marker), "missing runtime isolation marker {marker}");
+        assert!(build_sources_contain(marker), "missing runtime isolation marker {marker}");
     }
 }
 
@@ -60,8 +74,8 @@ fn one_capture_has_at_most_one_job_per_campaign() {
     assert!(sql.contains(
         "create unique index if not exists idx_trnm_online_settlement_job_capture_campaign_v1 on public.trnm_online_settlement_jobs(capture_id, campaign_id) where capture_id is not null"
     ));
-    assert!(BUILD_SCRIPT.contains("jobs_by_campaign.len() != jobs.len()"));
-    assert!(BUILD_SCRIPT.contains("capture contains multiple settlement jobs for one campaign"));
+    assert!(build_sources_contain("jobs_by_campaign.len() != jobs.len()"));
+    assert!(build_sources_contain("capture contains multiple settlement jobs for one campaign"));
 }
 
 #[test]
@@ -73,15 +87,15 @@ fn malformed_success_and_conflict_are_recovered_as_ambiguous() {
         "(409 Conflict)",
         "exact receipt lookup is required before retry",
     ] {
-        assert!(BUILD_SCRIPT.contains(marker), "missing ambiguity recovery marker {marker}");
+        assert!(build_sources_contain(marker), "missing ambiguity recovery marker {marker}");
     }
 }
 
 #[test]
 fn revision_overflow_fails_closed() {
-    assert!(BUILD_SCRIPT.contains("campaign.campaign.revision.checked_add(1)"));
-    assert!(BUILD_SCRIPT.contains("campaign revision overflow rejection"));
-    assert!(BUILD_SCRIPT.contains("revision exhausted"));
+    assert!(build_sources_contain("campaign.campaign.revision.checked_add(1)"));
+    assert!(build_sources_contain("campaign revision overflow rejection"));
+    assert!(build_sources_contain("revision exhausted"));
 }
 
 #[test]
