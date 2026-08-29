@@ -34,16 +34,6 @@ fn replace_once(source: &mut String, old: &str, new: &str, label: &str) {
     }
 }
 
-fn replace_all_at_least(source: &mut String, old: &str, new: &str, minimum: usize, label: &str) {
-    let count = source.matches(old).count();
-    if count < minimum {
-        fail(format!(
-            "{label}: expected at least {minimum} reviewed source shapes, found {count}"
-        ));
-    }
-    *source = source.replace(old, new);
-}
-
 fn rewrite_migration_includes(source: &str) -> String {
     let needle = "include_str!(\"../migrations/";
     source
@@ -230,106 +220,12 @@ const MIGRATION_V19: &str =
     .unwrap_or_else(|error| fail(format!("write generated settlement worker: {error}")));
 }
 
-fn generate_cex(out_dir: &Path) {
-    let template_path = PathBuf::from("src/cex.rs.in");
-    let mut source = fs::read_to_string(&template_path)
-        .unwrap_or_else(|error| fail(format!("read {}: {error}", template_path.display())));
-
-    replace_once(
-        &mut source,
-        "const SETTLEMENT_OUTBOX_REQUIRED: &str =\n    \"external economy settlement is owned by trnm-settlement-worker; synchronous EconomyBackend I/O is prohibited\";",
-        "const SETTLEMENT_OUTBOX_REQUIRED: &str =\n    \"external economy settlement is owned by trnm-settlement-worker; synchronous EconomyBackend I/O is prohibited\";\nconst MAX_REMOTE_ERROR_BODY_BYTES: usize = 64 * 1024;",
-        "remote error-body budget",
-    );
-
-    let retryable_old = r#"fn retryable_status(status: StatusCode) -> bool {
-    status == StatusCode::REQUEST_TIMEOUT
-        || status == StatusCode::TOO_MANY_REQUESTS
-        || status.as_u16() == 425
-        || status.is_server_error()
-}
-"#;
-    let retryable_new = r#"fn retryable_status(status: StatusCode) -> bool {
-    status == StatusCode::REQUEST_TIMEOUT
-        || status == StatusCode::TOO_MANY_REQUESTS
-        || status == StatusCode::CONFLICT
-        || status.as_u16() == 425
-        || status.is_server_error()
-}
-
-async fn bounded_error_body(response: reqwest::Response) -> String {
-    if response
-        .content_length()
-        .is_some_and(|length| length > MAX_REMOTE_ERROR_BODY_BYTES as u64)
-    {
-        return format!(
-            "remote error body omitted: content-length exceeds {} bytes",
-            MAX_REMOTE_ERROR_BODY_BYTES
-        );
-    }
-    match response.bytes().await {
-        Ok(bytes) => {
-            let bounded = &bytes[..bytes.len().min(MAX_REMOTE_ERROR_BODY_BYTES)];
-            String::from_utf8_lossy(bounded).into_owned()
-        }
-        Err(error) => format!("remote error body unavailable: {error}"),
-    }
-}
-"#;
-    replace_once(
-        &mut source,
-        retryable_old,
-        retryable_new,
-        "retryable remote status and body budget",
-    );
-    replace_all_at_least(
-        &mut source,
-        "let body = response.text().await.unwrap_or_default();",
-        "let body = bounded_error_body(response).await;",
-        4,
-        "bounded remote error body",
-    );
-
-    for (old, new, label) in [
-        (
-            "ExternalSettlementError::Permanent(format!(\n                    \"decode isolated signer receipt lookup: {error}\"\n                ))",
-            "ExternalSettlementError::Retryable(format!(\n                    \"decode isolated signer receipt lookup after success status: {error}\"\n                ))",
-            "signer lookup ambiguous body",
-        ),
-        (
-            "ExternalSettlementError::Permanent(format!(\n                    \"decode isolated signer response: {error}\"\n                ))",
-            "ExternalSettlementError::Retryable(format!(\n                    \"decode isolated signer response after possible commit: {error}\"\n                ))",
-            "signer submit ambiguous body",
-        ),
-        (
-            "ExternalSettlementError::Permanent(format!(\n                    \"decode CEX receipt lookup: {error}\"\n                ))",
-            "ExternalSettlementError::Retryable(format!(\n                    \"decode CEX receipt lookup after success status: {error}\"\n                ))",
-            "CEX lookup ambiguous body",
-        ),
-        (
-            "ExternalSettlementError::Permanent(format!(\"decode CEX receipt: {error}\"))",
-            "ExternalSettlementError::Retryable(format!(\n                \"decode CEX receipt after possible commit: {error}\"\n            ))",
-            "CEX submit ambiguous body",
-        ),
-    ] {
-        replace_once(&mut source, old, new, label);
-    }
-
-    if source.contains("reqwest::blocking") || source.contains("blocking_client") {
-        fail("generated CEX source reintroduced blocking HTTP");
-    }
-    fs::write(out_dir.join("trnm_cex_generated.rs"), source)
-        .unwrap_or_else(|error| fail(format!("write generated CEX client: {error}")));
-}
-
 fn main() {
     println!("cargo:rerun-if-changed=src/lib.rs.in");
     println!("cargo:rerun-if-changed=src/settlement_worker.rs.in");
     println!("cargo:rerun-if-changed=src/settlement_worker_runtime_v2.rs");
-    println!("cargo:rerun-if-changed=src/cex.rs.in");
     println!("cargo:rerun-if-changed=migrations");
     let out_dir = PathBuf::from(env::var_os("OUT_DIR").expect("OUT_DIR is required"));
     generate_game_server(&out_dir);
     generate_settlement_worker(&out_dir);
-    generate_cex(&out_dir);
 }
