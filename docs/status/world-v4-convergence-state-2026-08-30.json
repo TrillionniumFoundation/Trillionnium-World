@@ -41,7 +41,7 @@
     "commercial_release": "no_go"
   },
   "counts": {
-    "source_open": 3,
+    "source_open": 2,
     "source_implemented_unverified": 4,
     "source_verified": 0,
     "repository_control_blocked": 3,
@@ -49,7 +49,7 @@
     "environment_evidence_required": 6,
     "human_evidence_required": 2,
     "commercial_approval_required": 1,
-    "closed": 0
+    "closed": 1
   },
   "items": [
     {
@@ -176,13 +176,12 @@
     {
       "id": "WORLD-P0-010",
       "owner": "Trillionnium-World",
-      "state": "source_open",
+      "state": "closed",
       "claim": "single non-overlapping current V4 candidate and truth source",
       "evidence_required": [
-        "superseded_duplicate_prs",
-        "one_current_candidate"
+        "docs/evidence/v4/WORLD-P0-010-single-candidate-closure.json"
       ],
-      "next_gate": "reconcile and close overlapping V4 candidates"
+      "next_gate": "maintain PR 39 as the only current V4 truth-source candidate"
     },
     {
       "id": "WORLD-P1-001",
