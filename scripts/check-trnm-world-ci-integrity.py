@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
-"""Reject mutable, self-verifying, or unpinned World workflows."""
+"""Reject mutable, self-verifying, unpinned, or documentation-drifted World CI."""
 
 from __future__ import annotations
 
 import pathlib
 import re
+import subprocess
+import sys
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 WORKFLOWS = ROOT / ".github/workflows"
@@ -20,6 +22,19 @@ FORBIDDEN = {
     "gh pr merge": "CI must not merge pull requests",
     "update-ref": "CI must not move Git refs",
 }
+REQUIRED_DOCS = {
+    "docs/development/TRILLIONNIUM_WORLD_DEVELOPMENT_PLAN_2026-08-29.md",
+    "docs/development/trillionnium-world-development-plan-2026-08-29.json",
+    "docs/development/trnm-world-gap-closure-ledger-v4.json",
+    "docs/development/trnm-world-module-decomposition-v1.md",
+    "docs/development/trnm-world-testing-strategy-v2.md",
+    "docs/protocol/trnm-world-transition-v1.md",
+    "docs/protocol/schemas/trnm-world-transition-v1.schema.json",
+    "docs/protocol/vectors/trnm-world-transition-v1.json",
+    "docs/protocol/vectors/trnm-world-transition-negative-v1.json",
+    "scripts/check-trnm-world-documentation.py",
+    "scripts/check-trnm-world-transition-conformance.py",
+}
 
 
 def fail(message: str) -> None:
@@ -29,6 +44,8 @@ def fail(message: str) -> None:
 files = sorted([*WORKFLOWS.glob("*.yml"), *WORKFLOWS.glob("*.yaml")])
 if not files:
     fail("no active workflows")
+if len(files) != 1 or files[0].name != "trnm-world-gap-closure-v4.yml":
+    fail(f"active workflow set is not the one v4 gate: {[path.name for path in files]}")
 
 contexts: set[str] = set()
 for path in files:
@@ -61,7 +78,25 @@ missing = required_contexts - contexts
 if missing:
     fail(f"required exact job contexts are missing: {sorted(missing)}")
 
+for relative in sorted(REQUIRED_DOCS):
+    path = ROOT / relative
+    if not path.is_file() or not path.read_text(encoding="utf-8").strip():
+        fail(f"required current documentation is missing or empty: {relative}")
+
+documentation = subprocess.run(
+    [sys.executable, str(ROOT / "scripts/check-trnm-world-documentation.py"), str(ROOT)],
+    check=False,
+    capture_output=True,
+    text=True,
+)
+if documentation.returncode != 0:
+    fail(
+        "documentation consistency failed: "
+        + (documentation.stderr.strip() or documentation.stdout.strip())
+    )
+
 print(
     "TRNM World CI integrity: PASS "
-    f"({len(files)} workflow file(s), {len(required_contexts)} required contexts)"
+    f"({len(files)} workflow file, {len(required_contexts)} required contexts, "
+    f"{len(REQUIRED_DOCS)} current docs)"
 )
