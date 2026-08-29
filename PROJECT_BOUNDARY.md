@@ -2,66 +2,80 @@
 
 - Project ID: `trillionnium-world`
 - Canonical repository: `TrillionniumFoundation/Trillionnium-World`
+- Visibility: public repository with an internal workspace licence policy
 - Lane: `game-product`
 - Lifecycle: active development
-- Current development plan: `docs/development/TRILLIONNIUM_WORLD_DEVELOPMENT_PLAN_2026-08-27.md`
+- Current plan: `docs/development/TRILLIONNIUM_WORLD_DEVELOPMENT_PLAN_2026-08-29.md`
+- Machine plan: `docs/development/trillionnium-world-development-plan-2026-08-29.json`
+- Gap ledger: `docs/development/trnm-world-gap-closure-ledger-v4.json`
 - Authority ADR: `docs/adr/0001-realtime-authority-and-match-evidence-ownership.md`
+- Settlement ADR: `docs/adr/0002-transaction-free-external-settlement.md`
 
 ## World owns
 
-World is the source of truth for game-domain behavior and deterministic game
-artifacts:
-
 - authored RPG/RTS content, rulesets and content digests;
-- deterministic simulation, order validation and game outcome calculation;
+- deterministic command validation, simulation and state transition;
+- World transition/outcome hashes and unsigned replay/outcome material;
 - campaign/save/progression behavior owned by the game product;
-- player-facing economy intents and reconciliation presentation;
-- unsigned replay material, result facts and a versioned World outcome hash;
-- native client behavior, accessibility, packaging and human-play evidence.
+- the native client, accessibility, packaging and human-play evidence;
+- player-facing economic intents and campaign projection of verified receipts.
 
 ## World does not own
 
-World is not the canonical authority for:
-
-- online participant admission, global event ordering or match-version history;
-- canonical command idempotency, runtime restart recovery or archive roots;
-- `MatchCompletedV1` construction or match-evidence signing;
-- Chain ingress, consensus, finality, inclusion proofs or research commands;
+- canonical online participant admission, global event order, command idempotency, match generation, restart recovery or archive roots;
+- construction/signing of `MatchCompletedV1` or the Nakama authority private key;
+- Chain ingress, consensus, inclusion, AppHash or finality;
 - CEX wallet/ledger settlement or custody;
-- cross-repository component locks and end-to-end release evidence.
+- cross-repository component locks and release evidence;
+- public player-market enablement.
 
-Those responsibilities belong respectively to `Trillionnium-Nakama`,
-`Trillionnium-Chain`, `CEX`, and `Trillionnium-Integration` as defined by the
-authority ADR.
+Those responsibilities belong to Trillionnium Nakama, Trillionnium Chain, CEX and Trillionnium Integration as defined by ADR-0001.
 
 ## Compatibility authority enclave
 
-`trillionnium/crates/trnm-game-server` contains the existing World-local online
-authority implementation. It is retained as a bounded compatibility and
-migration enclave while the canonical Nakama adapter is built. It may continue
-to support local laboratory and rollback evidence, but it must not:
+`trillionnium/crates/trnm-game-server` is retained under the explicit profile `world_legacy_local_alpha` for local laboratory, migration, drain and rollback evidence. It must not:
 
-- introduce a new public authority protocol or a second canonical evidence root;
-- load a Nakama authority private key;
-- sign or claim canonical `MatchCompletedV1` evidence;
-- submit a Chain research command directly;
-- be described as cross-host, public-network or finality-backed authority.
+- introduce a new public authority generation;
+- load or proxy a Nakama private key;
+- sign or claim canonical online completion evidence;
+- claim cross-host, public-network or Chain-finality authority;
+- enable a public player market;
+- execute signer/CEX/network work while mutable match or campaign rows are locked.
 
-Any change that expands this enclave requires an ADR update and an explicit
-migration justification. New online product work should target the versioned
-World-to-Nakama contract instead.
+Any expansion requires an ADR, migration/rollback plan and explicit owner/evidence impact review.
+
+## Deterministic transition boundary
+
+World-to-Nakama communication uses `trnm_world_transition_v1` or a later explicitly versioned contract. The contract carries deterministic game-domain material only. Canonical JSON, resource budgets, hash domains and negative vectors are normative. A sibling filesystem path or release label is not an integration contract.
+
+## Settlement boundary
+
+Settlement follows:
+
+```text
+capture transaction -> transaction-free signer/CEX execution -> fenced apply transaction
+```
+
+Stable remote identity, lookup-before-submit, live lease fencing, exact receipt binding, quarantine, bounded shutdown and operator audit are mandatory. Source implementation alone grants no trusted-settlement or custody credit.
 
 ## Repository guardrails
 
-- Active game workspace: `trillionnium/Cargo.toml`.
-- The excluded `trillionnium/crates/platform` tree is legacy migration content;
-  new code must not enter it.
-- New sibling filesystem dependencies on Chain, Nakama, CEX or Integration are
-  forbidden. Consume immutable published packages, generated schemas or
-  exact-revision artifacts instead.
-- Production launch scripts must not source sibling repositories, derive
-  multiple role credentials from one root secret, contain personal home paths,
-  or silently fall back to a development binary.
-- Current architecture and runtime-boundary checks are enforced by
-  `scripts/check_trnm_authority_boundary.sh` and
-  `scripts/check_trnm_runtime_configuration.sh`.
+- Active workspace: `trillionnium/Cargo.toml`.
+- `trillionnium/crates/platform` is excluded legacy material; new code must not enter it.
+- New sibling filesystem dependencies on Chain, Nakama, CEX or Integration are forbidden.
+- Production launch assets contain no personal paths or silent development-binary fallback.
+- Runtime role credentials are distinct by audience and privilege.
+- Development never occurs directly on `main`.
+- Validation workflows use read-only repository permissions and may upload evidence but may not modify, commit, push, tag, merge or promote candidate source.
+- GitHub ruleset/branch protection and required checks are server-side facts and must be observed through the API.
+- New semantic code must not be hidden in build-time source rewrite machinery.
+
+## Release boundary
+
+The progression is:
+
+```text
+implemented -> independently validated -> release eligible
+```
+
+A missing, skipped, cancelled, stale or unbound check is a blocker. Automated/local evidence cannot satisfy human, public-network, cross-host, custody, legal or commercial gates. Public online remains NO-GO and public player markets remain disabled until every dependency in the release matrix is independently green.
