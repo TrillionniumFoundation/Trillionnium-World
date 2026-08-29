@@ -46,7 +46,7 @@ fn rewrite_migration_includes(source: &str) -> String {
             let path_end = path_start + end_offset;
             let relative = &line[path_start..path_end];
             format!(
-                "{}include_str!(concat!(env!(\"CARGO_MANIFEST_DIR\"), \"/migrations/{}\"));{}",
+                "{}include_str!(concat!(::std::env!(\"CARGO_MANIFEST_DIR\"), \"/migrations/{}\"));{}",
                 &line[..start],
                 relative,
                 &line[path_end + 3..]
