@@ -32,10 +32,12 @@ BUILD_SCRIPT = GAME_SERVER_ROOT / "build.rs"
 DIRECT_CEX_SOURCE = GAME_SERVER_ROOT / "src/cex.rs"
 CEX_TEMPLATE = GAME_SERVER_ROOT / "src/cex.rs.in"
 DIRECT_CEX_CONTRACT = GAME_SERVER_ROOT / "tests/direct_cex_source_contract.rs"
-GENERATED_AUTHORITIES = [
-    GAME_SERVER_ROOT / "src/lib.rs.in",
-    GAME_SERVER_ROOT / "src/settlement_worker.rs.in",
-]
+DIRECT_WORKER_WRAPPER = GAME_SERVER_ROOT / "src/settlement_worker.rs"
+DIRECT_WORKER_LEGACY = GAME_SERVER_ROOT / "src/settlement_worker_legacy.rs"
+DIRECT_WORKER_RUNTIME = GAME_SERVER_ROOT / "src/settlement_worker_runtime_v2.rs"
+WORKER_TEMPLATE = GAME_SERVER_ROOT / "src/settlement_worker.rs.in"
+DIRECT_WORKER_CONTRACT = GAME_SERVER_ROOT / "tests/settlement_worker_contract.rs"
+GAME_SERVER_TEMPLATE = GAME_SERVER_ROOT / "src/lib.rs.in"
 
 SHA_RE = re.compile(r"^[0-9a-f]{40}$")
 ALLOWED_STATES = {
@@ -233,10 +235,15 @@ def validate_repository() -> None:
         BUILD_SCRIPT,
         DIRECT_CEX_SOURCE,
         DIRECT_CEX_CONTRACT,
-        *GENERATED_AUTHORITIES,
+        DIRECT_WORKER_WRAPPER,
+        DIRECT_WORKER_LEGACY,
+        DIRECT_WORKER_RUNTIME,
+        DIRECT_WORKER_CONTRACT,
+        GAME_SERVER_TEMPLATE,
     ):
         require(path.exists(), f"missing {path.relative_to(ROOT)}")
     require(not CEX_TEMPLATE.exists(), "CEX template authority was reintroduced")
+    require(not WORKER_TEMPLATE.exists(), "worker template authority was reintroduced")
 
     state = load_json(STATE_PATH)
     schema = load_json(SCHEMA_PATH)
@@ -270,12 +277,18 @@ def validate_repository() -> None:
         require(name in vector_names, f"negative vectors missing {name}")
 
     build = BUILD_SCRIPT.read_text(encoding="utf-8")
-    for path in GENERATED_AUTHORITIES:
-        require(path.name in build, f"build script no longer names {path.name}; update status")
-    for marker in ("generate_game_server", "generate_settlement_worker", "OUT_DIR"):
-        require(marker in build, f"semantic source transform marker missing: {marker}")
-    for forbidden in ("generate_cex", "src/cex.rs.in", "trnm_cex_generated.rs"):
-        require(forbidden not in build, f"retired CEX transform reintroduced: {forbidden}")
+    require("src/lib.rs.in" in build, "remaining game-server template status drifted")
+    for marker in ("generate_game_server", "OUT_DIR"):
+        require(marker in build, f"remaining game-server transform marker missing: {marker}")
+    for forbidden in (
+        "generate_cex",
+        "src/cex.rs.in",
+        "trnm_cex_generated.rs",
+        "generate_settlement_worker",
+        "settlement_worker.rs.in",
+        "trnm_settlement_worker_generated.rs",
+    ):
+        require(forbidden not in build, f"retired source transform reintroduced: {forbidden}")
 
     cex = DIRECT_CEX_SOURCE.read_text(encoding="utf-8")
     for marker in (
@@ -291,8 +304,40 @@ def validate_repository() -> None:
     for forbidden in ("OUT_DIR", "trnm_cex_generated.rs", "reqwest::blocking", "blocking_client"):
         require(forbidden not in cex, f"direct CEX source contains forbidden {forbidden}")
 
-    direct_contract = DIRECT_CEX_CONTRACT.read_text(encoding="utf-8")
-    require("cex_transport_is_directly_compiled_reviewed_source" in direct_contract, "direct CEX contract missing")
+    direct_cex_contract = DIRECT_CEX_CONTRACT.read_text(encoding="utf-8")
+    require(
+        "cex_transport_is_directly_compiled_reviewed_source" in direct_cex_contract,
+        "direct CEX contract missing",
+    )
+
+    worker_wrapper = DIRECT_WORKER_WRAPPER.read_text(encoding="utf-8")
+    for marker in (
+        'include!("settlement_worker_legacy.rs")',
+        'include!("settlement_worker_runtime_v2.rs")',
+        "run_v2 as run",
+    ):
+        require(marker in worker_wrapper, f"direct worker wrapper missing {marker}")
+    for forbidden in ("OUT_DIR", "trnm_settlement_worker_generated.rs"):
+        require(forbidden not in worker_wrapper, f"direct worker wrapper contains {forbidden}")
+
+    worker_runtime = DIRECT_WORKER_RUNTIME.read_text(encoding="utf-8")
+    for marker in (
+        "pub async fn run_v2",
+        "apply_worker_migrations_v2",
+        "0018_online_settlement_operator_controls_v1.sql",
+        "0019_online_settlement_quarantine_v1.sql",
+        "settlement_shutdown_signal_v2",
+        "capture_pending_matches_isolated_v2",
+        "claim_settlement_job_isolated_v2",
+        "apply_ready_captures_isolated_v2",
+    ):
+        require(marker in worker_runtime, f"direct worker runtime missing {marker}")
+
+    worker_contract = DIRECT_WORKER_CONTRACT.read_text(encoding="utf-8")
+    require(
+        "settlement_worker_is_directly_compiled_from_reviewed_modules" in worker_contract,
+        "direct worker contract missing",
+    )
 
     current_plan = CURRENT_PLAN_PATH.read_text(encoding="utf-8")
     docs_index = DOCS_INDEX_PATH.read_text(encoding="utf-8")
