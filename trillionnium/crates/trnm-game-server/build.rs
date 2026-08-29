@@ -1,4 +1,7 @@
-use std::{env, fs, path::PathBuf};
+use std::{
+    env, fs,
+    path::{Path, PathBuf},
+};
 
 const LIB_HEADER: &str = r#"#![recursion_limit = "512"]
 
@@ -15,7 +18,7 @@ mod stream;
 
 fn fail(message: impl AsRef<str>) -> ! {
     panic!(
-        "WORLD-P0-001 source transform failed closed: {}",
+        "WORLD-P0 source transform failed closed: {}",
         message.as_ref()
     );
 }
@@ -29,6 +32,16 @@ fn replace_once(source: &mut String, old: &str, new: &str, label: &str) {
             "{label}: expected one reviewed source shape, found {count}"
         )),
     }
+}
+
+fn replace_all_at_least(source: &mut String, old: &str, new: &str, minimum: usize, label: &str) {
+    let count = source.matches(old).count();
+    if count < minimum {
+        fail(format!(
+            "{label}: expected at least {minimum} reviewed source shapes, found {count}"
+        ));
+    }
+    *source = source.replace(old, new);
 }
 
 fn rewrite_migration_includes(source: &str) -> String {
@@ -57,7 +70,7 @@ fn rewrite_migration_includes(source: &str) -> String {
         + "\n"
 }
 
-fn generate_game_server(out_dir: &PathBuf) {
+fn generate_game_server(out_dir: &Path) {
     let template_path = PathBuf::from("src/lib.rs.in");
     let mut source = fs::read_to_string(&template_path)
         .unwrap_or_else(|error| fail(format!("read {}: {error}", template_path.display())));
@@ -70,7 +83,9 @@ const MIGRATION_V16: &str = include_str!("../migrations/0016_online_settlement_o
 const MIGRATION_V17: &str =
     include_str!("../migrations/0017_online_settlement_worker_runtime_v1.sql");
 const MIGRATION_V18: &str =
-    include_str!("../migrations/0018_online_settlement_operator_controls_v1.sql");"#,
+    include_str!("../migrations/0018_online_settlement_operator_controls_v1.sql");
+const MIGRATION_V19: &str =
+    include_str!("../migrations/0019_online_settlement_quarantine_v1.sql");"#,
         "game-server migration constants",
     );
     replace_once(
@@ -87,6 +102,11 @@ const MIGRATION_V18: &str =
             18,
             "0018_online_settlement_operator_controls_v1",
             MIGRATION_V18,
+        ),
+        (
+            19,
+            "0019_online_settlement_quarantine_v1",
+            MIGRATION_V19,
         ),
 "#,
         "game-server migration ledger",
@@ -154,17 +174,20 @@ pub async fn settle_pending_matches(_state: &AppState, _limit: i64) -> Result<u6
         .unwrap_or_else(|error| fail(format!("write generated game server: {error}")));
 }
 
-fn generate_settlement_worker(out_dir: &PathBuf) {
+fn generate_settlement_worker(out_dir: &Path) {
     let template_path = PathBuf::from("src/settlement_worker.rs.in");
     let mut source = fs::read_to_string(&template_path)
         .unwrap_or_else(|error| fail(format!("read {}: {error}", template_path.display())));
+
     replace_once(
         &mut source,
         "const MIGRATION_V17: &str = include_str!(\"../migrations/0017_online_settlement_worker_runtime_v1.sql\");",
         r#"const MIGRATION_V17: &str = include_str!("../migrations/0017_online_settlement_worker_runtime_v1.sql");
 const MIGRATION_V18: &str =
-    include_str!("../migrations/0018_online_settlement_operator_controls_v1.sql");"#,
-        "settlement-worker migration constant",
+    include_str!("../migrations/0018_online_settlement_operator_controls_v1.sql");
+const MIGRATION_V19: &str =
+    include_str!("../migrations/0019_online_settlement_quarantine_v1.sql");"#,
+        "settlement-worker migration constants",
     );
     replace_once(
         &mut source,
@@ -184,9 +207,21 @@ const MIGRATION_V18: &str =
             "0018_online_settlement_operator_controls_v1",
             MIGRATION_V18,
         ),
+        (
+            19_i32,
+            "0019_online_settlement_quarantine_v1",
+            MIGRATION_V19,
+        ),
 "#,
         "settlement-worker migration ledger",
     );
+    replace_once(
+        &mut source,
+        "pub async fn run(config: WorkerConfig) -> Result<(), String> {",
+        "#[allow(dead_code)]\nasync fn run_legacy_disabled(config: WorkerConfig) -> Result<(), String> {",
+        "legacy settlement worker run loop retirement",
+    );
+
     let generated = rewrite_migration_includes(&source);
     fs::write(
         out_dir.join("trnm_settlement_worker_generated.rs"),
@@ -195,11 +230,106 @@ const MIGRATION_V18: &str =
     .unwrap_or_else(|error| fail(format!("write generated settlement worker: {error}")));
 }
 
+fn generate_cex(out_dir: &Path) {
+    let template_path = PathBuf::from("src/cex.rs.in");
+    let mut source = fs::read_to_string(&template_path)
+        .unwrap_or_else(|error| fail(format!("read {}: {error}", template_path.display())));
+
+    replace_once(
+        &mut source,
+        "const SETTLEMENT_OUTBOX_REQUIRED: &str =\n    \"external economy settlement is owned by trnm-settlement-worker; synchronous EconomyBackend I/O is prohibited\";",
+        "const SETTLEMENT_OUTBOX_REQUIRED: &str =\n    \"external economy settlement is owned by trnm-settlement-worker; synchronous EconomyBackend I/O is prohibited\";\nconst MAX_REMOTE_ERROR_BODY_BYTES: usize = 64 * 1024;",
+        "remote error-body budget",
+    );
+
+    let retryable_old = r#"fn retryable_status(status: StatusCode) -> bool {
+    status == StatusCode::REQUEST_TIMEOUT
+        || status == StatusCode::TOO_MANY_REQUESTS
+        || status.as_u16() == 425
+        || status.is_server_error()
+}
+"#;
+    let retryable_new = r#"fn retryable_status(status: StatusCode) -> bool {
+    status == StatusCode::REQUEST_TIMEOUT
+        || status == StatusCode::TOO_MANY_REQUESTS
+        || status == StatusCode::CONFLICT
+        || status.as_u16() == 425
+        || status.is_server_error()
+}
+
+async fn bounded_error_body(response: reqwest::Response) -> String {
+    if response
+        .content_length()
+        .is_some_and(|length| length > MAX_REMOTE_ERROR_BODY_BYTES as u64)
+    {
+        return format!(
+            "remote error body omitted: content-length exceeds {} bytes",
+            MAX_REMOTE_ERROR_BODY_BYTES
+        );
+    }
+    match response.bytes().await {
+        Ok(bytes) => {
+            let bounded = &bytes[..bytes.len().min(MAX_REMOTE_ERROR_BODY_BYTES)];
+            String::from_utf8_lossy(bounded).into_owned()
+        }
+        Err(error) => format!("remote error body unavailable: {error}"),
+    }
+}
+"#;
+    replace_once(
+        &mut source,
+        retryable_old,
+        retryable_new,
+        "retryable remote status and body budget",
+    );
+    replace_all_at_least(
+        &mut source,
+        "let body = response.text().await.unwrap_or_default();",
+        "let body = bounded_error_body(response).await;",
+        4,
+        "bounded remote error body",
+    );
+
+    for (old, new, label) in [
+        (
+            "ExternalSettlementError::Permanent(format!(\n                    \"decode isolated signer receipt lookup: {error}\"\n                ))",
+            "ExternalSettlementError::Retryable(format!(\n                    \"decode isolated signer receipt lookup after success status: {error}\"\n                ))",
+            "signer lookup ambiguous body",
+        ),
+        (
+            "ExternalSettlementError::Permanent(format!(\n                    \"decode isolated signer response: {error}\"\n                ))",
+            "ExternalSettlementError::Retryable(format!(\n                    \"decode isolated signer response after possible commit: {error}\"\n                ))",
+            "signer submit ambiguous body",
+        ),
+        (
+            "ExternalSettlementError::Permanent(format!(\n                    \"decode CEX receipt lookup: {error}\"\n                ))",
+            "ExternalSettlementError::Retryable(format!(\n                    \"decode CEX receipt lookup after success status: {error}\"\n                ))",
+            "CEX lookup ambiguous body",
+        ),
+        (
+            "ExternalSettlementError::Permanent(format!(\"decode CEX receipt: {error}\"))",
+            "ExternalSettlementError::Retryable(format!(\n                \"decode CEX receipt after possible commit: {error}\"\n            ))",
+            "CEX submit ambiguous body",
+        ),
+    ] {
+        replace_once(&mut source, old, new, label);
+    }
+
+    if source.contains("reqwest::blocking") || source.contains("blocking_client") {
+        fail("generated CEX source reintroduced blocking HTTP");
+    }
+    fs::write(out_dir.join("trnm_cex_generated.rs"), source)
+        .unwrap_or_else(|error| fail(format!("write generated CEX client: {error}")));
+}
+
 fn main() {
     println!("cargo:rerun-if-changed=src/lib.rs.in");
     println!("cargo:rerun-if-changed=src/settlement_worker.rs.in");
+    println!("cargo:rerun-if-changed=src/settlement_worker_runtime_v2.rs");
+    println!("cargo:rerun-if-changed=src/cex.rs.in");
     println!("cargo:rerun-if-changed=migrations");
     let out_dir = PathBuf::from(env::var_os("OUT_DIR").expect("OUT_DIR is required"));
     generate_game_server(&out_dir);
     generate_settlement_worker(&out_dir);
+    generate_cex(&out_dir);
 }
