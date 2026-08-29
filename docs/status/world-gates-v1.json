@@ -1,35 +1,52 @@
 {
   "schema_version": 1,
   "project_id": "trillionnium-world",
-  "as_of": "2026-08-27",
-  "source_plan": "docs/development/trnm-world-development-plan-v3.md",
+  "as_of": "2026-08-29",
+  "source_plan": "docs/development/TRILLIONNIUM_WORLD_DEVELOPMENT_PLAN_2026-08-29.md",
   "gates": [
     {
       "id": "deterministic_runtime_alpha",
       "status": "implemented",
       "authority_profile": "world_game_domain",
       "evidence": [],
-      "blockers": ["exact remote golden-vector evidence is not registered in this record"],
-      "limitations": ["source implementation is not equivalent to remote verification or deployment"]
+      "blockers": [
+        "exact-head Rust and independent conformance workflow evidence is not yet registered",
+        "Nakama shadow implementation and cross-repository component lock remain open"
+      ],
+      "limitations": [
+        "source implementation is not equivalent to remote verification or deployment",
+        "World hashes do not prove online admission, total order, archive completeness, Chain finality, or settlement"
+      ]
     },
     {
       "id": "native_software_alpha",
       "status": "blocked",
       "authority_profile": "world_native_client",
       "evidence": [],
-      "blockers": ["current integration commit has not completed the remote package and platform evidence matrix"],
-      "limitations": ["no Windows/macOS signed distribution credit", "no external human usability credit"]
+      "blockers": [
+        "current exact-head workspace, package, and platform workflow evidence is not registered",
+        "human usability and accessibility rows remain external"
+      ],
+      "limitations": [
+        "no Windows/macOS signed distribution credit",
+        "no independent human usability credit"
+      ]
     },
     {
       "id": "trusted_cex_settlement",
-      "status": "blocked",
+      "status": "implemented",
       "authority_profile": "world_legacy_local_alpha_plus_cex",
       "evidence": [],
       "blockers": [
-        "settlement capture/execute/apply implementation and remote ambiguous-commit fault evidence are not fully registered",
-        "production credential custody is not attested"
+        "exact-head PostgreSQL and Rust checks have not completed",
+        "CEX owner implementation and exact deployment artifact are not merged and bound",
+        "deployed response-loss, process-kill, cancellation, shutdown, apply-rollback, backup and PITR evidence is absent",
+        "independent reviewer signoff is absent"
       ],
-      "limitations": ["local/single-node profile only", "no public wallet or market credit"]
+      "limitations": [
+        "source-level capture/execute/apply, lease fencing, quarantine, and recovery controls are not deployment evidence",
+        "public wallet, custody, and market credit remain prohibited"
+      ]
     },
     {
       "id": "closed_online_nakama",
@@ -37,10 +54,14 @@
       "authority_profile": "nakama_target",
       "evidence": [],
       "blockers": [
-        "Nakama-only admission, ordering, idempotency, recovery and signed completion are not fully migrated",
-        "exact World/Nakama/Integration compatibility evidence is not registered"
+        "Nakama adapter and independent shadow comparison are not complete",
+        "active compatibility matches have not been drained under a reviewed cutover",
+        "Integration exact World/Nakama component lock and rollback evidence are absent"
       ],
-      "limitations": ["World-local Online Authority remains migration-era legacy_local_alpha", "no dual-authority release credit"]
+      "limitations": [
+        "World-local Online Authority remains migration-era world_legacy_local_alpha",
+        "no dual-authority or active-match takeover credit"
+      ]
     },
     {
       "id": "public_online",
@@ -49,25 +70,37 @@
       "evidence": [],
       "blockers": [
         "closed-online authority migration is incomplete",
-        "public TLS, WAF/DDoS, KMS/HSM, replicated durability, 24-hour endurance, capacity and human gates are incomplete"
+        "public TLS, WAF/DDoS, KMS/HSM, replicated durability, multi-host recovery, 24-hour endurance, capacity, staffed operations, and human gates are incomplete"
       ],
-      "limitations": ["loopback/local evidence only", "cross-host RPO=0 is not implemented or attested", "no public ingress approval"]
+      "limitations": [
+        "current evidence is source/local/single-host only",
+        "cross-host RPO=0 and public ingress are not implemented or attested"
+      ]
     },
     {
       "id": "public_player_market",
       "status": "disabled",
       "authority_profile": "separate_future_approval",
       "evidence": [],
-      "blockers": ["public online is no-go", "custody, market abuse, legal, economic and governance approvals are absent"],
-      "limitations": ["must not be enabled by a game-source or local test change"]
+      "blockers": [
+        "public online is no-go",
+        "custody, listing ownership, fraud, dispute, chargeback, support, privacy, legal, economic, and governance approvals are absent"
+      ],
+      "limitations": [
+        "a game-source change or local test can never enable the public market"
+      ]
     },
     {
       "id": "commercial_single_player",
       "status": "blocked",
       "authority_profile": "world_native_client",
       "evidence": [],
-      "blockers": ["distribution, accessibility, support, legal and external human evidence are incomplete"],
-      "limitations": ["technical-alpha evidence does not imply commercial readiness"]
+      "blockers": [
+        "multi-OS distribution, accessibility, support, legal, and external human evidence are incomplete"
+      ],
+      "limitations": [
+        "technical-alpha source evidence does not imply commercial readiness"
+      ]
     }
   ]
 }
