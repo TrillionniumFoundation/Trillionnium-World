@@ -7,14 +7,16 @@ This index separates **current truth**, **normative contracts**, **operational r
 Read in this order:
 
 1. `../PROJECT_BOUNDARY.md` — binding repository and authority ownership.
-2. `../CURRENT_PLAN.md` — pointer to the active executable plan.
+2. `../CURRENT_PLAN.md` — pointer to the active executable plan and convergence interpretation.
 3. `development/TRILLIONNIUM_WORLD_DEVELOPMENT_PLAN_2026-08-29.md` — ordered workstreams, exit gates and stop conditions.
-4. `development/trillionnium-world-development-plan-2026-08-29.json` — machine-readable plan.
-5. `development/trnm-world-gap-closure-ledger-v4.json` — exact gaps, owners, dependencies and evidence classes.
-6. `status/world-gates-v1.json` and `status/CURRENT.md` — release-denominator posture.
-7. `../GAME_STATUS.md` — native gameplay/runtime evidence and explicit limitations.
+4. `development/TRILLIONNIUM_WORLD_PLAN_V4_CONVERGENCE_ADDENDUM_2026-08-30.md` — exact current evidence semantics and corrected blocker state.
+5. `status/world-v4-convergence-state-2026-08-30.json` — machine-readable exact repository, source, upstream, environment and human/commercial state.
+6. `development/trillionnium-world-development-plan-2026-08-29.json` — machine-readable plan.
+7. `development/trnm-world-gap-closure-ledger-v4.json` — planned gaps, owners, dependencies and evidence classes.
+8. `status/world-gates-v1.json` and `status/CURRENT.md` — release-denominator posture.
+9. `../GAME_STATUS.md` — native gameplay/runtime evidence and explicit limitations.
 
-When two current documents disagree, the binding boundary and accepted ADRs take precedence; the contradiction is itself a release blocker.
+When two current documents disagree, the binding boundary and accepted ADRs take precedence. The convergence addendum and convergence state override stale implementation-status prose but do not change architecture. A contradiction is itself a release blocker.
 
 ## 2. Architecture and ADRs
 
@@ -43,7 +45,7 @@ Core ownership rule:
 - `protocol/trnm-settlement-receipt-recovery-v1.md`
 - `database/trnm-world-postgres-contract-v1.md`
 
-Protocol documents must define canonical encoding, resource budgets, unknown-field behavior, compatibility windows, stable machine errors, owner boundaries and negative vectors.
+Protocol documents must define canonical encoding, resource budgets, unknown-field behavior, compatibility windows, stable machine errors, owner boundaries and negative vectors. Authority-key deny rules apply after decoded ASCII case folding; mixed-case or escaped aliases do not create a new allowed authority surface.
 
 ## 4. Development and implementation
 
@@ -64,6 +66,8 @@ Active code references:
 - online compatibility wire types: `../trillionnium/crates/trnm-online-protocol`
 - World-local compatibility server: `../trillionnium/crates/trnm-game-server`
 - deterministic World transition contract: `../trillionnium/contracts/trnm-world-transition-v1`
+
+The current game-server still has a review-integrity debt: `build.rs` semantically transforms `lib.rs.in`, `settlement_worker.rs.in`, and `cex.rs.in` into the actually compiled source. Plan V4 closure requires direct, checked-in compiled source and removal of semantic build-time rewriting.
 
 ## 5. Security, operations and release
 
@@ -87,12 +91,15 @@ Operational documents must state scope, preconditions, owner, exact commands, ex
 - `../scripts/check-trnm-settlement-runtime-status.py`
 - `../scripts/check-trnm-world-transition-conformance.py`
 - `../scripts/check-trnm-world-documentation.py`
+- `../scripts/check-trnm-world-v4-convergence.py`
 
 CI workflows must have read-only repository permissions. They may upload immutable evidence artifacts, but may not modify, commit, push, tag or promote candidate source.
 
-## 7. Evidence classes
+A workflow definition does not prove execution. On 2026-08-30, GitHub exposed no check runs for either V4 candidate and no run for a dedicated push probe. Until repository or organization Actions policy permits a non-empty exact-head run, remote verification remains `repository_control_blocked`.
 
-Every claim is assigned exactly one evidence class:
+## 7. Evidence classes and states
+
+Every claim is assigned an evidence class:
 
 - `source_static`
 - `unit`
@@ -105,7 +112,19 @@ Every claim is assigned exactly one evidence class:
 - `custody_security`
 - `commercial_legal`
 
-A lower class can never satisfy a higher-class gate by implication.
+Every current gap uses one convergence state:
+
+- `source_open`
+- `source_implemented_unverified`
+- `source_verified`
+- `repository_control_blocked`
+- `blocked_upstream`
+- `environment_evidence_required`
+- `human_evidence_required`
+- `commercial_approval_required`
+- `closed`
+
+A lower class can never satisfy a higher-class gate by implication. `implemented` is not a synonym for `verified`, `deployed`, `operational`, or `release_ready`.
 
 ## 8. Historical material
 
