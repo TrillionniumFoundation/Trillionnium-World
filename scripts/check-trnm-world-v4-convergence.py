@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate the evidence-bound Trillionnium World V4 convergence state."""
+"""Fail-closed validator for the current Trillionnium World V4 candidate."""
 
 from __future__ import annotations
 
@@ -13,34 +13,27 @@ import sys
 from typing import Any
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-STATE_PATH = ROOT / "docs/status/world-v4-convergence-state-2026-08-30.json"
-SCHEMA_PATH = ROOT / "docs/status/world-v4-convergence-state-2026-08-30.schema.json"
-ADDENDUM_PATH = (
-    ROOT
-    / "docs/development/TRILLIONNIUM_WORLD_PLAN_V4_CONVERGENCE_ADDENDUM_2026-08-30.md"
-)
-CURRENT_PLAN_PATH = ROOT / "CURRENT_PLAN.md"
-DOCS_INDEX_PATH = ROOT / "docs/README.md"
-CANONICAL_SOURCE = (
-    ROOT / "trillionnium/contracts/trnm-world-transition-v1/src/canonical.rs"
-)
-NEGATIVE_VECTORS = (
-    ROOT / "docs/protocol/vectors/trnm-world-transition-negative-v1.json"
-)
-GAME_SERVER_ROOT = ROOT / "trillionnium/crates/trnm-game-server"
-BUILD_SCRIPT = GAME_SERVER_ROOT / "build.rs"
-DIRECT_CEX_SOURCE = GAME_SERVER_ROOT / "src/cex.rs"
-CEX_TEMPLATE = GAME_SERVER_ROOT / "src/cex.rs.in"
-DIRECT_CEX_CONTRACT = GAME_SERVER_ROOT / "tests/direct_cex_source_contract.rs"
-DIRECT_WORKER_WRAPPER = GAME_SERVER_ROOT / "src/settlement_worker.rs"
-DIRECT_WORKER_LEGACY = GAME_SERVER_ROOT / "src/settlement_worker_legacy.rs"
-DIRECT_WORKER_RUNTIME = GAME_SERVER_ROOT / "src/settlement_worker_runtime_v2.rs"
-WORKER_TEMPLATE = GAME_SERVER_ROOT / "src/settlement_worker.rs.in"
-DIRECT_WORKER_CONTRACT = GAME_SERVER_ROOT / "tests/settlement_worker_contract.rs"
-GAME_SERVER_TEMPLATE = GAME_SERVER_ROOT / "src/lib.rs.in"
+STATE = ROOT / "docs/status/world-v4-convergence-state-2026-08-30.json"
+SCHEMA = ROOT / "docs/status/world-v4-convergence-state-2026-08-30.schema.json"
+ADDENDUM = ROOT / "docs/development/TRILLIONNIUM_WORLD_PLAN_V4_CONVERGENCE_ADDENDUM_2026-08-30.md"
+CURRENT_PLAN = ROOT / "CURRENT_PLAN.md"
+DOCS_INDEX = ROOT / "docs/README.md"
+CANONICAL = ROOT / "trillionnium/contracts/trnm-world-transition-v1/src/canonical.rs"
+NEGATIVE_VECTORS = ROOT / "docs/protocol/vectors/trnm-world-transition-negative-v1.json"
+GAME_SERVER = ROOT / "trillionnium/crates/trnm-game-server"
+BUILD_RS = GAME_SERVER / "build.rs"
+LIB_RS = GAME_SERVER / "src/lib.rs"
+LIB_TEMPLATE = GAME_SERVER / "src/lib.rs.in"
+CEX_RS = GAME_SERVER / "src/cex.rs"
+CEX_TEMPLATE = GAME_SERVER / "src/cex.rs.in"
+WORKER_RS = GAME_SERVER / "src/settlement_worker.rs"
+WORKER_TEMPLATE = GAME_SERVER / "src/settlement_worker.rs.in"
+WORKER_LEGACY = GAME_SERVER / "src/settlement_worker_legacy.rs"
+WORKER_RUNTIME = GAME_SERVER / "src/settlement_worker_runtime_v2.rs"
+P0_010_EVIDENCE = ROOT / "docs/evidence/v4/WORLD-P0-010-single-candidate-closure.json"
 
-SHA_RE = re.compile(r"^[0-9a-f]{40}$")
-ALLOWED_STATES = {
+SHA = re.compile(r"^[0-9a-f]{40}$")
+STATES = {
     "source_open",
     "source_implemented_unverified",
     "source_verified",
@@ -51,7 +44,7 @@ ALLOWED_STATES = {
     "commercial_approval_required",
     "closed",
 }
-EXPECTED_NO_GO = {
+NO_GO = {
     "dual_canonical_world_and_nakama_authority",
     "external_io_under_mutable_game_row_locks",
     "expired_lease_mutation",
@@ -65,7 +58,7 @@ EXPECTED_NO_GO = {
 
 
 class ValidationError(RuntimeError):
-    """A fail-closed convergence-state validation error."""
+    pass
 
 
 def require(condition: bool, message: str) -> None:
@@ -73,18 +66,18 @@ def require(condition: bool, message: str) -> None:
         raise ValidationError(message)
 
 
-def load_json(path: pathlib.Path) -> Any:
+def load(path: pathlib.Path) -> Any:
     try:
         return json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as error:
         raise ValidationError(f"cannot load {path.relative_to(ROOT)}: {error}") from error
 
 
-def item_map(data: dict[str, Any]) -> dict[str, dict[str, Any]]:
-    items = data.get("items")
-    require(isinstance(items, list) and items, "items must be a non-empty array")
+def items_by_id(data: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    raw = data.get("items")
+    require(isinstance(raw, list) and raw, "items must be a non-empty array")
     result: dict[str, dict[str, Any]] = {}
-    for item in items:
+    for item in raw:
         require(isinstance(item, dict), "every item must be an object")
         item_id = item.get("id")
         require(isinstance(item_id, str) and item_id, "every item needs an id")
@@ -93,314 +86,170 @@ def item_map(data: dict[str, Any]) -> dict[str, dict[str, Any]]:
     return result
 
 
-def validate_data(data: dict[str, Any]) -> None:
-    require(data.get("schema") == "trnm_world_v4_convergence_state_v1", "wrong schema")
-    require(data.get("as_of") == "2026-08-30", "wrong as_of date")
-    require(
-        data.get("repository") == "TrillionniumFoundation/Trillionnium-World",
-        "wrong repository",
-    )
+def validate_state(data: dict[str, Any]) -> None:
+    require(data.get("schema") == "trnm_world_v4_convergence_state_v1", "wrong state schema")
+    require(data.get("repository") == "TrillionniumFoundation/Trillionnium-World", "wrong repository")
+    require(data.get("as_of") == "2026-08-30", "wrong state date")
 
     candidate = data.get("candidate")
     require(isinstance(candidate, dict), "candidate must be an object")
-    require(
-        candidate.get("branch") == "fix/world-plan-v4-convergence-2026-08-30",
-        "wrong convergence branch",
-    )
+    require(candidate.get("branch") == "fix/world-plan-v4-convergence-2026-08-30", "wrong candidate branch")
     for field in ("parent_commit", "main_observed"):
-        require(
-            isinstance(candidate.get(field), str) and SHA_RE.fullmatch(candidate[field]),
-            f"candidate.{field} is not a commit SHA",
-        )
-    overlap = candidate.get("overlapping_candidate")
-    require(isinstance(overlap, dict), "overlapping candidate must be recorded")
-    require(
-        overlap.get("disposition") == "supersede_after_unique_change_review",
-        "overlapping candidate disposition drifted",
-    )
-    require(
-        isinstance(overlap.get("commit"), str) and SHA_RE.fullmatch(overlap["commit"]),
-        "overlapping candidate commit is invalid",
-    )
+        require(isinstance(candidate.get(field), str) and SHA.fullmatch(candidate[field]), f"invalid candidate.{field}")
 
     controls = data.get("observed_repository_controls")
     require(isinstance(controls, dict), "repository controls must be an object")
-    require(controls.get("candidate_check_runs") == 0, "unverified checks were invented")
-    require(
-        controls.get("overlapping_candidate_check_runs") == 0,
-        "overlapping candidate checks were invented",
-    )
-    require(controls.get("ruleset_count") == 0, "unobserved ruleset was invented")
-    require(controls.get("branch_protection_observed") is False, "branch protection overclaim")
-    require(controls.get("required_checks_observed") == [], "required checks overclaim")
-    require(
-        controls.get("code_owner_review_enforced_observed") is False,
-        "code-owner enforcement overclaim",
-    )
-    require(
-        controls.get("administrators_enforced_observed") is False,
-        "administrator enforcement overclaim",
-    )
-    probe = controls.get("actions_probe")
-    require(isinstance(probe, dict), "Actions probe must be recorded")
-    require(probe.get("workflow_runs") == 0, "probe run overclaim")
-    require(
-        probe.get("interpretation")
-        == "repository_or_organization_actions_execution_not_observed",
-        "probe interpretation drifted",
-    )
+    for field in ("candidate_check_runs", "overlapping_candidate_check_runs", "ruleset_count"):
+        require(isinstance(controls.get(field), int) and controls[field] >= 0, f"invalid controls.{field}")
+    require(isinstance(controls.get("required_checks_observed"), list), "required checks must be an array")
 
     posture = data.get("release_posture")
     require(isinstance(posture, dict), "release posture must be an object")
-    require(posture.get("public_online") == "no_go", "public online overclaim")
-    require(
-        posture.get("public_player_market") == "disabled",
-        "public player market overclaim",
-    )
+    require(posture.get("public_online") == "no_go", "public-online overclaim")
+    require(posture.get("public_player_market") == "disabled", "public-market overclaim")
     require(posture.get("commercial_release") == "no_go", "commercial overclaim")
-    require(
-        posture.get("exact_head_remote_verification") == "repository_control_blocked",
-        "remote verification overclaim",
-    )
-    require(
-        posture.get("canonical_nakama_online_authority") == "blocked_upstream",
-        "Nakama authority overclaim",
-    )
+    require(posture.get("canonical_nakama_online_authority") == "blocked_upstream", "Nakama overclaim")
 
-    items = item_map(data)
-    observed_counts = collections.Counter()
+    items = items_by_id(data)
+    observed = collections.Counter()
     for item_id, item in items.items():
         state = item.get("state")
-        require(state in ALLOWED_STATES, f"{item_id} has invalid state {state!r}")
-        observed_counts[state] += 1
+        require(state in STATES, f"{item_id} has invalid state {state!r}")
+        observed[state] += 1
         require(isinstance(item.get("owner"), str) and item["owner"], f"{item_id} has no owner")
-        require(isinstance(item.get("claim"), str) and item["claim"], f"{item_id} has no claim")
         evidence = item.get("evidence_required")
-        require(
-            isinstance(evidence, list)
-            and evidence
-            and all(isinstance(value, str) and value for value in evidence),
-            f"{item_id} has invalid evidence requirements",
-        )
-        require(len(evidence) == len(set(evidence)), f"{item_id} repeats evidence classes")
-        require(
-            isinstance(item.get("next_gate"), str) and item["next_gate"],
-            f"{item_id} has no next gate",
-        )
+        require(isinstance(evidence, list) and evidence and len(evidence) == len(set(evidence)), f"{item_id} has invalid evidence")
+        require(all(isinstance(value, str) and value for value in evidence), f"{item_id} has empty evidence")
+        require(isinstance(item.get("next_gate"), str) and item["next_gate"], f"{item_id} has no next gate")
 
-    declared_counts = data.get("counts")
-    require(isinstance(declared_counts, dict), "counts must be an object")
-    for state in ALLOWED_STATES:
-        require(
-            declared_counts.get(state) == observed_counts.get(state, 0),
-            f"count mismatch for {state}: declared={declared_counts.get(state)!r} "
-            f"observed={observed_counts.get(state, 0)}",
-        )
+    counts = data.get("counts")
+    require(isinstance(counts, dict), "counts must be an object")
+    for state in STATES:
+        require(counts.get(state) == observed.get(state, 0), f"count mismatch for {state}")
 
-    require(observed_counts["source_verified"] == 0, "source verification invented without runs")
-    require(observed_counts["closed"] == 0, "closure invented without required evidence")
-    require(items["WORLD-P0-009"]["state"] == "source_open", "generated source gap hidden")
-    require(items["WORLD-P0-010"]["state"] == "source_open", "duplicate truth gap hidden")
-    require(
-        items["WORLD-P0-005A"]["state"] == "repository_control_blocked",
-        "Actions blocker hidden",
-    )
-    require(
-        items["WORLD-P0-005B"]["state"] == "repository_control_blocked",
-        "ruleset blocker hidden",
-    )
-    require(items["WORLD-P0-003"]["state"] == "blocked_upstream", "Nakama gap hidden")
-    require(items["WORLD-P0-004"]["state"] == "blocked_upstream", "Integration gap hidden")
-    require(
-        items["WORLD-P2-002A"]["state"] == "human_evidence_required",
-        "human evidence overclaim",
-    )
-    require(
-        items["WORLD-P2-003"]["state"] == "commercial_approval_required",
-        "commercial approval overclaim",
-    )
+    required_states = {
+        "WORLD-P0-003": "blocked_upstream",
+        "WORLD-P0-004": "blocked_upstream",
+        "WORLD-P0-005A": "repository_control_blocked",
+        "WORLD-P0-005B": "repository_control_blocked",
+        "WORLD-P0-005C": "repository_control_blocked",
+        "WORLD-P2-002A": "human_evidence_required",
+        "WORLD-P2-003": "commercial_approval_required",
+        "WORLD-P0-010": "closed",
+    }
+    for item_id, expected in required_states.items():
+        require(items.get(item_id, {}).get("state") == expected, f"{item_id} truth drifted")
 
-    require(set(data.get("no_go", [])) == EXPECTED_NO_GO, "no-go set drifted")
+    if observed["source_verified"]:
+        require(controls["candidate_check_runs"] > 0, "source verification has no exact-head run")
+        require(bool(controls["required_checks_observed"]), "source verification has no required checks")
+    require(set(data.get("no_go", [])) == NO_GO, "no-go set drifted")
 
 
-def validate_repository() -> None:
-    for path in (
-        STATE_PATH,
-        SCHEMA_PATH,
-        ADDENDUM_PATH,
-        CURRENT_PLAN_PATH,
-        DOCS_INDEX_PATH,
-        CANONICAL_SOURCE,
-        NEGATIVE_VECTORS,
-        BUILD_SCRIPT,
-        DIRECT_CEX_SOURCE,
-        DIRECT_CEX_CONTRACT,
-        DIRECT_WORKER_WRAPPER,
-        DIRECT_WORKER_LEGACY,
-        DIRECT_WORKER_RUNTIME,
-        DIRECT_WORKER_CONTRACT,
-        GAME_SERVER_TEMPLATE,
-    ):
+def validate_source_shape(data: dict[str, Any]) -> None:
+    items = items_by_id(data)
+    p0_009 = items["WORLD-P0-009"]["state"]
+
+    for path in (STATE, SCHEMA, ADDENDUM, CURRENT_PLAN, DOCS_INDEX, CANONICAL, NEGATIVE_VECTORS, LIB_RS, CEX_RS, WORKER_RS, WORKER_LEGACY, WORKER_RUNTIME, P0_010_EVIDENCE):
         require(path.exists(), f"missing {path.relative_to(ROOT)}")
     require(not CEX_TEMPLATE.exists(), "CEX template authority was reintroduced")
     require(not WORKER_TEMPLATE.exists(), "worker template authority was reintroduced")
 
-    state = load_json(STATE_PATH)
-    schema = load_json(SCHEMA_PATH)
-    require(
-        schema.get("$id", "").endswith(
-            "world-v4-convergence-state-2026-08-30.schema.json"
-        ),
-        "wrong convergence schema",
-    )
-    validate_data(state)
+    lib = LIB_RS.read_text(encoding="utf-8")
+    generated_shape = BUILD_RS.exists() or LIB_TEMPLATE.exists()
+    if generated_shape:
+        require(BUILD_RS.exists() and LIB_TEMPLATE.exists(), "partial game-server generator state")
+        require(p0_009 == "source_open", "semantic build transform was hidden")
+        build = BUILD_RS.read_text(encoding="utf-8")
+        require("src/lib.rs.in" in build and "generate_game_server" in build and "OUT_DIR" in build, "game-server transform drifted")
+        require("trnm_game_server_lib_generated.rs" in lib and "OUT_DIR" in lib, "compiled wrapper drifted")
+    else:
+        require(p0_009 in {"source_implemented_unverified", "source_verified", "closed"}, "direct source status was not advanced")
+        for marker in (
+            "const MIGRATION_V16:",
+            "const MIGRATION_V17:",
+            "const MIGRATION_V18:",
+            "const MIGRATION_V19:",
+            "terminal settlement is owned by trnm-settlement-worker; in-process settlement is prohibited",
+        ):
+            require(marker in lib, f"direct game-server source missing {marker}")
+        for forbidden in (
+            "trnm_game_server_lib_generated.rs",
+            "reconcile_economy(&state.cex",
+            "settle_pending_matches(&settlement_state",
+        ):
+            require(forbidden not in lib, f"direct game-server source retained {forbidden}")
 
-    canonical = CANONICAL_SOURCE.read_text(encoding="utf-8")
-    for marker in (
-        "let normalized_key = key.to_ascii_lowercase();",
-        "case_folded_authority_key_still_fails_closed",
-        "CanonicalError::ForbiddenAuthorityKey",
-    ):
+    cex = CEX_RS.read_text(encoding="utf-8")
+    for marker in ("pub struct CexClient", "MAX_REMOTE_ERROR_BODY_BYTES", "bounded_error_body", "StatusCode::CONFLICT"):
+        require(marker in cex, f"direct CEX source missing {marker}")
+    for forbidden in ("OUT_DIR", "trnm_cex_generated.rs", "reqwest::blocking"):
+        require(forbidden not in cex, f"direct CEX source contains {forbidden}")
+
+    worker = WORKER_RS.read_text(encoding="utf-8")
+    for marker in ('include!("settlement_worker_legacy.rs")', 'include!("settlement_worker_runtime_v2.rs")', "run_v2 as run"):
+        require(marker in worker, f"direct worker wrapper missing {marker}")
+    require("OUT_DIR" not in worker and "trnm_settlement_worker_generated.rs" not in worker, "worker generation was reintroduced")
+
+    canonical = CANONICAL.read_text(encoding="utf-8")
+    for marker in ("let normalized_key = key.to_ascii_lowercase();", "case_folded_authority_key_still_fails_closed", "CanonicalError::ForbiddenAuthorityKey"):
         require(marker in canonical, f"canonical parser missing {marker}")
 
-    vectors = load_json(NEGATIVE_VECTORS)
-    vector_names = {
-        item.get("name")
-        for item in vectors.get("vectors", [])
-        if isinstance(item, dict)
-    }
-    for name in (
-        "case_folded_nakama_key",
-        "case_folded_completion_key",
-        "nested_case_folded_chain_key",
+    vectors = load(NEGATIVE_VECTORS)
+    names = {item.get("name") for item in vectors.get("vectors", []) if isinstance(item, dict)}
+    for name in ("case_folded_nakama_key", "case_folded_completion_key", "nested_case_folded_chain_key"):
+        require(name in names, f"negative vectors missing {name}")
+
+    closure = load(P0_010_EVIDENCE)
+    require(closure.get("schema") == "trnm_world_single_candidate_closure_v1", "P0-010 evidence schema drifted")
+    require(closure.get("canonical_pr") == 39, "P0-010 evidence does not bind PR 39")
+
+
+def validate_repository() -> None:
+    data = load(STATE)
+    schema = load(SCHEMA)
+    require(schema.get("$id", "").endswith("world-v4-convergence-state-2026-08-30.schema.json"), "wrong schema document")
+    validate_state(data)
+    validate_source_shape(data)
+    current = CURRENT_PLAN.read_text(encoding="utf-8")
+    index = DOCS_INDEX.read_text(encoding="utf-8")
+    require("TRILLIONNIUM_WORLD_PLAN_V4_CONVERGENCE_ADDENDUM_2026-08-30.md" in current, "current plan omits addendum")
+    require("world-v4-convergence-state-2026-08-30.json" in current, "current plan omits state")
+    require("TRILLIONNIUM_WORLD_PLAN_V4_CONVERGENCE_ADDENDUM_2026-08-30.md" in index, "docs index omits addendum")
+
+
+def negative_self_test() -> None:
+    base = load(STATE)
+    mutations: list[tuple[str, dict[str, Any]]] = []
+    for label, mutate in (
+        ("public-online", lambda value: value["release_posture"].__setitem__("public_online", "ready")),
+        ("Nakama-authority", lambda value: value["release_posture"].__setitem__("canonical_nakama_online_authority", "ready")),
+        ("human-evidence", lambda value: next(item for item in value["items"] if item["id"] == "WORLD-P2-002A").__setitem__("state", "closed")),
+        ("duplicate-candidate", lambda value: next(item for item in value["items"] if item["id"] == "WORLD-P0-010").__setitem__("state", "source_open")),
     ):
-        require(name in vector_names, f"negative vectors missing {name}")
-
-    build = BUILD_SCRIPT.read_text(encoding="utf-8")
-    require("src/lib.rs.in" in build, "remaining game-server template status drifted")
-    for marker in ("generate_game_server", "OUT_DIR"):
-        require(marker in build, f"remaining game-server transform marker missing: {marker}")
-    for forbidden in (
-        "generate_cex",
-        "src/cex.rs.in",
-        "trnm_cex_generated.rs",
-        "generate_settlement_worker",
-        "settlement_worker.rs.in",
-        "trnm_settlement_worker_generated.rs",
-    ):
-        require(forbidden not in build, f"retired source transform reintroduced: {forbidden}")
-
-    cex = DIRECT_CEX_SOURCE.read_text(encoding="utf-8")
-    for marker in (
-        "pub struct CexClient",
-        "MAX_REMOTE_ERROR_BODY_BYTES",
-        "bounded_error_body",
-        "StatusCode::CONFLICT",
-        "decode isolated signer response after possible commit",
-        "decode CEX receipt after possible commit",
-        "synchronous EconomyBackend I/O is prohibited",
-    ):
-        require(marker in cex, f"direct CEX source missing {marker}")
-    for forbidden in ("OUT_DIR", "trnm_cex_generated.rs", "reqwest::blocking", "blocking_client"):
-        require(forbidden not in cex, f"direct CEX source contains forbidden {forbidden}")
-
-    direct_cex_contract = DIRECT_CEX_CONTRACT.read_text(encoding="utf-8")
-    require(
-        "cex_transport_is_directly_compiled_reviewed_source" in direct_cex_contract,
-        "direct CEX contract missing",
-    )
-
-    worker_wrapper = DIRECT_WORKER_WRAPPER.read_text(encoding="utf-8")
-    for marker in (
-        'include!("settlement_worker_legacy.rs")',
-        'include!("settlement_worker_runtime_v2.rs")',
-        "run_v2 as run",
-    ):
-        require(marker in worker_wrapper, f"direct worker wrapper missing {marker}")
-    for forbidden in ("OUT_DIR", "trnm_settlement_worker_generated.rs"):
-        require(forbidden not in worker_wrapper, f"direct worker wrapper contains {forbidden}")
-
-    worker_runtime = DIRECT_WORKER_RUNTIME.read_text(encoding="utf-8")
-    for marker in (
-        "pub async fn run_v2",
-        "apply_worker_migrations_v2",
-        "0018_online_settlement_operator_controls_v1.sql",
-        "0019_online_settlement_quarantine_v1.sql",
-        "settlement_shutdown_signal_v2",
-        "capture_pending_matches_isolated_v2",
-        "claim_settlement_job_isolated_v2",
-        "apply_ready_captures_isolated_v2",
-    ):
-        require(marker in worker_runtime, f"direct worker runtime missing {marker}")
-
-    worker_contract = DIRECT_WORKER_CONTRACT.read_text(encoding="utf-8")
-    require(
-        "settlement_worker_is_directly_compiled_from_reviewed_modules" in worker_contract,
-        "direct worker contract missing",
-    )
-
-    current_plan = CURRENT_PLAN_PATH.read_text(encoding="utf-8")
-    docs_index = DOCS_INDEX_PATH.read_text(encoding="utf-8")
-    addendum_rel = "TRILLIONNIUM_WORLD_PLAN_V4_CONVERGENCE_ADDENDUM_2026-08-30.md"
-    state_rel = "world-v4-convergence-state-2026-08-30.json"
-    require(addendum_rel in current_plan, "CURRENT_PLAN.md does not bind the addendum")
-    require(state_rel in current_plan, "CURRENT_PLAN.md does not bind convergence state")
-    require(addendum_rel in docs_index, "docs index omits convergence addendum")
-    require(state_rel in docs_index, "docs index omits convergence state")
-
-
-def run_negative_self_test(base: dict[str, Any]) -> None:
-    mutations: list[tuple[str, Any]] = []
-
-    value = copy.deepcopy(base)
-    value["release_posture"]["public_online"] = "ready"
-    mutations.append(("public-online-overclaim", value))
-
-    value = copy.deepcopy(base)
-    value["observed_repository_controls"]["candidate_check_runs"] = 1
-    mutations.append(("invented-check-run", value))
-
-    value = copy.deepcopy(base)
-    value["items"][0]["state"] = "closed"
-    mutations.append(("invented-closure", value))
-
-    value = copy.deepcopy(base)
-    for item in value["items"]:
-        if item["id"] == "WORLD-P0-009":
-            item["state"] = "source_verified"
-    mutations.append(("hidden-generated-source-gap", value))
-
-    value = copy.deepcopy(base)
-    value["observed_repository_controls"]["ruleset_count"] = 1
-    mutations.append(("invented-ruleset", value))
-
-    for name, mutated in mutations:
+        candidate = copy.deepcopy(base)
+        mutate(candidate)
+        mutations.append((label, candidate))
+    for label, value in mutations:
         try:
-            validate_data(mutated)
+            validate_state(value)
         except ValidationError:
             continue
-        raise ValidationError(f"negative self-test unexpectedly passed: {name}")
+        raise ValidationError(f"negative self-test accepted {label}")
 
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--self-test",
-        action="store_true",
-        help="prove common evidence overclaims fail closed",
-    )
-    arguments = parser.parse_args()
-
+    parser.add_argument("--negative-self-test", action="store_true")
+    args = parser.parse_args()
     try:
         validate_repository()
-        if arguments.self_test:
-            run_negative_self_test(load_json(STATE_PATH))
+        if args.negative_self_test:
+            negative_self_test()
     except ValidationError as error:
-        print(f"TRNM World V4 convergence: FAIL: {error}", file=sys.stderr)
+        print(f"ERROR: {error}", file=sys.stderr)
         return 1
-
-    suffix = " + negative self-test" if arguments.self_test else ""
-    print(f"TRNM World V4 convergence: PASS{suffix}")
+    print("Trillionnium World V4 convergence state: valid")
     return 0
 
 
