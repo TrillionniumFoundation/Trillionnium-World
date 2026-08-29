@@ -1,0 +1,216 @@
+name: trnm-world-v4-validation-bootstrap
+
+on:
+  pull_request:
+    branches:
+      - ci/world-v4-validation-base
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trnm-world-v4-bootstrap-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: never
+  CARGO_INCREMENTAL: "0"
+  RUST_BACKTRACE: "1"
+  RUST_TEST_THREADS: "1"
+  RUST_TOOLCHAIN: "1.98.0"
+
+jobs:
+  docs-governance:
+    name: trnm-world-v4/docs-governance
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - name: Checkout exact proposed revision
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Record exact identity
+        run: |
+          set -euo pipefail
+          git rev-parse HEAD
+          git rev-parse 'HEAD^{tree}'
+          git status --short
+      - name: Parse current machine truth
+        run: |
+          set -euo pipefail
+          python3 -m py_compile scripts/check-trnm-world-ci-integrity.py scripts/check-trnm-world-transition-conformance.py scripts/check-world-main-governance.py scripts/check-trnm-settlement-runtime-status.py scripts/test-trnm-settlement-runtime-status-negative.py scripts/check-trnm-world-gates.py scripts/test-trnm-world-gates-negative.py scripts/check-trnm-world-documentation.py scripts/test-trnm-world-documentation-negative.py scripts/check-trnm-world-v4-candidate.py scripts/test-trnm-world-v4-candidate-negative.py
+          for file in \
+            docs/development/trillionnium-world-development-plan-2026-08-29.json \
+            docs/development/trnm-world-gap-closure-ledger-v4.json \
+            docs/protocol/schemas/trnm-world-transition-v1.schema.json \
+            docs/protocol/vectors/trnm-world-transition-v1.json \
+            docs/protocol/vectors/trnm-world-transition-negative-v1.json \
+            docs/status/world-gates-v1.json \
+            docs/status/settlement-runtime-v1.json \
+            docs/status/world-main-governance-v1.json \
+            docs/status/v4-candidate-v1.json; do
+            python3 -m json.tool "$file" >/dev/null
+          done
+      - name: Enforce documentation, evidence, governance, and CI integrity
+        run: |
+          set -euo pipefail
+          python3 scripts/check-trnm-world-ci-integrity.py
+          python3 scripts/check-trnm-world-documentation.py
+          python3 scripts/test-trnm-world-documentation-negative.py
+          python3 scripts/check-trnm-world-v4-candidate.py
+          python3 scripts/test-trnm-world-v4-candidate-negative.py
+          python3 scripts/check-trnm-world-transition-conformance.py
+          python3 scripts/check-world-main-governance.py
+          python3 scripts/check-trnm-settlement-runtime-status.py
+          python3 scripts/test-trnm-settlement-runtime-status-negative.py
+          python3 scripts/check-trnm-world-gates.py
+          python3 scripts/test-trnm-world-gates-negative.py
+      - name: Enforce authority and transaction boundaries
+        run: |
+          set -euo pipefail
+          bash scripts/check-trnm-world-authority-boundary.sh
+          bash scripts/test-trnm-world-authority-boundary-negative.sh
+          bash scripts/check_trnm_runtime_configuration.sh
+          bash scripts/check-trnm-settlement-transaction-boundary.sh
+          bash scripts/check_trnm_settlement_transaction_boundary.sh
+
+  transition-contract:
+    name: trnm-world-v4/transition-contract
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout exact proposed revision
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Install pinned Rust toolchain
+        run: |
+          set -euo pipefail
+          rustup toolchain install "${RUST_TOOLCHAIN}" --profile minimal --component rustfmt,clippy
+          rustup default "${RUST_TOOLCHAIN}"
+          rustc --version --verbose
+          cargo --version --verbose
+      - name: Validate vectors and reference package
+        run: |
+          set -euo pipefail
+          python3 scripts/check-trnm-world-transition-conformance.py
+          manifest=trillionnium/contracts/trnm-world-transition-v1/Cargo.toml
+          cargo metadata --manifest-path "$manifest" --locked --no-deps --format-version 1 >/dev/null
+          cargo fmt --manifest-path "$manifest" -- --check
+          cargo test --manifest-path "$manifest" --locked
+          cargo clippy --manifest-path "$manifest" --all-targets --locked -- -D warnings
+
+  settlement-postgres:
+    name: trnm-world-v4/settlement-postgres
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    services:
+      postgres:
+        image: postgres:16.4-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: world_settlement
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d world_settlement"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      TRNM_SETTLEMENT_TEST_DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/world_settlement
+      TRNM_REQUIRE_SETTLEMENT_DATABASE_TEST: "1"
+    defaults:
+      run:
+        working-directory: trillionnium
+    steps:
+      - name: Checkout exact proposed revision
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Install pinned Rust toolchain
+        run: |
+          set -euo pipefail
+          rustup toolchain install "${RUST_TOOLCHAIN}" --profile minimal --component rustfmt,clippy
+          rustup default "${RUST_TOOLCHAIN}"
+          rustc --version --verbose
+          cargo --version --verbose
+      - name: Resolve, format, test, and lint game server
+        run: |
+          set -euo pipefail
+          cargo metadata --locked --no-deps --format-version 1 >/dev/null
+          cargo fmt -p trnm-game-server -- --check
+          cargo test -p trnm-game-server --all-targets --locked
+          cargo clippy -p trnm-game-server --all-targets --locked -- -D warnings
+
+  game-workspace-release:
+    name: trnm-world-v4/game-workspace-release
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    defaults:
+      run:
+        working-directory: trillionnium
+    steps:
+      - name: Checkout exact proposed revision
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Install native dependencies
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends jq libasound2-dev libudev-dev libx11-dev libxi-dev libxkbcommon-dev libwayland-dev pkg-config
+      - name: Install pinned Rust toolchain
+        run: |
+          set -euo pipefail
+          rustup toolchain install "${RUST_TOOLCHAIN}" --profile minimal --component rustfmt,clippy
+          rustup default "${RUST_TOOLCHAIN}"
+          rustc --version --verbose
+          cargo --version --verbose
+      - name: Enforce product boundaries
+        run: |
+          set -euo pipefail
+          ../scripts/check_trnm_game_product.sh
+          ../scripts/check_trnm_authority_boundary.sh
+          ../scripts/check_trnm_runtime_configuration.sh
+          ../scripts/check-trnm-online-resource-budgets.sh
+      - name: Resolve, format, test, lint, build, and package
+        run: |
+          set -euo pipefail
+          cargo metadata --locked --no-deps --format-version 1 >/dev/null
+          cargo fmt --all -- --check
+          cargo test --workspace --all-targets --locked
+          cargo clippy --workspace --all-targets --locked -- -D warnings
+          cargo build --release --locked -p trnm-first-contact -p trnm-game-server --bins
+          ../scripts/package-trnm-game-release.sh --require-clean --output-dir ../run/ci-distribution
+          archive="$(find ../run/ci-distribution -maxdepth 1 -type f -name '*.tar.gz' -print -quit)"
+          test -n "$archive"
+          TRNM_REQUIRE_CLEAN_PACKAGE=1 ../scripts/check-trnm-game-package.sh "$archive"
+
+  supply-chain:
+    name: trnm-world-v4/supply-chain
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: trillionnium
+    steps:
+      - name: Checkout exact proposed revision
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Install pinned Rust toolchain
+        run: |
+          set -euo pipefail
+          rustup toolchain install "${RUST_TOOLCHAIN}" --profile minimal
+          rustup default "${RUST_TOOLCHAIN}"
+      - name: Install pinned supply-chain tools
+        uses: taiki-e/install-action@742a3317eac7bd62f91cd888b4eead5e784ba833
+        with:
+          tool: cargo-audit,cargo-deny
+      - name: Enforce RustSec and dependency policy
+        run: |
+          set -euo pipefail
+          cargo audit --deny warnings --ignore RUSTSEC-2026-0192
+          cargo deny check advisories bans licenses sources
