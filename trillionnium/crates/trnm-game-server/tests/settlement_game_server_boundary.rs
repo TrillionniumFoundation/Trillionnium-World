@@ -37,3 +37,14 @@ fn both_runtime_entrypoints_register_the_complete_settlement_migration_chain() {
         );
     }
 }
+
+#[test]
+fn generated_migration_includes_use_an_unambiguous_environment_macro() {
+    for source in [
+        GENERATED_GAME_SERVER_SOURCE,
+        GENERATED_SETTLEMENT_WORKER_SOURCE,
+    ] {
+        assert!(source.contains("concat!(::std::env!(\"CARGO_MANIFEST_DIR\")"));
+        assert!(!source.contains("concat!(env!(\"CARGO_MANIFEST_DIR\")"));
+    }
+}
