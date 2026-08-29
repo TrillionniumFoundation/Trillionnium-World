@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fail-closed source/status gate for the final WORLD-P0-001 candidate."""
+"""Fail-closed source/status gate for the WORLD-P0-001 v4 candidate."""
 
 from __future__ import annotations
 
@@ -14,17 +14,30 @@ from typing import Any
 SCHEMA = "trnm_world_settlement_runtime_status_v1"
 CLAIM = "WORLD-P0-001-settlement-fencing-v1"
 OWNER = "TrillionniumFoundation/Trillionnium-World"
-BRANCH = "fix/world-settlement-gap-closure-v1"
-BASE = "ee881a0fec0f40091eaeba67c667ea82ff9d440a"
+BRANCH = "fix/world-plan-gap-closure-v4"
+BASE = "1d4dee6d5add45a64f5c138f424e3bdab369ecd4"
 SHA = re.compile(r"^[0-9a-f]{40}$")
 TOKEN = re.compile(r"^[a-z0-9][a-z0-9_]*$")
-CHECK = re.compile(r"^trnm-settlement-fencing/[a-z0-9-]+$")
+CHECK = re.compile(r"^trnm-world-v4/[a-z0-9-]+$")
 
 REQUIRED_KEYS = {
-    "schema", "claim_id", "work_item", "status", "as_of", "owner_repository",
-    "branch", "base_commit", "verified_commit", "authority_profile",
-    "release_effect", "public_online", "public_player_market",
-    "implemented_controls", "open_gates", "required_checks", "evidence",
+    "schema",
+    "claim_id",
+    "work_item",
+    "status",
+    "as_of",
+    "owner_repository",
+    "branch",
+    "base_commit",
+    "verified_commit",
+    "authority_profile",
+    "release_effect",
+    "public_online",
+    "public_player_market",
+    "implemented_controls",
+    "open_gates",
+    "required_checks",
+    "evidence",
 }
 REQUIRED_CONTROLS = {
     "capture_execute_apply_transaction_split",
@@ -46,31 +59,42 @@ REQUIRED_CONTROLS = {
     "synchronous_cex_economy_backend_fails_closed",
     "static_positive_and_negative_contract_checks",
     "legacy_in_process_settlement_caller_removed",
-    "game_server_and_worker_register_migrations_16_through_18",
+    "game_server_and_worker_register_migrations_16_through_19",
     "capture_commit_precedes_remote_attempt_postgresql_proof",
     "audited_exact_identity_operator_replay",
     "operator_replay_allows_one_additional_remote_attempt",
     "operator_replay_and_policy_evidence_are_append_only",
     "operator_policy_retention_floor_and_alert_projection",
     "generated_runtime_source_fails_closed_on_template_drift",
+    "sigint_sigterm_stop_new_admission",
+    "bounded_shutdown_drain_with_lease_recovery",
+    "bounded_parallel_remote_execution",
+    "poison_match_job_capture_quarantine",
+    "one_campaign_job_per_capture_database_unique",
+    "malformed_success_is_ambiguous_retryable",
+    "http_conflict_is_lookup_recoverable",
+    "bounded_remote_error_body",
+    "read_only_pinned_exact_head_ci",
 }
 REQUIRED_GATES = {
+    "run_exact_head_v4_checks",
     "merge_cex_owner_repository_pull_request",
     "bind_exact_cex_build_and_deployment_artifact",
     "prove_deployed_signer_and_cex_response_loss_recovery",
     "prove_process_kill_cancellation_shutdown_and_apply_rollback_matrix",
     "approve_backup_pitr_restore_and_receipt_retention",
-    "obtain_exact_commit_github_actions_evidence",
     "obtain_reviewer_signoff",
 }
 REQUIRED_CHECKS = {
-    "trnm-settlement-fencing/static-contracts",
-    "trnm-settlement-fencing/rust-contracts",
+    "trnm-world-v4/docs-governance",
+    "trnm-world-v4/settlement-postgres",
+    "trnm-world-v4/supply-chain",
 }
 REQUIRED_LIMITATIONS = {
     "source implementation is not deployment evidence",
     "CEX owner implementation is an unmerged exact-head candidate",
     "external relay evidence does not replace World repository governance",
+    "build-time semantic source generation remains tracked migration debt",
     "no production deployment credit",
     "no trusted CEX settlement promotion",
     "no public online or public market credit",
@@ -106,19 +130,12 @@ def exact_keys(value: dict[str, Any], expected: set[str], label: str) -> None:
 
 def string_set(value: Any, field: str, *, allow_empty: bool = False) -> set[str]:
     if not isinstance(value, list) or (not allow_empty and not value):
-        qualifier = "possibly empty " if allow_empty else "non-empty "
-        fail(f"{field} must be a {qualifier}array")
+        fail(f"{field} must be {'possibly empty' if allow_empty else 'non-empty'} array")
     if any(not isinstance(item, str) or not item for item in value):
         fail(f"{field} must contain non-empty strings")
     if len(value) != len(set(value)):
         fail(f"{field} contains duplicates")
     return set(value)
-
-
-def require_tokens(values: set[str], field: str) -> None:
-    bad = sorted(value for value in values if TOKEN.fullmatch(value) is None)
-    if bad:
-        fail(f"{field} contains invalid tokens: {bad}")
 
 
 def require_markers(source: str, markers: tuple[str, ...], label: str) -> None:
@@ -161,14 +178,14 @@ def validate_status(status: dict[str, Any], schema: dict[str, Any]) -> None:
     controls = string_set(status["implemented_controls"], "implemented_controls")
     gates = string_set(status["open_gates"], "open_gates")
     checks = string_set(status["required_checks"], "required_checks")
-    require_tokens(controls, "implemented_controls")
-    require_tokens(gates, "open_gates")
-    if not REQUIRED_CONTROLS.issubset(controls):
-        fail(f"missing controls: {sorted(REQUIRED_CONTROLS - controls)}")
+    if any(TOKEN.fullmatch(value) is None for value in controls | gates):
+        fail("implemented controls/open gates contain invalid tokens")
+    if controls != REQUIRED_CONTROLS:
+        fail(f"implemented controls drift: missing={sorted(REQUIRED_CONTROLS-controls)} extra={sorted(controls-REQUIRED_CONTROLS)}")
     if gates != REQUIRED_GATES:
-        fail(f"open_gates must equal {sorted(REQUIRED_GATES)}, got {sorted(gates)}")
+        fail(f"open gates drift: missing={sorted(REQUIRED_GATES-gates)} extra={sorted(gates-REQUIRED_GATES)}")
     if checks != REQUIRED_CHECKS or any(CHECK.fullmatch(value) is None for value in checks):
-        fail(f"required_checks drift: {sorted(checks)}")
+        fail(f"required checks drift: {sorted(checks)}")
 
     evidence = status["evidence"]
     if not isinstance(evidence, dict):
@@ -178,15 +195,11 @@ def validate_status(status: dict[str, Any], schema: dict[str, Any]) -> None:
         {"remote_workflow_runs", "artifacts", "reviewers", "limitations"},
         "evidence",
     )
-    if (
-        evidence["remote_workflow_runs"] != []
-        or evidence["artifacts"] != []
-        or evidence["reviewers"] != []
-    ):
+    if evidence["remote_workflow_runs"] or evidence["artifacts"] or evidence["reviewers"]:
         fail("candidate source cannot self-invent future evidence")
     limitations = string_set(evidence["limitations"], "evidence.limitations")
-    if not REQUIRED_LIMITATIONS.issubset(limitations):
-        fail(f"missing limitations: {sorted(REQUIRED_LIMITATIONS - limitations)}")
+    if limitations != REQUIRED_LIMITATIONS:
+        fail("evidence limitations drift")
 
 
 def read(repo: pathlib.Path, relative: str) -> str:
@@ -202,137 +215,117 @@ def read(repo: pathlib.Path, relative: str) -> str:
 
 def validate_source(repo: pathlib.Path) -> None:
     entry = read(repo, "trillionnium/crates/trnm-game-server/src/lib.rs")
-    worker_entry = read(
-        repo, "trillionnium/crates/trnm-game-server/src/settlement_worker.rs"
-    )
+    worker_entry = read(repo, "trillionnium/crates/trnm-game-server/src/settlement_worker.rs")
+    runtime_v2 = read(repo, "trillionnium/crates/trnm-game-server/src/settlement_worker_runtime_v2.rs")
     build = read(repo, "trillionnium/crates/trnm-game-server/build.rs")
-    outbox = read(
-        repo,
-        "trillionnium/crates/trnm-game-server/migrations/0016_online_settlement_outbox_v1.sql",
-    )
-    worker = read(
-        repo,
-        "trillionnium/crates/trnm-game-server/migrations/0017_online_settlement_worker_runtime_v1.sql",
-    )
-    operator = read(
-        repo,
-        "trillionnium/crates/trnm-game-server/migrations/0018_online_settlement_operator_controls_v1.sql",
-    )
-    cex = read(repo, "trillionnium/crates/trnm-game-server/src/cex.rs")
-    signer = read(
-        repo,
-        "trillionnium/crates/trnm-game-server/src/bin/trnm-entitlement-signer.rs",
-    )
-    boundary = read(
-        repo,
-        "trillionnium/crates/trnm-game-server/tests/settlement_game_server_boundary.rs",
-    )
-    capture_test = read(
-        repo,
-        "trillionnium/crates/trnm-game-server/tests/settlement_capture_commit_boundary.rs",
-    )
-    operator_test = read(
-        repo,
-        "trillionnium/crates/trnm-game-server/tests/settlement_operator_controls_database.rs",
-    )
-    workflow = read(repo, ".github/workflows/trnm-settlement-fencing.yml")
+    cargo = read(repo, "trillionnium/crates/trnm-game-server/Cargo.toml")
+    worker_sql = read(repo, "trillionnium/crates/trnm-game-server/migrations/0017_online_settlement_worker_runtime_v1.sql")
+    operator_sql = read(repo, "trillionnium/crates/trnm-game-server/migrations/0018_online_settlement_operator_controls_v1.sql")
+    quarantine_sql = read(repo, "trillionnium/crates/trnm-game-server/migrations/0019_online_settlement_quarantine_v1.sql")
+    cex_entry = read(repo, "trillionnium/crates/trnm-game-server/src/cex.rs")
+    cex_template = read(repo, "trillionnium/crates/trnm-game-server/src/cex.rs.in")
+    runtime_test = read(repo, "trillionnium/crates/trnm-game-server/tests/settlement_runtime_v2_contract.rs")
+    workflow = read(repo, ".github/workflows/trnm-world-gap-closure-v4.yml")
 
     require_markers(entry, ("trnm_game_server_lib_generated.rs",), "game-server entrypoint")
     require_markers(
         worker_entry,
-        ("trnm_settlement_worker_generated.rs",),
+        ("trnm_settlement_worker_generated.rs", "settlement_worker_runtime_v2.rs"),
         "worker entrypoint",
     )
     require_markers(
         build,
         (
-            "WORLD-P0-001 source transform failed closed",
-            "0016_online_settlement_outbox_v1",
-            "0017_online_settlement_worker_runtime_v1",
-            "0018_online_settlement_operator_controls_v1",
-            'source.contains("reconcile_economy(&state.cex")',
-            'source.contains("settle_pending_matches(&settlement_state")',
-            "terminal settlement is owned by trnm-settlement-worker",
+            "WORLD-P0 source transform failed closed",
+            "0019_online_settlement_quarantine_v1",
+            "run_legacy_disabled",
+            "generate_cex",
+            "bounded_error_body",
+            "StatusCode::CONFLICT",
+            "trnm_cex_generated.rs",
         ),
         "generated runtime transform",
     )
     require_markers(
-        outbox.lower(),
-        ("on delete restrict", "trnm_online_settlement_jobs", "intent_hash"),
-        "outbox migration",
+        runtime_v2,
+        (
+            "SignalKind::terminate",
+            "JoinSet::<Result<(), String>>::new",
+            "drain_remote_work_v2",
+            "trnm_online_quarantine_claimed_settlement_job_v1",
+            "trnm_online_settlement_scope_quarantined_v1",
+            "trnm_online_record_settlement_quarantine_v1",
+        ),
+        "runtime v2",
     )
     require_markers(
-        worker.lower(),
+        worker_sql.lower(),
         (
             "trnm_online_remote_request_id_v1",
             "pg_try_advisory_xact_lock",
             "lease_expires_at > pg_catalog.clock_timestamp()",
-            "trnm_online_settlement_metrics_v1",
             "pending_apply",
         ),
         "worker migration",
     )
     require_markers(
-        operator.lower(),
+        operator_sql.lower(),
         (
-            "trnm_online_settlement_operator_replay",
             "trnm_online_settlement_operator_replay_requests",
             "before update or delete",
             "before truncate",
-            "remote_attempts",
             "retention",
         ),
         "operator controls",
     )
     require_markers(
-        cex,
+        quarantine_sql.lower(),
+        (
+            "idx_trnm_online_settlement_job_one_campaign_per_capture_v1",
+            "trnm_online_settlement_quarantine_v1",
+            "trnm_online_record_settlement_quarantine_v1",
+            "trnm_online_quarantine_claimed_settlement_job_v1",
+            "trnm_online_resolve_settlement_quarantine_v1",
+        ),
+        "quarantine migration",
+    )
+    require_markers(cex_entry, ("trnm_cex_generated.rs",), "CEX entrypoint")
+    require_markers(
+        cex_template,
         ("lookup_signer_receipt", "lookup_authorized_settlement_receipt"),
-        "CEX recovery client",
+        "CEX recovery template",
     )
+    if '"blocking"' in cargo or "reqwest::blocking" in cex_template:
+        fail("blocking HTTP support returned")
     require_markers(
-        signer,
-        ("/v1/signer/receipts/:request_id",),
-        "signer receipt route",
-    )
-    require_markers(
-        boundary,
+        runtime_test,
         (
-            "GENERATED_GAME_SERVER_SOURCE",
-            "reconcile_economy(&state.cex",
-            "terminal settlement is owned by trnm-settlement-worker",
+            "runtime_v2_owns_interruptible_admission_and_bounded_drain",
+            "unrelated_remote_work_can_run_concurrently",
+            "poison_work_is_quarantined_without_reusing_a_lost_lease",
         ),
-        "game-server ownership test",
-    )
-    require_markers(capture_test, ("capture", "claim", "remote"), "capture commit test")
-    require_markers(
-        operator_test,
-        (
-            "settlement_operator_replay_is_exact_audited_one_attempt_and_append_only",
-            "remote_attempts",
-            "truncate public.trnm_online_settlement_operator_replay_requests",
-        ),
-        "operator PostgreSQL test",
+        "runtime v2 contract test",
     )
     require_markers(
         workflow,
         (
-            "fix/world-settlement-gap-closure-v1",
-            "settlement_game_server_boundary",
-            "settlement_operator_controls_database",
-            "cargo fmt --all -- --check",
+            "trnm-world-v4/docs-governance",
+            "trnm-world-v4/settlement-postgres",
+            "trnm-world-v4/supply-chain",
+            "contents: read",
+            "cargo test -p trnm-game-server --all-targets --locked",
             "cargo clippy -p trnm-game-server --all-targets --locked -- -D warnings",
         ),
-        "settlement workflow",
+        "v4 workflow",
     )
+    for forbidden in ("contents: write", "git push", "git commit", "git tag", "clippy --fix"):
+        if forbidden in workflow:
+            fail(f"v4 workflow contains forbidden mutation: {forbidden}")
 
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--repo",
-        type=pathlib.Path,
-        default=pathlib.Path(__file__).resolve().parents[1],
-    )
+    parser.add_argument("--repo", type=pathlib.Path, default=pathlib.Path(__file__).resolve().parents[1])
     parser.add_argument("--status", type=pathlib.Path)
     parser.add_argument("--schema", type=pathlib.Path)
     parser.add_argument("--skip-source", action="store_true")
