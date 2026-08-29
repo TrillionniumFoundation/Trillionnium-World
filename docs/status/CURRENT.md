@@ -33,7 +33,8 @@ enforcement. Empty check collections are blockers, not successful evidence.
 | Gate | Current convergence state | Authority profile | Promotion blockers |
 | --- | --- | --- | --- |
 | Deterministic transition source | **source implemented, unverified** | World game domain | non-empty exact-head Rust and independent conformance |
-| Reviewable compiled game-server source | **source open** | World compatibility enclave | semantic `build.rs` rewriting and `.rs.in` compiled authority |
+| Direct CEX/signer transport source | **source implemented, unverified** | World settlement adapter | exact-head Rust and response-loss tests |
+| Reviewable compiled game-server/worker source | **source open** | World compatibility enclave | semantic `build.rs` rewriting of `lib.rs.in` and `settlement_worker.rs.in` |
 | Settlement capture/execute/apply source | **source implemented, unverified** | World compatibility enclave + CEX | exact-head Rust/PostgreSQL, independent review, deployed fault matrix |
 | Repository Actions execution | **repository-control blocked** | GitHub repository/organization | enable Actions and produce a non-empty exact-head run |
 | Protected `main` and required checks | **repository-control blocked** | GitHub repository/organization | apply and independently query server-side ruleset |
@@ -45,16 +46,19 @@ enforcement. Empty check collections are blockers, not successful evidence.
 | Public player market | **disabled** | separate approval | public online plus custody/fraud/dispute/support/legal/economic approval |
 | Commercial single-player | **NO-GO** | World native client | multi-OS signing, accessibility, support, legal and independent human evidence |
 
-## Source implemented in the V4 candidate
+## Source implemented in the convergence candidate
 
 - strict `trnm_world_transition_v1` parser and API;
 - complete syntax, ordering, duplicate-key, signed-i64, minimal-escape, UTF-8, depth and exact re-encoding checks;
-- recursive authority-key denial, now including ASCII case-folded aliases;
+- recursive authority-key denial including ASCII case-folded aliases;
 - positive and negative canonical vectors;
 - transaction-free settlement capture, remote execution and fenced apply design;
 - stable remote request identity and lookup-before-submit;
 - live lease fencing and separate remote/application state;
 - bounded shutdown/concurrency and poison-work quarantine source;
+- directly compiled `src/cex.rs` with bounded remote error bodies, 409 ambiguity handling, and malformed-success recovery;
+- removal of `cex.rs.in` and CEX semantic build generation;
+- direct CEX source regression contract;
 - current architecture, security, database, release and runbook documents;
 - read-only SHA-pinned workflow definitions.
 
@@ -63,8 +67,8 @@ upstream, human, public-network, custody or commercial evidence.
 
 ## Open World-owned source blockers
 
-1. Materialize directly compiled game-server, settlement-worker and CEX source.
-2. Remove semantic source rewriting from `build.rs` and remove `.rs.in` as a compiled-source authority.
+1. Materialize directly compiled `lib.rs` and `settlement_worker.rs`.
+2. Remove the remaining semantic source rewriting from `build.rs` and remove their `.rs.in` compiled authority.
 3. Finish correctness-oriented module decomposition and invariant tests.
 4. Reconcile overlapping V4 candidates into one current candidate.
 5. Run and repair the full exact-head matrix after Actions execution is enabled.
