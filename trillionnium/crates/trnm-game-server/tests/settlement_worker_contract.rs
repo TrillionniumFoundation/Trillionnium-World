@@ -1,14 +1,36 @@
+use std::path::PathBuf;
+
 const OUTBOX_MIGRATION: &str = include_str!("../migrations/0016_online_settlement_outbox_v1.sql");
 const WORKER_MIGRATION: &str =
     include_str!("../migrations/0017_online_settlement_worker_runtime_v1.sql");
-const WORKER_SOURCE: &str = include_str!("../src/settlement_worker.rs.in");
+const WORKER_WRAPPER: &str = include_str!("../src/settlement_worker.rs");
+const WORKER_LEGACY_SOURCE: &str = include_str!("../src/settlement_worker_legacy.rs");
+const WORKER_RUNTIME_V2_SOURCE: &str = include_str!("../src/settlement_worker_runtime_v2.rs");
 const CEX_SOURCE: &str = include_str!("../src/cex.rs");
 const SIGNER_PROTOCOL: &str = include_str!("../src/signer_protocol.rs");
 const SIGNER_BINARY: &str = include_str!("../src/bin/trnm-entitlement-signer.rs");
 const WORKER_BINARY: &str = include_str!("../src/bin/trnm-settlement-worker.rs");
+const BUILD_SCRIPT: &str = include_str!("../build.rs");
 
 fn normalized(source: &str) -> String {
     source.split_whitespace().collect::<Vec<_>>().join(" ")
+}
+
+#[test]
+fn settlement_worker_is_directly_compiled_from_reviewed_modules() {
+    assert!(WORKER_WRAPPER.contains("settlement_worker_legacy.rs"));
+    assert!(WORKER_WRAPPER.contains("settlement_worker_runtime_v2.rs"));
+    assert!(WORKER_WRAPPER.contains("run_v2 as run"));
+    assert!(!WORKER_WRAPPER.contains("OUT_DIR"));
+    assert!(!WORKER_WRAPPER.contains("trnm_settlement_worker_generated.rs"));
+
+    assert!(!BUILD_SCRIPT.contains("generate_settlement_worker"));
+    assert!(!BUILD_SCRIPT.contains("settlement_worker.rs.in"));
+    assert!(!BUILD_SCRIPT.contains("trnm_settlement_worker_generated.rs"));
+
+    let template = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("src/settlement_worker.rs.in");
+    assert!(!template.exists(), "worker template authority must stay removed");
 }
 
 #[test]
@@ -34,6 +56,23 @@ fn capture_claim_and_apply_are_persisted_as_separate_contracts() {
         assert!(
             sql.contains(required),
             "missing settlement contract: {required}"
+        );
+    }
+}
+
+#[test]
+fn runtime_v2_registers_operator_and_quarantine_migrations_directly() {
+    for required in [
+        "0018_online_settlement_operator_controls_v1.sql",
+        "0019_online_settlement_quarantine_v1.sql",
+        "apply_worker_migrations_v2",
+        "apply_worker_migrations_v2_locked",
+        "18_i32",
+        "19_i32",
+    ] {
+        assert!(
+            WORKER_RUNTIME_V2_SOURCE.contains(required),
+            "missing direct runtime migration control: {required}"
         );
     }
 }
@@ -144,7 +183,7 @@ fn both_campaign_fences_are_revalidated_before_any_apply_commit() {
         "finalize_match_in_transaction(&mut transaction, match_id).await",
     ] {
         assert!(
-            WORKER_SOURCE.contains(required),
+            WORKER_LEGACY_SOURCE.contains(required),
             "worker lost exact apply invariant: {required}"
         );
     }
@@ -152,30 +191,32 @@ fn both_campaign_fences_are_revalidated_before_any_apply_commit() {
 
 #[test]
 fn external_requests_are_only_in_the_execute_phase() {
-    let capture_start = WORKER_SOURCE.find("async fn capture_match").unwrap();
-    let capture_end = WORKER_SOURCE[capture_start..]
+    let capture_start = WORKER_LEGACY_SOURCE.find("async fn capture_match").unwrap();
+    let capture_end = WORKER_LEGACY_SOURCE[capture_start..]
         .find("async fn load_terminal_identity")
         .map(|offset| capture_start + offset)
         .unwrap();
-    let capture = &WORKER_SOURCE[capture_start..capture_end];
+    let capture = &WORKER_LEGACY_SOURCE[capture_start..capture_end];
     assert!(!capture.contains("authorize_settlement_intent"));
     assert!(!capture.contains("submit_authorized_settlement_intent"));
 
-    let apply_start = WORKER_SOURCE.find("async fn apply_capture").unwrap();
-    let apply_end = WORKER_SOURCE[apply_start..]
+    let apply_start = WORKER_LEGACY_SOURCE.find("async fn apply_capture").unwrap();
+    let apply_end = WORKER_LEGACY_SOURCE[apply_start..]
         .find("struct CaptureJobRow")
         .map(|offset| apply_start + offset)
         .unwrap();
-    let apply = &WORKER_SOURCE[apply_start..apply_end];
+    let apply = &WORKER_LEGACY_SOURCE[apply_start..apply_end];
     assert!(!apply.contains("authorize_settlement_intent"));
     assert!(!apply.contains("submit_authorized_settlement_intent"));
 
-    let execute_start = WORKER_SOURCE.find("async fn process_claimed_job").unwrap();
-    let execute_end = WORKER_SOURCE[execute_start..]
+    let execute_start = WORKER_LEGACY_SOURCE
+        .find("async fn process_claimed_job")
+        .unwrap();
+    let execute_end = WORKER_LEGACY_SOURCE[execute_start..]
         .find("async fn handle_external_failure")
         .map(|offset| execute_start + offset)
         .unwrap();
-    let execute = &WORKER_SOURCE[execute_start..execute_end];
+    let execute = &WORKER_LEGACY_SOURCE[execute_start..execute_end];
     assert!(!execute.contains(".begin()"));
     assert!(execute.contains("authorize_settlement_intent"));
     assert!(execute.contains("submit_authorized_settlement_intent"));
