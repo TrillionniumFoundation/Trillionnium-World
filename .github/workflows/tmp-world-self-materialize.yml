@@ -1,0 +1,85 @@
+name: tmp-world-self-materialize
+
+on:
+  push:
+    branches:
+      - tmp/world-actions-materialize-20260831
+
+permissions:
+  contents: write
+
+jobs:
+  materialize:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+      - name: Install pinned Rust
+        run: |
+          set -euo pipefail
+          rustup toolchain install 1.98.0 --profile minimal --component rustfmt,clippy
+          rustup default 1.98.0
+      - name: Materialize reviewed source and validate
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^)" = "5f76aceabe2b1c236c57fbe26c6b70e4bdb31903"
+          cargo check --manifest-path trillionnium/Cargo.toml --locked -p trnm-game-server --lib
+          generated="$(find trillionnium/target -type f -path '*/out/trnm_game_server_lib_generated.rs' -print | head -n 1)"
+          test -s "$generated"
+          python3 - <<'PY'
+          from pathlib import Path
+          crate=Path('trillionnium/crates/trnm-game-server')
+          lib=crate/'src/lib.rs'
+          wrapper=lib.read_text()
+          marker='// The full reviewed server body is generated from src/lib.rs.in by build.rs.'
+          if wrapper.count(marker)!=1: raise SystemExit('wrapper drift')
+          header=wrapper.split(marker,1)[0].rstrip()
+          generated=next(Path('trillionnium/target').glob('**/out/trnm_game_server_lib_generated.rs')).read_text()
+          lib.write_text(header+'\n\n'+generated.lstrip())
+          cargo=crate.joinpath('Cargo.toml').read_text()
+          build='build = "build.rs"\n'
+          if cargo.count(build)!=1: raise SystemExit('manifest drift')
+          crate.joinpath('Cargo.toml').write_text(cargo.replace(build,'',1))
+          crate.joinpath('build.rs').unlink()
+          crate.joinpath('src/lib.rs.in').unlink()
+          cex=crate.joinpath('src/cex.rs')
+          s=cex.read_text()
+          old='''            let host = url.host_str().unwrap_or_default();
+            let loopback = host.eq_ignore_ascii_case("localhost")
+                || host
+                    .parse::<IpAddr>()
+                    .is_ok_and(|address| address.is_loopback());
+'''
+          new='''            let host = url.host_str().unwrap_or_default();
+            let canonical_host = host
+                .strip_suffix('.')
+                .unwrap_or(host)
+                .strip_prefix('[')
+                .and_then(|host| host.strip_suffix(']'))
+                .unwrap_or_else(|| host.strip_suffix('.').unwrap_or(host));
+            let loopback = canonical_host.eq_ignore_ascii_case("localhost")
+                || canonical_host
+                    .parse::<IpAddr>()
+                    .is_ok_and(|address| address.is_loopback());
+'''
+          if s.count(old)!=1: raise SystemExit('cex normalization drift')
+          cex.write_text(s.replace(old,new,1))
+          PY
+          cargo fmt --manifest-path trillionnium/Cargo.toml -p trnm-game-server
+          cargo check --manifest-path trillionnium/Cargo.toml --locked -p trnm-game-server --lib
+          cargo test --manifest-path trillionnium/Cargo.toml --locked -p trnm-game-server --lib
+          cargo clippy --manifest-path trillionnium/Cargo.toml --locked -p trnm-game-server --lib -- -D warnings
+          bash scripts/check-trnm-settlement-transaction-boundary.sh
+          bash scripts/check_trnm_settlement_transaction_boundary.sh
+          git diff --check
+      - name: Commit materialized source
+        run: |
+          set -euo pipefail
+          git config user.name 'Tomasrgbsf'
+          git config user.email 'tomasbraynt@gmail.com'
+          git add -A
+          git commit -m 'fix(world): compile reviewed game-server source directly'
+          git push origin HEAD:tmp/world-actions-materialize-20260831
