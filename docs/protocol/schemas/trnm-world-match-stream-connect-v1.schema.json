@@ -1,0 +1,49 @@
+{
+  "$id": "urn:trnm:world:match-stream-connect:v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "account_id": {
+      "maxLength": 256,
+      "minLength": 1,
+      "type": "string"
+    },
+    "build_id": {
+      "maxLength": 256,
+      "minLength": 1,
+      "type": "string"
+    },
+    "last_snapshot_hash": {
+      "default": "",
+      "pattern": "^$|^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "next_receipt_sequence": {
+      "default": 0,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "player_id": {
+      "maxLength": 256,
+      "minLength": 1,
+      "type": "string"
+    },
+    "protocol_version": {
+      "const": "trnm-online-stream-v1"
+    }
+  },
+  "required": [
+    "protocol_version",
+    "build_id",
+    "player_id",
+    "account_id"
+  ],
+  "title": "Trillionnium World match stream connect query v1",
+  "type": "object",
+  "x-authority-boundary": {
+    "canonical-online-authority": "Trillionnium-Nakama",
+    "profile": "world_legacy_local_alpha",
+    "public-online": "no_go"
+  },
+  "x-unknown-field-policy": "reject in the published contract; implementation tolerance does not grant authority or compatibility"
+}

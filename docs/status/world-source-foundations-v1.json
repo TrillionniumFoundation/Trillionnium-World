@@ -1,0 +1,48 @@
+{
+  "as_of": "2026-08-31",
+  "authority": {
+    "commercial_release": "no_go",
+    "nakama": "target canonical online authority",
+    "public_online": "no_go",
+    "public_player_market": "disabled",
+    "world": "deterministic game-domain behavior and compatibility enclave only"
+  },
+  "candidate_branch": "fix/world-plan-v4-convergence-2026-08-30",
+  "owner": "Trillionnium-World",
+  "schema": "trnm_world_source_foundations_v1",
+  "source_claims": {
+    "WORLD-P1-002": {
+      "evidence": [
+        "docs/protocol/openapi/trnm-world-legacy-local-alpha-v1.openapi.json",
+        "docs/protocol/openapi/path-templates.json",
+        "docs/protocol/schemas/trnm-world-match-stream-connect-v1.schema.json",
+        "docs/protocol/schemas/trnm-world-match-stream-v1.schema.json",
+        "docs/protocol/trnm-world-http-websocket-contract-v1.md",
+        "scripts/check-trnm-world-source-foundations.sh"
+      ],
+      "exact_head_ci_required": true,
+      "release_effect": "none",
+      "state": "implemented_source_candidate"
+    },
+    "WORLD-P1-003": {
+      "evidence": [
+        "docs/database/trnm-world-postgres-contract-v1.md",
+        "docs/database/trnm-world-stored-procedure-catalog-v1.md",
+        "docs/database/trnm-world-lock-order-v1.md",
+        "scripts/check-trnm-world-source-foundations.sh"
+      ],
+      "postgres_fault_pitr_evidence_required": true,
+      "release_effect": "none",
+      "state": "implemented_source_candidate_environment_pending"
+    },
+    "WORLD-P1-004": {
+      "clean_host_lifecycle_rehearsal_required": true,
+      "evidence": [
+        "docs/operations/trnm-world-clean-host-install-contract-v1.md",
+        "scripts/check-trnm-world-source-foundations.sh"
+      ],
+      "release_effect": "none",
+      "state": "source_foundation_candidate_environment_pending"
+    }
+  }
+}

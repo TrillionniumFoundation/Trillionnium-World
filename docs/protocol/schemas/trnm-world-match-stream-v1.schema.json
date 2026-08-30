@@ -1,0 +1,173 @@
+{
+  "$defs": {
+    "full_snapshot": {
+      "additionalProperties": false,
+      "properties": {
+        "actor_generation": {
+          "maxLength": 256,
+          "minLength": 1,
+          "type": "string"
+        },
+        "message_type": {
+          "const": "full_snapshot"
+        },
+        "next_receipt_sequence": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "snapshot": {
+          "type": "object"
+        },
+        "state_sequence": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "view": {
+          "$ref": "#/$defs/view"
+        }
+      },
+      "required": [
+        "message_type",
+        "actor_generation",
+        "state_sequence",
+        "next_receipt_sequence",
+        "view",
+        "snapshot"
+      ],
+      "type": "object"
+    },
+    "resync_required": {
+      "additionalProperties": false,
+      "properties": {
+        "actor_generation": {
+          "maxLength": 256,
+          "minLength": 1,
+          "type": "string"
+        },
+        "message_type": {
+          "const": "resync_required"
+        },
+        "reason": {
+          "maxLength": 512,
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "message_type",
+        "actor_generation",
+        "reason"
+      ],
+      "type": "object"
+    },
+    "sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "snapshot_delta": {
+      "additionalProperties": false,
+      "properties": {
+        "actor_generation": {
+          "maxLength": 256,
+          "minLength": 1,
+          "type": "string"
+        },
+        "base_state_sequence": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "delta": {
+          "additionalProperties": false,
+          "properties": {
+            "authoritative_tick": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "base_snapshot_hash": {
+              "$ref": "#/$defs/sha256"
+            },
+            "base_tick": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "changed_fields": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "removed_fields": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array",
+              "uniqueItems": true
+            },
+            "snapshot_hash": {
+              "$ref": "#/$defs/sha256"
+            }
+          },
+          "required": [
+            "base_snapshot_hash",
+            "snapshot_hash",
+            "base_tick",
+            "authoritative_tick",
+            "changed_fields",
+            "removed_fields"
+          ],
+          "type": "object"
+        },
+        "message_type": {
+          "const": "snapshot_delta"
+        },
+        "state_sequence": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "view": {
+          "$ref": "#/$defs/view"
+        }
+      },
+      "required": [
+        "message_type",
+        "actor_generation",
+        "state_sequence",
+        "base_state_sequence",
+        "view",
+        "delta"
+      ],
+      "type": "object"
+    },
+    "view": {
+      "additionalProperties": true,
+      "type": "object"
+    }
+  },
+  "$id": "urn:trnm:world:match-stream:v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "State-only messages emitted by the World legacy local alpha compatibility enclave. Clients must not send text or binary data frames.",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/full_snapshot"
+    },
+    {
+      "$ref": "#/$defs/snapshot_delta"
+    },
+    {
+      "$ref": "#/$defs/resync_required"
+    }
+  ],
+  "title": "Trillionnium World match stream server message v1",
+  "x-authority-boundary": {
+    "canonical-online-authority": "Trillionnium-Nakama",
+    "profile": "world_legacy_local_alpha",
+    "public-online": "no_go"
+  },
+  "x-wire-contract": {
+    "client-data-frames": "rejected-with-close-1008",
+    "reauth-seconds": 60,
+    "send-timeout-seconds": 2,
+    "server-ping-seconds": 15,
+    "subprotocol": "trnm-online-stream-v1",
+    "unknown-field": "reject-for-server-message-envelopes",
+    "unknown-message-type": "reject-and-resync"
+  }
+}
