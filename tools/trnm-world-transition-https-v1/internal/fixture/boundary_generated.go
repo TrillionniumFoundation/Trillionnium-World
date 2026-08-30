@@ -7,7 +7,7 @@ const (
 	DiagnosticFallback     = "request rejected"
 )
 
-var forbiddenAuthorityKeys = map[string]struct{}{
+var generatedForbiddenAuthorityKeys = map[string]struct{}{
 	"authority_private_key":         {},
 	"canonical_archive_root":        {},
 	"chain_app_hash":                {},
