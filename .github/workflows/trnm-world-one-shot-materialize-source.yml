@@ -1,0 +1,162 @@
+name: trnm-world-one-shot-materialize-source
+
+on:
+  push:
+    branches:
+      - fix/world-plan-v4-convergence-2026-08-30
+    paths:
+      - .github/workflows/trnm-world-one-shot-materialize-source.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: trnm-world-one-shot-materialize-source
+  cancel-in-progress: false
+
+env:
+  CARGO_TERM_COLOR: never
+  CARGO_INCREMENTAL: "0"
+  RUST_BACKTRACE: "1"
+  RUST_TOOLCHAIN: "1.98.0"
+
+jobs:
+  materialize:
+    if: github.repository == 'TrillionniumFoundation/Trillionnium-World' && github.ref_name == 'fix/world-plan-v4-convergence-2026-08-30'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - name: Checkout the convergence branch
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Fail closed on source drift
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git hash-object trillionnium/crates/trnm-game-server/build.rs)" = "abc8d4228123e13a3dc5e3e154467a7d2b67e2ee"
+          test "$(git hash-object trillionnium/crates/trnm-game-server/src/lib.rs)" = "f5b2d91ae359d86fd259dc1b170982b8a0960d13"
+          test "$(git hash-object trillionnium/crates/trnm-game-server/src/lib.rs.in)" = "8882f47db55ca5993329594901c828c6faf325a8"
+          test "$(git hash-object trillionnium/crates/trnm-game-server/Cargo.toml)" = "d27f7eb6a06bc3b8ceb13e31edacc72d3f58262f"
+          test -z "$(git status --porcelain)"
+
+      - name: Install pinned Rust toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          rustup toolchain install "${RUST_TOOLCHAIN}" --profile minimal --component rustfmt,clippy
+          rustup default "${RUST_TOOLCHAIN}"
+          rustc --version --verbose
+          cargo --version --verbose
+
+      - name: Produce the reviewed generated body
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo check --manifest-path trillionnium/Cargo.toml --locked -p trnm-game-server --lib
+          generated="$(find target trillionnium/target -type f -path '*/out/trnm_game_server_lib_generated.rs' -print 2>/dev/null | head -n 1)"
+          test -n "${generated}"
+          cp "${generated}" /tmp/trnm_game_server_lib_generated.rs
+          test -s /tmp/trnm_game_server_lib_generated.rs
+          grep -q 'terminal settlement is owned by trnm-settlement-worker' /tmp/trnm_game_server_lib_generated.rs
+          ! grep -q 'reconcile_economy(&state.cex' /tmp/trnm_game_server_lib_generated.rs
+          ! grep -q 'settle_pending_matches(&settlement_state' /tmp/trnm_game_server_lib_generated.rs
+
+      - name: Materialize direct source and retire semantic build rewriting
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          crate = Path("trillionnium/crates/trnm-game-server")
+          lib = crate / "src/lib.rs"
+          wrapper = lib.read_text(encoding="utf-8")
+          marker = "// The full reviewed server body is generated from src/lib.rs.in by build.rs."
+          if wrapper.count(marker) != 1:
+              raise SystemExit("reviewed lib.rs wrapper marker drifted")
+          header = wrapper.split(marker, 1)[0].rstrip()
+          generated = Path("/tmp/trnm_game_server_lib_generated.rs").read_text(encoding="utf-8")
+          if "include!(concat!(" in generated or "trnm_game_server_lib_generated.rs" in generated:
+              raise SystemExit("generated body retained recursive generated-source include")
+          lib.write_text(f"{header}\n\n{generated.lstrip()}", encoding="utf-8")
+
+          manifest = crate / "Cargo.toml"
+          cargo = manifest.read_text(encoding="utf-8")
+          build_line = 'build = "build.rs"\n'
+          if cargo.count(build_line) != 1:
+              raise SystemExit("reviewed Cargo.toml build-script declaration drifted")
+          manifest.write_text(cargo.replace(build_line, "", 1), encoding="utf-8")
+
+          for obsolete in (crate / "build.rs", crate / "src/lib.rs.in"):
+              if not obsolete.is_file():
+                  raise SystemExit(f"expected obsolete source missing: {obsolete}")
+              obsolete.unlink()
+          PY
+
+          test ! -e trillionnium/crates/trnm-game-server/build.rs
+          test ! -e trillionnium/crates/trnm-game-server/src/lib.rs.in
+          ! grep -q '^build = "build.rs"$' trillionnium/crates/trnm-game-server/Cargo.toml
+          ! grep -q 'OUT_DIR.*trnm_game_server_lib_generated' trillionnium/crates/trnm-game-server/src/lib.rs
+          ! grep -q 'reconcile_economy(&state.cex' trillionnium/crates/trnm-game-server/src/lib.rs
+          ! grep -q 'settle_pending_matches(&settlement_state' trillionnium/crates/trnm-game-server/src/lib.rs
+
+      - name: Format and verify the directly compiled source
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo fmt --manifest-path trillionnium/Cargo.toml -p trnm-game-server
+          cargo check --manifest-path trillionnium/Cargo.toml --locked -p trnm-game-server --lib
+          cargo test --manifest-path trillionnium/Cargo.toml --locked -p trnm-game-server --lib
+          cargo clippy --manifest-path trillionnium/Cargo.toml --locked -p trnm-game-server --lib -- -D warnings
+          bash scripts/check-trnm-settlement-transaction-boundary.sh
+          bash scripts/check_trnm_settlement_transaction_boundary.sh
+          git diff --check
+
+      - name: Preserve materialization evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p run/one-shot-materialization
+          cp trillionnium/crates/trnm-game-server/src/lib.rs run/one-shot-materialization/lib.rs
+          cp trillionnium/crates/trnm-game-server/Cargo.toml run/one-shot-materialization/Cargo.toml
+          printf '%s\n' \
+            "input_head=${GITHUB_SHA}" \
+            "input_tree=$(git rev-parse 'HEAD^{tree}')" \
+            "rustc=$(rustc --version)" \
+            "cargo=$(cargo --version)" \
+            "generated_source=retired" \
+            > run/one-shot-materialization/identity.txt
+          sha256sum \
+            run/one-shot-materialization/lib.rs \
+            run/one-shot-materialization/Cargo.toml \
+            > run/one-shot-materialization/SHA256SUMS
+
+      - name: Upload materialized source fallback
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: trnm-world-materialized-source-${{ github.sha }}
+          path: run/one-shot-materialization/**
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Commit the direct source and remove this one-shot workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm .github/workflows/trnm-world-one-shot-materialize-source.yml
+          git add \
+            .github/workflows/trnm-world-one-shot-materialize-source.yml \
+            trillionnium/crates/trnm-game-server/Cargo.toml \
+            trillionnium/crates/trnm-game-server/build.rs \
+            trillionnium/crates/trnm-game-server/src/lib.rs \
+            trillionnium/crates/trnm-game-server/src/lib.rs.in
+          test -n "$(git status --porcelain)"
+          git diff --cached --check
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "refactor(world): compile reviewed game-server source directly"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
