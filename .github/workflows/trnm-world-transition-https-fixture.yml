@@ -4,6 +4,9 @@ on:
   workflow_dispatch:
   pull_request:
     paths:
+      - 'trillionnium/contracts/trnm-world-rules-contract-v1/schema/authority-boundary-v1.json'
+      - 'trillionnium/contracts/trnm-world-rules-contract-v1/src/boundary_generated.rs'
+      - 'tools/generate-trnm-world-boundary.py'
       - 'tools/trnm-world-transition-https-v1/**'
       - 'docs/development/WORLD_TRANSITION_HTTPS_FIXTURE_V1.md'
       - 'docs/development/world-transition-https-fixture-v1-status.json'
@@ -17,6 +20,9 @@ on:
       - main
       - feature/world-transition-https-fixture-v1
     paths:
+      - 'trillionnium/contracts/trnm-world-rules-contract-v1/schema/authority-boundary-v1.json'
+      - 'trillionnium/contracts/trnm-world-rules-contract-v1/src/boundary_generated.rs'
+      - 'tools/generate-trnm-world-boundary.py'
       - 'tools/trnm-world-transition-https-v1/**'
       - 'docs/development/WORLD_TRANSITION_HTTPS_FIXTURE_V1.md'
       - 'docs/development/world-transition-https-fixture-v1-status.json'
@@ -55,6 +61,9 @@ jobs:
           go-version: '1.23.2'
           cache: false
 
+      - name: Verify generated cross-runtime authority boundary
+        run: python3 tools/generate-trnm-world-boundary.py --check
+
       - name: Validate entrypoint syntax and JSON
         run: |
           bash -n scripts/check-trnm-world-transition-https-fixture.sh
@@ -62,6 +71,8 @@ jobs:
           bash -n scripts/check-trnm-world-transition-https-fixture-local.sh
           bash -n scripts/run-trnm-world-transition-https-fixture-smoke.sh
           python3 -m json.tool docs/development/world-transition-https-fixture-v1-status.json >/dev/null
+          python3 -m json.tool trillionnium/contracts/trnm-world-rules-contract-v1/schema/authority-boundary-v1.json >/dev/null
+          python3 -m py_compile tools/generate-trnm-world-boundary.py
 
       - name: Execute aggregate source gate
         run: bash scripts/check-trnm-world-transition-https-fixture-local.sh
@@ -72,9 +83,16 @@ jobs:
           test "$(git rev-parse HEAD)" = "$SOURCE_HEAD_SHA"
           git rev-parse HEAD >run/world-transition-https-fixture-v1-source/commit.txt
           git rev-parse 'HEAD^{tree}' >run/world-transition-https-fixture-v1-source/tree.txt
-          git ls-tree -r HEAD tools/trnm-world-transition-https-v1 \
+          git ls-tree -r HEAD \
+            trillionnium/contracts/trnm-world-rules-contract-v1/schema/authority-boundary-v1.json \
+            trillionnium/contracts/trnm-world-rules-contract-v1/src/boundary_generated.rs \
+            tools/generate-trnm-world-boundary.py \
+            tools/trnm-world-transition-https-v1 \
             >run/world-transition-https-fixture-v1-source/source-tree.txt
-          find tools/trnm-world-transition-https-v1 \
+          find trillionnium/contracts/trnm-world-rules-contract-v1/schema/authority-boundary-v1.json \
+               trillionnium/contracts/trnm-world-rules-contract-v1/src/boundary_generated.rs \
+               tools/generate-trnm-world-boundary.py \
+               tools/trnm-world-transition-https-v1 \
                docs/development/WORLD_TRANSITION_HTTPS_FIXTURE_V1.md \
                docs/development/world-transition-https-fixture-v1-status.json \
                scripts/check-trnm-world-transition-https-fixture.sh \
