@@ -1,0 +1,3 @@
+temporary=true
+purpose=verify repository Actions execution from a pull_request event using workflows already present on main
+release_credit=none
