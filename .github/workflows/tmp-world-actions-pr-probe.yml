@@ -1,0 +1,23 @@
+name: tmp-world-actions-pr-probe
+
+on:
+  pull_request:
+    branches:
+      - tmp/world-actions-pr-probe-20260830
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Prove Actions execution
+        run: |
+          set -euo pipefail
+          printf '%s\n' "event=${GITHUB_EVENT_NAME}" "sha=${GITHUB_SHA}" "ref=${GITHUB_REF}"
