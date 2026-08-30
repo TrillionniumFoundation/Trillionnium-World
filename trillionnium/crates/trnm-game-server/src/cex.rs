@@ -11,7 +11,7 @@ use reqwest::{header::HeaderMap, StatusCode};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use sha2::{Digest, Sha256};
-use std::{fmt, sync::Arc, time::Duration};
+use std::{fmt, net::IpAddr, sync::Arc, time::Duration};
 use trnm_campaign_core::EconomyBackend;
 use trnm_economy_protocol::{
     EconomicIntent, EconomicIntentKind, EconomicReceipt, EconomyAccountBinding,
@@ -104,7 +104,7 @@ fn retryable_status(status: StatusCode) -> bool {
         || status.is_server_error()
 }
 
-async fn bounded_error_body(response: reqwest::Response) -> String {
+async fn bounded_error_body(mut response: reqwest::Response) -> String {
     if response
         .content_length()
         .is_some_and(|length| length > MAX_REMOTE_ERROR_BODY_BYTES as u64)
@@ -114,13 +114,83 @@ async fn bounded_error_body(response: reqwest::Response) -> String {
             MAX_REMOTE_ERROR_BODY_BYTES
         );
     }
-    match response.bytes().await {
-        Ok(bytes) => {
-            let bounded = &bytes[..bytes.len().min(MAX_REMOTE_ERROR_BODY_BYTES)];
-            String::from_utf8_lossy(bounded).into_owned()
+
+    let mut body = Vec::with_capacity(
+        response
+            .content_length()
+            .unwrap_or_default()
+            .min(MAX_REMOTE_ERROR_BODY_BYTES as u64) as usize,
+    );
+    loop {
+        match response.chunk().await {
+            Ok(Some(chunk)) => {
+                if chunk.is_empty() {
+                    continue;
+                }
+                let remaining = MAX_REMOTE_ERROR_BODY_BYTES.saturating_sub(body.len());
+                if chunk.len() > remaining {
+                    body.extend_from_slice(&chunk[..remaining]);
+                    return format!(
+                        "{} [truncated at {} bytes]",
+                        String::from_utf8_lossy(&body),
+                        MAX_REMOTE_ERROR_BODY_BYTES
+                    );
+                }
+                body.extend_from_slice(&chunk);
+            }
+            Ok(None) => return String::from_utf8_lossy(&body).into_owned(),
+            Err(error) if body.is_empty() => {
+                return format!("remote error body unavailable: {error}")
+            }
+            Err(error) => {
+                return format!(
+                    "{} [remote error body interrupted: {error}]",
+                    String::from_utf8_lossy(&body)
+                )
+            }
         }
-        Err(error) => format!("remote error body unavailable: {error}"),
     }
+}
+
+fn normalize_service_base_url(raw: &str, variable: &str) -> Result<String, String> {
+    let raw = raw.trim();
+    if raw.is_empty() {
+        return Err(format!("{variable} is required"));
+    }
+    let mut url = reqwest::Url::parse(raw)
+        .map_err(|error| format!("{variable} must be an absolute HTTP(S) URL: {error}"))?;
+    if url.cannot_be_a_base() || url.host_str().is_none() {
+        return Err(format!("{variable} must contain a network host"));
+    }
+    if !url.username().is_empty() || url.password().is_some() {
+        return Err(format!("{variable} must not contain URL credentials"));
+    }
+    if url.query().is_some() || url.fragment().is_some() {
+        return Err(format!("{variable} must not contain a query or fragment"));
+    }
+    if !matches!(url.path(), "" | "/") {
+        return Err(format!("{variable} must not contain a path prefix"));
+    }
+
+    match url.scheme() {
+        "https" => {}
+        "http" => {
+            let host = url.host_str().unwrap_or_default();
+            let loopback = host.eq_ignore_ascii_case("localhost")
+                || host
+                    .parse::<IpAddr>()
+                    .is_ok_and(|address| address.is_loopback());
+            if !loopback {
+                return Err(format!(
+                    "{variable} may use plaintext HTTP only for localhost or a loopback IP"
+                ));
+            }
+        }
+        _ => return Err(format!("{variable} must use HTTPS, or HTTP on loopback only")),
+    }
+
+    url.set_path("");
+    Ok(url.as_str().trim_end_matches('/').to_string())
 }
 
 fn canonical_sha256(value: &str) -> bool {
@@ -207,27 +277,27 @@ impl CexClient {
         signer_url: String,
         signer_token: String,
     ) -> Result<Self, String> {
-        if base_url.trim().is_empty() {
-            return Err("TRNM_CEX_LEDGER_URL is required".to_string());
-        }
+        let base_url = normalize_service_base_url(&base_url, "TRNM_CEX_LEDGER_URL")?;
+        let signer_url = normalize_service_base_url(&signer_url, "TRNM_ENTITLEMENT_SIGNER_URL")?;
         if game_authority_token.len() < 24 {
             return Err("TRNM_GAME_AUTHORITY_TOKEN must be at least 24 characters".to_string());
         }
         if signer_token.len() < 32 {
             return Err("TRNM_ENTITLEMENT_SIGNER_TOKEN must be at least 32 characters".to_string());
         }
-        if signer_url.trim().is_empty() {
-            return Err("TRNM_ENTITLEMENT_SIGNER_URL is required".to_string());
-        }
+        reqwest::header::HeaderValue::from_str(&game_authority_token)
+            .map_err(|_| "TRNM_GAME_AUTHORITY_TOKEN must be a valid HTTP header value".to_string())?;
+        reqwest::header::HeaderValue::from_str(&signer_token)
+            .map_err(|_| "TRNM_ENTITLEMENT_SIGNER_TOKEN must be a valid HTTP header value".to_string())?;
         let async_client = reqwest::Client::builder()
             .connect_timeout(Duration::from_secs(3))
             .timeout(Duration::from_secs(10))
             .build()
             .map_err(|error| format!("build asynchronous CEX/signer client: {error}"))?;
         Ok(Self {
-            base_url: Arc::new(base_url.trim_end_matches('/').to_string()),
+            base_url: Arc::new(base_url),
             game_authority_token: Arc::new(game_authority_token),
-            signer_url: Arc::new(signer_url.trim_end_matches('/').to_string()),
+            signer_url: Arc::new(signer_url),
             signer_token: Arc::new(signer_token),
             async_client,
         })
@@ -719,15 +789,17 @@ impl EconomyBackend for CexClient {
 #[cfg(test)]
 mod tests {
     use super::{
-        retryable_status, serialized_intent_hash, stable_entitlement_id,
-        CexSettlementReceiptLookupResponse, CexClient, ExternalSettlementError,
-        CEX_SETTLEMENT_RECEIPT_LOOKUP_CONTRACT, INTENT_HASH_HEADER, SETTLEMENT_OUTBOX_REQUIRED,
+        bounded_error_body, normalize_service_base_url, retryable_status,
+        serialized_intent_hash, stable_entitlement_id, CexSettlementReceiptLookupResponse,
+        CexClient, ExternalSettlementError, CEX_SETTLEMENT_RECEIPT_LOOKUP_CONTRACT,
+        INTENT_HASH_HEADER, MAX_REMOTE_ERROR_BODY_BYTES, SETTLEMENT_OUTBOX_REQUIRED,
     };
     use crate::signer_protocol::{
         EntitlementSignRequest, EntitlementSignResponse, ENTITLEMENT_SIGNER_CONTRACT,
         ENTITLEMENT_SIGNER_ISSUER, SIGNER_AUTH_HEADER,
     };
     use axum::{
+        body::Body,
         extract::{Path, Query, State},
         http::{HeaderMap, StatusCode},
         response::{IntoResponse, Response},
@@ -736,12 +808,16 @@ mod tests {
     };
     use base64::{engine::general_purpose::STANDARD, Engine as _};
     use chrono::Utc;
+    use futures_util::stream;
     use serde::Deserialize;
     use serde_json::json;
     use sha2::{Digest, Sha256};
-    use std::sync::{
-        atomic::{AtomicUsize, Ordering},
-        Arc, Mutex,
+    use std::{
+        convert::Infallible,
+        sync::{
+            atomic::{AtomicUsize, Ordering},
+            Arc, Mutex,
+        },
     };
     use tokio::task::JoinHandle;
     use trnm_campaign_core::EconomyBackend;
@@ -876,6 +952,18 @@ mod tests {
         (StatusCode::OK, Json(receipt)).into_response()
     }
 
+    async fn oversized_chunked_error() -> Response {
+        let chunks = vec![
+            Ok::<_, Infallible>("a".repeat(MAX_REMOTE_ERROR_BODY_BYTES / 2)),
+            Ok::<_, Infallible>("b".repeat(MAX_REMOTE_ERROR_BODY_BYTES / 2)),
+            Ok::<_, Infallible>("c".repeat(1024)),
+        ];
+        Response::builder()
+            .status(StatusCode::BAD_GATEWAY)
+            .body(Body::from_stream(stream::iter(chunks)))
+            .unwrap()
+    }
+
     async fn spawn_remote_mock() -> (String, RemoteMockState, JoinHandle<()>) {
         let state = RemoteMockState::default();
         let app = Router::new()
@@ -883,6 +971,7 @@ mod tests {
             .route("/v1/signer/sign", post(signer_submit))
             .route("/v1/trnm/economy/receipts/by-intent", get(cex_lookup))
             .route("/v1/trnm/economy/intents", post(cex_submit))
+            .route("/oversized-error", get(oversized_chunked_error))
             .with_state(state.clone());
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
             .await
@@ -948,6 +1037,57 @@ mod tests {
             ),
             Ok(None)
         );
+    }
+
+    #[test]
+    fn service_endpoints_require_encrypted_transport_off_loopback() {
+        assert_eq!(
+            normalize_service_base_url("http://127.0.0.1:8080/", "TEST_URL").unwrap(),
+            "http://127.0.0.1:8080"
+        );
+        assert_eq!(
+            normalize_service_base_url("http://[::1]:8080", "TEST_URL").unwrap(),
+            "http://[::1]:8080"
+        );
+        assert_eq!(
+            normalize_service_base_url("http://localhost:8080", "TEST_URL").unwrap(),
+            "http://localhost:8080"
+        );
+        assert_eq!(
+            normalize_service_base_url("https://cex.example.test/", "TEST_URL").unwrap(),
+            "https://cex.example.test"
+        );
+        for invalid in [
+            "http://cex.example.test",
+            "ftp://127.0.0.1",
+            "https://user:secret@cex.example.test",
+            "https://cex.example.test/prefix",
+            "https://cex.example.test?token=secret",
+            "https://cex.example.test/#fragment",
+        ] {
+            assert!(
+                normalize_service_base_url(invalid, "TEST_URL").is_err(),
+                "unexpectedly accepted {invalid}"
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn remote_error_body_is_streamed_to_a_hard_retained_limit() {
+        let (url, _state, task) = spawn_remote_mock().await;
+        let response = reqwest::Client::new()
+            .get(format!("{url}/oversized-error"))
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(response.content_length(), None);
+        let body = bounded_error_body(response).await;
+        assert!(body.starts_with(&"a".repeat(1024)));
+        assert!(body.contains(&format!(
+            "[truncated at {MAX_REMOTE_ERROR_BODY_BYTES} bytes]"
+        )));
+        assert!(body.len() <= MAX_REMOTE_ERROR_BODY_BYTES + 64);
+        task.abort();
     }
 
     #[test]
