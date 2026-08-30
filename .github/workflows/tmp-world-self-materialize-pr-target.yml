@@ -1,0 +1,105 @@
+name: tmp-world-self-materialize-pr-target
+
+on:
+  pull_request_target:
+    branches:
+      - tmp/world-actions-materialize-20260831
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  materialize:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'tmp/world-actions-materialize-trigger-20260831' &&
+      github.actor == 'Tomasrgbsf'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - name: Checkout exact controlled head
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: true
+      - name: Verify controlled base and head
+        env:
+          EXPECTED_BASE: tmp/world-actions-materialize-20260831
+          EXPECTED_HEAD: tmp/world-actions-materialize-trigger-20260831
+          EXPECTED_WORLD_PARENT: 5f76aceabe2b1c236c57fbe26c6b70e4bdb31903
+        run: |
+          set -euo pipefail
+          test "${{ github.event.pull_request.base.ref }}" = "$EXPECTED_BASE"
+          test "${{ github.event.pull_request.head.ref }}" = "$EXPECTED_HEAD"
+          git merge-base --is-ancestor "$EXPECTED_WORLD_PARENT" HEAD
+      - name: Install pinned Rust
+        run: |
+          set -euo pipefail
+          rustup toolchain install 1.98.0 --profile minimal --component rustfmt,clippy
+          rustup default 1.98.0
+      - name: Materialize reviewed source and validate
+        run: |
+          set -euo pipefail
+          cargo check --manifest-path trillionnium/Cargo.toml --locked -p trnm-game-server --lib
+          generated="$(find trillionnium/target -type f -path '*/out/trnm_game_server_lib_generated.rs' -print | head -n 1)"
+          test -s "$generated"
+          cp "$generated" /tmp/trnm_game_server_lib_generated.rs
+          python3 - <<'PY'
+          from pathlib import Path
+          crate=Path('trillionnium/crates/trnm-game-server')
+          lib=crate/'src/lib.rs'
+          wrapper=lib.read_text(encoding='utf-8')
+          marker='// The full reviewed server body is generated from src/lib.rs.in by build.rs.'
+          if wrapper.count(marker)!=1: raise SystemExit('wrapper drift')
+          header=wrapper.split(marker,1)[0].rstrip()
+          generated=Path('/tmp/trnm_game_server_lib_generated.rs').read_text(encoding='utf-8')
+          if 'trnm_game_server_lib_generated.rs' in generated: raise SystemExit('recursive generated include')
+          lib.write_text(header+'\n\n'+generated.lstrip(),encoding='utf-8')
+          manifest=crate/'Cargo.toml'
+          cargo=manifest.read_text(encoding='utf-8')
+          build='build = "build.rs"\n'
+          if cargo.count(build)!=1: raise SystemExit('manifest drift')
+          manifest.write_text(cargo.replace(build,'',1),encoding='utf-8')
+          crate.joinpath('build.rs').unlink()
+          crate.joinpath('src/lib.rs.in').unlink()
+          cex=crate/'src/cex.rs'
+          source=cex.read_text(encoding='utf-8')
+          old='''            let host = url.host_str().unwrap_or_default();
+            let loopback = host.eq_ignore_ascii_case("localhost")
+                || host
+                    .parse::<IpAddr>()
+                    .is_ok_and(|address| address.is_loopback());
+'''
+          new='''            let host = url.host_str().unwrap_or_default();
+            let canonical_host = host
+                .strip_suffix('.')
+                .unwrap_or(host)
+                .strip_prefix('[')
+                .and_then(|host| host.strip_suffix(']'))
+                .unwrap_or_else(|| host.strip_suffix('.').unwrap_or(host));
+            let loopback = canonical_host.eq_ignore_ascii_case("localhost")
+                || canonical_host
+                    .parse::<IpAddr>()
+                    .is_ok_and(|address| address.is_loopback());
+'''
+          if source.count(old)!=1: raise SystemExit('cex normalization drift')
+          cex.write_text(source.replace(old,new,1),encoding='utf-8')
+          PY
+          cargo fmt --manifest-path trillionnium/Cargo.toml -p trnm-game-server
+          cargo check --manifest-path trillionnium/Cargo.toml --locked -p trnm-game-server --lib
+          cargo test --manifest-path trillionnium/Cargo.toml --locked -p trnm-game-server --lib
+          cargo clippy --manifest-path trillionnium/Cargo.toml --locked -p trnm-game-server --lib -- -D warnings
+          bash scripts/check-trnm-settlement-transaction-boundary.sh
+          bash scripts/check_trnm_settlement_transaction_boundary.sh
+          git diff --check
+      - name: Commit directly reviewed source to controlled head
+        run: |
+          set -euo pipefail
+          git config user.name 'Tomasrgbsf'
+          git config user.email 'tomasbraynt@gmail.com'
+          git add -A
+          git commit -m 'fix(world): compile reviewed game-server source directly'
+          git push origin HEAD:tmp/world-actions-materialize-trigger-20260831
