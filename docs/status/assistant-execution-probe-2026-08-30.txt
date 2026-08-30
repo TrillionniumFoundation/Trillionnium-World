@@ -1,0 +1,3 @@
+contract=trnm_world_plan_v4_execution_probe_v1
+release_credit=none
+purpose=verify direct GitHub connector write path before atomic source update
