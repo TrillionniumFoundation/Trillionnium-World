@@ -1,4 +1,4 @@
-use crate::{bound_diagnostic_utf8, DIAGNOSTIC_FALLBACK, DIAGNOSTIC_MAX_UTF8_BYTES};
+use crate::bound_diagnostic_utf8;
 
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub enum StableErrorCode {
@@ -79,6 +79,7 @@ impl TransitionFailure {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::{DIAGNOSTIC_FALLBACK, DIAGNOSTIC_MAX_UTF8_BYTES};
 
     #[test]
     fn error_codes_round_trip_without_aliases() {
