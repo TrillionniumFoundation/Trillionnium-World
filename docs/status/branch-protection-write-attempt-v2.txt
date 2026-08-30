@@ -1,0 +1,2 @@
+attempt=server_side_branch_protection
+readback_required=true
