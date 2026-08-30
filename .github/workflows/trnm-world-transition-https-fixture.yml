@@ -77,6 +77,9 @@ jobs:
       - name: Execute aggregate source gate
         run: bash scripts/check-trnm-world-transition-https-fixture-local.sh
 
+      - name: Prove source qualification is read-only
+        run: git diff --exit-code
+
       - name: Record exact source identity
         run: |
           mkdir -p run/world-transition-https-fixture-v1-source
@@ -138,6 +141,9 @@ jobs:
         env:
           TRNM_WORLD_FIXTURE_EVIDENCE_DIR: ${{ github.workspace }}/run/world-transition-https-fixture-v1
         run: timeout 20m bash scripts/run-trnm-world-transition-https-fixture-smoke.sh
+
+      - name: Prove container qualification is read-only
+        run: git diff --exit-code
 
       - name: Validate exact-head smoke posture
         run: |

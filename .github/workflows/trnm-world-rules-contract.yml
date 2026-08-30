@@ -17,7 +17,6 @@ on:
     branches:
       - main
       - feature/world-deterministic-transition-contract-v1
-      - feature/world-transition-https-fixture-v1
     paths:
       - 'trillionnium/contracts/trnm-world-rules-contract-v1/**'
       - 'tools/generate-trnm-world-boundary.py'
@@ -64,6 +63,8 @@ jobs:
           tools/trnm-world-shadow-diff/trnm_world_shadow_diff.py
           tools/trnm-world-shadow-diff/test_reference_contract.py
           tools/trnm-world-shadow-diff/test_shadow_diff.py
+      - name: Prove contract qualification is read-only
+        run: git diff --exit-code
 
   rust-reference:
     runs-on: ubuntu-latest
@@ -94,3 +95,6 @@ jobs:
         run: cargo clippy --all-targets --locked -- -D warnings
       - name: Emit canonical vector
         run: cargo run --locked --bin trnm-world-rules-vector -- all
+      - name: Prove Rust qualification is read-only
+        working-directory: ${{ github.workspace }}
+        run: git diff --exit-code
