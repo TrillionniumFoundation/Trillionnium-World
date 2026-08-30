@@ -1,0 +1,21 @@
+{
+  "contract": "trnm_world_main_ruleset_intent_v1",
+  "target": "refs/heads/main",
+  "required_status_checks": [
+    "world-v4 / truth-and-static",
+    "world-v4 / rust-workspace",
+    "world-v4 / postgres-settlement",
+    "world-v4 / package-and-supply-chain",
+    "world-v4 / ci-read-only",
+    "world-v4 / direct-source"
+  ],
+  "required_approvals": 1,
+  "require_code_owner_review": true,
+  "dismiss_stale_reviews": true,
+  "require_last_push_approval": true,
+  "require_conversation_resolution": true,
+  "block_force_push": true,
+  "block_deletion": true,
+  "enforce_admins": true,
+  "release_credit": "none"
+}
