@@ -1,3 +1,5 @@
+use crate::{bound_diagnostic_utf8, DIAGNOSTIC_FALLBACK, DIAGNOSTIC_MAX_UTF8_BYTES};
+
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub enum StableErrorCode {
     UnsupportedContractVersion,
@@ -59,15 +61,17 @@ pub struct TransitionFailure {
     pub code: StableErrorCode,
     /// Human-readable diagnostics are deliberately excluded from canonical
     /// result commitments. Adapters may redact or localize this value without
-    /// changing authoritative deterministic facts.
+    /// changing authoritative deterministic facts. The generated boundary
+    /// still normalizes controls and caps UTF-8 bytes so implementations agree.
     pub diagnostic: String,
 }
 
 impl TransitionFailure {
     pub fn new(code: StableErrorCode, diagnostic: impl Into<String>) -> Self {
+        let diagnostic = diagnostic.into();
         Self {
             code,
-            diagnostic: diagnostic.into(),
+            diagnostic: bound_diagnostic_utf8(&diagnostic),
         }
     }
 }
@@ -98,5 +102,23 @@ mod tests {
         assert!(values.iter().all(|value| value.bytes().all(|byte| {
             byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'_'
         })));
+    }
+
+    #[test]
+    fn diagnostics_share_the_exact_utf8_byte_boundary() {
+        let diagnostic = format!("{}界", "a".repeat(DIAGNOSTIC_MAX_UTF8_BYTES - 1));
+        let failure = TransitionFailure::new(StableErrorCode::DomainRejected, diagnostic);
+        assert!(failure.diagnostic.len() <= DIAGNOSTIC_MAX_UTF8_BYTES);
+        assert!(failure.diagnostic.ends_with('a'));
+        assert!(!failure.diagnostic.ends_with('界'));
+
+        let controls = TransitionFailure::new(
+            StableErrorCode::DomainRejected,
+            "failure\nreason\r\t",
+        );
+        assert_eq!(controls.diagnostic, "failure reason");
+
+        let empty = TransitionFailure::new(StableErrorCode::DomainRejected, "\n\r\t");
+        assert_eq!(empty.diagnostic, DIAGNOSTIC_FALLBACK);
     }
 }
