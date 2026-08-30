@@ -1,0 +1,2 @@
+purpose=negative-main-protection-rehearsal
+release_credit=none
