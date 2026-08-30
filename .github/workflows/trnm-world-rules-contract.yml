@@ -5,6 +5,7 @@ on:
   pull_request:
     paths:
       - 'trillionnium/contracts/trnm-world-rules-contract-v1/**'
+      - 'tools/generate-trnm-world-boundary.py'
       - 'tools/trnm-world-shadow-diff/**'
       - 'integration/component-locks/trnm-world-rules-v1.lock.json'
       - 'docs/development/trnm-world-rules-contract-v1.md'
@@ -18,6 +19,7 @@ on:
       - feature/world-deterministic-transition-contract-v1
     paths:
       - 'trillionnium/contracts/trnm-world-rules-contract-v1/**'
+      - 'tools/generate-trnm-world-boundary.py'
       - 'tools/trnm-world-shadow-diff/**'
       - 'integration/component-locks/trnm-world-rules-v1.lock.json'
       - 'docs/development/trnm-world-rules-contract-v1.md'
@@ -47,6 +49,8 @@ jobs:
           persist-credentials: false
       - name: Verify exact source identity
         run: test "$(git rev-parse HEAD)" = "$SOURCE_HEAD_SHA"
+      - name: Verify generated cross-runtime authority boundary
+        run: python3 tools/generate-trnm-world-boundary.py --check
       - name: Validate contract schemas, vectors, lock and shadow runner
         run: bash scripts/check-trnm-world-rules-contract.sh
       - name: Prove authority and divergence violations fail closed
@@ -54,6 +58,7 @@ jobs:
       - name: Compile Python reference tools
         run: >-
           python3 -m py_compile
+          tools/generate-trnm-world-boundary.py
           tools/trnm-world-shadow-diff/reference_contract.py
           tools/trnm-world-shadow-diff/trnm_world_shadow_diff.py
           tools/trnm-world-shadow-diff/test_reference_contract.py
