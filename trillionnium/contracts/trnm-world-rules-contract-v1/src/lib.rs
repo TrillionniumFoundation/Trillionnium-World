@@ -1,12 +1,17 @@
 #![forbid(unsafe_code)]
 #![deny(missing_debug_implementations)]
 
+mod boundary_generated;
 mod canonical;
 mod digest;
 mod engine;
 mod error;
 mod model;
 
+pub use boundary_generated::{
+    bound_diagnostic_utf8, is_forbidden_authority_key, DIAGNOSTIC_FALLBACK,
+    DIAGNOSTIC_MAX_UTF8_BYTES, FORBIDDEN_AUTHORITY_KEYS,
+};
 pub use digest::{hex_encode, sha256, Digest32};
 pub use engine::{execute_transition, execute_transition_verified, WorldRulesEngine};
 pub use error::{StableErrorCode, TransitionFailure};
@@ -50,17 +55,27 @@ mod tests {
             ResourceBudget::default(),
         );
         let canonical = String::from_utf8(request.canonical_bytes()).unwrap();
-        for forbidden in [
-            "session",
-            "admission",
-            "player_token",
-            "private_key",
-            "signature",
-            "archive_root",
-            "chain_finality",
-            "wallet",
-        ] {
+        for forbidden in FORBIDDEN_AUTHORITY_KEYS {
             assert!(!canonical.contains(forbidden));
+            assert!(is_forbidden_authority_key(forbidden));
+            assert!(is_forbidden_authority_key(&forbidden.to_ascii_uppercase()));
         }
+    }
+
+    #[test]
+    fn generated_registry_includes_every_cross_runtime_authority_class() {
+        for required in [
+            "participant_roster",
+            "global_event_sequence",
+            "match_version",
+            "command_idempotency_key",
+            "completion_signature",
+            "wallet",
+            "settlement",
+        ] {
+            assert!(FORBIDDEN_AUTHORITY_KEYS.contains(&required));
+        }
+        assert_eq!(DIAGNOSTIC_MAX_UTF8_BYTES, 256);
+        assert_eq!(DIAGNOSTIC_FALLBACK, "request rejected");
     }
 }
