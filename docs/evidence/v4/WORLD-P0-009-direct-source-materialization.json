@@ -1,0 +1,164 @@
+{
+  "all_target_compatibility_fix": {
+    "bytes": 417,
+    "git_blob_sha1": "2db9205fe87bcbdcadab74e51a5c09b7e631caca",
+    "path": "trillionnium/crates/trnm-game-server/src/bin/trnm-online-e2e.rs",
+    "remote_failure_observed": "reqwest_blocking_feature_not_enabled",
+    "resolution": "shared Tokio runtime drives the async reqwest client without restoring the blocking feature",
+    "sha256": "84d2a59239ab0bf86e62b97e9d6827821849ace7d927ad9ac4fee6114b5771c9"
+  },
+  "auxiliary_runner": {
+    "artifact_id": 9729005126,
+    "conclusion": "success",
+    "input_head": "5f76aceabe2b1c236c57fbe26c6b70e4bdb31903",
+    "interpretation": "exact-input materialization/export only; not World exact-head release evidence",
+    "repository": "TrillionniumFoundation/Trillionnium-Chain",
+    "workflow_run_id": 33301142445
+  },
+  "candidate_branch": "fix/world-plan-v4-convergence-2026-08-30",
+  "canonical_pull_request": 39,
+  "direct_contracts": [
+    {
+      "bytes": 2854,
+      "git_blob_sha1": "0b916d8061df429259cf51595e9e91a2db1782e3",
+      "path": "trillionnium/crates/trnm-game-server/tests/direct_cex_source_contract.rs",
+      "sha256": "0c4e02c60997b9c2fab55e154a3b0d89d98e6bcd76b0e8109572d831dbb7cf54"
+    },
+    {
+      "bytes": 1495,
+      "git_blob_sha1": "42238417aea5335484bf2e8ad20637a640b900f1",
+      "path": "trillionnium/crates/trnm-game-server/tests/direct_source_bundle.rs",
+      "sha256": "c15d5c9d9b414f61338b100dfdeb5fe4412f0be88986e7ac25b910af62e27248"
+    },
+    {
+      "bytes": 12241,
+      "git_blob_sha1": "f2170465c984a43b0f3b2f41119480076bb8ff45",
+      "path": "trillionnium/crates/trnm-game-server/tests/settlement_fault_model.rs",
+      "sha256": "6862fe94bbc4783e1e4af168fe624c2e3da17c5e77738250988e1b75433c6b5d"
+    },
+    {
+      "bytes": 1751,
+      "git_blob_sha1": "751ad573341d38d2d6b3c18921e0a3db050eac87",
+      "path": "trillionnium/crates/trnm-game-server/tests/settlement_game_server_boundary.rs",
+      "sha256": "ea91e238507fc5d59e7495387888810e99f23469e1c1f6a4af3b88672bc9132a"
+    },
+    {
+      "bytes": 4188,
+      "git_blob_sha1": "ed6db90494b4978c4318768cf333ff338fa3d7af",
+      "path": "trillionnium/crates/trnm-game-server/tests/settlement_runtime_v2_contract.rs",
+      "sha256": "84a5b7cdc43a8819af34eb65813c537daabd6db65f459a23be092d942ad468ab"
+    },
+    {
+      "bytes": 9812,
+      "git_blob_sha1": "70e33979054499c93952e47daf345d2aa81ef5ed",
+      "path": "trillionnium/crates/trnm-game-server/tests/settlement_worker_contract.rs",
+      "sha256": "0f2a5ae2b4998d22e5a37717ea232a7e2a469d668c9f0615fc42fefcd83eee6a"
+    },
+    {
+      "bytes": 3818,
+      "git_blob_sha1": "6df6fe0c50d7106048c8bd5fbdf358c55b396ed6",
+      "path": "scripts/trnm_direct_source.py",
+      "sha256": "071c5ecafaa41b47b82b049cf6511ba4fdf96d78e5ea8f83efe77a4b83b16c4b"
+    },
+    {
+      "bytes": 6030,
+      "git_blob_sha1": "8d8409d9b107002e7d732fa64b40d80722caac90",
+      "path": "scripts/check-trnm-online-resource-budgets.sh",
+      "sha256": "449597a87f075a130c2761d19d0dca1e05e76406dcf64f839e567e09fcb092ef"
+    },
+    {
+      "bytes": 11361,
+      "git_blob_sha1": "241dba5d3ecc8db15cf9313aa3dd0b73ba55fdf0",
+      "path": "scripts/check-trnm-settlement-transaction-boundary.sh",
+      "sha256": "0a04abd8f4b42fa51ec124c0aa0ad70dc7b971f22f6eb8fb6cc3c53cd4470e6f"
+    },
+    {
+      "bytes": 17357,
+      "git_blob_sha1": "80b3541eee571555797512bfb1be53a03f8dac7f",
+      "path": "scripts/check-trnm-settlement-runtime-status.py",
+      "sha256": "4db689ce1362881ebe7616f5ef0222aa6958ada3c4cf7805a30b44cc03563915"
+    }
+  ],
+  "direct_sources": [
+    {
+      "bytes": 4706,
+      "git_blob_sha1": "f6c1351fcb912cd86cbfd44dba6b9d179c6bd305",
+      "path": "trillionnium/crates/trnm-game-server/src/lib.rs",
+      "sha256": "51282b16f22f3608975f00c93d0c6dea96409374a0664c7b164ed101947f6011"
+    },
+    {
+      "bytes": 13138,
+      "git_blob_sha1": "f727e01429e44868f065351a1c58aa227ca5e1b5",
+      "path": "trillionnium/crates/trnm-game-server/src/lib_parts/manifest.json",
+      "sha256": "2704f253cd5e72725dbe3ab8f7dc3e749dc947d9aa3a038ebca237ed094a11df"
+    },
+    {
+      "bytes": 239,
+      "git_blob_sha1": "aa87948693088e120e65a5927c2123a19a063f23",
+      "path": "trillionnium/crates/trnm-game-server/src/cex.rs",
+      "sha256": "f85ec0fdd93d9ce257001e3ccc02bf6ad80d1de36ec0f47ed8ec28a2b3b19238"
+    },
+    {
+      "bytes": 1348,
+      "git_blob_sha1": "f0fd20441a564975f328de2c74b9e68c8512ebd0",
+      "path": "trillionnium/crates/trnm-game-server/src/cex_parts/manifest.json",
+      "sha256": "7aaad0ae122dd6dcd7a631d5e4a3c059f5e18aac02bb5d2a10e6b08c54eacaed"
+    },
+    {
+      "bytes": 2284,
+      "git_blob_sha1": "a557f2c7879672e75e8f9fe8e17df9c6f682aaf7",
+      "path": "trillionnium/crates/trnm-game-server/src/bin/trnm-online-e2e_parts/manifest.json",
+      "sha256": "764c4359ceeb49d4e253fcb4050cf40c2070f0f529d79fd6a6e930c51346d1e6"
+    },
+    {
+      "bytes": 606,
+      "git_blob_sha1": "fd42a53da20f44efde637df7383cf6bc38b447e4",
+      "path": "trillionnium/crates/trnm-game-server/src/settlement_worker.rs",
+      "sha256": "6603c8219ddfb3437f16d6ea718a94bc091e1a2087de78d426a8d99f09b74bb9"
+    },
+    {
+      "bytes": 63449,
+      "git_blob_sha1": "bddc812956d84487ac53293da261b09f9259a023",
+      "path": "trillionnium/crates/trnm-game-server/src/settlement_worker_legacy.rs",
+      "sha256": "7c2a11010075959cb8edc1577100a38ac4a99c7c0b5f9ed190f3fdc27fd848ac"
+    },
+    {
+      "bytes": 17115,
+      "git_blob_sha1": "ca8447ad5c273ddf76fce3ec925e8a2571006b50",
+      "path": "trillionnium/crates/trnm-game-server/src/settlement_worker_runtime_v2.rs",
+      "sha256": "290a1a9c3fa7b43543a090678322bb1b1d19d1518a6afef547298f2b04269ae0"
+    },
+    {
+      "bytes": 1409,
+      "git_blob_sha1": "24612a61fbe07f965c979c661e26d831297b8466",
+      "path": "trillionnium/crates/trnm-game-server/Cargo.toml",
+      "sha256": "b02e9938ae82252ae4007c7c3049112bb879c92f34957a68b245882d91d426c9"
+    }
+  ],
+  "observed_at": "2026-08-30",
+  "observed_source_checks": {
+    "all_target_async_transport_source_shape": "passed_static_only",
+    "auxiliary_materialization_export": "passed",
+    "direct_runtime_status": "passed",
+    "direct_source_partition_manifest": "passed_static_only",
+    "direct_static_boundary": "passed",
+    "world_v4_truth_shape": "passed"
+  },
+  "release_credit": "none",
+  "remaining_acceptance": [
+    "non-empty exact-head World required checks",
+    "mandatory PostgreSQL execution on the same exact head",
+    "independent approval after the final push"
+  ],
+  "removed_semantic_authority": [
+    "trillionnium/crates/trnm-game-server/build.rs",
+    "trillionnium/crates/trnm-game-server/src/lib.rs.in",
+    "trillionnium/crates/trnm-game-server/src/cex.rs.in",
+    "trillionnium/crates/trnm-game-server/src/settlement_worker.rs.in"
+  ],
+  "repository": "TrillionniumFoundation/Trillionnium-World",
+  "schema": "trnm_world_direct_source_materialization_evidence_v1",
+  "source_parent": "5f76aceabe2b1c236c57fbe26c6b70e4bdb31903",
+  "source_parent_tree": "51ed6b28af909685769e9ff51a047f4d5aa52591",
+  "state": "source_implemented_unverified"
+}

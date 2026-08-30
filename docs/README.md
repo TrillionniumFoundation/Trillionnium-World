@@ -67,7 +67,7 @@ Active code references:
 - World-local compatibility server: `../trillionnium/crates/trnm-game-server`
 - deterministic World transition contract: `../trillionnium/contracts/trnm-world-transition-v1`
 
-The CEX/signer transport is now directly compiled from `trnm-game-server/src/cex.rs`; its template and CEX build-time generation are removed. Review-integrity debt remains for `lib.rs.in` and `settlement_worker.rs.in`, which `build.rs` still transforms into the actually compiled game-server library and settlement worker. Plan V4 closure requires materializing those two sources and retiring the remaining semantic build-time rewriting.
+The game-server library, CEX/signer transport, and settlement worker are now ordinary directly compiled source. Semantic `build.rs` / `.rs.in` authority is retired and guarded by `../docs/evidence/v4/WORLD-P0-009-direct-source-materialization.json` plus fail-closed file-hash checks. The remaining source debt is correctness-oriented decomposition of the catch-all game-server library; direct source alone is not remote verification or release evidence.
 
 ## 5. Security, operations and release
 

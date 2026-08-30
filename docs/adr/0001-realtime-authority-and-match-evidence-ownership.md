@@ -89,7 +89,10 @@ not claim a cross-repository gate without this binding.
 ## Compatibility enclave
 
 The existing `trillionnium/crates/trnm-game-server` implementation is retained
-as a bounded compatibility authority enclave during migration.
+as a bounded compatibility authority enclave during migration. Its explicit
+label is `world_legacy_local_alpha`; it is not the canonical public authority.
+Exactly one component is externally authoritative for each canonical cursor,
+root, completion signature, ledger effect, or finality claim.
 
 Allowed:
 

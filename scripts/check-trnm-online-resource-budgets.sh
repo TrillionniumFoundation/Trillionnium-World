@@ -56,18 +56,18 @@ for setting in '--property=KillMode=mixed' \
   '--property=TasksMax=512'; do
   rg -Fq -- "$setting" "$capacity_launcher"
 done
-rg -q 'GAME_SERVER_DATABASE_MIN_CONNECTIONS: u32 = 12' \
+game_source=(
   "$ROOT_DIR/trillionnium/crates/trnm-game-server/src/lib.rs"
-rg -q 'GAME_SERVER_DATABASE_MAX_CONNECTIONS: u32 = 12' \
-  "$ROOT_DIR/trillionnium/crates/trnm-game-server/src/lib.rs"
-rg -q 'READINESS_DATABASE_MIN_CONNECTIONS: u32 = 4' \
-  "$ROOT_DIR/trillionnium/crates/trnm-game-server/src/lib.rs"
-rg -q 'READINESS_DATABASE_MAX_CONNECTIONS: u32 = 12' \
-  "$ROOT_DIR/trillionnium/crates/trnm-game-server/src/lib.rs"
+  "$ROOT_DIR/trillionnium/crates/trnm-game-server/src/lib_parts"
+)
+rg -q 'GAME_SERVER_DATABASE_MIN_CONNECTIONS: u32 = 12' "${game_source[@]}"
+rg -q 'GAME_SERVER_DATABASE_MAX_CONNECTIONS: u32 = 12' "${game_source[@]}"
+rg -q 'READINESS_DATABASE_MIN_CONNECTIONS: u32 = 4' "${game_source[@]}"
+rg -q 'READINESS_DATABASE_MAX_CONNECTIONS: u32 = 12' "${game_source[@]}"
 rg -q 'SIGNER_DATABASE_MAX_CONNECTIONS: u32 = 4' \
   "$ROOT_DIR/trillionnium/crates/trnm-game-server/src/bin/trnm-entitlement-signer.rs"
 rg -q 'DEFAULT_POOL_MAX_CONNECTIONS: u32 = 4' \
-  "$ROOT_DIR/trillionnium/crates/trnm-game-server/src/settlement_worker.rs"
+  "$ROOT_DIR/trillionnium/crates/trnm-game-server/src/settlement_worker_legacy.rs"
 
 install_script="$ROOT_DIR/scripts/install-trnm-game-server-systemd.sh"
 worker_launcher="$ROOT_DIR/scripts/run-trnm-settlement-worker.sh"

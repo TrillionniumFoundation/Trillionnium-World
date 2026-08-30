@@ -19,10 +19,12 @@ is tested through its public interface.
 
 ## Current debt
 
-`trnm-game-server` still contains large compatibility-era source templates and a
-build script that performs semantic source transformation. This is explicitly
-tracked debt; build-time transformation may fail closed during migration, but it
-is not the target architecture and grants no release credit.
+`trnm-game-server` now compiles ordinary reviewed source fragments: the semantic build
+script and `.rs.in` authority have been retired. The remaining debt is the large
+catch-all `src/lib.rs`, whose authority, persistence, readiness, fleet, HTTP, and
+actor-runtime invariants still have an unnecessarily broad review blast radius.
+Direct source is a prerequisite for decomposition, not evidence that decomposition
+is complete, and it grants no release credit.
 
 ## Target server layout
 
@@ -126,13 +128,13 @@ bootstrap wires interfaces but does not own business rules.
 
 ## Settlement extraction order
 
-1. Compile migration registry directly, without source-template rewriting.
+1. Keep the direct migration registry and worker wrapper free of source generation.
 2. Move quarantine/operator SQL access behind typed persistence functions.
 3. Move capture and apply into separate modules sharing immutable fence types.
 4. Move remote execution behind an async transport trait.
 5. Expose a bounded orchestration loop that owns shutdown and in-flight tasks.
-6. Delete `settlement_worker.rs.in` and semantic generation only after exact
-   behavior/evidence comparison passes.
+6. Preserve exact capture/lease/apply and terminal-publication behavior through
+   invariant tests on every extraction tranche.
 
 ## Authority extraction order
 

@@ -6,8 +6,10 @@
 - Source plan: `docs/development/TRILLIONNIUM_WORLD_DEVELOPMENT_PLAN_2026-08-29.md`
 - Convergence addendum: `docs/development/TRILLIONNIUM_WORLD_PLAN_V4_CONVERGENCE_ADDENDUM_2026-08-30.md`
 - Machine convergence state: `docs/status/world-v4-convergence-state-2026-08-30.json`
-- Parent V4 candidate: `fix/world-plan-gap-closure-v4`
-- Convergence branch: `fix/world-plan-v4-convergence-2026-08-30`
+- Historical V4 parent: `fix/world-plan-gap-closure-v4@0e256625f0c8a64e4079527672b689ee782d6152`
+- Canonical Draft PR: `#39` on `fix/world-plan-v4-convergence-2026-08-30`
+- Remote head observed before this direct-source tranche: `5f76aceabe2b1c236c57fbe26c6b70e4bdb31903`
+- Observed remote tree: `51ed6b28af909685769e9ff51a047f4d5aa52591`
 - Observed `main`: `efcf0420f6edabc32b7f85332467f25e291cdc63`
 - Public online: **NO-GO**
 - Public player market: **disabled**
@@ -17,16 +19,23 @@
 
 | Control | Observed state |
 | --- | --- |
-| Check runs on parent V4 head `0e256625...` | `0` |
-| Check runs on overlapping V4 head `366becfb...` | `0` |
-| Rulesets returned by repository API | `0` |
-| Actions runs for probe commit `2e465c56...` | `0` |
+| Status contexts on remote PR #39 head `5f76ace...` | `0` |
+| Pull-request workflow runs on that exact head | `0` |
+| Repository rulesets returned by GitHub API | `0` |
+| Branch-protection query | not independently observable through the installed integration (`403`) |
+| Requested independent reviewer | `ProfHepta` |
+| Author blocking review comments | `3` |
+| Independent approvals | `0` |
+| Chain `github-actions[bot]` write probe into World | denied (`403`) |
 | Required checks observed | none |
 | Server-side code-owner enforcement observed | no |
 | Administrator enforcement observed | no |
 
-A workflow or CODEOWNERS file is source preparation, not server-side
-enforcement. Empty check collections are blockers, not successful evidence.
+PRs `#36`, `#37`, and `#38` are closed and unmerged, so PR `#39` is the
+single current V4 truth-source candidate. That claim is narrower than source
+verification or release readiness. A workflow or CODEOWNERS file is source
+preparation, not server-side enforcement. Empty check collections are blockers,
+not successful evidence.
 
 ## Gate posture
 
@@ -34,7 +43,7 @@ enforcement. Empty check collections are blockers, not successful evidence.
 | --- | --- | --- | --- |
 | Deterministic transition source | **source implemented, unverified** | World game domain | non-empty exact-head Rust and independent conformance |
 | Direct CEX/signer transport source | **source implemented, unverified** | World settlement adapter | exact-head Rust and response-loss tests |
-| Reviewable compiled game-server/worker source | **source open** | World compatibility enclave | semantic `build.rs` rewriting of `lib.rs.in` and `settlement_worker.rs.in` |
+| Reviewable compiled game-server/worker source | **source implemented, unverified** | World compatibility enclave | exact-head all-target/PostgreSQL checks and independent review |
 | Settlement capture/execute/apply source | **source implemented, unverified** | World compatibility enclave + CEX | exact-head Rust/PostgreSQL, independent review, deployed fault matrix |
 | Repository Actions execution | **repository-control blocked** | GitHub repository/organization | enable Actions and produce a non-empty exact-head run |
 | Protected `main` and required checks | **repository-control blocked** | GitHub repository/organization | apply and independently query server-side ruleset |
@@ -57,7 +66,9 @@ enforcement. Empty check collections are blockers, not successful evidence.
 - live lease fencing and separate remote/application state;
 - bounded shutdown/concurrency and poison-work quarantine source;
 - directly compiled `src/cex.rs` with bounded remote error bodies, 409 ambiguity handling, and malformed-success recovery;
-- removal of `cex.rs.in` and CEX semantic build generation;
+- removal of `build.rs`, `lib.rs.in`, `cex.rs.in`, `settlement_worker.rs.in`, and all semantic build-time source authority;
+- direct-source identity evidence with byte length, SHA-256, and Git blob identity for every compiled boundary file;
+- an async `trnm-online-e2e` transport path that does not restore the disabled `reqwest::blocking` feature;
 - direct CEX source regression contract;
 - current architecture, security, database, release and runbook documents;
 - read-only SHA-pinned workflow definitions.
@@ -67,11 +78,9 @@ upstream, human, public-network, custody or commercial evidence.
 
 ## Open World-owned source blockers
 
-1. Materialize directly compiled `lib.rs` and `settlement_worker.rs`.
-2. Remove the remaining semantic source rewriting from `build.rs` and remove their `.rs.in` compiled authority.
-3. Finish correctness-oriented module decomposition and invariant tests.
-4. Reconcile overlapping V4 candidates into one current candidate.
-5. Run and repair the full exact-head matrix after Actions execution is enabled.
+1. Finish correctness-oriented module decomposition and invariant tests.
+2. Push the direct-source tranche and run the full exact-head all-target, PostgreSQL, package, and supply-chain matrix.
+3. Obtain independent review after the final source push.
 
 ## Interpretation rules
 

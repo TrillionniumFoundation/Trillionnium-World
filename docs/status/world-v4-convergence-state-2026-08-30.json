@@ -6,30 +6,62 @@
   "plan": "docs/development/TRILLIONNIUM_WORLD_DEVELOPMENT_PLAN_2026-08-29.md",
   "addendum": "docs/development/TRILLIONNIUM_WORLD_PLAN_V4_CONVERGENCE_ADDENDUM_2026-08-30.md",
   "candidate": {
+    "pull_request": 39,
     "branch": "fix/world-plan-v4-convergence-2026-08-30",
-    "parent_branch": "fix/world-plan-gap-closure-v4",
-    "parent_commit": "0e256625f0c8a64e4079527672b689ee782d6152",
-    "main_observed": "efcf0420f6edabc32b7f85332467f25e291cdc63",
-    "overlapping_candidate": {
-      "branch": "fix/world-plan-v4-source-gap-closure",
-      "commit": "366becfb33e9992b61611e7aa4924f1fe1b157cc",
-      "disposition": "supersede_after_unique_change_review"
-    }
+    "base": "main",
+    "base_observed": "efcf0420f6edabc32b7f85332467f25e291cdc63",
+    "head_observed": "5f76aceabe2b1c236c57fbe26c6b70e4bdb31903",
+    "tree_observed": "51ed6b28af909685769e9ff51a047f4d5aa52591",
+    "merge_base_observed": "efcf0420f6edabc32b7f85332467f25e291cdc63",
+    "ahead_by": 293,
+    "behind_by": 0,
+    "state": "open",
+    "draft": true,
+    "mergeable": true,
+    "historical_parent": {
+      "branch": "fix/world-plan-gap-closure-v4",
+      "commit": "0e256625f0c8a64e4079527672b689ee782d6152"
+    },
+    "superseded_candidates": [
+      {
+        "pull_request": 36,
+        "head": "0e256625f0c8a64e4079527672b689ee782d6152",
+        "state": "closed",
+        "merged": false
+      },
+      {
+        "pull_request": 37,
+        "head": "366becfb33e9992b61611e7aa4924f1fe1b157cc",
+        "state": "closed",
+        "merged": false
+      },
+      {
+        "pull_request": 38,
+        "head": "0e256625f0c8a64e4079527672b689ee782d6152",
+        "state": "closed",
+        "merged": false
+      }
+    ]
   },
   "observed_repository_controls": {
-    "candidate_check_runs": 0,
-    "overlapping_candidate_check_runs": 0,
+    "candidate_status_contexts": 0,
+    "candidate_pull_request_workflow_runs": 0,
     "ruleset_count": 0,
-    "actions_probe": {
-      "branch": "ci/world-v4-validation-base",
-      "commit": "2e465c56ba159301796261963204269c9c4cf3c3",
-      "workflow_runs": 0,
-      "interpretation": "repository_or_organization_actions_execution_not_observed"
-    },
-    "branch_protection_observed": false,
+    "branch_protection_query": "not_observed_integration_403",
     "required_checks_observed": [],
     "code_owner_review_enforced_observed": false,
-    "administrators_enforced_observed": false
+    "administrators_enforced_observed": false,
+    "requested_independent_reviewers": [
+      "ProfHepta"
+    ],
+    "author_blocking_reviews_observed": 3,
+    "independent_approvals_observed": 0,
+    "cross_repository_write_probe": {
+      "source_repository": "TrillionniumFoundation/Trillionnium-Chain",
+      "workflow_run_id": 33302675578,
+      "job_id": 99233581655,
+      "outcome": "permission_denied_403"
+    }
   },
   "release_posture": {
     "technical_source_candidate": "in_progress",
@@ -41,8 +73,8 @@
     "commercial_release": "no_go"
   },
   "counts": {
-    "source_open": 2,
-    "source_implemented_unverified": 4,
+    "source_open": 1,
+    "source_implemented_unverified": 5,
     "source_verified": 0,
     "repository_control_blocked": 3,
     "blocked_upstream": 3,
@@ -165,13 +197,14 @@
     {
       "id": "WORLD-P0-009",
       "owner": "Trillionnium-World",
-      "state": "source_open",
-      "claim": "directly reviewable compiled game-server library; CEX and settlement worker are now direct source",
+      "state": "source_implemented_unverified",
+      "claim": "directly reviewable compiled game-server, CEX and settlement-worker source with semantic build rewriting retired",
       "evidence_required": [
-        "no_semantic_build_rewrite",
-        "direct_source_tests"
+        "direct_source_tests",
+        "exact_head_rust",
+        "independent_review"
       ],
-      "next_gate": "materialize lib.rs and remove the final lib.rs.in semantic build transform"
+      "next_gate": "commit the direct-source tranche, run the exact-head all-target and PostgreSQL matrix, and obtain independent review"
     },
     {
       "id": "WORLD-P0-010",

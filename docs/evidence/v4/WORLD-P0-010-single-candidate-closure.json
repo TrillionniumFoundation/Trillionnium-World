@@ -1,43 +1,69 @@
 {
-  "schema": "trnm_world_single_candidate_closure_v1",
-  "observed_at": "2026-08-30",
-  "repository": "TrillionniumFoundation/Trillionnium-World",
   "canonical_candidate": {
-    "pull_request": 39,
-    "branch": "fix/world-plan-v4-convergence-2026-08-30",
-    "head": "4234874e73ece3e152a60f62f427f33d1f6c982b",
+    "ahead_by": 293,
     "base": "main",
     "base_observed": "efcf0420f6edabc32b7f85332467f25e291cdc63",
-    "draft": true
+    "behind_by": 0,
+    "branch": "fix/world-plan-v4-convergence-2026-08-30",
+    "draft": true,
+    "head": "5f76aceabe2b1c236c57fbe26c6b70e4bdb31903",
+    "merge_base_observed": "efcf0420f6edabc32b7f85332467f25e291cdc63",
+    "mergeable": true,
+    "pull_request": 39,
+    "state": "open",
+    "tree": "51ed6b28af909685769e9ff51a047f4d5aa52591"
   },
+  "claim": "WORLD-P0-010 is closed for the single-current-V4-candidate denominator only",
+  "observed_at": "2026-08-30",
+  "observed_remote_controls": {
+    "author_blocking_reviews": 3,
+    "branch_protection_query": "not_observed_integration_403",
+    "candidate_pull_request_workflow_runs": 0,
+    "candidate_status_contexts": 0,
+    "cross_repository_write_probe": {
+      "actor": "github-actions[bot]",
+      "job_id": 99233581655,
+      "outcome": "permission_denied_403",
+      "source_repository": "TrillionniumFoundation/Trillionnium-Chain",
+      "workflow_run_id": 33302675578
+    },
+    "independent_approvals": 0,
+    "repository_rulesets": 0,
+    "requested_independent_reviewers": [
+      "ProfHepta"
+    ]
+  },
+  "older_independent_or_stacked_drafts": {
+    "interpretation": "not_current_v4_truth_sources_and_not_closed_without_unique_change_equivalence",
+    "release_credit": false
+  },
+  "release_effect": "none",
+  "repository": "TrillionniumFoundation/Trillionnium-World",
+  "schema": "trnm_world_single_candidate_closure_v1",
   "superseded_v4_candidates": [
     {
+      "branch": "fix/world-plan-gap-closure-v4",
+      "disposition": "superseded_by_pr_39",
+      "head": "0e256625f0c8a64e4079527672b689ee782d6152",
+      "merged": false,
       "pull_request": 36,
-      "state": "closed",
-      "disposition": "superseded_by_39"
+      "state": "closed"
     },
     {
+      "branch": "fix/world-plan-v4-source-gap-closure",
+      "disposition": "superseded_by_pr_39",
+      "head": "366becfb33e9992b61611e7aa4924f1fe1b157cc",
+      "merged": false,
       "pull_request": 37,
-      "state": "closed",
-      "disposition": "superseded_by_39"
+      "state": "closed"
     },
     {
+      "branch": "fix/world-plan-gap-closure-v4",
+      "disposition": "validation_candidate_superseded_by_pr_39",
+      "head": "0e256625f0c8a64e4079527672b689ee782d6152",
+      "merged": false,
       "pull_request": 38,
-      "state": "closed",
-      "disposition": "superseded_by_39"
+      "state": "closed"
     }
-  ],
-  "older_independent_or_stacked_drafts": {
-    "release_credit": false,
-    "interpretation": "not_current_v4_truth_sources_and_not_closed_without_unique_change_equivalence"
-  },
-  "main_ancestry_reconciliation": {
-    "merge_commit": "4234874e73ece3e152a60f62f427f33d1f6c982b",
-    "candidate_tree_preserved": "6864d5fe27e22acc14e2a5c233e3c0c78146da55",
-    "force_update": false,
-    "readme_preserved": true,
-    "unexpected_probe_paths_x_y_in_candidate": false
-  },
-  "claim": "WORLD-P0-010 is closed for the current V4 truth-source denominator only",
-  "release_effect": "none"
+  ]
 }

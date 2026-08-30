@@ -15,19 +15,23 @@ This update records facts observed after the V4 convergence addendum. It does no
 - canonical Draft PR: `#39`;
 - branch: `fix/world-plan-v4-convergence-2026-08-30`;
 - base observed: `main@efcf0420f6edabc32b7f85332467f25e291cdc63`;
-- candidate head after truth-gate repair: `886c9ae9bc05a632abd36d43f85bf8a059f6fb1b`;
-- PRs `#36`, `#37`, and `#38` are superseded;
+- remote head observed before the direct-source tranche: `5f76aceabe2b1c236c57fbe26c6b70e4bdb31903`;
+- observed remote tree: `51ed6b28af909685769e9ff51a047f4d5aa52591`;
+- PRs `#36`, `#37`, and `#38` are closed, unmerged, and superseded;
 - `WORLD-P0-010` is closed only for the single-current-candidate claim.
 
 ## Corrected source truth
 
-The CEX transport and settlement worker are directly compiled reviewed source. The only remaining semantic source transform is the game-server library:
+The CEX transport, settlement worker, and game-server library are now ordinary directly compiled reviewed source. The direct-source tranche:
 
-```text
-src/lib.rs.in -> build.rs semantic rewrite -> OUT_DIR/trnm_game_server_lib_generated.rs
-```
+- materializes the exact generated game-server body into `src/lib.rs`;
+- removes `build.rs`, `src/lib.rs.in`, and the Cargo build-script declaration;
+- replaces generator-shape and `OUT_DIR` tests with checks over directly compiled files;
+- fixes literal-localhost and bracketed-IPv6 loopback normalization without weakening off-loopback HTTPS enforcement;
+- migrates `trnm-online-e2e` away from the retired `reqwest::blocking` surface;
+- retains all migration registrations and the prohibition on in-process terminal settlement.
 
-`WORLD-P0-009` remains `source_open` until the generated body is committed as ordinary `src/lib.rs`, `src/lib.rs.in` and the semantic build script are removed, direct-source tests replace generator-shape tests, and exact-head compilation succeeds.
+`WORLD-P0-009` therefore advances from `source_open` to `source_implemented_unverified`. It does not become `source_verified` until the committed exact head passes the all-target Rust and mandatory PostgreSQL matrix and receives independent review.
 
 `WORLD-P1-001` remains `source_open`. Documentation boundaries alone do not prove correctness-oriented module ownership; the catch-all game-server library must be decomposed without changing authority, lock order, terminal-publication, or settlement invariants.
 
@@ -35,17 +39,18 @@ src/lib.rs.in -> build.rs semantic rewrite -> OUT_DIR/trnm_game_server_lib_gener
 
 `scripts/check-trnm-world-v4-convergence.py` now validates the observed machine counts instead of hard-coding the pre-convergence values. It:
 
-- requires `WORLD-P0-010` closure evidence bound to PR `#39`;
-- keeps `WORLD-P0-009` open while `build.rs` or `lib.rs.in` exists;
-- supports a later directly compiled shape only when all mandatory markers exist and legacy settlement paths are absent;
+- requires `WORLD-P0-010` closure evidence to match PR `#39`, its observed head/tree/base relation, and the closed/unmerged disposition of PRs `#36`–`#38`;
+- requires `WORLD-P0-009` byte length, SHA-256, and Git blob identity to match every direct source and boundary-contract file;
+- rejects any return of `build.rs`, `lib.rs.in`, `OUT_DIR`-compiled authority, or legacy settlement paths;
+- accepts the directly compiled shape only when all mandatory migration and settlement-boundary markers exist;
 - rejects source verification without non-empty exact-head runs and required checks;
 - keeps upstream, human, public-network, custody, market, and commercial claims fail closed.
 
 ## Repository-control observation
 
-After the candidate write, GitHub still returned no workflow run for the exact World head. A separate read-only source-export attempt was accepted by CEX Actions but failed at runner startup before any step on both Ubuntu and macOS; its temporary workflow was removed. No source or release credit is derived from those startup failures.
+For observed head `5f76aceabe2b1c236c57fbe26c6b70e4bdb31903`, GitHub returned zero status contexts and zero pull-request workflow runs. A read-only Chain relay subsequently checked out that immutable World revision, materialized the reviewed game-server body, packaged the complete working tree, and uploaded an artifact successfully. A separate Chain-to-World write probe failed with `403` for `github-actions[bot]`. The relay proves the materialization procedure executed; it is not World exact-head repository governance and grants no source-verification or release credit.
 
-The remaining repository-control gates require server-side actions not exposed by the current connector:
+GitHub also returned an empty repository-ruleset collection. Branch protection could not be independently queried through the installed integration (`403`), `ProfHepta` is requested, and zero independent approvals are observed. The remaining repository-control gates require server-side actions not exposed by the current connector:
 
 - enable repository/organization Actions execution;
 - install a `main` ruleset with exact required checks;
@@ -54,13 +59,11 @@ The remaining repository-control gates require server-side actions not exposed b
 
 ## Ordered continuation
 
-1. Materialize the exact game-server generated body as ordinary reviewed source.
-2. Replace generator-shape tests and remove the semantic build transform.
-3. Extract correctness-critical ownership modules with invariant tests.
-4. Run non-empty exact-head Rust, PostgreSQL, canonical JSON, package, and supply-chain checks.
-5. Apply and independently query server-side governance.
-6. Hand upstream work to Nakama, Integration, and CEX owners using exact component locks.
-7. Execute immutable deployed fault, PITR, endurance, public-edge, custody, multi-platform, human, and commercial evidence programs.
+1. Extract correctness-critical ownership modules with invariant tests.
+2. Run non-empty exact-head Rust, PostgreSQL, canonical JSON, package, and supply-chain checks.
+3. Apply and independently query server-side governance.
+4. Hand upstream work to Nakama, Integration, and CEX owners using exact component locks.
+5. Execute immutable deployed fault, PITR, endurance, public-edge, custody, multi-platform, human, and commercial evidence programs.
 
 ## Release posture
 

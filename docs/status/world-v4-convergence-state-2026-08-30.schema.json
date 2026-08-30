@@ -19,35 +19,133 @@
     "no_go"
   ],
   "properties": {
-    "$schema": { "type": "string" },
-    "schema": { "const": "trnm_world_v4_convergence_state_v1" },
-    "as_of": { "type": "string", "format": "date" },
-    "repository": { "const": "TrillionniumFoundation/Trillionnium-World" },
-    "plan": { "type": "string", "minLength": 1 },
-    "addendum": { "type": "string", "minLength": 1 },
+    "$schema": {
+      "type": "string"
+    },
+    "schema": {
+      "const": "trnm_world_v4_convergence_state_v1"
+    },
+    "as_of": {
+      "type": "string",
+      "format": "date"
+    },
+    "repository": {
+      "const": "TrillionniumFoundation/Trillionnium-World"
+    },
+    "plan": {
+      "type": "string",
+      "minLength": 1
+    },
+    "addendum": {
+      "type": "string",
+      "minLength": 1
+    },
     "candidate": {
       "type": "object",
       "additionalProperties": false,
       "required": [
+        "pull_request",
         "branch",
-        "parent_branch",
-        "parent_commit",
-        "main_observed",
-        "overlapping_candidate"
+        "base",
+        "base_observed",
+        "head_observed",
+        "tree_observed",
+        "merge_base_observed",
+        "ahead_by",
+        "behind_by",
+        "state",
+        "draft",
+        "mergeable",
+        "historical_parent",
+        "superseded_candidates"
       ],
       "properties": {
-        "branch": { "const": "fix/world-plan-v4-convergence-2026-08-30" },
-        "parent_branch": { "const": "fix/world-plan-gap-closure-v4" },
-        "parent_commit": { "$ref": "#/$defs/sha" },
-        "main_observed": { "$ref": "#/$defs/sha" },
-        "overlapping_candidate": {
+        "pull_request": {
+          "const": 39
+        },
+        "branch": {
+          "const": "fix/world-plan-v4-convergence-2026-08-30"
+        },
+        "base": {
+          "const": "main"
+        },
+        "base_observed": {
+          "$ref": "#/$defs/sha"
+        },
+        "head_observed": {
+          "$ref": "#/$defs/sha"
+        },
+        "tree_observed": {
+          "$ref": "#/$defs/sha"
+        },
+        "merge_base_observed": {
+          "$ref": "#/$defs/sha"
+        },
+        "ahead_by": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "behind_by": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "state": {
+          "const": "open"
+        },
+        "draft": {
+          "const": true
+        },
+        "mergeable": {
+          "type": "boolean"
+        },
+        "historical_parent": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["branch", "commit", "disposition"],
+          "required": [
+            "branch",
+            "commit"
+          ],
           "properties": {
-            "branch": { "type": "string", "minLength": 1 },
-            "commit": { "$ref": "#/$defs/sha" },
-            "disposition": { "const": "supersede_after_unique_change_review" }
+            "branch": {
+              "const": "fix/world-plan-gap-closure-v4"
+            },
+            "commit": {
+              "$ref": "#/$defs/sha"
+            }
+          }
+        },
+        "superseded_candidates": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "pull_request",
+              "head",
+              "state",
+              "merged"
+            ],
+            "properties": {
+              "pull_request": {
+                "type": "integer",
+                "enum": [
+                  36,
+                  37,
+                  38
+                ]
+              },
+              "head": {
+                "$ref": "#/$defs/sha"
+              },
+              "state": {
+                "const": "closed"
+              },
+              "merged": {
+                "const": false
+              }
+            }
           }
         }
       }
@@ -56,40 +154,93 @@
       "type": "object",
       "additionalProperties": false,
       "required": [
-        "candidate_check_runs",
-        "overlapping_candidate_check_runs",
+        "candidate_status_contexts",
+        "candidate_pull_request_workflow_runs",
         "ruleset_count",
-        "actions_probe",
-        "branch_protection_observed",
+        "branch_protection_query",
         "required_checks_observed",
         "code_owner_review_enforced_observed",
-        "administrators_enforced_observed"
+        "administrators_enforced_observed",
+        "requested_independent_reviewers",
+        "author_blocking_reviews_observed",
+        "independent_approvals_observed",
+        "cross_repository_write_probe"
       ],
       "properties": {
-        "candidate_check_runs": { "type": "integer", "minimum": 0 },
-        "overlapping_candidate_check_runs": { "type": "integer", "minimum": 0 },
-        "ruleset_count": { "type": "integer", "minimum": 0 },
-        "actions_probe": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": ["branch", "commit", "workflow_runs", "interpretation"],
-          "properties": {
-            "branch": { "type": "string", "minLength": 1 },
-            "commit": { "$ref": "#/$defs/sha" },
-            "workflow_runs": { "type": "integer", "minimum": 0 },
-            "interpretation": {
-              "const": "repository_or_organization_actions_execution_not_observed"
-            }
-          }
+        "candidate_status_contexts": {
+          "type": "integer",
+          "minimum": 0
         },
-        "branch_protection_observed": { "type": "boolean" },
+        "candidate_pull_request_workflow_runs": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "ruleset_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "branch_protection_query": {
+          "enum": [
+            "observed",
+            "not_observed_integration_403"
+          ]
+        },
         "required_checks_observed": {
           "type": "array",
-          "items": { "type": "string", "minLength": 1 },
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
           "uniqueItems": true
         },
-        "code_owner_review_enforced_observed": { "type": "boolean" },
-        "administrators_enforced_observed": { "type": "boolean" }
+        "code_owner_review_enforced_observed": {
+          "type": "boolean"
+        },
+        "administrators_enforced_observed": {
+          "type": "boolean"
+        },
+        "requested_independent_reviewers": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        },
+        "author_blocking_reviews_observed": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "independent_approvals_observed": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "cross_repository_write_probe": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "source_repository",
+            "workflow_run_id",
+            "job_id",
+            "outcome"
+          ],
+          "properties": {
+            "source_repository": {
+              "const": "TrillionniumFoundation/Trillionnium-Chain"
+            },
+            "workflow_run_id": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "job_id": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "outcome": {
+              "const": "permission_denied_403"
+            }
+          }
+        }
       }
     },
     "release_posture": {
@@ -105,13 +256,27 @@
         "commercial_release"
       ],
       "properties": {
-        "technical_source_candidate": { "const": "in_progress" },
-        "exact_head_remote_verification": { "const": "repository_control_blocked" },
-        "trusted_deployed_settlement": { "const": "environment_evidence_required" },
-        "canonical_nakama_online_authority": { "const": "blocked_upstream" },
-        "public_online": { "const": "no_go" },
-        "public_player_market": { "const": "disabled" },
-        "commercial_release": { "const": "no_go" }
+        "technical_source_candidate": {
+          "const": "in_progress"
+        },
+        "exact_head_remote_verification": {
+          "const": "repository_control_blocked"
+        },
+        "trusted_deployed_settlement": {
+          "const": "environment_evidence_required"
+        },
+        "canonical_nakama_online_authority": {
+          "const": "blocked_upstream"
+        },
+        "public_online": {
+          "const": "no_go"
+        },
+        "public_player_market": {
+          "const": "disabled"
+        },
+        "commercial_release": {
+          "const": "no_go"
+        }
       }
     },
     "counts": {
@@ -129,15 +294,42 @@
         "closed"
       ],
       "properties": {
-        "source_open": { "type": "integer", "minimum": 0 },
-        "source_implemented_unverified": { "type": "integer", "minimum": 0 },
-        "source_verified": { "type": "integer", "minimum": 0 },
-        "repository_control_blocked": { "type": "integer", "minimum": 0 },
-        "blocked_upstream": { "type": "integer", "minimum": 0 },
-        "environment_evidence_required": { "type": "integer", "minimum": 0 },
-        "human_evidence_required": { "type": "integer", "minimum": 0 },
-        "commercial_approval_required": { "type": "integer", "minimum": 0 },
-        "closed": { "type": "integer", "minimum": 0 }
+        "source_open": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "source_implemented_unverified": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "source_verified": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "repository_control_blocked": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "blocked_upstream": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "environment_evidence_required": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "human_evidence_required": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "commercial_approval_required": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "closed": {
+          "type": "integer",
+          "minimum": 0
+        }
       }
     },
     "items": {
@@ -156,24 +348,44 @@
           "next_gate"
         ],
         "properties": {
-          "id": { "type": "string", "pattern": "^WORLD-[A-Z0-9-]+$" },
-          "owner": { "type": "string", "minLength": 1 },
-          "state": { "$ref": "#/$defs/state" },
-          "claim": { "type": "string", "minLength": 1 },
+          "id": {
+            "type": "string",
+            "pattern": "^WORLD-[A-Z0-9-]+$"
+          },
+          "owner": {
+            "type": "string",
+            "minLength": 1
+          },
+          "state": {
+            "$ref": "#/$defs/state"
+          },
+          "claim": {
+            "type": "string",
+            "minLength": 1
+          },
           "evidence_required": {
             "type": "array",
             "minItems": 1,
-            "items": { "type": "string", "minLength": 1 },
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
             "uniqueItems": true
           },
-          "next_gate": { "type": "string", "minLength": 1 }
+          "next_gate": {
+            "type": "string",
+            "minLength": 1
+          }
         }
       }
     },
     "no_go": {
       "type": "array",
       "minItems": 1,
-      "items": { "type": "string", "minLength": 1 },
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
       "uniqueItems": true
     }
   },
