@@ -1,0 +1,14 @@
+# Trillionnium World review ownership. The PR author cannot satisfy their own review.
+* @Tomasrgbsf @ProfHepta
+
+# Repository controls, authority boundaries, settlement, database, and release evidence
+# require an independent review from ProfHepta or a future visible security team.
+/.github/ @ProfHepta
+/CURRENT_PLAN.md @ProfHepta
+/docs/adr/ @ProfHepta
+/docs/development/ @ProfHepta
+/docs/release/ @ProfHepta
+/docs/status/ @ProfHepta
+/trillionnium/crates/trnm-game-server/ @ProfHepta
+/trillionnium/contracts/ @ProfHepta
+/scripts/ @ProfHepta
