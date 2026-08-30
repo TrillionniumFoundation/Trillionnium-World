@@ -1,0 +1,3 @@
+contract=trnm_world_exact_head_trigger_v1
+purpose=execute-existing-read-only-world-v4-workflows
+release_credit=none
