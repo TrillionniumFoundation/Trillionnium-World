@@ -1,0 +1,57 @@
+{
+  "contract_version": "trnm_world_transition_https_fixture_delivery_v1",
+  "owner": "TrillionniumFoundation/Trillionnium-World",
+  "base_branch": "feature/world-deterministic-transition-contract-v1",
+  "status": "implemented_pending_exact_head_source_container_and_cross_repository_ci",
+  "activation": "fixture_only",
+  "implemented": [
+    "strict_trnm_world_transition_v1_canonical_request_parser",
+    "signed_i64_only_payload_validation",
+    "recursive_authority_surface_rejection",
+    "stable_accepted_and_rejected_results",
+    "domain_separated_request_outcome_and_transition_hashes",
+    "bounded_tls13_https_server",
+    "constant_time_bearer_authentication",
+    "request_and_response_byte_limits",
+    "fsync_hard_link_no_replace_directory_fsync_result_store",
+    "same_host_multi_process_first_commit_wins",
+    "symlinked_directory_and_result_rejection",
+    "request_hash_idempotent_exact_result_replay",
+    "health_result_lookup_and_bounded_stats_endpoints",
+    "standard_library_only_static_binary",
+    "scratch_non_root_prebuilt_container",
+    "source_negative_unit_race_vet_and_container_workflow"
+  ],
+  "limitations": [
+    "fixture_ruleset_not_production_world_rules",
+    "single_host_filesystem_publication_only",
+    "single_host_evidence_only_until_integration_run",
+    "no_multi_host_fencing_proof",
+    "no_24_hour_endurance",
+    "no_authority_cutover",
+    "no_public_online",
+    "no_public_player_market"
+  ],
+  "authority": {
+    "can_authenticate_players": false,
+    "can_assign_participant_roles": false,
+    "can_set_global_sequence": false,
+    "can_set_match_version": false,
+    "can_set_command_idempotency": false,
+    "can_create_canonical_roots": false,
+    "can_sign_completion": false,
+    "can_settle_value": false,
+    "cutover_authorized": false,
+    "closed_online_promoted": false,
+    "public_online_enabled": false,
+    "public_player_market_enabled": false
+  },
+  "scope_exclusions": [
+    "Trillionnium Chain",
+    "Chain finality",
+    "Chain inclusion proofs",
+    "CEX settlement",
+    "UI"
+  ],
+  "next_dependency": "exact-head World container evidence followed by exact World/Game Integration fault matrix"
+}
