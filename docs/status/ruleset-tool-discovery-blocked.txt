@@ -1,0 +1,2 @@
+connector_ruleset_write=not_yet_observed
+server_readback_required=true
