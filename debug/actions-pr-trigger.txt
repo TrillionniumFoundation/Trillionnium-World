@@ -1,0 +1,2 @@
+trigger=2026-08-30
+purpose=distinguish pull_request execution from GitHub App push suppression
