@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://trillionnium.invalid/schemas/trnm-world-rules-transition-request-v1.schema.json",
+  "title": "Trillionnium World deterministic transition request v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract_version",
+    "ruleset_revision",
+    "content_revision",
+    "transition_id",
+    "state_canonical_hex",
+    "command_canonical_hex",
+    "resource_budget"
+  ],
+  "properties": {
+    "contract_version": {
+      "const": "trnm_world_rules_v1"
+    },
+    "ruleset_revision": {
+      "$ref": "#/$defs/token128"
+    },
+    "content_revision": {
+      "$ref": "#/$defs/token128"
+    },
+    "transition_id": {
+      "$ref": "#/$defs/token192"
+    },
+    "state_canonical_hex": {
+      "type": "string",
+      "minLength": 2,
+      "maxLength": 8388608,
+      "pattern": "^(?:[0-9a-f]{2})+$"
+    },
+    "command_canonical_hex": {
+      "type": "string",
+      "minLength": 2,
+      "maxLength": 524288,
+      "pattern": "^(?:[0-9a-f]{2})+$"
+    },
+    "resource_budget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["max_steps", "max_output_bytes", "max_replay_bytes"],
+      "properties": {
+        "max_steps": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10000000
+        },
+        "max_output_bytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 5242880
+        },
+        "max_replay_bytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 16777216
+        }
+      }
+    }
+  },
+  "$defs": {
+    "token128": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9._:@-]+$"
+    },
+    "token192": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 192,
+      "pattern": "^[A-Za-z0-9._:@-]+$"
+    }
+  }
+}
