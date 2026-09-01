@@ -1,0 +1,24 @@
+name: tmp-world-actions-readonly-smoke
+
+on:
+  push:
+    branches:
+      - fix/world-plan-v4-development-closure-20260831
+    paths:
+      - .github/workflows/tmp-world-actions-readonly-smoke.yml
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Bind scheduling identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${GITHUB_SHA}"
+          printf 'TRNM_WORLD_ACTIONS_SCHEDULING=PASS\n'
+          printf 'head=%s\n' "${GITHUB_SHA}"
