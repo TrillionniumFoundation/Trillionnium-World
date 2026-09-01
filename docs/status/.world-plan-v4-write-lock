@@ -1,5 +1,0 @@
-schema=trnm_world_plan_v4_write_lock_v1
-base_head=6f2da1a4e4007f6bb1d35ce5c229876627ad19ff
-qualified_source_tree=5e613185f5a2abda42df371f3755e73667717309
-created_at=2026-09-01T00:00:00Z
-purpose=atomic-publication-in-progress
