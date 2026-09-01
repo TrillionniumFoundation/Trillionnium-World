@@ -24,7 +24,7 @@ errors: list[str] = []
 if mode == "full":
     required = {
         root / "docs/adr/0001-realtime-authority-and-match-evidence-ownership.md": [
-            "World-local authority is `legacy_local_alpha`",
+            "World-local authority is `world_legacy_local_alpha`",
             "Nakama",
             "Exactly one component is externally authoritative",
         ],
