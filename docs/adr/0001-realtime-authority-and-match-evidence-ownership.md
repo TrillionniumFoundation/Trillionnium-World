@@ -91,8 +91,8 @@ not claim a cross-repository gate without this binding.
 The existing `trillionnium/crates/trnm-game-server` implementation is retained
 as a bounded compatibility authority enclave during migration.
 
-World-local authority is `world_legacy_local_alpha`. Exactly one component is
-externally authoritative for canonical online match state: Nakama.
+World-local authority is `world_legacy_local_alpha`.
+Exactly one component is externally authoritative for canonical online match state: Nakama.
 
 Allowed:
 
