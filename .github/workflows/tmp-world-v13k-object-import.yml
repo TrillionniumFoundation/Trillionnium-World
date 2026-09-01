@@ -1,5 +1,6 @@
 name: tmp-world-v13k-object-import
 
+# Re-run nonce: 2026-09-01-v2
 on:
   push:
     branches:
@@ -205,8 +206,6 @@ jobs:
                   f"server/local tree mismatch: server={tree['sha']} local={expected_tree}"
               )
 
-          # Re-read the candidate branch after all object writes. The importer
-          # is fail-closed unless it remained on the exact frozen parent.
           branch = api("GET", f"/repos/{repository}/branches/{target_branch.replace('/', '%2F')}")
           observed_head = branch["commit"]["sha"]
           if observed_head != target_head:
