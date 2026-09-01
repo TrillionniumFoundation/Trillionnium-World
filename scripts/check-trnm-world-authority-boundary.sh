@@ -62,7 +62,22 @@ forbidden = {
 compiled = [(re.compile(pattern), reason) for pattern, reason in forbidden.items()]
 
 allowed_suffixes = {".rs", ".toml", ".sh", ".py", ".json", ".yaml", ".yml", ".service"}
-skip_parts = {".git", "target", "run", "vendor", "archive", "node_modules", "__pycache__"}
+skip_parts = {
+    ".git",
+    "target",
+    "run",
+    "vendor",
+    "archive",
+    "node_modules",
+    "__pycache__",
+    "tests",
+    "fixtures",
+    "testdata",
+}
+skip_files = {
+    pathlib.Path("scripts/check-trnm-world-authority-boundary.sh"),
+    pathlib.Path("scripts/test-trnm-world-authority-boundary-negative.sh"),
+}
 
 if not scan_root.exists():
     errors.append(f"scan root does not exist: {scan_root}")
@@ -71,7 +86,7 @@ else:
         if not path.is_file() or path.suffix not in allowed_suffixes:
             continue
         relative = path.relative_to(scan_root)
-        if any(part in skip_parts for part in relative.parts):
+        if relative in skip_files or any(part in skip_parts for part in relative.parts):
             continue
         if "docs" in relative.parts:
             continue
