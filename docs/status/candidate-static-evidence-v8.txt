@@ -1,1 +1,0 @@
-World Plan V4 local candidate v8 static gate bundle prepared; no Rust or release credit is claimed by this marker.
