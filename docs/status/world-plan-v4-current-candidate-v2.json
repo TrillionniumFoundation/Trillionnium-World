@@ -1,0 +1,56 @@
+{
+  "schema": "trnm_world_plan_v4_current_candidate_v2",
+  "as_of_utc": "2026-09-02T00:00:00Z",
+  "plan_id": "trillionnium-world-development-2026-08-29-v4",
+  "sole_repository_candidate": {
+    "pull_request": 46,
+    "branch": "fix/world-plan-v4-development-closure-20260831",
+    "supersedes_pull_requests": [25, 39, 43, 45],
+    "draft_required": true,
+    "administrator_bypass_permitted": false,
+    "self_approval_permitted": false,
+    "production_authorization": "not_granted"
+  },
+  "qualified_source_artifact": {
+    "state": "qualified_immutable_artifact",
+    "source_world_head": "5605cfb8861aa923f69ff032ddbff7d035bccb0c",
+    "source_world_tree": "928f43b328e5347b07357e41481df1c7e097adca",
+    "qualification_control_head": "68e9631b3fc3f75f332497f8d0551608bf0e1413",
+    "qualification_run_id": 33452853784,
+    "qualification_job_id": 99686384472,
+    "qualification_artifact_id": 9780499701,
+    "artifact_zip_sha256": "456a181bdc8f8aa248229b044db9eec4f52572ea3b20bca6492907db58d64ef5",
+    "source_patch_sha256": "ba49dba1e7fbf842f146ac399647e188faafcfbd5ce3ad17425ef88850e0199f",
+    "qualified_source_tree": "5e613185f5a2abda42df371f3755e73667717309",
+    "candidate_archive_sha256": "4c703f428f9a54262a6c0c1340028d08d7883f25ef437c1d7e221a280f53f071",
+    "manifest_sha256": "44cf59478b28e8fde793ca0d705ba3634216a5d388ce7264e74cd0319c41ff6f",
+    "identity_sha256": "d05b375af8d0d8317a2e6e58b75a594949729203499f6677b43f1ea36ff31110",
+    "rust_toolchain": "1.98.0",
+    "writes": 73,
+    "deletions": [
+      "trillionnium/crates/trnm-game-server/build.rs",
+      "trillionnium/crates/trnm-game-server/src/lib.rs.in"
+    ]
+  },
+  "closure_denominators": {
+    "qualified_artifact": "closed_for_exact_artifact_identity",
+    "source_publication_to_pr_46": "requires_remote_exact_byte_readback",
+    "exact_head_repository_qualification": "open_no_nonempty_world_actions_runs",
+    "server_enforced_repository_governance": "open_repository_admin_action_required",
+    "nakama_authority_and_integration_component_lock": "open_cross_repository_evidence_required",
+    "cex_trusted_settlement_and_custody": "open_cross_repository_and_external_evidence_required",
+    "deployment_public_edge_cross_host_recovery": "open_external_evidence_required",
+    "endurance_fault_and_reproducible_release": "open_external_evidence_required",
+    "human_accessibility_privacy_legal_commercial": "open_external_authority_required",
+    "final_human_go_no_go": "open"
+  },
+  "evidence_rules": [
+    "a qualified artifact does not prove publication to the review branch",
+    "source publication does not prove exact-head repository qualification",
+    "source or CI does not prove server-enforced repository governance",
+    "repository evidence cannot substitute for cross-repository or external production evidence",
+    "zero-runner, empty-step, skipped, synthetic or locally asserted status receives no credit",
+    "production authorization remains not_granted until every release denominator is independently closed"
+  ],
+  "release_effect": "none"
+}
