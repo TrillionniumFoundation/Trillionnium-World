@@ -1,0 +1,116 @@
+name: trnm-world-v5-closure-contract
+
+on:
+  pull_request:
+    paths:
+      - CURRENT_PLAN.md
+      - docs/development/trnm-world-gap-closure-ledger-v5.json
+      - docs/integration/trnm-world-cex-sequence-50-pending-lock-v1.json
+      - docs/status/development-closure-execution-2026-09-02.md
+      - scripts/import-qualified-world-v13k.py
+      - scripts/check-trnm-world-v13k-import-contract.py
+      - scripts/check-trnm-world-cex-pending-lock.py
+      - trillionnium/crates/trnm-campaign-core/**
+      - trillionnium/crates/trnm-rts-sim/**
+      - trillionnium/crates/trnm-game-server/**
+      - .github/workflows/trnm-world-v5-closure-contract.yml
+  push:
+    branches:
+      - main
+      - fix/world-plan-v4-development-closure-20260831
+    paths:
+      - CURRENT_PLAN.md
+      - docs/development/trnm-world-gap-closure-ledger-v5.json
+      - docs/integration/trnm-world-cex-sequence-50-pending-lock-v1.json
+      - docs/status/development-closure-execution-2026-09-02.md
+      - scripts/import-qualified-world-v13k.py
+      - scripts/check-trnm-world-v13k-import-contract.py
+      - scripts/check-trnm-world-cex-pending-lock.py
+      - trillionnium/crates/trnm-campaign-core/**
+      - trillionnium/crates/trnm-rts-sim/**
+      - trillionnium/crates/trnm-game-server/**
+      - .github/workflows/trnm-world-v5-closure-contract.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trnm-world-v5-closure-contract-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  closure-contract:
+    name: trnm-world-v5/closure-contract
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout exact event commit without third-party actions
+        shell: bash
+        run: |
+          set -euo pipefail
+          git init repository
+          git -C repository remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          git -C repository fetch --no-tags --depth=3 origin "${GITHUB_SHA}"
+          git -C repository checkout --detach FETCH_HEAD
+          test "$(git -C repository rev-parse HEAD)" = "${GITHUB_SHA}"
+
+      - name: Verify immutable ledgers and safety contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd repository
+          python3 -m json.tool docs/development/trnm-world-gap-closure-ledger-v5.json >/dev/null
+          python3 -m json.tool docs/integration/trnm-world-cex-sequence-50-pending-lock-v1.json >/dev/null
+          python3 -m py_compile \
+            scripts/import-qualified-world-v13k.py \
+            scripts/check-trnm-world-v13k-import-contract.py \
+            scripts/check-trnm-world-cex-pending-lock.py
+          python3 scripts/check-trnm-world-v13k-import-contract.py
+          python3 scripts/check-trnm-world-cex-pending-lock.py
+
+      - name: Verify direct-source and no-overclaim boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd repository
+          test ! -e trillionnium/crates/trnm-game-server/build.rs
+          test ! -e trillionnium/crates/trnm-game-server/src/lib.rs.in
+          ! grep -R --line-number --fixed-strings 'trnm_game_server_lib_generated.rs' trillionnium/crates/trnm-game-server
+          ! grep -R --line-number --fixed-strings 'include!(concat!(env!("OUT_DIR")' trillionnium/crates/trnm-game-server
+          grep -F '5e613185f5a2abda42df371f3755e73667717309' CURRENT_PLAN.md
+          grep -F 'production_authorization' docs/development/trnm-world-gap-closure-ledger-v5.json
+          python3 - <<'PY'
+          import json
+          ledger=json.load(open('docs/development/trnm-world-gap-closure-ledger-v5.json'))
+          assert ledger['all_repository_gaps_closed'] is False
+          assert ledger['all_plan_gaps_closed'] is False
+          assert ledger['public_online'] is False
+          assert ledger['trusted_settlement'] is False
+          assert ledger['public_player_market'] is False
+          assert ledger['production_ready'] is False
+          assert ledger['review_surface']['production_authorization']=='not_granted'
+          lock=json.load(open('docs/integration/trnm-world-cex-sequence-50-pending-lock-v1.json'))
+          assert lock['lock_state']=='coordination_only_blocked'
+          assert lock['world_adoption']=='disabled'
+          assert lock['trusted_settlement'] is False
+          assert lock['production_ready'] is False
+          PY
+
+      - name: Reject obsolete write-capable finalizers and probes
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd repository
+          for path in \
+            .github/workflows/tmp-world-plan-v4-atomic-finalizer-v8.yml \
+            .github/workflows/tmp-world-plan-v4-atomic-finalizer-v9.yml \
+            .github/workflows/tmp-world-plan-v4-publish-v10.yml \
+            .github/workflows/tmp-world-v13k-object-import-v2.yml \
+            .github/workflows/tmp-world-v13k-publish-qualified-tree-v3.yml \
+            docs/status/candidate-static-evidence-v8.txt \
+            docs/status/cross-repository-blob-probe.txt \
+            docs/evidence/.connector-write-capability-probe; do
+            test ! -e "$path"
+          done
+          printf 'TRNM_WORLD_V5_CLOSURE_CONTRACT=PASS\n'
