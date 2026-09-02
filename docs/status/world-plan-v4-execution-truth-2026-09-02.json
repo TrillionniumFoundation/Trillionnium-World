@@ -1,0 +1,65 @@
+{
+  "schema": "trnm_world_plan_v4_execution_truth_v1",
+  "recorded_at_utc": "2026-09-02T08:30:00Z",
+  "repository": "TrillionniumFoundation/Trillionnium-World",
+  "operative_pull_request": 46,
+  "operative_branch": "fix/world-plan-v4-development-closure-20260831",
+  "observed_head_before_truth_update": "a76d04b2755e11a0e8ec7ab769d2fda06476f285",
+  "source_qualification": {
+    "source_world_head": "5605cfb8861aa923f69ff032ddbff7d035bccb0c",
+    "source_world_tree": "928f43b328e5347b07357e41481df1c7e097adca",
+    "qualification_control_head": "68e9631b3fc3f75f332497f8d0551608bf0e1413",
+    "workflow_run_id": 33452853784,
+    "workflow_job_id": 99686384472,
+    "artifact_id": 9780499701,
+    "artifact_zip_sha256": "456a181bdc8f8aa248229b044db9eec4f52572ea3b20bca6492907db58d64ef5",
+    "source_patch_sha256": "ba49dba1e7fbf842f146ac399647e188faafcfbd5ce3ad17425ef88850e0199f",
+    "candidate_archive_sha256": "4c703f428f9a54262a6c0c1340028d08d7883f25ef437c1d7e221a280f53f071",
+    "manifest_sha256": "44cf59478b28e8fde793ca0d705ba3634216a5d388ce7264e74cd0319c41ff6f",
+    "identity_sha256": "d05b375af8d0d8317a2e6e58b75a594949729203499f6677b43f1ea36ff31110",
+    "qualified_source_tree": "5e613185f5a2abda42df371f3755e73667717309",
+    "rust_toolchain": "1.98.0",
+    "qualification_result": "pass"
+  },
+  "source_publication": {
+    "state": "blocked_partial_unreferenced_object_import",
+    "qualified_tree_present": false,
+    "qualified_tree_attached_to_pull_request": false,
+    "direct_source_required": true,
+    "semantic_build_rs_and_lib_rs_in_must_be_absent": true,
+    "rule": "qualification of artifact bytes is not publication of those bytes in the World pull request"
+  },
+  "github_actions": {
+    "repository_workflow_run_total": 0,
+    "state": "repository_or_organization_scheduler_blocked",
+    "exact_head_evidence": "absent",
+    "rule": "empty check collections and zero-run repositories receive no verification credit"
+  },
+  "cex_dependency": {
+    "repository": "TrillionniumFoundation/CEX",
+    "pull_request": 24,
+    "commit": "dc0862b8cf88a1f4e6328d519947e19b81122de0",
+    "tree": "762e33a3f16c14347a44cec1d862a8e0ab447ad8",
+    "migration_head": "0088_enforce_provider_terminal_evidence_binding.sql",
+    "sequence": 50,
+    "qualification_state": "blocked_before_runner_allocation",
+    "production_authorization": "not_granted"
+  },
+  "closure": {
+    "world_owned_source_development_closed": false,
+    "exact_head_ci_closed": false,
+    "independent_review_closed": false,
+    "server_governance_closed": false,
+    "all_plan_gaps_closed": false,
+    "production_authorization": "not_granted"
+  },
+  "external_evidence_gaps": {
+    "nakama_canonical_authority_and_cutover": "open",
+    "trusted_cex_custody_and_settlement": "open",
+    "deployment_and_public_edge": "open",
+    "cross_host_recovery_and_endurance": "open",
+    "human_and_accessibility_validation": "open",
+    "privacy_legal_support_and_commercial": "open"
+  },
+  "no_credit_rule": "source and CI cannot synthesize deployment, custody, human, legal, commercial, or independent-review evidence"
+}
