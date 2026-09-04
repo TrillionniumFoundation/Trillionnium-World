@@ -4,8 +4,9 @@
 Dry-run is the default. Publication requires --publish, --expected-head and the
 TRNM_WORLD_IMPORT_TOKEN environment variable. The tool refuses main/master,
 never force-updates a ref, and never writes statuses, tags, releases or
- deployments. It first reproduces the qualified tree locally, then verifies
-every manifest blob before any GitHub write.
+deployments. It verifies the immutable artifact, reconstructs its archived Git
+tree exactly, expands every directory marker through the qualified patch, and
+checks every file's byte/Git identity before any GitHub write.
 """
 
 from __future__ import annotations
@@ -16,8 +17,10 @@ import hashlib
 import json
 import os
 from pathlib import Path, PurePosixPath
+import shutil
 import subprocess
 import sys
+import tarfile
 import tempfile
 import urllib.error
 import urllib.parse
@@ -26,6 +29,8 @@ import zipfile
 
 REPOSITORY = "TrillionniumFoundation/Trillionnium-World"
 DEFAULT_BRANCH = "fix/world-plan-v4-development-closure-20260831"
+WRITE_COUNT = 73
+DELETION_COUNT = 2
 EXPECTED = {
     "artifact_zip_sha256": "456a181bdc8f8aa248229b044db9eec4f52572ea3b20bca6492907db58d64ef5",
     "candidate_archive_sha256": "4c703f428f9a54262a6c0c1340028d08d7883f25ef437c1d7e221a280f53f071",
@@ -46,11 +51,11 @@ class ImportFailure(RuntimeError):
 
 
 def digest(path: Path) -> str:
-    h = hashlib.sha256()
+    value = hashlib.sha256()
     with path.open("rb") as handle:
         for chunk in iter(lambda: handle.read(1024 * 1024), b""):
-            h.update(chunk)
-    return h.hexdigest()
+            value.update(chunk)
+    return value.hexdigest()
 
 
 def command(*args: str, cwd: Path | None = None, capture: bool = False) -> str:
@@ -70,16 +75,49 @@ def command(*args: str, cwd: Path | None = None, capture: bool = False) -> str:
     return result.stdout.strip() if capture else ""
 
 
-def safe_extract(archive: Path, destination: Path) -> None:
+def checked_relative(value: str, label: str) -> str:
+    normalized = value.replace("\\", "/")
+    path = PurePosixPath(normalized)
+    if not normalized or path.is_absolute() or ".." in path.parts or normalized.startswith("./"):
+        raise ImportFailure(f"unsafe {label}: {value}")
+    return normalized
+
+
+def safe_extract_zip(archive: Path, destination: Path) -> None:
     with zipfile.ZipFile(archive) as bundle:
         for info in bundle.infolist():
-            name = info.filename.replace("\\", "/")
-            member = PurePosixPath(name)
-            if member.is_absolute() or ".." in member.parts:
-                raise ImportFailure(f"unsafe artifact member: {name}")
+            name = checked_relative(info.filename, "artifact member")
+            unix_mode = (info.external_attr >> 16) & 0o170000
+            if unix_mode == 0o120000:
+                raise ImportFailure(f"artifact symlink is forbidden: {name}")
             if info.file_size > 256 * 1024 * 1024:
                 raise ImportFailure(f"oversized artifact member: {name}")
         bundle.extractall(destination)
+
+
+def safe_extract_tar(archive: Path, destination: Path) -> None:
+    with tarfile.open(archive, "r:gz") as bundle:
+        members = bundle.getmembers()
+        for member in members:
+            name = checked_relative(member.name, "candidate archive member")
+            if member.issym() or member.islnk() or member.isdev() or member.isfifo():
+                raise ImportFailure(f"unsupported candidate archive member: {name}")
+            if member.isfile() and member.size > 256 * 1024 * 1024:
+                raise ImportFailure(f"oversized candidate archive member: {name}")
+        for member in members:
+            target = destination / member.name
+            if member.isdir():
+                target.mkdir(parents=True, exist_ok=True)
+                continue
+            if not member.isfile():
+                raise ImportFailure(f"unsupported candidate archive entry: {member.name}")
+            target.parent.mkdir(parents=True, exist_ok=True)
+            source = bundle.extractfile(member)
+            if source is None:
+                raise ImportFailure(f"cannot read candidate archive entry: {member.name}")
+            with source, target.open("wb") as output:
+                shutil.copyfileobj(source, output)
+            target.chmod(0o755 if member.mode & 0o111 else 0o644)
 
 
 def find_one(root: Path, name: str) -> Path:
@@ -87,6 +125,75 @@ def find_one(root: Path, name: str) -> Path:
     if len(matches) != 1:
         raise ImportFailure(f"expected one {name}, found {len(matches)}")
     return matches[0]
+
+
+def parse_patch_paths(patch: Path) -> list[str]:
+    paths: list[str] = []
+    seen: set[str] = set()
+    prefix = "diff --git a/"
+    for line in patch.read_text(encoding="utf-8").splitlines():
+        if not line.startswith(prefix):
+            continue
+        remainder = line[len(prefix) :]
+        try:
+            before, after = remainder.split(" b/", 1)
+        except ValueError as error:
+            raise ImportFailure(f"malformed patch path line: {line}") from error
+        before = checked_relative(before, "patch source path")
+        after = checked_relative(after, "patch target path")
+        if before != after:
+            raise ImportFailure(f"rename/copy is not allowed in qualified patch: {before} -> {after}")
+        if after in seen:
+            raise ImportFailure(f"duplicate qualified patch path: {after}")
+        seen.add(after)
+        paths.append(after)
+    if len(paths) != WRITE_COUNT:
+        raise ImportFailure(f"qualified patch write count mismatch: {len(paths)}")
+    return paths
+
+
+def classify_manifest(manifest: dict, patch_paths: list[str]) -> tuple[dict[str, dict], set[str]]:
+    records = manifest.get("files")
+    if not isinstance(records, list):
+        raise ImportFailure("artifact manifest files must be a list")
+
+    declared_files: dict[str, dict] = {}
+    directory_markers: set[str] = set()
+    deletions: set[str] = set()
+    for item in records:
+        if not isinstance(item, dict):
+            raise ImportFailure("artifact manifest entry must be an object")
+        path = checked_relative(str(item.get("path", "")), "manifest path")
+        status = str(item.get("status", "")).strip()
+        if status == "D":
+            deletions.add(path)
+        elif status == "??" and path.endswith("/"):
+            directory_markers.add(path)
+        elif status in {"M", "??"}:
+            required = {"bytes", "git_blob_sha1", "sha256"}
+            if not required.issubset(item):
+                raise ImportFailure(f"manifest file metadata is incomplete: {path}")
+            declared_files[path] = item
+        else:
+            raise ImportFailure(f"unsupported manifest status {status!r}: {path}")
+
+    patch_set = set(patch_paths)
+    if not set(declared_files).issubset(patch_set):
+        raise ImportFailure("manifest file entry is absent from qualified patch")
+    for marker in directory_markers:
+        if not any(path.startswith(marker) for path in patch_paths):
+            raise ImportFailure(f"empty manifest directory marker: {marker}")
+    for path in patch_paths:
+        if path in declared_files:
+            continue
+        if not any(path.startswith(marker) for marker in directory_markers):
+            raise ImportFailure(f"patch path is outside manifest coverage: {path}")
+
+    if len(deletions) != DELETION_COUNT:
+        raise ImportFailure(f"qualified deletion count mismatch: {len(deletions)}")
+    if patch_set & deletions:
+        raise ImportFailure("qualified write/delete path sets overlap")
+    return declared_files, deletions
 
 
 def github(method: str, path: str, token: str, payload: dict | None = None) -> dict:
@@ -98,7 +205,7 @@ def github(method: str, path: str, token: str, payload: dict | None = None) -> d
         headers={
             "Accept": "application/vnd.github+json",
             "Authorization": f"Bearer {token}",
-            "User-Agent": "trnm-world-v13k-importer/v1",
+            "User-Agent": "trnm-world-v13k-importer/v2",
             "X-GitHub-Api-Version": "2022-11-28",
         },
     )
@@ -117,7 +224,7 @@ def prepare(artifact_zip: Path, workspace: Path) -> tuple[Path, list[dict]]:
 
     artifact_root = workspace / "artifact"
     artifact_root.mkdir()
-    safe_extract(artifact_zip, artifact_root)
+    safe_extract_zip(artifact_zip, artifact_root)
     patch = find_one(artifact_root, "world-v13-source.patch")
     manifest_path = find_one(artifact_root, "manifest.json")
     identity = find_one(artifact_root, "identity.txt")
@@ -133,40 +240,51 @@ def prepare(artifact_zip: Path, workspace: Path) -> tuple[Path, list[dict]]:
             raise ImportFailure(f"artifact member SHA-256 mismatch: {path.name}")
 
     candidate = workspace / "candidate"
+    candidate.mkdir()
+    safe_extract_tar(candidate_archive, candidate)
     command("git", "init", "-q", str(candidate))
-    command("git", "-C", str(candidate), "remote", "add", "origin", f"https://github.com/{REPOSITORY}.git")
-    command("git", "-C", str(candidate), "fetch", "--no-tags", "--depth=1", "origin", EXPECTED["source_head"])
-    command("git", "-C", str(candidate), "checkout", "--detach", "FETCH_HEAD")
-    if command("git", "-C", str(candidate), "rev-parse", "HEAD", capture=True) != EXPECTED["source_head"]:
-        raise ImportFailure("source commit read-back mismatch")
-    if command("git", "-C", str(candidate), "rev-parse", "HEAD^{tree}", capture=True) != EXPECTED["source_tree"]:
-        raise ImportFailure("source tree read-back mismatch")
-    command("git", "-C", str(candidate), "apply", "--binary", "--check", str(patch))
-    command("git", "-C", str(candidate), "apply", "--binary", str(patch))
-    command("git", "-C", str(candidate), "add", "-A")
-    if command("git", "-C", str(candidate), "write-tree", capture=True) != EXPECTED["qualified_tree"]:
-        raise ImportFailure("qualified tree mismatch")
+    command("git", "-C", str(candidate), "add", "-f", "-A")
+    archived_tree = command("git", "-C", str(candidate), "write-tree", capture=True)
+    if archived_tree != EXPECTED["qualified_tree"]:
+        raise ImportFailure(f"candidate archive tree mismatch: {archived_tree}")
 
+    patch_paths = parse_patch_paths(patch)
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    declared_files, deletions = classify_manifest(manifest, patch_paths)
+
     records: list[dict] = []
-    for item in manifest["files"]:
-        relative = item["path"]
+    for relative in patch_paths:
         path = candidate / relative
-        record = {"path": relative, "status": item["status"]}
-        if path.is_file():
-            content = path.read_bytes()
-            blob = command("git", "-C", str(candidate), "hash-object", "--", relative, capture=True)
-            if blob != item["git_blob_sha1"]:
-                raise ImportFailure(f"Git blob mismatch: {relative}")
-            if len(content) != item["bytes"] or hashlib.sha256(content).hexdigest() != item["sha256"]:
+        if not path.is_file() or path.is_symlink():
+            raise ImportFailure(f"qualified write is not a regular file: {relative}")
+        content = path.read_bytes()
+        blob = command("git", "-C", str(candidate), "hash-object", "--", relative, capture=True)
+        index = command("git", "-C", str(candidate), "ls-files", "-s", "--", relative, capture=True)
+        fields = index.split()
+        if len(fields) < 4:
+            raise ImportFailure(f"candidate index entry is missing: {relative}")
+        mode = fields[0]
+        if mode not in {"100644", "100755"}:
+            raise ImportFailure(f"unsupported mode {mode}: {relative}")
+        declared = declared_files.get(relative)
+        if declared is not None:
+            if blob != declared["git_blob_sha1"]:
+                raise ImportFailure(f"manifest Git blob mismatch: {relative}")
+            if len(content) != declared["bytes"]:
+                raise ImportFailure(f"manifest byte count mismatch: {relative}")
+            if hashlib.sha256(content).hexdigest() != declared["sha256"]:
                 raise ImportFailure(f"manifest byte mismatch: {relative}")
-            mode = command("git", "-C", str(candidate), "ls-files", "-s", "--", relative, capture=True).split()[0]
-            if mode not in {"100644", "100755"}:
-                raise ImportFailure(f"unsupported mode {mode}: {relative}")
-            record.update({"content": content, "mode": mode, "sha": blob})
-        else:
-            record.update({"content": None, "mode": "100644", "sha": None})
-        records.append(record)
+        records.append({"path": relative, "content": content, "mode": mode, "sha": blob})
+
+    for relative in sorted(deletions):
+        if (candidate / relative).exists():
+            raise ImportFailure(f"qualified deletion still exists in archive: {relative}")
+        records.append({"path": relative, "content": None, "mode": "100644", "sha": None})
+
+    if sum(record["sha"] is not None for record in records) != WRITE_COUNT:
+        raise ImportFailure("expanded qualified write count mismatch")
+    if sum(record["sha"] is None for record in records) != DELETION_COUNT:
+        raise ImportFailure("expanded qualified deletion count mismatch")
     return candidate, records
 
 
@@ -255,7 +373,7 @@ def main() -> int:
     with tempfile.TemporaryDirectory(prefix="trnm-world-v13k-") as temporary:
         _, records = prepare(args.artifact_zip, Path(temporary))
         result = {
-            "schema": "trnm_world_v13k_import_result_v1",
+            "schema": "trnm_world_v13k_import_result_v2",
             "repository": args.repository,
             "target_branch": args.target_branch,
             "qualified_tree": EXPECTED["qualified_tree"],
@@ -276,8 +394,9 @@ def main() -> int:
     return 0
 
 
-try:
-    raise SystemExit(main())
-except (ImportFailure, OSError, ValueError, json.JSONDecodeError) as error:
-    print(f"import failed closed: {error}", file=sys.stderr)
-    raise SystemExit(1)
+if __name__ == "__main__":
+    try:
+        raise SystemExit(main())
+    except (ImportFailure, OSError, ValueError, json.JSONDecodeError, tarfile.TarError) as error:
+        print(f"import failed closed: {error}", file=sys.stderr)
+        raise SystemExit(1)
