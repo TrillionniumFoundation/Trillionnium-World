@@ -1,36 +1,50 @@
 name: Self-hosted desktop runner availability
 
 on:
-  workflow_dispatch:
+  issue_comment:
+    types: [created]
 
-# This probe intentionally does not check out repository code and accepts no
-# caller-controlled shell input. It proves only that a manual invocation from
-# protected main can acquire the dedicated desktop-labelled runner.
+# `issue_comment` is evaluated from the repository default branch. The exact
+# job-level predicate below is evaluated before runner allocation, so a topic
+# ref, pull-request comment, unprotected ref, different issue, different actor,
+# or non-exact command cannot acquire the persistent runner. The job checks out
+# no source, receives no token permission, accepts no input, and emits no host
+# inventory. The runner group and label are project-specific and must be bound
+# to this exact workflow by authenticated GitHub/SRE configuration.
 permissions: {}
+
+concurrency:
+  group: trnm-world-desktop-availability
+  cancel-in-progress: false
 
 jobs:
   runner-probe:
-    name: Desktop runner probe
+    name: World desktop runner probe
+    if: >-
+      github.event_name == 'issue_comment' &&
+      github.repository == 'TrillionniumFoundation/Trillionnium-World' &&
+      github.event.repository.default_branch == 'main' &&
+      github.ref == 'refs/heads/main' &&
+      github.ref_protected == true &&
+      github.event.issue.number == 55 &&
+      github.event.issue.pull_request == null &&
+      github.event.comment.body == '/world-desktop-runner-probe' &&
+      github.actor == 'ProfHepta'
     runs-on:
-      - self-hosted
-      - linux
-      - x64
-      - desktop
-    timeout-minutes: 10
+      group: trillionnium-world-desktop
+      labels: trillionnium-world-desktop
+    timeout-minutes: 5
     steps:
-      - name: Verify trusted manual main invocation
+      - name: Emit bounded acquisition receipt
         shell: bash
         run: |
           set -euo pipefail
-          test "$GITHUB_EVENT_NAME" = workflow_dispatch
+          test "$GITHUB_EVENT_NAME" = issue_comment
+          test "$GITHUB_REPOSITORY" = TrillionniumFoundation/Trillionnium-World
           test "$GITHUB_REF" = refs/heads/main
+          test "$GITHUB_REF_PROTECTED" = true
+          test "$GITHUB_ACTOR" = ProfHepta
           test "$RUNNER_NAME" = desktop
           test "$RUNNER_OS" = Linux
           test "$RUNNER_ARCH" = X64
-
-      - name: Emit minimal non-sensitive receipt
-        shell: bash
-        run: |
-          set -euo pipefail
-          printf 'probe=pass\nref=%s\nos=%s\narch=%s\n' \
-            "$GITHUB_REF" "$RUNNER_OS" "$RUNNER_ARCH"
+          printf 'status=world-desktop-runner-acquired\ntrigger=issue_comment\nref=refs/heads/main\nissue=55\n'
