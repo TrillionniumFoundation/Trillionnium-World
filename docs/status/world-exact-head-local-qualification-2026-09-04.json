@@ -1,62 +1,41 @@
 {
-  "schema": "trnm_world_exact_head_local_qualification_v1",
+  "schema": "trnm_world_exact_head_local_qualification_v2",
   "recorded_on": "2026-09-04",
+  "corrected_on": "2026-09-04",
   "repository": "TrillionniumFoundation/Trillionnium-World",
   "pull_request": 46,
   "branch": "fix/world-plan-v4-development-closure-20260831",
-  "head_resolution": "resolved_by_fresh_remote_readback_at_execution_time",
+  "observed_remote_head": "9b73b0365f116089bc24f648f4620709aded8f6a",
   "evidence_class": "single_host_local_engineering",
-  "result": "pass",
-  "direct_source": {
-    "semantic_build_rs_absent": true,
-    "semantic_lib_rs_in_absent": true,
-    "ordinary_direct_lib_rs_present": true,
-    "premerge_validated_tree_equals_postmerge_branch_tree": true
+  "result": "invalidated_by_remote_source_readback",
+  "direct_source_readback": {
+    "semantic_build_rs_present": true,
+    "semantic_lib_rs_in_present": true,
+    "lib_rs_includes_out_dir_generated_source": true,
+    "qualified_tree_present_in_world_object_database": false,
+    "source_publication_status": "open"
+  },
+  "withdrawn_claims": [
+    "semantic_build_rs_absent",
+    "semantic_lib_rs_in_absent",
+    "ordinary_direct_lib_rs_is_the_effective_compiled_server_body",
+    "premerge_validated_tree_equals_remote_branch_tree"
+  ],
+  "correction_reason": "The prior record described an isolated local reconstruction rather than the remotely reviewable PR source object. Fresh GitHub read-back of the recorded head shows build.rs and src/lib.rs.in present, while src/lib.rs still includes generated OUT_DIR source. Local reconstruction or test output cannot transfer source-publication credit to a different Git object.",
+  "locally_reported_checks": {
+    "disposition": "not_accepted_as_exact_head_or_source_publication_evidence",
+    "reason": "The reported checks were not bound to the remotely readable PR tree and have no non-empty GitHub runner, job, step, log and retained-artifact packet on the exact PR head."
   },
   "repository_hygiene": {
-    "removed_paths": [
-      "micro_patch.diff",
-      "__schema_probe__",
-      "nonexistent",
-      "docs/evidence/.connector-write-capability-probe",
-      "docs/status/.capability-note",
-      "docs/status/.do-not-use-file-probes",
-      "docs/status/.fork-route-probe",
-      "docs/status/assistant-execution-probe-2026-08-30.txt",
-      "docs/status/assistant-upload-path-probe.txt",
-      "docs/status/local-file-transport-probe.txt"
-    ],
-    "fresh_branch_readback": "pass"
+    "probe_cleanup_observed": true,
+    "source_publication_observed": false
   },
-  "checks": [
-    "Python compilation for current documentation, module, transition, CI, gate, import, CEX-lock and settlement-status checkers",
-    "active module-documentation checker",
-    "five-class module-documentation negative suite",
-    "current documentation checker and negative suite",
-    "transition conformance",
-    "CI integrity and read-only workflow boundary",
-    "v13k importer contract",
-    "CEX pending-lock fail-closed contract",
-    "World gate checker and negative suite",
-    "settlement runtime status and negative suite",
-    "game-product and authority boundaries",
-    "runtime configuration",
-    "settlement transaction boundary and outbox contract",
-    "direct-source boundary",
-    "game package and online resource budgets",
-    "Rust 1.98.0 workspace fmt",
-    "Rust 1.98.0 workspace all-target tests",
-    "Rust 1.98.0 workspace strict Clippy",
-    "Rust 1.98.0 workspace all-target release build",
-    "cargo-audit",
-    "cargo-deny",
-    "CycloneDX SBOM generation"
-  ],
-  "limitations": [
-    "This is a fresh local single-host engineering run, not GitHub-hosted exact-head evidence.",
-    "It does not establish server-side required checks or independent review.",
-    "It does not establish PostgreSQL failover/PITR, cross-host, public-network, custody, human, legal or commercial evidence.",
-    "Production authorization remains not_granted."
+  "required_next_evidence": [
+    "publish the exact 73 qualified writes and two deletions as ordinary GitHub-reviewable World source",
+    "verify every imported byte and the reconstructed qualified tree by remote read-back",
+    "freeze the resulting PR head and prospective merge object",
+    "obtain non-empty exact-head Rust 1.98, PostgreSQL, transition, package, source-boundary and supply-chain runs",
+    "obtain fresh independent approval after all checks settle"
   ],
   "hosted_exact_head_qualification": "blocked_pending_non_empty_runner_job_step_log_and_artifact_evidence",
   "production_authorization": "not_granted"
