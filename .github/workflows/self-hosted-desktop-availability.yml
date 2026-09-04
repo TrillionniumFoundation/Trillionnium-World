@@ -2,15 +2,10 @@ name: Self-hosted desktop runner availability
 
 on:
   workflow_dispatch:
-    inputs:
-      reason:
-        description: Why this bounded runner probe is being requested
-        required: false
-        default: operator-check
-        type: string
 
-# This probe intentionally does not check out repository code. It only proves
-# that the selected, trusted main/manual lane can acquire the desktop runner.
+# This probe intentionally does not check out repository code and accepts no
+# caller-controlled shell input. It proves only that a manual invocation from
+# protected main can acquire the dedicated desktop-labelled runner.
 permissions: {}
 
 jobs:
@@ -20,6 +15,7 @@ jobs:
       - self-hosted
       - linux
       - x64
+      - desktop
     timeout-minutes: 10
     steps:
       - name: Verify trusted manual main invocation
@@ -29,13 +25,12 @@ jobs:
           test "$GITHUB_EVENT_NAME" = workflow_dispatch
           test "$GITHUB_REF" = refs/heads/main
           test "$RUNNER_NAME" = desktop
-          printf 'runner=%s\nos=%s\narch=%s\nref=%s\nreason=%s\n' \
-            "$RUNNER_NAME" "$RUNNER_OS" "$RUNNER_ARCH" "$GITHUB_REF" \
-            '${{ inputs.reason }}'
-      - name: Read-only capability snapshot
+          test "$RUNNER_OS" = Linux
+          test "$RUNNER_ARCH" = X64
+
+      - name: Emit minimal non-sensitive receipt
         shell: bash
         run: |
           set -euo pipefail
-          uname -a
-          if command -v adb >/dev/null 2>&1; then adb devices -l || true; fi
-          if command -v nvidia-smi >/dev/null 2>&1; then nvidia-smi --query-gpu=name --format=csv,noheader || true; fi
+          printf 'probe=pass\nref=%s\nos=%s\narch=%s\n' \
+            "$GITHUB_REF" "$RUNNER_OS" "$RUNNER_ARCH"
