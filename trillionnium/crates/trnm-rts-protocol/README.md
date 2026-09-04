@@ -36,3 +36,14 @@ Intake failures publish no command or simulation mutation and return static code
 ## Compatibility and change control
 
 Intake policy, order vocabulary, simulation ruleset and release provenance have separate versions. Changing intake limits, type rules or error precedence requires a new intake version and conformance vectors. Changing enum spellings, serialized/fingerprint material or gameplay meaning follows the separate order/ruleset version process. Old save/replay readers cannot be removed without migration inventory and retirement evidence. No production or canonical authority surface is enabled by this candidate.
+
+## Wire-shape differential gate
+
+The strict intake decoder enforces string-only `kind` and `source`; derived
+externally tagged enum objects are not an alternate wire encoding. The frozen
+114-case suite is supplemented by a deterministic 361-case raw-byte differential
+matrix and an actual Rust decoder oracle. See
+`docs/protocol/trnm-rts-intake-differential-v1.md` at the repository root for the
+normalization hash, execution protocol, failure budgets, commands and evidence
+boundary. Reference-only output and Python fixture processes do not prove Rust
+agreement. Runtime adapter adoption and all existing external gates remain open.

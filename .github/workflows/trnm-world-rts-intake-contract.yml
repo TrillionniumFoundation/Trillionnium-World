@@ -26,6 +26,7 @@ jobs:
       EVENT_NAME: ${{ github.event_name }}
       RUST_TOOLCHAIN: 1.98.0
       CARGO_TERM_COLOR: never
+      CARGO_TARGET_DIR: run/rts-intake-target
     steps:
       - name: Install pinned validation toolchain
         shell: bash
@@ -62,9 +63,14 @@ jobs:
               cd repository
               printf 'TESTED_COMMIT=%s\nTESTED_TREE=%s\n' "$sha" "$(git rev-parse HEAD^{tree})"
               python3 scripts/check-trnm-rts-intake-conformance.py --self-test
+              python3 scripts/test-trnm-rts-intake-differential.py
               cargo +"$RUST_TOOLCHAIN" fmt --manifest-path trillionnium/crates/trnm-rts-protocol/Cargo.toml -- --check
               cargo +"$RUST_TOOLCHAIN" test --manifest-path trillionnium/Cargo.toml -p trnm-rts-protocol --all-targets --locked
               cargo +"$RUST_TOOLCHAIN" clippy --manifest-path trillionnium/Cargo.toml -p trnm-rts-protocol --all-targets --locked -- -D warnings
+              cargo +"$RUST_TOOLCHAIN" build --manifest-path trillionnium/Cargo.toml -p trnm-rts-protocol --example strict_intake_oracle --locked
+              python3 scripts/check-trnm-rts-intake-differential.py \
+                --oracle run/rts-intake-target/debug/examples/strict_intake_oracle \
+                --result "../evidence/${sha}-differential.json"
               git diff --exit-code
               git diff --cached --exit-code
             ) 2>&1 | tee "evidence/${sha}.log"
@@ -72,7 +78,7 @@ jobs:
           done
           printf 'RTS_INTAKE_OBJECTS_VALIDATED=%s\n' "$index"
           printf 'RUNTIME_ADOPTION=not_proven\nPRODUCTION_AUTHORIZATION=not_granted\n' | tee evidence/scope.txt
-          sha256sum evidence/*.txt evidence/*.log > evidence/SHA256SUMS
+          sha256sum evidence/*.txt evidence/*.log evidence/*-differential.json > evidence/SHA256SUMS
       - name: Retain exact-object validation logs, including failures
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02

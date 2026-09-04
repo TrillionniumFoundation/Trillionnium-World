@@ -125,3 +125,37 @@ fn diagnostics_do_not_reflect_untrusted_data() {
     assert_eq!(message, "invalid_encoding");
     assert!(!message.contains("secret"));
 }
+
+#[test]
+fn enum_fields_require_strings_not_externally_tagged_maps() {
+    let corpus: Corpus = serde_json::from_str(include_str!(
+        "../../../../docs/protocol/vectors/trnm-rts-order-intake-v1.json"
+    ))
+    .unwrap();
+    let mut tested_kinds = std::collections::BTreeSet::new();
+    for case in corpus.cases.iter().filter(|case| case.id.starts_with("kind-")) {
+        let mut value: serde_json::Value = serde_json::from_str(&case.raw).unwrap();
+        let spelling = value["order"]["kind"].as_str().unwrap().to_owned();
+        tested_kinds.insert(spelling.clone());
+        let mut tagged = serde_json::Map::new();
+        tagged.insert(spelling, serde_json::Value::Null);
+        value["order"]["kind"] = serde_json::Value::Object(tagged);
+        assert_eq!(
+            strict::decode(&serde_json::to_vec(&value).unwrap()),
+            Err(strict::IntakeError::InvalidEncoding),
+            "{} accepts non-string enum",
+            case.id
+        );
+    }
+    assert_eq!(tested_kinds.len(), 28);
+    for source in ["local_input", "replay"] {
+        let mut value = sample();
+        let mut tagged = serde_json::Map::new();
+        tagged.insert(source.to_owned(), serde_json::Value::Null);
+        value["order"]["source"] = serde_json::Value::Object(tagged);
+        assert_eq!(
+            strict::decode(&serde_json::to_vec(&value).unwrap()),
+            Err(strict::IntakeError::InvalidEncoding)
+        );
+    }
+}

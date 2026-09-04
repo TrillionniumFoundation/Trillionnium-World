@@ -84,6 +84,7 @@ struct WireOrder {
     frame: u32,
     player_id: String,
     subject_actor_ids: Vec<String>,
+    #[serde(deserialize_with = "string_enum_only")]
     kind: RtsOrderKind,
     #[serde(default)]
     queued: bool,
@@ -97,9 +98,23 @@ struct WireOrder {
     queue_id: Option<String>,
     #[serde(default)]
     formation_id: Option<String>,
+    #[serde(deserialize_with = "string_enum_only")]
     source: RtsOrderSource,
     #[serde(default)]
     raw_command_label: Option<String>,
+}
+
+// A derived externally tagged unit enum accepts both "hold" and {"hold":null}.
+// This wire contract permits strings only, independent of the legacy reader.
+fn string_enum_only<'de, D, T>(deserializer: D) -> Result<T, D::Error>
+where
+    D: serde::Deserializer<'de>,
+    T: Deserialize<'de>,
+{
+    let spelling = String::deserialize(deserializer)?;
+    T::deserialize(serde::de::value::StringDeserializer::<D::Error>::new(
+        spelling,
+    ))
 }
 
 // Serde structs may otherwise accept positional JSON arrays. Require maps
