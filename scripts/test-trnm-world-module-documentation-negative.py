@@ -1,74 +1,157 @@
 #!/usr/bin/env python3
-"""Prove the active-module documentation gate fails closed."""
-
+"""Executable structure-gate regressions, including false-positive headings."""
 from __future__ import annotations
-
-import pathlib
-import shutil
-import subprocess
+import argparse
+import importlib.util
+from pathlib import Path
 import tempfile
+import unittest
 
-ROOT = pathlib.Path(__file__).resolve().parents[1]
-CHECKER = ROOT / "scripts/check-trnm-world-module-documentation.py"
-MEMBERS = (
-    "trnm-economy-protocol",
-    "trnm-rpg-core",
-    "trnm-campaign-core",
-    "trnm-rts-protocol",
-    "trnm-rts-sim",
-    "trnm-online-protocol",
-    "trnm-game-server",
-    "trnm-first-contact",
-)
+SPEC = importlib.util.spec_from_file_location("world_module_docs", Path(__file__).with_name("check-trnm-world-module-documentation.py"))
+assert SPEC and SPEC.loader
+M = importlib.util.module_from_spec(SPEC)
+SPEC.loader.exec_module(M)
+BODY = "This fixture describes owned state, typed interfaces, explicit failure handling and the required regression evidence."
 
 
-def run(root: pathlib.Path) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(
-        ["python3", str(CHECKER), str(root)],
-        cwd=ROOT,
-        text=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        check=False,
-    )
+def document(name: str, runtime: bool = False) -> str:
+    headings = [options[0] for options in M.REQUIRED]
+    if runtime:
+        headings[2] = "Runtime composition"
+    return f"# {name}\n\n" + "\n\n".join(f"## {h}\n\n{BODY}" for h in headings) + "\n"
 
 
-def fixture() -> tempfile.TemporaryDirectory[str]:
-    temporary = tempfile.TemporaryDirectory(prefix="trnm-world-module-docs-")
-    root = pathlib.Path(temporary.name)
-    (root / "trillionnium").mkdir(parents=True)
-    shutil.copy2(ROOT / "trillionnium/Cargo.toml", root / "trillionnium/Cargo.toml")
-    for member in MEMBERS:
-        target = root / "trillionnium/crates" / member / "README.md"
-        target.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(ROOT / "trillionnium/crates" / member / "README.md", target)
-    matrix = root / "docs/development/trnm-world-module-documentation-matrix-v1.md"
-    matrix.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(ROOT / "docs/development/trnm-world-module-documentation-matrix-v1.md", matrix)
-    temporary.root = root  # type: ignore[attr-defined]
-    return temporary
+class DocumentationTests(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory(prefix="world-doc-unit-")
+        self.addCleanup(self.temp.cleanup)
+        self.root = Path(self.temp.name)
+        self.names = ["trnm-one", "trnm-two"]
+        self.make_fixture()
+
+    def make_fixture(self):
+        (self.root / "trillionnium").mkdir(exist_ok=True)
+        (self.root / "trillionnium/Cargo.toml").write_text("[workspace]\nmembers = [" + ",".join(f'"crates/{name}"' for name in self.names) + "]\n")
+        for name in self.names:
+            directory = self.root / "trillionnium/crates" / name
+            directory.mkdir(parents=True, exist_ok=True)
+            (directory / "Cargo.toml").write_text(f'[package]\nname = "{name}"\nversion = "0.1.0"\n')
+            (directory / "README.md").write_text(document(name))
+        matrix = self.root / M.MATRIX
+        matrix.parent.mkdir(parents=True, exist_ok=True)
+        matrix.write_text("| Module | Owner |\n|---|---|\n" + "".join(f"| `{name}` | World |\n" for name in self.names))
+
+    @property
+    def readme(self):
+        return self.root / "trillionnium/crates/trnm-one/README.md"
+
+    def check_failure(self):
+        with self.assertRaises((M.DocumentationFailure, OSError, ValueError)):
+            M.validate(self.root)
+
+    def test_valid_fixture(self):
+        self.assertEqual(M.validate(self.root), sorted(self.names))
+
+    def test_member_set_is_derived(self):
+        self.names.append("trnm-three")
+        self.make_fixture()
+        self.assertEqual(len(M.validate(self.root)), 3)
+
+    def test_missing_readme(self):
+        self.readme.unlink()
+        self.check_failure()
+
+    def test_empty_readme(self):
+        self.readme.write_text("")
+        self.check_failure()
+
+    def test_public_contract_section_required(self):
+        self.readme.write_text(self.readme.read_text().replace("## Public contracts", "## Not a contract"))
+        self.check_failure()
+
+    def test_runtime_composition_alternative(self):
+        self.readme.write_text(document("trnm-one", runtime=True))
+        self.assertEqual(len(M.validate(self.root)), 2)
+
+    def test_empty_section(self):
+        self.readme.write_text(self.readme.read_text().replace("## Public contracts\n\n" + BODY, "## Public contracts\n"))
+        self.check_failure()
+
+    def test_commented_heading_is_not_coverage(self):
+        self.readme.write_text(self.readme.read_text().replace("## Public contracts", "<!-- ## Public contracts -->"))
+        self.check_failure()
+
+    def test_fenced_heading_is_not_coverage(self):
+        self.readme.write_text(self.readme.read_text().replace("## Public contracts", "```markdown\n## Public contracts\n```"))
+        self.check_failure()
+
+    def test_tilde_fence_is_not_coverage(self):
+        self.readme.write_text(self.readme.read_text().replace("## Public contracts", "~~~\n## Public contracts\n~~~"))
+        self.check_failure()
+
+    def test_duplicate_heading(self):
+        self.readme.write_text(self.readme.read_text() + "\n## Public contracts\n\n" + BODY)
+        self.check_failure()
+
+    def test_placeholder_section(self):
+        self.readme.write_text(self.readme.read_text().replace("## Public contracts\n\n" + BODY, "## Public contracts\n\nTODO"))
+        self.check_failure()
+
+    def test_duplicate_member(self):
+        path = self.root / "trillionnium/Cargo.toml"
+        path.write_text('[workspace]\nmembers = ["crates/trnm-one", "crates/trnm-one"]\n')
+        self.check_failure()
+
+    def test_empty_member_set(self):
+        (self.root / "trillionnium/Cargo.toml").write_text('[workspace]\nmembers = []\n')
+        self.check_failure()
+
+    def test_member_traversal(self):
+        (self.root / "trillionnium/Cargo.toml").write_text('[workspace]\nmembers = ["../outside"]\n')
+        self.check_failure()
+
+    def test_symlink_readme(self):
+        other = self.root / "outside.md"
+        other.write_text(self.readme.read_text())
+        self.readme.unlink()
+        self.readme.symlink_to(other)
+        self.check_failure()
+
+    def test_missing_matrix_row(self):
+        matrix = self.root / M.MATRIX
+        matrix.write_text("| `trnm-one` | World |\n")
+        self.check_failure()
+
+    def test_extra_matrix_row(self):
+        matrix = self.root / M.MATRIX
+        matrix.write_text(matrix.read_text() + "| `not-a-member` | Other |\n")
+        self.check_failure()
+
+    def test_duplicate_matrix_row(self):
+        matrix = self.root / M.MATRIX
+        matrix.write_text(matrix.read_text() + "| `trnm-one` | World |\n")
+        self.check_failure()
+
+    def test_bad_package_title(self):
+        self.readme.write_text(self.readme.read_text().replace("# trnm-one", "# other"))
+        self.check_failure()
+
+    def test_prohibited_authority_assertion(self):
+        self.readme.write_text(self.readme.read_text() + "\nWorld owns wallet custody.\n")
+        self.check_failure()
+
+    def test_unclosed_fence(self):
+        self.readme.write_text(self.readme.read_text() + "\n```\n")
+        self.check_failure()
 
 
-baseline = run(ROOT)
-if baseline.returncode != 0:
-    raise SystemExit(f"baseline module documentation check failed:\n{baseline.stdout}")
-
-with fixture() as path:
-    root = pathlib.Path(path)
-    (root / "trillionnium/crates/trnm-rts-protocol/README.md").unlink()
-    result = run(root)
-    if result.returncode == 0:
-        raise SystemExit("missing module README unexpectedly passed")
-
-with fixture() as path:
-    root = pathlib.Path(path)
-    target = root / "trillionnium/crates/trnm-campaign-core/README.md"
-    target.write_text(
-        target.read_text(encoding="utf-8").replace("## Failure and recovery", "## Recovery"),
-        encoding="utf-8",
-    )
-    result = run(root)
-    if result.returncode == 0:
-        raise SystemExit("missing mandatory section unexpectedly passed")
-
-print("TRNM World module documentation negative fixtures: PASS")
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--fixtures-only", action="store_true", help="Skip the real-checkout baseline; reports unit fixtures only.")
+    args = parser.parse_args()
+    if not args.fixtures_only:
+        M.validate(Path(__file__).resolve().parents[1])
+    result = unittest.TextTestRunner(verbosity=1).run(unittest.defaultTestLoader.loadTestsFromTestCase(DocumentationTests))
+    if not result.wasSuccessful():
+        raise SystemExit(1)
+    print("TRNM World module documentation negative fixtures: PASS (structure only)")

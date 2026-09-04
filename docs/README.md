@@ -10,13 +10,13 @@ Read in this order:
 2. `../CURRENT_PLAN.md` — pointer to the active executable plan and convergence interpretation.
 3. `development/TRILLIONNIUM_WORLD_DEVELOPMENT_PLAN_2026-08-29.md` — ordered workstreams, exit gates and stop conditions.
 4. `development/TRILLIONNIUM_WORLD_PLAN_V4_CONVERGENCE_ADDENDUM_2026-08-30.md` — exact current evidence semantics and corrected blocker state.
-5. `status/world-v4-convergence-state-2026-08-30.json` — machine-readable exact repository, source, upstream, environment and human/commercial state.
+5. `status/world-plan-v4-execution-truth-2026-09-02.json` — operative execution snapshot selected by `CURRENT_PLAN.md`; later explicit live observations in that root pointer take precedence for their stated scope. The older `status/world-v4-convergence-state-2026-08-30.json` is historical.
 6. `development/trillionnium-world-development-plan-2026-08-29.json` — machine-readable plan.
 7. `development/trnm-world-gap-closure-ledger-v4.json` — planned gaps, owners, dependencies and evidence classes.
 8. `status/world-gates-v1.json` and `status/CURRENT.md` — release-denominator posture.
 9. `../GAME_STATUS.md` — native gameplay/runtime evidence and explicit limitations.
 
-When two current documents disagree, the binding boundary and accepted ADRs take precedence. The convergence addendum and convergence state override stale implementation-status prose but do not change architecture. A contradiction is itself a release blocker.
+When two current documents disagree, the binding boundary and accepted ADRs take precedence. The current root pointer selects the operative candidate and execution snapshot; historical addenda and snapshots cannot restore a superseded candidate. Accepted architectural decisions are unchanged. A contradiction is itself a release blocker.
 
 ## 2. Architecture and ADRs
 
@@ -49,6 +49,9 @@ Protocol documents must define canonical encoding, resource budgets, unknown-fie
 
 ## 4. Development and implementation
 
+- `modules/README.md` — module contract expectations.
+- `development/trnm-world-module-documentation-matrix-v1.md` — active Cargo module entry/section coverage only; not a detailed-design or implementation-conformance certificate.
+
 - `development/trillionnium-rpg-rts-closed-loop-v1.md`
 - `development/trnm-native-game-release-gates-v1.md`
 - `development/trnm-settlement-outbox-v1.md`
@@ -67,7 +70,7 @@ Active code references:
 - World-local compatibility server: `../trillionnium/crates/trnm-game-server`
 - deterministic World transition contract: `../trillionnium/contracts/trnm-world-transition-v1`
 
-The CEX/signer transport is now directly compiled from `trnm-game-server/src/cex.rs`; its template and CEX build-time generation are removed. Review-integrity debt remains for `lib.rs.in` and `settlement_worker.rs.in`, which `build.rs` still transforms into the actually compiled game-server library and settlement worker. Plan V4 closure requires materializing those two sources and retiring the remaining semantic build-time rewriting.
+The CEX/signer transport is now directly compiled from `trnm-game-server/src/cex.rs`; its template and CEX build-time generation are removed. The settlement worker is also directly compiled. Review-integrity debt remains for the game-server `lib.rs.in`, which `build.rs` still transforms into the compiled library on the operative branch before exact-source publication. The separately qualified artifact is not branch publication. Plan V4 closure requires the exact source writes/deletions, preserved governance overlay, and final exact-head verification.
 
 ## 5. Security, operations and release
 

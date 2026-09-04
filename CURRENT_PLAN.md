@@ -49,7 +49,7 @@ Until the exact qualified source bytes are attached to the operative branch and 
 - semantic `build.rs` and `src/lib.rs.in` authority must remain treated as open debt on the live branch;
 - empty check collections and a repository with zero workflow runs receive no exact-head verification credit.
 
-The current CEX dependency is PR `TrillionniumFoundation/CEX#24`, commit `dc0862b8cf88a1f4e6328d519947e19b81122de0`, tree `762e33a3f16c14347a44cec1d862a8e0ab447ad8`, migration head `0088_enforce_provider_terminal_evidence_binding.sql`, sequence `50`. Its authoritative jobs currently stop before runner allocation and therefore do not grant a qualified component lock or production authorization.
+The retained, unqualified CEX sequence-50 input is PR `TrillionniumFoundation/CEX#24`, commit `dc0862b8cf88a1f4e6328d519947e19b81122de0`, tree `762e33a3f16c14347a44cec1d862a8e0ab447ad8`, migration head `0088_enforce_provider_terminal_evidence_binding.sql`. Live read-back during the 2026-09-05 continuation found that PR closed without merge. CEX PR `#25` is an open Draft at `652a0524076206006fa7298ce67a83c78e2a670e`, with additional unqualified development lanes. These observations do not repin the component lock or grant compatibility, qualification or production authorization. Treat the existing World-to-CEX binding as stale/pending until the CEX owner selects and qualifies one immutable revision and World/Integration validate it. This observed dependency disposition supersedes the older snapshot's description of PR #24 as current; all other unclosed gates remain unclosed.
 
 ## Ordered remaining blockers
 
@@ -61,3 +61,12 @@ The current CEX dependency is PR `TrillionniumFoundation/CEX#24`, commit `dc0862
 6. Obtain deployment, custody, public-edge, cross-host recovery/endurance, human/accessibility, privacy, legal, support, commercial, and final human go/no-go evidence from their actual authorities.
 
 Public online operation, public player markets, trusted settlement, and commercial release remain **NO-GO / disabled** until every dependency row has independently verified exact evidence. Production authorization remains **not granted**.
+
+## Historical planning inputs
+
+These paths remain required planning/schema references, not current execution-state authorities:
+
+- `docs/development/trillionnium-world-development-plan-2026-08-29.json`
+- `docs/development/trnm-world-gap-closure-ledger-v4.json`
+
+Their presence satisfies discoverability, not closure. The authoritative execution snapshot above still governs. Operator-only source publication uses `scripts/import-qualified-world-v13k.py`; CI may run its dry-run and offline fault tests, but may not use `--publish`.
