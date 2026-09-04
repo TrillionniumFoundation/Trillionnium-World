@@ -1,0 +1,54 @@
+name: trnm-world-module-documentation
+
+on:
+  pull_request:
+    paths:
+      - trillionnium/Cargo.toml
+      - trillionnium/crates/*/README.md
+      - docs/development/trnm-world-module-documentation-matrix-v1.md
+      - scripts/check-trnm-world-module-documentation.py
+      - scripts/test-trnm-world-module-documentation-negative.py
+      - .github/workflows/trnm-world-module-documentation.yml
+  push:
+    branches:
+      - main
+      - fix/world-plan-v4-development-closure-20260831
+    paths:
+      - trillionnium/Cargo.toml
+      - trillionnium/crates/*/README.md
+      - docs/development/trnm-world-module-documentation-matrix-v1.md
+      - scripts/check-trnm-world-module-documentation.py
+      - scripts/test-trnm-world-module-documentation-negative.py
+      - .github/workflows/trnm-world-module-documentation.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trnm-world-module-documentation-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  module-documentation:
+    name: trnm-world/module-documentation
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact event commit without third-party actions
+        shell: bash
+        run: |
+          set -euo pipefail
+          git init repository
+          git -C repository remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          git -C repository fetch --no-tags --depth=2 origin "${GITHUB_SHA}"
+          git -C repository checkout --detach FETCH_HEAD
+          test "$(git -C repository rev-parse HEAD)" = "${GITHUB_SHA}"
+
+      - name: Verify active module contracts and negative fixtures
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd repository
+          python3 scripts/check-trnm-world-module-documentation.py
+          python3 scripts/test-trnm-world-module-documentation-negative.py
