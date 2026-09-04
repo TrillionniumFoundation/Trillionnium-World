@@ -1,0 +1,471 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:trnm:rts-order-intake:v1",
+  "title": "Opt-in RTS order intake v1 structural schema",
+  "description": "Structural schema only. The raw-byte decoder also checks duplicate keys, UTF-8 byte limits, integer lexical forms, and total 128 KiB budget; JSON Schema cannot prove these. Not authentication, simulation validity, or runtime wiring.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "intake_contract",
+    "order"
+  ],
+  "properties": {
+    "intake_contract": {
+      "const": "trnm_rts_order_intake_v1"
+    },
+    "order": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "contract",
+        "frame",
+        "kind",
+        "player_id",
+        "source",
+        "subject_actor_ids"
+      ],
+      "properties": {
+        "contract": {
+          "const": "trnm_rts_order_protocol_v1"
+        },
+        "frame": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4294967295
+        },
+        "player_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 160,
+          "description": "Additionally enforce at most 160 UTF-8 bytes in the intake decoder.",
+          "not": {
+            "pattern": "[\\x00-\\x20\\x7f]"
+          }
+        },
+        "subject_actor_ids": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 256,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "description": "Additionally enforce at most 160 UTF-8 bytes in the intake decoder.",
+            "not": {
+              "pattern": "[\\x00-\\x20\\x7f]"
+            }
+          }
+        },
+        "kind": {
+          "enum": [
+            "ability",
+            "append_group",
+            "assign_group",
+            "attack",
+            "attack_move",
+            "build",
+            "cancel_job",
+            "cancel_queued_order",
+            "capture",
+            "extract",
+            "focus_fire",
+            "harvest",
+            "hold",
+            "move",
+            "patrol",
+            "pause_job",
+            "promote_job",
+            "recall_group",
+            "recon",
+            "remove_group",
+            "repair",
+            "research",
+            "resume_job",
+            "set_rally",
+            "set_stance",
+            "stop",
+            "train",
+            "upgrade"
+          ]
+        },
+        "queued": {
+          "type": "boolean"
+        },
+        "target_tile": {
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "x",
+                "y"
+              ],
+              "properties": {
+                "x": {
+                  "type": "integer",
+                  "minimum": -2147483648,
+                  "maximum": 2147483647
+                },
+                "y": {
+                  "type": "integer",
+                  "minimum": -2147483648,
+                  "maximum": 2147483647
+                }
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "source": {
+          "enum": [
+            "local_input",
+            "replay"
+          ]
+        },
+        "raw_command_label": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 256,
+              "description": "At most 256 UTF-8 bytes; display-only, never authority material."
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "target_actor_id": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "description": "Additionally enforce at most 160 UTF-8 bytes in the intake decoder.",
+              "not": {
+                "pattern": "[\\x00-\\x20\\x7f]"
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "target_rule_id": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "description": "Additionally enforce at most 160 UTF-8 bytes in the intake decoder.",
+              "not": {
+                "pattern": "[\\x00-\\x20\\x7f]"
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "queue_id": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "description": "Additionally enforce at most 160 UTF-8 bytes in the intake decoder.",
+              "not": {
+                "pattern": "[\\x00-\\x20\\x7f]"
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "formation_id": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "description": "Additionally enforce at most 160 UTF-8 bytes in the intake decoder.",
+              "not": {
+                "pattern": "[\\x00-\\x20\\x7f]"
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "enum": [
+                  "move",
+                  "attack_move",
+                  "patrol",
+                  "recon"
+                ]
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "target_tile"
+            ],
+            "properties": {
+              "target_tile": {
+                "not": {
+                  "type": "null"
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "enum": [
+                  "attack",
+                  "focus_fire",
+                  "harvest",
+                  "capture",
+                  "extract",
+                  "repair"
+                ]
+              }
+            }
+          },
+          "then": {
+            "anyOf": [
+              {
+                "required": [
+                  "target_tile"
+                ],
+                "properties": {
+                  "target_tile": {
+                    "not": {
+                      "type": "null"
+                    }
+                  }
+                }
+              },
+              {
+                "required": [
+                  "target_actor_id"
+                ],
+                "properties": {
+                  "target_actor_id": {
+                    "not": {
+                      "type": "null"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "enum": [
+                  "ability",
+                  "assign_group",
+                  "append_group",
+                  "remove_group",
+                  "recall_group"
+                ]
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "target_rule_id"
+            ],
+            "properties": {
+              "target_rule_id": {
+                "not": {
+                  "type": "null"
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "enum": [
+                  "build"
+                ]
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "target_rule_id",
+              "target_tile"
+            ],
+            "properties": {
+              "target_rule_id": {
+                "not": {
+                  "type": "null"
+                }
+              },
+              "target_tile": {
+                "not": {
+                  "type": "null"
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "enum": [
+                  "train",
+                  "research",
+                  "upgrade"
+                ]
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "target_rule_id",
+              "queue_id"
+            ],
+            "properties": {
+              "target_rule_id": {
+                "not": {
+                  "type": "null"
+                }
+              },
+              "queue_id": {
+                "not": {
+                  "type": "null"
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "enum": [
+                  "cancel_queued_order",
+                  "cancel_job",
+                  "pause_job",
+                  "resume_job",
+                  "promote_job"
+                ]
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "queue_id"
+            ],
+            "properties": {
+              "queue_id": {
+                "not": {
+                  "type": "null"
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "enum": [
+                  "set_rally"
+                ]
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "queue_id",
+              "target_tile"
+            ],
+            "properties": {
+              "queue_id": {
+                "not": {
+                  "type": "null"
+                }
+              },
+              "target_tile": {
+                "not": {
+                  "type": "null"
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "enum": [
+                  "set_stance"
+                ]
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "target_rule_id"
+            ],
+            "properties": {
+              "target_rule_id": {
+                "enum": [
+                  "hold_fire",
+                  "guard",
+                  "aggressive"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": [
+              "queued"
+            ],
+            "properties": {
+              "queued": {
+                "const": true
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "queue_id"
+            ],
+            "properties": {
+              "queue_id": {
+                "not": {
+                  "type": "null"
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
