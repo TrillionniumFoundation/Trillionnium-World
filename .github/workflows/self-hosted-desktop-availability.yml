@@ -1,0 +1,50 @@
+name: Self-hosted desktop runner availability
+
+on:
+  issue_comment:
+    types: [created]
+
+# `issue_comment` is evaluated from the repository default branch. The exact
+# job-level predicate below is evaluated before runner allocation, so a topic
+# ref, pull-request comment, unprotected ref, different issue, different actor,
+# or non-exact command cannot acquire the persistent runner. The job checks out
+# no source, receives no token permission, accepts no input, and emits no host
+# inventory. The runner group and label are project-specific and must be bound
+# to this exact workflow by authenticated GitHub/SRE configuration.
+permissions: {}
+
+concurrency:
+  group: trnm-world-desktop-availability
+  cancel-in-progress: false
+
+jobs:
+  runner-probe:
+    name: World desktop runner probe
+    if: >-
+      github.event_name == 'issue_comment' &&
+      github.repository == 'TrillionniumFoundation/Trillionnium-World' &&
+      github.event.repository.default_branch == 'main' &&
+      github.ref == 'refs/heads/main' &&
+      github.ref_protected == true &&
+      github.event.issue.number == 55 &&
+      github.event.issue.pull_request == null &&
+      github.event.comment.body == '/world-desktop-runner-probe' &&
+      github.actor == 'ProfHepta'
+    runs-on:
+      group: trillionnium-world-desktop
+      labels: trillionnium-world-desktop
+    timeout-minutes: 5
+    steps:
+      - name: Emit bounded acquisition receipt
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_EVENT_NAME" = issue_comment
+          test "$GITHUB_REPOSITORY" = TrillionniumFoundation/Trillionnium-World
+          test "$GITHUB_REF" = refs/heads/main
+          test "$GITHUB_REF_PROTECTED" = true
+          test "$GITHUB_ACTOR" = ProfHepta
+          test "$RUNNER_NAME" = desktop
+          test "$RUNNER_OS" = Linux
+          test "$RUNNER_ARCH" = X64
+          printf 'status=world-desktop-runner-acquired\ntrigger=issue_comment\nref=refs/heads/main\nissue=55\n'
