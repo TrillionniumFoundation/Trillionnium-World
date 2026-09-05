@@ -1,5 +1,8 @@
 #![recursion_limit = "256"]
 
+#[path = "http_policy/mod.rs"]
+mod http_policy;
+
 use reqwest::Client;
 use serde::{de::DeserializeOwned, Serialize};
 use serde_json::{json, Value};
@@ -305,16 +308,15 @@ impl OnlineClient {
     fn new(base_url: String) -> Result<Self, String> {
         Ok(Self {
             base_url: base_url.trim_end_matches('/').to_string(),
-            http: Client::builder()
-                .connect_timeout(Duration::from_secs(2))
-                .timeout(Duration::from_secs(4))
+            http: http_policy::client_builder(Duration::from_secs(2), Duration::from_secs(4))
                 .build()
                 .map_err(|error| error.to_string())?,
-            non_idempotent_http: Client::builder()
-                .connect_timeout(Duration::from_secs(2))
-                .timeout(Duration::from_secs(30))
-                .build()
-                .map_err(|error| error.to_string())?,
+            non_idempotent_http: http_policy::client_builder(
+                Duration::from_secs(2),
+                Duration::from_secs(30),
+            )
+            .build()
+            .map_err(|error| error.to_string())?,
             command_ack_ms: Mutex::new(Vec::new()),
         })
     }

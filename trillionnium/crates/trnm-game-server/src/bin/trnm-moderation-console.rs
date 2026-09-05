@@ -1,4 +1,6 @@
-use reqwest::Client;
+#[path = "http_policy/mod.rs"]
+mod http_policy;
+
 use std::{env, process::ExitCode, time::Duration};
 use trnm_online_protocol::{
     OnlineEnforcementAppealQueueRequest, OnlineEnforcementAppealQueueView,
@@ -21,9 +23,7 @@ async fn run() -> Result<(), String> {
     let base_url =
         env::var("TRNM_GAME_SERVER_URL").unwrap_or_else(|_| "http://127.0.0.1:7005".to_string());
     let token = required("TRNM_MODERATOR_TOKEN")?;
-    let client = Client::builder()
-        .connect_timeout(Duration::from_secs(2))
-        .timeout(Duration::from_secs(10))
+    let client = http_policy::client_builder(Duration::from_secs(2), Duration::from_secs(10))
         .build()
         .map_err(|error| error.to_string())?;
     let args = env::args().skip(1).collect::<Vec<_>>();
