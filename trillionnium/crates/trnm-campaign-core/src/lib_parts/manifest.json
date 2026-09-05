@@ -1,0 +1,132 @@
+{
+  "crate": "trnm-campaign-core",
+  "max_impl_bytes": 32000,
+  "max_part_bytes": 60000,
+  "nested_test_parts": [
+    {
+      "bytes": 27494,
+      "path": "lib_parts/tests/campaign_tests_01.rs",
+      "section": "tests",
+      "sha256": "69e99a559b2410b647daded9a77455c2a322b3d5986610d99153e4433516479c"
+    },
+    {
+      "bytes": 27984,
+      "path": "lib_parts/tests/campaign_tests_02.rs",
+      "section": "tests",
+      "sha256": "4ea0e2836d4e4ad4afe12f990b4a52f9117e7b10ef4340c38bf07a4396f47541"
+    },
+    {
+      "bytes": 25514,
+      "path": "lib_parts/tests/campaign_tests_03.rs",
+      "section": "tests",
+      "sha256": "5d6963555d4f5c1cd5e5a1481841fb97122f5d46a03b699c5f60ef694cf8ee5d"
+    }
+  ],
+  "parts": [
+    {
+      "bytes": 23617,
+      "path": "lib_parts/contracts_and_domain/part_01.rs",
+      "section": "contracts_and_domain",
+      "sha256": "c65ce4c3b980c4db084584a06ef82cfd47be8ea61e6eeb9cd20840255575658f"
+    },
+    {
+      "bytes": 44876,
+      "path": "lib_parts/authored_content/part_01.rs",
+      "section": "authored_content",
+      "sha256": "ae5baa499ef77590afde92d545ba232253f45622654062ef36e9a21be5b00a03"
+    },
+    {
+      "bytes": 17498,
+      "path": "lib_parts/campaign_state/part_01.rs",
+      "section": "campaign_state",
+      "sha256": "77944e94e149581baea57b0aeee777e279bbea6e19b153ce8df58d39435b417f"
+    },
+    {
+      "bytes": 28321,
+      "path": "lib_parts/campaign_commands/part_01.rs",
+      "section": "campaign_commands",
+      "sha256": "982af239824e92b71052db103c58006ebac8b7ee34376161528e3e77bebb487d"
+    },
+    {
+      "bytes": 31899,
+      "path": "lib_parts/campaign_commands/part_02.rs",
+      "section": "campaign_commands",
+      "sha256": "96f6c351c6c9cca04845981d31d30b7bc262ef02acd7396cd07cb5c44adc1bf6"
+    },
+    {
+      "bytes": 31355,
+      "path": "lib_parts/campaign_commands/part_03.rs",
+      "section": "campaign_commands",
+      "sha256": "d1be6d34151e83080a6dcb5c27f36b78d5d6fd79e675cc6258b59a3b30e0c99f"
+    },
+    {
+      "bytes": 31877,
+      "path": "lib_parts/campaign_commands/part_04.rs",
+      "section": "campaign_commands",
+      "sha256": "f1d3d52604703fdb192e9d0d335fbe16679294c286204e266ec59c1e3e656e8e"
+    },
+    {
+      "bytes": 57383,
+      "path": "lib_parts/campaign_commands/part_05.rs",
+      "section": "campaign_commands",
+      "sha256": "2bd41d0f1bae340e3db12f9bc80cdbd2756bf361afff4f08c57f11735459c10f"
+    },
+    {
+      "bytes": 13221,
+      "path": "lib_parts/campaign_commands/part_06.rs",
+      "section": "campaign_commands",
+      "sha256": "883c5597b9ce008dba05867cd41f1bc1e687ac9d6a103f93c21533d838ed6219"
+    },
+    {
+      "bytes": 13886,
+      "path": "lib_parts/rts_mapping/part_01.rs",
+      "section": "rts_mapping",
+      "sha256": "fbfc448eb09fe8ec40fabf2aeda170fbd008bc37670952c5224a43ff55ea3101"
+    },
+    {
+      "bytes": 4541,
+      "path": "lib_parts/save_slots/part_01.rs",
+      "section": "save_slots",
+      "sha256": "b9e1d4732fcfba7737ccf1e0d4a09e92b8b45ffd07bba45952b1db9b533bcf82"
+    },
+    {
+      "bytes": 3915,
+      "path": "lib_parts/player_settings/part_01.rs",
+      "section": "player_settings",
+      "sha256": "c82392764f220cdd372c974cbf7fc1206622d52d448b593789280ed140ab57ee"
+    },
+    {
+      "bytes": 2733,
+      "path": "lib_parts/campaign_storage/part_01.rs",
+      "section": "campaign_storage",
+      "sha256": "05e0a0945713f0483211d302029cc5d246971a53986cec973113c526b466f0ee"
+    },
+    {
+      "bytes": 31676,
+      "path": "lib_parts/economy_commands/part_01.rs",
+      "section": "economy_commands",
+      "sha256": "47bbc2a617c080913ccc432e689eefa7c121de86e619c6e0f326bb7edcf7af7a"
+    },
+    {
+      "bytes": 361,
+      "path": "lib_parts/tests/part_01.rs",
+      "section": "tests",
+      "sha256": "0599b336e795a613562167281fe807e9884cc67052945e369c4b2bb3d0e7e479"
+    }
+  ],
+  "schema": "trnm_semantic_direct_source_partition_v1",
+  "sections": [
+    "contracts_and_domain",
+    "authored_content",
+    "campaign_state",
+    "campaign_commands",
+    "rts_mapping",
+    "save_slots",
+    "player_settings",
+    "campaign_storage",
+    "economy_commands",
+    "tests"
+  ],
+  "semantic_generation": false,
+  "textual_include_reason": "preserve the reviewed crate-root API while shrinking ownership and review radius"
+}
