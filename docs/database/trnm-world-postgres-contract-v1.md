@@ -4,8 +4,8 @@ owner: trillionnium-world-database
 applies_to_plan: trillionnium-world-development-2026-08-29-v4
 supported_postgresql:
   - 16.4
-last_reviewed: 2026-08-29
-review_due: 2026-09-12
+last_reviewed: 2026-09-05
+review_due: 2026-09-19
 ---
 
 # Trillionnium World PostgreSQL Contract v1
@@ -34,18 +34,32 @@ This document defines the database behavior relied on by the World-local compati
 
 All code uses the following order when more than one object class is locked:
 
+<!-- trnm-lock-order-v2:start -->
 ```text
-migration/global host fence
-  -> fleet/instance ownership
-  -> match row
-  -> terminal publication ACK/witness
-  -> settlement capture
-  -> campaign rows ordered by stable campaign/player ID
-  -> settlement jobs ordered by stable campaign/job ID
-  -> operator evidence rows
+1. global migration advisory lock
+2. database/physical-host authority advisory locks
+3. fleet instance / route ownership rows
+4. match row
+5. terminal publication ACK row
+6. match-member rows ordered by player_id
+7. campaign rows ordered by campaign_id, player_id
+8. settlement capture row
+9. transaction-scoped settlement serialization advisory lock
+10. settlement jobs ordered by campaign_id, job_id
+11. operator policy/replay/quarantine rows
 ```
+<!-- trnm-lock-order-v2:end -->
 
 No code may acquire an earlier class after a later class. Advisory serialization locks for settlement keys are acquired inside the short claim transaction before the selected job update and released at transaction end.
+
+This shared order is defined by `trnm-world-lock-order-v2.json`; its source
+regression coverage is limited to the explicit capture/apply worker paths. Apply
+may first read an unlocked routing hint, but must lock match, ACK, members and
+campaigns before capture, then revalidate the exact capture/match/state binding.
+The detailed scope, disposable-database tests and still-open procedure/trigger/
+foreign-key verification are in `trnm-world-lock-order-v1.md`. The shared block
+is a design requirement, not a claim that every existing SQL path already meets
+it. Migrations remain append-only.
 
 ## Transaction classes
 

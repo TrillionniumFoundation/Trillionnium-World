@@ -4,6 +4,9 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
+python3 scripts/check-trnm-settlement-lock-order.py
+python3 scripts/test-trnm-settlement-lock-order.py
+
 bash scripts/check-trnm-settlement-transaction-boundary.sh full
 python3 scripts/check-trnm-settlement-runtime-status.py
 bash scripts/test-trnm-settlement-transaction-boundary-negative.sh

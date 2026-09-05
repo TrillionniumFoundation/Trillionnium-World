@@ -425,6 +425,7 @@ async fn capture_match(pool: &PgPool, match_id: Uuid) -> Result<u64, String> {
         return Ok(0);
     }
 
+    lock_terminal_rows(&mut transaction, match_id).await?;
     let terminal_identity = load_terminal_identity(&mut transaction, match_id).await?;
     let terminal_identity_hash = hash_json(&terminal_identity)?;
     let campaigns = load_campaign_rows(&mut transaction, match_id).await?;
@@ -538,6 +539,37 @@ async fn capture_match(pool: &PgPool, match_id: Uuid) -> Result<u64, String> {
     Ok(1)
 }
 
+/// Called only after the match row is held. Capture/apply paths acquire
+/// ACK, members, campaigns, capture, then jobs in the same relative order.
+async fn lock_terminal_rows(
+    transaction: &mut sqlx::transaction::Transaction<'_, Postgres>,
+    match_id: Uuid,
+) -> Result<(), String> {
+    let ack = sqlx::query_scalar::query_scalar::<_, Uuid>(
+        "select match_id from public.trnm_online_terminal_publication_acks
+          where match_id = $1 for update",
+    )
+    .bind(match_id)
+    .fetch_optional(&mut **transaction)
+    .await
+    .map_err(|error| format!("lock terminal settlement ACK: {error}"))?;
+    if ack.is_none() {
+        return Err("terminal settlement ACK is absent".to_string());
+    }
+    let members = sqlx::query_scalar::query_scalar::<_, String>(
+        "select player_id from public.trnm_online_match_members
+          where match_id = $1 order by player_id for update",
+    )
+    .bind(match_id)
+    .fetch_all(&mut **transaction)
+    .await
+    .map_err(|error| format!("lock terminal settlement members: {error}"))?;
+    if members.len() != 2 {
+        return Err("terminal settlement requires exactly two locked members".to_string());
+    }
+    Ok(())
+}
+
 async fn load_terminal_identity(
     transaction: &mut sqlx::transaction::Transaction<'_, Postgres>,
     match_id: Uuid,
@@ -606,7 +638,7 @@ async fn load_campaign_rows(
            join public.trnm_online_campaigns campaign
              on campaign.campaign_id = member.campaign_id
           where member.match_id = $1
-          order by member.player_id
+          order by campaign.campaign_id, member.player_id
           for update of campaign",
     )
     .bind(match_id)
@@ -1098,37 +1130,24 @@ async fn apply_capture(pool: &PgPool, capture_id: &str) -> Result<ApplyCaptureRe
         .begin()
         .await
         .map_err(|error| format!("begin settlement apply: {error}"))?;
-    let capture = sqlx::query::query(
-        "select match_id, terminal_identity_hash, campaign_fences_json,
-                head_intent_ids_json
-           from public.trnm_online_settlement_captures
-          where capture_id = $1 and state = 'active'
-          for update skip locked",
+    // The initial capture read is a routing hint, not an acquired lock or an
+    // authority decision. Revalidate its exact match binding after acquiring
+    // the earlier lock classes. Never hold capture while waiting for match.
+    let match_id = sqlx::query_scalar::query_scalar::<_, Uuid>(
+        "select match_id from public.trnm_online_settlement_captures
+          where capture_id = $1 and state = 'active'",
     )
     .bind(capture_id)
     .fetch_optional(&mut *transaction)
     .await
-    .map_err(|error| format!("lock settlement capture: {error}"))?;
-    let Some(capture) = capture else {
+    .map_err(|error| format!("read settlement capture routing hint: {error}"))?;
+    let Some(match_id) = match_id else {
         transaction
             .commit()
             .await
-            .map_err(|error| format!("commit skipped settlement apply: {error}"))?;
+            .map_err(|error| format!("commit absent settlement capture: {error}"))?;
         return Ok(ApplyCaptureResult::NotReady);
     };
-    let match_id: Uuid = capture
-        .try_get("match_id")
-        .map_err(|error| error.to_string())?;
-    let expected_terminal_hash: String = capture
-        .try_get("terminal_identity_hash")
-        .map_err(|error| error.to_string())?;
-    let expected_campaign_fences: Value = capture
-        .try_get("campaign_fences_json")
-        .map_err(|error| error.to_string())?;
-    let expected_heads: Value = capture
-        .try_get("head_intent_ids_json")
-        .map_err(|error| error.to_string())?;
-
     let match_locked = sqlx::query_scalar::query_scalar::<_, Uuid>(
         "select match_id from public.trnm_online_matches
           where match_id = $1 for update",
@@ -1146,6 +1165,37 @@ async fn apply_capture(pool: &PgPool, capture_id: &str) -> Result<ApplyCaptureRe
             "captured match no longer exists".to_string(),
         ));
     }
+    lock_terminal_rows(&mut transaction, match_id).await?;
+    let mut campaigns = load_campaign_rows(&mut transaction, match_id).await?;
+    let capture = sqlx::query::query(
+        "select match_id, terminal_identity_hash, campaign_fences_json,
+                head_intent_ids_json
+           from public.trnm_online_settlement_captures
+          where capture_id = $1 and match_id = $2 and state = 'active'
+          for update skip locked",
+    )
+    .bind(capture_id)
+    .bind(match_id)
+    .fetch_optional(&mut *transaction)
+    .await
+    .map_err(|error| format!("lock settlement capture after domain rows: {error}"))?;
+    let Some(capture) = capture else {
+        transaction
+            .commit()
+            .await
+            .map_err(|error| format!("commit skipped settlement apply: {error}"))?;
+        return Ok(ApplyCaptureResult::NotReady);
+    };
+    let expected_terminal_hash: String = capture
+        .try_get("terminal_identity_hash")
+        .map_err(|error| error.to_string())?;
+    let expected_campaign_fences: Value = capture
+        .try_get("campaign_fences_json")
+        .map_err(|error| error.to_string())?;
+    let expected_heads: Value = capture
+        .try_get("head_intent_ids_json")
+        .map_err(|error| error.to_string())?;
+
     let ready = sqlx::query_scalar::query_scalar::<_, bool>(
         "select public.trnm_online_settlement_match_ready_v1($1)",
     )
@@ -1173,7 +1223,6 @@ async fn apply_capture(pool: &PgPool, capture_id: &str) -> Result<ApplyCaptureRe
         ));
     }
 
-    let mut campaigns = load_campaign_rows(&mut transaction, match_id).await?;
     if campaigns.len() != 2 || campaign_fences_json(&campaigns) != expected_campaign_fences {
         transaction
             .rollback()
@@ -1460,7 +1509,7 @@ async fn load_capture_jobs(
                 campaign_applied_at
            from public.trnm_online_settlement_jobs
           where capture_id = $1
-          order by campaign_id
+          order by campaign_id, job_id
           for update",
     )
     .bind(capture_id)
@@ -1684,3 +1733,7 @@ mod tests {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "settlement_lock_order_tests.rs"]
+mod lock_order_database_tests;
