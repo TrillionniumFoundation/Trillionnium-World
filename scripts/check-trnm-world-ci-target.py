@@ -6,9 +6,10 @@ import argparse
 import hashlib
 import json
 import os
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 import re
 import subprocess
+import stat
 import sys
 import tempfile
 from typing import Any, Mapping
@@ -18,6 +19,9 @@ REPOSITORY_ID = 1323087277
 BRANCH = "fix/world-plan-v4-development-closure-20260831"
 MAX_EVENT_BYTES = 2 * 1024 * 1024
 MAX_GIT_BYTES = 1024 * 1024
+MAX_TRACKED_FILES = 50_000
+MAX_TRACKED_FILE_BYTES = 64 * 1024 * 1024
+MAX_TRACKED_BYTES = 512 * 1024 * 1024
 HEX = re.compile(r"[0-9a-f]{40}")
 LANE = re.compile(r"(?:feature|fix|chore|docs|test)/world-[a-z0-9][a-z0-9._-]*")
 
@@ -81,7 +85,8 @@ def git(root: Path, *arguments: str) -> str:
                        GIT_TERMINAL_PROMPT="0")
     with tempfile.TemporaryFile() as output, tempfile.TemporaryFile() as errors:
         result = subprocess.run(
-            ["git", "--no-replace-objects", "-c", "core.fsmonitor=false", "-C", str(root), *arguments],
+            ["git", "--no-replace-objects", "-c", "core.fsmonitor=false",
+             "-c", "core.untrackedCache=false", "-C", str(root), *arguments],
             env=environment, stdout=output, stderr=errors, check=False, timeout=30,
         )
         require(result.returncode == 0, "Git identity inspection failed")
@@ -100,6 +105,118 @@ def commit_headers(raw: str) -> tuple[str, list[str]]:
         oid(parent, "commit parent")
     require(len(parents) == len(set(parents)), "duplicate commit parent")
     return tree, parents
+
+
+def tracked_entries(raw: str, *, index: bool = False) -> dict[str, tuple[str, str]]:
+    """Read NUL-delimited Git inventories without filename quoting or filters."""
+    require(bool(raw) and raw.endswith("\0"), "empty or truncated tracked inventory")
+    result: dict[str, tuple[str, str]] = {}
+    for row in raw.split("\0")[:-1]:
+        require(len(result) < MAX_TRACKED_FILES, "tracked file count exceeds budget")
+        metadata, separator, relative = row.partition("\t")
+        fields = metadata.split(" ")
+        require(bool(separator) and len(fields) == 3, "malformed tracked inventory")
+        mode, kind, digest = fields if not index else (fields[0], fields[2], fields[1])
+        require(mode in {"100644", "100755"} and kind == ("0" if index else "blob"),
+                "tracked inventory contains a link, submodule, sparse entry or conflict")
+        oid(digest, "tracked blob")
+        path = PurePosixPath(relative)
+        require(bool(path.parts) and not path.is_absolute() and path.as_posix() == relative
+                and not any(part in {"..", ".git"} for part in path.parts)
+                and "\\" not in relative and ":" not in relative,
+                "unsafe tracked path")
+        require(relative not in result, "duplicate tracked path")
+        result[relative] = (mode, digest)
+    return result
+
+
+def index_flags(raw: str, expected: set[str]) -> None:
+    require(bool(raw) and raw.endswith("\0"), "empty or truncated index flags")
+    paths: set[str] = set()
+    for row in raw.split("\0")[:-1]:
+        # -v lowercases assume-unchanged; S denotes skip-worktree. A complete
+        # validation checkout must use ordinary cached entries, not sparse or
+        # assumed-clean entries. Never clear flags or refresh the index here.
+        require(row.startswith("H "), "index hides tracked worktree state")
+        relative = row[2:]
+        require(relative in expected and relative not in paths, "index flag path mismatch")
+        paths.add(relative)
+    require(paths == expected, "index flag inventory is incomplete")
+
+
+def file_identity(value: os.stat_result) -> tuple:
+    return (value.st_dev, value.st_ino, value.st_mode, value.st_size,
+            value.st_mtime_ns, value.st_ctime_ns, value.st_nlink)
+
+
+def worktree_blob(root_fd: int, relative: str, remaining: int) -> tuple[str, str, int]:
+    """Hash actual regular-file bytes via no-follow directory-relative opens.
+
+    Ignore Git stat shortcuts, clean/smudge filters and core.filemode. The CI
+    contract is raw byte identity, not a normalized or assumed-clean projection.
+    """
+    directory = os.dup(root_fd)
+    try:
+        parts = PurePosixPath(relative).parts
+        for part in parts[:-1]:
+            child = os.open(part, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW,
+                            dir_fd=directory)
+            os.close(directory)
+            directory = child
+        fd = os.open(parts[-1], os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK,
+                     dir_fd=directory)
+        try:
+            before = os.fstat(fd)
+            require(stat.S_ISREG(before.st_mode), "tracked path is not a regular file")
+            require(before.st_size <= min(MAX_TRACKED_FILE_BYTES, remaining),
+                    "tracked file or aggregate bytes exceed budget")
+            digest = hashlib.sha1(b"blob " + str(before.st_size).encode("ascii") + b"\0",
+                                  usedforsecurity=False)
+            size = 0
+            while True:
+                chunk = os.read(fd, 64 * 1024)
+                if not chunk:
+                    break
+                size += len(chunk)
+                require(size <= min(MAX_TRACKED_FILE_BYTES, remaining, before.st_size),
+                        "tracked file grew or exceeded budget during inspection")
+                digest.update(chunk)
+            require(size == before.st_size and file_identity(before) == file_identity(os.fstat(fd)),
+                    "tracked file changed during inspection")
+            mode = "100755" if before.st_mode & 0o111 else "100644"
+            return mode, digest.hexdigest(), size
+        finally:
+            os.close(fd)
+    except OSError as error:
+        raise TargetFailure("tracked file is missing, linked or unreadable") from error
+    finally:
+        os.close(directory)
+
+
+def verify_tracked_checkout(root: Path, commit: str) -> dict:
+    """Bind HEAD, every stage-zero index entry, and raw tracked worktree bytes."""
+    require(os.name == "posix" and hasattr(os, "O_NOFOLLOW")
+            and hasattr(os, "O_DIRECTORY") and os.open in os.supports_dir_fd,
+            "raw checkout verification requires POSIX no-follow opens")
+    tree = tracked_entries(git(root, "ls-tree", "-r", "--full-tree", "-z", commit))
+    index = git(root, "ls-files", "--stage", "-z")
+    flags = git(root, "ls-files", "-v", "-z")
+    require(tracked_entries(index, index=True) == tree, "index does not exactly match HEAD")
+    index_flags(flags, set(tree))
+    root_fd = os.open(root, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+    size = 0
+    try:
+        for relative, expected in tree.items():
+            mode, digest, count = worktree_blob(root_fd, relative, MAX_TRACKED_BYTES - size)
+            require((mode, digest) == expected, "raw tracked worktree mode/blob differs from HEAD")
+            size += count
+    finally:
+        os.close(root_fd)
+    require(git(root, "ls-files", "--stage", "-z") == index
+            and git(root, "ls-files", "-v", "-z") == flags,
+            "index changed during raw checkout inspection")
+    return {"tracked_files_hashed": len(tree), "tracked_bytes_hashed": size,
+            "index_matches_head": True, "tracked_blob_bytes_match_head": True}
 
 
 def verify(root: Path, event: dict, env: Mapping[str, str], requested_role: str) -> dict:
@@ -162,7 +279,8 @@ def verify(root: Path, event: dict, env: Mapping[str, str], requested_role: str)
     if role == "prospective_merge":
         require(parents == [base, head], "prospective merge parents do not exactly equal event base/head")
     require(git(root, "show", f"{actual}:PROJECT_ID") == "trillionnium-world", "crossed committed project identity")
-    require(not git(root, "status", "--porcelain=v1", "-z", "--untracked-files=all"), "checkout has tracked or untracked changes")
+    tracked = verify_tracked_checkout(root, actual)
+    require(not git(root, "ls-files", "--others", "--exclude-standard", "-z"), "checkout has untracked changes")
     require(git(root, "rev-parse", "--verify", "HEAD^{commit}") == actual, "HEAD moved during inspection")
 
     run = env.get("GITHUB_RUN_ID", "")
@@ -172,6 +290,7 @@ def verify(root: Path, event: dict, env: Mapping[str, str], requested_role: str)
     require(re.fullmatch(r"[1-9][0-9]{0,8}", attempt) is not None, "invalid workflow run attempt")
     require(re.fullmatch(r"[A-Za-z_][A-Za-z0-9_-]{0,99}", job) is not None, "invalid workflow job id")
     return {
+        **tracked,
         "schema": "trnm_world_ci_target_identity_v1", "repository": REPOSITORY,
         "event": event_name, "requested_role": requested_role, "role": role,
         "event_sha": event_sha, "checkout_commit": actual, "checkout_tree": tree,

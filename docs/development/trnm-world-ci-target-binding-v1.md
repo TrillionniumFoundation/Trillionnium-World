@@ -73,7 +73,8 @@ substring matches, a stale merge or a head substituted for a merge cannot satisf
 that check. Local fixture tests do not emulate remote approval.
 
 Committed PROJECT_ID and canonical origin must agree. Tracked or untracked
-changes, a nested checkout directory, missing identity, a linked root/event file,
+changes, masked/sparse index entries, raw tracked-byte or executable-mode drift,
+a nested checkout directory, missing identity, a linked root/event file,
 unsupported privileged event, deleted push or HEAD movement fail closed. Git
 inspection uses no network or write command, ignores replacement objects and
 external GIT_* redirection, disables fsmonitor and optional index writes, and
@@ -136,3 +137,51 @@ Restore the checker, its tests and workflow wiring together on rollback; do not
 remove a failing required check, change protected-main enforcement, or restore a
 weaker duplicate context to get a green label. No artifact or source edit can
 provide external review or production authorization.
+
+
+## Raw tracked-byte hardening (2026-09-05 continuation)
+
+A reproduced local counterexample showed why `git status` is not a byte identity
+proof: after `git update-index --assume-unchanged` or `--skip-worktree`, a tracked
+file could be modified while status remained empty and the previous identity
+checker accepted it. This is a checker defect, not evidence of a compromised
+hosted run. Git documents these index flags in its official `git-update-index`
+and `git-ls-files` manuals.
+
+The identity check now additionally requires a complete stage-zero index equal
+to the selected HEAD tree, ordinary `H` entries in `git ls-files -v`, and raw Git
+blob identity plus executable mode for every tracked file. A changed worktree
+cannot be hidden by a correct HEAD, stat-cache flags, `core.filemode=false`, or a
+clean filter that normalizes different bytes to the same index content. The
+checker never clears flags, runs filters, refreshes the index, stages content,
+or rewrites repository configuration to make these conditions pass.
+
+Tracked inputs are opened relative to a held POSIX root directory descriptor;
+each component uses no-follow semantics. Only regular files are supported.
+Links, submodules, sparse/conflicted entries, missing files and FIFOs fail
+closed. Empty files and UTF-8 filenames including spaces, tabs and newlines
+remain supported through NUL-delimited Git inventories. Non-POSIX platforms or
+missing no-follow support are unsupported rather than silently downgraded.
+
+The bounds are 50,000 tracked files, 64 MiB per file and 512 MiB in aggregate,
+subject also to the existing 1 MiB per Git command inventory limit. Raw hashing
+reads 64 KiB chunks. File identity/size/timestamps are checked before and after
+reading; index entries and flags are rechecked after the scan, followed by the
+untracked-file and HEAD checks. Untracked names are enumerated without
+`git status`, with the untracked cache disabled; no clean/smudge filter driver is
+invoked during verification. The JSON adds `tracked_files_hashed`,
+`tracked_bytes_hashed`, `index_matches_head` and `tracked_blob_bytes_match_head`.
+It still grants no test, hosted-execution, independent-review or release credit.
+
+Twenty-four additional real temporary-Git regressions exercise the reproduced
+false-clean states, hidden project identity, normalization, executable modes,
+staged/worktree disagreement, special paths, resource bounds, file/index races,
+and absence of index rewriting. They run inside the existing target regression
+suite; there is no new workflow, runtime dependency or permission increase.
+
+This is a point-in-time raw tracked-file check, not an atomic filesystem
+snapshot or continuous protection against arbitrary concurrent mutations. It
+does not attest ignored/untracked build products, external dependencies, GitHub
+runner authenticity, compiler correctness or an actual test run. Existing
+untracked-file checks remain. Run the applicable full validation on the exact
+final head and prospective merge; missing evidence remains a blocker.

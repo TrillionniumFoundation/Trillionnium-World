@@ -444,5 +444,222 @@ class WorkflowWiringTests(unittest.TestCase):
         self.assertIn("python3 scripts/test-trnm-world-ci-target.py", self.jobs(self.gap)["docs-governance"])
 
 
+
+class RawCheckoutTests(unittest.TestCase):
+    """Use real temporary Git objects/indexes; no remote runner is simulated."""
+    @classmethod
+    def setUpClass(cls):
+        CheckoutTests.setUpClass.__func__(cls)
+
+    @classmethod
+    def tearDownClass(cls):
+        CheckoutTests.tearDownClass.__func__(cls)
+
+    setUp = CheckoutTests.setUp
+    verify = CheckoutTests.verify
+    reject = CheckoutTests.reject
+
+    def commit_fixture_tree(self):
+        git(self.root, "add", "-A")
+        tree = git(self.root, "write-tree")
+        commit = git(self.root, "commit-tree", tree, "-p", self.base, "-p", self.head,
+                     data="Synthetic merge-tree byte fixture, not hosted evidence\n")
+        git(self.root, "checkout", "--detach", "-q", commit)
+        self.env["GITHUB_SHA"] = commit
+        return commit
+
+    def raw_verify(self):
+        return checker.verify_tracked_checkout(self.root, self.env["GITHUB_SHA"])
+
+    def test_assume_unchanged_hides_modified_bytes_from_status_not_verifier(self):
+        git(self.root, "update-index", "--assume-unchanged", "implementation.txt")
+        (self.root / "implementation.txt").write_text("Changed input\n")
+        self.assertEqual(git(self.root, "status", "--porcelain"), "")
+        self.reject()
+
+    def test_skip_worktree_hides_modified_bytes_from_status_not_verifier(self):
+        git(self.root, "update-index", "--skip-worktree", "implementation.txt")
+        (self.root / "implementation.txt").write_text("Changed input\n")
+        self.assertEqual(git(self.root, "status", "--porcelain"), "")
+        self.reject()
+
+    def test_masked_project_id_is_not_accepted(self):
+        git(self.root, "update-index", "--assume-unchanged", "PROJECT_ID")
+        (self.root / "PROJECT_ID").write_text("different-project\n")
+        self.assertEqual(git(self.root, "status", "--porcelain"), "")
+        self.reject()
+
+    def test_missing_sparse_file_is_rejected(self):
+        git(self.root, "update-index", "--skip-worktree", "implementation.txt")
+        (self.root / "implementation.txt").unlink()
+        self.assertEqual(git(self.root, "status", "--porcelain"), "")
+        self.reject()
+
+    def test_unchanged_masked_entry_also_requires_complete_checkout(self):
+        git(self.root, "update-index", "--assume-unchanged", "implementation.txt")
+        self.reject()
+
+    def test_filemode_false_cannot_hide_executable_mode_drift(self):
+        git(self.root, "config", "core.filemode", "false")
+        (self.root / "implementation.txt").chmod(0o755)
+        self.assertEqual(git(self.root, "status", "--porcelain"), "")
+        self.reject()
+
+    def test_raw_hash_does_not_accept_clean_filter_equivalence(self):
+        (self.root / ".gitattributes").write_text("implementation.txt filter=fixture\n")
+        git(self.root, "config", "filter.fixture.clean", "sed 's/Changed input/Synthetic head/'")
+        self.commit_fixture_tree()
+        (self.root / "implementation.txt").write_text("Changed input\n")
+        normalized = git(self.root, "hash-object", "--path=implementation.txt", "implementation.txt")
+        committed = git(self.root, "rev-parse", "HEAD:implementation.txt")
+        self.assertEqual(normalized, committed)
+        with self.assertRaisesRegex(checker.TargetFailure, "raw tracked worktree"):
+            self.verify()
+
+    def test_raw_verification_does_not_execute_clean_filter_driver(self):
+        sentinel = self.top / "filter-was-executed"
+        (self.root / ".gitattributes").write_text("implementation.txt filter=fixture\n")
+        git(self.root, "config", "filter.fixture.clean", f"touch '{sentinel}'; cat")
+        self.commit_fixture_tree()
+        if sentinel.exists():
+            sentinel.unlink()
+        p = self.root / "implementation.txt"
+        p.write_bytes(p.read_bytes())
+        self.verify()
+        self.assertFalse(sentinel.exists())
+
+    def test_raw_content_check_independent_of_stat_shortcuts(self):
+        (self.root / "implementation.txt").write_bytes(b"Synthetic EVIL\n")
+        with self.assertRaisesRegex(checker.TargetFailure, "raw tracked worktree"):
+            self.raw_verify()
+
+    def test_correct_worktree_cannot_hide_different_staged_object(self):
+        p = self.root / "implementation.txt"
+        original = p.read_bytes()
+        p.write_text("Staged replacement\n")
+        git(self.root, "add", "implementation.txt")
+        p.write_bytes(original)
+        with self.assertRaisesRegex(checker.TargetFailure, "index does not exactly"):
+            self.raw_verify()
+
+    def test_intent_to_add_is_not_an_exact_head_index(self):
+        (self.root / "extra.txt").write_text("not committed\n")
+        git(self.root, "add", "--intent-to-add", "extra.txt")
+        with self.assertRaises(checker.TargetFailure):
+            self.raw_verify()
+
+    def test_empty_file_and_unquoted_unicode_tab_newline_path(self):
+        (self.root / "space name\t雪\n.rs").write_bytes(b"")
+        self.commit_fixture_tree()
+        result = self.verify()
+        self.assertEqual(result["tracked_files_hashed"], 3)
+        self.assertEqual(result["tracked_bytes_hashed"], len(b"trillionnium-world\nSynthetic head\n"))
+        self.assertTrue(result["tracked_blob_bytes_match_head"])
+        self.assertTrue(result["index_matches_head"])
+        self.assertFalse(result["tests_verified"])
+        self.assertFalse(result["remote_evidence_verified"])
+
+    def test_expected_executable_mode_passes(self):
+        (self.root / "implementation.txt").chmod(0o755)
+        self.commit_fixture_tree()
+        self.verify()
+
+    def test_linked_leaf_is_not_equivalent_to_equal_regular_bytes(self):
+        p = self.root / "implementation.txt"
+        target = self.top / "external"
+        target.write_bytes(p.read_bytes())
+        p.unlink()
+        p.symlink_to(target)
+        with self.assertRaises(checker.TargetFailure):
+            self.raw_verify()
+
+    def test_parent_symlink_is_not_followed(self):
+        (self.root / "nested").mkdir()
+        (self.root / "nested/input.txt").write_text("equal bytes\n")
+        self.commit_fixture_tree()
+        (self.root / "nested").rename(self.top / "outside")
+        (self.root / "nested").symlink_to(self.top / "outside", target_is_directory=True)
+        with self.assertRaises(checker.TargetFailure):
+            self.raw_verify()
+
+    def test_fifo_is_rejected_without_waiting_for_a_writer(self):
+        p = self.root / "implementation.txt"
+        p.unlink()
+        os.mkfifo(p)
+        with self.assertRaisesRegex(checker.TargetFailure, "not a regular"):
+            self.raw_verify()
+
+    def test_missing_regular_file_rejected(self):
+        (self.root / "implementation.txt").unlink()
+        with self.assertRaises(checker.TargetFailure):
+            self.raw_verify()
+
+    def test_file_and_aggregate_resource_limits(self):
+        for key, limit in (("MAX_TRACKED_FILES", 1), ("MAX_TRACKED_FILE_BYTES", 4),
+                           ("MAX_TRACKED_BYTES", 24)):
+            with self.subTest(key=key), patch.object(checker, key, limit):
+                with self.assertRaises(checker.TargetFailure):
+                    self.raw_verify()
+
+    def test_unsupported_no_follow_platform_fails_closed(self):
+        with patch.object(checker.os, "supports_dir_fd", set()):
+            with self.assertRaisesRegex(checker.TargetFailure, "POSIX"):
+                self.raw_verify()
+
+    def test_mutation_during_read_is_rejected(self):
+        original_read = os.read
+        modified = False
+        def racing_read(fd, count):
+            nonlocal modified
+            data = original_read(fd, count)
+            if data == b"Synthetic head\n" and not modified:
+                modified = True
+                (self.root / "implementation.txt").write_bytes(b"Synthetic EVIL\n")
+            return data
+        with patch.object(checker.os, "read", side_effect=racing_read):
+            with self.assertRaisesRegex(checker.TargetFailure, "changed during"):
+                self.raw_verify()
+        self.assertTrue(modified)
+
+    def test_index_flag_change_during_scan_is_rejected(self):
+        original_hash = checker.worktree_blob
+        modified = False
+        def racing_hash(fd, path, remaining):
+            nonlocal modified
+            result = original_hash(fd, path, remaining)
+            if not modified:
+                modified = True
+                git(self.root, "update-index", "--assume-unchanged", "implementation.txt")
+            return result
+        with patch.object(checker, "worktree_blob", side_effect=racing_hash):
+            with self.assertRaisesRegex(checker.TargetFailure, "index changed"):
+                self.raw_verify()
+
+    def test_check_does_not_refresh_or_rewrite_index(self):
+        p = self.root / ".git/index"
+        before = p.read_bytes()
+        result = self.verify()
+        self.assertEqual(p.read_bytes(), before)
+        self.assertEqual(result["tracked_files_hashed"], 2)
+
+    def test_inventory_rejects_special_modes_conflicts_and_unsafe_paths(self):
+        digest = "1" * 40
+        cases = ["", "missing-NUL", f"100644 blob {digest}\t../escape\0",
+                 f"100644 blob {digest}\t.git/config\0", f"100644 blob {digest}\ta//b\0",
+                 f"120000 blob {digest}\tlink\0", f"160000 commit {digest}\tsubmodule\0",
+                 f"100644 blob {digest}\tx\0" * 2]
+        for raw in cases:
+            with self.subTest(raw=repr(raw)), self.assertRaises(checker.TargetFailure):
+                checker.tracked_entries(raw)
+        with self.assertRaises(checker.TargetFailure):
+            checker.tracked_entries(f"100644 {digest} 2\tx\0", index=True)
+
+    def test_flag_inventory_cannot_omit_duplicate_or_invent_paths(self):
+        for raw in ("", "H x", "H y\0", "H x\0H x\0", "h x\0", "S x\0"):
+            with self.subTest(raw=repr(raw)), self.assertRaises(checker.TargetFailure):
+                checker.index_flags(raw, {"x"})
+        checker.index_flags("H x\0", {"x"})
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
