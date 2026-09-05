@@ -8,7 +8,7 @@ use base64::{engine::general_purpose::STANDARD, Engine as _};
 use chrono::{DateTime, Datelike, Utc};
 use ed25519_dalek::{Signature, Verifier, VerifyingKey};
 use reqwest::{header::HeaderMap, StatusCode};
-use serde::{Deserialize, Serialize};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json::json;
 use sha2::{Digest, Sha256};
 use std::{fmt, net::IpAddr, sync::Arc, time::Duration};
@@ -28,6 +28,45 @@ const CEX_SETTLEMENT_RECEIPT_LOOKUP_PATH: &str = "/v1/trnm/economy/receipts/by-i
 const SETTLEMENT_OUTBOX_REQUIRED: &str =
     "external economy settlement is owned by trnm-settlement-worker; synchronous EconomyBackend I/O is prohibited";
 const MAX_REMOTE_ERROR_BODY_BYTES: usize = 64 * 1024;
+// Local response-acceptance policy; never truncate a possibly committed receipt.
+const MAX_REMOTE_SUCCESS_BODY_BYTES: usize = 2 * 1024 * 1024;
+
+fn append_remote_chunk(body: &mut Vec<u8>, chunk: &[u8]) -> Result<(), &'static str> {
+    let next = body
+        .len()
+        .checked_add(chunk.len())
+        .ok_or("remote_success_body_too_large")?;
+    if next > MAX_REMOTE_SUCCESS_BODY_BYTES {
+        return Err("remote_success_body_too_large");
+    }
+    body.try_reserve(chunk.len())
+        .map_err(|_| "remote_success_body_allocation_failed")?;
+    body.extend_from_slice(chunk);
+    Ok(())
+}
+
+/// Bound bytes actually read, including chunked/unknown-length responses.
+/// Errors are static: malformed peer data must not be reflected in diagnostics.
+/// A failed read after a possible remote commit remains ambiguous to callers.
+async fn bounded_remote_json<T: DeserializeOwned>(
+    mut response: reqwest::Response,
+) -> Result<T, &'static str> {
+    if response
+        .content_length()
+        .is_some_and(|length| length > MAX_REMOTE_SUCCESS_BODY_BYTES as u64)
+    {
+        return Err("remote_success_body_too_large");
+    }
+    let mut body = Vec::new();
+    while let Some(chunk) = response
+        .chunk()
+        .await
+        .map_err(|_| "remote_success_body_read_failed")?
+    {
+        append_remote_chunk(&mut body, &chunk)?;
+    }
+    serde_json::from_slice(&body).map_err(|_| "remote_success_json_invalid")
+}
 
 #[derive(Debug, Clone, Serialize)]
 struct SessionVerifyRequest<'a> {
@@ -102,6 +141,7 @@ fn retryable_status(status: StatusCode) -> bool {
         || status == StatusCode::CONFLICT
         || status.as_u16() == 425
         || status.is_server_error()
+        || status.is_redirection()
 }
 
 async fn bounded_error_body(mut response: reqwest::Response) -> String {
@@ -290,6 +330,8 @@ impl CexClient {
         reqwest::header::HeaderValue::from_str(&signer_token)
             .map_err(|_| "TRNM_ENTITLEMENT_SIGNER_TOKEN must be a valid HTTP header value".to_string())?;
         let async_client = reqwest::Client::builder()
+            // Custom credential headers must never be forwarded to a redirect target.
+            .redirect(reqwest::redirect::Policy::none())
             .connect_timeout(Duration::from_secs(3))
             .timeout(Duration::from_secs(10))
             .build()
@@ -329,8 +371,7 @@ impl CexClient {
                 response.status()
             ));
         }
-        let readiness = response
-            .json::<EntitlementSignerReadiness>()
+        let readiness = bounded_remote_json::<EntitlementSignerReadiness>(response)
             .await
             .map_err(|error| format!("decode isolated signer readiness: {error}"))?;
         if readiness.status != "ok"
@@ -362,8 +403,7 @@ impl CexClient {
                 response.status()
             ));
         }
-        let attestation = response
-            .json::<EntitlementSignerAttestationResponse>()
+        let attestation = bounded_remote_json::<EntitlementSignerAttestationResponse>(response)
             .await
             .map_err(|error| format!("decode isolated signer attestation: {error}"))?;
         let now = Utc::now().timestamp();
@@ -417,8 +457,7 @@ impl CexClient {
                 registry.status()
             ));
         }
-        let registry = registry
-            .json::<EntitlementIssuerKeyStatusResponse>()
+        let registry = bounded_remote_json::<EntitlementIssuerKeyStatusResponse>(registry)
             .await
             .map_err(|error| format!("decode CEX issuer registry status: {error}"))?;
         if registry.key_id != attestation.key_id
@@ -454,8 +493,7 @@ impl CexClient {
             let body = bounded_error_body(response).await;
             return Err(format!("CEX rejected player session ({status}): {body}"));
         }
-        let verified = response
-            .json::<SessionVerifyResponse>()
+        let verified = bounded_remote_json::<SessionVerifyResponse>(response)
             .await
             .map_err(|error| format!("decode CEX session verification: {error}"))?;
         if !verified.verified {
@@ -492,8 +530,7 @@ impl CexClient {
                 body,
             ));
         }
-        response
-            .json::<EntitlementSignResponse>()
+        bounded_remote_json::<EntitlementSignResponse>(response)
             .await
             .map(Some)
             .map_err(|error| {
@@ -531,8 +568,7 @@ impl CexClient {
                 body,
             ));
         }
-        response
-            .json::<EntitlementSignResponse>()
+        bounded_remote_json::<EntitlementSignResponse>(response)
             .await
             .map_err(|error| {
                 ExternalSettlementError::Retryable(format!(
@@ -687,8 +723,7 @@ impl CexClient {
                 body,
             ));
         }
-        let lookup = response
-            .json::<CexSettlementReceiptLookupResponse>()
+        let lookup = bounded_remote_json::<CexSettlementReceiptLookupResponse>(response)
             .await
             .map_err(|error| {
                 ExternalSettlementError::Retryable(format!(
@@ -745,11 +780,13 @@ impl CexClient {
                 body,
             ));
         }
-        let receipt = response.json::<EconomicReceipt>().await.map_err(|error| {
-            ExternalSettlementError::Retryable(format!(
-                "decode CEX receipt after possible commit: {error}"
-            ))
-        })?;
+        let receipt = bounded_remote_json::<EconomicReceipt>(response)
+            .await
+            .map_err(|error| {
+                ExternalSettlementError::Retryable(format!(
+                    "decode CEX receipt after possible commit: {error}"
+                ))
+            })?;
         receipt
             .validate_for(authorized)
             .map_err(ExternalSettlementError::Permanent)?;
@@ -983,7 +1020,7 @@ mod tests {
         (format!("http://{address}"), state, task)
     }
 
-    fn base_intent(kind: EconomicIntentKind, amount: i64) -> EconomicIntent {
+    pub(super) fn base_intent(kind: EconomicIntentKind, amount: i64) -> EconomicIntent {
         EconomicIntent {
             protocol_version: TERM_EXCHANGE_PROTOCOL_VERSION.to_string(),
             intent_id: "intent-a".to_string(),
@@ -1106,6 +1143,7 @@ mod tests {
         assert!(retryable_status(StatusCode::REQUEST_TIMEOUT));
         assert!(retryable_status(StatusCode::TOO_MANY_REQUESTS));
         assert!(retryable_status(StatusCode::CONFLICT));
+        assert!(retryable_status(StatusCode::TEMPORARY_REDIRECT));
         assert!(retryable_status(StatusCode::BAD_GATEWAY));
         assert!(!retryable_status(StatusCode::BAD_REQUEST));
         assert!(!retryable_status(StatusCode::UNAUTHORIZED));
@@ -1190,3 +1228,7 @@ mod tests {
         task.abort();
     }
 }
+
+#[cfg(test)]
+#[path = "cex_response_policy_tests.rs"]
+mod response_policy_tests;

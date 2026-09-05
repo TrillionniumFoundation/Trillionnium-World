@@ -16,6 +16,8 @@ It is not the target public canonical online authority. It must not create a sec
 
 HTTP and WebSocket behavior is governed by `docs/protocol/trnm-world-http-api-v1.md`, `trnm-world-websocket-v1.md`, and the stable error and compatibility catalogues. PostgreSQL behavior is governed by `docs/database/trnm-world-postgres-contract-v1.md`. External settlement follows capture transaction, transaction-free remote execution, and fenced apply transaction.
 
+The [settlement HTTP response policy](../../../docs/development/trnm-settlement-remote-http-bounds-v1.md) specifies the directly compiled CEX/signer adapter's 2 MiB success-body limit, no-redirect rule, static decode diagnostics and unknown-outcome recovery. All eight typed success reads use the bounded reader. Immutable receipt/hash mismatches remain permanent rejection. Twelve new private-adapter loopback test functions are authored; Rust and hosted qualification remain pending.
+
 ## State and invariants
 
 Correctness ownership is partitioned into authority/actor, configuration and migrations, terminal recovery, fleet fencing, identity, application, HTTP routing, readiness, product APIs, campaign persistence, operations, and tests. Global database lock order and live instance/lease generations are mandatory. No signer, CEX, wallet, ledger, or network call may execute while mutable match or campaign rows are locked.
