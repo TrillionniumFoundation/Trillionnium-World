@@ -8,6 +8,7 @@ canonical encoder and object-pair model.
 
 from __future__ import annotations
 
+import argparse
 import hashlib
 import json
 import pathlib
@@ -21,6 +22,7 @@ NEGATIVE = ROOT / "docs/protocol/vectors/trnm-world-transition-negative-v1.json"
 SCHEMA = ROOT / "docs/protocol/schemas/trnm-world-transition-v1.schema.json"
 RUST = ROOT / "trillionnium/contracts/trnm-world-transition-v1/src/canonical.rs"
 LIB = ROOT / "trillionnium/contracts/trnm-world-transition-v1/src/lib.rs"
+RUST_NEGATIVE_FIXTURE = ROOT / "trillionnium/contracts/trnm-world-transition-v1/tests/fixtures/negative_vectors.rs"
 
 MAX_DEPTH = 128
 MIN_I64 = -(2**63)
@@ -78,12 +80,19 @@ def object_pairs(pairs: list[tuple[str, Any]]) -> CanonicalObject:
     return CanonicalObject(tuple(pairs))
 
 
+def ascii_lower(value: str) -> str:
+    """Match Rust `to_ascii_lowercase` without Unicode case folding."""
+    return value.translate(
+        str.maketrans("ABCDEFGHIJKLMNOPQRSTUVWXYZ", "abcdefghijklmnopqrstuvwxyz")
+    )
+
+
 def check_value(value: Any, depth: int = 0) -> None:
     if depth > MAX_DEPTH:
         raise CanonicalFailure("nesting exceeds 128")
     if isinstance(value, CanonicalObject):
         for key, child in value.pairs:
-            if key in FORBIDDEN_KEYS:
+            if ascii_lower(key) in FORBIDDEN_KEYS:
                 raise CanonicalFailure(f"forbidden authority key: {key}")
             check_string(key)
             check_value(child, depth + 1)
@@ -176,10 +185,84 @@ def load_json(path: pathlib.Path) -> dict[str, Any]:
     return value
 
 
-def main() -> None:
+def rust_bytes_literal(value: str) -> str:
+    """Preserve exact UTF-8 bytes, including controls, without Rust raw-string ambiguity."""
+    escaped = []
+    for byte in value.encode("utf-8"):
+        if byte == 0x22:
+            escaped.append('\\"')
+        elif byte == 0x5C:
+            escaped.append("\\\\")
+        elif 0x20 <= byte <= 0x7E:
+            escaped.append(chr(byte))
+        else:
+            escaped.append(f"\\x{byte:02x}")
+    return 'b"' + "".join(escaped) + '"'
+
+
+def render_negative_fixture(document: dict[str, Any], raw_document: bytes) -> str:
+    """Generate test data only. Neither this renderer nor CI writes repository files."""
+    if document.get("vector_contract") != "trnm_world_transition_negative_vectors_v1":
+        raise CanonicalFailure("wrong negative vector contract")
+    if document.get("canonical_profile") != "trnm_world_canonical_json_v1":
+        raise CanonicalFailure("wrong negative canonical profile")
+    vectors = document.get("vectors")
+    if not isinstance(vectors, list) or len(vectors) < 20:
+        raise CanonicalFailure("negative vector corpus is missing or unexpectedly small")
+    seen: set[str] = set()
+    lines = [
+        "// Generated TEST DATA from docs/protocol/vectors/trnm-world-transition-negative-v1.json.",
+        "// Regenerate with: python3 scripts/check-trnm-world-transition-conformance.py --print-negative-fixture",
+        "// No production source or runtime semantics are generated.",
+        "#[rustfmt::skip]",
+        f'pub(super) const SOURCE_SHA256: &str = "{sha256_hex(raw_document)}";',
+        "#[rustfmt::skip]",
+        "pub(super) const CASES: &[(&str, &[u8])] = &[",
+    ]
+    for vector in vectors:
+        if not isinstance(vector, dict) or set(vector) != {"name", "utf8", "error"}:
+            raise CanonicalFailure("negative vector must contain exactly name, utf8 and error")
+        name, raw, error = vector["name"], vector["utf8"], vector["error"]
+        if not isinstance(name, str) or re.fullmatch(r"[a-z][a-z0-9_]*", name) is None or name in seen:
+            raise CanonicalFailure("negative vector names must be unique ASCII identifiers")
+        if not isinstance(raw, str) or not isinstance(error, str) or not error:
+            raise CanonicalFailure("negative vector payload/error has the wrong type")
+        seen.add(name)
+        try:
+            literal = rust_bytes_literal(raw)
+        except UnicodeError as error:
+            raise CanonicalFailure("negative vector is not encodable as UTF-8") from error
+        lines.append(f'    ("{name}", {literal}),')
+    lines.extend(["];", ""])
+    return "\n".join(lines)
+
+
+def validate_negative_fixture(document: dict[str, Any], raw_document: bytes, path: pathlib.Path) -> None:
+    try:
+        expected = render_negative_fixture(document, raw_document)
+        actual = path.read_bytes()
+    except (OSError, CanonicalFailure) as error:
+        fail(f"negative test fixture cannot be checked: {error}")
+    if actual != expected.encode("utf-8"):
+        fail("Rust negative test fixture differs from the published JSON; regenerate and review it")
+
+
+def main(argv: list[str] | None = None) -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--print-negative-fixture", action="store_true",
+                        help="print deterministic Rust test data; no validation or repository write")
+    args = parser.parse_args(argv)
+    if args.print_negative_fixture:
+        document = load_json(NEGATIVE)
+        try:
+            print(render_negative_fixture(document, NEGATIVE.read_bytes()), end="")
+        except (OSError, CanonicalFailure) as error:
+            fail(f"cannot render negative fixture: {error}")
+        return
     positive = load_json(POSITIVE)
     negative = load_json(NEGATIVE)
     schema = load_json(SCHEMA)
+    validate_negative_fixture(negative, NEGATIVE.read_bytes(), RUST_NEGATIVE_FIXTURE)
 
     if positive.get("vector_contract") != "trnm_world_transition_vectors_v1":
         fail("wrong positive vector contract")

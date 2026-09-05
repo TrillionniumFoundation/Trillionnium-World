@@ -1,5 +1,5 @@
 use trnm_world_transition_contract::{
-    CanonicalPayloadV1, WorldCommandV1, WorldTransitionRequestV1,
+    parse_canonical_bytes, sha256_hex, CanonicalPayloadV1, WorldCommandV1, WorldTransitionRequestV1,
     MAX_COMMAND_PAYLOAD_BYTES, MAX_STATE_PAYLOAD_BYTES,
 };
 
@@ -37,34 +37,29 @@ fn request_matches_published_canonical_bytes_and_hash() {
     assert_eq!(request.request_hash().unwrap(), REQUEST_HASH);
 }
 
+#[path = "fixtures/negative_vectors.rs"]
+mod negative_vectors;
+
+#[test]
+fn published_negative_fixture_matches_exact_json_identity() {
+    let published = include_bytes!(
+        "../../../../docs/protocol/vectors/trnm-world-transition-negative-v1.json"
+    );
+    assert_eq!(sha256_hex(published), negative_vectors::SOURCE_SHA256);
+    assert!(negative_vectors::CASES.len() >= 20);
+    let names: std::collections::BTreeSet<_> = negative_vectors::CASES
+        .iter()
+        .map(|(name, _)| *name)
+        .collect();
+    assert_eq!(names.len(), negative_vectors::CASES.len());
+}
+
 #[test]
 fn published_negative_corpus_classes_fail_closed() {
-    for raw in [
-        "",
-        "1",
-        "{\"a\":}",
-        "{\"a\":1,}",
-        "[1,]",
-        "{\"b\":1,\"a\":2}",
-        "{\"a\":1,\"a\":2}",
-        "[01]",
-        "[-0]",
-        "[1.0]",
-        "[1e3]",
-        "[NaN]",
-        "[9223372036854775808]",
-        "[-9223372036854775809]",
-        "{\"a\":\"\\/\"}",
-        "{\"a\":\"\\u0061\"}",
-        "{\"a\":\"\\u001F\"}",
-        "{ \"a\":1}",
-        "{}x",
-        "{\"nakama_\\u0070rivate_key\":\"x\"}",
-        "{\"a\":{\"match_completed_v1\":{}}}",
-    ] {
+    for &(name, raw) in negative_vectors::CASES {
         assert!(
-            CanonicalPayloadV1::new("negative-v1", raw, 4096).is_err(),
-            "unexpected pass for {raw:?}"
+            parse_canonical_bytes(raw, 4096).is_err(),
+            "published negative vector {name} unexpectedly passed: {raw:?}"
         );
     }
 }
