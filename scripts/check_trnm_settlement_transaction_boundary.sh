@@ -6,6 +6,8 @@ cd "$ROOT_DIR"
 
 bash scripts/check-trnm-settlement-transaction-boundary.sh full
 python3 scripts/check-trnm-settlement-runtime-status.py
+bash scripts/test-trnm-settlement-transaction-boundary-negative.sh
+python3 scripts/test-trnm-settlement-runtime-status-negative.py
 
 python3 - <<'PY'
 import json
@@ -13,12 +15,13 @@ from pathlib import Path
 
 status = json.loads(Path("docs/status/settlement-runtime-v1.json").read_text(encoding="utf-8"))
 expected_gates = {
+    "publish_reviewed_direct_source_and_successor_manifest",
     "merge_cex_owner_repository_pull_request",
     "bind_exact_cex_build_and_deployment_artifact",
     "prove_deployed_signer_and_cex_response_loss_recovery",
     "prove_process_kill_cancellation_shutdown_and_apply_rollback_matrix",
     "approve_backup_pitr_restore_and_receipt_retention",
-    "obtain_exact_commit_github_actions_evidence",
+    "run_exact_head_v4_checks",
     "obtain_reviewer_signoff",
 }
 if set(status["open_gates"]) != expected_gates:

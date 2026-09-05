@@ -2,11 +2,11 @@
   "schema": "trnm_world_settlement_runtime_status_v1",
   "claim_id": "WORLD-P0-001-settlement-fencing-v1",
   "work_item": "WORLD-P0-001",
-  "status": "implemented_pending_exact_commit_ci",
-  "as_of": "2026-08-29",
+  "status": "planned",
+  "as_of": "2026-09-05",
   "owner_repository": "TrillionniumFoundation/Trillionnium-World",
-  "branch": "fix/world-plan-gap-closure-v4",
-  "base_commit": "1d4dee6d5add45a64f5c138f424e3bdab369ecd4",
+  "branch": "fix/world-plan-v4-development-closure-20260831",
+  "base_commit": "c93dad9ff07e5f26c059fb36abdf7095055388e1",
   "verified_commit": null,
   "authority_profile": "world_legacy_local_alpha",
   "release_effect": "none",
@@ -38,7 +38,7 @@
     "operator_replay_allows_one_additional_remote_attempt",
     "operator_replay_and_policy_evidence_are_append_only",
     "operator_policy_retention_floor_and_alert_projection",
-    "generated_runtime_source_fails_closed_on_template_drift",
+    "ordinary_compiled_source_excludes_semantic_generation",
     "sigint_sigterm_stop_new_admission",
     "bounded_shutdown_drain_with_lease_recovery",
     "bounded_parallel_remote_execution",
@@ -50,6 +50,7 @@
     "read_only_pinned_exact_head_ci"
   ],
   "open_gates": [
+    "publish_reviewed_direct_source_and_successor_manifest",
     "run_exact_head_v4_checks",
     "merge_cex_owner_repository_pull_request",
     "bind_exact_cex_build_and_deployment_artifact",
@@ -69,12 +70,13 @@
     "reviewers": [],
     "limitations": [
       "source implementation is not deployment evidence",
-      "CEX owner implementation is an unmerged exact-head candidate",
+      "retained CEX dependency is unqualified; consult CURRENT_PLAN.md for owner-selected identity",
       "external relay evidence does not replace World repository governance",
-      "build-time semantic source generation remains tracked migration debt",
+      "local direct-source checks do not prove publication on the operative branch",
       "no production deployment credit",
       "no trusted CEX settlement promotion",
-      "no public online or public market credit"
+      "no public online or public market credit",
+      "planned integration inventory is not implemented or verified on the live branch"
     ]
   }
 }

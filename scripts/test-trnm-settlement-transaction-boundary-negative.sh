@@ -50,3 +50,7 @@ if bash "$CHECKER" scan-only "$TMP_DIR/src" >/dev/null 2>&1; then
 fi
 
 echo "TRNM settlement transaction-boundary negative fixture passed"
+
+# Keep the original shell/argument regression, then exercise lexical, include,
+# source and workflow mutations. These are offline tests, not Rust/DB evidence.
+python3 "$ROOT_DIR/scripts/test-trnm-settlement-transaction-boundary.py"

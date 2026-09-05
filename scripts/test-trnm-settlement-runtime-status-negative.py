@@ -33,6 +33,7 @@ def invoke(path: pathlib.Path) -> subprocess.CompletedProcess[str]:
         check=False,
         capture_output=True,
         text=True,
+        timeout=15,
     )
 
 
@@ -47,6 +48,8 @@ def remove_gate(name: str) -> Callable[[dict[str, Any]], None]:
 def main() -> int:
     baseline = json.loads(STATUS.read_text(encoding="utf-8"))
     cases: list[tuple[str, Callable[[dict[str, Any]], None]]] = [
+        ("unpublished-source-claimed-implemented", lambda value: value.__setitem__("status", "implemented_pending_exact_commit_ci")),
+        ("hidden-source-publication-gate", remove_gate("publish_reviewed_direct_source_and_successor_manifest")),
         ("verified-without-evidence", lambda value: value.__setitem__("status", "verified_remote")),
         ("verified-commit-invented", lambda value: value.__setitem__("verified_commit", "1" * 40)),
         ("public-online-overclaim", lambda value: value.__setitem__("public_online", "enabled")),
@@ -72,8 +75,19 @@ def main() -> int:
         ("future-run-invented", lambda value: value["evidence"]["remote_workflow_runs"].append(1)),
         ("review-invented", lambda value: value["evidence"]["reviewers"].append("reviewer")),
         ("extra-claim", lambda value: value.__setitem__("release_ready", True)),
+        ("legacy-source-control", lambda value: value["implemented_controls"].__setitem__(
+            value["implemented_controls"].index("ordinary_compiled_source_excludes_semantic_generation"),
+            "generated_runtime_source_fails_closed_on_template_drift")),
+        ("compact-date", lambda value: value.__setitem__("as_of", "20260905")),
+        ("invalid-calendar-date", lambda value: value.__setitem__("as_of", "2026-02-30")),
+        ("missing-limitation", lambda value: value["evidence"]["limitations"].pop()),
+        ("null-run-list", lambda value: value["evidence"].__setitem__("remote_workflow_runs", None)),
+        ("object-artifact-list", lambda value: value["evidence"].__setitem__("artifacts", {})),
+        ("false-review-list", lambda value: value["evidence"].__setitem__("reviewers", False)),
+        ("string-run-list", lambda value: value["evidence"].__setitem__("remote_workflow_runs", "")),
     ]
 
+    raw_case_count = 0
     with tempfile.TemporaryDirectory(prefix="trnm-settlement-negative-") as directory:
         directory_path = pathlib.Path(directory)
         baseline_path = directory_path / "baseline.json"
@@ -91,9 +105,29 @@ def main() -> int:
                 print(f"negative fixture unexpectedly passed: {name}", file=sys.stderr)
                 return 1
 
+        raw_cases = [
+            ("duplicate-key", json.dumps(baseline).replace('"schema":', '"schema": "crossed", "schema":', 1)),
+            ("nonfinite", json.dumps(baseline).replace('"verified_commit": null', '"verified_commit": NaN')),
+            ("oversize", " " * (256 * 1024 + 1)),
+            ("array-root", "[]"),
+        ]
+        for name, raw in raw_cases:
+            path = directory_path / f"{name}.json"
+            path.write_text(raw, encoding="utf-8")
+            if invoke(path).returncode == 0:
+                print(f"raw negative unexpectedly passed: {name}", file=sys.stderr)
+                return 1
+            raw_case_count += 1
+        linked = directory_path / "linked.json"
+        linked.symlink_to(baseline_path)
+        if invoke(linked).returncode == 0:
+            print("linked status source unexpectedly passed", file=sys.stderr)
+            return 1
+        raw_case_count += 1
+
     print(
         "TRNM settlement runtime status negative fixtures: "
-        f"PASS ({len(cases)}/{len(cases)} rejected)"
+        f"PASS ({len(cases) + raw_case_count}/{len(cases) + raw_case_count} rejected)"
     )
     return 0
 
