@@ -1,4 +1,4 @@
-use reqwest::blocking::Client;
+use reqwest::Client;
 use std::{env, process::ExitCode, time::Duration};
 use trnm_online_protocol::{
     OnlineEnforcementAppealQueueRequest, OnlineEnforcementAppealQueueView,
@@ -17,7 +17,7 @@ fn required(key: &str) -> Result<String, String> {
         .ok_or_else(|| format!("{key} is required"))
 }
 
-fn run() -> Result<(), String> {
+async fn run() -> Result<(), String> {
     let base_url =
         env::var("TRNM_GAME_SERVER_URL").unwrap_or_else(|_| "http://127.0.0.1:7005".to_string());
     let token = required("TRNM_MODERATOR_TOKEN")?;
@@ -38,9 +38,13 @@ fn run() -> Result<(), String> {
                     limit: 100,
                 })
                 .send()
+                .await
                 .map_err(|error| error.to_string())?;
             let status_code = response.status();
-            let body = response.text().map_err(|error| error.to_string())?;
+            let body = response
+                .text()
+                .await
+                .map_err(|error| error.to_string())?;
             if !status_code.is_success() {
                 return Err(format!("moderation queue rejected ({status_code}): {body}"));
             }
@@ -70,9 +74,13 @@ fn run() -> Result<(), String> {
                     suspension_hours: if hours == 0 { None } else { Some(hours) },
                 })
                 .send()
+                .await
                 .map_err(|error| error.to_string())?;
             let status_code = response.status();
-            let body = response.text().map_err(|error| error.to_string())?;
+            let body = response
+                .text()
+                .await
+                .map_err(|error| error.to_string())?;
             if !status_code.is_success() {
                 return Err(format!(
                     "moderation action rejected ({status_code}): {body}"
@@ -95,9 +103,13 @@ fn run() -> Result<(), String> {
                     limit: 100,
                 })
                 .send()
+                .await
                 .map_err(|error| error.to_string())?;
             let status_code = response.status();
-            let body = response.text().map_err(|error| error.to_string())?;
+            let body = response
+                .text()
+                .await
+                .map_err(|error| error.to_string())?;
             if !status_code.is_success() {
                 return Err(format!("appeal queue rejected ({status_code}): {body}"));
             }
@@ -120,9 +132,13 @@ fn run() -> Result<(), String> {
                     resolution: args[3..].join(" "),
                 })
                 .send()
+                .await
                 .map_err(|error| error.to_string())?;
             let status_code = response.status();
-            let body = response.text().map_err(|error| error.to_string())?;
+            let body = response
+                .text()
+                .await
+                .map_err(|error| error.to_string())?;
             if !status_code.is_success() {
                 return Err(format!("appeal action rejected ({status_code}): {body}"));
             }
@@ -149,9 +165,13 @@ fn run() -> Result<(), String> {
                         automatic_activation,
                     })
                     .send()
+                    .await
                     .map_err(|error| error.to_string())?;
                 let status_code = response.status();
-                let body = response.text().map_err(|error| error.to_string())?;
+                let body = response
+                    .text()
+                    .await
+                    .map_err(|error| error.to_string())?;
                 if !status_code.is_success() {
                     return Err(format!(
                         "season automation rejected ({status_code}): {body}"
@@ -199,9 +219,13 @@ fn run() -> Result<(), String> {
                 .header("x-trnm-moderator", &token)
                 .json(&request)
                 .send()
+                .await
                 .map_err(|error| error.to_string())?;
             let status_code = response.status();
-            let body = response.text().map_err(|error| error.to_string())?;
+            let body = response
+                .text()
+                .await
+                .map_err(|error| error.to_string())?;
             if !status_code.is_success() {
                 return Err(format!("season action rejected ({status_code}): {body}"));
             }
@@ -222,9 +246,13 @@ fn run() -> Result<(), String> {
                     reason: args[3..].join(" "),
                 })
                 .send()
+                .await
                 .map_err(|error| error.to_string())?;
             let status_code = response.status();
-            let body = response.text().map_err(|error| error.to_string())?;
+            let body = response
+                .text()
+                .await
+                .map_err(|error| error.to_string())?;
             if !status_code.is_success() {
                 return Err(format!("fleet action rejected ({status_code}): {body}"));
             }
@@ -248,9 +276,13 @@ fn run() -> Result<(), String> {
                     note: args[4..].join(" "),
                 })
                 .send()
+                .await
                 .map_err(|error| error.to_string())?;
             let status_code = response.status();
-            let body = response.text().map_err(|error| error.to_string())?;
+            let body = response
+                .text()
+                .await
+                .map_err(|error| error.to_string())?;
             if !status_code.is_success() {
                 return Err(format!("shift start rejected ({status_code}): {body}"));
             }
@@ -277,9 +309,13 @@ fn run() -> Result<(), String> {
                     note: args[4..].join(" "),
                 })
                 .send()
+                .await
                 .map_err(|error| error.to_string())?;
             let status_code = response.status();
-            let body = response.text().map_err(|error| error.to_string())?;
+            let body = response
+                .text()
+                .await
+                .map_err(|error| error.to_string())?;
             if !status_code.is_success() {
                 return Err(format!("shift {action} rejected ({status_code}): {body}"));
             }
@@ -301,9 +337,13 @@ fn run() -> Result<(), String> {
                     case_id: args[4].clone(),
                 })
                 .send()
+                .await
                 .map_err(|error| error.to_string())?;
             let status_code = response.status();
-            let body = response.text().map_err(|error| error.to_string())?;
+            let body = response
+                .text()
+                .await
+                .map_err(|error| error.to_string())?;
             if !status_code.is_success() {
                 return Err(format!("case claim rejected ({status_code}): {body}"));
             }
@@ -324,8 +364,9 @@ fn run() -> Result<(), String> {
     Ok(())
 }
 
-fn main() -> ExitCode {
-    match run() {
+#[tokio::main(flavor = "current_thread")]
+async fn main() -> ExitCode {
+    match run().await {
         Ok(()) => ExitCode::SUCCESS,
         Err(error) => {
             eprintln!("{error}");
