@@ -1,85 +1,72 @@
 # Trillionnium World Current Status
 
-> This view is subordinate to `world-v4-convergence-state-2026-08-30.json`, `world-gates-v1.json`, the binding project boundary, and accepted ADRs. Machine evidence, not this prose, controls promotion.
+> Generated from the snapshot explicitly selected by `CURRENT_PLAN.md`.
+> These are recorded assertions, not fresh GitHub queries or independent evidence verification.
 
-- As of: `2026-08-30`
-- Source plan: `docs/development/TRILLIONNIUM_WORLD_DEVELOPMENT_PLAN_2026-08-29.md`
-- Convergence addendum: `docs/development/TRILLIONNIUM_WORLD_PLAN_V4_CONVERGENCE_ADDENDUM_2026-08-30.md`
-- Machine convergence state: `docs/status/world-v4-convergence-state-2026-08-30.json`
-- Parent V4 candidate: `fix/world-plan-gap-closure-v4`
-- Convergence branch: `fix/world-plan-v4-convergence-2026-08-30`
-- Observed `main`: `efcf0420f6edabc32b7f85332467f25e291cdc63`
-- Public online: **NO-GO**
-- Public player market: **disabled**
-- Commercial release: **NO-GO**
+- Selected execution snapshot: `docs/status/world-plan-v4-execution-truth-2026-09-02.json`
+- Snapshot recorded at (UTC): `2026-09-02T08:30:00Z`
+- Snapshot SHA-256: `00660e7ea2c9c05fffdf8cbabf693dab2f6ea81dd26913d4cec0855f880c595e`
+- Operative pull request: `#46`
+- Operative branch: `fix/world-plan-v4-development-closure-20260831`
 
-## Observed GitHub control state
+Later explicit live observations in `CURRENT_PLAN.md` govern only their stated scope.
+In particular, consult that root pointer for the CEX dependency disposition; an old retained pin is not a newly selected or qualified CEX candidate.
+The binding repository boundary and accepted ADRs remain authoritative.
 
-| Control | Observed state |
+## Recorded source and repository posture
+
+| Field | Recorded value |
 | --- | --- |
-| Check runs on parent V4 head `0e256625...` | `0` |
-| Check runs on overlapping V4 head `366becfb...` | `0` |
-| Rulesets returned by repository API | `0` |
-| Actions runs for probe commit `2e465c56...` | `0` |
-| Required checks observed | none |
-| Server-side code-owner enforcement observed | no |
-| Administrator enforcement observed | no |
+| Separate artifact qualification | `pass` |
+| Qualified source tree | `5e613185f5a2abda42df371f3755e73667717309` |
+| Qualification control head | `68e9631b3fc3f75f332497f8d0551608bf0e1413` |
+| Qualification run / artifact | `33452853784` / `9780499701` |
+| Qualified artifact ZIP SHA-256 | `456a181bdc8f8aa248229b044db9eec4f52572ea3b20bca6492907db58d64ef5` |
+| Rust toolchain | `1.98.0` |
+| Source publication state | `blocked_partial_unreferenced_object_import` |
+| Qualified tree present | `false` |
+| Qualified tree attached to PR | `false` |
+| Repository workflow run count at snapshot | `0` |
+| Actions state | `repository_or_organization_scheduler_blocked` |
+| Exact-head evidence | `absent` |
 
-A workflow or CODEOWNERS file is source preparation, not server-side
-enforcement. Empty check collections are blockers, not successful evidence.
+A qualified artifact is not publication on the operative branch. Source publication is not compilation, hosted CI, independent review or release eligibility.
+Re-query GitHub for the final PR head and prospective merge object before assigning remote verification credit. Empty, skipped, cancelled or stale checks are not a pass.
 
-## Gate posture
+## Recorded closure flags
 
-| Gate | Current convergence state | Authority profile | Promotion blockers |
-| --- | --- | --- | --- |
-| Deterministic transition source | **source implemented, unverified** | World game domain | non-empty exact-head Rust and independent conformance |
-| Direct CEX/signer transport source | **source implemented, unverified** | World settlement adapter | exact-head Rust and response-loss tests |
-| Reviewable compiled game-server/worker source | **source open** | World compatibility enclave | semantic `build.rs` rewriting of `lib.rs.in` and `settlement_worker.rs.in` |
-| Settlement capture/execute/apply source | **source implemented, unverified** | World compatibility enclave + CEX | exact-head Rust/PostgreSQL, independent review, deployed fault matrix |
-| Repository Actions execution | **repository-control blocked** | GitHub repository/organization | enable Actions and produce a non-empty exact-head run |
-| Protected `main` and required checks | **repository-control blocked** | GitHub repository/organization | apply and independently query server-side ruleset |
-| Nakama canonical authority | **blocked upstream** | Nakama target | adapter, shadow, sole completion signer, drain/cutover |
-| Integration release lock | **blocked upstream** | Integration | exact component lock, rollback and disablement rehearsal |
-| Native software alpha | **source implemented, unverified** | World native client | workspace/package run, platform matrix, real human/accessibility evidence |
-| Trusted deployed settlement | **environment evidence required** | CEX + runtime operations | response loss, kill/cancel/shutdown/apply rollback, PITR/restore |
-| Public online | **NO-GO** | Nakama target | canonical cutover, public edge, KMS/HSM, multi-host, endurance, capacity, staffed/human gates |
-| Public player market | **disabled** | separate approval | public online plus custody/fraud/dispute/support/legal/economic approval |
-| Commercial single-player | **NO-GO** | World native client | multi-OS signing, accessibility, support, legal and independent human evidence |
+| Denominator | Recorded value |
+| --- | --- |
+| `world_owned_source_development_closed` | `false` |
+| `exact_head_ci_closed` | `false` |
+| `independent_review_closed` | `false` |
+| `server_governance_closed` | `false` |
+| `all_plan_gaps_closed` | `false` |
+| Production authorization | `not_granted` |
 
-## Source implemented in the convergence candidate
+## Recorded external evidence
 
-- strict `trnm_world_transition_v1` parser and API;
-- complete syntax, ordering, duplicate-key, signed-i64, minimal-escape, UTF-8, depth and exact re-encoding checks;
-- recursive authority-key denial including ASCII case-folded aliases;
-- positive and negative canonical vectors;
-- transaction-free settlement capture, remote execution and fenced apply design;
-- stable remote request identity and lookup-before-submit;
-- live lease fencing and separate remote/application state;
-- bounded shutdown/concurrency and poison-work quarantine source;
-- directly compiled `src/cex.rs` with bounded remote error bodies, 409 ambiguity handling, and malformed-success recovery;
-- removal of `cex.rs.in` and CEX semantic build generation;
-- direct CEX source regression contract;
-- current architecture, security, database, release and runbook documents;
-- read-only SHA-pinned workflow definitions.
+| Denominator | Recorded state |
+| --- | --- |
+| `cross_host_recovery_and_endurance` | `open` |
+| `deployment_and_public_edge` | `open` |
+| `human_and_accessibility_validation` | `open` |
+| `nakama_canonical_authority_and_cutover` | `open` |
+| `privacy_legal_support_and_commercial` | `open` |
+| `trusted_cex_custody_and_settlement` | `open` |
 
-These are source statements. They are not remote execution, deployment,
-upstream, human, public-network, custody or commercial evidence.
+## Evidence boundary
 
-## Open World-owned source blockers
+Public online operation, public player markets and commercial release remain **NO-GO / disabled** under the current root plan. This renderer cannot authorize deployment or enablement.
+Repository protection, required checks and review enforcement require live server-side read-back. This view does not reproduce superseded governance observations as current facts.
+Source, fixture tests and generated status cannot satisfy cross-repository, deployed, cross-host, custody, human, accessibility, privacy, legal, support or commercial evidence requirements.
 
-1. Materialize directly compiled `lib.rs` and `settlement_worker.rs`.
-2. Remove the remaining semantic source rewriting from `build.rs` and remove their `.rs.in` compiled authority.
-3. Finish correctness-oriented module decomposition and invariant tests.
-4. Reconcile overlapping V4 candidates into one current candidate.
-5. Run and repair the full exact-head matrix after Actions execution is enabled.
+## Maintenance
 
-## Interpretation rules
+```bash
+python3 scripts/check-trnm-world-execution-truth.py
+python3 scripts/test-trnm-world-execution-truth.py
+```
 
-- `source_open` means required World-owned source or documentation is still absent or violates an invariant.
-- `source_implemented_unverified` means source and tests exist but have no successful exact-head remote proof.
-- `source_verified` requires a non-empty successful exact-head run and independent review.
-- `deployed` requires an immutable deployment artifact and environment binding.
-- `operational` requires fault, restore, capacity, observability and operator evidence.
-- `release_ready` additionally requires every dependent human, upstream, public-network, custody, legal and commercial row.
-
-No local fixture, source scanner, generated JSON, short smoke, or automated screenshot may satisfy a human, public-network, cross-host, custody, legal or commercial row.
+The default check is read-only and rejects any stale or manually altered view.
+After an authorized snapshot/pointer update, a local operator may regenerate this file with `--write`; that option is rejected in CI and does not modify the snapshot or close any gap.

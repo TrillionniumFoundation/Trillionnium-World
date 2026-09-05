@@ -7,6 +7,7 @@ import json
 import pathlib
 import re
 import sys
+import subprocess
 from typing import Any
 
 ROOT = pathlib.Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else pathlib.Path(__file__).resolve().parents[1]
@@ -177,5 +178,22 @@ for removed in (
 ):
     if (ROOT / removed).exists():
         fail(f"retired self-modifying workflow still exists: {removed}")
+
+# Consistency and executable negative fixtures are part of the existing gate.
+# The two unit suites use isolated temporary repositories, never candidate writes.
+for relative, arguments in (
+    ("scripts/check-trnm-world-execution-truth.py", [str(ROOT)]),
+    ("scripts/test-trnm-world-execution-truth.py", []),
+    ("scripts/test-trnm-world-qualified-checkout.py", []),
+):
+    path = ROOT / relative
+    if not path.is_file() or path.is_symlink():
+        fail(f"missing or linked execution-truth gate: {relative}")
+    try:
+        result = subprocess.run([sys.executable, str(path), *arguments], check=False, timeout=90)
+    except (OSError, subprocess.TimeoutExpired):
+        fail(f"execution-truth gate unavailable: {relative}")
+    if result.returncode != 0:
+        fail(f"execution-truth gate failed: {relative}")
 
 print("TRNM World documentation and CI integrity: PASS")

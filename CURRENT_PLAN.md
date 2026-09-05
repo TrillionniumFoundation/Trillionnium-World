@@ -13,6 +13,8 @@ The authoritative current execution snapshot is:
 
 - `docs/status/world-plan-v4-execution-truth-2026-09-02.json`
 
+<!-- trnm-current-execution-snapshot: docs/status/world-plan-v4-execution-truth-2026-09-02.json -->
+
 The older machine-readable plan, gap ledger, and convergence-state files remain historical planning inputs. Where their candidate identity or execution state conflicts with the current execution snapshot, the current execution snapshot governs.
 
 ## Operative candidate
@@ -70,3 +72,17 @@ These paths remain required planning/schema references, not current execution-st
 - `docs/development/trnm-world-gap-closure-ledger-v4.json`
 
 Their presence satisfies discoverability, not closure. The authoritative execution snapshot above still governs. Operator-only source publication uses `scripts/import-qualified-world-v13k.py`; CI may run its dry-run and offline fault tests, but may not use `--publish`.
+
+## Executable execution-truth checks
+
+`docs/status/CURRENT.md` is a deterministic view of the explicitly selected execution snapshot, not a fresh GitHub observation. The selected snapshot, root candidate identity and rendered view must agree. Later live observations above keep their stated scope; old CEX pins are not automatically repinned or qualified.
+
+```bash
+python3 scripts/check-trnm-world-execution-truth.py
+python3 scripts/test-trnm-world-execution-truth.py
+python3 scripts/test-trnm-world-qualified-checkout.py
+```
+
+A local operator may regenerate the view with `--write` after an authorized pointer/snapshot update. CI rejects that option and only checks the rendered bytes. `scripts/check-trnm-world-qualified-checkout.py --artifact-zip <verified-v13k.zip> --expected-head <exact-checkout-commit>` separately verifies the pinned artifact and all 73 writes/two deletions against both committed Git objects and worktree bytes. Its output proves only local checkout identity, not remote publication, hosted qualification, review or release authorization.
+
+See `docs/development/trnm-world-execution-truth-checks-v1.md` for scope, failure behavior and commands. No execution state or release denominator is promoted by these checks.
