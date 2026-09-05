@@ -86,3 +86,34 @@ python3 scripts/test-trnm-world-qualified-checkout.py
 A local operator may regenerate the view with `--write` after an authorized pointer/snapshot update. CI rejects that option and only checks the rendered bytes. `scripts/check-trnm-world-qualified-checkout.py --artifact-zip <verified-v13k.zip> --expected-head <exact-checkout-commit>` separately verifies the pinned artifact and all 73 writes/two deletions against both committed Git objects and worktree bytes. Its output proves only local checkout identity, not remote publication, hosted qualification, review or release authorization.
 
 See `docs/development/trnm-world-execution-truth-checks-v1.md` for scope, failure behavior and commands. No execution state or release denominator is promoted by these checks.
+
+## CI target binding continuation (2026-09-05)
+
+The CI wiring repair is based on observed input `8107a3816545310a61ec5a36f4bad8cec432e225`.
+It does not change the selected execution snapshot, fixed artifact identity or
+any closure flag. The eight reviewed workflows retain twenty unique job names;
+the complete product workflow alone owns the five canonical V4 contexts. The
+narrower final counterparts are supplemental, not substitute required checks.
+The dedicated V5 closure workflow owns its canonical name. The exact required
+context set in the main-protection contract is unchanged.
+
+The complete workflow binds PR merge, push head and dispatched head explicitly;
+the final head jobs and PR-only prospective merge job bind their respective
+objects. Exact ordered merge parents, clean source, repository/event identity
+and the correct required PostgreSQL variable are checked. Target-identity JSON
+is not test success, runner verification, review or release authorization.
+See `docs/development/trnm-world-ci-target-binding-v1.md` and run:
+
+```bash
+python3 scripts/test-trnm-world-ci-target.py
+python3 scripts/test-trnm-world-ci-integrity.py
+python3 scripts/check-trnm-world-ci-integrity.py
+```
+
+An additional upstream observation requires toolchain review: the official Rust
+1.98.1 release dated 2026-09-03 fixes vtable-generation miscompilation. The original
+1.98.0 source/artifact pins remain immutable and are not silently upgraded. A
+successor built with a corrected toolchain needs distinct exact-head and merge
+qualification; this note proves neither project impact nor a successful rebuild.
+Full source publication, actual hosted scheduling, the nonblocking successor,
+independent governance/review and all cross-repository/external gates remain open.

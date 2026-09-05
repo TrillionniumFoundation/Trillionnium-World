@@ -17,6 +17,7 @@ concurrency:
 
 env:
   RUST_TOOLCHAIN: 1.98.0
+  RUSTUP_TOOLCHAIN: "1.98.0"
   CARGO_TERM_COLOR: never
   CARGO_INCREMENTAL: "0"
   RUST_BACKTRACE: "1"
@@ -29,7 +30,7 @@ env:
 
 jobs:
   docs-governance:
-    name: trnm-world-v4/docs-governance
+    name: trnm-world-v4-supplemental/docs-governance
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     env:
@@ -44,6 +45,13 @@ jobs:
           git -C repository fetch --no-tags --depth=3 origin "${HEAD_SHA}"
           git -C repository checkout --detach FETCH_HEAD
           test "$(git -C repository rev-parse HEAD)" = "${HEAD_SHA}"
+      - name: Bind checkout to event role and exact Git parents
+        shell: bash
+        working-directory: .
+        run: |
+          set -euo pipefail
+          python3 repository/scripts/check-trnm-world-ci-target.py --role head --root repository \
+            | tee "${RUNNER_TEMP}/trnm-ci-target-${GITHUB_JOB}.json"
       - name: Validate documentation and governance truth
         shell: bash
         run: |
@@ -68,9 +76,17 @@ jobs:
           assert ledger['review_surface']['production_authorization']=='not_granted'
           PY
           printf 'TRNM_WORLD_DOCS_GOVERNANCE=PASS\n'
+      - name: Upload event-bound target identity
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: trnm-target-${{ github.workflow }}-${{ github.job }}-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/trnm-ci-target-${{ github.job }}.json
+          if-no-files-found: error
+          retention-days: 30
 
   transition-contract:
-    name: trnm-world-v4/transition-contract
+    name: trnm-world-v4-supplemental/transition-contract
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     env:
@@ -85,6 +101,13 @@ jobs:
           git -C repository fetch --no-tags --depth=3 origin "${HEAD_SHA}"
           git -C repository checkout --detach FETCH_HEAD
           test "$(git -C repository rev-parse HEAD)" = "${HEAD_SHA}"
+      - name: Bind checkout to event role and exact Git parents
+        shell: bash
+        working-directory: .
+        run: |
+          set -euo pipefail
+          python3 repository/scripts/check-trnm-world-ci-target.py --role head --root repository \
+            | tee "${RUNNER_TEMP}/trnm-ci-target-${GITHUB_JOB}.json"
       - name: Install pinned Rust toolchain
         shell: bash
         run: |
@@ -102,9 +125,17 @@ jobs:
           cargo test --manifest-path trillionnium/contracts/trnm-world-transition-v1/Cargo.toml --locked
           cargo clippy --manifest-path trillionnium/contracts/trnm-world-transition-v1/Cargo.toml --all-targets --locked -- -D warnings
           printf 'TRNM_WORLD_TRANSITION_CONTRACT=PASS\n'
+      - name: Upload event-bound target identity
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: trnm-target-${{ github.workflow }}-${{ github.job }}-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/trnm-ci-target-${{ github.job }}.json
+          if-no-files-found: error
+          retention-days: 30
 
   settlement-postgres:
-    name: trnm-world-v4/settlement-postgres
+    name: trnm-world-v4-supplemental/settlement-postgres
     runs-on: ubuntu-24.04
     timeout-minutes: 90
     services:
@@ -123,7 +154,7 @@ jobs:
           --health-retries 20
     env:
       HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-      DATABASE_URL: postgres://trnm:trnm@127.0.0.1:5432/trnm
+      TRNM_SETTLEMENT_TEST_DATABASE_URL: postgres://trnm:trnm@127.0.0.1:5432/trnm
       TRNM_REQUIRE_SETTLEMENT_DATABASE_TEST: "1"
     steps:
       - name: Checkout exact candidate head
@@ -135,6 +166,13 @@ jobs:
           git -C repository fetch --no-tags --depth=3 origin "${HEAD_SHA}"
           git -C repository checkout --detach FETCH_HEAD
           test "$(git -C repository rev-parse HEAD)" = "${HEAD_SHA}"
+      - name: Bind checkout to event role and exact Git parents
+        shell: bash
+        working-directory: .
+        run: |
+          set -euo pipefail
+          python3 repository/scripts/check-trnm-world-ci-target.py --role head --root repository \
+            | tee "${RUNNER_TEMP}/trnm-ci-target-${GITHUB_JOB}.json"
       - name: Install pinned Rust toolchain
         shell: bash
         run: |
@@ -152,9 +190,17 @@ jobs:
           cargo test -p trnm-game-server --test settlement_worker_contract --locked -- --nocapture
           cargo test -p trnm-game-server --test settlement_runtime_v2_contract --locked -- --nocapture
           printf 'TRNM_WORLD_SETTLEMENT_POSTGRES=PASS\n'
+      - name: Upload event-bound target identity
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: trnm-target-${{ github.workflow }}-${{ github.job }}-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/trnm-ci-target-${{ github.job }}.json
+          if-no-files-found: error
+          retention-days: 30
 
   game-workspace-release:
-    name: trnm-world-v4/game-workspace-release
+    name: trnm-world-v4-supplemental/game-workspace-release
     runs-on: ubuntu-24.04
     timeout-minutes: 120
     env:
@@ -169,6 +215,13 @@ jobs:
           git -C repository fetch --no-tags --depth=3 origin "${HEAD_SHA}"
           git -C repository checkout --detach FETCH_HEAD
           test "$(git -C repository rev-parse HEAD)" = "${HEAD_SHA}"
+      - name: Bind checkout to event role and exact Git parents
+        shell: bash
+        working-directory: .
+        run: |
+          set -euo pipefail
+          python3 repository/scripts/check-trnm-world-ci-target.py --role head --root repository \
+            | tee "${RUNNER_TEMP}/trnm-ci-target-${GITHUB_JOB}.json"
       - name: Install pinned Rust toolchain
         shell: bash
         run: |
@@ -190,9 +243,17 @@ jobs:
           cargo clippy --manifest-path trillionnium/Cargo.toml -p trnm-campaign-core -p trnm-rts-sim -p trnm-game-server --all-targets --locked -- -D warnings
           cargo build --manifest-path trillionnium/Cargo.toml -p trnm-game-server --release --locked
           printf 'TRNM_WORLD_GAME_WORKSPACE_RELEASE=PASS\n'
+      - name: Upload event-bound target identity
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: trnm-target-${{ github.workflow }}-${{ github.job }}-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/trnm-ci-target-${{ github.job }}.json
+          if-no-files-found: error
+          retention-days: 30
 
   supply-chain:
-    name: trnm-world-v4/supply-chain
+    name: trnm-world-v4-supplemental/supply-chain
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     env:
@@ -207,6 +268,13 @@ jobs:
           git -C repository fetch --no-tags --depth=3 origin "${HEAD_SHA}"
           git -C repository checkout --detach FETCH_HEAD
           test "$(git -C repository rev-parse HEAD)" = "${HEAD_SHA}"
+      - name: Bind checkout to event role and exact Git parents
+        shell: bash
+        working-directory: .
+        run: |
+          set -euo pipefail
+          python3 repository/scripts/check-trnm-world-ci-target.py --role head --root repository \
+            | tee "${RUNNER_TEMP}/trnm-ci-target-${GITHUB_JOB}.json"
       - name: Install pinned Rust toolchain
         shell: bash
         run: |
@@ -240,6 +308,14 @@ jobs:
             test ! -e "$path"
           done
           printf 'TRNM_WORLD_SUPPLY_CHAIN=PASS\n'
+      - name: Upload event-bound target identity
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: trnm-target-${{ github.workflow }}-${{ github.job }}-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/trnm-ci-target-${{ github.job }}.json
+          if-no-files-found: error
+          retention-days: 30
 
   qualified-source-exact-head:
     name: trnm-world-v4/qualified-source-exact-head
@@ -258,6 +334,13 @@ jobs:
           git -C final fetch --no-tags --depth=3 origin "${HEAD_SHA}"
           git -C final checkout --detach FETCH_HEAD
           test "$(git -C final rev-parse HEAD)" = "${HEAD_SHA}"
+      - name: Bind checkout to event role and exact Git parents
+        shell: bash
+        working-directory: .
+        run: |
+          set -euo pipefail
+          python3 final/scripts/check-trnm-world-ci-target.py --role head --root final \
+            | tee "${RUNNER_TEMP}/trnm-ci-target-${GITHUB_JOB}.json"
       - name: Reconstruct immutable qualified source
         shell: bash
         run: |
@@ -311,9 +394,17 @@ jobs:
           test -f final/CURRENT_PLAN.md
           test -f final/docs/development/trnm-world-gap-closure-ledger-v5.json
           printf 'TRNM_WORLD_QUALIFIED_SOURCE_EXACT_HEAD=PASS\n'
+      - name: Upload event-bound target identity
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: trnm-target-${{ github.workflow }}-${{ github.job }}-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/trnm-ci-target-${{ github.job }}.json
+          if-no-files-found: error
+          retention-days: 30
 
   closure-contract:
-    name: trnm-world-v5/closure-contract
+    name: trnm-world-v5-supplemental/closure-contract
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     env:
@@ -328,6 +419,13 @@ jobs:
           git -C repository fetch --no-tags --depth=3 origin "${HEAD_SHA}"
           git -C repository checkout --detach FETCH_HEAD
           test "$(git -C repository rev-parse HEAD)" = "${HEAD_SHA}"
+      - name: Bind checkout to event role and exact Git parents
+        shell: bash
+        working-directory: .
+        run: |
+          set -euo pipefail
+          python3 repository/scripts/check-trnm-world-ci-target.py --role head --root repository \
+            | tee "${RUNNER_TEMP}/trnm-ci-target-${GITHUB_JOB}.json"
       - name: Enforce closure contracts
         shell: bash
         run: |
@@ -341,9 +439,18 @@ jobs:
           test ! -e trillionnium/crates/trnm-game-server/build.rs
           test ! -e trillionnium/crates/trnm-game-server/src/lib.rs.in
           printf 'TRNM_WORLD_V5_CLOSURE_CONTRACT=PASS\n'
+      - name: Upload event-bound target identity
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: trnm-target-${{ github.workflow }}-${{ github.job }}-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/trnm-ci-target-${{ github.job }}.json
+          if-no-files-found: error
+          retention-days: 30
 
   prospective-merge:
     name: trnm-world-v4/prospective-merge
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-24.04
     timeout-minutes: 120
     steps:
@@ -356,13 +463,13 @@ jobs:
           git -C repository fetch --no-tags --depth=4 origin "${GITHUB_SHA}"
           git -C repository checkout --detach FETCH_HEAD
           test "$(git -C repository rev-parse HEAD)" = "${GITHUB_SHA}"
-          if test "${GITHUB_EVENT_NAME}" = pull_request; then
-            head='${{ github.event.pull_request.head.sha }}'
-            base='${{ github.event.pull_request.base.sha }}'
-            parents=$(git -C repository rev-list --parents -n1 HEAD)
-            printf '%s\n' "$parents" | grep -F "$head"
-            printf '%s\n' "$parents" | grep -F "$base"
-          fi
+      - name: Bind checkout to event role and exact Git parents
+        shell: bash
+        working-directory: .
+        run: |
+          set -euo pipefail
+          python3 repository/scripts/check-trnm-world-ci-target.py --role merge --root repository \
+            | tee "${RUNNER_TEMP}/trnm-ci-target-${GITHUB_JOB}.json"
       - name: Install pinned Rust toolchain
         shell: bash
         run: |
@@ -383,3 +490,12 @@ jobs:
           cargo test --manifest-path trillionnium/Cargo.toml -p trnm-campaign-core -p trnm-rts-sim -p trnm-game-server --all-targets --locked
           cargo clippy --manifest-path trillionnium/Cargo.toml -p trnm-campaign-core -p trnm-rts-sim -p trnm-game-server --all-targets --locked -- -D warnings
           printf 'TRNM_WORLD_PROSPECTIVE_MERGE=PASS\n'
+      - name: Upload event-bound target identity
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: trnm-target-${{ github.workflow }}-${{ github.job }}-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/trnm-ci-target-${{ github.job }}.json
+          if-no-files-found: error
+          retention-days: 30
+
