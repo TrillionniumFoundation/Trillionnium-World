@@ -1,2 +1,0 @@
-probe=connector-content-api
-release_credit=none
