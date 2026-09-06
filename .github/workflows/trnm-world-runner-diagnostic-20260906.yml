@@ -1,0 +1,32 @@
+name: trnm-world-runner-diagnostic-20260906
+
+on:
+  push:
+    branches:
+      - ci/world-runner-diagnostic-20260906
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trnm-world-runner-diagnostic-20260906
+  cancel-in-progress: false
+
+jobs:
+  diagnose:
+    name: trnm-world-runner-diagnostic/diagnose
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Record non-empty runner execution
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "${GITHUB_REPOSITORY}" = "TrillionniumFoundation/Trillionnium-World"
+          test "${GITHUB_REF_NAME}" = "ci/world-runner-diagnostic-20260906"
+          test -n "${GITHUB_SHA}"
+          uname -a
+          python3 --version
+          printf 'TRNM_WORLD_RUNNER_DIAGNOSTIC=PASS\n'
+          printf 'TRNM_WORLD_RUNNER_SHA=%s\n' "${GITHUB_SHA}"
