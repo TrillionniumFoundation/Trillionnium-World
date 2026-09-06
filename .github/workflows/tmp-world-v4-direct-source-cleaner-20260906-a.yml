@@ -1,0 +1,140 @@
+name: tmp-world-v4-direct-source-cleaner-20260906-a
+
+on:
+  push:
+    branches:
+      - ops/world-v4-direct-source-publisher-20260906-a
+    paths:
+      - .github/workflows/tmp-world-v4-direct-source-cleaner-20260906-a.yml
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: write
+
+concurrency:
+  group: tmp-world-v4-direct-source-cleaner-20260906-a
+  cancel-in-progress: false
+
+jobs:
+  wait-and-remove-control-branch:
+    if: github.repository == 'TrillionniumFoundation/Trillionnium-World' && github.ref_name == 'ops/world-v4-direct-source-publisher-20260906-a'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 210
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPOSITORY: TrillionniumFoundation/Trillionnium-World
+      OPS_BRANCH: ops/world-v4-direct-source-publisher-20260906-a
+      TARGET_BRANCH: fix/world-plan-v4-development-closure-20260831
+      EXPECTED_TARGET_HEAD: 021ce069e08a528f2d89cc6990b7c1a5b1aa4a08
+      PUBLISHER_WORKFLOW: tmp-world-v4-direct-source-publisher-20260906-a.yml
+    steps:
+      - name: Wait for publisher terminal state or absent-run timeout
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          import time
+          import urllib.error
+          import urllib.parse
+          import urllib.request
+
+          repository = os.environ['REPOSITORY']
+          token = os.environ['GH_TOKEN']
+          ops_branch = os.environ['OPS_BRANCH']
+          target_branch = os.environ['TARGET_BRANCH']
+          expected_target = os.environ['EXPECTED_TARGET_HEAD']
+          workflow = os.environ['PUBLISHER_WORKFLOW']
+          start = time.monotonic()
+          absent_deadline = start + 15 * 60
+          hard_deadline = start + 200 * 60
+
+          def api(path):
+              request = urllib.request.Request(
+                  f'https://api.github.com{path}',
+                  headers={
+                      'Accept': 'application/vnd.github+json',
+                      'Authorization': f'Bearer {token}',
+                      'X-GitHub-Api-Version': '2022-11-28',
+                      'User-Agent': 'trnm-world-temporary-publisher-cleaner',
+                  },
+              )
+              try:
+                  with urllib.request.urlopen(request, timeout=60) as response:
+                      return json.loads(response.read())
+              except urllib.error.HTTPError as error:
+                  body = error.read().decode('utf-8', 'replace')
+                  raise SystemExit(f'GET {path} failed: {error.code}: {body}')
+
+          encoded_ops = urllib.parse.quote(ops_branch, safe='')
+          encoded_target = urllib.parse.quote(target_branch, safe='')
+          encoded_workflow = urllib.parse.quote(workflow, safe='')
+          while True:
+              target = api(f'/repos/{repository}/branches/{encoded_target}')
+              target_head = target['commit']['sha']
+              response = api(
+                  f'/repos/{repository}/actions/workflows/{encoded_workflow}/runs'
+                  f'?branch={encoded_ops}&per_page=20'
+              )
+              runs = response.get('workflow_runs', [])
+              active = [run for run in runs if run.get('status') != 'completed']
+              terminal = [run for run in runs if run.get('status') == 'completed']
+              print(json.dumps({
+                  'target_head': target_head,
+                  'publisher_runs': len(runs),
+                  'active': [(run.get('id'), run.get('status')) for run in active],
+                  'terminal': [(run.get('id'), run.get('conclusion')) for run in terminal],
+              }, sort_keys=True))
+
+              now = time.monotonic()
+              if terminal and not active:
+                  break
+              if not runs and now >= absent_deadline:
+                  print('publisher produced no run within 15 minutes; cleaning control branch')
+                  break
+              if now >= hard_deadline:
+                  raise SystemExit('publisher did not reach a terminal state before hard deadline')
+              time.sleep(30)
+          print(f'final observed target head: {target_head}')
+          print(f'target moved from expected: {target_head != expected_target}')
+          PY
+
+      - name: Delete temporary control branch
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          import urllib.error
+          import urllib.parse
+          import urllib.request
+
+          repository = os.environ['REPOSITORY']
+          token = os.environ['GH_TOKEN']
+          branch = os.environ['OPS_BRANCH']
+          encoded = urllib.parse.quote(branch, safe='')
+          request = urllib.request.Request(
+              f'https://api.github.com/repos/{repository}/git/refs/heads/{encoded}',
+              method='DELETE',
+              headers={
+                  'Accept': 'application/vnd.github+json',
+                  'Authorization': f'Bearer {token}',
+                  'X-GitHub-Api-Version': '2022-11-28',
+                  'User-Agent': 'trnm-world-temporary-publisher-cleaner',
+              },
+          )
+          try:
+              with urllib.request.urlopen(request, timeout=60) as response:
+                  if response.status != 204:
+                      raise SystemExit(f'unexpected delete status: {response.status}')
+          except urllib.error.HTTPError as error:
+              body = error.read().decode('utf-8', 'replace')
+              if error.code != 422 and error.code != 404:
+                  raise SystemExit(f'branch cleanup failed: {error.code}: {body}')
+              print(f'branch already absent or no longer deletable: {error.code}')
+          print('TRNM_WORLD_TEMPORARY_CONTROL_BRANCH_CLEANUP=PASS')
+          PY
