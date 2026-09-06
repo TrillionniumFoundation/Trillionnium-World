@@ -1,14 +1,145 @@
 name: tmp-world-v4-object-import-manual
 
 on:
+  push:
+    branches:
+      - fix/world-plan-v4-development-closure-20260831
+    paths:
+      - .github/workflows/tmp-world-v4-object-import-manual.yml
   workflow_dispatch:
 
 permissions:
   contents: write
 
+concurrency:
+  group: tmp-world-v4-object-import-manual
+  cancel-in-progress: false
+
 jobs:
   import:
     runs-on: ubuntu-latest
+    timeout-minutes: 180
+    env:
+      SOURCE_WORLD_HEAD: "5605cfb8861aa923f69ff032ddbff7d035bccb0c"
+      CONTROL_HEAD: "68e9631b3fc3f75f332497f8d0551608bf0e1413"
+      QUALIFIED_TREE: "5e613185f5a2abda42df371f3755e73667717309"
+      QUALIFIED_PATCH_SHA256: "ba49dba1e7fbf842f146ac399647e188faafcfbd5ce3ad17425ef88850e0199f"
+      RUST_TOOLCHAIN: "1.98.0"
+      CARGO_TERM_COLOR: never
+      CARGO_INCREMENTAL: "0"
+      RUST_BACKTRACE: "1"
+      RUST_TEST_THREADS: "1"
+      TRNM_REQUIRE_SETTLEMENT_DATABASE_TEST: "0"
     steps:
-      - name: Verify dispatch only
-        run: echo dispatched
+      - name: Reconstruct, verify, and import unreferenced qualified blobs
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "${GITHUB_REPOSITORY}" = "TrillionniumFoundation/Trillionnium-World"
+          test "${GITHUB_REF_NAME}" = "fix/world-plan-v4-development-closure-20260831"
+
+          git init current
+          git -C current remote add origin https://github.com/TrillionniumFoundation/Trillionnium-World.git
+          git -C current fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+          git -C current checkout --detach FETCH_HEAD
+          test "$(git -C current rev-parse HEAD)" = "${GITHUB_SHA}"
+          bash current/scripts/project-preflight.sh
+
+          git init control
+          git -C control remote add origin https://github.com/TrillionniumFoundation/TrillionniumGame.git
+          git -C control fetch --no-tags --depth=1 origin "${CONTROL_HEAD}"
+          git -C control checkout --detach FETCH_HEAD
+          test "$(git -C control rev-parse HEAD)" = "${CONTROL_HEAD}"
+
+          git init world
+          git -C world remote add origin https://github.com/TrillionniumFoundation/Trillionnium-World.git
+          git -C world fetch --no-tags --depth=1 origin "${SOURCE_WORLD_HEAD}"
+          git -C world checkout --detach FETCH_HEAD
+          test "$(git -C world rev-parse HEAD)" = "${SOURCE_WORLD_HEAD}"
+
+          rustup toolchain install "${RUST_TOOLCHAIN}" --profile minimal --component rustfmt,clippy
+          rustup default "${RUST_TOOLCHAIN}"
+          bash control/tmp/world-plan-v4-v8-patch/qualify-v13k.sh \
+            "${GITHUB_WORKSPACE}/world" \
+            "${GITHUB_WORKSPACE}/control" \
+            "${GITHUB_WORKSPACE}/export"
+
+          test "$(sha256sum export/world-v13-source.patch | awk '{print $1}')" = "${QUALIFIED_PATCH_SHA256}"
+          git -C world add -A
+          test "$(git -C world write-tree)" = "${QUALIFIED_TREE}"
+
+          python3 - "${GITHUB_WORKSPACE}/world" "${SOURCE_WORLD_HEAD}" "${GITHUB_REPOSITORY}" <<'PY'
+          from __future__ import annotations
+
+          import base64
+          import hashlib
+          import json
+          import pathlib
+          import subprocess
+          import sys
+          import urllib.error
+          import urllib.request
+
+          root = pathlib.Path(sys.argv[1]).resolve()
+          source_head = sys.argv[2]
+          repository = sys.argv[3]
+          token = __import__("os").environ["GH_TOKEN"]
+
+          changed = subprocess.check_output(
+              ["git", "-C", str(root), "diff", "--cached", "--name-status", "-z", source_head],
+          ).split(b"\0")
+          records: list[tuple[str, str]] = []
+          index = 0
+          while index < len(changed) and changed[index]:
+              status = changed[index].decode("ascii")
+              index += 1
+              if status.startswith(("R", "C")):
+                  index += 1
+              path = changed[index].decode("utf-8")
+              index += 1
+              if status == "D":
+                  continue
+              file_path = root / path
+              if not file_path.is_file() or file_path.is_symlink():
+                  raise SystemExit(f"refusing non-regular qualified path: {path}")
+              data = file_path.read_bytes()
+              expected = hashlib.sha1(
+                  b"blob " + str(len(data)).encode("ascii") + b"\0" + data
+              ).hexdigest()
+              payload = json.dumps(
+                  {"content": base64.b64encode(data).decode("ascii"), "encoding": "base64"}
+              ).encode("utf-8")
+              request = urllib.request.Request(
+                  f"https://api.github.com/repos/{repository}/git/blobs",
+                  data=payload,
+                  method="POST",
+                  headers={
+                      "Accept": "application/vnd.github+json",
+                      "Authorization": f"Bearer {token}",
+                      "X-GitHub-Api-Version": "2022-11-28",
+                      "Content-Type": "application/json",
+                  },
+              )
+              try:
+                  with urllib.request.urlopen(request, timeout=60) as response:
+                      result = json.load(response)
+              except urllib.error.HTTPError as error:
+                  body = error.read().decode("utf-8", "replace")[:1000]
+                  raise SystemExit(f"blob upload failed for {path}: HTTP {error.code}: {body}")
+              actual = result.get("sha")
+              if actual != expected:
+                  raise SystemExit(f"blob identity mismatch for {path}: {actual} != {expected}")
+              records.append((path, expected))
+              print(f"imported_blob={expected} path={path}")
+
+          if len(records) < 70:
+              raise SystemExit(f"unexpected qualified write count: {len(records)}")
+          print(f"qualified_blob_import_count={len(records)}")
+          print("candidate_ref_updates=0")
+          print("commits_created=0")
+          PY
+
+          test "$(git -C current rev-parse HEAD)" = "${GITHUB_SHA}"
+          test -z "$(git -C current status --porcelain)"
