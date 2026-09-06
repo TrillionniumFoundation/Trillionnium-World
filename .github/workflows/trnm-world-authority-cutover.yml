@@ -10,7 +10,7 @@ on:
       - 'scripts/check-trnm-world-authority-cutover.sh'
       - '.github/workflows/trnm-world-authority-cutover.yml'
   push:
-    branches: [main]
+    branches: [main, 'feat/p0-world-authority-cutover-*']
     paths:
       - 'trillionnium/crates/world-authority/**'
       - 'docs/contracts/trillionnium-world-authority-cutover-v1.json'
