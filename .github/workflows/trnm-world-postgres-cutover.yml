@@ -8,6 +8,7 @@ on:
       - 'deploy/postgres/trnm-world-authority-cutover-v1-hardening.sql'
       - 'scripts/apply-trnm-world-authority-cutover-v1.sh'
       - 'scripts/check-trnm-world-authority-postgres.sh'
+      - 'scripts/run-trnm-world-authority-postgres-check.sh'
       - 'scripts/check-trnm-world-authority-cutover.sh'
       - 'docs/contracts/trillionnium-world-authority-cutover-v1.json'
       - '.github/workflows/trnm-world-postgres-cutover.yml'
@@ -18,6 +19,7 @@ on:
       - 'deploy/postgres/trnm-world-authority-cutover-v1-hardening.sql'
       - 'scripts/apply-trnm-world-authority-cutover-v1.sh'
       - 'scripts/check-trnm-world-authority-postgres.sh'
+      - 'scripts/run-trnm-world-authority-postgres-check.sh'
       - 'scripts/check-trnm-world-authority-cutover.sh'
       - 'docs/contracts/trillionnium-world-authority-cutover-v1.json'
       - '.github/workflows/trnm-world-postgres-cutover.yml'
@@ -31,7 +33,6 @@ concurrency:
 
 env:
   SOURCE_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-  RUST_TOOLCHAIN: '1.98.1'
   CHECKOUT_ACTION_SHA: 11d5960a326750d5838078e36cf38b85af677262
   UPLOAD_ARTIFACT_ACTION_SHA: ea165f8d65b6e75b540449e92b4886f43607fa02
   PGHOST: 127.0.0.1
@@ -67,7 +68,7 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Verify source identity and SQL closure
+      - name: Verify exact source and migration closure
         shell: bash
         run: |
           set -euo pipefail
@@ -77,7 +78,8 @@ jobs:
             deploy/postgres/trnm-world-authority-cutover-v1.sql \
             deploy/postgres/trnm-world-authority-cutover-v1-hardening.sql \
             scripts/apply-trnm-world-authority-cutover-v1.sh \
-            scripts/check-trnm-world-authority-postgres.sh; do
+            scripts/check-trnm-world-authority-postgres.sh \
+            scripts/run-trnm-world-authority-postgres-check.sh; do
             test -s "$path"
           done
 
@@ -87,31 +89,16 @@ jobs:
           set -euo pipefail
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends postgresql-client
-          psql --version
-          pg_dump --version
-
-      - name: Wait for PostgreSQL 16
-        shell: bash
-        run: |
-          set -euo pipefail
-          for attempt in $(seq 1 60); do
-            if pg_isready -h "$PGHOST" -p "$PGPORT" -U "$PGUSER" -d "$PGDATABASE"; then
-              break
-            fi
-            test "$attempt" -lt 60
-            sleep 1
-          done
-          server_version="$(psql -X -Atc 'show server_version_num')"
-          test "${server_version%%????}" = "16"
+          test "$(psql -X -Atc 'show server_version_num' | cut -c1-2)" = "16"
 
       - name: Run durable migration and hostile concurrency matrix
         id: postgres
         shell: bash
         env:
           TRNM_WORLD_POSTGRES_EVIDENCE_DIR: ${{ github.workspace }}/run/world-authority-postgres
-        run: bash scripts/check-trnm-world-authority-postgres.sh
+        run: bash scripts/run-trnm-world-authority-postgres-check.sh
 
-      - name: Record truth-bound evidence
+      - name: Record truth-bound exact-SHA evidence
         if: always()
         shell: bash
         env:
@@ -138,24 +125,17 @@ jobs:
 
           outcome = os.environ.get('POSTGRES_OUTCOME', 'skipped')
           evidence = {
-              'schema': 'trillionnium.world.postgres-cutover-exact-sha.v1',
+              'schema': 'trillionnium.world.postgres-cutover-exact-sha.v2',
               'status': 'qualified' if outcome == 'success' else 'failed_or_incomplete',
               'postgres_outcome': outcome,
               'repository': os.environ['GITHUB_REPOSITORY'],
               'source_head_sha': os.environ['SOURCE_HEAD_SHA'],
               'source_head_tree': git('rev-parse', 'HEAD^{tree}'),
-              'base_migration_blob': git(
-                  'rev-parse', 'HEAD:deploy/postgres/trnm-world-authority-cutover-v1.sql'
-              ),
-              'hardening_migration_blob': git(
-                  'rev-parse', 'HEAD:deploy/postgres/trnm-world-authority-cutover-v1-hardening.sql'
-              ),
-              'installer_blob': git(
-                  'rev-parse', 'HEAD:scripts/apply-trnm-world-authority-cutover-v1.sh'
-              ),
-              'checker_blob': git(
-                  'rev-parse', 'HEAD:scripts/check-trnm-world-authority-postgres.sh'
-              ),
+              'base_migration_blob': git('rev-parse', 'HEAD:deploy/postgres/trnm-world-authority-cutover-v1.sql'),
+              'hardening_migration_blob': git('rev-parse', 'HEAD:deploy/postgres/trnm-world-authority-cutover-v1-hardening.sql'),
+              'installer_blob': git('rev-parse', 'HEAD:scripts/apply-trnm-world-authority-cutover-v1.sh'),
+              'checker_blob': git('rev-parse', 'HEAD:scripts/check-trnm-world-authority-postgres.sh'),
+              'psql_adapter_blob': git('rev-parse', 'HEAD:scripts/run-trnm-world-authority-postgres-check.sh'),
               'run_id': os.environ['GITHUB_RUN_ID'],
               'run_attempt': os.environ['GITHUB_RUN_ATTEMPT'],
               'workflow_ref': os.environ['GITHUB_WORKFLOW_REF'],
@@ -166,7 +146,7 @@ jobs:
           )
           files = sorted(path for path in out.iterdir() if path.is_file() and path.name != 'artifact-manifest.json')
           manifest = {
-              'schema': 'trillionnium.world.postgres-cutover-artifact-manifest.v1',
+              'schema': 'trillionnium.world.postgres-cutover-artifact-manifest.v2',
               'source_head_sha': os.environ['SOURCE_HEAD_SHA'],
               'files': [
                   {'path': path.name, 'bytes': path.stat().st_size, 'sha256': sha256(path)}
