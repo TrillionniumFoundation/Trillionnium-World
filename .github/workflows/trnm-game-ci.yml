@@ -25,7 +25,7 @@ on:
       - '.github/workflows/trnm-game-ci.yml'
       - '.github/workflows/trnm-world-authority-cutover.yml'
   push:
-    branches: [main]
+    branches: [main, 'feat/p0-world-authority-cutover-*']
     paths:
       - 'trillionnium/Cargo.toml'
       - 'trillionnium/Cargo.lock'
@@ -60,78 +60,372 @@ env:
   CARGO_INCREMENTAL: '0'
   RUST_BACKTRACE: '1'
   RUST_TEST_THREADS: '1'
+  SOURCE_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+  BASE_SHA: ${{ github.event.pull_request.base.sha || '' }}
+  RUST_TOOLCHAIN: '1.98.1'
+  CARGO_AUDIT_VERSION: '0.22.2'
+  CARGO_DENY_VERSION: '0.20.2'
+  CHECKOUT_ACTION_SHA: 11d5960a326750d5838078e36cf38b85af677262
+  RUST_TOOLCHAIN_ACTION_SHA: 6bed0761d98439e5a578e2877258200ad565ba87
+  INSTALL_ACTION_SHA: 44c6d64aa62cd779e873306675c7a58e86d6d532
+  UPLOAD_ARTIFACT_ACTION_SHA: ea165f8d65b6e75b540449e92b4886f43607fa02
 
 jobs:
   game-workspace:
     name: trnm-game-ci
-    runs-on: ubuntu-latest
-    timeout-minutes: 75
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
     defaults:
       run:
         working-directory: trillionnium
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout exact source head
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
+          ref: ${{ env.SOURCE_HEAD_SHA }}
           fetch-depth: 0
           persist-credentials: false
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt, clippy
-      - name: Install native build dependencies
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends jq libasound2-dev libudev-dev libx11-dev libxi-dev libxkbcommon-dev libwayland-dev pkg-config
-      - name: Validate bounded World authority when present
-        if: ${{ hashFiles('trillionnium/crates/world-authority/Cargo.toml') != '' }}
-        run: ../scripts/check-trnm-world-authority-cutover.sh
-      - name: Resource budget contract
-        run: ../scripts/check-trnm-online-resource-budgets.sh
-      - name: Format
-        run: cargo fmt --all -- --check
-      - name: Test all targets
-        run: cargo test --workspace --all-targets --locked
-      - name: Clippy
-        run: cargo clippy --workspace --all-targets --locked -- -D warnings
-      - name: Release player and online services
-        run: cargo build --release --locked -p trnm-first-contact -p trnm-game-server --bins
-      - name: Package complete Linux distribution
-        run: ../scripts/package-trnm-game-release.sh --require-clean --output-dir ../run/ci-distribution
-      - name: Verify Linux distribution
+
+      - name: Resolve source and prospective merge identities
+        id: identity
+        shell: bash
         run: |
-          archive="$(find ../run/ci-distribution -maxdepth 1 -type f -name '*.tar.gz' -print -quit)"
-          TRNM_REQUIRE_CLEAN_PACKAGE=1 ../scripts/check-trnm-game-package.sh "$archive"
-      - name: Upload complete release artifact
-        uses: actions/upload-artifact@v4
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$SOURCE_HEAD_SHA"
+          source_tree="$(git rev-parse HEAD^{tree})"
+          if [[ -n "$BASE_SHA" ]]; then
+            git cat-file -e "${BASE_SHA}^{commit}"
+            merge_output="$(git merge-tree --write-tree "$BASE_SHA" "$SOURCE_HEAD_SHA")"
+            merge_tree="$(printf '%s\n' "$merge_output" | head -n1)"
+            [[ "$merge_tree" =~ ^[0-9a-f]{40}$ ]]
+            export GIT_AUTHOR_NAME='Trillionnium game qualification'
+            export GIT_AUTHOR_EMAIL='qualification@trillionnium.invalid'
+            export GIT_AUTHOR_DATE='2000-01-01T00:00:00Z'
+            export GIT_COMMITTER_NAME="$GIT_AUTHOR_NAME"
+            export GIT_COMMITTER_EMAIL="$GIT_AUTHOR_EMAIL"
+            export GIT_COMMITTER_DATE="$GIT_AUTHOR_DATE"
+            merge_commit="$(
+              printf 'Synthetic prospective merge for game qualification only\n' \
+                | git commit-tree "$merge_tree" -p "$BASE_SHA" -p "$SOURCE_HEAD_SHA"
+            )"
+          else
+            merge_tree="$source_tree"
+            merge_commit="$SOURCE_HEAD_SHA"
+          fi
+          {
+            echo "source_tree=$source_tree"
+            echo "merge_tree=$merge_tree"
+            echo "merge_commit=$merge_commit"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Install immutable Rust toolchain
+        uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
         with:
-          name: trnm-game-${{ github.sha }}
-          path: run/ci-distribution/**
+          toolchain: 1.98.1
+          components: rustfmt, clippy
+
+      - name: Verify toolchain identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(rustc --version | awk '{print $2}')" = "$RUST_TOOLCHAIN"
+          mkdir -p ../run/ci-game-identities
+          rustc --version --verbose > ../run/ci-game-identities/rustc-version.txt
+          cargo --version --verbose > ../run/ci-game-identities/cargo-version.txt
+          rustfmt --version > ../run/ci-game-identities/rustfmt-version.txt
+          cargo clippy --version > ../run/ci-game-identities/clippy-version.txt
+
+      - name: Install native build dependencies
+        shell: bash
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends jq libasound2-dev libudev-dev libx11-dev libxi-dev libxkbcommon-dev libwayland-dev pkg-config
+
+      - name: Validate exact source authority boundary
+        if: ${{ hashFiles('trillionnium/crates/world-authority/Cargo.toml') != '' }}
+        env:
+          CARGO_TARGET_DIR: ${{ runner.temp }}/trnm-source-target
+        run: ../scripts/check-trnm-world-authority-cutover.sh
+
+      - name: Validate exact source game workspace
+        env:
+          CARGO_TARGET_DIR: ${{ runner.temp }}/trnm-source-target
+        run: |
+          set -euo pipefail
+          ../scripts/check-trnm-online-resource-budgets.sh
+          cargo fmt --all -- --check
+          cargo test --workspace --all-targets --locked
+          cargo clippy --workspace --all-targets --locked -- -D warnings
+          cargo build --release --locked -p trnm-first-contact -p trnm-game-server --bins
+
+      - name: Package and verify exact source Linux distribution
+        env:
+          CARGO_TARGET_DIR: ${{ runner.temp }}/trnm-source-target
+        run: |
+          set -euo pipefail
+          ../scripts/package-trnm-game-release.sh --require-clean --output-dir ../run/ci-distribution/source
+          archive="$(find ../run/ci-distribution/source -maxdepth 1 -type f -name '*.tar.gz' -print -quit)"
+          test -n "$archive"
+          TRNM_REQUIRE_CLEAN_PACKAGE=1 ../scripts/check-trnm-game-package.sh "$archive"
+
+      - name: Validate prospective merge game and authority workspace
+        if: github.event_name == 'pull_request'
+        shell: bash
+        env:
+          MERGE_COMMIT: ${{ steps.identity.outputs.merge_commit }}
+          MERGE_TREE: ${{ steps.identity.outputs.merge_tree }}
+          CARGO_TARGET_DIR: ${{ runner.temp }}/trnm-merge-target
+        run: |
+          set -euo pipefail
+          worktree="$RUNNER_TEMP/trnm-game-prospective-merge"
+          git worktree add --detach "$worktree" "$MERGE_COMMIT"
+          trap 'git worktree remove --force "$worktree"' EXIT
+          test "$(git -C "$worktree" rev-parse HEAD^{tree})" = "$MERGE_TREE"
+          bash "$worktree/scripts/check-trnm-world-authority-cutover.sh"
+          (
+            cd "$worktree/trillionnium"
+            ../scripts/check-trnm-online-resource-budgets.sh
+            cargo fmt --all -- --check
+            cargo test --workspace --all-targets --locked
+            cargo clippy --workspace --all-targets --locked -- -D warnings
+            cargo build --release --locked -p trnm-first-contact -p trnm-game-server --bins
+            ../scripts/package-trnm-game-release.sh --require-clean --output-dir "$RUNNER_TEMP/trnm-merge-distribution"
+            archive="$(find "$RUNNER_TEMP/trnm-merge-distribution" -maxdepth 1 -type f -name '*.tar.gz' -print -quit)"
+            test -n "$archive"
+            TRNM_REQUIRE_CLEAN_PACKAGE=1 ../scripts/check-trnm-game-package.sh "$archive"
+          )
+          mkdir -p ../run/ci-distribution/merge
+          cp "$RUNNER_TEMP"/trnm-merge-distribution/* ../run/ci-distribution/merge/
+
+      - name: Record immutable source and merge evidence
+        if: always()
+        shell: bash
+        env:
+          SOURCE_TREE: ${{ steps.identity.outputs.source_tree }}
+          MERGE_TREE: ${{ steps.identity.outputs.merge_tree }}
+          MERGE_COMMIT: ${{ steps.identity.outputs.merge_commit }}
+        run: |
+          set -euo pipefail
+          mkdir -p ../run/ci-game-identities
+          python3 - <<'PY'
+          import hashlib
+          import json
+          import os
+          import pathlib
+          import subprocess
+
+          root = pathlib.Path('..')
+          out = root / 'run/ci-game-identities'
+
+          def git(*args: str) -> str:
+              return subprocess.run(
+                  ['git', *args], cwd=root, check=True, text=True, stdout=subprocess.PIPE
+              ).stdout.strip()
+
+          def sha256(path: pathlib.Path) -> str:
+              return hashlib.sha256(path.read_bytes()).hexdigest()
+
+          summary = {
+              'schema': 'trillionnium.game-ci.evidence.v1',
+              'status': 'source_and_prospective_merge_qualified',
+              'repository': os.environ['GITHUB_REPOSITORY'],
+              'event_name': os.environ['GITHUB_EVENT_NAME'],
+              'source_head_sha': os.environ['SOURCE_HEAD_SHA'],
+              'source_head_tree': os.environ['SOURCE_TREE'],
+              'base_sha': os.environ.get('BASE_SHA') or None,
+              'prospective_merge_tree': os.environ['MERGE_TREE'],
+              'prospective_merge_commit': os.environ['MERGE_COMMIT'],
+              'trigger_sha': os.environ['GITHUB_SHA'],
+              'run_id': os.environ['GITHUB_RUN_ID'],
+              'run_attempt': os.environ['GITHUB_RUN_ATTEMPT'],
+              'workflow_ref': os.environ['GITHUB_WORKFLOW_REF'],
+              'workflow_blob_sha': git('rev-parse', 'HEAD:.github/workflows/trnm-game-ci.yml'),
+              'actions': {
+                  'actions/checkout': os.environ['CHECKOUT_ACTION_SHA'],
+                  'dtolnay/rust-toolchain': os.environ['RUST_TOOLCHAIN_ACTION_SHA'],
+                  'actions/upload-artifact': os.environ['UPLOAD_ARTIFACT_ACTION_SHA'],
+              },
+              'rust_toolchain': os.environ['RUST_TOOLCHAIN'],
+              'production_authorization': 'not_granted',
+          }
+          (out / 'summary.json').write_text(json.dumps(summary, indent=2, sort_keys=True) + '\n')
+          files = sorted(path for path in out.iterdir() if path.is_file() and path.name != 'manifest.json')
+          manifest = {
+              'schema': 'trillionnium.game-ci.artifact-manifest.v1',
+              'source_head_sha': os.environ['SOURCE_HEAD_SHA'],
+              'files': [
+                  {'path': path.name, 'bytes': path.stat().st_size, 'sha256': sha256(path)}
+                  for path in files
+              ],
+          }
+          (out / 'manifest.json').write_text(json.dumps(manifest, indent=2, sort_keys=True) + '\n')
+          PY
+
+      - name: Upload immutable game distributions and evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: trnm-game-${{ env.SOURCE_HEAD_SHA }}
+          path: |
+            run/ci-distribution/**
+            run/ci-game-identities/**
           if-no-files-found: error
+          retention-days: 90
 
   supply-chain:
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
+    name: trnm-game-supply-chain
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
     defaults:
       run:
         working-directory: trillionnium
     steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: taiki-e/install-action@v2
+      - name: Checkout exact source head
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
-          tool: cargo-audit,cargo-deny
-      - name: RustSec advisory gate
-        # Current Bevy/winit has no maintained replacement for ttf-parser;
-        # every vulnerability and unsoundness advisory remains denied.
-        run: cargo audit --deny warnings --ignore RUSTSEC-2026-0192
-      - name: Dependency policy gate
-        run: cargo deny check advisories bans licenses sources
-      - name: Preserve supply-chain reports
-        if: always()
+          ref: ${{ env.SOURCE_HEAD_SHA }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Install immutable Rust toolchain
+        uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: 1.98.1
+
+      - name: Install pinned supply-chain tools
+        uses: taiki-e/install-action@44c6d64aa62cd779e873306675c7a58e86d6d532
+        with:
+          tool: cargo-audit@0.22.2,cargo-deny@0.20.2
+
+      - name: Verify immutable tool identities
+        shell: bash
         run: |
+          set -euo pipefail
+          test "$(rustc --version | awk '{print $2}')" = "$RUST_TOOLCHAIN"
+          cargo audit --version | tee ../run-cargo-audit-version.txt
+          cargo deny --version | tee ../run-cargo-deny-version.txt
+          grep -F "cargo-audit $CARGO_AUDIT_VERSION" ../run-cargo-audit-version.txt
+          grep -F "cargo-deny $CARGO_DENY_VERSION" ../run-cargo-deny-version.txt
+
+      - name: Resolve prospective merge identity
+        id: identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$SOURCE_HEAD_SHA"
+          if [[ -n "$BASE_SHA" ]]; then
+            merge_output="$(git merge-tree --write-tree "$BASE_SHA" "$SOURCE_HEAD_SHA")"
+            merge_tree="$(printf '%s\n' "$merge_output" | head -n1)"
+            [[ "$merge_tree" =~ ^[0-9a-f]{40}$ ]]
+            export GIT_AUTHOR_NAME='Trillionnium supply qualification'
+            export GIT_AUTHOR_EMAIL='qualification@trillionnium.invalid'
+            export GIT_AUTHOR_DATE='2000-01-01T00:00:00Z'
+            export GIT_COMMITTER_NAME="$GIT_AUTHOR_NAME"
+            export GIT_COMMITTER_EMAIL="$GIT_AUTHOR_EMAIL"
+            export GIT_COMMITTER_DATE="$GIT_AUTHOR_DATE"
+            merge_commit="$(
+              printf 'Synthetic prospective merge for supply qualification only\n' \
+                | git commit-tree "$merge_tree" -p "$BASE_SHA" -p "$SOURCE_HEAD_SHA"
+            )"
+          else
+            merge_tree="$(git rev-parse HEAD^{tree})"
+            merge_commit="$SOURCE_HEAD_SHA"
+          fi
+          {
+            echo "merge_tree=$merge_tree"
+            echo "merge_commit=$merge_commit"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Exact source RustSec advisory and dependency policy gates
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo audit --deny warnings --ignore RUSTSEC-2026-0192
+          cargo deny check advisories bans licenses sources
+
+      - name: Prospective merge RustSec advisory and dependency policy gates
+        if: github.event_name == 'pull_request'
+        shell: bash
+        env:
+          MERGE_COMMIT: ${{ steps.identity.outputs.merge_commit }}
+          MERGE_TREE: ${{ steps.identity.outputs.merge_tree }}
+        run: |
+          set -euo pipefail
+          worktree="$RUNNER_TEMP/trnm-supply-prospective-merge"
+          git worktree add --detach "$worktree" "$MERGE_COMMIT"
+          trap 'git worktree remove --force "$worktree"' EXIT
+          test "$(git -C "$worktree" rev-parse HEAD^{tree})" = "$MERGE_TREE"
+          (
+            cd "$worktree/trillionnium"
+            cargo audit --deny warnings --ignore RUSTSEC-2026-0192
+            cargo deny check advisories bans licenses sources
+          )
+
+      - name: Preserve immutable supply-chain reports
+        if: always()
+        shell: bash
+        env:
+          MERGE_TREE: ${{ steps.identity.outputs.merge_tree }}
+        run: |
+          set -euo pipefail
           mkdir -p ../run/ci-supply-chain
+          mv ../run-cargo-audit-version.txt ../run/ci-supply-chain/cargo-audit-version.txt
+          mv ../run-cargo-deny-version.txt ../run/ci-supply-chain/cargo-deny-version.txt
           cargo audit --json --ignore RUSTSEC-2026-0192 > ../run/ci-supply-chain/cargo-audit.json || true
           cargo deny --format json check advisories bans licenses sources > ../run/ci-supply-chain/cargo-deny.json || true
-      - uses: actions/upload-artifact@v4
+          python3 - <<'PY'
+          import hashlib
+          import json
+          import os
+          import pathlib
+          import subprocess
+
+          root = pathlib.Path('..')
+          out = root / 'run/ci-supply-chain'
+
+          def sha256(path: pathlib.Path) -> str:
+              return hashlib.sha256(path.read_bytes()).hexdigest()
+
+          def git(*args: str) -> str:
+              return subprocess.run(
+                  ['git', *args], cwd=root, check=True, text=True, stdout=subprocess.PIPE
+              ).stdout.strip()
+
+          summary = {
+              'schema': 'trillionnium.game-supply-chain.evidence.v1',
+              'source_head_sha': os.environ['SOURCE_HEAD_SHA'],
+              'source_head_tree': git('rev-parse', 'HEAD^{tree}'),
+              'base_sha': os.environ.get('BASE_SHA') or None,
+              'prospective_merge_tree': os.environ.get('MERGE_TREE'),
+              'rust_toolchain': os.environ['RUST_TOOLCHAIN'],
+              'cargo_audit_version': os.environ['CARGO_AUDIT_VERSION'],
+              'cargo_deny_version': os.environ['CARGO_DENY_VERSION'],
+              'actions': {
+                  'actions/checkout': os.environ['CHECKOUT_ACTION_SHA'],
+                  'dtolnay/rust-toolchain': os.environ['RUST_TOOLCHAIN_ACTION_SHA'],
+                  'taiki-e/install-action': os.environ['INSTALL_ACTION_SHA'],
+                  'actions/upload-artifact': os.environ['UPLOAD_ARTIFACT_ACTION_SHA'],
+              },
+              'run_id': os.environ['GITHUB_RUN_ID'],
+              'run_attempt': os.environ['GITHUB_RUN_ATTEMPT'],
+              'production_authorization': 'not_granted',
+          }
+          (out / 'summary.json').write_text(json.dumps(summary, indent=2, sort_keys=True) + '\n')
+          files = sorted(path for path in out.iterdir() if path.is_file() and path.name != 'manifest.json')
+          manifest = {
+              'schema': 'trillionnium.game-supply-chain.artifact-manifest.v1',
+              'source_head_sha': os.environ['SOURCE_HEAD_SHA'],
+              'files': [
+                  {'path': path.name, 'bytes': path.stat().st_size, 'sha256': sha256(path)}
+                  for path in files
+              ],
+          }
+          (out / 'manifest.json').write_text(json.dumps(manifest, indent=2, sort_keys=True) + '\n')
+          PY
+
+      - name: Upload immutable supply-chain evidence
         if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: trnm-supply-chain-${{ github.sha }}
+          name: trnm-supply-chain-${{ env.SOURCE_HEAD_SHA }}
           path: run/ci-supply-chain/**
           if-no-files-found: error
+          retention-days: 90
