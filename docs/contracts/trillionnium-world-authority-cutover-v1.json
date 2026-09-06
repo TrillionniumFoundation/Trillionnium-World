@@ -56,13 +56,44 @@
       ]
     }
   },
+  "durable_cutover": {
+    "base_migration": "deploy/postgres/trnm-world-authority-cutover-v1.sql",
+    "mandatory_hardening_migration": "deploy/postgres/trnm-world-authority-cutover-v1-hardening.sql",
+    "only_supported_installer": "scripts/apply-trnm-world-authority-cutover-v1.sh",
+    "qualification": "scripts/check-trnm-world-authority-postgres.sh",
+    "base_migration_standalone_supported": false,
+    "runtime_role_grants_in_migration": false,
+    "invariants": [
+      "single_active_world_writer_epoch",
+      "cex_writer_fenced_before_world_activation",
+      "canonical_json_equals_jsonb_text_serialization",
+      "request_hash_equals_canonical_command_hash",
+      "event_id_derived_from_epoch_world_idempotency_and_request_hash",
+      "concurrent_exact_replay_returns_replayed_exact",
+      "conflicting_replay_is_rejected",
+      "migration_version_conflict_is_rejected",
+      "rollback_disables_world_writer",
+      "append_only_event_and_receipt_evidence"
+    ],
+    "hostile_qualification": [
+      "different_epoch_concurrent_activation",
+      "same_key_concurrent_exact_replay",
+      "equivalent_noncanonical_snapshot_json",
+      "equivalent_noncanonical_command_json",
+      "migration_version_conflict",
+      "mutation_after_rollback",
+      "database_outage",
+      "cold_backup_restore"
+    ]
+  },
   "source_qualification": [
     "exact_seven_crate_dependency_closure",
     "no_cex_or_external_repository_path_dependency",
     "format_test_and_clippy_green",
     "adapter_contract_smoke_green",
     "full_split_contract_smoke_green",
-    "restart_reload_repository_smoke_green"
+    "restart_reload_repository_smoke_green",
+    "durable_postgres_cutover_hostile_suite_green"
   ],
   "cutover_acceptance": [
     "world_owned_versioned_contract_published",
