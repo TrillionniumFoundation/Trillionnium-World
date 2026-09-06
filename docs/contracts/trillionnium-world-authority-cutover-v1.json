@@ -60,7 +60,9 @@
     "base_migration": "deploy/postgres/trnm-world-authority-cutover-v1.sql",
     "mandatory_hardening_migration": "deploy/postgres/trnm-world-authority-cutover-v1-hardening.sql",
     "only_supported_installer": "scripts/apply-trnm-world-authority-cutover-v1.sh",
-    "qualification": "scripts/check-trnm-world-authority-postgres.sh",
+    "state_machine_qualification": "scripts/check-trnm-world-authority-postgres.sh",
+    "installation_qualification": "scripts/check-trnm-world-authority-postgres-installation.sh",
+    "qualification_runner": "scripts/run-trnm-world-authority-postgres-check.sh",
     "base_migration_standalone_supported": false,
     "runtime_role_grants_in_migration": false,
     "invariants": [
@@ -73,7 +75,10 @@
       "conflicting_replay_is_rejected",
       "migration_version_conflict_is_rejected",
       "rollback_disables_world_writer",
-      "append_only_event_and_receipt_evidence"
+      "append_only_event_and_receipt_evidence",
+      "supported_bundle_reapply_is_idempotent",
+      "base_only_partial_state_is_unqualified_and_recoverable",
+      "wrong_same_name_single_writer_index_is_rejected"
     ],
     "hostile_qualification": [
       "different_epoch_concurrent_activation",
@@ -83,7 +88,10 @@
       "migration_version_conflict",
       "mutation_after_rollback",
       "database_outage",
-      "cold_backup_restore"
+      "cold_backup_restore",
+      "bundle_reapply",
+      "base_only_partial_install_recovery",
+      "wrong_same_name_index"
     ]
   },
   "source_qualification": [
@@ -93,7 +101,8 @@
     "adapter_contract_smoke_green",
     "full_split_contract_smoke_green",
     "restart_reload_repository_smoke_green",
-    "durable_postgres_cutover_hostile_suite_green"
+    "durable_postgres_cutover_hostile_suite_green",
+    "durable_postgres_installation_protocol_green"
   ],
   "cutover_acceptance": [
     "world_owned_versioned_contract_published",
