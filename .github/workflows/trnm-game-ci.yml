@@ -8,16 +8,22 @@ on:
       - 'trillionnium/Cargo.lock'
       - 'trillionnium/deny.toml'
       - 'trillionnium/crates/trnm-*/**'
+      - 'trillionnium/crates/world-authority/**'
       - 'assets/first_contact/**'
       - 'deploy/systemd/trnm-*.service'
       - 'scripts/check-trnm-online-*.sh'
+      - 'scripts/check-trnm-world-authority-cutover.sh'
+      - 'scripts/check-trnm-world-authority-provenance.py'
       - 'scripts/run-trnm-*.sh'
       - 'scripts/install-trnm-game-server-systemd.sh'
       - 'scripts/package-trnm-game-release.sh'
       - 'scripts/check-trnm-game-package.sh'
+      - 'docs/contracts/trillionnium-world-authority-cutover-v1.json'
+      - 'docs/contracts/trillionnium-world-authority-provenance-v1.json'
       - 'packaging/**'
       - 'GAME_STATUS.md'
       - '.github/workflows/trnm-game-ci.yml'
+      - '.github/workflows/trnm-world-authority-cutover.yml'
   push:
     branches: [main]
     paths:
@@ -25,16 +31,22 @@ on:
       - 'trillionnium/Cargo.lock'
       - 'trillionnium/deny.toml'
       - 'trillionnium/crates/trnm-*/**'
+      - 'trillionnium/crates/world-authority/**'
       - 'assets/first_contact/**'
       - 'deploy/systemd/trnm-*.service'
       - 'scripts/check-trnm-online-*.sh'
+      - 'scripts/check-trnm-world-authority-cutover.sh'
+      - 'scripts/check-trnm-world-authority-provenance.py'
       - 'scripts/run-trnm-*.sh'
       - 'scripts/install-trnm-game-server-systemd.sh'
       - 'scripts/package-trnm-game-release.sh'
       - 'scripts/check-trnm-game-package.sh'
+      - 'docs/contracts/trillionnium-world-authority-cutover-v1.json'
+      - 'docs/contracts/trillionnium-world-authority-provenance-v1.json'
       - 'packaging/**'
       - 'GAME_STATUS.md'
       - '.github/workflows/trnm-game-ci.yml'
+      - '.github/workflows/trnm-world-authority-cutover.yml'
 
 permissions:
   contents: read
@@ -51,18 +63,25 @@ env:
 
 jobs:
   game-workspace:
+    name: trnm-game-ci
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 75
     defaults:
       run:
         working-directory: trillionnium
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
       - name: Install native build dependencies
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends jq libasound2-dev libudev-dev libx11-dev libxi-dev libxkbcommon-dev libwayland-dev pkg-config
+      - name: Validate bounded World authority when present
+        if: ${{ hashFiles('trillionnium/crates/world-authority/Cargo.toml') != '' }}
+        run: ../scripts/check-trnm-world-authority-cutover.sh
       - name: Resource budget contract
         run: ../scripts/check-trnm-online-resource-budgets.sh
       - name: Format
