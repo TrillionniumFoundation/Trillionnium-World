@@ -1,0 +1,14 @@
+name: tmp-world-v4-object-import-manual
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify dispatch only
+        run: echo dispatched
