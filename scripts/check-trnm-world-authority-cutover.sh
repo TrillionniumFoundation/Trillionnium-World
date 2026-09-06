@@ -8,15 +8,32 @@ LOCKFILE="$AUTHORITY_ROOT/Cargo.lock"
 CONTRACT="$ROOT/docs/contracts/trillionnium-world-authority-cutover-v1.json"
 PROVENANCE="$ROOT/docs/contracts/trillionnium-world-authority-provenance-v1.json"
 PROVENANCE_CHECKER="$ROOT/scripts/check-trnm-world-authority-provenance.py"
+BASE_MIGRATION="$ROOT/deploy/postgres/trnm-world-authority-cutover-v1.sql"
+HARDENING_MIGRATION="$ROOT/deploy/postgres/trnm-world-authority-cutover-v1-hardening.sql"
+CUTOVER_INSTALLER="$ROOT/scripts/apply-trnm-world-authority-cutover-v1.sh"
+POSTGRES_CHECKER="$ROOT/scripts/check-trnm-world-authority-postgres.sh"
 
-python3 - "$AUTHORITY_ROOT" "$CONTRACT" <<'PY'
+python3 - \
+  "$AUTHORITY_ROOT" \
+  "$CONTRACT" \
+  "$BASE_MIGRATION" \
+  "$HARDENING_MIGRATION" \
+  "$CUTOVER_INSTALLER" \
+  "$POSTGRES_CHECKER" <<'PY'
 import json
 import pathlib
 import sys
 import tomllib
 
-root = pathlib.Path(sys.argv[1]).resolve()
-contract_path = pathlib.Path(sys.argv[2]).resolve()
+(
+    authority_root,
+    contract_path,
+    base_migration_path,
+    hardening_migration_path,
+    installer_path,
+    postgres_checker_path,
+) = map(pathlib.Path, sys.argv[1:])
+root = authority_root.resolve()
 expected = {
     "trnm-world-domain",
     "trnm-world-command",
@@ -70,7 +87,81 @@ if production.get("fixture_adapters_allowed") is not False:
     raise SystemExit("production profile cannot allow fixture adapters")
 if production.get("file_repository_allowed") is not False:
     raise SystemExit("production profile cannot allow the development file repository")
-print("world authority dependency and contract boundary: ok")
+
+durable = contract.get("durable_cutover", {})
+expected_durable_paths = {
+    "base_migration": "deploy/postgres/trnm-world-authority-cutover-v1.sql",
+    "mandatory_hardening_migration": "deploy/postgres/trnm-world-authority-cutover-v1-hardening.sql",
+    "only_supported_installer": "scripts/apply-trnm-world-authority-cutover-v1.sh",
+    "qualification": "scripts/check-trnm-world-authority-postgres.sh",
+}
+for key, expected_path in expected_durable_paths.items():
+    if durable.get(key) != expected_path:
+        raise SystemExit(f"durable cutover path drift: {key}={durable.get(key)!r}")
+if durable.get("base_migration_standalone_supported") is not False:
+    raise SystemExit("base migration must not be supported without mandatory hardening")
+if durable.get("runtime_role_grants_in_migration") is not False:
+    raise SystemExit("source migration bundle must not grant runtime authority")
+
+for path in (
+    base_migration_path,
+    hardening_migration_path,
+    installer_path,
+    postgres_checker_path,
+):
+    if not path.is_file() or path.stat().st_size == 0:
+        raise SystemExit(f"missing durable cutover artifact: {path}")
+
+base_sql = base_migration_path.read_text()
+hardening_sql = hardening_migration_path.read_text()
+installer = installer_path.read_text()
+postgres_checker = postgres_checker_path.read_text()
+
+for marker in (
+    "trnm_world_authority_schema_migrations_v1",
+    "trnm_world_authority_epochs_v1",
+    "trnm_world_apply_event_v1",
+    "trnm_world_rollback_writer_v1",
+    "trnm_world_events_immutable_v1",
+):
+    if marker not in base_sql:
+        raise SystemExit(f"base durable migration missing marker: {marker}")
+
+for marker in (
+    "trnm_world_single_active_writer_epoch_v1",
+    "pg_advisory_xact_lock",
+    "trnm_world_different_active_writer_epoch_exists",
+    "trnm_world_event_id_v1",
+    "trnm_world_event_request_hash_v1",
+    "trnm_world_event_identity_v1",
+    "trnm_world_import_state_json_not_canonical",
+    "trnm_world_event_command_json_not_canonical",
+    "trnm_world_base_migration_version_conflict",
+    "trnm_world_hardening_migration_version_conflict",
+    "Re-read only after both the logical replay lock and state row lock",
+):
+    if marker not in hardening_sql:
+        raise SystemExit(f"mandatory hardening migration missing marker: {marker}")
+
+for path_marker in (
+    "trnm-world-authority-cutover-v1.sql",
+    "trnm-world-authority-cutover-v1-hardening.sql",
+):
+    if path_marker not in installer:
+        raise SystemExit(f"supported installer omits migration: {path_marker}")
+for marker in (
+    "concurrent_second_active_epoch",
+    "noncanonical_snapshot_json",
+    "noncanonical_command_json",
+    "migration_version_conflict",
+    "mutation_after_rollback",
+    "world-authority.dump",
+    "PGPORT=1",
+):
+    if marker not in postgres_checker:
+        raise SystemExit(f"PostgreSQL hostile suite missing marker: {marker}")
+
+print("world authority dependency, contract, and durable cutover boundaries: ok")
 PY
 
 python3 "$PROVENANCE_CHECKER" \
@@ -163,3 +254,7 @@ if not (root / "world-state.json").is_file():
     raise SystemExit("repository restart/reload state file was not materialized")
 print("world authority runtime, projection and structured restart/reload smokes: ok")
 PY
+
+if [[ "${TRNM_WORLD_POSTGRES_REQUIRED:-0}" == "1" ]]; then
+  bash "$POSTGRES_CHECKER"
+fi
