@@ -6,6 +6,7 @@ STATE_CHECKER="$ROOT/scripts/check-trnm-world-authority-postgres.sh"
 INSTALL_CHECKER="$ROOT/scripts/check-trnm-world-authority-postgres-installation.sh"
 CLIENT_WRAPPER_DIR=""
 ADAPTER_WRAPPER_DIR=""
+export TRNM_WORLD_POSTGRES_ROOT="$ROOT"
 
 cleanup() {
   [[ -z "$CLIENT_WRAPPER_DIR" ]] || rm -rf "$CLIENT_WRAPPER_DIR"
@@ -51,13 +52,28 @@ docker_args=(
   -e "PGUSER=${PGUSER:-postgres}"
   -e "PGPASSWORD=${PGPASSWORD:-}"
   -e "PGDATABASE=${PGDATABASE:-postgres}"
-  -v /tmp:/tmp
 )
-if [[ "$workdir" != /tmp && "$workdir" != /tmp/* ]]; then
-  docker_args+=( -v "$workdir:$workdir" -w "$workdir" )
-else
-  docker_args+=( -w "$workdir" )
-fi
+mounted_paths=()
+add_bind_mount() {
+  local path="$1"
+  [[ -n "$path" ]] || return 0
+  if [[ ! -e "$path" ]]; then
+    mkdir -p "$path"
+  fi
+  path="$(cd "$path" && pwd -P)"
+  local existing
+  for existing in "${mounted_paths[@]}"; do
+    [[ "$existing" != "$path" ]] || return 0
+  done
+  docker_args+=( -v "$path:$path" )
+  mounted_paths+=( "$path" )
+}
+
+add_bind_mount /tmp
+add_bind_mount "${TRNM_WORLD_POSTGRES_ROOT:-}"
+add_bind_mount "${TRNM_WORLD_POSTGRES_EVIDENCE_DIR:-}"
+add_bind_mount "$workdir"
+docker_args+=( -w "$workdir" )
 
 exec docker "${docker_args[@]}" \
   "$TRNM_WORLD_POSTGRES_CLIENT_IMAGE" "$client_command" "$@"
