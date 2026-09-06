@@ -4,6 +4,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CHECKER="$ROOT/scripts/check-trnm-world-authority-postgres.sh"
 REAL_PSQL="$(command -v psql)"
+REAL_PG_RESTORE="$(command -v pg_restore)"
 WRAPPER_DIR="$(mktemp -d)"
 
 cleanup() {
@@ -15,10 +16,12 @@ trap cleanup EXIT
   echo "missing World PostgreSQL checker: $CHECKER" >&2
   exit 66
 }
-[[ -x "$REAL_PSQL" ]] || {
-  echo "psql is not executable: $REAL_PSQL" >&2
-  exit 69
-}
+for executable in "$REAL_PSQL" "$REAL_PG_RESTORE"; do
+  [[ -x "$executable" ]] || {
+    echo "PostgreSQL client is not executable: $executable" >&2
+    exit 69
+  }
+done
 
 cat >"$WRAPPER_DIR/psql" <<'WRAPPER'
 #!/usr/bin/env bash
@@ -71,7 +74,32 @@ exec "$TRNM_WORLD_REAL_PSQL" "${arguments[@]}"
 WRAPPER
 chmod 0755 "$WRAPPER_DIR/psql"
 
+cat >"$WRAPPER_DIR/pg_restore" <<'WRAPPER'
+#!/usr/bin/env bash
+set -euo pipefail
+
+: "${TRNM_WORLD_REAL_PG_RESTORE:?TRNM_WORLD_REAL_PG_RESTORE is required}"
+
+has_destination=false
+for argument in "$@"; do
+  case "$argument" in
+    -d|--dbname|--dbname=*|-f|--file|--file=*)
+      has_destination=true
+      ;;
+  esac
+done
+
+if [[ "$has_destination" == "false" ]]; then
+  : "${PGDATABASE:?PGDATABASE is required when pg_restore has no explicit destination}"
+  exec "$TRNM_WORLD_REAL_PG_RESTORE" --dbname="$PGDATABASE" "$@"
+fi
+
+exec "$TRNM_WORLD_REAL_PG_RESTORE" "$@"
+WRAPPER
+chmod 0755 "$WRAPPER_DIR/pg_restore"
+
 export TRNM_WORLD_REAL_PSQL="$REAL_PSQL"
+export TRNM_WORLD_REAL_PG_RESTORE="$REAL_PG_RESTORE"
 export PATH="$WRAPPER_DIR:$PATH"
 
 exec bash "$CHECKER"
