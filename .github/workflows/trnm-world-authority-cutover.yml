@@ -43,7 +43,7 @@ env:
 
 jobs:
   authority-source-qualification:
-    name: trnm-world-authority-cutover/source-qualification
+    name: trnm-world-p0-boundaries
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
@@ -163,6 +163,7 @@ jobs:
           import json
           import os
           import pathlib
+          import subprocess
 
           out = pathlib.Path('run/ci-world-authority')
           workflow_path = pathlib.Path('.github/workflows/trnm-world-authority-cutover.yml')
@@ -175,6 +176,11 @@ jobs:
                   for chunk in iter(lambda: handle.read(1024 * 1024), b''):
                       digest.update(chunk)
               return digest.hexdigest()
+
+          def git(*args: str) -> str:
+              return subprocess.run(
+                  ['git', *args], check=True, text=True, stdout=subprocess.PIPE
+              ).stdout.strip()
 
           summary = {
               'schema': 'trillionnium.world.authority.source-evidence.v2',
@@ -193,9 +199,9 @@ jobs:
               'run_attempt': os.environ['GITHUB_RUN_ATTEMPT'],
               'workflow': os.environ['GITHUB_WORKFLOW'],
               'workflow_ref': os.environ['GITHUB_WORKFLOW_REF'],
-              'workflow_blob_sha': os.popen(
-                  'git rev-parse HEAD:.github/workflows/trnm-world-authority-cutover.yml'
-              ).read().strip(),
+              'workflow_blob_sha': git(
+                  'rev-parse', 'HEAD:.github/workflows/trnm-world-authority-cutover.yml'
+              ),
               'workflow_sha256': sha256(workflow_path),
               'actions': {
                   'actions/checkout': os.environ['CHECKOUT_ACTION_SHA'],
@@ -205,13 +211,13 @@ jobs:
               'rust_toolchain': os.environ['RUST_TOOLCHAIN'],
               'contract_version': 'trillionnium_world_authority_cutover_v1',
               'provenance_schema': 'trillionnium.world.authority.provenance.v1',
-              'provenance_manifest_blob_sha': os.popen(
-                  'git rev-parse HEAD:docs/contracts/trillionnium-world-authority-provenance-v1.json'
-              ).read().strip(),
+              'provenance_manifest_blob_sha': git(
+                  'rev-parse', 'HEAD:docs/contracts/trillionnium-world-authority-provenance-v1.json'
+              ),
               'provenance_manifest_sha256': sha256(provenance_path),
-              'provenance_checker_blob_sha': os.popen(
-                  'git rev-parse HEAD:scripts/check-trnm-world-authority-provenance.py'
-              ).read().strip(),
+              'provenance_checker_blob_sha': git(
+                  'rev-parse', 'HEAD:scripts/check-trnm-world-authority-provenance.py'
+              ),
               'provenance_checker_sha256': sha256(checker_path),
               'production_authorization': 'not_granted',
               'no_dual_writer_claim': False,
@@ -259,3 +265,44 @@ jobs:
           path: run/ci-world-authority/**
           if-no-files-found: error
           retention-days: 90
+
+  authority-status-evidence:
+    name: trnm-world-status-evidence
+    needs: authority-source-qualification
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout the same exact source head
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ env.SOURCE_HEAD_SHA }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Verify current status is truth-bound and non-production
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$SOURCE_HEAD_SHA"
+          python3 - <<'PY'
+          import json
+          import pathlib
+
+          contract = json.loads(
+              pathlib.Path('docs/contracts/trillionnium-world-authority-cutover-v1.json').read_text()
+          )
+          provenance = json.loads(
+              pathlib.Path('docs/contracts/trillionnium-world-authority-provenance-v1.json').read_text()
+          )
+          if contract.get('production_authorization') != 'not_granted':
+              raise SystemExit('authority contract must remain non-production')
+          if provenance.get('production_authorization') != 'not_granted':
+              raise SystemExit('provenance manifest must remain non-production')
+          if provenance.get('restored_tree_count') != 7:
+              raise SystemExit('restored tree count drift')
+          if provenance.get('restored_file_count') != 15:
+              raise SystemExit('restored file count drift')
+          if contract.get('authority_rule') != 'world_repository_is_the_only_world_state_writer':
+              raise SystemExit('single-writer rule missing')
+          print('World authority status evidence is source-qualified and production authorization remains not_granted')
+          PY
