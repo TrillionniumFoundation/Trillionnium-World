@@ -2,7 +2,8 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-CHECKER="$ROOT/scripts/check-trnm-world-authority-postgres.sh"
+STATE_CHECKER="$ROOT/scripts/check-trnm-world-authority-postgres.sh"
+INSTALL_CHECKER="$ROOT/scripts/check-trnm-world-authority-postgres-installation.sh"
 REAL_PSQL="$(command -v psql)"
 REAL_PG_RESTORE="$(command -v pg_restore)"
 WRAPPER_DIR="$(mktemp -d)"
@@ -12,10 +13,12 @@ cleanup() {
 }
 trap cleanup EXIT
 
-[[ -x "$CHECKER" || -f "$CHECKER" ]] || {
-  echo "missing World PostgreSQL checker: $CHECKER" >&2
-  exit 66
-}
+for checker in "$STATE_CHECKER" "$INSTALL_CHECKER"; do
+  [[ -x "$checker" || -f "$checker" ]] || {
+    echo "missing World PostgreSQL checker: $checker" >&2
+    exit 66
+  }
+done
 for executable in "$REAL_PSQL" "$REAL_PG_RESTORE"; do
   [[ -x "$executable" ]] || {
     echo "PostgreSQL client is not executable: $executable" >&2
@@ -102,4 +105,5 @@ export TRNM_WORLD_REAL_PSQL="$REAL_PSQL"
 export TRNM_WORLD_REAL_PG_RESTORE="$REAL_PG_RESTORE"
 export PATH="$WRAPPER_DIR:$PATH"
 
-exec bash "$CHECKER"
+bash "$STATE_CHECKER"
+bash "$INSTALL_CHECKER"
