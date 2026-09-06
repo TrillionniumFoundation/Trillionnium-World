@@ -60,6 +60,7 @@
     "base_migration": "deploy/postgres/trnm-world-authority-cutover-v1.sql",
     "mandatory_hardening_migration": "deploy/postgres/trnm-world-authority-cutover-v1-hardening.sql",
     "only_supported_installer": "scripts/apply-trnm-world-authority-cutover-v1.sh",
+    "qualification": "scripts/check-trnm-world-authority-postgres.sh",
     "state_machine_qualification": "scripts/check-trnm-world-authority-postgres.sh",
     "installation_qualification": "scripts/check-trnm-world-authority-postgres-installation.sh",
     "qualification_runner": "scripts/run-trnm-world-authority-postgres-check.sh",
