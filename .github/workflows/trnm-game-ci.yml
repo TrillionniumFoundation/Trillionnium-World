@@ -60,6 +60,7 @@ env:
   CARGO_INCREMENTAL: '0'
   RUST_BACKTRACE: '1'
   RUST_TEST_THREADS: '1'
+  PYTHONUTF8: '1'
   SOURCE_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
   BASE_SHA: ${{ github.event.pull_request.base.sha || '' }}
   RUST_TOOLCHAIN: '1.98.1'
@@ -140,12 +141,14 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends jq libasound2-dev libudev-dev libx11-dev libxi-dev libxkbcommon-dev libwayland-dev pkg-config
 
       - name: Validate exact source authority boundary
+        id: source_authority
         if: ${{ hashFiles('trillionnium/crates/world-authority/Cargo.toml') != '' }}
         env:
           CARGO_TARGET_DIR: ${{ runner.temp }}/trnm-source-target
         run: ../scripts/check-trnm-world-authority-cutover.sh
 
       - name: Validate exact source game workspace
+        id: source_workspace
         env:
           CARGO_TARGET_DIR: ${{ runner.temp }}/trnm-source-target
         run: |
@@ -157,6 +160,7 @@ jobs:
           cargo build --release --locked -p trnm-first-contact -p trnm-game-server --bins
 
       - name: Package and verify exact source Linux distribution
+        id: source_package
         env:
           CARGO_TARGET_DIR: ${{ runner.temp }}/trnm-source-target
         run: |
@@ -167,6 +171,7 @@ jobs:
           TRNM_REQUIRE_CLEAN_PACKAGE=1 ../scripts/check-trnm-game-package.sh "$archive"
 
       - name: Validate prospective merge game and authority workspace
+        id: merge_workspace
         if: github.event_name == 'pull_request'
         shell: bash
         env:
@@ -195,13 +200,20 @@ jobs:
           mkdir -p ../run/ci-distribution/merge
           cp "$RUNNER_TEMP"/trnm-merge-distribution/* ../run/ci-distribution/merge/
 
-      - name: Record immutable source and merge evidence
+      - name: Record fail-closed source and merge evidence
+        id: evidence
         if: always()
         shell: bash
         env:
           SOURCE_TREE: ${{ steps.identity.outputs.source_tree }}
           MERGE_TREE: ${{ steps.identity.outputs.merge_tree }}
           MERGE_COMMIT: ${{ steps.identity.outputs.merge_commit }}
+          WORLD_AUTHORITY_PRESENT: ${{ hashFiles('trillionnium/crates/world-authority/Cargo.toml') != '' }}
+          SOURCE_AUTHORITY_CONCLUSION: ${{ steps.source_authority.conclusion }}
+          SOURCE_WORKSPACE_CONCLUSION: ${{ steps.source_workspace.conclusion }}
+          SOURCE_PACKAGE_CONCLUSION: ${{ steps.source_package.conclusion }}
+          MERGE_WORKSPACE_CONCLUSION: ${{ steps.merge_workspace.conclusion }}
+          JOB_STATUS_AT_EVIDENCE: ${{ job.status }}
         run: |
           set -euo pipefail
           mkdir -p ../run/ci-game-identities
@@ -217,22 +229,63 @@ jobs:
 
           def git(*args: str) -> str:
               return subprocess.run(
-                  ['git', *args], cwd=root, check=True, text=True, stdout=subprocess.PIPE
+                  ['git', *args],
+                  cwd=root,
+                  check=True,
+                  text=True,
+                  encoding='utf-8',
+                  errors='strict',
+                  stdout=subprocess.PIPE,
               ).stdout.strip()
 
           def sha256(path: pathlib.Path) -> str:
               return hashlib.sha256(path.read_bytes()).hexdigest()
 
+          event_name = os.environ['GITHUB_EVENT_NAME']
+          world_authority_present = os.environ['WORLD_AUTHORITY_PRESENT'].lower() == 'true'
+          gate_conclusions = {
+              'source_authority': os.environ.get('SOURCE_AUTHORITY_CONCLUSION', ''),
+              'source_workspace': os.environ.get('SOURCE_WORKSPACE_CONCLUSION', ''),
+              'source_package': os.environ.get('SOURCE_PACKAGE_CONCLUSION', ''),
+              'prospective_merge_workspace': os.environ.get('MERGE_WORKSPACE_CONCLUSION', ''),
+          }
+          required_gates = ['source_workspace', 'source_package']
+          if world_authority_present:
+              required_gates.append('source_authority')
+          if event_name == 'pull_request':
+              required_gates.append('prospective_merge_workspace')
+
+          qualified = all(gate_conclusions.get(name) == 'success' for name in required_gates)
+          required_results = [gate_conclusions.get(name, '') for name in required_gates]
+          if qualified:
+              status = (
+                  'source_and_prospective_merge_qualified'
+                  if event_name == 'pull_request'
+                  else 'source_qualified'
+              )
+          elif any(value == 'cancelled' for value in required_results):
+              status = 'qualification_cancelled'
+          elif any(value == 'failure' for value in required_results):
+              status = 'qualification_failed'
+          else:
+              status = 'qualification_incomplete'
+
           summary = {
-              'schema': 'trillionnium.game-ci.evidence.v1',
-              'status': 'source_and_prospective_merge_qualified',
+              'schema': 'trillionnium.game-ci.evidence.v2',
+              'evidence_semantics': 'fail_closed_required_gate_conclusions',
+              'status': status,
+              'qualified': qualified,
+              'gate_conclusions': gate_conclusions,
+              'required_gates': required_gates,
+              'job_status_at_evidence': os.environ.get('JOB_STATUS_AT_EVIDENCE'),
+              'world_authority_present': world_authority_present,
               'repository': os.environ['GITHUB_REPOSITORY'],
-              'event_name': os.environ['GITHUB_EVENT_NAME'],
+              'event_name': event_name,
               'source_head_sha': os.environ['SOURCE_HEAD_SHA'],
-              'source_head_tree': os.environ['SOURCE_TREE'],
+              'source_head_tree': os.environ.get('SOURCE_TREE') or None,
               'base_sha': os.environ.get('BASE_SHA') or None,
-              'prospective_merge_tree': os.environ['MERGE_TREE'],
-              'prospective_merge_commit': os.environ['MERGE_COMMIT'],
+              'prospective_merge_tree': os.environ.get('MERGE_TREE') or None,
+              'prospective_merge_commit': os.environ.get('MERGE_COMMIT') or None,
               'trigger_sha': os.environ['GITHUB_SHA'],
               'run_id': os.environ['GITHUB_RUN_ID'],
               'run_attempt': os.environ['GITHUB_RUN_ATTEMPT'],
@@ -246,27 +299,52 @@ jobs:
               'rust_toolchain': os.environ['RUST_TOOLCHAIN'],
               'production_authorization': 'not_granted',
           }
-          (out / 'summary.json').write_text(json.dumps(summary, indent=2, sort_keys=True) + '\n')
-          files = sorted(path for path in out.iterdir() if path.is_file() and path.name != 'manifest.json')
+          (out / 'summary.json').write_text(
+              json.dumps(summary, indent=2, sort_keys=True) + '\n',
+              encoding='utf-8',
+          )
+          files = sorted(
+              path for path in out.iterdir()
+              if path.is_file() and path.name != 'manifest.json'
+          )
           manifest = {
-              'schema': 'trillionnium.game-ci.artifact-manifest.v1',
+              'schema': 'trillionnium.game-ci.artifact-manifest.v2',
+              'status': status,
+              'qualified': qualified,
               'source_head_sha': os.environ['SOURCE_HEAD_SHA'],
+              'gate_conclusions': gate_conclusions,
+              'required_gates': required_gates,
               'files': [
                   {'path': path.name, 'bytes': path.stat().st_size, 'sha256': sha256(path)}
                   for path in files
               ],
           }
-          (out / 'manifest.json').write_text(json.dumps(manifest, indent=2, sort_keys=True) + '\n')
+          (out / 'manifest.json').write_text(
+              json.dumps(manifest, indent=2, sort_keys=True) + '\n',
+              encoding='utf-8',
+          )
+          with pathlib.Path(os.environ['GITHUB_OUTPUT']).open('a', encoding='utf-8') as handle:
+              handle.write(f"qualified={'true' if qualified else 'false'}\n")
+              handle.write(f"status={status}\n")
           PY
 
-      - name: Upload immutable game distributions and evidence
-        if: always()
+      - name: Upload qualified game distributions and evidence
+        if: ${{ always() && steps.evidence.outputs.qualified == 'true' }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: trnm-game-${{ env.SOURCE_HEAD_SHA }}
+          name: trnm-game-qualified-${{ env.SOURCE_HEAD_SHA }}
           path: |
             run/ci-distribution/**
             run/ci-game-identities/**
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Upload unqualified game evidence
+        if: ${{ always() && steps.evidence.outputs.qualified != 'true' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: trnm-game-unqualified-${{ env.SOURCE_HEAD_SHA }}
+          path: run/ci-game-identities/**
           if-no-files-found: error
           retention-days: 90
 
@@ -335,6 +413,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Exact source RustSec advisory and dependency policy gates
+        id: source_supply_chain
         shell: bash
         run: |
           set -euo pipefail
@@ -342,6 +421,7 @@ jobs:
           cargo deny check advisories bans licenses sources
 
       - name: Prospective merge RustSec advisory and dependency policy gates
+        id: merge_supply_chain
         if: github.event_name == 'pull_request'
         shell: bash
         env:
@@ -359,16 +439,24 @@ jobs:
             cargo deny check advisories bans licenses sources
           )
 
-      - name: Preserve immutable supply-chain reports
+      - name: Preserve fail-closed supply-chain reports
+        id: supply_evidence
         if: always()
         shell: bash
         env:
           MERGE_TREE: ${{ steps.identity.outputs.merge_tree }}
+          SOURCE_SUPPLY_CHAIN_CONCLUSION: ${{ steps.source_supply_chain.conclusion }}
+          MERGE_SUPPLY_CHAIN_CONCLUSION: ${{ steps.merge_supply_chain.conclusion }}
+          JOB_STATUS_AT_EVIDENCE: ${{ job.status }}
         run: |
           set -euo pipefail
           mkdir -p ../run/ci-supply-chain
-          mv ../run-cargo-audit-version.txt ../run/ci-supply-chain/cargo-audit-version.txt
-          mv ../run-cargo-deny-version.txt ../run/ci-supply-chain/cargo-deny-version.txt
+          if [[ -f ../run-cargo-audit-version.txt ]]; then
+            mv ../run-cargo-audit-version.txt ../run/ci-supply-chain/cargo-audit-version.txt
+          fi
+          if [[ -f ../run-cargo-deny-version.txt ]]; then
+            mv ../run-cargo-deny-version.txt ../run/ci-supply-chain/cargo-deny-version.txt
+          fi
           cargo audit --json --ignore RUSTSEC-2026-0192 > ../run/ci-supply-chain/cargo-audit.json || true
           cargo deny --format json check advisories bans licenses sources > ../run/ci-supply-chain/cargo-deny.json || true
           python3 - <<'PY'
@@ -386,15 +474,50 @@ jobs:
 
           def git(*args: str) -> str:
               return subprocess.run(
-                  ['git', *args], cwd=root, check=True, text=True, stdout=subprocess.PIPE
+                  ['git', *args],
+                  cwd=root,
+                  check=True,
+                  text=True,
+                  encoding='utf-8',
+                  errors='strict',
+                  stdout=subprocess.PIPE,
               ).stdout.strip()
 
+          event_name = os.environ['GITHUB_EVENT_NAME']
+          gate_conclusions = {
+              'source_supply_chain': os.environ.get('SOURCE_SUPPLY_CHAIN_CONCLUSION', ''),
+              'prospective_merge_supply_chain': os.environ.get('MERGE_SUPPLY_CHAIN_CONCLUSION', ''),
+          }
+          required_gates = ['source_supply_chain']
+          if event_name == 'pull_request':
+              required_gates.append('prospective_merge_supply_chain')
+          qualified = all(gate_conclusions.get(name) == 'success' for name in required_gates)
+          required_results = [gate_conclusions.get(name, '') for name in required_gates]
+          if qualified:
+              status = (
+                  'source_and_prospective_merge_supply_chain_qualified'
+                  if event_name == 'pull_request'
+                  else 'source_supply_chain_qualified'
+              )
+          elif any(value == 'cancelled' for value in required_results):
+              status = 'supply_chain_qualification_cancelled'
+          elif any(value == 'failure' for value in required_results):
+              status = 'supply_chain_qualification_failed'
+          else:
+              status = 'supply_chain_qualification_incomplete'
+
           summary = {
-              'schema': 'trillionnium.game-supply-chain.evidence.v1',
+              'schema': 'trillionnium.game-supply-chain.evidence.v2',
+              'evidence_semantics': 'fail_closed_required_gate_conclusions',
+              'status': status,
+              'qualified': qualified,
+              'gate_conclusions': gate_conclusions,
+              'required_gates': required_gates,
+              'job_status_at_evidence': os.environ.get('JOB_STATUS_AT_EVIDENCE'),
               'source_head_sha': os.environ['SOURCE_HEAD_SHA'],
               'source_head_tree': git('rev-parse', 'HEAD^{tree}'),
               'base_sha': os.environ.get('BASE_SHA') or None,
-              'prospective_merge_tree': os.environ.get('MERGE_TREE'),
+              'prospective_merge_tree': os.environ.get('MERGE_TREE') or None,
               'rust_toolchain': os.environ['RUST_TOOLCHAIN'],
               'cargo_audit_version': os.environ['CARGO_AUDIT_VERSION'],
               'cargo_deny_version': os.environ['CARGO_DENY_VERSION'],
@@ -408,24 +531,49 @@ jobs:
               'run_attempt': os.environ['GITHUB_RUN_ATTEMPT'],
               'production_authorization': 'not_granted',
           }
-          (out / 'summary.json').write_text(json.dumps(summary, indent=2, sort_keys=True) + '\n')
-          files = sorted(path for path in out.iterdir() if path.is_file() and path.name != 'manifest.json')
+          (out / 'summary.json').write_text(
+              json.dumps(summary, indent=2, sort_keys=True) + '\n',
+              encoding='utf-8',
+          )
+          files = sorted(
+              path for path in out.iterdir()
+              if path.is_file() and path.name != 'manifest.json'
+          )
           manifest = {
-              'schema': 'trillionnium.game-supply-chain.artifact-manifest.v1',
+              'schema': 'trillionnium.game-supply-chain.artifact-manifest.v2',
+              'status': status,
+              'qualified': qualified,
               'source_head_sha': os.environ['SOURCE_HEAD_SHA'],
+              'gate_conclusions': gate_conclusions,
+              'required_gates': required_gates,
               'files': [
                   {'path': path.name, 'bytes': path.stat().st_size, 'sha256': sha256(path)}
                   for path in files
               ],
           }
-          (out / 'manifest.json').write_text(json.dumps(manifest, indent=2, sort_keys=True) + '\n')
+          (out / 'manifest.json').write_text(
+              json.dumps(manifest, indent=2, sort_keys=True) + '\n',
+              encoding='utf-8',
+          )
+          with pathlib.Path(os.environ['GITHUB_OUTPUT']).open('a', encoding='utf-8') as handle:
+              handle.write(f"qualified={'true' if qualified else 'false'}\n")
+              handle.write(f"status={status}\n")
           PY
 
-      - name: Upload immutable supply-chain evidence
-        if: always()
+      - name: Upload qualified supply-chain evidence
+        if: ${{ always() && steps.supply_evidence.outputs.qualified == 'true' }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: trnm-supply-chain-${{ env.SOURCE_HEAD_SHA }}
+          name: trnm-supply-chain-qualified-${{ env.SOURCE_HEAD_SHA }}
+          path: run/ci-supply-chain/**
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Upload unqualified supply-chain evidence
+        if: ${{ always() && steps.supply_evidence.outputs.qualified != 'true' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: trnm-supply-chain-unqualified-${{ env.SOURCE_HEAD_SHA }}
           path: run/ci-supply-chain/**
           if-no-files-found: error
           retention-days: 90
