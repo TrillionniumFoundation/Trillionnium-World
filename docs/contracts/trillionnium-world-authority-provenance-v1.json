@@ -1,0 +1,156 @@
+{
+  "schema": "trillionnium.world.authority.provenance.v1",
+  "status": "active",
+  "source_repository": "TrillionniumFoundation/Trillionnium-World",
+  "source_commit": "d44d8930c917b55da7b23eb19e9645feb8f4ee59",
+  "source_workspace": "trillionnium/crates/legacy-game",
+  "target_workspace": "trillionnium/crates/world-authority",
+  "production_authorization": "not_granted",
+  "restored_tree_count": 7,
+  "restored_file_count": 15,
+  "restored_trees": [
+    {
+      "name": "trnm-world-domain",
+      "source_path": "trillionnium/crates/legacy-game/trnm-world-domain",
+      "target_path": "trillionnium/crates/world-authority/trnm-world-domain",
+      "git_object": "ad3e8f47131036b251b8ec72fac2247714256a0f"
+    },
+    {
+      "name": "trnm-world-command",
+      "source_path": "trillionnium/crates/legacy-game/trnm-world-command",
+      "target_path": "trillionnium/crates/world-authority/trnm-world-command",
+      "git_object": "7f590823ef83cd521f39626b1a9b3e03aa04d631"
+    },
+    {
+      "name": "trnm-world-projection",
+      "source_path": "trillionnium/crates/legacy-game/trnm-world-projection",
+      "target_path": "trillionnium/crates/world-authority/trnm-world-projection",
+      "git_object": "82c3f7d511f782296cfb1d1a781c3d8611f9d0eb"
+    },
+    {
+      "name": "trnm-world-map-provider",
+      "source_path": "trillionnium/crates/legacy-game/trnm-world-map-provider",
+      "target_path": "trillionnium/crates/world-authority/trnm-world-map-provider",
+      "git_object": "ae1a7eeac26e9918256251c3b5451372071c7f58"
+    },
+    {
+      "name": "trnm-world-ui-fragments",
+      "source_path": "trillionnium/crates/legacy-game/trnm-world-ui-fragments",
+      "target_path": "trillionnium/crates/world-authority/trnm-world-ui-fragments",
+      "git_object": "c5d20930130aea9f5db9d89e2f8353a6262101b1"
+    },
+    {
+      "name": "trnm-world-api",
+      "source_path": "trillionnium/crates/legacy-game/trnm-world-api",
+      "target_path": "trillionnium/crates/world-authority/trnm-world-api",
+      "git_object": "675f7920c915b84e4f0506d3e0c976d2d4cc095d"
+    },
+    {
+      "name": "trnm-world-server",
+      "source_path": "trillionnium/crates/legacy-game/trnm-world-server",
+      "target_path": "trillionnium/crates/world-authority/trnm-world-server",
+      "git_object": "cd86d3f4f080dbdf267022eb27e0f6e10887816f"
+    }
+  ],
+  "restored_files": [
+    {
+      "source_path": "trillionnium/crates/legacy-game/trnm-world-domain/Cargo.toml",
+      "target_path": "trillionnium/crates/world-authority/trnm-world-domain/Cargo.toml",
+      "git_blob": "0564864411635369dc52c69694ec78f0ec7d7f3d"
+    },
+    {
+      "source_path": "trillionnium/crates/legacy-game/trnm-world-domain/src/lib.rs",
+      "target_path": "trillionnium/crates/world-authority/trnm-world-domain/src/lib.rs",
+      "git_blob": "f36eafd4a98fe9c2782f5ad7c469ba969f95c2e9"
+    },
+    {
+      "source_path": "trillionnium/crates/legacy-game/trnm-world-command/Cargo.toml",
+      "target_path": "trillionnium/crates/world-authority/trnm-world-command/Cargo.toml",
+      "git_blob": "bf93e25c32c1eec25c651f96b78a2ae30a54bf58"
+    },
+    {
+      "source_path": "trillionnium/crates/legacy-game/trnm-world-command/src/lib.rs",
+      "target_path": "trillionnium/crates/world-authority/trnm-world-command/src/lib.rs",
+      "git_blob": "b791502ba393ee145559f496e040a2022c826f27"
+    },
+    {
+      "source_path": "trillionnium/crates/legacy-game/trnm-world-projection/Cargo.toml",
+      "target_path": "trillionnium/crates/world-authority/trnm-world-projection/Cargo.toml",
+      "git_blob": "6bb2c1704e801ee0fbec877484b65b221e474623"
+    },
+    {
+      "source_path": "trillionnium/crates/legacy-game/trnm-world-projection/src/lib.rs",
+      "target_path": "trillionnium/crates/world-authority/trnm-world-projection/src/lib.rs",
+      "git_blob": "bface73bede52f4cdb8fe38fb696626c25ed38b3"
+    },
+    {
+      "source_path": "trillionnium/crates/legacy-game/trnm-world-map-provider/Cargo.toml",
+      "target_path": "trillionnium/crates/world-authority/trnm-world-map-provider/Cargo.toml",
+      "git_blob": "8716a9f0c9c606156d733041bd77c26bda2f932d"
+    },
+    {
+      "source_path": "trillionnium/crates/legacy-game/trnm-world-map-provider/src/lib.rs",
+      "target_path": "trillionnium/crates/world-authority/trnm-world-map-provider/src/lib.rs",
+      "git_blob": "e6be21146b6a1a1031d45661bf1c4c9cd7a310a6"
+    },
+    {
+      "source_path": "trillionnium/crates/legacy-game/trnm-world-ui-fragments/Cargo.toml",
+      "target_path": "trillionnium/crates/world-authority/trnm-world-ui-fragments/Cargo.toml",
+      "git_blob": "c50807423f0ea84f785c4f8ae238559aacb11f21"
+    },
+    {
+      "source_path": "trillionnium/crates/legacy-game/trnm-world-ui-fragments/src/lib.rs",
+      "target_path": "trillionnium/crates/world-authority/trnm-world-ui-fragments/src/lib.rs",
+      "git_blob": "941ef0abd0ba9bb7387024c280157c0a1341fafb"
+    },
+    {
+      "source_path": "trillionnium/crates/legacy-game/trnm-world-api/Cargo.toml",
+      "target_path": "trillionnium/crates/world-authority/trnm-world-api/Cargo.toml",
+      "git_blob": "17f097cb65ce956f1077c424da048f5e90a3c9c4"
+    },
+    {
+      "source_path": "trillionnium/crates/legacy-game/trnm-world-api/src/lib.rs",
+      "target_path": "trillionnium/crates/world-authority/trnm-world-api/src/lib.rs",
+      "git_blob": "1f209884710b275b4312eff6f1f1e3f59df58400"
+    },
+    {
+      "source_path": "trillionnium/crates/legacy-game/trnm-world-server/Cargo.toml",
+      "target_path": "trillionnium/crates/world-authority/trnm-world-server/Cargo.toml",
+      "git_blob": "c69ff79a43b2971e7621604930dfcfde783ecb19"
+    },
+    {
+      "source_path": "trillionnium/crates/legacy-game/trnm-world-server/src/lib.rs",
+      "target_path": "trillionnium/crates/world-authority/trnm-world-server/src/lib.rs",
+      "git_blob": "b8eb4003e8f267bb707ea54c5fcecf2cdef085ad"
+    },
+    {
+      "source_path": "trillionnium/crates/legacy-game/trnm-world-server/src/main.rs",
+      "target_path": "trillionnium/crates/world-authority/trnm-world-server/src/main.rs",
+      "git_blob": "7bcc0331014c12b110b000aab66214e251274231"
+    }
+  ],
+  "target_root_entries": [
+    "Cargo.lock",
+    "Cargo.toml",
+    "README.md",
+    "trnm-world-api",
+    "trnm-world-command",
+    "trnm-world-domain",
+    "trnm-world-map-provider",
+    "trnm-world-projection",
+    "trnm-world-server",
+    "trnm-world-ui-fragments"
+  ],
+  "generated_or_new_paths": [
+    "trillionnium/crates/world-authority/Cargo.lock",
+    "trillionnium/crates/world-authority/Cargo.toml",
+    "trillionnium/crates/world-authority/README.md",
+    "docs/architecture/cex-world-authority-cutover-v1.md",
+    "docs/contracts/trillionnium-world-authority-cutover-v1.json",
+    "docs/contracts/trillionnium-world-authority-provenance-v1.json",
+    "scripts/check-trnm-world-authority-cutover.sh",
+    "scripts/check-trnm-world-authority-provenance.py",
+    ".github/workflows/trnm-world-authority-cutover.yml"
+  ],
+  "claim_boundary": "Only the fifteen listed source files and seven listed subtrees are exact historical restorations. Workspace wrappers, lockfile, contracts, checker and workflow are new qualification material."
+}
