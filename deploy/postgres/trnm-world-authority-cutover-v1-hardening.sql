@@ -88,6 +88,10 @@ alter table public.trnm_world_states_v1
 alter table public.trnm_world_events_v1
     drop constraint if exists trnm_world_event_command_parity_v1;
 alter table public.trnm_world_events_v1
+    drop constraint if exists trnm_world_event_request_hash_v1;
+alter table public.trnm_world_events_v1
+    drop constraint if exists trnm_world_event_identity_v1;
+alter table public.trnm_world_events_v1
     drop constraint if exists trnm_world_event_response_parity_v1;
 alter table public.trnm_world_events_v1
     drop constraint if exists trnm_world_event_response_hash_v1;
