@@ -1,0 +1,83 @@
+name: trnm-world-authority-cutover
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'trillionnium/crates/world-authority/**'
+      - 'docs/contracts/trillionnium-world-authority-cutover-v1.json'
+      - 'docs/architecture/cex-world-authority-cutover-v1.md'
+      - 'scripts/check-trnm-world-authority-cutover.sh'
+      - '.github/workflows/trnm-world-authority-cutover.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'trillionnium/crates/world-authority/**'
+      - 'docs/contracts/trillionnium-world-authority-cutover-v1.json'
+      - 'docs/architecture/cex-world-authority-cutover-v1.md'
+      - 'scripts/check-trnm-world-authority-cutover.sh'
+      - '.github/workflows/trnm-world-authority-cutover.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trnm-world-authority-cutover-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: never
+  CARGO_INCREMENTAL: '0'
+  RUST_BACKTRACE: '1'
+  RUST_TEST_THREADS: '1'
+
+jobs:
+  authority-source-qualification:
+    name: trnm-world-authority-cutover/source-qualification
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - name: Validate recovered authority boundary
+        run: bash scripts/check-trnm-world-authority-cutover.sh
+      - name: Record exact-SHA source evidence
+        run: |
+          set -euo pipefail
+          out=run/ci-world-authority
+          manifest=trillionnium/crates/world-authority/Cargo.toml
+          mkdir -p "$out"
+          cargo run --quiet --locked --manifest-path "$manifest" -p trnm-world-server -- adapter-readiness > "$out/adapter-readiness.json"
+          cargo run --quiet --locked --manifest-path "$manifest" -p trnm-world-server -- full-split-json > "$out/full-split.json"
+          cargo run --quiet --locked --manifest-path "$manifest" -p trnm-world-server -- dev-runtime-repository-smoke "$out/world-state.json" > "$out/repository-restart-reload.json"
+          python3 - <<'PY'
+          import json
+          import os
+          import pathlib
+
+          out = pathlib.Path('run/ci-world-authority')
+          summary = {
+              'schema': 'trillionnium.world.authority.source-evidence.v1',
+              'status': 'source_qualification_green',
+              'repository': os.environ['GITHUB_REPOSITORY'],
+              'head_sha': os.environ['GITHUB_SHA'],
+              'run_id': os.environ['GITHUB_RUN_ID'],
+              'contract_version': 'trillionnium_world_authority_cutover_v1',
+              'production_authorization': 'not_granted',
+              'no_dual_writer_claim': False,
+              'artifacts': [
+                  'adapter-readiness.json',
+                  'full-split.json',
+                  'repository-restart-reload.json',
+                  'world-state.json',
+              ],
+          }
+          (out / 'source-evidence-summary.json').write_text(json.dumps(summary, indent=2) + '\n')
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: trnm-world-authority-source-${{ github.sha }}
+          path: run/ci-world-authority/**
+          if-no-files-found: error

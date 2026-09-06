@@ -1,0 +1,76 @@
+{
+  "schema": "trillionnium.world.authority.cutover.v1",
+  "contract_version": "trillionnium_world_authority_cutover_v1",
+  "status": "cutover_candidate",
+  "production_authorization": "not_granted",
+  "owner_repository": "TrillionniumFoundation/Trillionnium-World",
+  "source_history_commit": "d44d8930c917b55da7b23eb19e9645feb8f4ee59",
+  "workspace": "trillionnium/crates/world-authority/Cargo.toml",
+  "authority_rule": "world_repository_is_the_only_world_state_writer",
+  "cex_role": [
+    "authenticated_ingress",
+    "request_normalization",
+    "versioned_world_api_client",
+    "source_versioned_read_projection"
+  ],
+  "cex_forbidden_roles": [
+    "world_map_writer",
+    "world_movement_writer",
+    "world_tactics_writer",
+    "world_commerce_writer",
+    "world_company_shop_work_order_writer",
+    "world_progression_writer"
+  ],
+  "restored_crates": [
+    "trnm-world-domain",
+    "trnm-world-command",
+    "trnm-world-projection",
+    "trnm-world-map-provider",
+    "trnm-world-ui-fragments",
+    "trnm-world-api",
+    "trnm-world-server"
+  ],
+  "excluded_legacy_components": [
+    "trnm-world-bevy",
+    "trnm-world-dev-env",
+    "legacy-rts-workspace",
+    "legacy-release-review-packets"
+  ],
+  "profiles": {
+    "development": {
+      "fixture_adapters_allowed": true,
+      "file_repository_allowed": true,
+      "production_credit": false
+    },
+    "production": {
+      "fixture_adapters_allowed": false,
+      "file_repository_allowed": false,
+      "fail_closed": true,
+      "required_adapters": [
+        "identity",
+        "session",
+        "durable_repository",
+        "ledger",
+        "evidence",
+        "metrics"
+      ]
+    }
+  },
+  "source_qualification": [
+    "exact_seven_crate_dependency_closure",
+    "no_cex_or_external_repository_path_dependency",
+    "format_test_and_clippy_green",
+    "adapter_contract_smoke_green",
+    "full_split_contract_smoke_green",
+    "restart_reload_repository_smoke_green"
+  ],
+  "cutover_acceptance": [
+    "world_owned_versioned_contract_published",
+    "cex_adapter_uses_versioned_contract",
+    "cex_authoritative_world_writes_disabled",
+    "backfill_reconciliation_exact",
+    "success_timeout_replay_partial_outage_and_rollback_evidence",
+    "legacy_cex_world_sources_removed_or_quarantined",
+    "no_state_has_two_authoritative_writers"
+  ]
+}
