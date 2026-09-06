@@ -93,7 +93,12 @@ bundle_dir="$work_dir/$bundle_name"
 mkdir -p "$bundle_dir/bin" "$bundle_dir/assets" "$bundle_dir/docs" \
   "$bundle_dir/licenses" "$bundle_dir/share/applications"
 
-for binary in trnm-first-contact trnm-online-product trnm-game-server trnm-entitlement-signer; do
+for binary in \
+  trnm-first-contact \
+  trnm-online-product \
+  trnm-game-server \
+  trnm-entitlement-signer \
+  trnm-settlement-worker; do
   install -Dm755 "$target_dir/$binary" "$bundle_dir/bin/$binary"
 done
 cp -a "$repo_root/assets/first_contact" "$bundle_dir/assets/"

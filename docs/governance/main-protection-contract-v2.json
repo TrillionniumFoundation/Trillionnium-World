@@ -1,0 +1,72 @@
+{
+  "schema": "trnm_world_main_protection_contract_v2",
+  "repository": "TrillionniumFoundation/Trillionnium-World",
+  "branch": "main",
+  "server_state": "not_enforced_until_api_readback",
+  "required_pull_request_reviews": {
+    "required_approving_review_count": 1,
+    "dismiss_stale_reviews": true,
+    "require_code_owner_reviews": true,
+    "require_last_push_approval": true,
+    "last_pusher_may_approve": false
+  },
+  "required_status_checks": {
+    "strict": true,
+    "contexts": [
+      "trnm-world-v5/closure-contract",
+      "trnm-world-v4/docs-governance",
+      "trnm-world-v4/transition-contract",
+      "trnm-world-v4/settlement-postgres",
+      "trnm-world-v4/game-workspace-release",
+      "trnm-world-v4/supply-chain",
+      "trnm-world-v4/qualified-source-exact-head",
+      "trnm-world-v4/prospective-merge"
+    ],
+    "non_empty_execution_required": true,
+    "accepted_conclusions": [
+      "success"
+    ],
+    "rejected_or_no_credit": [
+      "absent",
+      "action_required",
+      "cancelled",
+      "failure",
+      "neutral",
+      "pending",
+      "queued",
+      "skipped",
+      "stale_head",
+      "timed_out"
+    ]
+  },
+  "require_conversation_resolution": true,
+  "require_linear_history": true,
+  "allow_force_pushes": false,
+  "allow_deletions": false,
+  "block_direct_pushes": true,
+  "admin_enforcement": true,
+  "bypass": {
+    "ordinary_bypass_allowed": false,
+    "break_glass_requires": [
+      "named incident commander",
+      "time-bounded authorization",
+      "recorded reason and affected ref",
+      "post-event independent review",
+      "credential revocation or rotation",
+      "negative rehearsal evidence"
+    ]
+  },
+  "merge_methods": [
+    "squash",
+    "rebase"
+  ],
+  "acceptance": [
+    "GitHub API reports the contract enforced on main",
+    "direct and force push rehearsals are rejected",
+    "a deliberately broken authority or settlement candidate cannot merge",
+    "a PR without all exact-head and prospective-merge contexts cannot merge",
+    "a PR without an eligible independent approval cannot merge",
+    "bypass behavior is independently audited"
+  ],
+  "production_authorization": "not_granted"
+}

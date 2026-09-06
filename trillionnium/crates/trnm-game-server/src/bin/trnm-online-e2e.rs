@@ -1,15 +1,17 @@
 #![recursion_limit = "256"]
 
-use reqwest::blocking::Client;
+#[path = "http_policy/mod.rs"]
+mod http_policy;
+
+use reqwest::Client;
 use serde::{de::DeserializeOwned, Serialize};
 use serde_json::{json, Value};
 use std::{
     net::TcpStream,
-    process::Command,
-    sync::{Arc, Barrier, Mutex},
-    thread,
+    sync::{Arc, Mutex},
     time::{Duration, Instant},
 };
+use tokio::{process::Command, sync::Barrier};
 use trnm_online_protocol::{
     apply_snapshot_delta, OnlineCampaignConnectRequest, OnlineCampaignView, OnlineCommandReceipt,
     OnlineCommandSubmitRequest, OnlineMatchAccessRequest, OnlineMatchCreateRequest,
@@ -306,21 +308,20 @@ impl OnlineClient {
     fn new(base_url: String) -> Result<Self, String> {
         Ok(Self {
             base_url: base_url.trim_end_matches('/').to_string(),
-            http: Client::builder()
-                .connect_timeout(Duration::from_secs(2))
-                .timeout(Duration::from_secs(4))
+            http: http_policy::client_builder(Duration::from_secs(2), Duration::from_secs(4))
                 .build()
                 .map_err(|error| error.to_string())?,
-            non_idempotent_http: Client::builder()
-                .connect_timeout(Duration::from_secs(2))
-                .timeout(Duration::from_secs(30))
-                .build()
-                .map_err(|error| error.to_string())?,
+            non_idempotent_http: http_policy::client_builder(
+                Duration::from_secs(2),
+                Duration::from_secs(30),
+            )
+            .build()
+            .map_err(|error| error.to_string())?,
             command_ack_ms: Mutex::new(Vec::new()),
         })
     }
 
-    fn post_one_shot_non_idempotent<T: Serialize, R: DeserializeOwned>(
+    async fn post_one_shot_non_idempotent<T: Serialize, R: DeserializeOwned>(
         &self,
         identity: &Identity,
         path: &str,
@@ -335,9 +336,13 @@ impl OnlineClient {
             .header("x-trnm-player-session", &identity.session)
             .json(body)
             .send()
+            .await
             .map_err(|error| error.to_string())?;
         let status = response.status();
-        let bytes = response.bytes().map_err(|error| error.to_string())?;
+        let bytes = response
+            .bytes()
+            .await
+            .map_err(|error| error.to_string())?;
         if !status.is_success() {
             return Err(format!(
                 "POST {path} returned {status}: {}",
@@ -347,7 +352,7 @@ impl OnlineClient {
         serde_json::from_slice(&bytes).map_err(|error| error.to_string())
     }
 
-    fn start_with_lost_response_retry(
+    async fn start_with_lost_response_retry(
         &self,
         identity: &Identity,
         match_id: &str,
@@ -359,9 +364,12 @@ impl OnlineClient {
             .post(format!("{}{}", self.base_url, path))
             .header("x-trnm-player-session", &identity.session)
             .json(body);
-        let response = send_with_lost_response_retry(request)?;
+        let response = send_with_lost_response_retry(request).await?;
         let status = response.status();
-        let bytes = response.bytes().map_err(|error| error.to_string())?;
+        let bytes = response
+            .bytes()
+            .await
+            .map_err(|error| error.to_string())?;
         if !status.is_success() {
             return Err(format!(
                 "POST {path} returned {status}: {}",
@@ -371,7 +379,7 @@ impl OnlineClient {
         serde_json::from_slice(&bytes).map_err(|error| error.to_string())
     }
 
-    fn post<T: Serialize, R: DeserializeOwned>(
+    async fn post<T: Serialize, R: DeserializeOwned>(
         &self,
         identity: &Identity,
         path: &str,
@@ -383,9 +391,12 @@ impl OnlineClient {
             .header("x-trnm-player-session", &identity.session)
             .json(body);
         let started = Instant::now();
-        let response = send_with_retry(request)?;
+        let response = send_with_retry(request).await?;
         let status = response.status();
-        let bytes = response.bytes().map_err(|error| error.to_string())?;
+        let bytes = response
+            .bytes()
+            .await
+            .map_err(|error| error.to_string())?;
         if !status.is_success() {
             return Err(format!(
                 "POST {path} returned {status}: {}",
@@ -401,14 +412,16 @@ impl OnlineClient {
         serde_json::from_slice(&bytes).map_err(|error| error.to_string())
     }
 
-    fn tick_interval_ms(&self) -> Result<f64, String> {
+    async fn tick_interval_ms(&self) -> Result<f64, String> {
         let response = send_with_retry(
             self.http
                 .get(format!("{}/v1/online/readiness", self.base_url)),
-        )?;
+        )
+        .await?;
         let status = response.status();
         let value = response
             .json::<Value>()
+            .await
             .map_err(|error| error.to_string())?;
         if !status.is_success() {
             return Err(format!("readiness returned {status}: {value}"));
@@ -428,7 +441,7 @@ impl OnlineClient {
         summarize_milliseconds(samples)
     }
 
-    fn post_status<T: Serialize>(
+    async fn post_status<T: Serialize>(
         &self,
         identity: &Identity,
         path: &str,
@@ -439,15 +452,16 @@ impl OnlineClient {
             .post(format!("{}{}", self.base_url, path))
             .header("x-trnm-player-session", &identity.session)
             .json(body);
-        let response = send_with_retry(request)?;
+        let response = send_with_retry(request).await?;
         let status = response.status().as_u16();
         let value = response
             .json::<Value>()
+            .await
             .map_err(|error| error.to_string())?;
         Ok((status, value))
     }
 
-    fn snapshot(
+    async fn snapshot(
         &self,
         identity: &Identity,
         match_id: &str,
@@ -461,7 +475,7 @@ impl OnlineClient {
         };
         let retry_started = Instant::now();
         let response = loop {
-            let (status, body) = self.post_status(identity, &path, &request)?;
+            let (status, body) = self.post_status(identity, &path, &request).await?;
             if (200..300).contains(&status) {
                 break serde_json::from_value::<OnlineSnapshotResponse>(body)
                     .map_err(|error| error.to_string())?;
@@ -473,7 +487,7 @@ impl OnlineClient {
                 // tuple crosses its durable terminal publication barrier.
                 // Honor that contract without hiding non-recoverable errors or
                 // allowing an unbounded terminal wait.
-                thread::sleep(SNAPSHOT_RECOVERABLE_RETRY_INTERVAL);
+                tokio::time::sleep(SNAPSHOT_RECOVERABLE_RETRY_INTERVAL).await;
                 continue;
             }
             let status = reqwest::StatusCode::from_u16(status)
@@ -492,7 +506,7 @@ impl OnlineClient {
         Ok(response)
     }
 
-    fn reconnect(
+    async fn reconnect(
         &self,
         identity: &Identity,
         match_id: &str,
@@ -511,14 +525,14 @@ impl OnlineClient {
         };
         let retry_started = Instant::now();
         loop {
-            let (status, body) = self.post_status(identity, &path, &request)?;
+            let (status, body) = self.post_status(identity, &path, &request).await?;
             if (200..300).contains(&status) {
                 return serde_json::from_value(body).map_err(|error| error.to_string());
             }
             if publication_transition_is_recoverable(status, &body)
                 && retry_started.elapsed() < SNAPSHOT_RECOVERABLE_RETRY_TIMEOUT
             {
-                thread::sleep(SNAPSHOT_RECOVERABLE_RETRY_INTERVAL);
+                tokio::time::sleep(SNAPSHOT_RECOVERABLE_RETRY_INTERVAL).await;
                 continue;
             }
             let status = reqwest::StatusCode::from_u16(status)
@@ -528,7 +542,7 @@ impl OnlineClient {
         }
     }
 
-    fn submit(
+    async fn submit(
         &self,
         identity: &Identity,
         match_id: &str,
@@ -578,10 +592,10 @@ impl OnlineClient {
             order,
         };
         let path = format!("/v1/online/matches/{match_id}/commands");
-        let receipt = match self.post(identity, &path, &request) {
+        let receipt = match self.post(identity, &path, &request).await {
             Ok(receipt) => receipt,
             Err(error) if error.contains("expected player input sequence") => {
-                let fresh = self.snapshot(identity, match_id)?;
+                let fresh = self.snapshot(identity, match_id).await?;
                 request.sequence = fresh.view.next_sequence;
                 request.input_sequence = fresh
                     .view
@@ -594,7 +608,7 @@ impl OnlineClient {
                 request.client_observed_tick = Some(fresh.view.authoritative_tick);
                 request.order.frame = u32::try_from(request.target_tick)
                     .map_err(|_| "target tick overflow".to_string())?;
-                self.post(identity, &path, &request)?
+                self.post(identity, &path, &request).await?
             }
             Err(error) => return Err(error),
         };
@@ -607,34 +621,34 @@ fn publication_transition_is_recoverable(status: u16, body: &Value) -> bool {
         && body["recoverable"].as_bool() == Some(true)
 }
 
-fn send_with_retry(
-    request: reqwest::blocking::RequestBuilder,
-) -> Result<reqwest::blocking::Response, String> {
-    send_with_retry_inner(request, false)
+async fn send_with_retry(
+    request: reqwest::RequestBuilder,
+) -> Result<reqwest::Response, String> {
+    send_with_retry_inner(request, false).await
 }
 
-fn send_with_lost_response_retry(
-    request: reqwest::blocking::RequestBuilder,
-) -> Result<reqwest::blocking::Response, String> {
-    send_with_retry_inner(request, true)
+async fn send_with_lost_response_retry(
+    request: reqwest::RequestBuilder,
+) -> Result<reqwest::Response, String> {
+    send_with_retry_inner(request, true).await
 }
 
-fn send_with_retry_inner(
-    request: reqwest::blocking::RequestBuilder,
+async fn send_with_retry_inner(
+    request: reqwest::RequestBuilder,
     mut lose_first_successful_response: bool,
-) -> Result<reqwest::blocking::Response, String> {
+) -> Result<reqwest::Response, String> {
     let mut transport_failures = 0_u64;
     let last_error = loop {
         let retry = request
             .try_clone()
             .ok_or_else(|| "request cannot be safely retried".to_string())?;
-        match retry.send() {
+        match retry.send().await {
             Ok(response) if lose_first_successful_response && response.status().is_success() => {
                 // The server has committed the mutation, but the simulated
                 // client never observes the response. Draining then discarding
                 // it keeps the connection healthy before resending the exact
                 // cloned request and exercising the server's idempotent branch.
-                let _ = response.bytes();
+                let _ = response.bytes().await;
                 lose_first_successful_response = false;
             }
             Ok(response) => return Ok(response),
@@ -643,7 +657,7 @@ fn send_with_retry_inner(
                     break error;
                 }
                 transport_failures += 1;
-                thread::sleep(Duration::from_millis(100 * transport_failures));
+                tokio::time::sleep(Duration::from_millis(100 * transport_failures)).await;
             }
         }
     };
@@ -661,7 +675,7 @@ fn env_identity(prefix: &str) -> Result<Identity, String> {
     })
 }
 
-fn wait_for(
+async fn wait_for(
     client: &OnlineClient,
     identity: &Identity,
     match_id: &str,
@@ -670,11 +684,11 @@ fn wait_for(
 ) -> Result<OnlineSnapshotResponse, String> {
     let started = Instant::now();
     while started.elapsed() < timeout {
-        let snapshot = client.snapshot(identity, match_id)?;
+        let snapshot = client.snapshot(identity, match_id).await?;
         if predicate(&snapshot) {
             return Ok(snapshot);
         }
-        thread::sleep(Duration::from_millis(20));
+        tokio::time::sleep(Duration::from_millis(20)).await;
     }
     Err(format!("online condition timed out after {timeout:?}"))
 }
@@ -824,7 +838,7 @@ fn selected_signature_ability_ready(
         })
 }
 
-fn clear_living_enemies(
+async fn clear_living_enemies(
     client: &OnlineClient,
     host: &Identity,
     guest: &Identity,
@@ -866,8 +880,9 @@ fn clear_living_enemies(
                 target: objective,
                 queued: false,
             },
-        )?;
-        attack_snapshot = client.snapshot(guest, match_id)?;
+        )
+        .await?;
+        attack_snapshot = client.snapshot(guest, match_id).await?;
     }
     let guest_units = controlled(&attack_snapshot, guest)?;
     if !guest_units.is_empty() {
@@ -882,7 +897,8 @@ fn clear_living_enemies(
                 target: objective,
                 queued: host_attack_issued,
             },
-        )?;
+        )
+        .await?;
     }
 
     let cleared = wait_for(client, host, match_id, phase_timeout(), |candidate| {
@@ -890,7 +906,8 @@ fn clear_living_enemies(
             || living_enemies
                 .iter()
                 .all(|enemy_id| !enemy_is_alive(&candidate.snapshot, enemy_id))
-    })?;
+    })
+    .await?;
     if cleared.snapshot["phase"] == "complete" {
         return Err(format!(
             "{command_prefix} reached terminal outcome {} before the wave cleared",
@@ -900,7 +917,7 @@ fn clear_living_enemies(
     Ok(cleared)
 }
 
-fn move_squad_to_objective(
+async fn move_squad_to_objective(
     client: &OnlineClient,
     identity: &Identity,
     units: Vec<String>,
@@ -923,7 +940,8 @@ fn move_squad_to_objective(
             target: movement.target,
             queued: false,
         },
-    )?;
+    )
+    .await?;
     let units = units.into_iter().collect::<std::collections::BTreeSet<_>>();
     let moved = wait_for(client, identity, match_id, phase_timeout(), |candidate| {
         candidate.snapshot["phase"] == "complete"
@@ -956,7 +974,8 @@ fn move_squad_to_objective(
                         arrived_count > 0
                     }
             })
-    })?;
+    })
+    .await?;
     if moved.snapshot["phase"] == "complete" {
         return Err(format!(
             "{command_prefix} reached terminal outcome {} before objective arrival",
@@ -966,7 +985,7 @@ fn move_squad_to_objective(
     Ok(moved)
 }
 
-fn move_largest_squad_to_objective<'a>(
+async fn move_largest_squad_to_objective<'a>(
     client: &OnlineClient,
     host: &'a Identity,
     guest: &'a Identity,
@@ -994,11 +1013,12 @@ fn move_largest_squad_to_objective<'a>(
             require_all_arrived: true,
         },
         command_prefix,
-    )?;
+    )
+    .await?;
     Ok((identity, moved))
 }
 
-fn move_largest_squad_to_objective_and_hold(
+async fn move_largest_squad_to_objective_and_hold(
     client: &OnlineClient,
     host: &Identity,
     guest: &Identity,
@@ -1015,7 +1035,8 @@ fn move_largest_squad_to_objective_and_hold(
         snapshot,
         objective,
         command_prefix,
-    )?;
+    )
+    .await?;
     let hold_units = controlled(&moved, capture_identity)?;
     if hold_units.is_empty() {
         return Err(format!("{command_prefix} objective squad died before hold"));
@@ -1031,14 +1052,16 @@ fn move_largest_squad_to_objective_and_hold(
             target: objective,
             queued: false,
         },
-    )?;
+    )
+    .await?;
     Ok(moved)
 }
 
-fn restart_server(base_url: &str) -> Result<(), String> {
+async fn restart_server(base_url: &str) -> Result<(), String> {
     let status = Command::new("systemctl")
         .args(["--user", "restart", "trnm-game-server.service"])
         .status()
+        .await
         .map_err(|error| format!("restart game server: {error}"))?;
     if !status.success() {
         return Err("systemd rejected game-server restart".to_string());
@@ -1055,22 +1078,23 @@ fn restart_server(base_url: &str) -> Result<(), String> {
                 base_url.trim_end_matches('/')
             ))
             .send()
+            .await
             .is_ok_and(|response| response.status().is_success())
         {
             return Ok(());
         }
-        thread::sleep(Duration::from_millis(100));
+        tokio::time::sleep(Duration::from_millis(100)).await;
     }
     Err("game server did not recover after restart".to_string())
 }
 
-fn run() -> Result<Value, String> {
+async fn run() -> Result<Value, String> {
     let base_url = std::env::var("TRNM_GAME_SERVER_URL")
         .unwrap_or_else(|_| "http://127.0.0.1:7005".to_string());
     let host = env_identity("TRNM_ONLINE_HOST")?;
     let guest = env_identity("TRNM_ONLINE_GUEST")?;
     let client = Arc::new(OnlineClient::new(base_url.clone())?);
-    let tick_interval_ms = client.tick_interval_ms()?;
+    let tick_interval_ms = client.tick_interval_ms().await?;
     let run_id = format!("online-e2e-{}", chrono::Utc::now().timestamp_millis());
     let slot_key = std::env::var("TRNM_ONLINE_SLOT_KEY").unwrap_or_else(|_| run_id.clone());
 
@@ -1084,7 +1108,8 @@ fn run() -> Result<Value, String> {
             account_id: host.account_id.clone(),
             slot_key: slot_key.clone(),
         },
-    )?;
+    )
+    .await?;
     let guest_campaign: OnlineCampaignView = client.post(
         &guest,
         "/v1/online/campaigns/connect",
@@ -1095,10 +1120,11 @@ fn run() -> Result<Value, String> {
             account_id: guest.account_id.clone(),
             slot_key,
         },
-    )?;
+    )
+    .await?;
     let (created, started, start_lost_response_retry_verified) =
         if let Ok(match_id) = std::env::var("TRNM_ONLINE_EXISTING_MATCH_ID") {
-            let snapshot = client.snapshot(&host, &match_id)?;
+            let snapshot = client.snapshot(&host, &match_id).await?;
             (snapshot.view.clone(), snapshot.view, false)
         } else {
             let created: OnlineMatchView = client.post_one_shot_non_idempotent(
@@ -1111,7 +1137,8 @@ fn run() -> Result<Value, String> {
                     map_id: "first_contact".to_string(),
                     expected_campaign_revision: campaign.campaign_revision,
                 },
-            )?;
+            )
+            .await?;
             let _: OnlineMatchView = client.post_one_shot_non_idempotent(
                 &guest,
                 "/v1/online/matches/join",
@@ -1123,7 +1150,8 @@ fn run() -> Result<Value, String> {
                     campaign_id: guest_campaign.campaign_id.clone(),
                     join_code: created.join_code.clone(),
                 },
-            )?;
+            )
+            .await?;
             let started = client.start_with_lost_response_retry(
                 &host,
                 &created.match_id,
@@ -1134,14 +1162,15 @@ fn run() -> Result<Value, String> {
                     account_id: host.account_id.clone(),
                     expected_match_revision: 0,
                 },
-            )?;
+            )
+            .await?;
             (created, started, true)
         };
     if started.phase != OnlineMatchPhase::Running || started.members.len() != 2 {
         return Err("two-client match did not enter running phase".to_string());
     }
-    let initial = client.snapshot(&host, &created.match_id)?;
-    let initial_guest = client.snapshot(&guest, &created.match_id)?;
+    let initial = client.snapshot(&host, &created.match_id).await?;
+    let initial_guest = client.snapshot(&guest, &created.match_id).await?;
     if initial.view.match_revision != initial_guest.view.match_revision {
         return Err("initial two-player snapshots did not share one match revision".to_string());
     }
@@ -1151,8 +1180,12 @@ fn run() -> Result<Value, String> {
     let objective = point(&initial, "objective")?;
     let host_units = controlled(&initial, &host)?;
     let guest_units = controlled(&initial_guest, &guest)?;
+    // Only the legacy tungstenite smoke path is synchronous. Keep its work
+    // outside Tokio scheduler workers; the HTTP and race paths stay async.
     let (mut state_stream, mut state_stream_cursor, streamed_initial_sequence) =
-        connect_stream_smoke(&client, &host, &created.match_id, &initial)?;
+        tokio::task::block_in_place(|| {
+            connect_stream_smoke(&client, &host, &created.match_id, &initial)
+        })?;
     if streamed_initial_sequence != initial.view.next_sequence {
         return Err(
             "state stream initial total-order cursor diverged from HTTP snapshot".to_string(),
@@ -1167,7 +1200,7 @@ fn run() -> Result<Value, String> {
         let snapshot = initial.clone();
         let command_id = format!("{run_id}-host-move");
         let subjects = host_units.clone();
-        thread::spawn(move || {
+        tokio::spawn(async move {
             client.submit(
                 &host,
                 &match_id,
@@ -1180,6 +1213,7 @@ fn run() -> Result<Value, String> {
                     queued: true,
                 },
             )
+            .await
         })
     };
     let guest_submit = {
@@ -1189,7 +1223,7 @@ fn run() -> Result<Value, String> {
         let snapshot = initial_guest;
         let command_id = format!("{run_id}-guest-concurrent-move");
         let subjects = guest_units.clone();
-        thread::spawn(move || {
+        tokio::spawn(async move {
             client.submit(
                 &guest,
                 &match_id,
@@ -1202,13 +1236,14 @@ fn run() -> Result<Value, String> {
                     queued: true,
                 },
             )
+            .await
         })
     };
     let (first, first_request) = host_submit
-        .join()
+        .await
         .map_err(|_| "host concurrent submit panicked".to_string())??;
     let (guest_concurrent, _) = guest_submit
-        .join()
+        .await
         .map_err(|_| "guest concurrent submit panicked".to_string())??;
     let mut total_orders = [first.sequence, guest_concurrent.sequence];
     total_orders.sort_unstable();
@@ -1218,12 +1253,14 @@ fn run() -> Result<Value, String> {
     {
         return Err("two-player concurrent input did not receive independent input cursors and contiguous server total order".to_string());
     }
-    wait_for_stream_total_order(
-        &mut state_stream,
-        &mut state_stream_cursor,
-        &created.match_id,
-        total_orders[1].saturating_add(1),
-    )?;
+    tokio::task::block_in_place(|| {
+        wait_for_stream_total_order(
+            &mut state_stream,
+            &mut state_stream_cursor,
+            &created.match_id,
+            total_orders[1].saturating_add(1),
+        )
+    })?;
     let websocket_authoritative_effect_ms =
         u64::try_from(websocket_authoritative_effect_started.elapsed().as_millis())
             .unwrap_or(u64::MAX);
@@ -1237,7 +1274,7 @@ fn run() -> Result<Value, String> {
     for sample in 0..websocket_authoritative_effect_sample_count {
         let effect_identity = &host;
         let effect_units = &host_units;
-        let effect_snapshot = client.snapshot(effect_identity, &created.match_id)?;
+        let effect_snapshot = client.snapshot(effect_identity, &created.match_id).await?;
         let effect_started = Instant::now();
         let (receipt, _) = client.submit(
             effect_identity,
@@ -1250,13 +1287,16 @@ fn run() -> Result<Value, String> {
                 target: approach,
                 queued: false,
             },
-        )?;
-        wait_for_stream_total_order(
-            &mut state_stream,
-            &mut state_stream_cursor,
-            &created.match_id,
-            receipt.sequence.saturating_add(1),
-        )?;
+        )
+        .await?;
+        tokio::task::block_in_place(|| {
+            wait_for_stream_total_order(
+                &mut state_stream,
+                &mut state_stream_cursor,
+                &created.match_id,
+                receipt.sequence.saturating_add(1),
+            )
+        })?;
         websocket_authoritative_effect_samples_ms
             .push(u64::try_from(effect_started.elapsed().as_millis()).unwrap_or(u64::MAX));
     }
@@ -1281,16 +1321,16 @@ fn run() -> Result<Value, String> {
             ));
         }
     }
-    let _ = state_stream.close(None);
+    let _ = tokio::task::block_in_place(|| state_stream.close(None));
     let reconnect_command_race_rounds = 32_u64;
     let reconnect_command_race_pipeline_depth = 4_usize;
     let reconnect_cursor = 0_u64;
     let reconnect_hash = "stale-race-snapshot".to_string();
     let mut reconnect_threads = Vec::with_capacity(reconnect_command_race_pipeline_depth);
     let validate_reconnect =
-        |reconnect_thread: thread::JoinHandle<Result<OnlineReconnectResponse, String>>| {
+        |reconnect_thread: tokio::task::JoinHandle<Result<OnlineReconnectResponse, String>>| async move {
             let raced_reconnect = reconnect_thread
-                .join()
+                .await
                 .map_err(|_| "reconnect race request panicked".to_string())??;
             if raced_reconnect.next_receipt_sequence < reconnect_cursor
                 || raced_reconnect.view.next_sequence < raced_reconnect.next_receipt_sequence
@@ -1304,15 +1344,15 @@ fn run() -> Result<Value, String> {
     for round in 0..reconnect_command_race_rounds {
         let command_identity = host.clone();
         let subjects = host_units.clone();
-        let command_snapshot = client.snapshot(&command_identity, &created.match_id)?;
+        let command_snapshot = client.snapshot(&command_identity, &created.match_id).await?;
         let barrier = Arc::new(Barrier::new(2));
         let race_command_id = format!("{run_id}-reconnect-race-{round}");
         let command_thread = {
             let client = Arc::clone(&client);
             let match_id = created.match_id.clone();
             let barrier = Arc::clone(&barrier);
-            thread::spawn(move || {
-                barrier.wait();
+            tokio::spawn(async move {
+                barrier.wait().await;
                 client.submit(
                     &command_identity,
                     &match_id,
@@ -1325,6 +1365,7 @@ fn run() -> Result<Value, String> {
                         queued: false,
                     },
                 )
+                .await
             })
         };
         let reconnect_thread = {
@@ -1333,32 +1374,34 @@ fn run() -> Result<Value, String> {
             let match_id = created.match_id.clone();
             let barrier = Arc::clone(&barrier);
             let last_snapshot_hash = reconnect_hash.clone();
-            thread::spawn(move || {
-                barrier.wait();
+            tokio::spawn(async move {
+                barrier.wait().await;
                 client.reconnect(
                     &reconnect_identity,
                     &match_id,
                     reconnect_cursor,
                     last_snapshot_hash,
                 )
+                .await
             })
         };
         command_thread
-            .join()
+            .await
             .map_err(|_| "reconnect race command panicked".to_string())??;
         reconnect_threads.push(reconnect_thread);
         if reconnect_threads.len() >= reconnect_command_race_pipeline_depth {
-            validate_reconnect(reconnect_threads.remove(0))?;
+            validate_reconnect(reconnect_threads.remove(0)).await?;
         }
     }
     for reconnect_thread in reconnect_threads {
-        validate_reconnect(reconnect_thread)?;
+        validate_reconnect(reconnect_thread).await?;
     }
     let duplicate: OnlineCommandReceipt = client.post(
         &host,
         &format!("/v1/online/matches/{}/commands", created.match_id),
         &first_request,
-    )?;
+    )
+    .await?;
     if !duplicate.duplicate
         || duplicate.sequence != first.sequence
         || duplicate.input_sequence != first.input_sequence
@@ -1371,7 +1414,8 @@ fn run() -> Result<Value, String> {
         &host,
         &format!("/v1/online/matches/{}/commands", created.match_id),
         &tampered_duplicate,
-    )?;
+    )
+    .await?;
     if status != 409 {
         return Err(format!(
             "tampered duplicate returned HTTP {status}, expected 409"
@@ -1385,13 +1429,14 @@ fn run() -> Result<Value, String> {
         &host,
         &format!("/v1/online/matches/{}/commands", created.match_id),
         &skipped,
-    )?;
+    )
+    .await?;
     if status != 409 {
         return Err(format!(
             "input sequence skip returned HTTP {status}, expected 409"
         ));
     }
-    let after_first = client.snapshot(&guest, &created.match_id)?;
+    let after_first = client.snapshot(&guest, &created.match_id).await?;
     let mut theft = skipped;
     theft.player_id = guest.player_id.clone();
     theft.account_id = guest.account_id.clone();
@@ -1413,7 +1458,8 @@ fn run() -> Result<Value, String> {
         &guest,
         &format!("/v1/online/matches/{}/commands", created.match_id),
         &theft,
-    )?;
+    )
+    .await?;
     if status != 403 {
         return Err(format!(
             "control theft returned HTTP {status}, expected 403"
@@ -1426,12 +1472,13 @@ fn run() -> Result<Value, String> {
         &guest,
         &format!("/v1/online/matches/{}/commands", created.match_id),
         &old_build,
-    )?;
+    )
+    .await?;
     if status != 426 {
         return Err(format!("old build returned HTTP {status}, expected 426"));
     }
 
-    let before_restart = client.snapshot(&host, &created.match_id)?;
+    let before_restart = client.snapshot(&host, &created.match_id).await?;
     let order_count_before = before_restart.snapshot["order_count"]
         .as_u64()
         .unwrap_or_default();
@@ -1439,14 +1486,15 @@ fn run() -> Result<Value, String> {
         .map(|value| value != "0")
         .unwrap_or(true);
     if restart_recovery {
-        restart_server(&base_url)?;
+        restart_server(&base_url).await?;
     }
     let reconnected = client.reconnect(
         &guest,
         &created.match_id,
         0,
         "stale-client-snapshot".to_string(),
-    )?;
+    )
+    .await?;
     if reconnected.reconnect_count < reconnect_command_race_rounds.saturating_add(1)
         || !reconnected.full_snapshot_required
         || reconnected.replayed_commands.len() != before_restart.view.next_sequence as usize
@@ -1478,7 +1526,8 @@ fn run() -> Result<Value, String> {
         &created.match_id,
         phase_timeout(),
         |snapshot| snapshot.snapshot["phase"] == "contact",
-    )?;
+    )
+    .await?;
     let host_relay_units = controlled(&contact, &host)?;
     let host_relay_units = host_relay_units
         .into_iter()
@@ -1518,7 +1567,8 @@ fn run() -> Result<Value, String> {
                 .count();
             living_count < host_relay_count || arrived_count == host_relay_count
         },
-    )?;
+    )
+    .await?;
     if host_ready.snapshot["phase"] == "complete"
         || living_selected_count(&host_ready.snapshot, &host_relay_units) < host_relay_count
     {
@@ -1527,7 +1577,7 @@ fn run() -> Result<Value, String> {
             host_ready.snapshot["outcome"]
         ));
     }
-    let guest_ready = client.snapshot(&guest, &created.match_id)?;
+    let guest_ready = client.snapshot(&guest, &created.match_id).await?;
     let _ = client.submit(
         &guest,
         &created.match_id,
@@ -1539,11 +1589,12 @@ fn run() -> Result<Value, String> {
             target: objective,
             queued: false,
         },
-    )?;
+    )
+    .await?;
     // The mission actor accepts a primary order plus queued co-op subjects.
     // Keep both authority partitions active: the unqueued host order starts
     // the assault and the queued guest order joins it without replacing it.
-    let relay_attack = client.snapshot(&host, &created.match_id)?;
+    let relay_attack = client.snapshot(&host, &created.match_id).await?;
     let host_relay_attack_units = controlled(&relay_attack, &host)?;
     let initial_guest_relay_attack_units = controlled(&relay_attack, &guest)?;
     if host_relay_attack_units.is_empty() && initial_guest_relay_attack_units.is_empty() {
@@ -1563,8 +1614,9 @@ fn run() -> Result<Value, String> {
                 target: objective,
                 queued: false,
             },
-        )?;
-        guest_relay_snapshot = client.snapshot(&guest, &created.match_id)?;
+        )
+        .await?;
+        guest_relay_snapshot = client.snapshot(&guest, &created.match_id).await?;
     }
     let guest_relay_attack_units = controlled(&guest_relay_snapshot, &guest)?;
     if !guest_relay_attack_units.is_empty() {
@@ -1579,7 +1631,8 @@ fn run() -> Result<Value, String> {
                 target: objective,
                 queued: host_relay_attack_issued,
             },
-        )?;
+        )
+        .await?;
     }
     let relay = wait_for(
         &client,
@@ -1591,7 +1644,8 @@ fn run() -> Result<Value, String> {
                 || (snapshot.snapshot["phase"] == "relay"
                     && snapshot.snapshot["relay_guard_hp"].as_i64().unwrap_or(1) <= 0)
         },
-    )?;
+    )
+    .await?;
     if relay.snapshot["phase"] == "complete" {
         return Err(format!(
             "relay assault reached terminal outcome {}",
@@ -1606,7 +1660,8 @@ fn run() -> Result<Value, String> {
         &relay,
         objective,
         &format!("{run_id}-relay-capture"),
-    )?;
+    )
+    .await?;
 
     for wave in 1..=2u64 {
         let wave_snapshot = wait_for(
@@ -1621,7 +1676,8 @@ fn run() -> Result<Value, String> {
                         .unwrap_or_default()
                         >= wave
             },
-        )?;
+        )
+        .await?;
         if wave_snapshot.snapshot["phase"] == "complete" {
             return Err(format!(
                 "wave {wave} did not spawn before terminal outcome {}",
@@ -1654,9 +1710,10 @@ fn run() -> Result<Value, String> {
                     target: objective,
                     queued: false,
                 },
-            )?;
+            )
+            .await?;
         }
-        let wave_snapshot = client.snapshot(&host, &created.match_id)?;
+        let wave_snapshot = client.snapshot(&host, &created.match_id).await?;
         let cleared = clear_living_enemies(
             &client,
             &host,
@@ -1665,7 +1722,8 @@ fn run() -> Result<Value, String> {
             wave_snapshot,
             objective,
             &format!("{run_id}-wave-{wave}"),
-        )?;
+        )
+        .await?;
         // Capture progress advances by at most two selected holders per tick.
         // In co-op the surviving holders can be split across members, so
         // always moving the host can leave only one selected unit on the
@@ -1681,7 +1739,8 @@ fn run() -> Result<Value, String> {
             &cleared,
             objective,
             &format!("{run_id}-wave-{wave}-capture"),
-        )?;
+        )
+        .await?;
     }
 
     // Keep the client-observed terminal skew as diagnostic evidence. It includes
@@ -1695,7 +1754,8 @@ fn run() -> Result<Value, String> {
         &created.match_id,
         completion_timeout(),
         |snapshot| snapshot.snapshot["phase"] == "complete",
-    )?;
+    )
+    .await?;
     let match_wall_elapsed_ms =
         u64::try_from(match_clock_started.elapsed().as_millis()).unwrap_or(u64::MAX);
     let observed_match_ticks = terminal
@@ -1718,13 +1778,15 @@ fn run() -> Result<Value, String> {
                 snapshot.view.phase == OnlineMatchPhase::Complete
                     && snapshot.view.settlement_state == "settled"
             },
-        )?
+        )
+        .await?
     };
     let terminal_duplicate: OnlineCommandReceipt = client.post(
         &host,
         &format!("/v1/online/matches/{}/commands", created.match_id),
         &first_request,
-    )?;
+    )
+    .await?;
     if !terminal_duplicate.duplicate || terminal_duplicate.sequence != first.sequence {
         return Err("terminal exact duplicate did not return the durable receipt".to_string());
     }
@@ -1806,8 +1868,9 @@ fn run() -> Result<Value, String> {
     }))
 }
 
-fn main() {
-    match run() {
+#[tokio::main(flavor = "multi_thread", worker_threads = 2)]
+async fn main() {
+    match run().await {
         Ok(report) => println!("{}", serde_json::to_string_pretty(&report).unwrap()),
         Err(error) => {
             eprintln!("TRNM Online Authority E2E failed: {error}");
@@ -1917,3 +1980,7 @@ mod tests {
         ));
     }
 }
+
+#[cfg(test)]
+#[path = "online_e2e/async_http_tests.rs"]
+mod async_http_tests;

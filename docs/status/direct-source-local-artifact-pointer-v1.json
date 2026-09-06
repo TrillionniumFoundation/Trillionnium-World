@@ -1,0 +1,9 @@
+{
+  "contract": "trnm_world_direct_source_local_artifact_pointer_v1",
+  "candidate_pr": 39,
+  "source_branch": "fix/world-plan-v4-convergence-2026-08-30",
+  "materialized_artifact": "trnm-world-materialized-tree.zip",
+  "release_credit": "none",
+  "status": "transport_pending",
+  "note": "This pointer never substitutes for ordinary source committed to the candidate head or exact-head CI."
+}

@@ -1,0 +1,42 @@
+{
+  "schema": "trnm_world_exact_head_local_qualification_v2",
+  "recorded_on": "2026-09-04",
+  "corrected_on": "2026-09-04",
+  "repository": "TrillionniumFoundation/Trillionnium-World",
+  "pull_request": 46,
+  "branch": "fix/world-plan-v4-development-closure-20260831",
+  "observed_remote_head": "9b73b0365f116089bc24f648f4620709aded8f6a",
+  "evidence_class": "single_host_local_engineering",
+  "result": "invalidated_by_remote_source_readback",
+  "direct_source_readback": {
+    "semantic_build_rs_present": true,
+    "semantic_lib_rs_in_present": true,
+    "lib_rs_includes_out_dir_generated_source": true,
+    "qualified_tree_present_in_world_object_database": false,
+    "source_publication_status": "open"
+  },
+  "withdrawn_claims": [
+    "semantic_build_rs_absent",
+    "semantic_lib_rs_in_absent",
+    "ordinary_direct_lib_rs_is_the_effective_compiled_server_body",
+    "premerge_validated_tree_equals_remote_branch_tree"
+  ],
+  "correction_reason": "The prior record described an isolated local reconstruction rather than the remotely reviewable PR source object. Fresh GitHub read-back of the recorded head shows build.rs and src/lib.rs.in present, while src/lib.rs still includes generated OUT_DIR source. Local reconstruction or test output cannot transfer source-publication credit to a different Git object.",
+  "locally_reported_checks": {
+    "disposition": "not_accepted_as_exact_head_or_source_publication_evidence",
+    "reason": "The reported checks were not bound to the remotely readable PR tree and have no non-empty GitHub runner, job, step, log and retained-artifact packet on the exact PR head."
+  },
+  "repository_hygiene": {
+    "probe_cleanup_observed": true,
+    "source_publication_observed": false
+  },
+  "required_next_evidence": [
+    "publish the exact 73 qualified writes and two deletions as ordinary GitHub-reviewable World source",
+    "verify every imported byte and the reconstructed qualified tree by remote read-back",
+    "freeze the resulting PR head and prospective merge object",
+    "obtain non-empty exact-head Rust 1.98, PostgreSQL, transition, package, source-boundary and supply-chain runs",
+    "obtain fresh independent approval after all checks settle"
+  ],
+  "hosted_exact_head_qualification": "blocked_pending_non_empty_runner_job_step_log_and_artifact_evidence",
+  "production_authorization": "not_granted"
+}

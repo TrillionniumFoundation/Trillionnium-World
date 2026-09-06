@@ -1,0 +1,402 @@
+name: trnm-world-gap-closure-v4
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+      - fix/world-plan-v4-development-closure-20260831
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trnm-world-v4-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: never
+  CARGO_INCREMENTAL: "0"
+  RUST_BACKTRACE: "1"
+  RUST_TEST_THREADS: "1"
+  RUST_TOOLCHAIN: "1.98.0"
+  RUSTUP_TOOLCHAIN: "1.98.0"
+
+jobs:
+  docs-governance:
+    name: trnm-world-v4/docs-governance
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout exact revision without retained credentials
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - name: Bind checkout to event role and exact Git parents
+        shell: bash
+        working-directory: .
+        run: |
+          set -euo pipefail
+          python3 scripts/check-trnm-world-ci-target.py --role event --root . \
+            | tee "${RUNNER_TEMP}/trnm-ci-target-${GITHUB_JOB}.json"
+      - name: Test event target binding and workflow regressions
+        working-directory: .
+        run: |
+          python3 scripts/test-trnm-world-ci-target.py
+          python3 scripts/test-trnm-world-ci-integrity.py
+      - name: Parse current machine truth
+        run: |
+          set -euo pipefail
+          python3 -m py_compile \
+            scripts/check-trnm-world-ci-integrity.py \
+            scripts/check-trnm-world-transition-conformance.py \
+            scripts/check-world-main-governance.py \
+            scripts/check-trnm-settlement-runtime-status.py \
+            scripts/test-trnm-settlement-runtime-status-negative.py \
+            scripts/check-trnm-world-gates.py \
+            scripts/test-trnm-world-gates-negative.py
+          python3 -m json.tool docs/development/trillionnium-world-development-plan-2026-08-29.json >/dev/null
+          python3 -m json.tool docs/development/trnm-world-gap-closure-ledger-v4.json >/dev/null
+          python3 -m json.tool docs/protocol/schemas/trnm-world-transition-v1.schema.json >/dev/null
+          python3 -m json.tool docs/protocol/vectors/trnm-world-transition-v1.json >/dev/null
+          python3 -m json.tool docs/protocol/vectors/trnm-world-transition-negative-v1.json >/dev/null
+          python3 -m json.tool docs/status/world-gates-v1.json >/dev/null
+          python3 -m json.tool docs/status/settlement-runtime-v1.json >/dev/null
+          python3 -m json.tool docs/status/world-main-governance-v1.json >/dev/null
+      - name: Enforce read-only pinned CI
+        run: python3 scripts/check-trnm-world-ci-integrity.py
+      - name: Verify independent transition conformance
+        run: python3 scripts/check-trnm-world-transition-conformance.py
+      - name: Verify governance and evidence posture
+        run: |
+          set -euo pipefail
+          python3 scripts/check-world-main-governance.py
+          python3 scripts/check-trnm-settlement-runtime-status.py
+          python3 scripts/test-trnm-settlement-runtime-status-negative.py
+          python3 scripts/check-trnm-world-gates.py
+          python3 scripts/test-trnm-world-gates-negative.py
+      - name: Verify authority, runtime, and settlement source boundaries
+        run: |
+          set -euo pipefail
+          bash scripts/check-trnm-world-authority-boundary.sh
+          bash scripts/test-trnm-world-authority-boundary-negative.sh
+          bash scripts/check_trnm_runtime_configuration.sh
+          bash scripts/check-trnm-settlement-transaction-boundary.sh
+          bash scripts/check_trnm_settlement_transaction_boundary.sh
+      - name: Assemble docs evidence identity
+        if: always()
+        run: |
+          set -euo pipefail
+          mkdir -p run/v4-docs-evidence
+          printf '%s\n' \
+            "head=$(git rev-parse HEAD)" \
+            "tree=$(git rev-parse 'HEAD^{tree}')" \
+            "workflow=${GITHUB_WORKFLOW}" \
+            "run_id=${GITHUB_RUN_ID}" \
+            > run/v4-docs-evidence/identity.txt
+          find run/v4-docs-evidence -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > run/v4-docs-evidence/SHA256SUMS
+      - name: Upload docs evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: trnm-world-v4-docs-${{ github.sha }}
+          path: run/v4-docs-evidence/**
+          if-no-files-found: error
+          retention-days: 30
+      - name: Upload event-bound target identity
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: trnm-target-${{ github.workflow }}-${{ github.job }}-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/trnm-ci-target-${{ github.job }}.json
+          if-no-files-found: error
+          retention-days: 30
+
+  transition-contract:
+    name: trnm-world-v4/transition-contract
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout exact revision without retained credentials
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+          ref: ${{ github.sha }}
+      - name: Bind checkout to event role and exact Git parents
+        shell: bash
+        working-directory: .
+        run: |
+          set -euo pipefail
+          python3 scripts/check-trnm-world-ci-target.py --role event --root . \
+            | tee "${RUNNER_TEMP}/trnm-ci-target-${GITHUB_JOB}.json"
+      - name: Install pinned Rust toolchain
+        run: |
+          set -euo pipefail
+          rustup toolchain install "${RUST_TOOLCHAIN}" --profile minimal --component rustfmt,clippy
+          rustup default "${RUST_TOOLCHAIN}"
+          rustc --version --verbose
+          cargo --version --verbose
+      - name: Validate independent vectors
+        run: python3 scripts/check-trnm-world-transition-conformance.py
+      - name: Resolve, format, test, and lint contract
+        run: |
+          set -euo pipefail
+          manifest=trillionnium/contracts/trnm-world-transition-v1/Cargo.toml
+          cargo metadata --manifest-path "$manifest" --locked --no-deps --format-version 1 >/dev/null
+          cargo fmt --manifest-path "$manifest" -- --check
+          cargo test --manifest-path "$manifest" --locked
+          cargo clippy --manifest-path "$manifest" --locked -- -D warnings
+      - name: Assemble transition evidence identity
+        if: always()
+        run: |
+          set -euo pipefail
+          mkdir -p run/v4-transition-evidence
+          printf '%s\n' \
+            "head=$(git rev-parse HEAD)" \
+            "tree=$(git rev-parse 'HEAD^{tree}')" \
+            "rustc=$(rustc --version 2>/dev/null || true)" \
+            "contract=trnm_world_transition_v1" \
+            > run/v4-transition-evidence/identity.txt
+          sha256sum \
+            docs/protocol/schemas/trnm-world-transition-v1.schema.json \
+            docs/protocol/vectors/trnm-world-transition-v1.json \
+            docs/protocol/vectors/trnm-world-transition-negative-v1.json \
+            > run/v4-transition-evidence/contract-SHA256SUMS
+      - name: Upload transition evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: trnm-world-v4-transition-${{ github.sha }}
+          path: run/v4-transition-evidence/**
+          if-no-files-found: error
+          retention-days: 30
+      - name: Upload event-bound target identity
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: trnm-target-${{ github.workflow }}-${{ github.job }}-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/trnm-ci-target-${{ github.job }}.json
+          if-no-files-found: error
+          retention-days: 30
+
+  settlement-postgres:
+    name: trnm-world-v4/settlement-postgres
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    services:
+      postgres:
+        image: postgres:16.4-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: world_settlement
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d world_settlement"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      TRNM_SETTLEMENT_TEST_DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/world_settlement
+      TRNM_REQUIRE_SETTLEMENT_DATABASE_TEST: "1"
+    defaults:
+      run:
+        working-directory: trillionnium
+    steps:
+      - name: Checkout exact revision without retained credentials
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+          ref: ${{ github.sha }}
+      - name: Bind checkout to event role and exact Git parents
+        shell: bash
+        working-directory: .
+        run: |
+          set -euo pipefail
+          python3 scripts/check-trnm-world-ci-target.py --role event --root . \
+            | tee "${RUNNER_TEMP}/trnm-ci-target-${GITHUB_JOB}.json"
+      - name: Install pinned Rust toolchain
+        run: |
+          set -euo pipefail
+          rustup toolchain install "${RUST_TOOLCHAIN}" --profile minimal --component rustfmt,clippy
+          rustup default "${RUST_TOOLCHAIN}"
+          rustc --version --verbose
+          cargo --version --verbose
+      - name: Resolve and format game-server package
+        run: |
+          set -euo pipefail
+          cargo metadata --locked --no-deps --format-version 1 >/dev/null
+          cargo fmt -p trnm-game-server -- --check
+      - name: Run complete game-server target matrix
+        run: cargo test -p trnm-game-server --all-targets --locked
+      - name: Enforce strict all-target lint
+        run: cargo clippy -p trnm-game-server --all-targets --locked -- -D warnings
+      - name: Assemble settlement evidence identity
+        if: always()
+        working-directory: .
+        run: |
+          set -euo pipefail
+          mkdir -p run/v4-settlement-evidence
+          printf '%s\n' \
+            "head=$(git rev-parse HEAD)" \
+            "tree=$(git rev-parse 'HEAD^{tree}')" \
+            "rustc=$(rustc --version 2>/dev/null || true)" \
+            "postgres_image=postgres:16.4-alpine" \
+            "migration=0019_online_settlement_quarantine_v1" \
+            > run/v4-settlement-evidence/identity.txt
+          sha256sum trillionnium/crates/trnm-game-server/migrations/001{6,7,8,9}_*.sql > run/v4-settlement-evidence/migration-SHA256SUMS
+      - name: Upload settlement evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: trnm-world-v4-settlement-${{ github.sha }}
+          path: run/v4-settlement-evidence/**
+          if-no-files-found: error
+          retention-days: 30
+      - name: Upload event-bound target identity
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: trnm-target-${{ github.workflow }}-${{ github.job }}-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/trnm-ci-target-${{ github.job }}.json
+          if-no-files-found: error
+          retention-days: 30
+
+  game-workspace-release:
+    name: trnm-world-v4/game-workspace-release
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    defaults:
+      run:
+        working-directory: trillionnium
+    steps:
+      - name: Checkout exact revision without retained credentials
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - name: Bind checkout to event role and exact Git parents
+        shell: bash
+        working-directory: .
+        run: |
+          set -euo pipefail
+          python3 scripts/check-trnm-world-ci-target.py --role event --root . \
+            | tee "${RUNNER_TEMP}/trnm-ci-target-${GITHUB_JOB}.json"
+      - name: Install native build dependencies
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends jq libasound2-dev libudev-dev libx11-dev libxi-dev libxkbcommon-dev libwayland-dev pkg-config
+      - name: Install pinned Rust toolchain
+        run: |
+          set -euo pipefail
+          rustup toolchain install "${RUST_TOOLCHAIN}" --profile minimal --component rustfmt,clippy
+          rustup default "${RUST_TOOLCHAIN}"
+          rustc --version --verbose
+          cargo --version --verbose
+      - name: Verify product and repository boundaries
+        run: |
+          set -euo pipefail
+          ../scripts/check_trnm_game_product.sh
+          ../scripts/check_trnm_authority_boundary.sh
+          ../scripts/check_trnm_runtime_configuration.sh
+          ../scripts/check-trnm-online-resource-budgets.sh
+      - name: Resolve, format, test, and lint workspace
+        run: |
+          set -euo pipefail
+          cargo metadata --locked --no-deps --format-version 1 >/dev/null
+          cargo fmt --all -- --check
+          cargo test --workspace --all-targets --locked
+          cargo clippy --workspace --all-targets --locked -- -D warnings
+      - name: Build complete release binaries
+        run: cargo build --release --locked -p trnm-first-contact -p trnm-game-server --bins
+      - name: Package and verify Linux distribution
+        run: |
+          set -euo pipefail
+          ../scripts/package-trnm-game-release.sh --require-clean --output-dir ../run/ci-distribution
+          archive="$(find ../run/ci-distribution -maxdepth 1 -type f -name '*.tar.gz' -print -quit)"
+          test -n "$archive"
+          TRNM_REQUIRE_CLEAN_PACKAGE=1 ../scripts/check-trnm-game-package.sh "$archive"
+      - name: Upload complete release artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: trnm-world-v4-release-${{ github.sha }}
+          path: run/ci-distribution/**
+          if-no-files-found: error
+          retention-days: 30
+      - name: Upload event-bound target identity
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: trnm-target-${{ github.workflow }}-${{ github.job }}-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/trnm-ci-target-${{ github.job }}.json
+          if-no-files-found: error
+          retention-days: 30
+
+  supply-chain:
+    name: trnm-world-v4/supply-chain
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: trillionnium
+    steps:
+      - name: Checkout exact revision without retained credentials
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+          ref: ${{ github.sha }}
+      - name: Bind checkout to event role and exact Git parents
+        shell: bash
+        working-directory: .
+        run: |
+          set -euo pipefail
+          python3 scripts/check-trnm-world-ci-target.py --role event --root . \
+            | tee "${RUNNER_TEMP}/trnm-ci-target-${GITHUB_JOB}.json"
+      - name: Install pinned Rust toolchain
+        run: |
+          set -euo pipefail
+          rustup toolchain install "${RUST_TOOLCHAIN}" --profile minimal
+          rustup default "${RUST_TOOLCHAIN}"
+      - name: Install pinned supply-chain tools action
+        uses: taiki-e/install-action@742a3317eac7bd62f91cd888b4eead5e784ba833
+        with:
+          tool: cargo-audit,cargo-deny
+      - name: Enforce RustSec and dependency policy
+        run: |
+          set -euo pipefail
+          cargo audit --deny warnings --ignore RUSTSEC-2026-0192
+          cargo deny check advisories bans licenses sources
+      - name: Preserve supply-chain reports
+        if: always()
+        run: |
+          set -euo pipefail
+          mkdir -p ../run/v4-supply-chain
+          cargo audit --json --ignore RUSTSEC-2026-0192 > ../run/v4-supply-chain/cargo-audit.json || true
+          cargo deny --format json check advisories bans licenses sources > ../run/v4-supply-chain/cargo-deny.json || true
+          printf '%s\n' \
+            "head=$(git rev-parse HEAD)" \
+            "tree=$(git rev-parse 'HEAD^{tree}')" \
+            "rustc=$(rustc --version 2>/dev/null || true)" \
+            > ../run/v4-supply-chain/identity.txt
+      - name: Upload supply-chain evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: trnm-world-v4-supply-chain-${{ github.sha }}
+          path: run/v4-supply-chain/**
+          if-no-files-found: error
+          retention-days: 30
+      - name: Upload event-bound target identity
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: trnm-target-${{ github.workflow }}-${{ github.job }}-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/trnm-ci-target-${{ github.job }}.json
+          if-no-files-found: error
+          retention-days: 30
+

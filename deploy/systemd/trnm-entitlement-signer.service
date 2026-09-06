@@ -7,12 +7,16 @@ StartLimitBurst=5
 
 [Service]
 Type=simple
-WorkingDirectory=/home/qian/.openclaw/workspace/Trillionnium
-ExecStart=/home/qian/.openclaw/workspace/Trillionnium/scripts/run-trnm-entitlement-signer.sh
+Environment=TRNM_WORLD_ROOT=@TRNM_WORLD_ROOT@
+Environment=TRNM_STATE_HOME=@TRNM_STATE_HOME@
+EnvironmentFile=@TRNM_CONFIG_HOME@/entitlement-signer.env
+WorkingDirectory=@TRNM_WORLD_ROOT@
+ExecStart=@TRNM_WORLD_ROOT@/scripts/run-trnm-entitlement-signer.sh
 Restart=on-failure
 RestartSec=5
 TimeoutStartSec=30
 TimeoutStopSec=30
+UMask=0077
 CPUAccounting=true
 CPUWeight=100
 CPUQuota=50%
@@ -27,9 +31,15 @@ TasksAccounting=true
 TasksMax=128
 NoNewPrivileges=true
 PrivateTmp=true
+PrivateDevices=true
 ProtectHome=read-only
 ProtectSystem=strict
-ReadWritePaths=/home/qian/.openclaw/workspace/Trillionnium/run
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+LockPersonality=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+ReadWritePaths=@TRNM_STATE_HOME@ @TRNM_WORLD_ROOT@/run
 
 [Install]
 WantedBy=default.target

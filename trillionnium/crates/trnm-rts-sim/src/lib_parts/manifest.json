@@ -1,0 +1,92 @@
+{
+  "crate": "trnm-rts-sim",
+  "max_impl_bytes": 32000,
+  "max_part_bytes": 60000,
+  "nested_test_parts": [
+    {
+      "bytes": 27290,
+      "path": "lib_parts/tests/rts_tests_01.rs",
+      "section": "tests",
+      "sha256": "888b97f09daee1796b5dae5642d2bc543e67b1bddb7b9ad7ba8e93b742f02c43"
+    },
+    {
+      "bytes": 27514,
+      "path": "lib_parts/tests/rts_tests_02.rs",
+      "section": "tests",
+      "sha256": "6ff8e9b6a91803773a15c527d50cabede8acf5750424053e4f0195d656cf4a69"
+    },
+    {
+      "bytes": 11472,
+      "path": "lib_parts/tests/rts_tests_03.rs",
+      "section": "tests",
+      "sha256": "4c17f15c9d09169d6e4c600ec82152945204253ea2278e42165cff7ebd0b9e59"
+    }
+  ],
+  "parts": [
+    {
+      "bytes": 32514,
+      "path": "lib_parts/contracts_and_primitives/part_01.rs",
+      "section": "contracts_and_primitives",
+      "sha256": "234eac99bb8ffb67b1d13182512dc61aad61fe8f97f633ee392f57b3f018e176"
+    },
+    {
+      "bytes": 31565,
+      "path": "lib_parts/mission_runtime/part_01.rs",
+      "section": "mission_runtime",
+      "sha256": "6cedb8b49c2f035d87f1bf14273495ee960e9aed72a89ced5c3a03efd934deb8"
+    },
+    {
+      "bytes": 31658,
+      "path": "lib_parts/mission_runtime/part_02.rs",
+      "section": "mission_runtime",
+      "sha256": "bf6fdb5dee5decc50acfa9d6c5f52f60e739afd5e913296962081b945be4adc2"
+    },
+    {
+      "bytes": 59111,
+      "path": "lib_parts/mission_runtime/part_03.rs",
+      "section": "mission_runtime",
+      "sha256": "cc5e3da5a157b169040645a07a87463cd75003e152b11d639a7d37d58b6c6184"
+    },
+    {
+      "bytes": 58533,
+      "path": "lib_parts/mission_runtime/part_04.rs",
+      "section": "mission_runtime",
+      "sha256": "282efa20a9e57ac7619ed28e880cd6b01f682894ec2bb556fb04525f6f52ef29"
+    },
+    {
+      "bytes": 3026,
+      "path": "lib_parts/simulation_helpers/part_01.rs",
+      "section": "simulation_helpers",
+      "sha256": "30dbf20adffdd58597bd39a6b474fdceb1a9ef27d55522f6f13d4791d65d4cf5"
+    },
+    {
+      "bytes": 18204,
+      "path": "lib_parts/replay/part_01.rs",
+      "section": "replay",
+      "sha256": "66c11e9b06ed4295703fdae4be52523ae72666bccd08f34c94c1e091654997ed"
+    },
+    {
+      "bytes": 2956,
+      "path": "lib_parts/checkpoint_storage/part_01.rs",
+      "section": "checkpoint_storage",
+      "sha256": "2b235f8445621b332e5101f219ce3c772b8c68c0feea1e20321a5071bfbbd8ab"
+    },
+    {
+      "bytes": 599,
+      "path": "lib_parts/tests/part_01.rs",
+      "section": "tests",
+      "sha256": "99e538e95d9062e3f448ea1fc6954505777196e7ec5bd0906c6dc4523c2c0e50"
+    }
+  ],
+  "schema": "trnm_semantic_direct_source_partition_v1",
+  "sections": [
+    "contracts_and_primitives",
+    "mission_runtime",
+    "simulation_helpers",
+    "replay",
+    "checkpoint_storage",
+    "tests"
+  ],
+  "semantic_generation": false,
+  "textual_include_reason": "preserve the reviewed crate-root API while shrinking ownership and review radius"
+}
