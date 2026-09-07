@@ -1449,3 +1449,5 @@ async fn prepare_final_abandonment_high_water(
     )
     .await?;
     Ok(final_high_water)
+}
+

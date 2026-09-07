@@ -1520,3 +1520,6 @@ fn terminal_ack_gaps_without_high_water(
         .iter()
         .filter(|match_id| !recorded_match_ids.contains(match_id))
         .copied()
+        .collect()
+}
+

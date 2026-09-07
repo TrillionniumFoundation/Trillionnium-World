@@ -1260,3 +1260,9 @@ async fn stop_actor_worker(
                 }
                 Err(_) => {
                     tracing::error!(%match_id, worker = label, "cancelled match actor worker did not stop within hard timeout");
+                }
+            }
+        }
+    }
+}
+

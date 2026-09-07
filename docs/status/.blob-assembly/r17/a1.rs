@@ -1522,3 +1522,11 @@ async fn seal_abandonment_with_timeout(
             journal.fail_closed();
             Err(
                 "published-tick abandonment tombstone seal exceeded its hard timeout and is failed closed"
+                    .to_string(),
+            )
+        }
+    };
+    guard.complete();
+    result
+}
+
