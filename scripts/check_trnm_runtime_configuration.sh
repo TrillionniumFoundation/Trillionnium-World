@@ -101,7 +101,7 @@ if grep -Fq 'TRNM_ENTITLEMENT_ED25519_PRIVATE_KEY' \
   fail "settlement worker environment must never contain signer private-key material"
 fi
 
-if grep -Eq 'TRNM_ALLOW_DEV_BINARY[[:space:]]*=[[:space:]]*1' \
+if grep -Eq '^[[:space:]]*TRNM_ALLOW_DEV_BINARY[[:space:]]*=[[:space:]]*1([[:space:]]*(#.*)?)?$' \
   config/*.env.example; then
   fail "production environment examples must not enable development binary fallback"
 fi
