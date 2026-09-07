@@ -19,4 +19,11 @@
         }
         let page_len = page.len();
         for evidence in page {
-@@TRNM_TERM1_SLOT_3@@
+@@TRNM_TERM1_SLOT_3A@@
+        .map_err(|_| "abandonment cold witness count exceeds u64".to_string())?;
+    let cold_count = u64::try_from(journal.cold_witness_count()?)
+        .map_err(|_| "combined cold witness count exceeds u64".to_string())?;
+    if !database_summary.all_sealed()
+        || database_summary.terminal_total_count != terminal_count
+        || database_summary.abandonment_total_count != abandonment_count
+@@TRNM_TERM1_SLOT_3B@@
