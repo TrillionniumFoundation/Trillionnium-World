@@ -1,0 +1,24 @@
+name: world-scheduler-probe-r2
+
+on:
+  push:
+    branches:
+      - tmp/world-dispatch-probe-r2
+
+permissions: {}
+
+jobs:
+  scheduler:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    steps:
+      - name: Emit immutable scheduler marker
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf '%s\n' \
+            'schema=trillionnium.world.scheduler-probe.r2' \
+            'authority=none' \
+            'production_authorization=not_granted' \
+            "repository=$GITHUB_REPOSITORY" \
+            "sha=$GITHUB_SHA"
