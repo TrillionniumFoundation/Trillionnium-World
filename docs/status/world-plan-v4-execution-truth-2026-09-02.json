@@ -1,10 +1,10 @@
 {
   "schema": "trnm_world_plan_v4_execution_truth_v1",
-  "recorded_at_utc": "2026-09-02T08:30:00Z",
+  "recorded_at_utc": "2026-09-07T17:32:15Z",
   "repository": "TrillionniumFoundation/Trillionnium-World",
   "operative_pull_request": 46,
   "operative_branch": "fix/world-plan-v4-development-closure-20260831",
-  "observed_head_before_truth_update": "a76d04b2755e11a0e8ec7ab769d2fda06476f285",
+  "observed_head_before_truth_update": "5e7bb9a3e44e61371972d1fe1054fefb637a5629",
   "source_qualification": {
     "source_world_head": "5605cfb8861aa923f69ff032ddbff7d035bccb0c",
     "source_world_tree": "928f43b328e5347b07357e41481df1c7e097adca",
@@ -22,31 +22,37 @@
     "qualification_result": "pass"
   },
   "source_publication": {
-    "state": "blocked_partial_unreferenced_object_import",
-    "qualified_tree_present": false,
-    "qualified_tree_attached_to_pull_request": false,
+    "state": "published_exact_source_candidate",
+    "qualified_tree_present": true,
+    "qualified_tree_attached_to_pull_request": true,
     "direct_source_required": true,
     "semantic_build_rs_and_lib_rs_in_must_be_absent": true,
-    "rule": "qualification of artifact bytes is not publication of those bytes in the World pull request"
+    "published_head": "5e7bb9a3e44e61371972d1fe1054fefb637a5629",
+    "published_parent": "b131aaccddf1a5a1474e95cd7eec018deeed08d7",
+    "published_tree": "1d2e01be24434390593b11202e6c374d4773d4e0",
+    "build_rs_absent": true,
+    "lib_rs_in_absent": true,
+    "rule": "ordinary source publication is closed for this candidate; hosted exact-head, review, governance, cross-repository and external evidence remain independent"
   },
   "github_actions": {
     "repository_workflow_run_total": 0,
-    "state": "repository_or_organization_scheduler_blocked",
+    "state": "scheduler_no_exact_head_runs",
     "exact_head_evidence": "absent",
-    "rule": "empty check collections and zero-run repositories receive no verification credit"
+    "exact_head": "5e7bb9a3e44e61371972d1fe1054fefb637a5629",
+    "prospective_merge": "b99aa61ad32cc0a3502ea20d80d928194bff23f6",
+    "rule": "empty check collections and zero exact-head workflow runs receive no verification credit"
   },
   "cex_dependency": {
     "repository": "TrillionniumFoundation/CEX",
-    "pull_request": 24,
-    "commit": "dc0862b8cf88a1f4e6328d519947e19b81122de0",
-    "tree": "762e33a3f16c14347a44cec1d862a8e0ab447ad8",
-    "migration_head": "0088_enforce_provider_terminal_evidence_binding.sql",
-    "sequence": 50,
-    "qualification_state": "blocked_before_runner_allocation",
+    "pull_request": 29,
+    "commit": "04491cff7cb317324f57a10de07872d39f3e56c2",
+    "tree": "f8897db7f5879a8ae84a2ce90ec169e5df9eccb9",
+    "sequence": 53,
+    "qualification_state": "draft_unqualified",
     "production_authorization": "not_granted"
   },
   "closure": {
-    "world_owned_source_development_closed": false,
+    "world_owned_source_development_closed": true,
     "exact_head_ci_closed": false,
     "independent_review_closed": false,
     "server_governance_closed": false,
@@ -61,5 +67,5 @@
     "human_and_accessibility_validation": "open",
     "privacy_legal_support_and_commercial": "open"
   },
-  "no_credit_rule": "source and CI cannot synthesize deployment, custody, human, legal, commercial, or independent-review evidence"
+  "no_credit_rule": "source and local tests cannot synthesize hosted CI, server governance, cross-repository, deployed, custody, human, legal, commercial, or independent-review evidence"
 }

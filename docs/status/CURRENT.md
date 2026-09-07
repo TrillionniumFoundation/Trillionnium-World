@@ -4,8 +4,8 @@
 > These are recorded assertions, not fresh GitHub queries or independent evidence verification.
 
 - Selected execution snapshot: `docs/status/world-plan-v4-execution-truth-2026-09-02.json`
-- Snapshot recorded at (UTC): `2026-09-02T08:30:00Z`
-- Snapshot SHA-256: `00660e7ea2c9c05fffdf8cbabf693dab2f6ea81dd26913d4cec0855f880c595e`
+- Snapshot recorded at (UTC): `2026-09-07T17:32:15Z`
+- Snapshot SHA-256: `7d0808a93d082abff18bf57c7605c39b278dd599a980bd3e7c851e101b0073e4`
 - Operative pull request: `#46`
 - Operative branch: `fix/world-plan-v4-development-closure-20260831`
 
@@ -23,11 +23,11 @@ The binding repository boundary and accepted ADRs remain authoritative.
 | Qualification run / artifact | `33452853784` / `9780499701` |
 | Qualified artifact ZIP SHA-256 | `456a181bdc8f8aa248229b044db9eec4f52572ea3b20bca6492907db58d64ef5` |
 | Rust toolchain | `1.98.0` |
-| Source publication state | `blocked_partial_unreferenced_object_import` |
-| Qualified tree present | `false` |
-| Qualified tree attached to PR | `false` |
+| Source publication state | `published_exact_source_candidate` |
+| Qualified tree present | `true` |
+| Qualified tree attached to PR | `true` |
 | Repository workflow run count at snapshot | `0` |
-| Actions state | `repository_or_organization_scheduler_blocked` |
+| Actions state | `scheduler_no_exact_head_runs` |
 | Exact-head evidence | `absent` |
 
 A qualified artifact is not publication on the operative branch. Source publication is not compilation, hosted CI, independent review or release eligibility.
@@ -37,7 +37,7 @@ Re-query GitHub for the final PR head and prospective merge object before assign
 
 | Denominator | Recorded value |
 | --- | --- |
-| `world_owned_source_development_closed` | `false` |
+| `world_owned_source_development_closed` | `true` |
 | `exact_head_ci_closed` | `false` |
 | `independent_review_closed` | `false` |
 | `server_governance_closed` | `false` |
