@@ -42,7 +42,9 @@ for raw in sys.argv[1:]:
     if not text.endswith("\n"):
         raise SystemExit(f"World PostgreSQL qualification input lacks final newline: {path}")
 PY
-bash -n "$0" "$INSTALLER" "$STATE_CHECKER" "$RUNNER"
+for script in "$0" "$INSTALLER" "$STATE_CHECKER" "$RUNNER"; do
+  bash -n "$script"
+done
 
 ADMIN_DB="$PGDATABASE"
 suffix="${GITHUB_RUN_ID:-$$}_${RANDOM}"
