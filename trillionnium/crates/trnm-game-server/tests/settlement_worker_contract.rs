@@ -10,7 +10,6 @@ const CEX_SOURCE: &str = include_str!("../src/cex.rs");
 const SIGNER_PROTOCOL: &str = include_str!("../src/signer_protocol.rs");
 const SIGNER_BINARY: &str = include_str!("../src/bin/trnm-entitlement-signer.rs");
 const WORKER_BINARY: &str = include_str!("../src/bin/trnm-settlement-worker.rs");
-const BUILD_SCRIPT: &str = include_str!("../build.rs");
 
 fn normalized(source: &str) -> String {
     source.split_whitespace().collect::<Vec<_>>().join(" ")
@@ -24,13 +23,15 @@ fn settlement_worker_is_directly_compiled_from_reviewed_modules() {
     assert!(!WORKER_WRAPPER.contains("OUT_DIR"));
     assert!(!WORKER_WRAPPER.contains("trnm_settlement_worker_generated.rs"));
 
-    assert!(!BUILD_SCRIPT.contains("generate_settlement_worker"));
-    assert!(!BUILD_SCRIPT.contains("settlement_worker.rs.in"));
-    assert!(!BUILD_SCRIPT.contains("trnm_settlement_worker_generated.rs"));
-
-    let template = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("src/settlement_worker.rs.in");
-    assert!(!template.exists(), "worker template authority must stay removed");
+    let crate_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    assert!(
+        !crate_root.join("build.rs").exists(),
+        "semantic build-script authority must stay removed"
+    );
+    assert!(
+        !crate_root.join("src/settlement_worker.rs.in").exists(),
+        "worker template authority must stay removed"
+    );
 }
 
 #[test]

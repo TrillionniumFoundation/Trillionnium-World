@@ -189,6 +189,7 @@ async fn insert_dead_letter_job(pool: &PgPool) -> (Uuid, String, String, String,
     )
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn authorize_replay(
     pool: &PgPool,
     request_id: &str,

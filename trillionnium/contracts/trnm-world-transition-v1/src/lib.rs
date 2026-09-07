@@ -567,6 +567,11 @@ impl WorldTransitionRejectedV1 {
     }
 }
 
+// The accepted result intentionally owns its complete authoritative material
+// inline. Boxing it would add a heap allocation to every successful transition
+// and change the public Rust API while leaving the canonical wire payload
+// unchanged, so the size asymmetry is an explicit contract-level tradeoff.
+#[allow(clippy::large_enum_variant)]
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum WorldTransitionResultV1 {
     Accepted(WorldTransitionAcceptedV1),

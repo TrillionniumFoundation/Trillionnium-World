@@ -7,8 +7,9 @@
 //! committed.
 
 use std::collections::{BTreeMap, BTreeSet};
-use std::fs;
-use std::path::PathBuf;
+mod support;
+
+use support::read_crate_source_bundle;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct CampaignState {
@@ -298,8 +299,7 @@ fn partial_member_execution_keeps_the_match_pending() {
 
 #[test]
 fn production_source_contains_no_synchronous_cex_reconciliation_call() {
-    let source_path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/lib.rs");
-    let source = fs::read_to_string(source_path).expect("read game-server source");
+    let source = read_crate_source_bundle("src/lib.rs");
     let needle = ".reconcile_economy(";
     let mut searched_from = 0;
     let mut calls = 0;

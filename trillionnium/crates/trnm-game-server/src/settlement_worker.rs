@@ -5,7 +5,7 @@
 // `settlement_worker_runtime_v2.rs` owns the exported runtime, bounded shutdown,
 // poison isolation, and migrations 18-19. Neither file is rewritten at build
 // time; the only public entrypoint is runtime v2.
-#[allow(dead_code)]
+#[allow(dead_code, clippy::items_after_test_module)]
 mod implementation {
     include!("settlement_worker_legacy.rs");
     include!("settlement_worker_runtime_v2.rs");

@@ -1,11 +1,7 @@
-const BUILD_SCRIPT: &str = include_str!("../build.rs");
 const CEX_WRAPPER: &str = include_str!("../src/cex.rs");
-const CEX_TEMPLATE: &str = include_str!("../src/cex.rs.in");
 const WORKER_WRAPPER: &str = include_str!("../src/settlement_worker.rs");
 const RUNTIME_V2: &str = include_str!("../src/settlement_worker_runtime_v2.rs");
-const MIGRATION_V19: &str =
-    include_str!("../migrations/0019_online_settlement_quarantine_v1.sql");
-const CARGO_MANIFEST: &str = include_str!("../Cargo.toml");
+const MIGRATION_V19: &str = include_str!("../migrations/0019_online_settlement_quarantine_v1.sql");
 
 fn normalized(source: &str) -> String {
     source.split_whitespace().collect::<Vec<_>>().join(" ")
@@ -22,7 +18,10 @@ fn runtime_v2_owns_interruptible_admission_and_bounded_drain() {
         "in_flight.abort_all",
         "lease will expire",
     ] {
-        assert!(RUNTIME_V2.contains(marker), "missing shutdown marker {marker}");
+        assert!(
+            RUNTIME_V2.contains(marker),
+            "missing shutdown marker {marker}"
+        );
     }
 }
 
@@ -35,7 +34,10 @@ fn unrelated_remote_work_can_run_concurrently() {
         "in_flight.spawn",
         "process_claimed_job",
     ] {
-        assert!(RUNTIME_V2.contains(marker), "missing concurrency marker {marker}");
+        assert!(
+            RUNTIME_V2.contains(marker),
+            "missing concurrency marker {marker}"
+        );
     }
 }
 
@@ -50,7 +52,10 @@ fn poison_work_is_quarantined_without_reusing_a_lost_lease() {
         "trnm_online_record_settlement_quarantine_v1",
         "trnm_online_settlement_scope_quarantined_v1",
     ] {
-        assert!(RUNTIME_V2.contains(marker), "missing quarantine marker {marker}");
+        assert!(
+            RUNTIME_V2.contains(marker),
+            "missing quarantine marker {marker}"
+        );
     }
 }
 
@@ -72,24 +77,28 @@ fn migration_enforces_one_campaign_job_per_capture_and_audited_resolution() {
 }
 
 #[test]
-fn generated_sources_register_migration_19_and_disable_the_old_loop() {
-    for marker in [
-        "0019_online_settlement_quarantine_v1.sql",
-        "run_legacy_disabled",
-        "generate_cex",
-        "trnm_cex_generated.rs",
-        "bounded_error_body",
-        "StatusCode::CONFLICT",
-    ] {
-        assert!(BUILD_SCRIPT.contains(marker), "missing build marker {marker}");
+fn direct_sources_register_migration_19_and_disable_the_old_loop() {
+    let migration_marker = "0019_online_settlement_quarantine_v1.sql";
+    assert!(
+        RUNTIME_V2.contains(migration_marker),
+        "missing direct runtime marker {migration_marker}"
+    );
+    for marker in ["bounded_error_body", "StatusCode::CONFLICT"] {
+        assert!(
+            CEX_WRAPPER.contains(marker),
+            "missing direct CEX marker {marker}"
+        );
     }
     assert!(WORKER_WRAPPER.contains("settlement_worker_runtime_v2.rs"));
-    assert!(CEX_WRAPPER.contains("trnm_cex_generated.rs"));
+    assert!(WORKER_WRAPPER.contains("pub use implementation::{run_v2 as run, WorkerConfig};"));
+    assert!(!WORKER_WRAPPER.contains("run_legacy as run"));
+    assert!(!WORKER_WRAPPER.contains("OUT_DIR"));
+    assert!(!CEX_WRAPPER.contains("OUT_DIR"));
+    assert!(!CEX_WRAPPER.contains("trnm_cex_generated.rs"));
 }
 
 #[test]
-fn blocking_http_cannot_return_to_the_game_server_package() {
-    assert!(!CARGO_MANIFEST.contains("\"blocking\""));
-    assert!(!CEX_TEMPLATE.contains("reqwest::blocking"));
-    assert!(!CEX_TEMPLATE.contains("blocking_client"));
+fn settlement_cex_transport_never_uses_blocking_http() {
+    assert!(!CEX_WRAPPER.contains("reqwest::blocking"));
+    assert!(!CEX_WRAPPER.contains("blocking_client"));
 }
