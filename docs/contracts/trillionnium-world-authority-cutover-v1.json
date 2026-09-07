@@ -2,7 +2,7 @@
   "schema": "trillionnium.world.authority.cutover.v1",
   "contract_version": "trillionnium_world_authority_cutover_v1",
   "status": "cutover_candidate",
-  "native_actions_trigger_sequence": 1,
+  "native_actions_trigger_sequence": 2,
   "production_authorization": "not_granted",
   "owner_repository": "TrillionniumFoundation/Trillionnium-World",
   "source_history_commit": "d44d8930c917b55da7b23eb19e9645feb8f4ee59",
@@ -67,8 +67,26 @@
     "qualification_runner": "scripts/run-trnm-world-authority-postgres-check.sh",
     "base_migration_standalone_supported": false,
     "runtime_role_grants_in_migration": false,
+    "index_semantics_verification": {
+      "catalog": "pg_catalog.pg_index",
+      "target_relation": "public.trnm_world_authority_epochs_v1",
+      "index_name": "trnm_world_single_active_writer_epoch_v1",
+      "access_method": "btree",
+      "unique": true,
+      "valid": true,
+      "ready": true,
+      "live": true,
+      "key_count": 1,
+      "attribute_count": 1,
+      "expression": "1",
+      "predicate": "(status = 'active'::text) AND world_writer_enabled",
+      "name_only_or_substring_only_acceptance": false
+    },
     "invariants": [
       "single_active_world_writer_epoch",
+      "single_writer_index_catalog_semantics_exact",
+      "single_writer_index_target_relation_unique_valid_ready_live",
+      "single_writer_index_constant_expression_and_exact_predicate",
       "cex_writer_fenced_before_world_activation",
       "canonical_json_equals_jsonb_text_serialization",
       "request_hash_equals_canonical_command_hash",
@@ -93,7 +111,9 @@
       "cold_backup_restore",
       "bundle_reapply",
       "base_only_partial_install_recovery",
-      "wrong_same_name_index"
+      "same_name_nonunique_same_predicate_index",
+      "same_name_unique_wrong_key_same_predicate_index",
+      "same_name_unique_constant_wrong_predicate_index"
     ]
   },
   "source_qualification": [
