@@ -1,2 +1,2 @@
 @@CHUNK0@@
-@@CHUNK1@@
+world
