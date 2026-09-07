@@ -33,9 +33,11 @@ declare
     active_index_persistence "char";
     active_index_method name;
     active_index_unique boolean;
+    active_index_immediate boolean;
     active_index_valid boolean;
     active_index_ready boolean;
     active_index_live boolean;
+    active_index_check_xmin boolean;
     active_index_primary boolean;
     active_index_exclusion boolean;
     active_index_clustered boolean;
@@ -44,6 +46,15 @@ declare
     active_index_key_count integer;
     active_index_attribute_count integer;
     active_index_first_attribute smallint;
+    active_index_collation oid;
+    active_index_option smallint;
+    active_index_opclass_namespace name;
+    active_index_opclass_name name;
+    active_index_opclass_input_type oid;
+    active_index_opclass_default boolean;
+    active_index_opclass_key_type oid;
+    active_index_opfamily_namespace name;
+    active_index_opfamily_name name;
     active_index_expression text;
     active_index_column_definition text;
     active_index_predicate text;
@@ -79,9 +90,11 @@ begin
         index_relation.relpersistence,
         access_method.amname,
         index_catalog.indisunique,
+        index_catalog.indimmediate,
         index_catalog.indisvalid,
         index_catalog.indisready,
         index_catalog.indislive,
+        index_catalog.indcheckxmin,
         index_catalog.indisprimary,
         index_catalog.indisexclusion,
         index_catalog.indisclustered,
@@ -90,6 +103,15 @@ begin
         index_catalog.indnkeyatts,
         index_catalog.indnatts,
         index_catalog.indkey[0],
+        index_catalog.indcollation[0],
+        index_catalog.indoption[0],
+        opclass_namespace.nspname,
+        operator_class.opcname,
+        operator_class.opcintype,
+        operator_class.opcdefault,
+        operator_class.opckeytype,
+        opfamily_namespace.nspname,
+        operator_family.opfname,
         pg_catalog.pg_get_expr(
             index_catalog.indexprs,
             index_catalog.indrelid,
@@ -113,9 +135,11 @@ begin
         active_index_persistence,
         active_index_method,
         active_index_unique,
+        active_index_immediate,
         active_index_valid,
         active_index_ready,
         active_index_live,
+        active_index_check_xmin,
         active_index_primary,
         active_index_exclusion,
         active_index_clustered,
@@ -124,6 +148,15 @@ begin
         active_index_key_count,
         active_index_attribute_count,
         active_index_first_attribute,
+        active_index_collation,
+        active_index_option,
+        active_index_opclass_namespace,
+        active_index_opclass_name,
+        active_index_opclass_input_type,
+        active_index_opclass_default,
+        active_index_opclass_key_type,
+        active_index_opfamily_namespace,
+        active_index_opfamily_name,
         active_index_expression,
         active_index_column_definition,
         active_index_predicate
@@ -134,6 +167,16 @@ begin
       on index_namespace.oid = index_relation.relnamespace
     join pg_catalog.pg_am as access_method
       on access_method.oid = index_relation.relam
+    join pg_catalog.pg_opclass as operator_class
+      on operator_class.oid = index_catalog.indclass[0]
+     and operator_class.opcmethod = access_method.oid
+    join pg_catalog.pg_namespace as opclass_namespace
+      on opclass_namespace.oid = operator_class.opcnamespace
+    join pg_catalog.pg_opfamily as operator_family
+      on operator_family.oid = operator_class.opcfamily
+     and operator_family.opfmethod = access_method.oid
+    join pg_catalog.pg_namespace as opfamily_namespace
+      on opfamily_namespace.oid = operator_family.opfnamespace
     where index_catalog.indexrelid = active_index_oid;
 
     if active_index_table is distinct from
@@ -145,9 +188,11 @@ begin
        or active_index_persistence is distinct from 'p'::"char"
        or active_index_method is distinct from 'btree'
        or active_index_unique is distinct from true
+       or active_index_immediate is distinct from true
        or active_index_valid is distinct from true
        or active_index_ready is distinct from true
        or active_index_live is distinct from true
+       or active_index_check_xmin is distinct from false
        or active_index_primary is distinct from false
        or active_index_exclusion is distinct from false
        or active_index_clustered is distinct from false
@@ -156,19 +201,32 @@ begin
        or active_index_key_count is distinct from 1
        or active_index_attribute_count is distinct from 1
        or active_index_first_attribute is distinct from 0
+       or active_index_collation is distinct from 0::pg_catalog.oid
+       or active_index_option is distinct from 0
+       or active_index_opclass_namespace is distinct from 'pg_catalog'
+       or active_index_opclass_name is distinct from 'int4_ops'
+       or active_index_opclass_input_type is distinct from
+           'pg_catalog.int4'::pg_catalog.regtype
+       or active_index_opclass_default is distinct from true
+       or active_index_opclass_key_type is distinct from 0::pg_catalog.oid
+       or active_index_opfamily_namespace is distinct from 'pg_catalog'
+       or active_index_opfamily_name is distinct from 'integer_ops'
+       or active_index_expression is null
        or active_index_expression not in ('1', '(1)')
+       or active_index_column_definition is null
        or active_index_column_definition not in ('1', '(1)')
+       or active_index_predicate is null
        or active_index_predicate not in (
            '(status = ''active''::text) AND world_writer_enabled',
            '((status = ''active''::text) AND world_writer_enabled)',
-           '(status = ''active'') AND world_writer_enabled',
+           '(status = 'active'') AND world_writer_enabled',
            '((status = ''active'') AND world_writer_enabled)'
        ) then
         raise exception using
             errcode = '55000',
             message = 'trnm_world_single_active_writer_index_semantics_drift',
             detail = pg_catalog.format(
-                'oid=%s table=%s schema=%s name=%s kind=%s persistence=%s method=%s unique=%s valid=%s ready=%s live=%s primary=%s exclusion=%s clustered=%s replident=%s nulls_not_distinct=%s key_count=%s attr_count=%s first_att=%s expression=%s column=%s predicate=%s',
+                'oid=%s table=%s schema=%s name=%s kind=%s persistence=%s method=%s unique=%s immediate=%s valid=%s ready=%s live=%s check_xmin=%s primary=%s exclusion=%s clustered=%s replident=%s nulls_not_distinct=%s key_count=%s attr_count=%s first_att=%s collation=%s option=%s opclass=%s.%s opcintype=%s opcdefault=%s opckeytype=%s opfamily=%s.%s expression=%s column=%s predicate=%s',
                 active_index_oid,
                 active_index_table,
                 active_index_namespace,
@@ -177,9 +235,11 @@ begin
                 active_index_persistence,
                 active_index_method,
                 active_index_unique,
+                active_index_immediate,
                 active_index_valid,
                 active_index_ready,
                 active_index_live,
+                active_index_check_xmin,
                 active_index_primary,
                 active_index_exclusion,
                 active_index_clustered,
@@ -188,6 +248,15 @@ begin
                 active_index_key_count,
                 active_index_attribute_count,
                 active_index_first_attribute,
+                active_index_collation,
+                active_index_option,
+                active_index_opclass_namespace,
+                active_index_opclass_name,
+                active_index_opclass_input_type,
+                active_index_opclass_default,
+                active_index_opclass_key_type,
+                active_index_opfamily_namespace,
+                active_index_opfamily_name,
                 coalesce(active_index_expression, '<null>'),
                 coalesce(active_index_column_definition, '<null>'),
                 coalesce(active_index_predicate, '<null>')
