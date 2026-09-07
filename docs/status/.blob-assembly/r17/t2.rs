@@ -1208,4 +1208,7 @@ fn running_maintenance_successor_is_monotonic(
         || durable_next_sequence < high_water.next_sequence
         || durable_match_revision < high_water.match_revision
         || durable_member_cursors.len() != high_water.next_input_sequences.len()
+                    select 1 from trnm_online_terminal_publication_acks terminal
+        "running maintenance database checkpoint",
+            .try_get::<Option<String>, _>("failure_reason")
     Ok(final_high_water)

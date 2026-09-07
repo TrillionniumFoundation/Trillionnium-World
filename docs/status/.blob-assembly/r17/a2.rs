@@ -1056,4 +1056,7 @@ async fn run_match_actor(state: AppState, match_id: Uuid, initialized: Initializ
                         next_sequence: loaded.next_sequence,
                         match_revision: loaded.match_revision,
                         terminal: true,
+                        snapshot_hash,
+                    candidate_simulation,
+    drop(publication_candidates);
                     tracing::error!(%match_id, worker = label, "cancelled match actor worker did not stop within hard timeout");

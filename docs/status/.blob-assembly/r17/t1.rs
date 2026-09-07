@@ -1267,4 +1267,7 @@ async fn reconcile_startup_cold_witnesses(
             )
             .await?;
             reconciled.terminal_acknowledged.insert(evidence.match_id);
+    let database_summary =
+                .await?)
+               and a.match_revision = $6
         .copied()

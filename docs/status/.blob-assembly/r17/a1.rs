@@ -1273,4 +1273,7 @@ fn is_single_command_cursor_successor(
     if durable_next_sequence != high_water.next_sequence.saturating_add(1)
         || durable_match_revision != high_water.match_revision.saturating_add(1)
         || durable_next_input_sequences.len() != high_water.next_input_sequences.len()
+    let initial = state
+async fn reload_visible_actor_after_persistence_failure(
+            durable_db_next_sequence,
                 "published-tick abandonment tombstone seal exceeded its hard timeout and is failed closed"
