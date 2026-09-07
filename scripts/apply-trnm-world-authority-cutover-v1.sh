@@ -219,7 +219,7 @@ begin
        or active_index_predicate not in (
            '(status = ''active''::text) AND world_writer_enabled',
            '((status = ''active''::text) AND world_writer_enabled)',
-           '(status = 'active'') AND world_writer_enabled',
+           '(status = ''active'') AND world_writer_enabled',
            '((status = ''active'') AND world_writer_enabled)'
        ) then
         raise exception using
