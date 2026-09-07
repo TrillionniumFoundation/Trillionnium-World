@@ -205,3 +205,4 @@ fn terminal_ack_gaps_without_high_water(
         .copied()
         .collect()
 }
+
