@@ -1,0 +1,4 @@
+__TRNM_SLOT_0__
+__TRNM_SLOT_1__
+__TRNM_SLOT_2__
+__TRNM_SLOT_3__
