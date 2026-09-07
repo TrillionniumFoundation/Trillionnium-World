@@ -4,4 +4,4 @@ __GUARD_B__
 __GUARD_C__
 __GUARD_D__
 __GUARD_E__
-@@CHUNK1@@
+world
