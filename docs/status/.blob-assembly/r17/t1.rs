@@ -8,3 +8,6 @@
                 .await?)
                and a.match_revision = $6
         .copied()
+        .collect()
+}
+

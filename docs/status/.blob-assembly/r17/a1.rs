@@ -8,3 +8,11 @@ pub fn production_authority_tick_interval() -> Duration {
 async fn reload_visible_actor_after_persistence_failure(
             durable_db_next_sequence,
                 "published-tick abandonment tombstone seal exceeded its hard timeout and is failed closed"
+                    .to_string(),
+            )
+        }
+    };
+    guard.complete();
+    result
+}
+

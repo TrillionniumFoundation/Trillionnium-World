@@ -8,3 +8,5 @@ async fn terminal_high_water_is_durably_acknowledged(
         "running maintenance database checkpoint",
             .try_get::<Option<String>, _>("failure_reason")
     Ok(final_high_water)
+}
+
