@@ -42,25 +42,26 @@ PR `#39` and earlier Plan V4 branches are superseded and must not be used as cur
 
 ## Current closure interpretation
 
-The immutable qualification artifact proves that the direct-source candidate passed its bound source and test gates. It does not prove that those bytes are present in PR `#46`.
+The immutable qualification artifact proves that the direct-source candidate passed its bound source and test gates. Ordinary source was subsequently published into PR `#46` by commit `5e7bb9a3e44e61371972d1fe1054fefb637a5629`, with parent `b131aaccddf1a5a1474e95cd7eec018deeed08d7` and tree `1d2e01be24434390593b11202e6c374d4773d4e0`. The live candidate deletes semantic `trillionnium/crates/trnm-game-server/build.rs` and `src/lib.rs.in`, removes the Cargo build-script declaration and compiles manifest-bound ordinary source.
 
-Until the exact qualified source bytes are attached to the operative branch and revalidated on its final exact head:
+That publication closes only the World-owned ordinary-source denominator. It does not transfer the immutable artifact's execution credit to later governance overlays or prove hosted CI, prospective-merge behavior, server controls, independent review, cross-repository compatibility, deployment, custody, human validation or release eligibility.
 
-- `WORLD-P0-009` remains `publication_blocked`, not source-closed;
-- `WORLD-P1-001` remains `publication_blocked`, not source-closed;
-- semantic `build.rs` and `src/lib.rs.in` authority must remain treated as open debt on the live branch;
-- empty check collections and a repository with zero workflow runs receive no exact-head verification credit.
+Accordingly:
+
+- `WORLD-P0-009` and the ordinary-source portion of `WORLD-P1-001` are source-closed candidates on PR `#46`;
+- semantic `build.rs` / `src/lib.rs.in` authority is no longer open debt on the live candidate;
+- every later source change still requires fresh exact-head and prospective-merge qualification;
+- empty check collections and a repository with zero exact-head workflow runs receive no verification credit.
 
 The retained, unqualified CEX sequence-50 input is PR `TrillionniumFoundation/CEX#24`, commit `dc0862b8cf88a1f4e6328d519947e19b81122de0`, tree `762e33a3f16c14347a44cec1d862a8e0ab447ad8`, migration head `0088_enforce_provider_terminal_evidence_binding.sql`. Live read-back during the 2026-09-05 continuation found that PR closed without merge. CEX PR `#25` is an open Draft at `652a0524076206006fa7298ce67a83c78e2a670e`, with additional unqualified development lanes. These observations do not repin the component lock or grant compatibility, qualification or production authorization. Treat the existing World-to-CEX binding as stale/pending until the CEX owner selects and qualifies one immutable revision and World/Integration validate it. This observed dependency disposition supersedes the older snapshot's description of PR #24 as current; all other unclosed gates remain unclosed.
 
 ## Ordered remaining blockers
 
-1. Publish the exact qualified World source tree into PR `#46` without changing its bytes or using administrator bypass.
-2. Restore World Actions scheduling and obtain non-empty Rust 1.98, PostgreSQL, transition-contract, package, source-boundary, and supply-chain evidence on the final exact head and prospective merge object.
-3. Restore CEX runner allocation and obtain its complete non-empty exact-head qualification, manifest, SBOM, provenance, and independent approval.
-4. Apply server-side main protection and required checks; obtain fresh independent review of each final exact head.
-5. Bind World, CEX, Nakama, Chain, and Integration to immutable qualified revisions and close fault/divergence evidence.
-6. Obtain deployment, custody, public-edge, cross-host recovery/endurance, human/accessibility, privacy, legal, support, commercial, and final human go/no-go evidence from their actual authorities.
+1. Restore World Actions scheduling and obtain non-empty Rust 1.98, PostgreSQL, transition-contract, package, source-boundary, and supply-chain evidence on the final exact head and prospective merge object.
+2. Restore CEX runner allocation and obtain its complete non-empty exact-head qualification, manifest, SBOM, provenance, and independent approval.
+3. Apply server-side main protection and current required checks; obtain fresh independent review of each final exact head.
+4. Bind World, CEX, Nakama, Chain, and Integration to immutable qualified revisions and close fault/divergence evidence.
+5. Obtain deployment, custody, public-edge, cross-host recovery/endurance, human/accessibility, privacy, legal, support, commercial, and final human go/no-go evidence from their actual authorities.
 
 Public online operation, public player markets, trusted settlement, and commercial release remain **NO-GO / disabled** until every dependency row has independently verified exact evidence. Production authorization remains **not granted**.
 
@@ -115,5 +116,6 @@ An additional upstream observation requires toolchain review: the official Rust
 1.98.0 source/artifact pins remain immutable and are not silently upgraded. A
 successor built with a corrected toolchain needs distinct exact-head and merge
 qualification; this note proves neither project impact nor a successful rebuild.
-Full source publication, actual hosted scheduling, the nonblocking successor,
+Ordinary source publication and the nonblocking source successor are present in
+PR `#46`; actual hosted scheduling, corrected-toolchain successor qualification,
 independent governance/review and all cross-repository/external gates remain open.
