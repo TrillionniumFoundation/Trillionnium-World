@@ -1,0 +1,116 @@
+name: world-native-dispatch-r4
+
+on:
+  push:
+    branches:
+      - tmp/world-dispatch-probe-r2
+
+permissions:
+  actions: write
+  issues: write
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Dispatch exact candidate World workflows
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARGET_REF: feat/p0-world-authority-cutover-20260906
+          TARGET_SHA: cff9f3fd3539420c676f3d1397c166b1c1e24ffb
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          import time
+          import urllib.error
+          import urllib.parse
+          import urllib.request
+
+          repo = os.environ['GITHUB_REPOSITORY']
+          token = os.environ['GH_TOKEN']
+          target_ref = os.environ['TARGET_REF']
+          target_sha = os.environ['TARGET_SHA']
+          workflows = [
+              'trnm-game-ci.yml',
+              'trnm-world-authority-cutover.yml',
+              'trnm-world-postgres-cutover.yml',
+          ]
+
+          def call(method, path, body=None):
+              payload = None if body is None else json.dumps(body).encode()
+              request = urllib.request.Request(
+                  'https://api.github.com' + path,
+                  data=payload,
+                  method=method,
+                  headers={
+                      'Accept': 'application/vnd.github+json',
+                      'Authorization': f'Bearer {token}',
+                      'X-GitHub-Api-Version': '2022-11-28',
+                      'User-Agent': 'world-native-dispatch-r4',
+                      'Content-Type': 'application/json',
+                  },
+              )
+              try:
+                  with urllib.request.urlopen(request, timeout=30) as response:
+                      raw = response.read()
+                      return response.status, json.loads(raw) if raw else None
+              except urllib.error.HTTPError as error:
+                  raw = error.read().decode('utf-8', errors='replace')
+                  try:
+                      detail = json.loads(raw)
+                  except json.JSONDecodeError:
+                      detail = raw[:2000]
+                  return error.code, detail
+
+          ref_status, ref_value = call('GET', f'/repos/{repo}/git/ref/heads/{urllib.parse.quote(target_ref, safe="/")}')
+          actual_sha = ((ref_value or {}).get('object') or {}).get('sha') if ref_status == 200 else None
+          if actual_sha != target_sha:
+              raise SystemExit(f'target ref drift: expected={target_sha} actual={actual_sha} status={ref_status}')
+
+          results = []
+          for workflow in workflows:
+              status, detail = call(
+                  'POST',
+                  f'/repos/{repo}/actions/workflows/{urllib.parse.quote(workflow, safe="")}/dispatches',
+                  {'ref': target_ref},
+              )
+              results.append({'workflow': workflow, 'http_status': status, 'detail': detail})
+
+          time.sleep(10)
+          runs_status, runs_value = call(
+              'GET',
+              f'/repos/{repo}/actions/runs?head_sha={target_sha}&per_page=100',
+          )
+          runs = []
+          if runs_status == 200:
+              for run in (runs_value or {}).get('workflow_runs', []):
+                  runs.append({
+                      key: run.get(key)
+                      for key in ('id','name','path','event','status','conclusion','head_sha','head_branch','created_at')
+                  })
+
+          evidence = {
+              'schema': 'trillionnium.world.native-dispatch.r4',
+              'probe_run_id': os.environ['GITHUB_RUN_ID'],
+              'probe_sha': os.environ['GITHUB_SHA'],
+              'target_ref': target_ref,
+              'target_sha': target_sha,
+              'dispatch_results': results,
+              'run_query_status': runs_status,
+              'observed_exact_head_runs': runs,
+              'production_authorization': 'not_granted',
+          }
+          body = '## Native World workflow dispatch r4\n\n```json\n' + json.dumps(evidence, indent=2, sort_keys=True) + '\n```\n\nOnly the three product workflows listed above can satisfy native qualification. The dispatcher probe itself has no product or production authority.'
+          comment_status, comment_detail = call(
+              'POST',
+              f'/repos/{repo}/issues/54/comments',
+              {'body': body},
+          )
+          print(json.dumps({'evidence': evidence, 'comment_status': comment_status, 'comment_detail': comment_detail}, indent=2, sort_keys=True))
+          if any(item['http_status'] != 204 for item in results):
+              raise SystemExit('one or more product workflow dispatches failed')
+          PY
