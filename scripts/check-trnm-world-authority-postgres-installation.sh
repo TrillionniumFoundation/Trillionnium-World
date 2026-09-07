@@ -53,10 +53,31 @@ query_db() {
   PGDATABASE="$database" psql -X -v ON_ERROR_STOP=1 -At "$@"
 }
 
+protected_schema_hash() {
+  local database="$1"
+  query_db "$database" -c "
+select public.trnm_world_sha256_text_v1(
+  string_agg(definition, E'\\n' order by name)
+)
+from (
+  select
+    c.relname as name,
+    pg_catalog.pg_get_indexdef(i.indexrelid) as definition
+  from pg_catalog.pg_index i
+  join pg_catalog.pg_class c on c.oid = i.indexrelid
+  where i.indrelid in (
+    'public.trnm_world_authority_epochs_v1'::regclass,
+    'public.trnm_world_events_v1'::regclass,
+    'public.trnm_world_states_v1'::regclass
+  )
+) definitions;"
+}
+
 assert_hostile_index_rejected() {
   local database="$1"
   local label="$2"
   local create_sql="$3"
+  local status
 
   create_db "$database"
   PGDATABASE="$database" psql -X -v ON_ERROR_STOP=1 -f "$BASE" \
@@ -66,7 +87,7 @@ assert_hostile_index_rejected() {
   set +e
   PGDATABASE="$database" bash "$INSTALLER" \
     >"$RUN/${label}-install.out" 2>"$RUN/${label}-install.err"
-  local status=$?
+  status=$?
   set -e
 
   if [[ "$status" -eq 0 ]]; then
@@ -88,14 +109,12 @@ assert_hostile_index_rejected() {
 }
 
 # The supported bundle is idempotent as a whole. A second application must not
-# add migration rows, mutate definitions, or fail.
+# add migration rows, mutate protected definitions, or fail.
 create_db "$REAPPLY_DB"
 PGDATABASE="$REAPPLY_DB" bash "$INSTALLER" >"$RUN/reapply-first.log"
-first_schema_hash="$(query_db "$REAPPLY_DB" -c \
-  "select public.trnm_world_sha256_text_v1(string_agg(definition, E'\\n' order by name)) from (select c.relname as name, pg_catalog.pg_get_indexdef(i.indexrelid) as definition from pg_catalog.pg_index i join pg_catalog.pg_class c on c.oid=i.indexrelid where i.indrelid in ('public.trnm_world_authority_epochs_v1'::regclass,'public.trnm_world_events_v1'::regclass,'public.trnm_world_states_v1'::regclass)) definitions;")"
+first_schema_hash="$(protected_schema_hash "$REAPPLY_DB")"
 PGDATABASE="$REAPPLY_DB" bash "$INSTALLER" >"$RUN/reapply-second.log"
-second_schema_hash="$(query_db "$REAPPLY_DB" -c \
-  "select public.trnm_world_sha256_text_v1(string_agg(definition, E'\\n' order by name)) from (select c.relname as name, pg_catalog.pg_get_indexdef(i.indexrelid) as definition from pg_catalog.pg_index i join pg_catalog.pg_class c on c.oid=i.indexrelid where i.indrelid in ('public.trnm_world_authority_epochs_v1'::regclass,'public.trnm_world_events_v1'::regclass,'public.trnm_world_states_v1'::regclass)) definitions;")"
+second_schema_hash="$(protected_schema_hash "$REAPPLY_DB")"
 [[ "$first_schema_hash" == "$second_schema_hash" ]] || {
   echo "World cutover bundle reapply changed protected index definitions" >&2
   exit 1
@@ -159,8 +178,8 @@ PGDATABASE="$PARTIAL_DB" bash "$INSTALLER" >"$RUN/partial-recovery.log"
   "select count(*) from public.trnm_world_authority_schema_migrations_v1 where migration_id in ('0001_world_authority_cutover_v1','0002_world_authority_cutover_v1_hardening');")" == "2" ]]
 
 # Hostile same-name objects must fail even when they copy the expected predicate.
-# These cases close name-only, substring-only, uniqueness-only, and key-only
-# substitution paths.
+# These cases close name-only, substring-only, uniqueness-only, key-only, and
+# predicate-only substitution paths.
 assert_hostile_index_rejected \
   "$HOSTILE_NONUNIQUE_DB" \
   "hostile-nonunique-same-predicate" \
@@ -172,4 +191,44 @@ assert_hostile_index_rejected \
   "create unique index trnm_world_single_active_writer_epoch_v1 on public.trnm_world_authority_epochs_v1 (epoch_id) where status = 'active' and world_writer_enabled;"
 
 assert_hostile_index_rejected \
-  "$HOSTILE_WRONG_PREDICATE_DB""À¢&†÷7F–ÆR×Væ—VRÖ6öç7FçB×w&öær×&VF–6FR"À¢&7&VFRVæ—VR–æFW‚G&æÕ÷v÷&ÆE÷6–ævÆUö7F—fU÷w&—FW%öWö6…÷cöâV&Æ–2çG&æÕ÷v÷&ÆEöWF†÷&—G•öWö6‡5÷c‚ƒ’’v†W&R7FGW2Òw&W&VBræBæ÷Bv÷&ÆE÷w&—FW%öVæ&ÆVC²  ¦6Bâ"E%Tâö–ç7FÆÆF–öâ×7VÖÖ'’æ§6öâ"ÃÄ¥4ôà§°¢'66†VÖ#¢'G&–ÆÆ–öææ—VÒçv÷&ÆBç÷7Fw&W2Ö–ç7FÆÆF–öâÖWf–FVæ6Rçc""À¢'7FGW2#¢&w&VVâ"À¢&'VæFÆU÷&VÇ•ö–FV×÷FVçB#¢G'VRÀ¢&&6UööæÇ•÷7FFU÷VçVÆ–f–VB#¢G'VRÀ¢''F–Åö&6U÷&V6÷fW&VEö'•÷7W÷'FVEö–ç7FÆÆW"#¢G'VRÀ¢&W†7Eö–æFW…ö6FÆöu÷6VÖçF–75÷fW&–f–VB#¢G'VRÀ¢'F&vWE÷&VÆF–öå÷fW&–f–VB#¢G'VRÀ¢'Væ—VU÷fÆ–E÷&VG•öÆ—fU÷fW&–f–VB#¢G'VRÀ¢&6öç7FçEöW‡&W76–öåö¶W•÷fW&–f–VB#¢G'VRÀ¢&W†7E÷'F–Å÷&VF–6FU÷fW&–f–VB#¢G'VRÀ¢&æöçVæ—VU÷6ÖU÷&VF–6FUö–æFW…÷&V¦V7FVB#¢G'VRÀ¢'Væ—VU÷w&öæuö¶W•÷6ÖU÷&VF–6FUö–æFW…÷&V¦V7FVB#¢G'VRÀ¢'Væ—VUö6öç7FçE÷w&öæu÷&VF–6FUö–æFW…÷&V¦V7FVB#¢G'VRÀ¢'w&öæu÷6ÖUöæÖUö–æFW…÷&V¦V7FVB#¢G'VRÀ¢'&öGV7F–öåöWF†÷&—¦F–öâ#¢&æ÷Eöw&çFVB §Ğ¤¥4ôà ¦–bµ²Öâ"GµE$äÕõtõ$ÄEõõ5Du$U5ôUd”DTä4UôD•#¢×Ò"ÕÓ²F†Và¢Ö¶F—"×"EE$äÕõtõ$ÄEõõ5Du$U5ôUd”DTä4UôD•" ¢7À¢"E%Tâö–ç7FÆÆF–öâ×7VÖÖ'’æ§6öâ"À¢"E%Tâö†VÇF‡’Ö–æFW‚Ö6FÆöræ§6öâ"À¢"E%Tâ÷&VÇ’Öf—'7BæÆör"À¢"E%Tâ÷&VÇ’×6V6öæBæÆör"À¢"E%Tâ÷'F–Â×&V6÷fW'’æÆör"À¢"E%Tâö†÷7F–ÆRÖæöçVæ—VR×6ÖR×&VF–6FRÖ–ç7FÆÂæW'""À¢"E%Tâö†÷7F–ÆR×Væ—VR×w&öærÖ¶W’×6ÖR×&VF–6FRÖ–ç7FÆÂæW'""À¢"E%Tâö†÷7F–ÆR×Væ—VRÖ6öç7FçB×w&öær×&VF–6FRÖ–ç7FÆÂæW'""À¢"EE$äÕõtõ$ÄEõõ5Du$U5ôUd”DTä4UôD•"ò ¦f ¦6B"E%Tâö–ç7FÆÆF–öâ×7VÖÖ'’æ§6öâ ¦V6†ò%G&–ÆÆ–öææ—VÒv÷&ÆB÷7Fw&U5Â–ç7FÆÆF–öâ&÷Fö6öÂVÆ–f–6F–öã¢ö² 
+  "$HOSTILE_WRONG_PREDICATE_DB" \
+  "hostile-unique-constant-wrong-predicate" \
+  "create unique index trnm_world_single_active_writer_epoch_v1 on public.trnm_world_authority_epochs_v1 ((1)) where status = 'prepared' and not world_writer_enabled;"
+
+python3 - "$RUN/installation-summary.json" "$first_schema_hash" <<'PY'
+import json
+import pathlib
+import sys
+
+path = pathlib.Path(sys.argv[1])
+path.write_text(
+    json.dumps(
+        {
+            "schema": "trillionnium.world.postgres-installation-evidence.v2",
+            "status": "green",
+            "bundle_reapply_idempotent": True,
+            "protected_schema_sha256": sys.argv[2],
+            "base_only_state_unqualified": True,
+            "partial_base_recovered_by_supported_installer": True,
+            "single_writer_index_catalog_semantics_exact": True,
+            "same_name_nonunique_same_predicate_rejected": True,
+            "same_name_unique_wrong_key_same_predicate_rejected": True,
+            "same_name_unique_constant_wrong_predicate_rejected": True,
+            "hostile_index_fixture_count": 3,
+            "production_authorization": "not_granted",
+        },
+        indent=2,
+        sort_keys=True,
+    )
+    + "\n",
+    encoding="utf-8",
+)
+PY
+
+if [[ -n "${TRNM_WORLD_POSTGRES_EVIDENCE_DIR:-}" ]]; then
+  mkdir -p "$TRNM_WORLD_POSTGRES_EVIDENCE_DIR"
+  find "$RUN" -maxdepth 1 -type f -exec cp {} "$TRNM_WORLD_POSTGRES_EVIDENCE_DIR/" \;
+fi
+
+cat "$RUN/installation-summary.json"
+echo "Trillionnium World PostgreSQL installation protocol qualification: ok"
