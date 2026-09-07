@@ -2,6 +2,7 @@
   "schema": "trillionnium.world.authority.cutover.v1",
   "contract_version": "trillionnium_world_authority_cutover_v1",
   "status": "cutover_candidate",
+  "native_actions_trigger_sequence": 1,
   "production_authorization": "not_granted",
   "owner_repository": "TrillionniumFoundation/Trillionnium-World",
   "source_history_commit": "d44d8930c917b55da7b23eb19e9645feb8f4ee59",
