@@ -79,8 +79,15 @@ include!("lib_parts/rts_mapping/part_01.rs");
 // Ownership section: save_slots. Ordinary Git-tracked source.
 include!("lib_parts/save_slots/part_01.rs");
 
-// Ownership section: player_settings. Ordinary Git-tracked source.
-include!("lib_parts/player_settings/part_01.rs");
+// Player settings are the first ownership section promoted from crate-root text
+// inclusion into a real Rust module boundary. The temporary `use super::*`
+// keeps the semantic dependency surface unchanged while the public API remains
+// available at the crate root; later tranches narrow these imports explicitly.
+mod player_settings {
+    use super::*;
+    include!("lib_parts/player_settings/part_01.rs");
+}
+pub use player_settings::*;
 
 // Ownership section: campaign_storage. Ordinary Git-tracked source.
 include!("lib_parts/campaign_storage/part_01.rs");
