@@ -68,6 +68,10 @@ fn main() -> Result<()> {
             });
             println!("{}", serde_json::to_string_pretty(&response)?);
         }
+        "production-adapter-readiness" => {
+            let response = trnm_world_api::world_production_adapter_readiness();
+            println!("{}", serde_json::to_string_pretty(&response)?);
+        }
         "dev-runtime-smoke" => {
             let response = trnm_world_server::build_dev_runtime_smoke_json();
             println!("{}", serde_json::to_string_pretty(&response)?);

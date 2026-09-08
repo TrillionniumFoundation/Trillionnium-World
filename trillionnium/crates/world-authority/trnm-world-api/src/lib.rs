@@ -1,5 +1,8 @@
 //! Stable API contracts for the standalone Trillionnium World development environment.
 
+pub mod production_contract;
+pub use production_contract::*;
+
 use serde::{Deserialize, Serialize};
 use trnm_world_command::{WorldCommand, WorldCommandDecision, WorldTacticsCommandOutcome};
 use trnm_world_domain::{WorldState, WORLD_DOMAIN_CONTRACT};
@@ -199,8 +202,11 @@ pub trait WorldAccountAdapter {
         display_name: &str,
     ) -> WorldAccountAuthDecision;
     fn login_password_account(&self, actor_id: &str) -> WorldAccountAuthDecision;
-    fn resolve_account_session(&self, session_id: &str, actor_id: &str)
-        -> WorldAccountAuthDecision;
+    fn resolve_account_session(
+        &self,
+        session_id: &str,
+        actor_id: &str,
+    ) -> WorldAccountAuthDecision;
     fn revoke_account_session(&self, session_id: &str, actor_id: &str) -> WorldAccountAuthDecision;
 }
 
@@ -212,8 +218,11 @@ pub trait WorldLedgerAdapter {
 pub trait WorldRepository {
     fn load_world(&self, actor_id: &str) -> WorldState;
     fn load_route_records(&self, actor_id: &str, world: &WorldState) -> WorldRouteRecords;
-    fn save_world(&self, world: &WorldState, records: &WorldRouteRecords)
-        -> WorldRepositoryReceipt;
+    fn save_world(
+        &self,
+        world: &WorldState,
+        records: &WorldRouteRecords,
+    ) -> WorldRepositoryReceipt;
 }
 
 pub trait WorldEvidenceSink {
@@ -235,8 +244,7 @@ pub fn world_runtime_adapter_readiness() -> WorldRuntimeAdapterReadiness {
     ];
     WorldRuntimeAdapterReadiness {
         adapter_contract: WORLD_RUNTIME_ADAPTER_CONTRACT.to_string(),
-        cutover_status: "standalone_traits_with_fixture_adapters_ready_for_cex_production_impls"
-            .to_string(),
+        cutover_status: "fixture_adapters_only_production_implementations_absent".to_string(),
         cex_dependency_status:
             "trnm_world_crates_define_traits_without_importing_cex_service_internals".to_string(),
         statuses: roles
@@ -245,7 +253,7 @@ pub fn world_runtime_adapter_readiness() -> WorldRuntimeAdapterReadiness {
                 adapter_contract: WORLD_RUNTIME_ADAPTER_CONTRACT.to_string(),
                 adapter_name: adapter_name.to_string(),
                 role: role.to_string(),
-                status: "trait_ready_fixture_adapter_green".to_string(),
+                status: "trait_seam_defined_fixture_adapter_green".to_string(),
                 fixture_adapter_available: true,
                 production_adapter_trait_ready: true,
                 source_of_truth: "trnm_world_api_runtime_adapter_contracts".to_string(),
@@ -311,10 +319,14 @@ mod tests {
     }
 
     #[test]
-    fn runtime_adapter_readiness_declares_all_cutover_traits() {
+    fn runtime_adapter_readiness_declares_trait_seams_without_implementation_credit() {
         let readiness = world_runtime_adapter_readiness();
         assert_eq!(readiness.adapter_contract, WORLD_RUNTIME_ADAPTER_CONTRACT);
         assert_eq!(readiness.statuses.len(), 6);
+        assert_eq!(
+            readiness.cutover_status,
+            "fixture_adapters_only_production_implementations_absent"
+        );
         assert!(readiness
             .statuses
             .iter()
@@ -323,6 +335,18 @@ mod tests {
             .statuses
             .iter()
             .all(|status| status.production_adapter_trait_ready));
+        assert!(readiness
+            .statuses
+            .iter()
+            .all(|status| status.status == "trait_seam_defined_fixture_adapter_green"));
+
+        let production = world_production_adapter_readiness();
+        assert!(!production.production_ready);
+        assert_eq!(production.production_authorization, "not_granted");
+        assert!(production
+            .capabilities
+            .iter()
+            .all(|capability| !capability.implementation_available));
     }
 
     #[test]
