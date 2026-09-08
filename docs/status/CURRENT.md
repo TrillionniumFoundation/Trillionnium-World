@@ -3,9 +3,9 @@
 > Generated from the snapshot explicitly selected by `CURRENT_PLAN.md`.
 > These are recorded assertions, not fresh GitHub queries or independent evidence verification.
 
-- Selected execution snapshot: `docs/status/world-plan-v4-execution-truth-2026-09-02.json`
-- Snapshot recorded at (UTC): `2026-09-07T17:32:15Z`
-- Snapshot SHA-256: `7d0808a93d082abff18bf57c7605c39b278dd599a980bd3e7c851e101b0073e4`
+- Selected execution snapshot: `docs/status/world-plan-v4-execution-truth-2026-09-08.json`
+- Snapshot recorded at (UTC): `2026-09-08T12:45:00Z`
+- Snapshot SHA-256: `428da6d39c72ad851ece93c0fd6f4f8bcdddf7293f26873b128d09076a19b22f`
 - Operative pull request: `#46`
 - Operative branch: `fix/world-plan-v4-development-closure-20260831`
 
@@ -27,7 +27,7 @@ The binding repository boundary and accepted ADRs remain authoritative.
 | Qualified tree present | `true` |
 | Qualified tree attached to PR | `true` |
 | Repository workflow run count at snapshot | `0` |
-| Actions state | `scheduler_no_exact_head_runs` |
+| Actions state | `scheduler_no_exact_head_runs_after_reopen` |
 | Exact-head evidence | `absent` |
 
 A qualified artifact is not publication on the operative branch. Source publication is not compilation, hosted CI, independent review or release eligibility.

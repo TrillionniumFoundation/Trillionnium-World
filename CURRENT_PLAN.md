@@ -1,121 +1,67 @@
 # Current Trillionnium World Plan
 
-The current executable product plan remains:
+The active execution route remains the Plan V4 architecture with the V5/V6 repository-closure continuation:
 
-`docs/development/TRILLIONNIUM_WORLD_DEVELOPMENT_PLAN_2026-08-29.md`
-
-Its binding convergence interpretation remains:
-
-- `docs/development/TRILLIONNIUM_WORLD_PLAN_V4_CONVERGENCE_ADDENDUM_2026-08-30.md`
-- `docs/development/TRILLIONNIUM_WORLD_PLAN_V4_EXECUTION_UPDATE_2026-08-30.md`
+- `docs/development/TRILLIONNIUM_WORLD_DEVELOPMENT_PLAN_2026-08-29.md`
+- `docs/development/TRILLIONNIUM_WORLD_CLOSURE_EXECUTION_BOARD_V5.md`
+- `docs/adr/0003-world-authority-service-boundary.md`
 
 The authoritative current execution snapshot is:
 
-- `docs/status/world-plan-v4-execution-truth-2026-09-02.json`
+- `docs/status/world-plan-v4-execution-truth-2026-09-08.json`
 
-<!-- trnm-current-execution-snapshot: docs/status/world-plan-v4-execution-truth-2026-09-02.json -->
-
-The older machine-readable plan, gap ledger, and convergence-state files remain historical planning inputs. Where their candidate identity or execution state conflicts with the current execution snapshot, the current execution snapshot governs.
+<!-- trnm-current-execution-snapshot: docs/status/world-plan-v4-execution-truth-2026-09-08.json -->
 
 ## Operative candidate
 
 - Repository: `TrillionniumFoundation/Trillionnium-World`
 - Pull request: `#46`
 - Branch: `fix/world-plan-v4-development-closure-20260831`
-- Source qualification base: `5605cfb8861aa923f69ff032ddbff7d035bccb0c`
-- Qualification control head: `68e9631b3fc3f75f332497f8d0551608bf0e1413`
-- Qualified source tree: `5e613185f5a2abda42df371f3755e73667717309`
-- Qualified source patch SHA-256: `ba49dba1e7fbf842f146ac399647e188faafcfbd5ce3ad17425ef88850e0199f`
-- Rust toolchain: `1.98.0`
+- Observed repository-source tranche before this truth-only update: `da77c2c512d49ae03d2479af3adf24da6f928881`
+- Observed tree: `19638f2c9c0d649a0e1d9d49096552ac014e2ee6`
+- Safe successor toolchain: `1.98.1`
+- Production authorization: `not_granted`
 
-PR `#39` and earlier Plan V4 branches are superseded and must not be used as current truth sources.
+PR #46 was reopened as the single Draft review surface on 2026-09-08 after an earlier close-without-merge. Any later head, base, tree, workflow or prospective-merge movement requires fresh exact-object execution and review.
 
-## Binding architecture decisions
+## Binding architecture
 
-- **World** owns deterministic game-domain behavior, authored content, the native client, player-facing economy intents, World outcome hashes, and unsigned replay/outcome material.
-- **Nakama** owns target online admission, canonical total order, idempotency, restart recovery, archive roots, and `MatchCompletedV1` signing.
-- **Chain** owns ingress/finality, **CEX** owns wallet/ledger settlement and custody, and **Integration** owns exact cross-repository component locks and release evidence.
-- The World-local online server is a `world_legacy_local_alpha` compatibility enclave and must not expand into a second canonical public authority.
-- External settlement follows capture -> transaction-free remote execution -> fenced apply. Signer, CEX, or network I/O under mutable match or campaign locks is prohibited.
-- CI may validate and upload evidence but may not rewrite candidate semantics, self-approve, synthesize statuses, bypass protection, tag, release, deploy, or promote a candidate.
-- Source, workflow, CODEOWNERS, plan text, or ruleset documentation is not remote/server evidence.
+World owns deterministic game-domain behavior, authored content, local client orchestration, World state transitions, hashes and unsigned replay/outcome material. Nakama owns target online admission, canonical total order, durable idempotency, restart recovery, archive roots and `MatchCompletedV1` signing. Chain owns inclusion/finality. CEX owns wallet/ledger settlement and custody. Integration owns exact multi-repository locks and combined release evidence.
 
-## Current closure interpretation
+A World authority service is therefore a deterministic-domain transition/projection service, not a second canonical online authority. The World-local `trnm-game-server` remains a compatibility/migration enclave.
 
-The immutable qualification artifact proves that the direct-source candidate passed its bound source and test gates. Ordinary source was subsequently published into PR `#46` by commit `5e7bb9a3e44e61371972d1fe1054fefb637a5629`, with parent `b131aaccddf1a5a1474e95cd7eec018deeed08d7` and tree `1d2e01be24434390593b11202e6c374d4773d4e0`. The live candidate deletes semantic `trillionnium/crates/trnm-game-server/build.rs` and `src/lib.rs.in`, removes the Cargo build-script declaration and compiles manifest-bound ordinary source.
+## Repository-source closure now present
 
-That publication closes only the World-owned ordinary-source denominator. It does not transfer the immutable artifact's execution credit to later governance overlays or prove hosted CI, prospective-merge behavior, server controls, independent review, cross-repository compatibility, deployment, custody, human validation or release eligibility.
+The candidate now contains:
 
-Accordingly:
+- ordinary reviewable game-server/campaign/RTS source with semantic `build.rs`/`lib.rs.in` authority absent;
+- World-specific root README, operations manual and release decision;
+- a detailed technical design for every active Cargo crate plus an exact machine inventory;
+- HTTP route, WebSocket and stable error contracts, two JSON schemas and an exact 50-route source inventory;
+- strengthened documentation and route-drift gates with hostile negative fixtures;
+- ADR-0003 and a read-only Rust 1.98.1 successor workflow.
 
-- `WORLD-P0-009` and the ordinary-source portion of `WORLD-P1-001` are source-closed candidates on PR `#46`;
-- semantic `build.rs` / `src/lib.rs.in` authority is no longer open debt on the live candidate;
-- every later source change still requires fresh exact-head and prospective-merge qualification;
-- empty check collections and a repository with zero exact-head workflow runs receive no verification credit.
+This closes the repository-actionable documentation/truth tranche as `CLOSED_CANDIDATE`. It does not transfer the older Rust 1.98.0 artifact's execution credit to the new head.
 
-The retained, unqualified CEX sequence-50 input is PR `TrillionniumFoundation/CEX#24`, commit `dc0862b8cf88a1f4e6328d519947e19b81122de0`, tree `762e33a3f16c14347a44cec1d862a8e0ab447ad8`, migration head `0088_enforce_provider_terminal_evidence_binding.sql`. Live read-back during the 2026-09-05 continuation found that PR closed without merge. CEX PR `#25` is an open Draft at `652a0524076206006fa7298ce67a83c78e2a670e`, with additional unqualified development lanes. These observations do not repin the component lock or grant compatibility, qualification or production authorization. Treat the existing World-to-CEX binding as stale/pending until the CEX owner selects and qualifies one immutable revision and World/Integration validate it. This observed dependency disposition supersedes the older snapshot's description of PR #24 as current; all other unclosed gates remain unclosed.
+## Live execution observation
+
+After publishing the repository tranche and reopening PR #46, GitHub returned zero pull-request workflow runs for exact head `da77c2c512d49ae03d2479af3adf24da6f928881`. Missing execution remains `SERVER_CONFIGURATION_REQUIRED`; workflow source cannot manufacture a run or status.
+
+## Current cross-repository observations
+
+- CEX PR #29 is open Draft at `04491cff7cb317324f57a10de07872d39f3e56c2`; repository work and hosted convergence are still in progress, with custody and independent/external gates open.
+- TrillionniumGame/Nakama PR #63 is open Draft at `6dd5a101c67d78572a9dcaa3ab6ff96ef1966850`; repository-controlled source/CI is materially advanced, while conflict-free specialist review, server governance, remaining product surfaces and production campaigns remain open.
+- Trillionnium-Chain PR #62 is open Draft at `521726e47ce0efad6b732a5fc31afcd2cc52593d`; multiple workflows remain queued or failed and repository/settings/external blockers remain open.
+- Trillionnium-Integration PR #8 is open Draft at `ae531f5022f6fb190105986959a5e5543ab47d35`, but its described component pins predate the current World, CEX, Nakama and Chain heads. It must be repinned only after exact component candidates are stable and independently qualified.
+
+These observations are dependency posture, not qualification or release authorization.
 
 ## Ordered remaining blockers
 
-1. Restore World Actions scheduling and obtain non-empty Rust 1.98, PostgreSQL, transition-contract, package, source-boundary, and supply-chain evidence on the final exact head and prospective merge object.
-2. Restore CEX runner allocation and obtain its complete non-empty exact-head qualification, manifest, SBOM, provenance, and independent approval.
-3. Apply server-side main protection and current required checks; obtain fresh independent review of each final exact head.
-4. Bind World, CEX, Nakama, Chain, and Integration to immutable qualified revisions and close fault/divergence evidence.
-5. Obtain deployment, custody, public-edge, cross-host recovery/endurance, human/accessibility, privacy, legal, support, commercial, and final human go/no-go evidence from their actual authorities.
+1. Restore World Actions scheduling and obtain non-empty terminal-success exact-head and prospective-merge runs on one final unchanged Rust 1.98.1 successor.
+2. Apply/read back protected-main required contexts, review freshness, conversation resolution, no-force/direct-push and no-bypass controls; obtain fresh independent approval.
+3. Qualify immutable CEX, Nakama and Chain revisions; repin Integration and close contract-byte equality, shadow divergence, fault, drain, cutover and rollback evidence.
+4. Complete the remaining semantic `include!` decomposition into true Rust modules/traits only through separately reviewable, test-preserving tranches.
+5. Obtain cross-host/public-edge/endurance, human/accessibility, privacy, security, custody, licensing, legal, support, commercial and final human go/no-go evidence from accountable authorities.
 
-Public online operation, public player markets, trusted settlement, and commercial release remain **NO-GO / disabled** until every dependency row has independently verified exact evidence. Production authorization remains **not granted**.
-
-## Historical planning inputs
-
-These paths remain required planning/schema references, not current execution-state authorities:
-
-- `docs/development/trillionnium-world-development-plan-2026-08-29.json`
-- `docs/development/trnm-world-gap-closure-ledger-v4.json`
-
-Their presence satisfies discoverability, not closure. The authoritative execution snapshot above still governs. Operator-only source publication uses `scripts/import-qualified-world-v13k.py`; CI may run its dry-run and offline fault tests, but may not use `--publish`.
-
-## Executable execution-truth checks
-
-`docs/status/CURRENT.md` is a deterministic view of the explicitly selected execution snapshot, not a fresh GitHub observation. The selected snapshot, root candidate identity and rendered view must agree. Later live observations above keep their stated scope; old CEX pins are not automatically repinned or qualified.
-
-```bash
-python3 scripts/check-trnm-world-execution-truth.py
-python3 scripts/test-trnm-world-execution-truth.py
-python3 scripts/test-trnm-world-qualified-checkout.py
-```
-
-A local operator may regenerate the view with `--write` after an authorized pointer/snapshot update. CI rejects that option and only checks the rendered bytes. `scripts/check-trnm-world-qualified-checkout.py --artifact-zip <verified-v13k.zip> --expected-head <exact-checkout-commit>` separately verifies the pinned artifact and all 73 writes/two deletions against both committed Git objects and worktree bytes. Its output proves only local checkout identity, not remote publication, hosted qualification, review or release authorization.
-
-See `docs/development/trnm-world-execution-truth-checks-v1.md` for scope, failure behavior and commands. No execution state or release denominator is promoted by these checks.
-
-## CI target binding continuation (2026-09-05)
-
-The CI wiring repair is based on observed input `8107a3816545310a61ec5a36f4bad8cec432e225`.
-It does not change the selected execution snapshot, fixed artifact identity or
-any closure flag. The eight reviewed workflows retain twenty unique job names;
-the complete product workflow alone owns the five canonical V4 contexts. The
-narrower final counterparts are supplemental, not substitute required checks.
-The dedicated V5 closure workflow owns its canonical name. The exact required
-context set in the main-protection contract is unchanged.
-
-The complete workflow binds PR merge, push head and dispatched head explicitly;
-the final head jobs and PR-only prospective merge job bind their respective
-objects. Exact ordered merge parents, clean source, repository/event identity
-and the correct required PostgreSQL variable are checked. Target-identity JSON
-is not test success, runner verification, review or release authorization.
-See `docs/development/trnm-world-ci-target-binding-v1.md` and run:
-
-```bash
-python3 scripts/test-trnm-world-ci-target.py
-python3 scripts/test-trnm-world-ci-integrity.py
-python3 scripts/check-trnm-world-ci-integrity.py
-```
-
-An additional upstream observation requires toolchain review: the official Rust
-1.98.1 release dated 2026-09-03 fixes vtable-generation miscompilation. The original
-1.98.0 source/artifact pins remain immutable and are not silently upgraded. A
-successor built with a corrected toolchain needs distinct exact-head and merge
-qualification; this note proves neither project impact nor a successful rebuild.
-Ordinary source publication and the nonblocking source successor are present in
-PR `#46`; actual hosted scheduling, corrected-toolchain successor qualification,
-independent governance/review and all cross-repository/external gates remain open.
+Public online operation, trusted settlement, the public player market and commercial release remain **NO-GO / disabled**. Do not self-approve, bypass governance, synthesize statuses, merge, tag, release or deploy to convert a missing denominator into a pass.
