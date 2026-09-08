@@ -28,9 +28,9 @@ EXPECTED_WORLD = {
     "pull_request": 104,
     "branch": "fix/world-convergence-v6-20260908",
     "base": "0f6117a56263bcb5bf89e34b8bcda557a7da2e6d",
-    "observed_commit_before_update": "1c69b9a2c5ffdf00ef803ca182a0a75712f6536c",
-    "observed_tree_before_update": "f9052a18dfd9f8011b69377cd7984fc20f7482ae",
-    "observed_prospective_merge_before_update": "4b8021602cb444cc60520e5b7ab09d64262c7735"
+    "observed_commit_before_update": "1acb5e2a4bf872fc487caa6dfe52c0b4c4fe32a9",
+    "observed_tree_before_update": "7e0511496a7b7d36dba0d845a1c134f064581552",
+    "observed_prospective_merge_before_update": "a03a6e2ddc9a62264410a04ca541b559e6be93be",
 }
 EXPECTED_CEX = {
     "repository": "TrillionniumFoundation/CEX",
@@ -39,8 +39,8 @@ EXPECTED_CEX = {
     "commit": "882014451c22026dfe4848248f2b26a9b46ac049",
     "tree": "cb5b69f79eeb4e6d2032b93115d3e25c88957903",
     "base": "db75c74094748a1139fd64b0360e122d8ec797a0",
-    "prospective_merge": "c09cf4783f878e909ca8b47bf83ade4f7607136d",
-    "sequence": 54
+    "prospective_merge": "7a93ca40eb9278b4da7dc64b9f773acd639b9410",
+    "sequence": 54,
 }
 _BASE.EXPECTED_WORLD = EXPECTED_WORLD
 _BASE.EXPECTED_CEX = EXPECTED_CEX

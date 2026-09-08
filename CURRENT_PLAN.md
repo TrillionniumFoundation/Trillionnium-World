@@ -4,20 +4,15 @@ The executable product foundation remains:
 
 `docs/development/TRILLIONNIUM_WORLD_DEVELOPMENT_PLAN_2026-08-29.md`
 
-The current convergence board and machine denominator ledger are:
+The current convergence and evidence authorities are:
 
 - `docs/development/TRILLIONNIUM_WORLD_CLOSURE_EXECUTION_BOARD_V5.md`
 - `docs/development/trnm-world-gap-closure-ledger-v6.json`
 - `docs/integration/trnm-world-cex-current-pending-lock-v2.json`
 - `RELEASE_READINESS.md`
-
-The authoritative current execution snapshot is:
-
 - `docs/status/world-plan-v4-execution-truth-2026-09-08.json`
 
-<!-- trnm-current-execution-snapshot: docs/status/world-plan-v4-execution-truth-2026-09-08.json -->
-
-Historical machine-readable plans, ledgers and coordination locks remain provenance only. Where historical identity conflicts with the selected snapshot, V6 ledger or current coordination lock, the current files govern. Accepted ADRs and `PROJECT_BOUNDARY.*` remain binding.
+Historical plans, ledgers and coordination locks remain provenance only. The V6 ledger and current coordination lock govern current object selection; accepted ADRs and `PROJECT_BOUNDARY.*` remain binding.
 
 ## Operative candidate
 
@@ -25,20 +20,20 @@ Historical machine-readable plans, ledgers and coordination locks remain provena
 - Pull request: `#104`
 - Branch: `fix/world-convergence-v6-20260908`
 - Base observed: `main@0f6117a56263bcb5bf89e34b8bcda557a7da2e6d`
-- Head observed before this truth update: `1c69b9a2c5ffdf00ef803ca182a0a75712f6536c`
-- Head tree observed before this truth update: `f9052a18dfd9f8011b69377cd7984fc20f7482ae`
-- Prospective merge observed before this truth update: `4b8021602cb444cc60520e5b7ab09d64262c7735`
+- Head observed before this truth update: `1acb5e2a4bf872fc487caa6dfe52c0b4c4fe32a9`
+- Head tree observed before this truth update: `7e0511496a7b7d36dba0d845a1c134f064581552`
+- Prospective merge observed before this truth update: `a03a6e2ddc9a62264410a04ca541b559e6be93be`
 - Current candidate toolchain: `1.98.1`
 - Historical qualification toolchain: `1.98.0`
 
-Committing this truth update necessarily moves the branch head. The values above are an explicit pre-update observation, not execution credit for the later commit. Every later head and actual prospective merge require fresh read-back and non-empty execution.
+Committing this truth update moves the branch head. These values are an explicit pre-update observation, not qualification credit for the successor. Every successor head and actual prospective merge require fresh read-back and non-empty execution.
 
 PR #104 supersedes earlier World convergence surfaces, including closed unmerged PR #60. No CI, review, governance, cross-repository, release or production credit transfers from a superseded object.
 
 ## Binding architecture decisions
 
 - **World** owns deterministic game-domain behavior, authored content, native client behavior, World aggregate mutation under one fenced writer epoch, player-facing economic intents, World outcome hashes and unsigned replay/outcome material.
-- **Nakama** owns target online admission, participant/session identity, canonical total order, durable online idempotency, reconnect/restart recovery, archive roots and `MatchCompletedV1` signing.
+- **Nakama** owns target online admission, identity, canonical total order, durable online idempotency, reconnect/restart recovery, archive roots and `MatchCompletedV1` signing.
 - **CEX** owns wallet/ledger settlement and custody.
 - **Chain** owns ingress, consensus, inclusion and finality.
 - **Integration** owns exact cross-repository component locks, compatibility matrices and release evidence.
@@ -51,72 +46,42 @@ ADR `docs/adr/0003-world-domain-authority-and-nakama-canonical-online.md` remain
 
 ## Current source interpretation
 
-The historical immutable artifact proves only its exact source tree and Rust 1.98.0 environment. Current ordinary source is directly reviewable: semantic game-server `build.rs` and `src/lib.rs.in` authority are absent and Cargo no longer declares that build script.
-
-The convergence candidate contains:
-
-- substantive detailed designs and local contracts for all eight active game-product crates;
-- detailed contracts for all seven isolated World-domain authority crates;
-- a World-only operations manual, current release decision and strict document catalogue;
-- PostgreSQL base, hardening and complete catalog-fingerprint contracts;
-- cutover/provenance contracts and source/adapter/PostgreSQL gates;
-- a bounded strict JSON parser with duplicate-key, non-finite, UTF-8, size, depth and node-budget rejection;
-- an unconditional pull-request documentation gate whose trigger surface cannot be bypassed by changing a validator input;
-- read-only CI definitions that bind source and prospective-merge objects.
-
-These are `closed_candidate` source facts, not independently executed qualification. They do not inherit the historical Rust 1.98.0 artifact result. The final current head must run with Rust 1.98.1.
+The current ordinary source is reviewable and retains detailed contracts for all active and isolated World-authority crates, PostgreSQL base/hardening/catalog-fingerprint contracts, strict bounded JSON parsing, an unconditional pull-request documentation gate and read-only evidence workflows. These are `closed_candidate` source facts, not independently executed qualification. Historical Rust 1.98.0 artifact evidence does not transfer; the final candidate must execute under Rust 1.98.1.
 
 ## Current repository observations
 
-Live read-back before this update showed:
-
-```text
-normal repository-native candidate workflow runs  0
-repository rulesets                              0
-main protected                                   true
-main required contexts                           old three-context set
-```
-
-The observed required contexts remain:
-
-```text
-trnm-game-ci
-trnm-world-p0-boundaries
-trnm-world-status-evidence
-```
-
-They do not match `docs/governance/main-protection-contract-v2.json`. The managed GitHub App cannot create the final Ruleset or change administration surfaces needed for latest-push approval, stale-review dismissal, conversation resolution, current required contexts, linear/no-force-push controls and no-bypass behavior. These are server-configuration blockers, not source claims.
+The latest pre-update read-back showed zero repository-native pull-request workflow runs for the exact World head. The observed `main` protection retains an older three-context set and the repository Rulesets collection is empty. The managed GitHub App cannot install the complete protection contract or prove latest-push approval, stale-review dismissal, conversation resolution, force-push/deletion denial and no-bypass behavior. These are server-control blockers, not source claims.
 
 ## Current CEX dependency observation
 
 The coordination-only current observation is `docs/integration/trnm-world-cex-current-pending-lock-v2.json`.
 
-CEX PR #53 is the single Sequence 54 Draft candidate on branch `integration/cex-v12-sequence54-20260908`:
+CEX PR #53 is the single Sequence 54 Draft candidate:
 
 ```text
 head              882014451c22026dfe4848248f2b26a9b46ac049
 tree              cb5b69f79eeb4e6d2032b93115d3e25c88957903
 base              db75c74094748a1139fd64b0360e122d8ec797a0
-prospective merge c09cf4783f878e909ca8b47bf83ade4f7607136d
+prospective merge 7a93ca40eb9278b4da7dc64b9f773acd639b9410
 ```
 
-Its bounded RustSec policy, all-feature/release-surface controls and dedicated anti-regression wiring are present in source. Its hosted jobs still fail before source steps, its live Rulesets collection remains empty, `main` remains unprotected and fresh independent approvals are absent. It remains unqualified with `production_authorization=not_granted`. This observation does not select it for release or enable World adoption.
+The prospective merge is a GitHub-signed merge of the exact base and head and has tree `cb5b69f79eeb4e6d2032b93115d3e25c88957903`. CEX source-side RustSec admission remains present, but hosted jobs—including the latest P0 and Economy attempts—still fail with no runner and no source steps; Rulesets are empty, `main` is unprotected and current reviews request changes. World adoption and trusted settlement remain disabled.
 
 ## Current upstream coordination observations
 
-- TrillionniumGame/Nakama PR #63 remains Draft at `6dd5a101c67d78572a9dcaa3ab6ff96ef1966850`; repository-controlled source/CI is substantially qualified, while conflict-free specialist capacity, effective governance and production evidence remain open.
-- Trillionnium-Chain PR #62 remains Draft at `521726e47ce0efad6b732a5fc31afcd2cc52593d`; required workflow, independent campaign/audit and activation denominators remain open.
-- Trillionnium-Integration PR #8 is the live coordination surface. Every World, CEX, Nakama or Chain movement requires a new exact Integration repin before acceptance; an Integration coordination pin is not component qualification.
+- TrillionniumGame/Nakama PR #63 remains Draft at `6dd5a101c67d78572a9dcaa3ab6ff96ef1966850`; repository-controlled source/CI is substantially closed, while conflict-free specialist capacity, governance and production evidence remain open.
+- Trillionnium-Chain PR #62 remains Draft at `521726e47ce0efad6b732a5fc31afcd2cc52593d`; required workflows, independent campaigns/audit and activation remain open.
+- Trillionnium-Integration PR #8 is the coordination surface and must repin each final component movement. Exact pinning is not component qualification.
 
 ## Ordered remaining blockers
 
-1. Restore World Actions scheduling and obtain non-empty terminal-success Rust 1.98.1, PostgreSQL, transition, documentation, package, source-boundary and supply-chain execution on one unchanged final head and its actual prospective merge.
+1. Restore World Actions scheduling and obtain non-empty terminal-success Rust 1.98.1, PostgreSQL, transition, documentation, package, source-boundary and supply-chain execution on one unchanged final head and actual prospective merge.
 2. Apply and read back server-side main protection, current required contexts, stale-review dismissal, conversation resolution, linear/no-force-push/no-bypass controls; then obtain fresh independent approval on the unchanged final tuple.
-3. Qualify the immutable CEX revision above with non-empty execution, candidate manifest, SBOM/provenance, custody evidence and independent approval.
-4. Qualify World, CEX, Nakama and Chain independently; have Integration pin exact accepted commits, trees, artifacts and contract bytes and close transition divergence, no-dual-writer, fault, cutover and rollback evidence.
-5. Replace fixture/file-backed World-domain adapters with independently reviewed production identity/session, PostgreSQL repository, ledger, evidence, metrics, routing and service-deployment adapters.
-6. Complete the remaining `include!` ownership-part migration into true Rust module/trait/visibility boundaries through test-preserving review tranches.
-7. Obtain deployment, public-edge, cross-host recovery/endurance, custody/KMS, human/accessibility, privacy, legal, support, commercial and final human go/no-go evidence from their accountable authorities.
+3. Qualify the immutable CEX object above with non-empty execution, candidate manifest, SBOM/provenance, custody evidence and independent approval.
+4. Qualify World, CEX, Nakama and Chain independently; have Integration pin exact accepted commits, trees, artifacts and contract bytes and close divergence, no-dual-writer, fault, cutover and rollback evidence.
+5. Replace fixture/file-backed World authority adapters with independently reviewed production identity/session, PostgreSQL repository, ledger, evidence, metrics, routing and deployment adapters.
+6. Complete remaining `include!` ownership-part migration into true Rust module/trait/visibility boundaries through test-preserving review tranches.
+7. Obtain deployment, public-edge, cross-host recovery/endurance, custody/KMS, accessibility, privacy, legal, support, commercial and final human go/no-go evidence.
 
 Public online operation, public player markets, trusted settlement and commercial release remain **NO-GO / disabled**. Production authorization remains **not granted**.
 

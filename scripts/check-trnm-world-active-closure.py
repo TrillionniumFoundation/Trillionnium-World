@@ -19,8 +19,8 @@ if _SPEC is None or _SPEC.loader is None:
 _BASE = importlib.util.module_from_spec(_SPEC)
 _SPEC.loader.exec_module(_BASE)
 
-# Re-export the established checker API so existing hostile fixtures keep
-# exercising the same implementation instead of a reduced compatibility shim.
+# Re-export the complete established checker API. Existing hostile fixtures must
+# continue to exercise the full V6 validator rather than a reduced compatibility shim.
 for _name in dir(_BASE):
     if not _name.startswith("__"):
         globals()[_name] = getattr(_BASE, _name)
@@ -32,8 +32,8 @@ CURRENT_CEX = {
     "commit": "882014451c22026dfe4848248f2b26a9b46ac049",
     "tree": "cb5b69f79eeb4e6d2032b93115d3e25c88957903",
     "base": "db75c74094748a1139fd64b0360e122d8ec797a0",
-    "prospective_merge": "c09cf4783f878e909ca8b47bf83ade4f7607136d",
-    "sequence": 54
+    "prospective_merge": "7a93ca40eb9278b4da7dc64b9f773acd639b9410",
+    "sequence": 54,
 }
 _BASE.CURRENT_CEX = CURRENT_CEX
 
@@ -47,6 +47,7 @@ _SUPERSEDED_CEX_IDENTITIES = (
     "0dfbba47c265e70a8880aa6f7d0279473c7d4268",
     "a5642ee4d5d3eaa1d066818a76ed1f27c060a2f8",
     "301314c61c127f9febc48d57358b9ba73640b74e",
+    "c09cf4783f878e909ca8b47bf83ade4f7607136d",
 )
 _BASE_REJECT_CURRENT_STALE_IDENTITY = _BASE.reject_current_stale_identity
 
