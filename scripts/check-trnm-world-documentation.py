@@ -56,7 +56,9 @@ required_paths = [
     "PROJECT_BOUNDARY.md",
     "PROJECT_BOUNDARY.json",
     "AGENTS.md",
+    "OPERATIONS.md",
     "docs/README.md",
+    "docs/catalog.json",
     PLAN_MD,
     PLAN_JSON,
     LEDGER_JSON,
@@ -66,12 +68,24 @@ required_paths = [
     "docs/architecture/trnm-world-authority-state-ownership-v1.md",
     "docs/architecture/trnm-settlement-lifecycle-v2.md",
     "docs/architecture/trnm-determinism-and-canonical-json-v1.md",
+    "docs/architecture/cex-world-authority-cutover-v1.md",
+    "docs/adr/0003-world-domain-authority-and-nakama-canonical-online.md",
     "docs/security/trnm-world-threat-model-v1.md",
     "docs/database/trnm-world-postgres-contract-v1.md",
     "docs/release/trnm-world-release-gate-matrix-v2.md",
     "docs/release/trnm-world-evidence-record-v1.md",
     "docs/runbooks/trnm-settlement-shutdown-and-quarantine-v1.md",
     "docs/runbooks/trnm-authority-cutover-rollback-v1.md",
+    "docs/contracts/trillionnium-world-authority-cutover-v1.json",
+    "docs/contracts/trillionnium-world-authority-provenance-v1.json",
+    "docs/modules/README.md",
+    "docs/modules/world-authority/README.md",
+    "trillionnium/crates/world-authority/Cargo.toml",
+    "trillionnium/crates/world-authority/README.md",
+    "scripts/check-trnm-world-detailed-documentation.py",
+    "scripts/test-trnm-world-detailed-documentation.py",
+    "scripts/check-trnm-world-authority-documentation.py",
+    "scripts/test-trnm-world-authority-documentation.py",
 ]
 for path in required_paths:
     read(path)
@@ -167,9 +181,16 @@ for workflow in sorted(workflow_dir.glob("*.yml")) + sorted(workflow_dir.glob("*
     normalized = text.lower()
     if re.search(r"(?m)^\s*contents:\s*write\s*$", normalized):
         fail(f"write-enabled validation workflow: {workflow.relative_to(ROOT)}")
-    for forbidden in ("git push", "git commit", "clippy --fix"):
-        if forbidden in normalized:
-            fail(f"self-modifying workflow marker {forbidden!r}: {workflow.relative_to(ROOT)}")
+    # `git commit-tree` is an allowed non-ref-moving way to materialize an
+    # ephemeral prospective-merge object. Ordinary commit/push/fix commands
+    # remain forbidden because they mutate the candidate or repository state.
+    for pattern, label in (
+        (r"\bgit\s+push(?:\s|$)", "git push"),
+        (r"\bgit\s+commit(?:\s|$)", "git commit"),
+        (r"clippy\s+--fix", "clippy --fix"),
+    ):
+        if re.search(pattern, normalized):
+            fail(f"self-modifying workflow marker {label!r}: {workflow.relative_to(ROOT)}")
 
 for removed in (
     ".github/workflows/apply-world-settlement-gap-closure-v1.yml",
@@ -180,20 +201,24 @@ for removed in (
         fail(f"retired self-modifying workflow still exists: {removed}")
 
 # Consistency and executable negative fixtures are part of the existing gate.
-# The two unit suites use isolated temporary repositories, never candidate writes.
+# All unit suites use isolated temporary repositories, never candidate writes.
 for relative, arguments in (
     ("scripts/check-trnm-world-execution-truth.py", [str(ROOT)]),
     ("scripts/test-trnm-world-execution-truth.py", []),
     ("scripts/test-trnm-world-qualified-checkout.py", []),
+    ("scripts/check-trnm-world-detailed-documentation.py", [str(ROOT)]),
+    ("scripts/test-trnm-world-detailed-documentation.py", []),
+    ("scripts/check-trnm-world-authority-documentation.py", [str(ROOT)]),
+    ("scripts/test-trnm-world-authority-documentation.py", []),
 ):
     path = ROOT / relative
     if not path.is_file() or path.is_symlink():
-        fail(f"missing or linked execution-truth gate: {relative}")
+        fail(f"missing or linked documentation/execution-truth gate: {relative}")
     try:
-        result = subprocess.run([sys.executable, str(path), *arguments], check=False, timeout=90)
+        result = subprocess.run([sys.executable, str(path), *arguments], check=False, timeout=180)
     except (OSError, subprocess.TimeoutExpired):
-        fail(f"execution-truth gate unavailable: {relative}")
+        fail(f"documentation/execution-truth gate unavailable: {relative}")
     if result.returncode != 0:
-        fail(f"execution-truth gate failed: {relative}")
+        fail(f"documentation/execution-truth gate failed: {relative}")
 
 print("TRNM World documentation and CI integrity: PASS")

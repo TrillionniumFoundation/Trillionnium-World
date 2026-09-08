@@ -20,6 +20,8 @@ checker = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(checker)
 GAP = "trnm-world-gap-closure-v4.yml"
 FINAL = "trnm-world-v4-final-gates.yml"
+AUTHORITY = "trnm-world-authority-cutover.yml"
+POSTGRES = "trnm-world-postgres-cutover.yml"
 
 
 class WorkflowInventoryTests(unittest.TestCase):
@@ -40,12 +42,24 @@ class WorkflowInventoryTests(unittest.TestCase):
         with self.assertRaises(SystemExit):
             checker.workflow_inventory(self.root)
 
-    def test_reviewed_eight_workflows_have_twenty_unique_contexts(self):
+    def test_reviewed_ten_workflows_have_twenty_three_unique_contexts(self):
         contexts = checker.workflow_inventory(self.root)
-        self.assertEqual(len(contexts), 20)
+        self.assertEqual(len(contexts), 23)
         for job in ("docs-governance", "transition-contract", "settlement-postgres", "game-workspace-release", "supply-chain"):
             self.assertEqual(contexts["trnm-world-v4/" + job], GAP)
         self.assertEqual(contexts["trnm-world-v5/closure-contract"], "trnm-world-v5-closure-contract.yml")
+        self.assertEqual(contexts["trnm-world-p0-boundaries"], AUTHORITY)
+        self.assertEqual(contexts["trnm-world-status-evidence"], AUTHORITY)
+        self.assertEqual(contexts["trnm-world-postgres-cutover"], POSTGRES)
+
+    def test_ephemeral_commit_tree_is_allowed_but_source_commit_is_not(self):
+        # The reviewed authority/PostgreSQL workflows create an unreachable
+        # deterministic prospective-merge object with `git commit-tree`; this
+        # does not move refs or mutate candidate source.
+        checker.workflow_inventory(self.root)
+        original = (self.folder / AUTHORITY).read_text()
+        (self.folder / AUTHORITY).write_text(original + "\n# forbidden: git commit candidate\n")
+        self.reject()
 
     def test_removed_workflow_rejected(self):
         (self.folder / FINAL).unlink()
@@ -151,7 +165,7 @@ class WorkflowInventoryTests(unittest.TestCase):
             (self.folder / GAP).write_text(original + "\n# forbidden: " + marker + "\n")
             with self.subTest(marker=marker): self.reject()
 
-    def test_six_unmodified_workflow_names_are_required(self):
+    def test_all_other_reviewed_workflow_names_are_required(self):
         for name in sorted(set(checker.WORKFLOW_JOBS) - {GAP, FINAL}):
             with self.subTest(name=name):
                 data = (self.folder / name).read_bytes()
