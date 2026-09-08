@@ -16,6 +16,8 @@ Read in this order:
 8. `integration/trnm-world-cex-current-pending-lock-v2.json` — coordination-only current CEX candidate observation.
 9. `../GAME_STATUS.md` — native gameplay/runtime evidence and explicit product limitations.
 
+The executable planning foundation is `development/TRILLIONNIUM_WORLD_DEVELOPMENT_PLAN_2026-08-29.md`. It defines product scope and intent but does not override the operative candidate, accepted ADRs, current V6 ledger or selected September execution snapshot.
+
 When current documents disagree, the binding boundary and accepted ADRs take precedence. A contradiction is a blocker and must be removed rather than explained away with another status file.
 
 Historical Plan V4 inputs remain discoverable but do not select the current candidate:
