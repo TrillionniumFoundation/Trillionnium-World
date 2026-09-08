@@ -1,0 +1,172 @@
+{
+  "schema": "trillionnium.world.authority.cutover.v1",
+  "contract_version": "trillionnium_world_authority_cutover_v1",
+  "status": "cutover_candidate",
+  "native_actions_trigger_sequence": 3,
+  "production_authorization": "not_granted",
+  "owner_repository": "TrillionniumFoundation/Trillionnium-World",
+  "source_history_commit": "d44d8930c917b55da7b23eb19e9645feb8f4ee59",
+  "workspace": "trillionnium/crates/world-authority/Cargo.toml",
+  "authority_rule": "world_repository_is_the_only_world_state_writer",
+  "cex_role": [
+    "authenticated_ingress",
+    "request_normalization",
+    "versioned_world_api_client",
+    "source_versioned_read_projection"
+  ],
+  "cex_forbidden_roles": [
+    "world_map_writer",
+    "world_movement_writer",
+    "world_tactics_writer",
+    "world_commerce_writer",
+    "world_company_shop_work_order_writer",
+    "world_progression_writer"
+  ],
+  "restored_crates": [
+    "trnm-world-domain",
+    "trnm-world-command",
+    "trnm-world-projection",
+    "trnm-world-map-provider",
+    "trnm-world-ui-fragments",
+    "trnm-world-api",
+    "trnm-world-server"
+  ],
+  "excluded_legacy_components": [
+    "trnm-world-bevy",
+    "trnm-world-dev-env",
+    "legacy-rts-workspace",
+    "legacy-release-review-packets"
+  ],
+  "profiles": {
+    "development": {
+      "fixture_adapters_allowed": true,
+      "file_repository_allowed": true,
+      "production_credit": false
+    },
+    "production": {
+      "fixture_adapters_allowed": false,
+      "file_repository_allowed": false,
+      "fail_closed": true,
+      "required_adapters": [
+        "identity",
+        "session",
+        "durable_repository",
+        "ledger",
+        "evidence",
+        "metrics"
+      ]
+    }
+  },
+  "durable_cutover": {
+    "base_migration": "deploy/postgres/trnm-world-authority-cutover-v1.sql",
+    "mandatory_hardening_migration": "deploy/postgres/trnm-world-authority-cutover-v1-hardening.sql",
+    "only_supported_installer": "scripts/apply-trnm-world-authority-cutover-v1.sh",
+    "qualification": "scripts/check-trnm-world-authority-postgres.sh",
+    "state_machine_qualification": "scripts/check-trnm-world-authority-postgres.sh",
+    "installation_qualification": "scripts/check-trnm-world-authority-postgres-installation.sh",
+    "qualification_runner": "scripts/run-trnm-world-authority-postgres-check.sh",
+    "base_migration_standalone_supported": false,
+    "runtime_role_grants_in_migration": false,
+    "index_semantics_verification": {
+      "catalogs": [
+        "pg_catalog.pg_index",
+        "pg_catalog.pg_class",
+        "pg_catalog.pg_namespace",
+        "pg_catalog.pg_am",
+        "pg_catalog.pg_opclass",
+        "pg_catalog.pg_opfamily"
+      ],
+      "target_relation": "public.trnm_world_authority_epochs_v1",
+      "index_name": "trnm_world_single_active_writer_epoch_v1",
+      "namespace": "public",
+      "relation_kind": "i",
+      "persistence": "p",
+      "access_method": "btree",
+      "unique": true,
+      "immediate": true,
+      "valid": true,
+      "ready": true,
+      "live": true,
+      "check_xmin": false,
+      "primary": false,
+      "exclusion": false,
+      "clustered": false,
+      "replica_identity": false,
+      "nulls_not_distinct": false,
+      "key_count": 1,
+      "attribute_count": 1,
+      "first_attribute": 0,
+      "collation_oid": 0,
+      "index_option": 0,
+      "opclass_namespace": "pg_catalog",
+      "opclass_name": "int4_ops",
+      "opclass_input_type": "pg_catalog.int4",
+      "opclass_default": true,
+      "opclass_key_type_oid": 0,
+      "opfamily_namespace": "pg_catalog",
+      "opfamily_name": "integer_ops",
+      "expression": "1",
+      "predicate": "(status = 'active'::text) AND world_writer_enabled",
+      "nullable_expression_or_predicate_rejected": true,
+      "name_only_or_substring_only_acceptance": false
+    },
+    "invariants": [
+      "single_active_world_writer_epoch",
+      "single_writer_index_catalog_semantics_exact",
+      "single_writer_index_target_relation_unique_immediate_valid_ready_live",
+      "single_writer_index_constant_expression_and_exact_predicate",
+      "single_writer_index_catalog_fields_nonnullable",
+      "single_writer_index_builtin_int4_btree_opclass_bound",
+      "single_writer_index_collation_and_options_bound",
+      "single_writer_index_predicate_null_rejected",
+      "installation_checker_utf8_and_shell_syntax_bound",
+      "cex_writer_fenced_before_world_activation",
+      "canonical_json_equals_jsonb_text_serialization",
+      "request_hash_equals_canonical_command_hash",
+      "event_id_derived_from_epoch_world_idempotency_and_request_hash",
+      "concurrent_exact_replay_returns_replayed_exact",
+      "conflicting_replay_is_rejected",
+      "migration_version_conflict_is_rejected",
+      "rollback_disables_world_writer",
+      "append_only_event_and_receipt_evidence",
+      "supported_bundle_reapply_is_idempotent",
+      "base_only_partial_state_is_unqualified_and_recoverable",
+      "wrong_same_name_single_writer_index_is_rejected"
+    ],
+    "hostile_qualification": [
+      "different_epoch_concurrent_activation",
+      "same_key_concurrent_exact_replay",
+      "equivalent_noncanonical_snapshot_json",
+      "equivalent_noncanonical_command_json",
+      "migration_version_conflict",
+      "mutation_after_rollback",
+      "database_outage",
+      "cold_backup_restore",
+      "bundle_reapply",
+      "base_only_partial_install_recovery",
+      "same_name_nonunique_same_predicate_index",
+      "same_name_unique_wrong_key_same_predicate_index",
+      "same_name_unique_constant_wrong_predicate_index",
+      "same_name_unique_constant_no_predicate_index"
+    ]
+  },
+  "source_qualification": [
+    "exact_seven_crate_dependency_closure",
+    "no_cex_or_external_repository_path_dependency",
+    "format_test_and_clippy_green",
+    "adapter_contract_smoke_green",
+    "full_split_contract_smoke_green",
+    "restart_reload_repository_smoke_green",
+    "durable_postgres_cutover_hostile_suite_green",
+    "durable_postgres_installation_protocol_green"
+  ],
+  "cutover_acceptance": [
+    "world_owned_versioned_contract_published",
+    "cex_adapter_uses_versioned_contract",
+    "cex_authoritative_world_writes_disabled",
+    "backfill_reconciliation_exact",
+    "success_timeout_replay_partial_outage_and_rollback_evidence",
+    "legacy_cex_world_sources_removed_or_quarantined",
+    "no_state_has_two_authoritative_writers"
+  ]
+}

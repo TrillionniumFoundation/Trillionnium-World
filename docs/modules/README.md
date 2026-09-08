@@ -8,7 +8,7 @@ implementation_conformance: not-implied
 
 # Trillionnium World module contracts and detailed designs
 
-This index maps every active Rust workspace member to a local review contract and a deeper technical design. A crate is not documentation-complete merely because its name appears in a root README or cross-cutting plan.
+This index distinguishes the active game-product workspace from the isolated World-domain authority cutover workspace. A crate is not documentation-complete merely because its name appears in a root README or cross-cutting plan.
 
 ## Active game-product workspace
 
@@ -24,6 +24,12 @@ This index maps every active Rust workspace member to a local review contract an
 | `trnm-first-contact` | native Bevy presentation, input, local orchestration, and compatibility transport | [`../../trillionnium/crates/trnm-first-contact/README.md`](../../trillionnium/crates/trnm-first-contact/README.md) | [`trnm-first-contact-design.md`](trnm-first-contact-design.md) |
 
 The active member list is derived from `trillionnium/Cargo.toml`. `trillionnium/crates/platform` is excluded legacy material and is not an active game-product member.
+
+## Isolated World-domain authority cutover workspace
+
+The seven candidate crates under `trillionnium/crates/world-authority/` are not silently added to the active game-product release denominator. Their Cargo-derived index and detailed designs are maintained at [`world-authority/README.md`](world-authority/README.md), and their workspace contract is [`../../trillionnium/crates/world-authority/README.md`](../../trillionnium/crates/world-authority/README.md).
+
+ADR-0003 is binding: these crates may own deterministic World aggregate mutation after a reviewed cutover, while Nakama remains canonical online authority and CEX remains wallet/ledger custody authority. The nested workspace retains `production_authorization=not_granted`.
 
 ## Local contract requirements
 

@@ -7,15 +7,20 @@ on:
       - OPERATIONS.md
       - trillionnium/Cargo.toml
       - trillionnium/crates/*/README.md
+      - trillionnium/crates/world-authority/**
       - docs/README.md
       - docs/catalog.json
       - docs/modules/**
       - docs/adr/0003-world-domain-authority-and-nakama-canonical-online.md
+      - docs/architecture/cex-world-authority-cutover-v1.md
+      - docs/contracts/trillionnium-world-authority-*.json
       - docs/development/trnm-world-module-documentation-matrix-v1.md
       - scripts/check-trnm-world-module-documentation.py
       - scripts/test-trnm-world-module-documentation-negative.py
       - scripts/check-trnm-world-detailed-documentation.py
       - scripts/test-trnm-world-detailed-documentation.py
+      - scripts/check-trnm-world-authority-documentation.py
+      - scripts/test-trnm-world-authority-documentation.py
       - .github/workflows/trnm-world-module-documentation.yml
   push:
     branches:
@@ -27,15 +32,20 @@ on:
       - OPERATIONS.md
       - trillionnium/Cargo.toml
       - trillionnium/crates/*/README.md
+      - trillionnium/crates/world-authority/**
       - docs/README.md
       - docs/catalog.json
       - docs/modules/**
       - docs/adr/0003-world-domain-authority-and-nakama-canonical-online.md
+      - docs/architecture/cex-world-authority-cutover-v1.md
+      - docs/contracts/trillionnium-world-authority-*.json
       - docs/development/trnm-world-module-documentation-matrix-v1.md
       - scripts/check-trnm-world-module-documentation.py
       - scripts/test-trnm-world-module-documentation-negative.py
       - scripts/check-trnm-world-detailed-documentation.py
       - scripts/test-trnm-world-detailed-documentation.py
+      - scripts/check-trnm-world-authority-documentation.py
+      - scripts/test-trnm-world-authority-documentation.py
       - .github/workflows/trnm-world-module-documentation.yml
   workflow_dispatch:
 
@@ -70,7 +80,7 @@ jobs:
           python3 scripts/check-trnm-world-module-documentation.py
           python3 scripts/test-trnm-world-module-documentation-negative.py
 
-      - name: Verify current catalogue and detailed module designs
+      - name: Verify current catalogue and active detailed designs
         shell: bash
         run: |
           set -euo pipefail
@@ -78,3 +88,11 @@ jobs:
           python3 -m json.tool docs/catalog.json >/dev/null
           python3 scripts/check-trnm-world-detailed-documentation.py --as-of "$(date -u +%F)"
           python3 scripts/test-trnm-world-detailed-documentation.py
+
+      - name: Verify isolated World-domain authority module contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd repository
+          python3 scripts/check-trnm-world-authority-documentation.py --as-of "$(date -u +%F)"
+          python3 scripts/test-trnm-world-authority-documentation.py
