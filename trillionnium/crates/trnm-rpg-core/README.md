@@ -40,3 +40,7 @@ Required tests cover catalogue uniqueness, graph reachability, lock enforcement,
 ## Compatibility and change control
 
 Renaming or reusing a stable ID is a breaking change. Content additions must declare save compatibility and migration behavior. Attribute formulas, route rules, quest semantics, or catalogue meaning changes require an ADR or versioned ruleset/content revision and deterministic fixture updates.
+
+## Detailed design
+
+The module-level content, determinism, migration, resource, provenance, and evidence contract is maintained in [`../../../docs/modules/trnm-rpg-core-design.md`](../../../docs/modules/trnm-rpg-core-design.md).

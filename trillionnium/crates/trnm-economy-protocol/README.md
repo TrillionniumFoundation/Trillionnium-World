@@ -41,3 +41,7 @@ Required coverage includes round-trip serialization, altered-retry rejection, ac
 ## Compatibility and change control
 
 Additive optional fields require explicit compatibility tests. Any changed signing payload, required field, hash domain, enum meaning, or validation rule requires a new contract version, migration notes, golden vectors, CEX/Integration review, and a declared retirement window for the old version.
+
+## Detailed design
+
+The module-level execution, durability, retry, versioning, resource, security, and evidence contract is maintained in [`../../../docs/modules/trnm-economy-protocol-design.md`](../../../docs/modules/trnm-economy-protocol-design.md).

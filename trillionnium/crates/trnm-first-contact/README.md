@@ -34,3 +34,7 @@ Required coverage includes plugin/system ordering, asset and map validation, cam
 ## Compatibility and change control
 
 Changing system order, input semantics, save/replay interpretation, asset schema, online protocol, or presentation of authority/economy state requires regression tests and migration notes. Supported operating systems, render/audio backends, signing, and update/rollback policies must be recorded per release candidate.
+
+## Detailed design
+
+The complete client state, Bevy scheduling, concurrency, persistence, retry, platform, performance, accessibility, security, and evidence contract is maintained in [`../../../docs/modules/trnm-first-contact-design.md`](../../../docs/modules/trnm-first-contact-design.md).

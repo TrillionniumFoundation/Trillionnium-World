@@ -34,3 +34,7 @@ Required coverage includes migration from every supported schema, command error-
 ## Compatibility and change control
 
 A persisted-field semantic change requires a schema revision and migration. Battle seed/result or settlement payload changes require a contract version, vectors, client/simulation compatibility tests, and rollback notes. Removing a reader is forbidden until the supported-save inventory and retirement date are recorded.
+
+## Detailed design
+
+The complete aggregate state-machine, durability, failure-atomicity, migration, resource, security, and evidence contract is maintained in [`../../../docs/modules/trnm-campaign-core-design.md`](../../../docs/modules/trnm-campaign-core-design.md).

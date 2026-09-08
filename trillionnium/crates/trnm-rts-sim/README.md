@@ -34,3 +34,7 @@ Required tests include golden maps and seeds, rejected-command preservation, che
 ## Compatibility and change control
 
 Any change to tick ordering, arithmetic, RNG consumption, pathfinding tie-breaks, content interpretation, snapshot/replay encoding, or terminal calculation requires a rules/simulation version bump, updated vectors, migration/reader policy, and cross-implementation or shadow evidence before promotion.
+
+## Detailed design
+
+The complete simulation-kernel, determinism, persistence, rejection-state, versioning, performance, security, and evidence contract is maintained in [`../../../docs/modules/trnm-rts-sim-design.md`](../../../docs/modules/trnm-rts-sim-design.md).

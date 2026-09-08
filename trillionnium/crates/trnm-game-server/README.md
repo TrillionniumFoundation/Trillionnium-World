@@ -37,3 +37,7 @@ Required evidence includes source-boundary tests, all-target unit tests, Postgre
 ## Compatibility and change control
 
 Migrations are append-only and checksum bound. Endpoint, schema, lock-order, journal, settlement, authority, or credential changes require corresponding protocol/database/runbook updates and rollback impact. Semantic Rust source generation is forbidden; correctness code must be ordinary reviewable source. Retirement requires Nakama cutover, active-match drain, rollback evidence, and disablement rehearsal.
+
+## Detailed design
+
+The full application, actor, database, journal, settlement, identity, concurrency, resource, security, retirement, and evidence contract is maintained in [`../../../docs/modules/trnm-game-server-design.md`](../../../docs/modules/trnm-game-server-design.md).

@@ -3,22 +3,39 @@ name: trnm-world-module-documentation
 on:
   pull_request:
     paths:
+      - README.md
+      - OPERATIONS.md
       - trillionnium/Cargo.toml
       - trillionnium/crates/*/README.md
+      - docs/README.md
+      - docs/catalog.json
+      - docs/modules/**
+      - docs/adr/0003-world-domain-authority-and-nakama-canonical-online.md
       - docs/development/trnm-world-module-documentation-matrix-v1.md
       - scripts/check-trnm-world-module-documentation.py
       - scripts/test-trnm-world-module-documentation-negative.py
+      - scripts/check-trnm-world-detailed-documentation.py
+      - scripts/test-trnm-world-detailed-documentation.py
       - .github/workflows/trnm-world-module-documentation.yml
   push:
     branches:
       - main
       - fix/world-plan-v4-development-closure-20260831
+      - fix/world-convergence-v6-20260908
     paths:
+      - README.md
+      - OPERATIONS.md
       - trillionnium/Cargo.toml
       - trillionnium/crates/*/README.md
+      - docs/README.md
+      - docs/catalog.json
+      - docs/modules/**
+      - docs/adr/0003-world-domain-authority-and-nakama-canonical-online.md
       - docs/development/trnm-world-module-documentation-matrix-v1.md
       - scripts/check-trnm-world-module-documentation.py
       - scripts/test-trnm-world-module-documentation-negative.py
+      - scripts/check-trnm-world-detailed-documentation.py
+      - scripts/test-trnm-world-detailed-documentation.py
       - .github/workflows/trnm-world-module-documentation.yml
   workflow_dispatch:
 
@@ -45,10 +62,19 @@ jobs:
           git -C repository checkout --detach FETCH_HEAD
           test "$(git -C repository rev-parse HEAD)" = "${GITHUB_SHA}"
 
-      - name: Verify active module contracts and negative fixtures
+      - name: Verify active module entry contracts
         shell: bash
         run: |
           set -euo pipefail
           cd repository
           python3 scripts/check-trnm-world-module-documentation.py
           python3 scripts/test-trnm-world-module-documentation-negative.py
+
+      - name: Verify current catalogue and detailed module designs
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd repository
+          python3 -m json.tool docs/catalog.json >/dev/null
+          python3 scripts/check-trnm-world-detailed-documentation.py --as-of "$(date -u +%F)"
+          python3 scripts/test-trnm-world-detailed-documentation.py

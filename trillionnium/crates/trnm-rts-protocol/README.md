@@ -39,11 +39,8 @@ Intake policy, order vocabulary, simulation ruleset and release provenance have 
 
 ## Wire-shape differential gate
 
-The strict intake decoder enforces string-only `kind` and `source`; derived
-externally tagged enum objects are not an alternate wire encoding. The frozen
-114-case suite is supplemented by a deterministic 361-case raw-byte differential
-matrix and an actual Rust decoder oracle. See
-`docs/protocol/trnm-rts-intake-differential-v1.md` at the repository root for the
-normalization hash, execution protocol, failure budgets, commands and evidence
-boundary. Reference-only output and Python fixture processes do not prove Rust
-agreement. Runtime adapter adoption and all existing external gates remain open.
+The strict intake decoder enforces string-only `kind` and `source`; derived externally tagged enum objects are not an alternate wire encoding. The frozen 114-case suite is supplemented by a deterministic 361-case raw-byte differential matrix and an actual Rust decoder oracle. See `docs/protocol/trnm-rts-intake-differential-v1.md` at the repository root for the normalization hash, execution protocol, failure budgets, commands and evidence boundary. Reference-only output and Python fixture processes do not prove Rust agreement. Runtime adapter adoption and all existing external gates remain open.
+
+## Detailed design
+
+The complete intake, boundary, concurrency, compatibility, resource, observability, and evidence contract is maintained in [`../../../docs/modules/trnm-rts-protocol-design.md`](../../../docs/modules/trnm-rts-protocol-design.md).

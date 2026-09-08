@@ -34,3 +34,7 @@ Required coverage includes serialization fixtures for every message class, full/
 ## Compatibility and change control
 
 Breaking wire changes require a new protocol identity and explicit admission matrix. V2/legacy support must have an owner, usage inventory, retirement date, rollback policy, and tests. Canonical Nakama APIs must be defined in the owning repository rather than expanded here.
+
+## Detailed design
+
+The full message, sequence, reconnect, durability, error, compatibility, resource, security, and evidence contract is maintained in [`../../../docs/modules/trnm-online-protocol-design.md`](../../../docs/modules/trnm-online-protocol-design.md).

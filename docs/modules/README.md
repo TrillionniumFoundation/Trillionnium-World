@@ -1,59 +1,57 @@
 ---
 status: current-candidate
-owner: trillionnium-world
-last_reviewed: 2026-09-04
-review_due: 2026-10-04
+owner: trillionnium-world-architecture
+last_reviewed: 2026-09-08
+review_due: 2026-10-08
+implementation_conformance: not-implied
 ---
 
-# Trillionnium World module contracts
+# Trillionnium World module contracts and detailed designs
 
-This index maps each active Rust workspace member to its module-level technical contract. A crate is not considered documentation-complete merely because its name appears in the root README or a cross-cutting plan.
+This index maps every active Rust workspace member to a local review contract and a deeper technical design. A crate is not documentation-complete merely because its name appears in a root README or cross-cutting plan.
 
 ## Active game-product workspace
 
-| Module | Authority/responsibility | Module contract |
-|---|---|---|
-| `trnm-economy-protocol` | game-owned economic intent/receipt vocabulary; no wallet custody | [`../../trillionnium/crates/trnm-economy-protocol/README.md`](../../trillionnium/crates/trnm-economy-protocol/README.md) |
-| `trnm-rpg-core` | RPG domain vocabulary, content rules and world graph | [`../../trillionnium/crates/trnm-rpg-core/README.md`](../../trillionnium/crates/trnm-rpg-core/README.md) |
-| `trnm-campaign-core` | campaign/save/progression aggregate and local settlement | [`../../trillionnium/crates/trnm-campaign-core/README.md`](../../trillionnium/crates/trnm-campaign-core/README.md) |
-| `trnm-rts-protocol` | deterministic RTS command vocabulary | [`../../trillionnium/crates/trnm-rts-protocol/README.md`](../../trillionnium/crates/trnm-rts-protocol/README.md) |
-| `trnm-rts-sim` | Bevy-free deterministic RTS simulation | [`../../trillionnium/crates/trnm-rts-sim/README.md`](../../trillionnium/crates/trnm-rts-sim/README.md) |
-| `trnm-online-protocol` | World-local online compatibility vocabulary | [`../../trillionnium/crates/trnm-online-protocol/README.md`](../../trillionnium/crates/trnm-online-protocol/README.md) |
-| `trnm-game-server` | bounded `world_legacy_local_alpha` compatibility enclave | [`../../trillionnium/crates/trnm-game-server/README.md`](../../trillionnium/crates/trnm-game-server/README.md) |
-| `trnm-first-contact` | native Bevy presentation, input and local client orchestration | [`../../trillionnium/crates/trnm-first-contact/README.md`](../../trillionnium/crates/trnm-first-contact/README.md) |
+| Module | Authority/responsibility | Local contract | Detailed design |
+|---|---|---|---|
+| `trnm-economy-protocol` | game-owned intent/receipt vocabulary; no wallet custody | [`../../trillionnium/crates/trnm-economy-protocol/README.md`](../../trillionnium/crates/trnm-economy-protocol/README.md) | [`trnm-economy-protocol-design.md`](trnm-economy-protocol-design.md) |
+| `trnm-rpg-core` | deterministic RPG vocabulary, content rules, and world graph | [`../../trillionnium/crates/trnm-rpg-core/README.md`](../../trillionnium/crates/trnm-rpg-core/README.md) | [`trnm-rpg-core-design.md`](trnm-rpg-core-design.md) |
+| `trnm-campaign-core` | sole persistent RPG campaign/save/progression mutation | [`../../trillionnium/crates/trnm-campaign-core/README.md`](../../trillionnium/crates/trnm-campaign-core/README.md) | [`trnm-campaign-core-design.md`](trnm-campaign-core-design.md) |
+| `trnm-rts-protocol` | deterministic RTS command and strict-intake vocabulary | [`../../trillionnium/crates/trnm-rts-protocol/README.md`](../../trillionnium/crates/trnm-rts-protocol/README.md) | [`trnm-rts-protocol-design.md`](trnm-rts-protocol-design.md) |
+| `trnm-rts-sim` | Bevy-free deterministic RTS simulation and replay material | [`../../trillionnium/crates/trnm-rts-sim/README.md`](../../trillionnium/crates/trnm-rts-sim/README.md) | [`trnm-rts-sim-design.md`](trnm-rts-sim-design.md) |
+| `trnm-online-protocol` | World-local compatibility wire vocabulary, never canonical online authority | [`../../trillionnium/crates/trnm-online-protocol/README.md`](../../trillionnium/crates/trnm-online-protocol/README.md) | [`trnm-online-protocol-design.md`](trnm-online-protocol-design.md) |
+| `trnm-game-server` | bounded `world_legacy_local_alpha` compatibility enclave and settlement runtime | [`../../trillionnium/crates/trnm-game-server/README.md`](../../trillionnium/crates/trnm-game-server/README.md) | [`trnm-game-server-design.md`](trnm-game-server-design.md) |
+| `trnm-first-contact` | native Bevy presentation, input, local orchestration, and compatibility transport | [`../../trillionnium/crates/trnm-first-contact/README.md`](../../trillionnium/crates/trnm-first-contact/README.md) | [`trnm-first-contact-design.md`](trnm-first-contact-design.md) |
 
-The active member list is defined by `trillionnium/Cargo.toml`. `trillionnium/crates/platform` is excluded legacy material and is not an active game-product member.
+The active member list is derived from `trillionnium/Cargo.toml`. `trillionnium/crates/platform` is excluded legacy material and is not an active game-product member.
 
-## Mandatory contract sections
+## Local contract requirements
 
-Every active crate contract must state, in concrete terms:
+Every crate README states purpose, authority/non-goals, public/runtime contracts, state/invariants, dependency boundaries, failure/recovery, testing/evidence, compatibility/change control, and a link to the detailed design.
 
-1. responsibilities and explicit non-responsibilities;
-2. authority and data ownership;
-3. dependency direction and forbidden adapters;
-4. owned state and correctness invariants;
-5. concurrency, cancellation and lock-order posture where applicable;
-6. durable/private/public boundaries;
-7. idempotency, retry and failure behavior;
-8. versioning, compatibility and migration rules;
-9. resource and performance budgets;
+## Detailed design requirements
+
+Every detailed design states, in concrete terms:
+
+1. scope and authority;
+2. public interfaces;
+3. state model and correctness invariants;
+4. dependency direction and forbidden adapters;
+5. execution, concurrency, cancellation, and lock-order posture;
+6. persistence and durable/private/public boundaries;
+7. idempotency, retry, and stable failure taxonomy;
+8. versioning, compatibility, and migration rules;
+9. resource/performance budgets and measurement ownership;
 10. observability and security boundaries;
-11. local and external evidence requirements;
-12. change checklist and known open work.
+11. source/test/protocol/runbook evidence traceability;
+12. change checklist and honestly open work.
 
-The repository documentation checker enforces existence and structural coverage. It does not prove implementation conformance; source/tests/evidence remain separate denominators.
+The documentation gates validate existence, structure, metadata, review expiry, catalogue membership, links, minimum substantive content, traceability, and authority language. They do not prove implementation conformance or release eligibility.
 
-## Cross-cutting specifications
+## Cross-cutting precedence
 
-Module contracts are subordinate to:
-
-- `PROJECT_BOUNDARY.md` and `PROJECT_BOUNDARY.json`;
-- accepted ADRs;
-- `CURRENT_PLAN.md` and its authoritative execution snapshot;
-- normative protocol, database, security and release contracts.
-
-A contradiction is a blocker. Module documentation cannot grant public-online, custody, human, legal, commercial or production authorization credit.
+Module documents are subordinate to `PROJECT_BOUNDARY.*`, accepted ADRs, `CURRENT_PLAN.md`, the selected execution snapshot, and normative protocol/database/security/release contracts. A contradiction is a blocker. Module documentation cannot grant public-online, custody, human, legal, commercial, or production authorization credit.
 
 ## Update rule
 
-A change that alters a module's public types, owned state, dependency direction, persistence, retry semantics, authority, resource ceiling, compatibility or deployment behavior must update the corresponding module contract in the same pull request. Documentation-only assertions do not replace executable tests or exact-head evidence.
+A change that alters public types, owned state, dependency direction, persistence, retry semantics, authority, resource ceilings, compatibility, security, or deployment behavior must update the local contract, detailed design, relevant machine schema/vector, tests, and catalogue in the same pull request.
