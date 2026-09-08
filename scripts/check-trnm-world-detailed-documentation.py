@@ -16,6 +16,9 @@ CATALOG = "docs/catalog.json"
 MODULE_INDEX = "docs/modules/README.md"
 MATRIX = "docs/development/trnm-world-module-documentation-matrix-v1.md"
 MAX_DOCUMENT_BYTES = 512 * 1024
+MAX_CATALOG_BYTES = 256 * 1024
+MAX_JSON_DEPTH = 64
+MAX_JSON_NODES = 16_384
 MIN_SECTION_CHARS = 160
 REQUIRED_SECTIONS = (
     "Scope and authority",
@@ -99,7 +102,7 @@ def safe_relative(relative: str) -> PurePosixPath:
     return path
 
 
-def read_text(root: Path, relative: str) -> str:
+def read_bytes(root: Path, relative: str, maximum_bytes: int) -> bytes:
     path = safe_relative(relative)
     cursor = root
     for part in path.parts:
@@ -108,12 +111,77 @@ def read_text(root: Path, relative: str) -> str:
             raise DocumentationFailure(f"symlink is not an accepted documentation source: {relative}")
     if not cursor.is_file():
         raise DocumentationFailure(f"missing file: {relative}")
-    if cursor.stat().st_size > MAX_DOCUMENT_BYTES:
-        raise DocumentationFailure(f"oversized file: {relative}")
-    text = cursor.read_text(encoding="utf-8")
+    size = cursor.stat().st_size
+    if size > maximum_bytes:
+        raise DocumentationFailure(
+            f"oversized file: {relative} ({size} bytes > {maximum_bytes})"
+        )
+    raw = cursor.read_bytes()
+    if not raw:
+        raise DocumentationFailure(f"empty file: {relative}")
+    return raw
+
+
+def decode_utf8(raw: bytes, relative: str) -> str:
+    try:
+        text = raw.decode("utf-8", errors="strict")
+    except UnicodeDecodeError as error:
+        raise DocumentationFailure(f"invalid UTF-8 in {relative}: {error}") from error
     if not text.strip():
         raise DocumentationFailure(f"empty file: {relative}")
     return text
+
+
+def read_text(root: Path, relative: str) -> str:
+    return decode_utf8(read_bytes(root, relative, MAX_DOCUMENT_BYTES), relative)
+
+
+def reject_json_constant(token: str) -> object:
+    raise DocumentationFailure(f"non-finite JSON token is forbidden: {token}")
+
+
+def reject_duplicate_json_object(pairs: list[tuple[str, object]]) -> dict[str, object]:
+    result: dict[str, object] = {}
+    for key, value in pairs:
+        if key in result:
+            raise DocumentationFailure(f"duplicate JSON object key: {key}")
+        result[key] = value
+    return result
+
+
+def enforce_json_budget(value: object) -> None:
+    stack: list[tuple[object, int]] = [(value, 1)]
+    nodes = 0
+    while stack:
+        current, depth = stack.pop()
+        nodes += 1
+        if nodes > MAX_JSON_NODES:
+            raise DocumentationFailure(
+                f"JSON node budget exceeded: {nodes} > {MAX_JSON_NODES}"
+            )
+        if depth > MAX_JSON_DEPTH:
+            raise DocumentationFailure(
+                f"JSON depth budget exceeded: {depth} > {MAX_JSON_DEPTH}"
+            )
+        if isinstance(current, dict):
+            stack.extend((item, depth + 1) for item in current.values())
+        elif isinstance(current, list):
+            stack.extend((item, depth + 1) for item in current)
+
+
+def load_strict_json(root: Path, relative: str) -> object:
+    raw = read_bytes(root, relative, MAX_CATALOG_BYTES)
+    text = decode_utf8(raw, relative)
+    try:
+        value = json.loads(
+            text,
+            object_pairs_hook=reject_duplicate_json_object,
+            parse_constant=reject_json_constant,
+        )
+    except json.JSONDecodeError as error:
+        raise DocumentationFailure(f"invalid {relative}: {error}") from error
+    enforce_json_budget(value)
+    return value
 
 
 def visible_markdown(text: str) -> str:
@@ -209,10 +277,9 @@ def workspace_members(root: Path) -> list[tuple[str, str]]:
 
 
 def validate_catalog(root: Path, as_of: dt.date) -> dict[str, dict[str, str]]:
-    try:
-        data = json.loads(read_text(root, CATALOG))
-    except json.JSONDecodeError as error:
-        raise DocumentationFailure(f"invalid {CATALOG}: {error}") from error
+    data = load_strict_json(root, CATALOG)
+    if not isinstance(data, dict):
+        raise DocumentationFailure("document catalogue root must be an object")
     if data.get("schema") != "trnm_world_document_catalog_v1":
         raise DocumentationFailure("document catalogue schema drift")
     parse_date(data.get("as_of", ""), "catalogue as_of")

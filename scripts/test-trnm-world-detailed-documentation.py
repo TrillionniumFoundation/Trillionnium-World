@@ -70,6 +70,11 @@ class DetailedDocumentationTests(unittest.TestCase):
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(content, encoding="utf-8")
 
+    def write_bytes(self, relative: str, content: bytes) -> None:
+        target = self.root / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(content)
+
     def make_fixture(self) -> None:
         members = [f"crates/{name}" for name in self.names]
         self.write(
@@ -242,6 +247,62 @@ class DetailedDocumentationTests(unittest.TestCase):
             }
         )
         (self.root / M.CATALOG).write_text(json.dumps(catalog), encoding="utf-8")
+        self.expect_failure()
+
+    def test_duplicate_top_level_catalog_key(self) -> None:
+        path = self.root / M.CATALOG
+        raw = path.read_text(encoding="utf-8")
+        raw = raw.replace(
+            '"schema": "trnm_world_document_catalog_v1",',
+            '"schema": "shadow",\n  "schema": "trnm_world_document_catalog_v1",',
+            1,
+        )
+        path.write_text(raw, encoding="utf-8")
+        self.expect_failure()
+
+    def test_duplicate_nested_catalog_key(self) -> None:
+        path = self.root / M.CATALOG
+        raw = path.read_text(encoding="utf-8")
+        raw = raw.replace(
+            '"owner": "test-owner",',
+            '"owner": "shadow-owner",\n      "owner": "test-owner",',
+            1,
+        )
+        path.write_text(raw, encoding="utf-8")
+        self.expect_failure()
+
+    def test_non_finite_catalog_tokens(self) -> None:
+        baseline = (self.root / M.CATALOG).read_text(encoding="utf-8")
+        for token in ("NaN", "Infinity", "-Infinity"):
+            with self.subTest(token=token):
+                self.make_fixture()
+                path = self.root / M.CATALOG
+                raw = path.read_text(encoding="utf-8")
+                raw = raw.replace(
+                    '"as_of": "2026-09-08",',
+                    f'"probe": {token},\n  "as_of": "2026-09-08",',
+                    1,
+                )
+                path.write_text(raw, encoding="utf-8")
+                self.expect_failure()
+        (self.root / M.CATALOG).write_text(baseline, encoding="utf-8")
+
+    def test_catalog_depth_budget(self) -> None:
+        path = self.root / M.CATALOG
+        raw = path.read_text(encoding="utf-8")
+        nested = "[" * (M.MAX_JSON_DEPTH + 1) + "0" + "]" * (M.MAX_JSON_DEPTH + 1)
+        path.write_text('{"probe":' + nested + "," + raw[1:], encoding="utf-8")
+        self.expect_failure()
+
+    def test_catalog_size_budget(self) -> None:
+        self.write_bytes(M.CATALOG, b" " * (M.MAX_CATALOG_BYTES + 1))
+        self.expect_failure()
+
+    def test_catalog_invalid_utf8(self) -> None:
+        self.write_bytes(
+            M.CATALOG,
+            b'{"schema":"trnm_world_document_catalog_v1","bad":"\xff"}',
+        )
         self.expect_failure()
 
     def test_extra_workspace_member_requires_classification(self) -> None:

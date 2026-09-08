@@ -2,51 +2,12 @@ name: trnm-world-module-documentation
 
 on:
   pull_request:
-    paths:
-      - README.md
-      - OPERATIONS.md
-      - trillionnium/Cargo.toml
-      - trillionnium/crates/*/README.md
-      - trillionnium/crates/world-authority/**
-      - docs/README.md
-      - docs/catalog.json
-      - docs/modules/**
-      - docs/adr/0003-world-domain-authority-and-nakama-canonical-online.md
-      - docs/architecture/cex-world-authority-cutover-v1.md
-      - docs/contracts/trillionnium-world-authority-*.json
-      - docs/development/trnm-world-module-documentation-matrix-v1.md
-      - scripts/check-trnm-world-module-documentation.py
-      - scripts/test-trnm-world-module-documentation-negative.py
-      - scripts/check-trnm-world-detailed-documentation.py
-      - scripts/test-trnm-world-detailed-documentation.py
-      - scripts/check-trnm-world-authority-documentation.py
-      - scripts/test-trnm-world-authority-documentation.py
-      - .github/workflows/trnm-world-module-documentation.yml
+  merge_group:
   push:
     branches:
       - main
-      - fix/world-plan-v4-development-closure-20260831
-      - fix/world-convergence-v6-20260908
-    paths:
-      - README.md
-      - OPERATIONS.md
-      - trillionnium/Cargo.toml
-      - trillionnium/crates/*/README.md
-      - trillionnium/crates/world-authority/**
-      - docs/README.md
-      - docs/catalog.json
-      - docs/modules/**
-      - docs/adr/0003-world-domain-authority-and-nakama-canonical-online.md
-      - docs/architecture/cex-world-authority-cutover-v1.md
-      - docs/contracts/trillionnium-world-authority-*.json
-      - docs/development/trnm-world-module-documentation-matrix-v1.md
-      - scripts/check-trnm-world-module-documentation.py
-      - scripts/test-trnm-world-module-documentation-negative.py
-      - scripts/check-trnm-world-detailed-documentation.py
-      - scripts/test-trnm-world-detailed-documentation.py
-      - scripts/check-trnm-world-authority-documentation.py
-      - scripts/test-trnm-world-authority-documentation.py
-      - .github/workflows/trnm-world-module-documentation.yml
+      - 'fix/world-*'
+      - 'integration/world-*'
   workflow_dispatch:
 
 permissions:
@@ -85,7 +46,9 @@ jobs:
         run: |
           set -euo pipefail
           cd repository
-          python3 -m json.tool docs/catalog.json >/dev/null
+          # The production checker owns the only accepted catalogue parser.
+          # It rejects duplicate keys, non-finite tokens, invalid UTF-8,
+          # excessive size/depth and stale or inconsistent entries.
           python3 scripts/check-trnm-world-detailed-documentation.py --as-of "$(date -u +%F)"
           python3 scripts/test-trnm-world-detailed-documentation.py
 
