@@ -1,6 +1,6 @@
 {
   "schema": "trnm_world_gap_closure_ledger_v6",
-  "generated_utc": "2026-09-08T13:09:03Z",
+  "generated_utc": "2026-09-08T14:41:43Z",
   "plan": "trillionnium-world-development-2026-08-29-v4",
   "review_surface": {
     "repository": "TrillionniumFoundation/Trillionnium-World",
@@ -8,9 +8,9 @@
     "branch": "fix/world-convergence-v6-20260908",
     "merge_target": "main",
     "base_commit": "0f6117a56263bcb5bf89e34b8bcda557a7da2e6d",
-    "observed_head_before_update": "b218dbfb6c22f6b44e8ee542d2ab62c27d160349",
-    "observed_tree_before_update": "1c3a79ad518716fc574deda039a49d8e29aa07f9",
-    "observed_prospective_merge_before_update": "56c3d79b98dc478cd6148ebb4d19c27c72d9ab89",
+    "observed_head_before_update": "1c69b9a2c5ffdf00ef803ca182a0a75712f6536c",
+    "observed_tree_before_update": "f9052a18dfd9f8011b69377cd7984fc20f7482ae",
+    "observed_prospective_merge_before_update": "4b8021602cb444cc60520e5b7ab09d64262c7735",
     "draft_required": true,
     "production_authorization": "not_granted"
   },
@@ -51,10 +51,10 @@
       "repository": "TrillionniumFoundation/CEX",
       "pull_request": 53,
       "branch": "integration/cex-v12-sequence54-20260908",
-      "commit": "6a14d0da4cf1aefd4689708a6967a4ae1c0e84fc",
-      "tree": "e425423fda89ce5438879518367f4b12ad2ef3f5",
+      "commit": "882014451c22026dfe4848248f2b26a9b46ac049",
+      "tree": "cb5b69f79eeb4e6d2032b93115d3e25c88957903",
       "base": "db75c74094748a1139fd64b0360e122d8ec797a0",
-      "prospective_merge": "53676ad0ea2712b5efa2bf2a49359e00035521c4",
+      "prospective_merge": "c09cf4783f878e909ca8b47bf83ade4f7607136d",
       "sequence": 54,
       "state": "observed_unqualified_draft",
       "qualified": false,
@@ -79,84 +79,24 @@
     "integration": {
       "repository": "TrillionniumFoundation/Trillionnium-Integration",
       "pull_request": 8,
-      "state": "coordination_lock_stale_repin_required",
+      "state": "coordination_lock_unqualified_dynamic_repin_required",
       "qualified": false,
       "production_authorization": "not_granted"
     }
   },
   "denominators": [
-    {
-      "id": "WORLD-SOURCE-DOCUMENTATION",
-      "owner": "World maintainers",
-      "state": "closed_candidate",
-      "evidence_class": "source_static"
-    },
-    {
-      "id": "WORLD-EXACT-HEAD-CI",
-      "owner": "World repository operations",
-      "state": "server_configuration_required",
-      "evidence_class": "unit"
-    },
-    {
-      "id": "WORLD-PROSPECTIVE-MERGE-CI",
-      "owner": "World repository operations",
-      "state": "server_configuration_required",
-      "evidence_class": "unit"
-    },
-    {
-      "id": "WORLD-MAIN-GOVERNANCE",
-      "owner": "GitHub organization administrators",
-      "state": "observed_mismatch",
-      "evidence_class": "source_static"
-    },
-    {
-      "id": "WORLD-INDEPENDENT-REVIEW",
-      "owner": "independent reviewers",
-      "state": "changes_requested",
-      "evidence_class": "source_static"
-    },
-    {
-      "id": "WORLD-PRODUCTION-ADAPTERS",
-      "owner": "World operations/security",
-      "state": "absent",
-      "evidence_class": "single_host_runtime"
-    },
-    {
-      "id": "NAKAMA-CANONICAL-AUTHORITY",
-      "owner": "Nakama and Integration",
-      "state": "blocked_upstream",
-      "evidence_class": "cross_repository_integration"
-    },
-    {
-      "id": "TRUSTED-CEX-SETTLEMENT",
-      "owner": "CEX and Integration",
-      "state": "blocked_upstream",
-      "evidence_class": "custody_security"
-    },
-    {
-      "id": "CHAIN-FINALITY-LOCK",
-      "owner": "Chain and Integration",
-      "state": "blocked_upstream",
-      "evidence_class": "cross_repository_integration"
-    },
-    {
-      "id": "DEPLOYMENT-PUBLIC-EDGE-RECOVERY",
-      "owner": "operations and Integration",
-      "state": "external_evidence_required",
-      "evidence_class": "cross_host"
-    },
-    {
-      "id": "HUMAN-ACCESSIBILITY",
-      "owner": "product research and accessibility",
-      "state": "human_evidence_required",
-      "evidence_class": "human"
-    },
-    {
-      "id": "PRIVACY-LEGAL-SUPPORT-COMMERCIAL",
-      "owner": "accountable organizational authorities",
-      "state": "commercial_approval_required",
-      "evidence_class": "commercial_legal"
-    }
+    {"id":"WORLD-SOURCE-DOCUMENTATION","owner":"World maintainers","state":"closed_candidate","evidence_class":"source_static"},
+    {"id":"WORLD-EXACT-HEAD-CI","owner":"World repository operations","state":"server_configuration_required","evidence_class":"unit"},
+    {"id":"WORLD-PROSPECTIVE-MERGE-CI","owner":"World repository operations","state":"server_configuration_required","evidence_class":"unit"},
+    {"id":"WORLD-MAIN-GOVERNANCE","owner":"GitHub organization administrators","state":"observed_mismatch","evidence_class":"source_static"},
+    {"id":"WORLD-INDEPENDENT-REVIEW","owner":"independent reviewers","state":"changes_requested","evidence_class":"source_static"},
+    {"id":"WORLD-PRODUCTION-ADAPTERS","owner":"World operations/security","state":"absent","evidence_class":"single_host_runtime"},
+    {"id":"NAKAMA-CANONICAL-AUTHORITY","owner":"Nakama and Integration","state":"blocked_upstream","evidence_class":"cross_repository_integration"},
+    {"id":"TRUSTED-CEX-SETTLEMENT","owner":"CEX and Integration","state":"blocked_upstream","evidence_class":"custody_security"},
+    {"id":"CHAIN-FINALITY-LOCK","owner":"Chain and Integration","state":"blocked_upstream","evidence_class":"cross_repository_integration"},
+    {"id":"DEPLOYMENT-PUBLIC-EDGE-RECOVERY","owner":"operations and Integration","state":"external_evidence_required","evidence_class":"cross_host"},
+    {"id":"HUMAN-ACCESSIBILITY","owner":"product research and accessibility","state":"human_evidence_required","evidence_class":"human"},
+    {"id":"PRIVACY-LEGAL-SUPPORT-COMMERCIAL","owner":"accountable organizational authorities","state":"commercial_approval_required","evidence_class":"commercial_legal"}
   ],
   "closure": {
     "repository_source_documentation_closed_candidate": true,

@@ -12,7 +12,7 @@ production_authorization: not_granted
 
 **Not release-ready. Public online, trusted settlement, the public player market and commercial release remain NO-GO / disabled.**
 
-This file is the repository-level release truth source selected by `PROJECT_BOUNDARY.json`, `CURRENT_PLAN.md` and `docs/catalog.json`. It must be read together with the exact current candidate head, tree, prospective merge and component lock. A source document, local fixture or historical artifact cannot promote a missing evidence class.
+This is the repository-level release truth selected by `PROJECT_BOUNDARY.json`, `CURRENT_PLAN.md` and `docs/catalog.json`. It must be read together with the exact current candidate head, tree, prospective merge and component lock. A source document, local fixture, historical artifact or coordination pin cannot promote a missing evidence class.
 
 ## Current candidate posture
 
@@ -30,7 +30,7 @@ This file is the repository-level release truth source selected by `PROJECT_BOUN
 | Human/accessibility | `human_evidence_required` | independent product/accessibility reviewers |
 | Privacy/legal/support/commercial | `commercial_approval_required` | accountable organizational authorities |
 
-The machine-readable current denominator view is `docs/development/trnm-world-gap-closure-ledger-v6.json`.
+The machine-readable denominator view is `docs/development/trnm-world-gap-closure-ledger-v6.json`.
 
 ## Repository facts that are source-closed candidates
 
@@ -48,7 +48,7 @@ These facts require fresh execution on the final exact head before they become i
 
 ## Current live repository blockers
 
-GitHub exposes zero repository-native workflow runs for the current pre-update World head `b218dbfb6c22f6b44e8ee542d2ab62c27d160349`. The observed `main` branch is protected at `0f6117a56263bcb5bf89e34b8bcda557a7da2e6d`, but its required contexts remain the older set:
+GitHub exposes zero repository-native pull-request workflow runs for the pre-update World head `1c69b9a2c5ffdf00ef803ca182a0a75712f6536c`. The observed `main` branch is protected at `0f6117a56263bcb5bf89e34b8bcda557a7da2e6d`, but its required contexts remain the older set:
 
 ```text
 trnm-game-ci
@@ -56,18 +56,18 @@ trnm-world-p0-boundaries
 trnm-world-status-evidence
 ```
 
-They do not match the current protection contract. The repository Rulesets collection is empty. Therefore the final required-context set, approval freshness, conversation resolution, linear/no-force-push controls and no-bypass behavior remain unproved.
+They do not match the current protection contract, and the repository Rulesets collection is empty. Therefore the final required-context set, approval freshness, conversation resolution, linear/no-force-push controls and no-bypass behavior remain unproved.
 
 ## Cross-repository blockers
 
 The current coordination candidates are recorded without qualification credit:
 
-- CEX PR #53, Sequence 54, branch `integration/cex-v12-sequence54-20260908`, head `6a14d0da4cf1aefd4689708a6967a4ae1c0e84fc`, tree `e425423fda89ce5438879518367f4b12ad2ef3f5`, remains Draft and unqualified. Its source-side bounded RustSec gate was restored, but hosted jobs still fail before source execution, the live Rulesets collection is empty and fresh independent approvals are absent.
-- TrillionniumGame/Nakama PR #63 remains Draft at `6dd5a101c67d78572a9dcaa3ab6ff96ef1966850`; repository-controlled source/CI are substantially qualified, while conflict-free specialist capacity, final governance and production evidence remain open.
+- CEX PR #53, Sequence 54, branch `integration/cex-v12-sequence54-20260908`, head `882014451c22026dfe4848248f2b26a9b46ac049`, tree `cb5b69f79eeb4e6d2032b93115d3e25c88957903`, base `db75c74094748a1139fd64b0360e122d8ec797a0`, prospective merge `c09cf4783f878e909ca8b47bf83ade4f7607136d`, remains Draft and unqualified. Its bounded RustSec policy and anti-regression gate are restored, but hosted jobs still fail before source execution, the live Rulesets collection is empty and fresh independent approvals are absent.
+- TrillionniumGame/Nakama PR #63 remains Draft at `6dd5a101c67d78572a9dcaa3ab6ff96ef1966850`; repository-controlled source/CI is substantially qualified, while conflict-free specialist capacity, final governance and production evidence remain open.
 - Trillionnium-Chain PR #62 remains Draft at `521726e47ce0efad6b732a5fc31afcd2cc52593d`; exact-head workflow, independent and external denominators remain open.
-- Trillionnium-Integration PR #8 remains the coordination surface requiring repin to the final accepted component identities.
+- Trillionnium-Integration PR #8 remains the coordination authority and must repin every final component movement before acceptance.
 
-World cannot close those repositories by assertion. Integration must bind exact accepted commits, trees, artifacts and protocol bytes, then retain divergence, fault, drain, cutover and rollback evidence.
+World cannot close those repositories by assertion. Integration must bind accepted commits, trees, artifacts and protocol bytes, then retain divergence, fault, drain, cutover and rollback evidence.
 
 ## Production and external evidence blockers
 
