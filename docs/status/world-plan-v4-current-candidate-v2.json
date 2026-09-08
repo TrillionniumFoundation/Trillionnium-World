@@ -1,11 +1,16 @@
 {
   "schema": "trnm_world_plan_v4_current_candidate_v2",
-  "as_of_utc": "2026-09-02T00:00:00Z",
+  "as_of_utc": "2026-09-08T03:28:10Z",
   "plan_id": "trillionnium-world-development-2026-08-29-v4",
   "sole_repository_candidate": {
     "pull_request": 46,
     "branch": "fix/world-plan-v4-development-closure-20260831",
-    "supersedes_pull_requests": [25, 39, 43, 45],
+    "supersedes_pull_requests": [
+      25,
+      39,
+      43,
+      45
+    ],
     "draft_required": true,
     "administrator_bypass_permitted": false,
     "self_approval_permitted": false,
@@ -32,10 +37,22 @@
       "trillionnium/crates/trnm-game-server/src/lib.rs.in"
     ]
   },
+  "ordinary_source_publication": {
+    "state": "closed_candidate_source",
+    "published_head": "5e7bb9a3e44e61371972d1fe1054fefb637a5629",
+    "published_parent": "b131aaccddf1a5a1474e95cd7eec018deeed08d7",
+    "published_tree": "1d2e01be24434390593b11202e6c374d4773d4e0",
+    "semantic_build_rs_absent": true,
+    "semantic_lib_rs_in_absent": true,
+    "cargo_build_script_absent": true,
+    "manifest_bound_ordinary_source": true,
+    "credit_ceiling": "source_publication_only"
+  },
   "closure_denominators": {
     "qualified_artifact": "closed_for_exact_artifact_identity",
-    "source_publication_to_pr_46": "requires_remote_exact_byte_readback",
+    "source_publication_to_pr_46": "closed_candidate_source",
     "exact_head_repository_qualification": "open_no_nonempty_world_actions_runs",
+    "prospective_merge_qualification": "open_no_nonempty_world_actions_runs",
     "server_enforced_repository_governance": "open_repository_admin_action_required",
     "nakama_authority_and_integration_component_lock": "open_cross_repository_evidence_required",
     "cex_trusted_settlement_and_custody": "open_cross_repository_and_external_evidence_required",
@@ -45,7 +62,7 @@
     "final_human_go_no_go": "open"
   },
   "evidence_rules": [
-    "a qualified artifact does not prove publication to the review branch",
+    "qualified artifact and ordinary source publication are distinct identities",
     "source publication does not prove exact-head repository qualification",
     "source or CI does not prove server-enforced repository governance",
     "repository evidence cannot substitute for cross-repository or external production evidence",
