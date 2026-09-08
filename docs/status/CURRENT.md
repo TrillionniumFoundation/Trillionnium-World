@@ -3,11 +3,11 @@
 > Generated from the snapshot explicitly selected by `CURRENT_PLAN.md`.
 > These are recorded assertions, not fresh GitHub queries or independent evidence verification.
 
-- Selected execution snapshot: `docs/status/world-plan-v4-execution-truth-2026-09-02.json`
-- Snapshot recorded at (UTC): `2026-09-07T17:32:15Z`
-- Snapshot SHA-256: `7d0808a93d082abff18bf57c7605c39b278dd599a980bd3e7c851e101b0073e4`
-- Operative pull request: `#46`
-- Operative branch: `fix/world-plan-v4-development-closure-20260831`
+- Selected execution snapshot: `docs/status/world-plan-v4-execution-truth-2026-09-08.json`
+- Snapshot recorded at (UTC): `2026-09-08T07:57:22Z`
+- Snapshot SHA-256: `285f1c02ca702fdbba40b5a2249fa30c1ccc4338f4a83b49dcb04fd42075df3a`
+- Operative pull request: `#104`
+- Operative branch: `fix/world-convergence-v6-20260908`
 
 Later explicit live observations in `CURRENT_PLAN.md` govern only their stated scope.
 In particular, consult that root pointer for the CEX dependency disposition; an old retained pin is not a newly selected or qualified CEX candidate.
@@ -23,7 +23,7 @@ The binding repository boundary and accepted ADRs remain authoritative.
 | Qualification run / artifact | `33452853784` / `9780499701` |
 | Qualified artifact ZIP SHA-256 | `456a181bdc8f8aa248229b044db9eec4f52572ea3b20bca6492907db58d64ef5` |
 | Rust toolchain | `1.98.0` |
-| Source publication state | `published_exact_source_candidate` |
+| Source publication state | `converged_source_candidate_requires_fresh_qualification` |
 | Qualified tree present | `true` |
 | Qualified tree attached to PR | `true` |
 | Repository workflow run count at snapshot | `0` |
@@ -37,7 +37,7 @@ Re-query GitHub for the final PR head and prospective merge object before assign
 
 | Denominator | Recorded value |
 | --- | --- |
-| `world_owned_source_development_closed` | `true` |
+| `world_owned_source_development_closed` | `false` |
 | `exact_head_ci_closed` | `false` |
 | `independent_review_closed` | `false` |
 | `server_governance_closed` | `false` |

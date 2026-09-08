@@ -5,61 +5,380 @@
     "PROJECT_BOUNDARY.md",
     "CURRENT_PLAN.md",
     "docs/catalog.json",
-    "docs/status/world-plan-v4-execution-truth-2026-09-02.json",
+    "docs/status/world-plan-v4-execution-truth-2026-09-08.json",
     "docs/status/CURRENT.md"
   ],
   "documents": [
-    {"path":"AGENTS.md","class":"binding-boundary","owner":"trillionnium-world-governance","status":"current","review_due":"2026-10-08"},
-    {"path":"PROJECT_BOUNDARY.md","class":"binding-boundary","owner":"trillionnium-world-governance","status":"current","review_due":"2026-10-08"},
-    {"path":"PROJECT_BOUNDARY.json","class":"binding-boundary","owner":"trillionnium-world-governance","status":"current","review_due":"2026-10-08"},
-    {"path":"CURRENT_PLAN.md","class":"plan","owner":"trillionnium-world-program","status":"current","review_due":"2026-09-22"},
-    {"path":"README.md","class":"repository-entry","owner":"trillionnium-world-maintainers","status":"current-candidate","review_due":"2026-10-08"},
-    {"path":"OPERATIONS.md","class":"operations","owner":"trillionnium-world-operations","status":"current-candidate","review_due":"2026-10-08"},
-    {"path":"docs/README.md","class":"documentation-index","owner":"trillionnium-world-architecture","status":"current-candidate","review_due":"2026-10-08"},
-    {"path":"docs/catalog.json","class":"documentation-catalog","owner":"trillionnium-world-architecture","status":"current-candidate","review_due":"2026-10-08"},
-    {"path":"docs/adr/0001-realtime-authority-and-match-evidence-ownership.md","class":"adr","owner":"trillionnium-world-architecture","status":"current","review_due":"2026-10-08"},
-    {"path":"docs/adr/0002-transaction-free-external-settlement.md","class":"adr","owner":"trillionnium-world-settlement","status":"current","review_due":"2026-10-08"},
-    {"path":"docs/adr/0003-world-domain-authority-and-nakama-canonical-online.md","class":"adr","owner":"trillionnium-world-architecture","status":"current-candidate","review_due":"2026-10-08"},
-    {"path":"docs/architecture/trnm-world-system-context-v1.md","class":"architecture","owner":"trillionnium-world-architecture","status":"current-candidate","review_due":"2026-10-08"},
-    {"path":"docs/architecture/trnm-world-authority-state-ownership-v1.md","class":"architecture","owner":"trillionnium-world-architecture","status":"current-candidate","review_due":"2026-10-08"},
-    {"path":"docs/architecture/trnm-settlement-lifecycle-v2.md","class":"architecture","owner":"trillionnium-world-settlement","status":"current-candidate","review_due":"2026-10-08"},
-    {"path":"docs/architecture/trnm-determinism-and-canonical-json-v1.md","class":"architecture","owner":"trillionnium-world-protocol","status":"current-candidate","review_due":"2026-10-08"},
-    {"path":"docs/database/trnm-world-postgres-contract-v1.md","class":"database","owner":"trillionnium-world-database","status":"current-candidate","review_due":"2026-10-08"},
-    {"path":"docs/development/trnm-world-module-decomposition-v1.md","class":"development-design","owner":"trillionnium-world-architecture","status":"current-candidate","review_due":"2026-10-08"},
-    {"path":"docs/development/trnm-world-testing-strategy-v2.md","class":"testing","owner":"trillionnium-world-quality","status":"current-candidate","review_due":"2026-10-08"},
-    {"path":"docs/development/trnm-world-module-documentation-matrix-v1.md","class":"module-matrix","owner":"trillionnium-world-architecture","status":"current-candidate","review_due":"2026-10-08"},
-    {"path":"docs/modules/README.md","class":"module-index","owner":"trillionnium-world-architecture","status":"current-candidate","review_due":"2026-10-08"},
-    {"path":"docs/modules/trnm-economy-protocol-design.md","class":"module-design","owner":"trillionnium-world-game-economy","status":"current-candidate","review_due":"2026-10-08"},
-    {"path":"docs/modules/trnm-rpg-core-design.md","class":"module-design","owner":"trillionnium-world-rpg","status":"current-candidate","review_due":"2026-10-08"},
-    {"path":"docs/modules/trnm-campaign-core-design.md","class":"module-design","owner":"trillionnium-world-campaign","status":"current-candidate","review_due":"2026-10-08"},
-    {"path":"docs/modules/trnm-rts-protocol-design.md","class":"module-design","owner":"trillionnium-world-rts-protocol","status":"current-candidate","review_due":"2026-10-08"},
-    {"path":"docs/modules/trnm-rts-sim-design.md","class":"module-design","owner":"trillionnium-world-rts-simulation","status":"current-candidate","review_due":"2026-10-08"},
-    {"path":"docs/modules/trnm-online-protocol-design.md","class":"module-design","owner":"trillionnium-world-compatibility-protocol","status":"current-candidate","review_due":"2026-10-08"},
-    {"path":"docs/modules/trnm-game-server-design.md","class":"module-design","owner":"trillionnium-world-server","status":"current-candidate","review_due":"2026-10-08"},
-    {"path":"docs/modules/trnm-first-contact-design.md","class":"module-design","owner":"trillionnium-world-client","status":"current-candidate","review_due":"2026-10-08"},
-    {"path":"docs/security/trnm-world-threat-model-v1.md","class":"security","owner":"trillionnium-world-security","status":"current-candidate","review_due":"2026-10-08"},
-    {"path":"docs/operations/trnm-world-observability-slo-v1.md","class":"operations","owner":"trillionnium-world-operations","status":"current-candidate","review_due":"2026-10-08"},
-    {"path":"docs/release/trnm-world-release-gate-matrix-v2.md","class":"release","owner":"trillionnium-world-release","status":"current-candidate","review_due":"2026-10-08"},
-    {"path":"docs/status/world-plan-v4-execution-truth-2026-09-02.json","class":"execution-snapshot","owner":"trillionnium-world-program","status":"current","review_due":"2026-09-22"},
-    {"path":"docs/status/CURRENT.md","class":"status-view","owner":"trillionnium-world-program","status":"current-candidate","review_due":"2026-09-22"},
-    {"path":"docs/architecture/cex-world-authority-cutover-v1.md","class":"world-authority-architecture","owner":"trillionnium-world-architecture","status":"current-candidate","review_due":"2026-10-08"},
-    {"path":"docs/contracts/trillionnium-world-authority-cutover-v1.json","class":"world-authority-contract","owner":"trillionnium-world-architecture","status":"current-candidate","review_due":"2026-10-08"},
-    {"path":"docs/contracts/trillionnium-world-authority-provenance-v1.json","class":"world-authority-contract","owner":"trillionnium-world-architecture","status":"current-candidate","review_due":"2026-10-08"},
-    {"path":"trillionnium/crates/world-authority/README.md","class":"world-authority-workspace","owner":"trillionnium-world-domain-service","status":"current-candidate","review_due":"2026-10-08"},
-    {"path":"docs/modules/world-authority/README.md","class":"world-authority-module-index","owner":"trillionnium-world-architecture","status":"current-candidate","review_due":"2026-10-08"},
-    {"path":"trillionnium/crates/world-authority/trnm-world-domain/README.md","class":"world-authority-module-contract","owner":"trillionnium-world-domain","status":"current-candidate","review_due":"2026-10-08"},
-    {"path":"docs/modules/world-authority/trnm-world-domain-design.md","class":"world-authority-module-design","owner":"trillionnium-world-domain","status":"current-candidate","review_due":"2026-10-08"},
-    {"path":"trillionnium/crates/world-authority/trnm-world-command/README.md","class":"world-authority-module-contract","owner":"trillionnium-world-command","status":"current-candidate","review_due":"2026-10-08"},
-    {"path":"docs/modules/world-authority/trnm-world-command-design.md","class":"world-authority-module-design","owner":"trillionnium-world-command","status":"current-candidate","review_due":"2026-10-08"},
-    {"path":"trillionnium/crates/world-authority/trnm-world-projection/README.md","class":"world-authority-module-contract","owner":"trillionnium-world-projection","status":"current-candidate","review_due":"2026-10-08"},
-    {"path":"docs/modules/world-authority/trnm-world-projection-design.md","class":"world-authority-module-design","owner":"trillionnium-world-projection","status":"current-candidate","review_due":"2026-10-08"},
-    {"path":"trillionnium/crates/world-authority/trnm-world-map-provider/README.md","class":"world-authority-module-contract","owner":"trillionnium-world-map-provider","status":"current-candidate","review_due":"2026-10-08"},
-    {"path":"docs/modules/world-authority/trnm-world-map-provider-design.md","class":"world-authority-module-design","owner":"trillionnium-world-map-provider","status":"current-candidate","review_due":"2026-10-08"},
-    {"path":"trillionnium/crates/world-authority/trnm-world-ui-fragments/README.md","class":"world-authority-module-contract","owner":"trillionnium-world-ui-fragments","status":"current-candidate","review_due":"2026-10-08"},
-    {"path":"docs/modules/world-authority/trnm-world-ui-fragments-design.md","class":"world-authority-module-design","owner":"trillionnium-world-ui-fragments","status":"current-candidate","review_due":"2026-10-08"},
-    {"path":"trillionnium/crates/world-authority/trnm-world-api/README.md","class":"world-authority-module-contract","owner":"trillionnium-world-api","status":"current-candidate","review_due":"2026-10-08"},
-    {"path":"docs/modules/world-authority/trnm-world-api-design.md","class":"world-authority-module-design","owner":"trillionnium-world-api","status":"current-candidate","review_due":"2026-10-08"},
-    {"path":"trillionnium/crates/world-authority/trnm-world-server/README.md","class":"world-authority-module-contract","owner":"trillionnium-world-server-runtime","status":"current-candidate","review_due":"2026-10-08"},
-    {"path":"docs/modules/world-authority/trnm-world-server-design.md","class":"world-authority-module-design","owner":"trillionnium-world-server-runtime","status":"current-candidate","review_due":"2026-10-08"}
+    {
+      "path": "AGENTS.md",
+      "class": "binding-boundary",
+      "owner": "trillionnium-world-governance",
+      "status": "current",
+      "review_due": "2026-10-08"
+    },
+    {
+      "path": "PROJECT_BOUNDARY.md",
+      "class": "binding-boundary",
+      "owner": "trillionnium-world-governance",
+      "status": "current",
+      "review_due": "2026-10-08"
+    },
+    {
+      "path": "PROJECT_BOUNDARY.json",
+      "class": "binding-boundary",
+      "owner": "trillionnium-world-governance",
+      "status": "current",
+      "review_due": "2026-10-08"
+    },
+    {
+      "path": "CURRENT_PLAN.md",
+      "class": "plan",
+      "owner": "trillionnium-world-program",
+      "status": "current",
+      "review_due": "2026-09-22"
+    },
+    {
+      "path": "README.md",
+      "class": "repository-entry",
+      "owner": "trillionnium-world-maintainers",
+      "status": "current-candidate",
+      "review_due": "2026-10-08"
+    },
+    {
+      "path": "OPERATIONS.md",
+      "class": "operations",
+      "owner": "trillionnium-world-operations",
+      "status": "current-candidate",
+      "review_due": "2026-10-08"
+    },
+    {
+      "path": "docs/README.md",
+      "class": "documentation-index",
+      "owner": "trillionnium-world-architecture",
+      "status": "current-candidate",
+      "review_due": "2026-10-08"
+    },
+    {
+      "path": "docs/catalog.json",
+      "class": "documentation-catalog",
+      "owner": "trillionnium-world-architecture",
+      "status": "current-candidate",
+      "review_due": "2026-10-08"
+    },
+    {
+      "path": "docs/adr/0001-realtime-authority-and-match-evidence-ownership.md",
+      "class": "adr",
+      "owner": "trillionnium-world-architecture",
+      "status": "current",
+      "review_due": "2026-10-08"
+    },
+    {
+      "path": "docs/adr/0002-transaction-free-external-settlement.md",
+      "class": "adr",
+      "owner": "trillionnium-world-settlement",
+      "status": "current",
+      "review_due": "2026-10-08"
+    },
+    {
+      "path": "docs/adr/0003-world-domain-authority-and-nakama-canonical-online.md",
+      "class": "adr",
+      "owner": "trillionnium-world-architecture",
+      "status": "current-candidate",
+      "review_due": "2026-10-08"
+    },
+    {
+      "path": "docs/architecture/trnm-world-system-context-v1.md",
+      "class": "architecture",
+      "owner": "trillionnium-world-architecture",
+      "status": "current-candidate",
+      "review_due": "2026-10-08"
+    },
+    {
+      "path": "docs/architecture/trnm-world-authority-state-ownership-v1.md",
+      "class": "architecture",
+      "owner": "trillionnium-world-architecture",
+      "status": "current-candidate",
+      "review_due": "2026-10-08"
+    },
+    {
+      "path": "docs/architecture/trnm-settlement-lifecycle-v2.md",
+      "class": "architecture",
+      "owner": "trillionnium-world-settlement",
+      "status": "current-candidate",
+      "review_due": "2026-10-08"
+    },
+    {
+      "path": "docs/architecture/trnm-determinism-and-canonical-json-v1.md",
+      "class": "architecture",
+      "owner": "trillionnium-world-protocol",
+      "status": "current-candidate",
+      "review_due": "2026-10-08"
+    },
+    {
+      "path": "docs/database/trnm-world-postgres-contract-v1.md",
+      "class": "database",
+      "owner": "trillionnium-world-database",
+      "status": "current-candidate",
+      "review_due": "2026-10-08"
+    },
+    {
+      "path": "docs/development/trnm-world-module-decomposition-v1.md",
+      "class": "development-design",
+      "owner": "trillionnium-world-architecture",
+      "status": "current-candidate",
+      "review_due": "2026-10-08"
+    },
+    {
+      "path": "docs/development/trnm-world-testing-strategy-v2.md",
+      "class": "testing",
+      "owner": "trillionnium-world-quality",
+      "status": "current-candidate",
+      "review_due": "2026-10-08"
+    },
+    {
+      "path": "docs/development/trnm-world-module-documentation-matrix-v1.md",
+      "class": "module-matrix",
+      "owner": "trillionnium-world-architecture",
+      "status": "current-candidate",
+      "review_due": "2026-10-08"
+    },
+    {
+      "path": "docs/modules/README.md",
+      "class": "module-index",
+      "owner": "trillionnium-world-architecture",
+      "status": "current-candidate",
+      "review_due": "2026-10-08"
+    },
+    {
+      "path": "docs/modules/trnm-economy-protocol-design.md",
+      "class": "module-design",
+      "owner": "trillionnium-world-game-economy",
+      "status": "current-candidate",
+      "review_due": "2026-10-08"
+    },
+    {
+      "path": "docs/modules/trnm-rpg-core-design.md",
+      "class": "module-design",
+      "owner": "trillionnium-world-rpg",
+      "status": "current-candidate",
+      "review_due": "2026-10-08"
+    },
+    {
+      "path": "docs/modules/trnm-campaign-core-design.md",
+      "class": "module-design",
+      "owner": "trillionnium-world-campaign",
+      "status": "current-candidate",
+      "review_due": "2026-10-08"
+    },
+    {
+      "path": "docs/modules/trnm-rts-protocol-design.md",
+      "class": "module-design",
+      "owner": "trillionnium-world-rts-protocol",
+      "status": "current-candidate",
+      "review_due": "2026-10-08"
+    },
+    {
+      "path": "docs/modules/trnm-rts-sim-design.md",
+      "class": "module-design",
+      "owner": "trillionnium-world-rts-simulation",
+      "status": "current-candidate",
+      "review_due": "2026-10-08"
+    },
+    {
+      "path": "docs/modules/trnm-online-protocol-design.md",
+      "class": "module-design",
+      "owner": "trillionnium-world-compatibility-protocol",
+      "status": "current-candidate",
+      "review_due": "2026-10-08"
+    },
+    {
+      "path": "docs/modules/trnm-game-server-design.md",
+      "class": "module-design",
+      "owner": "trillionnium-world-server",
+      "status": "current-candidate",
+      "review_due": "2026-10-08"
+    },
+    {
+      "path": "docs/modules/trnm-first-contact-design.md",
+      "class": "module-design",
+      "owner": "trillionnium-world-client",
+      "status": "current-candidate",
+      "review_due": "2026-10-08"
+    },
+    {
+      "path": "docs/security/trnm-world-threat-model-v1.md",
+      "class": "security",
+      "owner": "trillionnium-world-security",
+      "status": "current-candidate",
+      "review_due": "2026-10-08"
+    },
+    {
+      "path": "docs/operations/trnm-world-observability-slo-v1.md",
+      "class": "operations",
+      "owner": "trillionnium-world-operations",
+      "status": "current-candidate",
+      "review_due": "2026-10-08"
+    },
+    {
+      "path": "docs/release/trnm-world-release-gate-matrix-v2.md",
+      "class": "release",
+      "owner": "trillionnium-world-release",
+      "status": "current-candidate",
+      "review_due": "2026-10-08"
+    },
+    {
+      "path": "docs/status/world-plan-v4-execution-truth-2026-09-02.json",
+      "class": "historical-execution-snapshot",
+      "owner": "trillionnium-world-program",
+      "status": "current-candidate",
+      "review_due": "2026-09-22"
+    },
+    {
+      "path": "docs/status/world-plan-v4-execution-truth-2026-09-08.json",
+      "class": "execution-snapshot",
+      "owner": "trillionnium-world-program",
+      "status": "current",
+      "review_due": "2026-09-22"
+    },
+    {
+      "path": "docs/status/CURRENT.md",
+      "class": "status-view",
+      "owner": "trillionnium-world-program",
+      "status": "current-candidate",
+      "review_due": "2026-09-22"
+    },
+    {
+      "path": "docs/architecture/cex-world-authority-cutover-v1.md",
+      "class": "world-authority-architecture",
+      "owner": "trillionnium-world-architecture",
+      "status": "current-candidate",
+      "review_due": "2026-10-08"
+    },
+    {
+      "path": "docs/contracts/trillionnium-world-authority-cutover-v1.json",
+      "class": "world-authority-contract",
+      "owner": "trillionnium-world-architecture",
+      "status": "current-candidate",
+      "review_due": "2026-10-08"
+    },
+    {
+      "path": "docs/contracts/trillionnium-world-authority-provenance-v1.json",
+      "class": "world-authority-contract",
+      "owner": "trillionnium-world-architecture",
+      "status": "current-candidate",
+      "review_due": "2026-10-08"
+    },
+    {
+      "path": "trillionnium/crates/world-authority/README.md",
+      "class": "world-authority-workspace",
+      "owner": "trillionnium-world-domain-service",
+      "status": "current-candidate",
+      "review_due": "2026-10-08"
+    },
+    {
+      "path": "docs/modules/world-authority/README.md",
+      "class": "world-authority-module-index",
+      "owner": "trillionnium-world-architecture",
+      "status": "current-candidate",
+      "review_due": "2026-10-08"
+    },
+    {
+      "path": "trillionnium/crates/world-authority/trnm-world-domain/README.md",
+      "class": "world-authority-module-contract",
+      "owner": "trillionnium-world-domain",
+      "status": "current-candidate",
+      "review_due": "2026-10-08"
+    },
+    {
+      "path": "docs/modules/world-authority/trnm-world-domain-design.md",
+      "class": "world-authority-module-design",
+      "owner": "trillionnium-world-domain",
+      "status": "current-candidate",
+      "review_due": "2026-10-08"
+    },
+    {
+      "path": "trillionnium/crates/world-authority/trnm-world-command/README.md",
+      "class": "world-authority-module-contract",
+      "owner": "trillionnium-world-command",
+      "status": "current-candidate",
+      "review_due": "2026-10-08"
+    },
+    {
+      "path": "docs/modules/world-authority/trnm-world-command-design.md",
+      "class": "world-authority-module-design",
+      "owner": "trillionnium-world-command",
+      "status": "current-candidate",
+      "review_due": "2026-10-08"
+    },
+    {
+      "path": "trillionnium/crates/world-authority/trnm-world-projection/README.md",
+      "class": "world-authority-module-contract",
+      "owner": "trillionnium-world-projection",
+      "status": "current-candidate",
+      "review_due": "2026-10-08"
+    },
+    {
+      "path": "docs/modules/world-authority/trnm-world-projection-design.md",
+      "class": "world-authority-module-design",
+      "owner": "trillionnium-world-projection",
+      "status": "current-candidate",
+      "review_due": "2026-10-08"
+    },
+    {
+      "path": "trillionnium/crates/world-authority/trnm-world-map-provider/README.md",
+      "class": "world-authority-module-contract",
+      "owner": "trillionnium-world-map-provider",
+      "status": "current-candidate",
+      "review_due": "2026-10-08"
+    },
+    {
+      "path": "docs/modules/world-authority/trnm-world-map-provider-design.md",
+      "class": "world-authority-module-design",
+      "owner": "trillionnium-world-map-provider",
+      "status": "current-candidate",
+      "review_due": "2026-10-08"
+    },
+    {
+      "path": "trillionnium/crates/world-authority/trnm-world-ui-fragments/README.md",
+      "class": "world-authority-module-contract",
+      "owner": "trillionnium-world-ui-fragments",
+      "status": "current-candidate",
+      "review_due": "2026-10-08"
+    },
+    {
+      "path": "docs/modules/world-authority/trnm-world-ui-fragments-design.md",
+      "class": "world-authority-module-design",
+      "owner": "trillionnium-world-ui-fragments",
+      "status": "current-candidate",
+      "review_due": "2026-10-08"
+    },
+    {
+      "path": "trillionnium/crates/world-authority/trnm-world-api/README.md",
+      "class": "world-authority-module-contract",
+      "owner": "trillionnium-world-api",
+      "status": "current-candidate",
+      "review_due": "2026-10-08"
+    },
+    {
+      "path": "docs/modules/world-authority/trnm-world-api-design.md",
+      "class": "world-authority-module-design",
+      "owner": "trillionnium-world-api",
+      "status": "current-candidate",
+      "review_due": "2026-10-08"
+    },
+    {
+      "path": "trillionnium/crates/world-authority/trnm-world-server/README.md",
+      "class": "world-authority-module-contract",
+      "owner": "trillionnium-world-server-runtime",
+      "status": "current-candidate",
+      "review_due": "2026-10-08"
+    },
+    {
+      "path": "docs/modules/world-authority/trnm-world-server-design.md",
+      "class": "world-authority-module-design",
+      "owner": "trillionnium-world-server-runtime",
+      "status": "current-candidate",
+      "review_due": "2026-10-08"
+    }
   ]
 }

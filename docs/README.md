@@ -1,19 +1,27 @@
 # Trillionnium World Documentation
 
-This index separates current truth, normative contracts, detailed module design, operational runbooks, machine evidence, and historical provenance. A document is not current merely because it lives under `docs/`.
+This index separates current truth, normative contracts, detailed module design, operational runbooks, machine evidence and historical provenance. A document is not current merely because it lives under `docs/`.
 
 ## 1. Current truth hierarchy
 
 Read in this order:
 
 1. `../PROJECT_BOUNDARY.md` and `../PROJECT_BOUNDARY.json` — binding repository and authority ownership.
-2. `../CURRENT_PLAN.md` — operative candidate, execution snapshot, and convergence interpretation.
-3. `catalog.json` — machine-checked current document catalogue and review ownership.
-4. `status/world-plan-v4-execution-truth-2026-09-02.json` — selected execution snapshot; later explicit live observations in `CURRENT_PLAN.md` take precedence only for their stated scope.
-5. `status/CURRENT.md` — generated human-readable release-denominator view.
+2. `../CURRENT_PLAN.md` — operative PR/branch, selected execution snapshot and live convergence interpretation.
+3. `catalog.json` — machine current-document catalogue and review ownership.
+4. `status/world-plan-v4-execution-truth-2026-09-08.json` — selected recorded execution snapshot.
+5. `status/CURRENT.md` — deterministic human-readable rendering of that snapshot.
 6. `../GAME_STATUS.md` — native gameplay/runtime evidence and explicit limitations.
 
-When current documents disagree, the binding boundary and accepted ADRs take precedence. A contradiction is a release blocker and must be removed rather than explained away with another status file.
+When current documents disagree, the binding boundary and accepted ADRs take precedence. A contradiction is a blocker and must be removed rather than explained away with another status file.
+
+Historical Plan V4 inputs remain discoverable but do not select the current candidate:
+
+- `development/TRILLIONNIUM_WORLD_PLAN_V4_CONVERGENCE_ADDENDUM_2026-08-30.md`
+- `development/TRILLIONNIUM_WORLD_PLAN_V4_EXECUTION_UPDATE_2026-08-30.md`
+- `status/world-v4-convergence-state-2026-08-30.json`
+- `development/trillionnium-world-development-plan-2026-08-29.json`
+- `development/trnm-world-gap-closure-ledger-v4.json`
 
 ## 2. Architecture and authority decisions
 
@@ -26,32 +34,41 @@ When current documents disagree, the binding boundary and accepted ADRs take pre
 - `architecture/trnm-determinism-and-canonical-json-v1.md`
 - `architecture/cex-world-authority-cutover-v1.md`
 
-Core rule: World owns deterministic game-domain behavior and unsigned outcome material; Nakama owns canonical online admission/order/recovery/completion signing; Chain owns ingress/finality; CEX owns wallet/ledger custody; Integration owns exact cross-repository locks and release evidence.
+Core rule: World owns deterministic game-domain behavior and World aggregate mutation under one fenced writer epoch; Nakama owns canonical online admission/order/recovery/completion signing; CEX owns wallet/ledger custody; Chain owns ingress/finality; Integration owns exact cross-repository locks and release evidence.
 
 ## 3. Module contracts and detailed design
 
-- `modules/README.md` maps every active Cargo member to both its local contract and detailed design.
-- `development/trnm-world-module-documentation-matrix-v1.md` is the machine-audited active-workspace coverage matrix.
-- `modules/world-authority/README.md` covers the separate seven-crate World-domain cutover candidate.
-- `scripts/check-trnm-world-module-documentation.py` checks active local entry contracts.
-- `scripts/check-trnm-world-detailed-documentation.py` checks active detailed designs, catalogue, expiry, links and traceability.
-- `scripts/check-trnm-world-authority-documentation.py` independently derives and checks the nested cutover workspace.
+`modules/README.md` distinguishes:
 
-The eight active game-product designs are under `modules/trnm-*-design.md`. The seven isolated cutover designs are under `modules/world-authority/`. Documentation proves reviewability only; source, tests, hosted execution, server controls, cross-repository compatibility, deployment, custody, human evidence, and release authorization remain separate denominators.
+- the eight active Cargo members in `trillionnium/Cargo.toml`;
+- the isolated seven-crate World-domain authority candidate under `trillionnium/crates/world-authority/`.
+
+The active designs are `modules/trnm-*-design.md`. The cutover designs are under `modules/world-authority/`.
+
+Executable documentation gates:
+
+```bash
+python3 scripts/check-trnm-world-module-documentation.py
+python3 scripts/test-trnm-world-module-documentation-negative.py
+python3 scripts/check-trnm-world-detailed-documentation.py
+python3 scripts/test-trnm-world-detailed-documentation.py
+python3 scripts/check-trnm-world-authority-documentation.py
+python3 scripts/test-trnm-world-authority-documentation.py
+```
+
+A documentation pass proves reviewability only. It cannot prove implementation conformance, hosted CI, server controls, deployment, custody, human evidence or release authorization.
 
 ## 4. Current implementation boundary
 
-The active game-product workspace is defined by `../trillionnium/Cargo.toml`. The semantic `trnm-game-server/build.rs` / `src/lib.rs.in` source-generation authority has been retired on the operative Plan V4 candidate: the crate directly compiles Git-tracked ordinary source. Campaign, RTS simulation, and game-server correctness code is currently partitioned into ownership-labelled `lib_parts` and included by small root modules.
+The semantic `trnm-game-server/build.rs` / `src/lib.rs.in` source authority is retired on the current candidate. The active campaign, RTS simulation and compatibility-server correctness code is directly compiled Git-tracked source, currently partitioned through ownership-labelled `lib_parts`.
 
-That source publication closes the hidden build-time generation defect, but the `include!` partition remains a transitional review layout rather than the final Rust module architecture. The target is true `mod`/trait/visibility boundaries described in `development/trnm-world-module-decomposition-v1.md`; no document should continue to describe the removed generator as current fact.
+That removes hidden build-time semantics but does not make `include!` the final architecture. The target remains true Rust modules, traits and visibility boundaries under `development/trnm-world-module-decomposition-v1.md`.
 
-### World-domain authority cutover candidate
-
-`../trillionnium/crates/world-authority/` is an isolated seven-crate workspace imported from the current World-domain authority candidate together with its PostgreSQL migrations, cutover/provenance contracts, source gates and dedicated read-only workflows. It is not a member of the active game-product workspace and carries no prior workflow/review/production credit merely because the source objects are present.
-
-The nested workspace may replace deterministic World aggregate mutation historically embedded in CEX after exact reconciliation and one fenced writer-epoch transition. It must not replace Nakama canonical online admission/order/recovery/signing or CEX wallet/ledger custody. Fixture adapters and the file-backed server remain test-only; production authorization is `not_granted`.
+The isolated World-domain authority workspace is not silently part of the active eight-crate product denominator. It contains fixture adapters and a file-backed development server only; production authorization remains `not_granted`.
 
 ## 5. Protocols and data contracts
+
+Primary current contracts include:
 
 - `protocol/trnm-world-transition-v1.md`
 - `protocol/schemas/trnm-world-transition-v1.schema.json`
@@ -68,9 +85,9 @@ The nested workspace may replace deterministic World aggregate mutation historic
 - `contracts/trillionnium-world-authority-cutover-v1.json`
 - `contracts/trillionnium-world-authority-provenance-v1.json`
 
-Protocol documents must define canonical encoding, resource ceilings, unknown-field behavior, stable machine errors, compatibility/retirement windows, owner boundaries, and positive/negative vectors. Future canonical Nakama APIs are defined by the Nakama owner, not expanded through the World compatibility enclave or cutover server.
+Protocol documents define canonical encoding, resource ceilings, unknown-field behavior, stable errors, compatibility/retirement windows, authority boundaries and positive/negative vectors. Future canonical Nakama APIs are owned in the Nakama repository.
 
-## 6. Database, settlement, cutover, and operations
+## 6. Database, settlement, cutover and operations
 
 - `database/trnm-world-postgres-contract-v1.md`
 - `database/trnm-world-stored-procedure-catalog-v1.md`
@@ -88,9 +105,9 @@ Protocol documents must define canonical encoding, resource ceilings, unknown-fi
 - `../deploy/postgres/trnm-world-authority-catalog-fingerprint-v1.sql`
 - `../OPERATIONS.md`
 
-Operational documents state scope, preconditions, owner, exact commands, expected outputs, rollback, evidence capture, expiry, and escalation. Chain/BFT/PoUW worker operations are outside this repository and must not reappear in the root World manual.
+Chain/BFT/PoUW worker operations are outside this repository.
 
-## 7. Security, testing, and release
+## 7. Security, testing and release
 
 - `security/trnm-world-threat-model-v1.md`
 - `security/trnm-world-service-identity-secrets-v1.md`
@@ -99,11 +116,11 @@ Operational documents state scope, preconditions, owner, exact commands, expecte
 - `release/trnm-world-evidence-record-v1.md`
 - `release/trnm-world-reproducible-release-v1.md`
 
-Evidence classes are ordered: source-static, unit, database black box, single-host runtime, cross-repository integration, cross-host, public network, human, custody/security, and commercial/legal. A lower class cannot satisfy a higher class by implication.
+Evidence classes are ordered: source-static, unit, database black box, single-host runtime, cross-repository integration, cross-host, public network, human, custody/security and commercial/legal. A lower class cannot satisfy a higher class by implication.
 
 ## 8. Automated checks
 
-The principal source-side checks include:
+The principal gates include:
 
 - `../scripts/check_trnm_game_product.sh`
 - `../scripts/check_trnm_authority_boundary.sh`
@@ -111,16 +128,14 @@ The principal source-side checks include:
 - `../scripts/check_trnm_settlement_outbox_contract.sh`
 - `../scripts/check_trnm_settlement_transaction_boundary.sh`
 - `../scripts/check-trnm-world-transition-conformance.py`
-- `../scripts/check-trnm-world-module-documentation.py`
-- `../scripts/check-trnm-world-detailed-documentation.py`
-- `../scripts/check-trnm-world-authority-documentation.py`
+- `../scripts/check-trnm-world-ci-integrity.py`
+- `../scripts/check-trnm-world-documentation.py`
 - `../scripts/check-trnm-world-authority-cutover.sh`
 - `../scripts/check-trnm-world-authority-postgres-installation.sh`
 - `../scripts/run-trnm-world-authority-postgres-check.sh`
-- `../scripts/check-trnm-world-documentation.py`
 
-Dedicated read-only workflows are `.github/workflows/trnm-world-module-documentation.yml`, `trnm-world-authority-cutover.yml`, and `trnm-world-postgres-cutover.yml`. A workflow definition is not execution. At the time of this convergence update, repository-native World workflow scheduling remains a server/organization configuration blocker. No source document may manufacture a run, job, step, log, artifact, required context, or independent approval.
+The reviewed source inventory contains ten read-only workflow files and twenty-three static job contexts. A workflow definition is not execution. Repository-native scheduling currently remains blocked at the GitHub repository/organization control plane, so no source document may manufacture a run, status or protected context.
 
 ## 9. Historical material
 
-Legacy Chain, PoUW, ZKP-platform, old Web4, removed World/Bevy, Android, and superseded planning/status material belongs under `archive/` or an explicitly historical directory. It may be cited for provenance, but it cannot define current architecture, development commands, or release posture. New current documents must be registered in `catalog.json`; superseded documents must be marked or moved rather than left as competing truth sources.
+Legacy Chain, PoUW, ZKP-platform, old Web4, removed World/Bevy, Android and superseded planning/status material belongs under `archive/` or an explicitly historical directory. It may be cited for provenance but cannot define current architecture, commands or release posture. New current documents must be registered in `catalog.json`; superseded material must not compete with the selected snapshot.
