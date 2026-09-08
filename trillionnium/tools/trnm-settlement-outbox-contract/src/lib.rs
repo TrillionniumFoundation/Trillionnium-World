@@ -96,7 +96,10 @@ impl Display for SettlementContractError {
                 write!(formatter, "{field} must not contain surrounding whitespace")
             }
             Self::InvalidHash(field) => {
-                write!(formatter, "{field} must be exactly 64 lowercase hexadecimal characters")
+                write!(
+                    formatter,
+                    "{field} must be exactly 64 lowercase hexadecimal characters"
+                )
             }
             Self::InvalidJobId => write!(formatter, "job_id does not match its deterministic key"),
             Self::InvalidState(message) => write!(formatter, "invalid settlement state: {message}"),
@@ -104,7 +107,9 @@ impl Display for SettlementContractError {
                 formatter,
                 "lease duration must be between 1 and {MAX_LEASE_DURATION_MS} milliseconds"
             ),
-            Self::LeaseNotAvailable => write!(formatter, "settlement job is not currently leasable"),
+            Self::LeaseNotAvailable => {
+                write!(formatter, "settlement job is not currently leasable")
+            }
             Self::LeaseOwnerMismatch => write!(formatter, "settlement lease owner mismatch"),
             Self::LeaseGenerationMismatch => {
                 write!(formatter, "settlement lease generation mismatch")
@@ -114,8 +119,12 @@ impl Display for SettlementContractError {
                 write!(formatter, "retry time must be later than the failure time")
             }
             Self::AttemptsExhausted => write!(formatter, "settlement attempts are exhausted"),
-            Self::ReceiptMismatch(field) => write!(formatter, "settlement receipt {field} mismatch"),
-            Self::ArithmeticOverflow => write!(formatter, "settlement counter or timestamp overflow"),
+            Self::ReceiptMismatch(field) => {
+                write!(formatter, "settlement receipt {field} mismatch")
+            }
+            Self::ArithmeticOverflow => {
+                write!(formatter, "settlement counter or timestamp overflow")
+            }
         }
     }
 }
@@ -334,9 +343,7 @@ impl SettlementJobV1 {
             if receipt_id == &receipt.receipt_id && receipt_hash == &receipt.receipt_hash {
                 return Ok(());
             }
-            return Err(SettlementContractError::ReceiptMismatch(
-                "terminal receipt",
-            ));
+            return Err(SettlementContractError::ReceiptMismatch("terminal receipt"));
         }
         self.require_active_lease(owner, generation, now_ms)?;
         self.state = SettlementJobStateV1::Succeeded {
@@ -434,9 +441,7 @@ impl SettlementJobV1 {
     }
 }
 
-pub fn deterministic_job_id(
-    key: &SettlementJobKeyV1,
-) -> Result<String, SettlementContractError> {
+pub fn deterministic_job_id(key: &SettlementJobKeyV1) -> Result<String, SettlementContractError> {
     key.validate()?;
     let mut canonical = Vec::new();
     append_component(&mut canonical, SETTLEMENT_OUTBOX_CONTRACT)?;
@@ -446,13 +451,9 @@ pub fn deterministic_job_id(
     Ok(format!("{JOB_ID_PREFIX}{}", hex_encode(&canonical)))
 }
 
-fn append_component(
-    target: &mut Vec<u8>,
-    value: &str,
-) -> Result<(), SettlementContractError> {
-    let length = u32::try_from(value.len()).map_err(|_| {
-        SettlementContractError::FieldTooLong("canonical job component")
-    })?;
+fn append_component(target: &mut Vec<u8>, value: &str) -> Result<(), SettlementContractError> {
+    let length = u32::try_from(value.len())
+        .map_err(|_| SettlementContractError::FieldTooLong("canonical job component"))?;
     target.extend_from_slice(&length.to_be_bytes());
     target.extend_from_slice(value.as_bytes());
     Ok(())
@@ -468,10 +469,7 @@ fn hex_encode(bytes: &[u8]) -> String {
     encoded
 }
 
-fn validate_identifier(
-    field: &'static str,
-    value: &str,
-) -> Result<(), SettlementContractError> {
+fn validate_identifier(field: &'static str, value: &str) -> Result<(), SettlementContractError> {
     if value.is_empty() {
         return Err(SettlementContractError::EmptyField(field));
     }
@@ -484,10 +482,7 @@ fn validate_identifier(
     Ok(())
 }
 
-fn validate_hash(
-    field: &'static str,
-    value: &str,
-) -> Result<(), SettlementContractError> {
+fn validate_hash(field: &'static str, value: &str) -> Result<(), SettlementContractError> {
     if value.len() != 64
         || !value
             .as_bytes()
@@ -499,10 +494,7 @@ fn validate_hash(
     Ok(())
 }
 
-fn validate_detail(
-    field: &'static str,
-    value: &str,
-) -> Result<(), SettlementContractError> {
+fn validate_detail(field: &'static str, value: &str) -> Result<(), SettlementContractError> {
     if value.trim().is_empty() {
         return Err(SettlementContractError::EmptyField(field));
     }
