@@ -21,7 +21,7 @@ jobs:
   module-documentation:
     name: trnm-world/module-documentation
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - name: Checkout exact event commit without third-party actions
         shell: bash
@@ -39,6 +39,14 @@ jobs:
           set -euo pipefail
           cd repository
           python3 scripts/test-trnm-world-strict-json.py
+
+      - name: Verify complete physical component catalogue
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd repository
+          python3 scripts/check-trnm-world-component-catalog.py
+          python3 scripts/test-trnm-world-component-catalog.py
 
       - name: Verify current machine-truth hierarchy
         shell: bash
