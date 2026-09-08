@@ -8,10 +8,13 @@ Read in this order:
 
 1. `../PROJECT_BOUNDARY.md` and `../PROJECT_BOUNDARY.json` — binding repository and authority ownership.
 2. `../CURRENT_PLAN.md` — operative PR/branch, selected execution snapshot and live convergence interpretation.
-3. `catalog.json` — machine current-document catalogue and review ownership.
+3. `catalog.json` — strict machine current-document catalogue and review ownership.
 4. `status/world-plan-v4-execution-truth-2026-09-08.json` — selected recorded execution snapshot.
 5. `status/CURRENT.md` — deterministic human-readable rendering of that snapshot.
-6. `../GAME_STATUS.md` — native gameplay/runtime evidence and explicit limitations.
+6. `../RELEASE_READINESS.md` — repository-level release decision and no-credit boundary.
+7. `development/trnm-world-gap-closure-ledger-v6.json` — current denominator/owner/state ledger.
+8. `integration/trnm-world-cex-current-pending-lock-v2.json` — coordination-only current CEX candidate observation.
+9. `../GAME_STATUS.md` — native gameplay/runtime evidence and explicit product limitations.
 
 When current documents disagree, the binding boundary and accepted ADRs take precedence. A contradiction is a blocker and must be removed rather than explained away with another status file.
 
@@ -22,6 +25,10 @@ Historical Plan V4 inputs remain discoverable but do not select the current cand
 - `status/world-v4-convergence-state-2026-08-30.json`
 - `development/trillionnium-world-development-plan-2026-08-29.json`
 - `development/trnm-world-gap-closure-ledger-v4.json`
+- `development/trnm-world-gap-closure-ledger-v5.json`
+- `integration/trnm-world-cex-sequence-50-pending-lock-v1.json`
+
+The V5 ledger and sequence-50 CEX lock are historical coordination records. They must not be interpreted as current PR/component selection.
 
 ## 2. Architecture and authority decisions
 
@@ -54,6 +61,8 @@ python3 scripts/check-trnm-world-detailed-documentation.py
 python3 scripts/test-trnm-world-detailed-documentation.py
 python3 scripts/check-trnm-world-authority-documentation.py
 python3 scripts/test-trnm-world-authority-documentation.py
+python3 scripts/check-trnm-world-active-closure.py
+python3 scripts/test-trnm-world-active-closure.py
 ```
 
 A documentation pass proves reviewability only. It cannot prove implementation conformance, hosted CI, server controls, deployment, custody, human evidence or release authorization.
@@ -115,6 +124,7 @@ Chain/BFT/PoUW worker operations are outside this repository.
 - `release/trnm-world-release-gate-matrix-v2.md`
 - `release/trnm-world-evidence-record-v1.md`
 - `release/trnm-world-reproducible-release-v1.md`
+- `../RELEASE_READINESS.md`
 
 Evidence classes are ordered: source-static, unit, database black box, single-host runtime, cross-repository integration, cross-host, public network, human, custody/security and commercial/legal. A lower class cannot satisfy a higher class by implication.
 
@@ -130,11 +140,13 @@ The principal gates include:
 - `../scripts/check-trnm-world-transition-conformance.py`
 - `../scripts/check-trnm-world-ci-integrity.py`
 - `../scripts/check-trnm-world-documentation.py`
+- `../scripts/check-trnm-world-active-closure.py`
+- `../scripts/check-trnm-world-cex-pending-lock.py`
 - `../scripts/check-trnm-world-authority-cutover.sh`
 - `../scripts/check-trnm-world-authority-postgres-installation.sh`
 - `../scripts/run-trnm-world-authority-postgres-check.sh`
 
-The reviewed source inventory contains ten read-only workflow files and twenty-three static job contexts. A workflow definition is not execution. Repository-native scheduling currently remains blocked at the GitHub repository/organization control plane, so no source document may manufacture a run, status or protected context.
+A workflow definition is not execution. Repository-native scheduling remains a GitHub repository/organization control-plane blocker until non-empty exact-head and prospective-merge runs exist. No source document may manufacture a run, status or protected context.
 
 ## 9. Historical material
 

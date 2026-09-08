@@ -1,0 +1,51 @@
+{
+  "schema": "trnm_world_cex_pending_component_lock_v2",
+  "recorded_at_utc": "2026-09-08T13:30:00Z",
+  "lock_state": "coordination_only_blocked",
+  "selection_state": "observed_unqualified_candidate",
+  "world": {
+    "repository": "TrillionniumFoundation/Trillionnium-World",
+    "pull_request": 104,
+    "branch": "fix/world-convergence-v6-20260908",
+    "observed_commit_before_update": "867518486d88cde6b0f3107ce73934d83161027c",
+    "observed_tree_before_update": "dbb1b966b3e36feca81bb4ff72b3f0a186b3ae2b",
+    "qualification": "pending_non_empty_exact_head_and_merge_evidence",
+    "production_authorization": "not_granted"
+  },
+  "cex": {
+    "repository": "TrillionniumFoundation/CEX",
+    "pull_request": 29,
+    "branch": "fix/cex-v12-seq53-close-repository-gaps-20260904",
+    "commit": "04491cff7cb317324f57a10de07872d39f3e56c2",
+    "tree": "f8897db7f5879a8ae84a2ce90ec169e5df9eccb9",
+    "sequence": 53,
+    "qualification": "pending_non_empty_exact_head_evidence_and_independent_approval",
+    "production_authorization": "not_granted"
+  },
+  "required_before_selection": [
+    "CEX exact head has non-empty terminal-success repository-native workflows",
+    "CEX source, migrations, manifest, SBOM and provenance bind one immutable commit and tree",
+    "World exact head and prospective merge have non-empty terminal-success workflows",
+    "World and CEX agree on exact request, receipt, idempotency and ambiguity-recovery bytes",
+    "response-loss, conflict, replay, stale lease and provider-unknown-outcome matrices pass",
+    "independent CEX, World, security and Integration reviewers approve the unchanged component tuple",
+    "Integration records the exact accepted World/CEX/Nakama/Chain component lock",
+    "custody, deployment, rollback and no-dual-writer evidence remain separately satisfied"
+  ],
+  "prohibited_promotions": [
+    "qualified",
+    "trusted_settlement",
+    "production_ready",
+    "custody_approved",
+    "public_player_market",
+    "production_authorization"
+  ],
+  "world_adoption": "disabled",
+  "qualified": false,
+  "trusted_settlement": false,
+  "custody_approved": false,
+  "public_player_market": false,
+  "production_ready": false,
+  "production_authorization": "not_granted",
+  "no_credit_rule": "this file records an observed candidate for coordination only; it is not a component selection, qualification, custody approval or production authorization"
+}

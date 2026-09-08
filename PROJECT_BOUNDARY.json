@@ -12,7 +12,10 @@
     "upstream_required": true
   },
   "branch": {
-    "protected_policy_targets": ["main", "master"],
+    "protected_policy_targets": [
+      "main",
+      "master"
+    ],
     "development_regex": "^(feature|fix|chore|docs|test)/world-[a-z0-9][a-z0-9._-]*$",
     "direct_development_on_policy_target": "forbid"
   },
@@ -68,6 +71,9 @@
   "documentation": {
     "current_plan": "CURRENT_PLAN.md",
     "current_execution_snapshot": "docs/status/world-plan-v4-execution-truth-2026-09-08.json",
+    "current_gap_ledger": "docs/development/trnm-world-gap-closure-ledger-v6.json",
+    "current_cex_pending_lock": "docs/integration/trnm-world-cex-current-pending-lock-v2.json",
+    "release_readiness": "RELEASE_READINESS.md",
     "planning_foundation": "docs/development/TRILLIONNIUM_WORLD_DEVELOPMENT_PLAN_2026-08-29.md",
     "historical_plan_manifest": "docs/development/trillionnium-world-development-plan-2026-08-29.json",
     "historical_gap_ledger": "docs/development/trnm-world-gap-closure-ledger-v4.json",

@@ -21,7 +21,7 @@ jobs:
   module-documentation:
     name: trnm-world/module-documentation
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - name: Checkout exact event commit without third-party actions
         shell: bash
@@ -48,6 +48,15 @@ jobs:
           python3 scripts/check-trnm-world-machine-truth.py
           python3 scripts/test-trnm-world-machine-truth.py
 
+      - name: Verify active closure truth and current CEX observation
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd repository
+          python3 scripts/check-trnm-world-active-closure.py
+          python3 scripts/test-trnm-world-active-closure.py
+          python3 scripts/check-trnm-world-cex-pending-lock.py
+
       - name: Verify active module entry contracts
         shell: bash
         run: |
@@ -61,9 +70,6 @@ jobs:
         run: |
           set -euo pipefail
           cd repository
-          # The production checker owns the only accepted catalogue parser.
-          # It rejects duplicate keys, non-finite tokens, invalid UTF-8,
-          # excessive size/depth and stale or inconsistent entries.
           python3 scripts/check-trnm-world-detailed-documentation.py --as-of "$(date -u +%F)"
           python3 scripts/test-trnm-world-detailed-documentation.py
 
