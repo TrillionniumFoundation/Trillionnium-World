@@ -1,4 +1,10 @@
+mod runtime_policy;
+
 use anyhow::{bail, Result};
+use runtime_policy::{
+    validate_fixture_runtime_bind, FIXTURE_RUNTIME_CLASSIFICATION,
+    FIXTURE_RUNTIME_OPT_IN_FLAG, FIXTURE_RUNTIME_POLICY_CONTRACT,
+};
 use trnm_world_command::WorldCommand;
 
 fn main() -> Result<()> {
@@ -9,6 +15,7 @@ fn main() -> Result<()> {
             let mut actor_id = "local-player".to_string();
             let mut state_file = None;
             let mut reset_state = false;
+            let mut allow_fixture_runtime = false;
             while let Some(arg) = args.next() {
                 match arg.as_str() {
                     "--bind" => {
@@ -31,10 +38,35 @@ fn main() -> Result<()> {
                     "--reset-state" => {
                         reset_state = true;
                     }
+                    FIXTURE_RUNTIME_OPT_IN_FLAG => {
+                        allow_fixture_runtime = true;
+                    }
                     other => bail!("unknown serve option: {other}"),
                 }
             }
-            trnm_world_server::serve_dev_runtime(&bind, &actor_id, state_file, reset_state)?;
+            let validated_bind = validate_fixture_runtime_bind(allow_fixture_runtime, &bind)?;
+            eprintln!(
+                "classification={FIXTURE_RUNTIME_CLASSIFICATION} policy={FIXTURE_RUNTIME_POLICY_CONTRACT} public_ingress_allowed=false production_authorization=not_granted bind={validated_bind}"
+            );
+            trnm_world_server::serve_dev_runtime(
+                &validated_bind.to_string(),
+                &actor_id,
+                state_file,
+                reset_state,
+            )?;
+        }
+        "fixture-runtime-policy" => {
+            let response = serde_json::json!({
+                "contract_version": FIXTURE_RUNTIME_POLICY_CONTRACT,
+                "classification": FIXTURE_RUNTIME_CLASSIFICATION,
+                "explicit_opt_in_flag": FIXTURE_RUNTIME_OPT_IN_FLAG,
+                "literal_ip_socket_required": true,
+                "loopback_only": true,
+                "ephemeral_port_allowed": false,
+                "public_ingress_allowed": false,
+                "production_authorization": "not_granted",
+            });
+            println!("{}", serde_json::to_string_pretty(&response)?);
         }
         "dev-runtime-smoke" => {
             let response = trnm_world_server::build_dev_runtime_smoke_json();

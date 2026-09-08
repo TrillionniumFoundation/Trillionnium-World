@@ -15,25 +15,47 @@ The current server is not production-capable and must not be publicly routed. Fi
 
 The surface includes fixture adapter implementations, home/command/route/map/tactics/account/full-split builders, development repository and restart/reload behavior, minimal HTTP/TCP parsing and response helpers, and stable server/dev-runtime/repository/browser-parity contract identities. Every fixture output labels its source and non-production posture.
 
+The executable `serve` entrypoint is guarded by `trillionnium_world_fixture_runtime_policy_v1`. It requires the explicit `--allow-fixture-runtime` flag and accepts only literal IPv4/IPv6 loopback socket addresses with a nonzero port. Hostnames, wildcard addresses, public/private non-loopback addresses and implicit startup are rejected before a listener is created.
+
 ## State and invariants
 
-One fenced World aggregate writer owns a revision at a time. Command success is persisted only after complete validation; rejection preserves prior state. File-backed data is bounded, safe-path, atomically replaced, and acceptable only for tests. Production state must use the catalog-verified PostgreSQL contract, stable IDs/hashes, epochs, immutable events, and no dual writer with legacy CEX mutation.
+One fenced World aggregate writer owns a revision at a time. Command success is persisted only after complete validation; rejection preserves prior state. The current JSON file repository is a development fixture, not a crash-durable store: it must never be selected by a production profile, and interruption or corruption receives no durability credit. Production state must use the catalog-verified PostgreSQL contract, stable IDs/hashes, epochs, immutable events, and no dual writer with legacy CEX mutation.
 
 ## Dependencies and boundaries
 
 The server depends on World API/command/domain/map/projection/UI crates. Runtime adapters implement identity, repository, ledger, evidence, and metrics without leaking CEX/Nakama internals into domain packages. Network handlers cannot bypass application validation. Production routing, TLS, secrets, service identity, database pools, and observability are external deployment adapters.
 
+## Fixture server invocation
+
+The only accepted listener form is an explicit local-development invocation:
+
+```bash
+cargo run --locked --manifest-path trillionnium/crates/world-authority/Cargo.toml \
+  -p trnm-world-server -- serve \
+  --allow-fixture-runtime \
+  --bind 127.0.0.1:8787
+```
+
+The machine-readable policy is available without opening a socket:
+
+```bash
+cargo run --locked --manifest-path trillionnium/crates/world-authority/Cargo.toml \
+  -p trnm-world-server -- fixture-runtime-policy
+```
+
+Neither command grants deployment, public ingress or production authorization.
+
 ## Failure and recovery
 
-Malformed requests, unsupported routes/contracts, invalid commands, repository corruption, stale revision/epoch, adapter failure, and oversized/partial I/O fail closed with bounded responses. Restart reloads an exact valid state; ambiguous or corrupt files are quarantined. Production recovery uses PostgreSQL catalog/fencing/replay and exact reconciliation, never fixture acceptance.
+Missing explicit opt-in, noncanonical bind strings, hostnames, port zero and every non-loopback address fail before bind. Malformed requests, unsupported routes/contracts, invalid commands, repository corruption, stale revision/epoch, adapter failure, and oversized/partial I/O must fail closed with bounded responses. Restart can exercise a previously written valid fixture; ambiguous, truncated or corrupt data is rejected. Production recovery uses PostgreSQL catalog/fencing/replay and exact reconciliation, never fixture acceptance.
 
 ## Testing and evidence
 
-Tests cover adapter separation, command/state parity, full-split responses, safe HTML, bounded request parsing, file save/reload/restart, corrupt/truncated state, source provenance, no external path dependencies, and PostgreSQL cutover hostile matrices. Cross-host, TLS/public edge, identity, custody, endurance, backup/PITR, and human evidence remain open.
+Tests cover explicit fixture opt-in, IPv4/IPv6 loopback admission, wildcard/public/hostname/whitespace/port-zero rejection, adapter separation, command/state parity, full-split responses, safe HTML, request behavior, file save/reload/restart, source provenance, no external path dependencies, and PostgreSQL cutover hostile matrices. The JSON fixture repository and hand-written TCP server remain development evidence only. Cross-host, TLS/public edge, identity, custody, endurance, backup/PITR, and human evidence remain open.
 
 ## Compatibility and change control
 
-Server/API/repository/database/event versions are separate. Any route, mutation, persistence, epoch/fence, fixture, or adapter change requires contract tests, migration/rollback, threat/runbook updates, exact-head evidence, and review. Fixture code must not become an implicit production default.
+Server/API/repository/database/event versions are separate. Any route, mutation, persistence, epoch/fence, fixture, listener policy or adapter change requires contract tests, migration/rollback, threat/runbook updates, exact-head evidence, and review. Fixture code must not become an implicit production default. Weakening explicit opt-in or loopback-only binding is a security-sensitive breaking change.
 
 ## Detailed design
 
