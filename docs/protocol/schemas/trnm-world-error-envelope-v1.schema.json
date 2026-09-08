@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:trnm:world:error-envelope-v1",
+  "title": "TRNM World compatibility error envelope v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["code", "retry_class", "message"],
+  "properties": {
+    "code": {"type": "string", "pattern": "^[a-z0-9_]{1,80}$"},
+    "retry_class": {
+      "enum": ["never", "retry_same", "retry_after", "resync", "reauthenticate", "operator_required"]
+    },
+    "message": {"type": "string", "minLength": 1, "maxLength": 512},
+    "retry_after_ms": {"type": "integer", "minimum": 1, "maximum": 300000},
+    "correlation_id": {"type": "string", "minLength": 1, "maxLength": 160}
+  }
+}

@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:trnm:world:online-stream-v1",
+  "title": "TRNM World compatibility stream server message v1",
+  "oneOf": [
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "message_type",
+        "actor_generation",
+        "state_sequence",
+        "next_receipt_sequence",
+        "view",
+        "snapshot"
+      ],
+      "properties": {
+        "message_type": {"const": "full_snapshot"},
+        "actor_generation": {"type": "string", "minLength": 1, "maxLength": 160},
+        "state_sequence": {"type": "integer", "minimum": 0},
+        "next_receipt_sequence": {"type": "integer", "minimum": 0},
+        "view": {"type": "object"},
+        "snapshot": {"type": ["object", "array"]}
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "message_type",
+        "actor_generation",
+        "state_sequence",
+        "base_state_sequence",
+        "view",
+        "delta"
+      ],
+      "properties": {
+        "message_type": {"const": "snapshot_delta"},
+        "actor_generation": {"type": "string", "minLength": 1, "maxLength": 160},
+        "state_sequence": {"type": "integer", "minimum": 0},
+        "base_state_sequence": {"type": "integer", "minimum": 0},
+        "view": {"type": "object"},
+        "delta": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "base_snapshot_hash",
+            "snapshot_hash",
+            "base_tick",
+            "authoritative_tick",
+            "changed_fields",
+            "removed_fields"
+          ],
+          "properties": {
+            "base_snapshot_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+            "snapshot_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+            "base_tick": {"type": "integer", "minimum": 0},
+            "authoritative_tick": {"type": "integer", "minimum": 0},
+            "changed_fields": {"type": "object"},
+            "removed_fields": {"type": "array", "items": {"type": "string"}, "maxItems": 4096}
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["message_type", "actor_generation", "reason"],
+      "properties": {
+        "message_type": {"const": "resync_required"},
+        "actor_generation": {"type": "string", "minLength": 1, "maxLength": 160},
+        "reason": {"type": "string", "minLength": 1, "maxLength": 512}
+      }
+    }
+  ]
+}

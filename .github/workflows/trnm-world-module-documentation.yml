@@ -3,22 +3,54 @@ name: trnm-world-module-documentation
 on:
   pull_request:
     paths:
+      - README.md
+      - OPERATIONS.md
+      - RELEASE_READINESS.md
+      - docs/README.md
+      - docs/modules/**
+      - docs/adr/0003-world-authority-service-boundary.md
+      - docs/development/TRILLIONNIUM_WORLD_CLOSURE_EXECUTION_BOARD_V5.md
+      - docs/development/trnm-world-module-documentation-matrix-v1.md
+      - docs/protocol/trnm-world-http-api-v1.md
+      - docs/protocol/trnm-world-websocket-v1.md
+      - docs/protocol/trnm-world-error-catalog-v1.md
+      - docs/protocol/trnm-world-http-route-inventory-v1.json
+      - docs/protocol/schemas/trnm-world-online-stream-v1.schema.json
+      - docs/protocol/schemas/trnm-world-error-envelope-v1.schema.json
       - trillionnium/Cargo.toml
       - trillionnium/crates/*/README.md
-      - docs/development/trnm-world-module-documentation-matrix-v1.md
+      - trillionnium/crates/trnm-game-server/src/lib_parts/http_routing/**
       - scripts/check-trnm-world-module-documentation.py
       - scripts/test-trnm-world-module-documentation-negative.py
+      - scripts/check-trnm-world-http-route-inventory.py
+      - scripts/test-trnm-world-http-route-inventory.py
       - .github/workflows/trnm-world-module-documentation.yml
   push:
     branches:
       - main
       - fix/world-plan-v4-development-closure-20260831
     paths:
+      - README.md
+      - OPERATIONS.md
+      - RELEASE_READINESS.md
+      - docs/README.md
+      - docs/modules/**
+      - docs/adr/0003-world-authority-service-boundary.md
+      - docs/development/TRILLIONNIUM_WORLD_CLOSURE_EXECUTION_BOARD_V5.md
+      - docs/development/trnm-world-module-documentation-matrix-v1.md
+      - docs/protocol/trnm-world-http-api-v1.md
+      - docs/protocol/trnm-world-websocket-v1.md
+      - docs/protocol/trnm-world-error-catalog-v1.md
+      - docs/protocol/trnm-world-http-route-inventory-v1.json
+      - docs/protocol/schemas/trnm-world-online-stream-v1.schema.json
+      - docs/protocol/schemas/trnm-world-error-envelope-v1.schema.json
       - trillionnium/Cargo.toml
       - trillionnium/crates/*/README.md
-      - docs/development/trnm-world-module-documentation-matrix-v1.md
+      - trillionnium/crates/trnm-game-server/src/lib_parts/http_routing/**
       - scripts/check-trnm-world-module-documentation.py
       - scripts/test-trnm-world-module-documentation-negative.py
+      - scripts/check-trnm-world-http-route-inventory.py
+      - scripts/test-trnm-world-http-route-inventory.py
       - .github/workflows/trnm-world-module-documentation.yml
   workflow_dispatch:
 
@@ -31,9 +63,9 @@ concurrency:
 
 jobs:
   module-documentation:
-    name: trnm-world/module-documentation
+    name: trnm-world/module-documentation-v2
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - name: Checkout exact event commit without third-party actions
         shell: bash
@@ -41,14 +73,26 @@ jobs:
           set -euo pipefail
           git init repository
           git -C repository remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
-          git -C repository fetch --no-tags --depth=2 origin "${GITHUB_SHA}"
+          git -C repository fetch --no-tags --depth=3 origin "${GITHUB_SHA}"
           git -C repository checkout --detach FETCH_HEAD
           test "$(git -C repository rev-parse HEAD)" = "${GITHUB_SHA}"
 
-      - name: Verify active module contracts and negative fixtures
+      - name: Validate module summaries and detailed designs
         shell: bash
         run: |
           set -euo pipefail
           cd repository
+          python3 -m json.tool docs/modules/contracts-v2.json >/dev/null
           python3 scripts/check-trnm-world-module-documentation.py
           python3 scripts/test-trnm-world-module-documentation-negative.py
+
+      - name: Validate HTTP route and schema documentation
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd repository
+          python3 -m json.tool docs/protocol/trnm-world-http-route-inventory-v1.json >/dev/null
+          python3 -m json.tool docs/protocol/schemas/trnm-world-online-stream-v1.schema.json >/dev/null
+          python3 -m json.tool docs/protocol/schemas/trnm-world-error-envelope-v1.schema.json >/dev/null
+          python3 scripts/check-trnm-world-http-route-inventory.py
+          python3 scripts/test-trnm-world-http-route-inventory.py

@@ -1,133 +1,97 @@
 ---
 status: current-candidate
-owner: trillionnium-world
-work_items:
-  - WORLD-P1-002
-last_reviewed: 2026-08-29
-review_due: 2026-09-12
+owner: trillionnium-world-server
+last_reviewed: 2026-09-08
+review_due: 2026-10-08
+authority_profile: world_legacy_local_alpha
 ---
 
-# Trillionnium World HTTP API Contract v1
+# Trillionnium World HTTP API v1
 
 ## Scope
 
-This document governs HTTP surfaces owned by the World repository. It separates:
+This document inventories the HTTP surface currently wired by `trnm-game-server`. The server is a bounded compatibility and migration enclave; none of these routes creates canonical public-online authority. Nakama remains the intended owner of admission, canonical order, idempotency, restart recovery, archive roots and `MatchCompletedV1` signing.
 
-1. deterministic World transition APIs;
-2. World-local compatibility-enclave APIs;
-3. internal settlement worker/signer integration;
-4. target Nakama canonical APIs, which are not owned here.
+## Machine source
 
-A route existing in `trnm-game-server` does not make World the destination
-online authority.
+The exact route set is `trnm-world-http-route-inventory-v1.json`. `scripts/check-trnm-world-http-route-inventory.py` compares that inventory with `build_router` and fails on a missing, extra, method-changed or handler-changed route. The check also requires the global request-body limit and rate-limit middleware.
 
-## API classes
+## Common transport contract
 
-| Class | Owner | Exposure | Authority |
-| --- | --- | --- | --- |
-| deterministic transition | World | internal service | game-domain transition only |
-| player compatibility | World enclave | laboratory/private | legacy local alpha only |
-| operator compatibility | World enclave | private | bounded moderation/operations |
-| settlement worker | World + CEX contract | private service | outbox capture/execute/apply |
-| signer | isolated signer service | loopback/private | entitlement signing only |
-| canonical match | Nakama | target online | admission/order/recovery/completion |
+- JSON requests use UTF-8 and must satisfy the Rust request type selected by the handler. Unknown-field behavior remains type-specific until generated schemas cover every message.
+- Player/session, moderator, worker and signer audiences are distinct. A route name does not waive handler-level authorization.
+- The configured global body limit applies before handler extraction. Route-specific limits may be narrower.
+- Redirects and unbounded response bodies are forbidden for signer/CEX adapters.
+- Stable errors carry a bounded code and retry classification; raw credentials and unbounded reflected input are not returned.
+- Mutation requests bind protocol/build and expected revision/cursor fields where the corresponding Rust type requires them.
 
-## Mandatory HTTP envelope
+## Route inventory
 
-Every versioned JSON endpoint must publish:
+| Method | Path | Handler | Surface |
+|---|---|---|---|
+| `GET` | `/health` | `health` | `health` |
+| `GET` | `/v1/online/readiness` | `readiness` | `online` |
+| `POST` | `/v1/online/campaigns/connect` | `connect_campaign` | `online` |
+| `POST` | `/v1/online/matches` | `create_match` | `online` |
+| `POST` | `/v1/online/matches/join` | `join_match` | `online` |
+| `POST` | `/v1/online/matches/:match_id/start` | `start_match` | `online` |
+| `POST` | `/v1/online/matches/:match_id/commands` | `submit_command` | `online` |
+| `POST` | `/v1/online/matches/:match_id/snapshot` | `get_snapshot` | `online` |
+| `GET` | `/v1/online/matches/:match_id/stream` | `stream::stream_match` | `online` |
+| `POST` | `/v1/online/matches/:match_id/reconnect` | `reconnect_match` | `online` |
+| `POST` | `/v1/product/lobbies` | `create_lobby` | `product` |
+| `POST` | `/v1/product/lobbies/:lobby_id/view` | `get_lobby` | `product` |
+| `POST` | `/v1/product/lobbies/:lobby_id/invites` | `invite_to_lobby` | `product` |
+| `POST` | `/v1/product/lobbies/invites/accept` | `accept_lobby_invite` | `product` |
+| `POST` | `/v1/product/lobbies/:lobby_id/ready` | `set_lobby_ready` | `product` |
+| `POST` | `/v1/product/lobbies/:lobby_id/queue` | `queue_lobby` | `product` |
+| `POST` | `/v1/product/solo-queue/join` | `product_v2::join_solo_queue` | `product` |
+| `POST` | `/v1/product/solo-queue/status` | `product_v2::get_solo_queue` | `product` |
+| `POST` | `/v1/product/solo-queue/cancel` | `product_v2::cancel_solo_queue` | `product` |
+| `POST` | `/v1/product/rating` | `product_v2::get_rating` | `product` |
+| `POST` | `/v1/product/social/friends/request` | `product_v2::request_friend` | `product` |
+| `POST` | `/v1/product/social/friends/resolve` | `product_v2::resolve_friend` | `product` |
+| `POST` | `/v1/product/social/block` | `product_v2::set_block` | `product` |
+| `POST` | `/v1/product/social/view` | `product_v2::get_social` | `product` |
+| `POST` | `/v1/product/reports` | `product_v2::create_report` | `product` |
+| `POST` | `/v1/product/moderation/reports/resolve` | `product_v2::resolve_report` | `product` |
+| `POST` | `/v1/operations/leaderboard` | `operations_v1::get_leaderboard` | `operations` |
+| `POST` | `/v1/operations/replays` | `operations_v1::get_replay` | `operations` |
+| `POST` | `/v1/operations/replays/playback` | `operations_v1::get_replay_playback` | `operations` |
+| `POST` | `/v1/operations/replays/latest/playback` | `operations_v1::get_latest_replay_playback` | `operations` |
+| `POST` | `/v1/operations/reports/replay` | `operations_v1::create_replay_report` | `operations` |
+| `POST` | `/v1/operations/moderation/queue` | `operations_v1::moderation_queue` | `operations` |
+| `POST` | `/v1/operations/moderation/action` | `operations_v1::moderate_case` | `operations` |
+| `POST` | `/v1/operations/enforcements/appeals` | `operations_v1::create_enforcement_appeal` | `operations` |
+| `POST` | `/v1/operations/moderation/appeals` | `operations_v1::enforcement_appeal_queue` | `operations` |
+| `POST` | `/v1/operations/moderation/appeals/resolve` | `operations_v1::resolve_enforcement_appeal` | `operations` |
+| `POST` | `/v1/operations/seasons/admin` | `operations_v1::admin_season` | `operations` |
+| `POST` | `/v1/operations/fleet/route` | `operations_v1::route_fleet` | `operations` |
+| `POST` | `/v1/operations/fleet/admin` | `operations_v1::admin_fleet` | `operations` |
+| `POST` | `/v1/production/seasons/automation` | `production_v1::configure_season_automation` | `production` |
+| `POST` | `/v1/production/spectators/invites` | `production_v1::create_spectator_invite` | `production` |
+| `POST` | `/v1/production/spectators/invites/accept` | `production_v1::accept_spectator_invite` | `production` |
+| `POST` | `/v1/production/spectators/playback` | `production_v1::spectator_playback` | `production` |
+| `POST` | `/v1/production/player/status` | `production_v1::player_production_status` | `production` |
+| `POST` | `/v1/production/host-attestation` | `production_v1::host_attestation` | `production` |
+| `POST` | `/v1/production/moderation/shifts/start` | `production_v1::start_moderation_shift` | `production` |
+| `POST` | `/v1/production/moderation/shifts/heartbeat` | `production_v1::heartbeat_moderation_shift` | `production` |
+| `POST` | `/v1/production/moderation/claims` | `production_v1::claim_moderation_case` | `production` |
+| `POST` | `/v1/production/moderation/shifts/close` | `production_v1::close_moderation_shift` | `production` |
+| `GET` | `/v1/production/status` | `production_v1::production_status` | `production` |
 
-- method and path;
-- request/response schema ID;
-- protocol version independent from build ID;
-- authentication audience and scope;
-- maximum header/body/response bytes;
-- timeout and retry policy;
-- idempotency identity;
-- stable error code;
-- logging redaction rules;
-- ownership and release profile.
+## Authority and side effects
 
-Unknown JSON fields fail closed unless a specific schema version explicitly
-permits them.
+`/health` and readiness/status routes expose bounded health projections; they do not grant admission. Online and product mutations are compatibility behavior only. Operations and production routes require their explicit private/moderator service identities where implemented. Wallet/ledger effects never occur directly in an HTTP handler: settlement is captured durably, executed outside mutable database transactions and applied under exact fences.
 
-## Authentication
+## Idempotency and concurrency
 
-- Player endpoints use a player session issued/verified by the owning identity service.
-- Game authority, settlement worker, moderator, and signer credentials have different audiences and cannot substitute for one another.
-- Bearer material is never accepted in query strings, logs, replay files, or diagnostic payloads.
-- Public deployment requires TLS and service-to-service mTLS/workload identity; loopback HTTP is development/single-host evidence only.
+Command, lobby, report, replay, moderation and settlement identities are type-specific. Exact duplicates may return the existing result where the contract says so; altered reuse of an identity fails closed. Per-match mutations are serialized by the authority actor/database fences, while unrelated matches/accounts may progress within bounded pools. Handlers must not hold mutable match or campaign row locks across network calls.
 
-## Idempotency
+## Compatibility and retirement
 
-| Operation | Durable identity |
-| --- | --- |
-| World transition | `request_hash` plus caller transition ID |
-| online compatibility command | member input sequence + command ID + fingerprint |
-| signer request | stable `remote_request_id` |
-| CEX intent | immutable `intent_id` + intent SHA-256 |
-| operator replay | replay request ID + exact job/capture/intent identities |
+Protocol identity and build identity are separate. The V2/V3 compatibility enclave remains laboratory-only. New canonical endpoints belong in Nakama, not in this router. Retirement requires caller inventory, drain, rollback and endpoint-disablement evidence. Any route addition/removal or method/handler change updates the route inventory, this document, tests and release impact in the same pull request.
 
-A transport retry reuses the same identity. Reusing one identity with different
-material is a conflict and fails closed.
+## Evidence boundary
 
-## Error envelope
-
-New or migrated endpoints use:
-
-```json
-{
-  "contract_version": "trnm_world_http_error_v1",
-  "error_code": "stable_machine_code",
-  "reason_code": "bounded_reason",
-  "retryable": false,
-  "request_id": "correlation-id",
-  "detail": "bounded, redacted diagnostic"
-}
-```
-
-HTTP status is transport classification; callers branch on stable machine code.
-A timeout, malformed 2xx body, or 409 after a possible remote commit is not
-proof of failure. Settlement callers perform exact lookup before resubmission.
-
-## Resource ceilings
-
-Default ceilings unless a stricter route contract applies:
-
-| Resource | Ceiling |
-| --- | ---: |
-| request headers | 32 KiB |
-| ordinary JSON request | 256 KiB |
-| transition state | 2 MiB |
-| transition command | 128 KiB |
-| replay response page | 2 MiB |
-| error body retained | 64 KiB |
-| identifier | 160 bytes |
-| diagnostic detail | 256 bytes |
-
-## Compatibility enclave rules
-
-Compatibility routes must:
-
-- carry explicit `world_legacy_local_alpha` status;
-- reject non-loopback/public binds unless a separately approved deployment profile exists;
-- never construct canonical `MatchCompletedV1`;
-- never load a Nakama authority key;
-- never be advertised as public, multi-host, or Chain-finalized;
-- publish retirement owner, usage inventory, drain plan, and disable switch.
-
-## OpenAPI generation
-
-The target artifact is `docs/protocol/openapi/trnm-world-http-v1.openapi.json`.
-It must be generated or checked against route fixtures and must include every
-current World-owned endpoint. Until that artifact and conformance tests land,
-`WORLD-P1-002` remains open.
-
-## Acceptance
-
-- implementation examples validate against the published schema;
-- auth audience and idempotency are explicit per route;
-- unknown/crossed protocol versions return stable errors;
-- body limits are enforced before allocation amplification;
-- logs contain no token, seed, private key, full credential, or unnecessary personal data;
-- exact-head HTTP conformance runs in CI;
-- Nakama-owned canonical APIs are not duplicated in World.
+Route-source agreement proves only that documentation matches the reviewed router. It does not prove handler semantics, authorization, deployed TLS, public capacity, cross-host recovery or release eligibility. Those require their assigned tests and external evidence.

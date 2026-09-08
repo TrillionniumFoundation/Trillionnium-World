@@ -1,137 +1,71 @@
 ---
 status: current-candidate
-owner: trillionnium-world
-work_items:
-  - WORLD-P1-002
-last_reviewed: 2026-08-29
-review_due: 2026-09-12
+owner: trillionnium-world-server
+last_reviewed: 2026-09-08
+review_due: 2026-10-08
+authority_profile: world_legacy_local_alpha
 ---
 
-# Trillionnium World WebSocket Stream Contract v1
+# Trillionnium World WebSocket stream v1
 
-## Boundary
+## Scope
 
-The current World stream is compatibility-enclave state delivery. It does not
-own target canonical admission, global command order, archive root, or
-`MatchCompletedV1`; those belong to Nakama under ADR-0001.
+The compatibility route `GET /v1/online/matches/:match_id/stream` exposes bounded state delivery for the World-local laboratory server. The stream does not create canonical online authority. A client treats every message as server material bound to the authenticated session, actor generation, protocol/build pair and exact match identity.
 
-## Session and upgrade
+## Connection request
 
-- Upgrade requires a valid player session in the designated header.
-- Query-string credentials are forbidden.
-- Origin/public-edge policy is deployment-specific and fails closed when absent.
-- One session has bounded concurrent connections and subscriptions.
-- Authentication is revalidated on reconnect; a socket is not a durable credential.
+`OnlineStreamConnectRequest` binds:
 
-## Message classes
+- `protocol_version` and `build_id`;
+- `player_id` and `account_id`;
+- `next_receipt_sequence` for the next command receipt expected by the client;
+- `last_snapshot_hash` for continuity checking.
 
-```text
-hello
-full_snapshot
-delta
-command_receipt
-resync_required
-terminal
-error
-heartbeat
-```
+The session header and route match ID are authenticated independently. A claimed player/account in the JSON body cannot override the authenticated identity.
 
-Every message binds:
+## Server messages
 
-- protocol version;
-- match ID;
-- actor generation/instance epoch where applicable;
-- monotonically increasing stream sequence;
-- authoritative tick and match revision;
-- base sequence for deltas;
-- canonical decoded state hash;
-- bounded payload.
+The serde tag is `message_type`. The stable envelope variants are represented by `schemas/trnm-world-online-stream-v1.schema.json`.
 
-## Full snapshot
+### `full_snapshot`
 
-A full snapshot is accepted only when:
+Carries `actor_generation`, `state_sequence`, `next_receipt_sequence`, `view` and the complete snapshot. The client validates protocol/build, match/member identity, generation, sequence, tick and decoded state hash before replacing visible attached state.
 
-- member/session authorization matches the match;
-- generation and ownership fence are current;
-- snapshot sequence is not older than the accepted cursor;
-- decoded `MissionSimV1` hash equals the declared hash;
-- tick, revision, phase, result, and member cursor constraints validate together.
+### `snapshot_delta`
 
-## Delta
+Carries `actor_generation`, `state_sequence`, `base_state_sequence`, `view` and a top-level delta. The delta binds base/current snapshot hashes and ticks, changed fields and removed fields. The client applies it only when its current generation, state sequence, snapshot hash and tick exactly match the declared base.
 
-A delta must bind the exact previously accepted base sequence/hash. Missing,
-out-of-order, duplicate-with-different-bytes, or hash-mismatched deltas cause a
-`resync_required`; the client does not guess or apply a partial state.
+### `resync_required`
 
-## Command receipt
+Carries `actor_generation` and a bounded reason. The client discards any unverified delta suffix and requests an exact full snapshot/reconnect response. It must not guess missing commands or continue local authority simulation while attached.
 
-Receipts carry compatibility command ID, member input sequence, global
-compatibility sequence, durable revision, authoritative tick/hash, and result
-classification. A receipt is not Nakama canonical completion or wallet
-settlement evidence.
+## Ordering and continuity
 
-## Reconnect
-
-Reconnect returns:
-
-- exact current full snapshot;
-- bounded command-receipt gap after the client cursor;
-- explicit earliest retained cursor;
-- `truncated=true` and mandatory resync when continuity cannot be proven.
-
-Pagination, truncation, duplicates, and terminal actor shutdown are deterministic
-and documented by stable error codes.
-
-## Resource and backpressure rules
-
-| Resource | Ceiling/policy |
-| --- | --- |
-| frame bytes | route-specific, maximum 2 MiB |
-| decoded nesting | schema bounded |
-| outbound queue | bounded; slow consumers disconnect/resync |
-| heartbeat interval | configured and published |
-| idle timeout | configured and published |
-| command-gap page | bounded count and bytes |
-| decompression | disabled unless an explicit ratio/size budget exists |
-
-Unbounded channels or silent frame drops are forbidden.
-
-## Errors
-
-Machine errors distinguish:
+WebSocket arrival order is not an authority substitute. Every accepted message satisfies:
 
 ```text
-unauthenticated
-unauthorized_match
-unsupported_protocol
-stale_generation
-sequence_gap
-base_hash_mismatch
-snapshot_hash_mismatch
-resource_budget_exceeded
-resync_required
-server_draining
-internal_unavailable
+same authenticated match/member
+same active actor generation
+next state sequence or explicitly accepted full resync
+exact base state sequence for a delta
+exact base snapshot hash and base tick
+decoded next snapshot hash equals the advertised hash
 ```
 
-Only errors explicitly marked retryable may reconnect automatically. Retry uses
-bounded exponential backoff and jitter.
+A generation change, gap, duplicate with altered bytes, hash mismatch, unknown variant or unsupported protocol/build fails closed and requires resync or reauthentication according to the stable error class.
 
-## Target migration
+## Backpressure and limits
 
-During shadow/cutover:
+Frame size, buffered outgoing messages, receipt suffixes, changed/removed field counts, stream connections per identity and reconnect work are bounded by runtime configuration. The server closes or resyncs a slow consumer rather than allowing unbounded memory. Diagnostics are bounded and do not reflect complete private payloads or credentials.
 
-- World compatibility stream remains clearly labelled noncanonical;
-- Nakama stream owns canonical participant/order/recovery cursors;
-- clients never merge cursors from both authorities;
-- active compatibility matches drain before canonical admission changes;
-- rollback selects one authority profile, never dual publication.
+## Disconnect and reconnect
 
-## Acceptance
+Disconnect does not transfer authority to the client. A journaled client command may be retried with the exact same identity. Reconnect supplies a full snapshot plus a bounded, continuity-checked receipt suffix when available. If the suffix is truncated or any cursor cannot be proven, `full_snapshot_required=true` and the client resumes from the exact snapshot.
 
-- JSON Schema/fixture coverage for every message class;
-- full/delta/hash/reconnect negative fixtures;
-- bounded queue and slow-consumer tests;
-- generation/sequence/duplicate races;
-- compatibility retirement date and usage inventory;
-- Nakama migration tests bind exact component revisions.
+## Security
+
+The server validates authenticated audience, player/account/match membership, protocol/build and resource ceilings before subscribing. Tokens are not placed in query strings or logs. Cross-site/browser origin policy, TLS termination and public-edge controls are deployment concerns and remain external evidence gates.
+
+## Compatibility and evidence
+
+Changing variant tags, required fields, cursor meaning, delta semantics or limits requires a new stream protocol version and fixtures. Schema/source tests prove message-shape reviewability only; exact client/server runs, reconnect faults, load/backpressure and Nakama shadow evidence remain independent.
