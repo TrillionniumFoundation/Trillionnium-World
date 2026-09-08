@@ -1,0 +1,161 @@
+name: trnm-world-rust-1-98-1-successor
+
+on:
+  pull_request:
+    paths:
+      - rust-toolchain.toml
+      - trillionnium/Cargo.toml
+      - trillionnium/Cargo.lock
+      - trillionnium/crates/**
+      - trillionnium/contracts/**
+      - scripts/check_trnm_*.sh
+      - scripts/check-trnm-world-*.py
+      - docs/modules/**
+      - docs/protocol/**
+      - .github/workflows/trnm-world-rust-1-98-1-successor.yml
+  push:
+    branches:
+      - main
+      - fix/world-plan-v4-development-closure-20260831
+    paths:
+      - rust-toolchain.toml
+      - trillionnium/Cargo.toml
+      - trillionnium/Cargo.lock
+      - trillionnium/crates/**
+      - trillionnium/contracts/**
+      - scripts/check_trnm_*.sh
+      - scripts/check-trnm-world-*.py
+      - docs/modules/**
+      - docs/protocol/**
+      - .github/workflows/trnm-world-rust-1-98-1-successor.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trnm-world-rust-1-98-1-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  RUST_TOOLCHAIN: 1.98.1
+  RUSTUP_TOOLCHAIN: "1.98.1"
+  CARGO_TERM_COLOR: never
+  CARGO_INCREMENTAL: "0"
+  RUST_BACKTRACE: "1"
+  RUST_TEST_THREADS: "1"
+
+jobs:
+  docs-protocol:
+    name: trnm-world-v6/docs-protocol
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout exact event commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          git init repository
+          git -C repository remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          git -C repository fetch --no-tags --depth=3 origin "${GITHUB_SHA}"
+          git -C repository checkout --detach FETCH_HEAD
+          test "$(git -C repository rev-parse HEAD)" = "${GITHUB_SHA}"
+      - name: Validate source-bound documentation
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd repository
+          test "$(sed -n 's/^channel = "\([^"]*\)"/\1/p' rust-toolchain.toml)" = "${RUST_TOOLCHAIN}"
+          python3 scripts/check-trnm-world-module-documentation.py
+          python3 scripts/test-trnm-world-module-documentation-negative.py
+          python3 scripts/check-trnm-world-http-route-inventory.py
+          python3 scripts/test-trnm-world-http-route-inventory.py
+          python3 scripts/check-trnm-world-transition-conformance.py
+
+  rust-workspace:
+    name: trnm-world-v6/rust-workspace-1.98.1
+    runs-on: ubuntu-24.04
+    timeout-minutes: 150
+    steps:
+      - name: Checkout exact event commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          git init repository
+          git -C repository remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          git -C repository fetch --no-tags --depth=3 origin "${GITHUB_SHA}"
+          git -C repository checkout --detach FETCH_HEAD
+          test "$(git -C repository rev-parse HEAD)" = "${GITHUB_SHA}"
+      - name: Install native dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            jq libasound2-dev libudev-dev libx11-dev libxi-dev libxkbcommon-dev \
+            libwayland-dev pkg-config
+      - name: Install safe pinned Rust point release
+        shell: bash
+        run: |
+          set -euo pipefail
+          rustup toolchain install "${RUST_TOOLCHAIN}" --profile minimal --component rustfmt,clippy
+          rustup default "${RUST_TOOLCHAIN}"
+          rustc --version --verbose
+          cargo --version --verbose
+      - name: Validate active workspace
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd repository
+          cargo fmt --manifest-path trillionnium/Cargo.toml --all -- --check
+          cargo test --manifest-path trillionnium/Cargo.toml --workspace --all-targets --locked
+          cargo clippy --manifest-path trillionnium/Cargo.toml --workspace --all-targets --locked -- -D warnings
+          cargo build --manifest-path trillionnium/Cargo.toml -p trnm-first-contact -p trnm-game-server --release --locked
+
+  settlement-postgres:
+    name: trnm-world-v6/settlement-postgres-1.98.1
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    services:
+      postgres:
+        image: postgres:16.4-alpine
+        env:
+          POSTGRES_USER: trnm
+          POSTGRES_PASSWORD: trnm
+          POSTGRES_DB: trnm
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U trnm -d trnm"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      TRNM_SETTLEMENT_TEST_DATABASE_URL: postgres://trnm:trnm@127.0.0.1:5432/trnm
+      TRNM_REQUIRE_SETTLEMENT_DATABASE_TEST: "1"
+    steps:
+      - name: Checkout exact event commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          git init repository
+          git -C repository remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          git -C repository fetch --no-tags --depth=3 origin "${GITHUB_SHA}"
+          git -C repository checkout --detach FETCH_HEAD
+          test "$(git -C repository rev-parse HEAD)" = "${GITHUB_SHA}"
+      - name: Install safe pinned Rust point release
+        shell: bash
+        run: |
+          set -euo pipefail
+          rustup toolchain install "${RUST_TOOLCHAIN}" --profile minimal
+          rustup default "${RUST_TOOLCHAIN}"
+      - name: Validate settlement database boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd repository/trillionnium
+          cargo test -p trnm-game-server --test settlement_database_contract --locked -- --nocapture
+          cargo test -p trnm-game-server --test settlement_operator_controls_database --locked -- --nocapture
+          cargo test -p trnm-game-server --test settlement_fault_model --locked -- --nocapture
+          cargo test -p trnm-game-server --test settlement_worker_contract --locked -- --nocapture
+          cargo test -p trnm-game-server --test settlement_runtime_v2_contract --locked -- --nocapture
