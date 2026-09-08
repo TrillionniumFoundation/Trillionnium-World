@@ -98,8 +98,23 @@ assert_hostile_drift() {
   printf 'trnm_world_authority_catalog_hostile:%s:rejected\n' "$label"
 }
 
+# PostgreSQL correctly refuses to drop a referenced primary key. Build the
+# hostile clone by temporarily removing the four exact dependent foreign keys,
+# replacing the primary key with a plain unique constraint, and restoring the
+# foreign keys. The resulting catalog remains referentially valid while lacking
+# the required primary-key semantics, so the comparator—not DDL dependency
+# failure—is what rejects the fixture.
 assert_hostile_drift "missing_epoch_pk" \
-  "alter table public.trnm_world_authority_epochs_v1 drop constraint trnm_world_authority_epochs_v1_pkey"
+  "alter table public.trnm_world_migration_batches_v1 drop constraint trnm_world_migration_batches_v1_epoch_id_fkey;
+   alter table public.trnm_world_states_v1 drop constraint trnm_world_states_v1_writer_epoch_id_fkey;
+   alter table public.trnm_world_events_v1 drop constraint trnm_world_events_v1_epoch_id_fkey;
+   alter table public.trnm_world_authority_receipts_v1 drop constraint trnm_world_authority_receipts_v1_epoch_id_fkey;
+   alter table public.trnm_world_authority_epochs_v1 drop constraint trnm_world_authority_epochs_v1_pkey;
+   alter table public.trnm_world_authority_epochs_v1 add constraint trnm_world_authority_epochs_v1_epoch_id_unique unique (epoch_id);
+   alter table public.trnm_world_migration_batches_v1 add constraint trnm_world_migration_batches_v1_epoch_id_fkey foreign key (epoch_id) references public.trnm_world_authority_epochs_v1(epoch_id);
+   alter table public.trnm_world_states_v1 add constraint trnm_world_states_v1_writer_epoch_id_fkey foreign key (writer_epoch_id) references public.trnm_world_authority_epochs_v1(epoch_id);
+   alter table public.trnm_world_events_v1 add constraint trnm_world_events_v1_epoch_id_fkey foreign key (epoch_id) references public.trnm_world_authority_epochs_v1(epoch_id);
+   alter table public.trnm_world_authority_receipts_v1 add constraint trnm_world_authority_receipts_v1_epoch_id_fkey foreign key (epoch_id) references public.trnm_world_authority_epochs_v1(epoch_id)"
 
 assert_hostile_drift "missing_event_fk" \
   "do \$\$ declare n text; begin select conname into strict n from pg_catalog.pg_constraint where conrelid='public.trnm_world_events_v1'::regclass and contype='f' order by conname limit 1; execute format('alter table public.trnm_world_events_v1 drop constraint %I', n); end \$\$"
