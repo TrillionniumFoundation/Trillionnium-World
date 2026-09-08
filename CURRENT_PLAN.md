@@ -4,6 +4,11 @@ The executable product foundation remains:
 
 `docs/development/TRILLIONNIUM_WORLD_DEVELOPMENT_PLAN_2026-08-29.md`
 
+The historical machine inputs retained for provenance only are:
+
+- `docs/development/trillionnium-world-development-plan-2026-08-29.json`
+- `docs/development/trnm-world-gap-closure-ledger-v4.json`
+
 The current convergence and evidence authorities are:
 
 - `docs/development/TRILLIONNIUM_WORLD_CLOSURE_EXECUTION_BOARD_V5.md`
