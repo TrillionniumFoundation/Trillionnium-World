@@ -1,0 +1,65 @@
+{
+  "schema": "trnm_world_module_contracts_v2",
+  "generated_utc": "2026-09-08T00:00:00Z",
+  "authority_boundary": "PROJECT_BOUNDARY.md",
+  "plan_pointer": "CURRENT_PLAN.md",
+  "release_effect": "none",
+  "modules": [
+    {
+      "package": "trnm-economy-protocol",
+      "owner": "Trillionnium World game economy",
+      "summary_document": "trillionnium/crates/trnm-economy-protocol/README.md",
+      "technical_design": "docs/modules/trnm-economy-protocol.md",
+      "release_authority": false
+    },
+    {
+      "package": "trnm-rpg-core",
+      "owner": "Trillionnium World RPG domain",
+      "summary_document": "trillionnium/crates/trnm-rpg-core/README.md",
+      "technical_design": "docs/modules/trnm-rpg-core.md",
+      "release_authority": false
+    },
+    {
+      "package": "trnm-campaign-core",
+      "owner": "Trillionnium World campaign/save/progression aggregate",
+      "summary_document": "trillionnium/crates/trnm-campaign-core/README.md",
+      "technical_design": "docs/modules/trnm-campaign-core.md",
+      "release_authority": false
+    },
+    {
+      "package": "trnm-rts-protocol",
+      "owner": "Trillionnium World deterministic RTS command vocabulary",
+      "summary_document": "trillionnium/crates/trnm-rts-protocol/README.md",
+      "technical_design": "docs/modules/trnm-rts-protocol.md",
+      "release_authority": false
+    },
+    {
+      "package": "trnm-rts-sim",
+      "owner": "Trillionnium World deterministic battle simulation",
+      "summary_document": "trillionnium/crates/trnm-rts-sim/README.md",
+      "technical_design": "docs/modules/trnm-rts-sim.md",
+      "release_authority": false
+    },
+    {
+      "package": "trnm-online-protocol",
+      "owner": "Trillionnium World compatibility wire vocabulary",
+      "summary_document": "trillionnium/crates/trnm-online-protocol/README.md",
+      "technical_design": "docs/modules/trnm-online-protocol.md",
+      "release_authority": false
+    },
+    {
+      "package": "trnm-game-server",
+      "owner": "Trillionnium World compatibility server and settlement operations",
+      "summary_document": "trillionnium/crates/trnm-game-server/README.md",
+      "technical_design": "docs/modules/trnm-game-server.md",
+      "release_authority": false
+    },
+    {
+      "package": "trnm-first-contact",
+      "owner": "Trillionnium World native client and player experience",
+      "summary_document": "trillionnium/crates/trnm-first-contact/README.md",
+      "technical_design": "docs/modules/trnm-first-contact.md",
+      "release_authority": false
+    }
+  ]
+}

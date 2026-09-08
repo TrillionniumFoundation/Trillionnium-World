@@ -1,59 +1,31 @@
 ---
 status: current-candidate
 owner: trillionnium-world
-last_reviewed: 2026-09-04
-review_due: 2026-10-04
+last_reviewed: 2026-09-08
+review_due: 2026-10-08
 ---
 
 # Trillionnium World module contracts
 
-This index maps each active Rust workspace member to its module-level technical contract. A crate is not considered documentation-complete merely because its name appears in the root README or a cross-cutting plan.
+The active game-product workspace contains eight Rust crates. Each crate has a concise local README and a separate detailed technical design. Documentation presence is checked mechanically, but implementation conformance, hosted CI, deployment and release evidence remain independent denominators.
 
-## Active game-product workspace
-
-| Module | Authority/responsibility | Module contract |
+| Module | Authority summary | Technical design |
 |---|---|---|
-| `trnm-economy-protocol` | game-owned economic intent/receipt vocabulary; no wallet custody | [`../../trillionnium/crates/trnm-economy-protocol/README.md`](../../trillionnium/crates/trnm-economy-protocol/README.md) |
-| `trnm-rpg-core` | RPG domain vocabulary, content rules and world graph | [`../../trillionnium/crates/trnm-rpg-core/README.md`](../../trillionnium/crates/trnm-rpg-core/README.md) |
-| `trnm-campaign-core` | campaign/save/progression aggregate and local settlement | [`../../trillionnium/crates/trnm-campaign-core/README.md`](../../trillionnium/crates/trnm-campaign-core/README.md) |
-| `trnm-rts-protocol` | deterministic RTS command vocabulary | [`../../trillionnium/crates/trnm-rts-protocol/README.md`](../../trillionnium/crates/trnm-rts-protocol/README.md) |
-| `trnm-rts-sim` | Bevy-free deterministic RTS simulation | [`../../trillionnium/crates/trnm-rts-sim/README.md`](../../trillionnium/crates/trnm-rts-sim/README.md) |
-| `trnm-online-protocol` | World-local online compatibility vocabulary | [`../../trillionnium/crates/trnm-online-protocol/README.md`](../../trillionnium/crates/trnm-online-protocol/README.md) |
-| `trnm-game-server` | bounded `world_legacy_local_alpha` compatibility enclave | [`../../trillionnium/crates/trnm-game-server/README.md`](../../trillionnium/crates/trnm-game-server/README.md) |
-| `trnm-first-contact` | native Bevy presentation, input and local client orchestration | [`../../trillionnium/crates/trnm-first-contact/README.md`](../../trillionnium/crates/trnm-first-contact/README.md) |
+| `trnm-economy-protocol` | Defines game-owned immutable economic intents and receipt vocabulary. | [`trnm-economy-protocol.md`](trnm-economy-protocol.md) |
+| `trnm-rpg-core` | Owns deterministic RPG vocabulary and authored content definitions. | [`trnm-rpg-core.md`](trnm-rpg-core.md) |
+| `trnm-campaign-core` | Sole game-domain authority for persistent RPG progression. | [`trnm-campaign-core.md`](trnm-campaign-core.md) |
+| `trnm-rts-protocol` | Defines command shape and strict intake only. | [`trnm-rts-protocol.md`](trnm-rts-protocol.md) |
+| `trnm-rts-sim` | Owns deterministic World battle behavior and unsigned game-domain outcome material. | [`trnm-rts-sim.md`](trnm-rts-sim.md) |
+| `trnm-online-protocol` | Compatibility message vocabulary only. | [`trnm-online-protocol.md`](trnm-online-protocol.md) |
+| `trnm-game-server` | Bounded `world_legacy_local_alpha` compatibility enclave. | [`trnm-game-server.md`](trnm-game-server.md) |
+| `trnm-first-contact` | Owns presentation, input and local orchestration. | [`trnm-first-contact.md`](trnm-first-contact.md) |
 
-The active member list is defined by `trillionnium/Cargo.toml`. `trillionnium/crates/platform` is excluded legacy material and is not an active game-product member.
+## Contract requirements
 
-## Mandatory contract sections
+Every design must describe current implementation; responsibilities and non-responsibilities; public interfaces; state and invariants; dependency direction; concurrency/cancellation; durability/recovery; failure/retry/idempotency; versioning/migration; resource budgets; observability/security; verification traceability; and known gaps/change checklist.
 
-Every active crate contract must state, in concrete terms:
+The machine inventory is [`contracts-v2.json`](contracts-v2.json). `scripts/check-trnm-world-module-documentation.py` derives the active packages from `trillionnium/Cargo.toml`, requires an exact one-to-one inventory, verifies local links and rejects stale source-generation assertions, personal paths and authority/release overclaims.
 
-1. responsibilities and explicit non-responsibilities;
-2. authority and data ownership;
-3. dependency direction and forbidden adapters;
-4. owned state and correctness invariants;
-5. concurrency, cancellation and lock-order posture where applicable;
-6. durable/private/public boundaries;
-7. idempotency, retry and failure behavior;
-8. versioning, compatibility and migration rules;
-9. resource and performance budgets;
-10. observability and security boundaries;
-11. local and external evidence requirements;
-12. change checklist and known open work.
+## Change rule
 
-The repository documentation checker enforces existence and structural coverage. It does not prove implementation conformance; source/tests/evidence remain separate denominators.
-
-## Cross-cutting specifications
-
-Module contracts are subordinate to:
-
-- `PROJECT_BOUNDARY.md` and `PROJECT_BOUNDARY.json`;
-- accepted ADRs;
-- `CURRENT_PLAN.md` and its authoritative execution snapshot;
-- normative protocol, database, security and release contracts.
-
-A contradiction is a blocker. Module documentation cannot grant public-online, custody, human, legal, commercial or production authorization credit.
-
-## Update rule
-
-A change that alters a module's public types, owned state, dependency direction, persistence, retry semantics, authority, resource ceiling, compatibility or deployment behavior must update the corresponding module contract in the same pull request. Documentation-only assertions do not replace executable tests or exact-head evidence.
+A pull request that changes a public type, owned state, persistence, lock order, cancellation, retry identity, resource ceiling, compatibility or deployment behavior must update the relevant README, detailed design, schema/vector and tests in the same review stack. Documentation alone never grants production authorization.

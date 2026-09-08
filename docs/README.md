@@ -1,136 +1,90 @@
 # Trillionnium World Documentation
 
-This index separates **current truth**, **normative contracts**, **operational runbooks**, **machine evidence**, and **historical provenance**. A document is not current merely because it lives under `docs/`.
+This index separates current truth, normative contracts, module designs, runbooks, machine evidence and historical provenance. A document is not current merely because it lives under `docs/`.
 
-## 1. Current truth hierarchy
+## Current truth hierarchy
 
 Read in this order:
 
-1. `../PROJECT_BOUNDARY.md` — binding repository and authority ownership.
-2. `../CURRENT_PLAN.md` — pointer to the active executable plan and convergence interpretation.
-3. `development/TRILLIONNIUM_WORLD_DEVELOPMENT_PLAN_2026-08-29.md` — ordered workstreams, exit gates and stop conditions.
-4. `development/TRILLIONNIUM_WORLD_PLAN_V4_CONVERGENCE_ADDENDUM_2026-08-30.md` — exact current evidence semantics and corrected blocker state.
-5. `status/world-plan-v4-execution-truth-2026-09-02.json` — operative execution snapshot selected by `CURRENT_PLAN.md`; later explicit live observations in that root pointer take precedence for their stated scope. The older `status/world-v4-convergence-state-2026-08-30.json` is historical.
-6. `development/trillionnium-world-development-plan-2026-08-29.json` — machine-readable plan.
-7. `development/trnm-world-gap-closure-ledger-v4.json` — planned gaps, owners, dependencies and evidence classes.
-8. `status/world-gates-v1.json` and `status/CURRENT.md` — release-denominator posture.
-9. `../GAME_STATUS.md` — native gameplay/runtime evidence and explicit limitations.
+1. `../PROJECT_BOUNDARY.md` and `../PROJECT_BOUNDARY.json`;
+2. `../CURRENT_PLAN.md`;
+3. `development/TRILLIONNIUM_WORLD_DEVELOPMENT_PLAN_2026-08-29.md` and its current convergence update;
+4. `development/trnm-world-gap-closure-ledger-v5.json`;
+5. `status/world-plan-v4-execution-truth-2026-09-02.json` plus later explicit live observations in `CURRENT_PLAN.md`;
+6. `status/CURRENT.md`;
+7. `../GAME_STATUS.md` and `../RELEASE_READINESS.md`.
 
-When two current documents disagree, the binding boundary and accepted ADRs take precedence. The current root pointer selects the operative candidate and execution snapshot; historical addenda and snapshots cannot restore a superseded candidate. Accepted architectural decisions are unchanged. A contradiction is itself a release blocker.
+Accepted ADRs and binding ownership rules outrank planning prose. A contradiction is a blocker and must be removed rather than hidden by adding another status document.
 
-## 2. Architecture and ADRs
+## Architecture and ADRs
 
 - `adr/0001-realtime-authority-and-match-evidence-ownership.md`
 - `adr/0002-transaction-free-external-settlement.md`
+- `adr/0003-world-authority-service-boundary.md`
 - `architecture/trnm-world-system-context-v1.md`
 - `architecture/trnm-world-authority-state-ownership-v1.md`
 - `architecture/trnm-settlement-lifecycle-v2.md`
 - `architecture/trnm-determinism-and-canonical-json-v1.md`
 
-Core ownership rule:
+Core rule: World owns deterministic game-domain behavior; Nakama owns canonical online admission/order/completion; Chain owns finality; CEX owns wallet/ledger custody; Integration owns exact multi-repository locks and release evidence.
 
-- World: deterministic game rules, content, World state transitions, outcome hashes and unsigned game-domain material.
-- Nakama: online admission, canonical total order, command idempotency, restart recovery, canonical archive roots and completion signing.
-- Chain: ingress, consensus, inclusion and finality.
-- CEX: wallet/ledger settlement and custody.
-- Integration: exact cross-repository locks, compatibility matrices and release evidence.
+## Module designs
 
-## 3. Protocols and data contracts
+`modules/README.md` is the entry point for all eight active crates. Each module has a local summary README plus a detailed design covering interfaces, state, dependency direction, concurrency/cancellation, durability/recovery, retry/idempotency, versioning, budgets, observability/security, evidence and open work. The exact inventory is `modules/contracts-v2.json`.
+
+The documentation gate checks presence, one-to-one workspace coverage, mandatory sections, local links, stale source-generation claims, personal paths and authority/release overclaims. It still does not prove implementation conformance or release eligibility.
+
+## Protocol and data contracts
 
 - `protocol/trnm-world-transition-v1.md`
-- `protocol/schemas/trnm-world-transition-v1.schema.json`
-- `protocol/vectors/trnm-world-transition-v1.json`
-- `protocol/vectors/trnm-world-transition-negative-v1.json`
+- `protocol/trnm-rts-order-intake-v1.md`
+- `protocol/trnm-rts-intake-differential-v1.md`
 - `protocol/trnm-match-evidence-commitment-v1.md`
 - `protocol/trnm-settlement-receipt-recovery-v1.md`
 - `database/trnm-world-postgres-contract-v1.md`
 
-Protocol documents must define canonical encoding, resource budgets, unknown-field behavior, compatibility windows, stable machine errors, owner boundaries and negative vectors. Authority-key deny rules apply after decoded ASCII case folding; mixed-case or escaped aliases do not create a new allowed authority surface.
+Protocols define canonical encoding, limits, unknown-field behavior, stable errors, compatibility/retirement and negative vectors. Cross-repository authority is never inferred from a shared type name.
 
-## 4. Development and implementation
+## Development and testing
 
-- `modules/README.md` — module contract expectations.
-- `development/trnm-world-module-documentation-matrix-v1.md` — active Cargo module entry/section coverage only; not a detailed-design or implementation-conformance certificate.
-
-- `development/trillionnium-rpg-rts-closed-loop-v1.md`
-- `development/trnm-native-game-release-gates-v1.md`
-- `development/trnm-settlement-outbox-v1.md`
-- `development/trnm-settlement-database-contract-v1.md`
-- `development/trnm-world-nakama-authority-migration-v1.md`
+- `development/TRILLIONNIUM_WORLD_DEVELOPMENT_PLAN_2026-08-29.md`
+- `development/TRILLIONNIUM_WORLD_CLOSURE_EXECUTION_BOARD_V5.md`
 - `development/trnm-world-module-decomposition-v1.md`
 - `development/trnm-world-testing-strategy-v2.md`
+- `development/trnm-world-module-documentation-matrix-v1.md`
 
-Active code references:
+Source implementation has removed semantic game-server `build.rs`/`src/lib.rs.in` authority on the operative candidate. The ordinary `lib_parts` layout is reviewable but remains an intermediate decomposition; true Rust module/trait boundaries are still required where listed by the module designs.
 
-- native client: `../trillionnium/crates/trnm-first-contact`
-- campaign/save/progression: `../trillionnium/crates/trnm-campaign-core`
-- deterministic RTS: `../trillionnium/crates/trnm-rts-sim`
-- game economy vocabulary: `../trillionnium/crates/trnm-economy-protocol`
-- online compatibility wire types: `../trillionnium/crates/trnm-online-protocol`
-- World-local compatibility server: `../trillionnium/crates/trnm-game-server`
-- deterministic World transition contract: `../trillionnium/contracts/trnm-world-transition-v1`
-
-The CEX/signer transport is now directly compiled from `trnm-game-server/src/cex.rs`; its template and CEX build-time generation are removed. The settlement worker is also directly compiled. Review-integrity debt remains for the game-server `lib.rs.in`, which `build.rs` still transforms into the compiled library on the operative branch before exact-source publication. The separately qualified artifact is not branch publication. Plan V4 closure requires the exact source writes/deletions, preserved governance overlay, and final exact-head verification.
-
-## 5. Security, operations and release
+## Security, operations and release
 
 - `security/trnm-world-threat-model-v1.md`
+- `security/trnm-world-service-identity-secrets-v1.md`
 - `operations/trnm-game-server-runtime-configuration.md`
 - `runbooks/trnm-settlement-operations-v1.md`
 - `runbooks/trnm-settlement-shutdown-and-quarantine-v1.md`
 - `runbooks/trnm-authority-cutover-rollback-v1.md`
 - `release/trnm-world-release-gate-matrix-v2.md`
 - `release/trnm-world-evidence-record-v1.md`
+- `../OPERATIONS.md`
+- `../RELEASE_READINESS.md`
 
-Operational documents must state scope, preconditions, owner, exact commands, expected outputs, rollback, evidence capture, expiry and escalation. Templates or source tests do not constitute production evidence.
+Runbooks state scope, prerequisites, exact commands, expected output, rollback, evidence capture, expiry and escalation. Templates and local fixtures do not constitute deployed evidence.
 
-## 6. Current automated checks
+## Current automated checks
 
+- `../scripts/check-trnm-world-module-documentation.py`
+- `../scripts/test-trnm-world-module-documentation-negative.py`
+- `../scripts/check-trnm-world-documentation.py`
+- `../scripts/check-trnm-world-transition-conformance.py`
+- `../scripts/check-trnm-world-ci-integrity.py`
 - `../scripts/check_trnm_game_product.sh`
 - `../scripts/check_trnm_authority_boundary.sh`
 - `../scripts/check_trnm_runtime_configuration.sh`
 - `../scripts/check_trnm_settlement_outbox_contract.sh`
 - `../scripts/check_trnm_settlement_transaction_boundary.sh`
-- `../scripts/check-trnm-settlement-runtime-status.py`
-- `../scripts/check-trnm-world-transition-conformance.py`
-- `../scripts/check-trnm-world-documentation.py`
-- `../scripts/check-trnm-world-v4-convergence.py`
 
-CI workflows must have read-only repository permissions. They may upload immutable evidence artifacts, but may not modify, commit, push, tag or promote candidate source.
+Workflow definitions are only source. Missing or empty exact-head runs receive no execution credit.
 
-A workflow definition does not prove execution. On 2026-08-30, GitHub exposed no check runs for either V4 parent candidate and no run for a dedicated push probe. Until repository or organization Actions policy permits a non-empty exact-head run, remote verification remains `repository_control_blocked`.
+## Historical material
 
-## 7. Evidence classes and states
-
-Every claim is assigned an evidence class:
-
-- `source_static`
-- `unit`
-- `database_black_box`
-- `single_host_runtime`
-- `cross_repository_integration`
-- `cross_host`
-- `public_network`
-- `human`
-- `custody_security`
-- `commercial_legal`
-
-Every current gap uses one convergence state:
-
-- `source_open`
-- `source_implemented_unverified`
-- `source_verified`
-- `repository_control_blocked`
-- `blocked_upstream`
-- `environment_evidence_required`
-- `human_evidence_required`
-- `commercial_approval_required`
-- `closed`
-
-A lower class can never satisfy a higher-class gate by implication. `implemented` is not a synonym for `verified`, `deployed`, `operational`, or `release_ready`.
-
-## 8. Historical material
-
-Legacy Chain, PoUW, Web4, World/Bevy, Android and old public-launch material belongs under `archive/` or an explicitly marked historical directory. It may be cited for provenance, but it cannot define current architecture, current release posture or current development commands.
-
-Current documents use front matter or an explicit status block containing owner, status, applicability, review date and supersession information. Missing metadata is documentation debt and cannot silently create normative truth.
+Legacy Chain, PoUW, old Web4, retired World/Bevy, Android and superseded Plan branches are provenance only. Historical files should be under `archive/` or carry explicit historical metadata. They cannot define current commands, authority, release posture or production claims.
