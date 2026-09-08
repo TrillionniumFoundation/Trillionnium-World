@@ -33,6 +33,13 @@ jobs:
           git -C repository checkout --detach FETCH_HEAD
           test "$(git -C repository rev-parse HEAD)" = "${GITHUB_SHA}"
 
+      - name: Verify shared strict JSON parser
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd repository
+          python3 scripts/test-trnm-world-strict-json.py
+
       - name: Verify active module entry contracts
         shell: bash
         run: |
