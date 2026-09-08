@@ -1,11 +1,11 @@
 {
   "schema": "trnm_world_plan_v4_execution_truth_v1",
-  "recorded_at_utc": "2026-09-08T07:57:22Z",
+  "recorded_at_utc": "2026-09-08T13:09:03Z",
   "repository": "TrillionniumFoundation/Trillionnium-World",
   "operative_pull_request": 104,
   "operative_branch": "fix/world-convergence-v6-20260908",
-  "observed_head_before_truth_update": "d939a555edd1a0873287859aaeab4e028a2debc4",
-  "observed_tree_before_truth_update": "3e8d7f881a143566ea9d83f02ba21e9558b517da",
+  "observed_head_before_truth_update": "b218dbfb6c22f6b44e8ee542d2ab62c27d160349",
+  "observed_tree_before_truth_update": "1c3a79ad518716fc574deda039a49d8e29aa07f9",
   "base": {
     "branch": "main",
     "head": "0f6117a56263bcb5bf89e34b8bcda557a7da2e6d"
@@ -37,7 +37,7 @@
     "published_head": "5e7bb9a3e44e61371972d1fe1054fefb637a5629",
     "published_parent": "b131aaccddf1a5a1474e95cd7eec018deeed08d7",
     "published_tree": "1d2e01be24434390593b11202e6c374d4773d4e0",
-    "convergence_head_before_truth_update": "d939a555edd1a0873287859aaeab4e028a2debc4",
+    "convergence_head_before_truth_update": "b218dbfb6c22f6b44e8ee542d2ab62c27d160349",
     "world_authority_source_imported": true,
     "world_authority_production_authorization": "not_granted",
     "build_rs_absent": true,
@@ -48,22 +48,36 @@
     "repository_workflow_run_total": 0,
     "state": "scheduler_no_exact_head_runs",
     "exact_head_evidence": "absent",
-    "exact_head": "d939a555edd1a0873287859aaeab4e028a2debc4",
-    "prospective_merge": "1e0fa3dfdd03c58bb06ed959768db0160ed64ee8",
+    "exact_head": "b218dbfb6c22f6b44e8ee542d2ab62c27d160349",
+    "prospective_merge": "56c3d79b98dc478cd6148ebb4d19c27c72d9ab89",
     "ordinary_push_and_pull_request_events_observed": true,
     "reviewers_requested": true,
     "rule": "empty check collections and zero exact-head workflow runs receive no verification credit"
   },
   "cex_dependency": {
     "repository": "TrillionniumFoundation/CEX",
-    "pull_request": 29,
-    "commit": "04491cff7cb317324f57a10de07872d39f3e56c2",
-    "tree": "f8897db7f5879a8ae84a2ce90ec169e5df9eccb9",
-    "sequence": 53,
+    "pull_request": 53,
+    "branch": "integration/cex-v12-sequence54-20260908",
+    "commit": "6a14d0da4cf1aefd4689708a6967a4ae1c0e84fc",
+    "tree": "e425423fda89ce5438879518367f4b12ad2ef3f5",
+    "base": "db75c74094748a1139fd64b0360e122d8ec797a0",
+    "prospective_merge": "53676ad0ea2712b5efa2bf2a49359e00035521c4",
+    "sequence": 54,
     "qualification_state": "draft_unqualified",
     "production_authorization": "not_granted",
     "observed_state": "open",
-    "observed_at_utc": "2026-09-08T07:57:22Z"
+    "observed_at_utc": "2026-09-08T13:09:03Z"
+  },
+  "repository_governance": {
+    "main": "0f6117a56263bcb5bf89e34b8bcda557a7da2e6d",
+    "main_protected": true,
+    "required_contexts": [
+      "trnm-game-ci",
+      "trnm-world-p0-boundaries",
+      "trnm-world-status-evidence"
+    ],
+    "desired_contract_matches_observation": false,
+    "rulesets_observed": 0
   },
   "closure": {
     "world_owned_source_development_closed": false,

@@ -1,6 +1,6 @@
 {
   "schema": "trnm_world_gap_closure_ledger_v6",
-  "generated_utc": "2026-09-08T13:30:00Z",
+  "generated_utc": "2026-09-08T13:09:03Z",
   "plan": "trillionnium-world-development-2026-08-29-v4",
   "review_surface": {
     "repository": "TrillionniumFoundation/Trillionnium-World",
@@ -8,8 +8,9 @@
     "branch": "fix/world-convergence-v6-20260908",
     "merge_target": "main",
     "base_commit": "0f6117a56263bcb5bf89e34b8bcda557a7da2e6d",
-    "observed_head_before_update": "867518486d88cde6b0f3107ce73934d83161027c",
-    "observed_tree_before_update": "dbb1b966b3e36feca81bb4ff72b3f0a186b3ae2b",
+    "observed_head_before_update": "b218dbfb6c22f6b44e8ee542d2ab62c27d160349",
+    "observed_tree_before_update": "1c3a79ad518716fc574deda039a49d8e29aa07f9",
+    "observed_prospective_merge_before_update": "56c3d79b98dc478cd6148ebb4d19c27c72d9ab89",
     "draft_required": true,
     "production_authorization": "not_granted"
   },
@@ -24,6 +25,7 @@
     "active_crate_detailed_designs": 8,
     "world_authority_crate_detailed_designs": 7,
     "strict_machine_truth_parser": true,
+    "unconditional_pull_request_documentation_gate": true,
     "state": "closed_candidate",
     "qualification_scope": "source_and_documentation_only"
   },
@@ -33,6 +35,7 @@
     "prospective_merge_ci_closed": false,
     "independent_review_closed": false,
     "server_governance_closed": false,
+    "observed_main": "0f6117a56263bcb5bf89e34b8bcda557a7da2e6d",
     "observed_main_protected": true,
     "observed_main_required_contexts": [
       "trnm-game-ci",
@@ -46,11 +49,13 @@
   "dependencies": {
     "cex": {
       "repository": "TrillionniumFoundation/CEX",
-      "pull_request": 29,
-      "branch": "fix/cex-v12-seq53-close-repository-gaps-20260904",
-      "commit": "04491cff7cb317324f57a10de07872d39f3e56c2",
-      "tree": "f8897db7f5879a8ae84a2ce90ec169e5df9eccb9",
-      "sequence": 53,
+      "pull_request": 53,
+      "branch": "integration/cex-v12-sequence54-20260908",
+      "commit": "6a14d0da4cf1aefd4689708a6967a4ae1c0e84fc",
+      "tree": "e425423fda89ce5438879518367f4b12ad2ef3f5",
+      "base": "db75c74094748a1139fd64b0360e122d8ec797a0",
+      "prospective_merge": "53676ad0ea2712b5efa2bf2a49359e00035521c4",
+      "sequence": 54,
       "state": "observed_unqualified_draft",
       "qualified": false,
       "production_authorization": "not_granted"
@@ -74,25 +79,84 @@
     "integration": {
       "repository": "TrillionniumFoundation/Trillionnium-Integration",
       "pull_request": 8,
-      "commit": "ae531f5022f6fb190105986959a5e5543ab47d35",
       "state": "coordination_lock_stale_repin_required",
       "qualified": false,
       "production_authorization": "not_granted"
     }
   },
   "denominators": [
-    {"id":"WORLD-SOURCE-DOCUMENTATION","owner":"World maintainers","state":"closed_candidate","evidence_class":"source_static"},
-    {"id":"WORLD-EXACT-HEAD-CI","owner":"World repository operations","state":"server_configuration_required","evidence_class":"unit"},
-    {"id":"WORLD-PROSPECTIVE-MERGE-CI","owner":"World repository operations","state":"server_configuration_required","evidence_class":"unit"},
-    {"id":"WORLD-MAIN-GOVERNANCE","owner":"GitHub organization administrators","state":"observed_mismatch","evidence_class":"source_static"},
-    {"id":"WORLD-INDEPENDENT-REVIEW","owner":"independent reviewers","state":"changes_requested","evidence_class":"source_static"},
-    {"id":"WORLD-PRODUCTION-ADAPTERS","owner":"World operations/security","state":"absent","evidence_class":"single_host_runtime"},
-    {"id":"NAKAMA-CANONICAL-AUTHORITY","owner":"Nakama and Integration","state":"blocked_upstream","evidence_class":"cross_repository_integration"},
-    {"id":"TRUSTED-CEX-SETTLEMENT","owner":"CEX and Integration","state":"blocked_upstream","evidence_class":"custody_security"},
-    {"id":"CHAIN-FINALITY-LOCK","owner":"Chain and Integration","state":"blocked_upstream","evidence_class":"cross_repository_integration"},
-    {"id":"DEPLOYMENT-PUBLIC-EDGE-RECOVERY","owner":"operations and Integration","state":"external_evidence_required","evidence_class":"cross_host"},
-    {"id":"HUMAN-ACCESSIBILITY","owner":"product research and accessibility","state":"human_evidence_required","evidence_class":"human"},
-    {"id":"PRIVACY-LEGAL-SUPPORT-COMMERCIAL","owner":"accountable organizational authorities","state":"commercial_approval_required","evidence_class":"commercial_legal"}
+    {
+      "id": "WORLD-SOURCE-DOCUMENTATION",
+      "owner": "World maintainers",
+      "state": "closed_candidate",
+      "evidence_class": "source_static"
+    },
+    {
+      "id": "WORLD-EXACT-HEAD-CI",
+      "owner": "World repository operations",
+      "state": "server_configuration_required",
+      "evidence_class": "unit"
+    },
+    {
+      "id": "WORLD-PROSPECTIVE-MERGE-CI",
+      "owner": "World repository operations",
+      "state": "server_configuration_required",
+      "evidence_class": "unit"
+    },
+    {
+      "id": "WORLD-MAIN-GOVERNANCE",
+      "owner": "GitHub organization administrators",
+      "state": "observed_mismatch",
+      "evidence_class": "source_static"
+    },
+    {
+      "id": "WORLD-INDEPENDENT-REVIEW",
+      "owner": "independent reviewers",
+      "state": "changes_requested",
+      "evidence_class": "source_static"
+    },
+    {
+      "id": "WORLD-PRODUCTION-ADAPTERS",
+      "owner": "World operations/security",
+      "state": "absent",
+      "evidence_class": "single_host_runtime"
+    },
+    {
+      "id": "NAKAMA-CANONICAL-AUTHORITY",
+      "owner": "Nakama and Integration",
+      "state": "blocked_upstream",
+      "evidence_class": "cross_repository_integration"
+    },
+    {
+      "id": "TRUSTED-CEX-SETTLEMENT",
+      "owner": "CEX and Integration",
+      "state": "blocked_upstream",
+      "evidence_class": "custody_security"
+    },
+    {
+      "id": "CHAIN-FINALITY-LOCK",
+      "owner": "Chain and Integration",
+      "state": "blocked_upstream",
+      "evidence_class": "cross_repository_integration"
+    },
+    {
+      "id": "DEPLOYMENT-PUBLIC-EDGE-RECOVERY",
+      "owner": "operations and Integration",
+      "state": "external_evidence_required",
+      "evidence_class": "cross_host"
+    },
+    {
+      "id": "HUMAN-ACCESSIBILITY",
+      "owner": "product research and accessibility",
+      "state": "human_evidence_required",
+      "evidence_class": "human"
+    },
+    {
+      "id": "PRIVACY-LEGAL-SUPPORT-COMMERCIAL",
+      "owner": "accountable organizational authorities",
+      "state": "commercial_approval_required",
+      "evidence_class": "commercial_legal"
+    }
   ],
   "closure": {
     "repository_source_documentation_closed_candidate": true,

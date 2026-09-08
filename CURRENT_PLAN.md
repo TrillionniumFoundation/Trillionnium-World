@@ -33,8 +33,9 @@ Where a historical identity conflicts with the selected snapshot, V6 ledger or c
 - Pull request: `#104`
 - Branch: `fix/world-convergence-v6-20260908`
 - Base observed: `main@0f6117a56263bcb5bf89e34b8bcda557a7da2e6d`
-- Head observed before this truth update: `867518486d88cde6b0f3107ce73934d83161027c`
-- Head tree observed before this truth update: `dbb1b966b3e36feca81bb4ff72b3f0a186b3ae2b`
+- Head observed before this truth update: `b218dbfb6c22f6b44e8ee542d2ab62c27d160349`
+- Head tree observed before this truth update: `1c3a79ad518716fc574deda039a49d8e29aa07f9`
+- Prospective merge observed before this truth update: `56c3d79b98dc478cd6148ebb4d19c27c72d9ab89`
 - Current candidate toolchain: `1.98.1`
 - Historical qualification toolchain: `1.98.0`
 
@@ -67,7 +68,8 @@ The convergence candidate contains:
 - a World-only root operations manual, current release decision and strict document catalogue;
 - PostgreSQL base, hardening and complete catalog-fingerprint contracts;
 - cutover/provenance contracts and source/adapter/PostgreSQL gates;
-- strict JSON and machine-truth validation;
+- a bounded strict JSON parser with duplicate-key, non-finite, UTF-8, size, depth and node-budget rejection;
+- an unconditional pull-request documentation gate whose trigger surface cannot be bypassed by changing a validator input;
 - read-only CI definitions that bind source and prospective-merge objects.
 
 These source facts are `closed_candidate`, not independently validated. They do not inherit the historical 1.98.0 artifact result. The final current head must run with Rust 1.98.1.
@@ -91,20 +93,35 @@ trnm-world-p0-boundaries
 trnm-world-status-evidence
 ```
 
-They do not match `docs/governance/main-protection-contract-v2.json`. The managed GitHub connection cannot read or change the administration surfaces needed to prove Actions policy, runner allocation, billing/quota/suspension, detailed review enforcement or no-bypass behavior. These are server-configuration blockers, not source gaps.
+They do not match `docs/governance/main-protection-contract-v2.json`. The managed GitHub connection cannot change the administration surfaces needed to establish the final required-context set, latest-push/stale-review/conversation rules, linear/no-force-push controls or no-bypass behavior. These are server-configuration blockers, not source gaps.
 
 ## Current CEX dependency observation
 
 The coordination-only current observation is `docs/integration/trnm-world-cex-current-pending-lock-v2.json`.
 
-CEX PR #29 is still open Draft on sequence 53 at commit `04491cff7cb317324f57a10de07872d39f3e56c2`, tree `f8897db7f5879a8ae84a2ce90ec169e5df9eccb9`. It remains unqualified and has `production_authorization=not_granted`. This observation does not select it for release or enable World adoption.
+CEX PR #53 is the single Sequence 54 Draft candidate on branch `integration/cex-v12-sequence54-20260908`:
+
+```text
+head              6a14d0da4cf1aefd4689708a6967a4ae1c0e84fc
+tree              e425423fda89ce5438879518367f4b12ad2ef3f5
+base              db75c74094748a1139fd64b0360e122d8ec797a0
+prospective merge 53676ad0ea2712b5efa2bf2a49359e00035521c4
+```
+
+Its source-side bounded RustSec policy and CI definitions have been restored, but its hosted jobs still fail before source steps, its live Rulesets collection is empty, `main` remains unprotected, and fresh independent approvals are absent. It remains unqualified with `production_authorization=not_granted`. This observation does not select it for release or enable World adoption.
+
+## Current upstream coordination observations
+
+- TrillionniumGame/Nakama PR #63 remains Draft at `6dd5a101c67d78572a9dcaa3ab6ff96ef1966850`; repository-controlled source/CI are substantially qualified, but conflict-free specialist capacity, governance read-back and production evidence remain open.
+- Trillionnium-Chain PR #62 remains Draft at `521726e47ce0efad6b732a5fc31afcd2cc52593d`; several exact-head workflows and independent/external denominators remain open.
+- Trillionnium-Integration PR #8 remains a Draft coordination surface and must repin the final accepted component identities. World does not treat an Integration observation as the final cross-repository lock.
 
 ## Ordered remaining blockers
 
 1. Restore World Actions scheduling and obtain non-empty terminal-success Rust 1.98.1, PostgreSQL, transition, documentation, package, source-boundary and supply-chain execution on one unchanged final head and its actual prospective merge object.
 2. Apply and read back server-side main protection, current required contexts, stale-review dismissal, conversation resolution, linear/no-force-push/no-bypass controls; then obtain fresh independent approval on the unchanged final tuple.
 3. Select and qualify one immutable CEX revision with non-empty execution, manifest, SBOM/provenance, custody evidence and independent approval.
-4. Qualify World, CEX, Nakama, Chain and Integration independently; pin exact accepted commits/trees/artifacts and close transition divergence, no-dual-writer, fault, cutover and rollback evidence.
+4. Qualify World, CEX, Nakama and Chain independently; have Integration pin exact accepted commits/trees/artifacts and close transition divergence, no-dual-writer, fault, cutover and rollback evidence.
 5. Replace fixture/file-backed World-domain adapters with independently reviewed production identity/session, PostgreSQL repository, ledger, evidence, metrics, routing and service-deployment adapters.
 6. Complete the remaining `include!` ownership-part migration into true Rust module/trait/visibility boundaries through test-preserving review tranches.
 7. Obtain deployment, public-edge, cross-host recovery/endurance, custody/KMS, human/accessibility, privacy, legal, support, commercial and final human go/no-go evidence from their accountable authorities.

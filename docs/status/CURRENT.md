@@ -4,8 +4,8 @@
 > These are recorded assertions, not fresh GitHub queries or independent evidence verification.
 
 - Selected execution snapshot: `docs/status/world-plan-v4-execution-truth-2026-09-08.json`
-- Snapshot recorded at (UTC): `2026-09-08T07:57:22Z`
-- Snapshot SHA-256: `285f1c02ca702fdbba40b5a2249fa30c1ccc4338f4a83b49dcb04fd42075df3a`
+- Snapshot recorded at (UTC): `2026-09-08T13:09:03Z`
+- Snapshot SHA-256: `e862c9c4e7eeec24047eec2824869f944f1e39c7c30554306f11e83aa952f134`
 - Operative pull request: `#104`
 - Operative branch: `fix/world-convergence-v6-20260908`
 

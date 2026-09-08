@@ -38,6 +38,7 @@ The machine-readable current denominator view is `docs/development/trnm-world-ga
 - Every active crate and every isolated World-domain authority crate has a substantive local contract and detailed design.
 - The semantic game-server `build.rs` / `src/lib.rs.in` authority is absent; correctness source is ordinary Git-tracked source.
 - Strict JSON gates reject duplicate object keys, non-finite tokens, invalid UTF-8 and configured size/depth/node-budget excess.
+- The pull-request documentation gate is unconditional, so edits to any validator input cannot evade scheduling through a narrow path filter.
 - ADR-0003 prevents the World-domain service from becoming a second canonical online authority.
 - Settlement remains capture -> transaction-free remote execution -> fenced apply.
 - Validation workflows declare read-only repository permissions and may not move refs or promote source.
@@ -47,7 +48,7 @@ These facts require fresh execution on the final exact head before they become i
 
 ## Current live repository blockers
 
-GitHub has exposed no normal repository-native workflow run for the current convergence candidate. The observed `main` branch is protected, but its required contexts remain the older set:
+GitHub exposes zero repository-native workflow runs for the current pre-update World head `b218dbfb6c22f6b44e8ee542d2ab62c27d160349`. The observed `main` branch is protected at `0f6117a56263bcb5bf89e34b8bcda557a7da2e6d`, but its required contexts remain the older set:
 
 ```text
 trnm-game-ci
@@ -55,16 +56,16 @@ trnm-world-p0-boundaries
 trnm-world-status-evidence
 ```
 
-They do not match the current protection contract. The detailed branch-protection administration endpoint is not readable through the managed integration, and the repository ruleset list is empty. Therefore required-context enforcement, approval freshness, conversation resolution, linear history and no-bypass behavior remain unproved.
+They do not match the current protection contract. The repository Rulesets collection is empty. Therefore the final required-context set, approval freshness, conversation resolution, linear/no-force-push controls and no-bypass behavior remain unproved.
 
 ## Cross-repository blockers
 
 The current coordination candidates are recorded without qualification credit:
 
-- CEX PR #29, sequence 53, remains Draft and unqualified.
-- TrillionniumGame/Nakama PR #63 remains Draft and unqualified.
-- Trillionnium-Chain PR #62 remains Draft and unqualified.
-- Trillionnium-Integration PR #8 remains a coordination surface requiring repin to final accepted component identities.
+- CEX PR #53, Sequence 54, branch `integration/cex-v12-sequence54-20260908`, head `6a14d0da4cf1aefd4689708a6967a4ae1c0e84fc`, tree `e425423fda89ce5438879518367f4b12ad2ef3f5`, remains Draft and unqualified. Its source-side bounded RustSec gate was restored, but hosted jobs still fail before source execution, the live Rulesets collection is empty and fresh independent approvals are absent.
+- TrillionniumGame/Nakama PR #63 remains Draft at `6dd5a101c67d78572a9dcaa3ab6ff96ef1966850`; repository-controlled source/CI are substantially qualified, while conflict-free specialist capacity, final governance and production evidence remain open.
+- Trillionnium-Chain PR #62 remains Draft at `521726e47ce0efad6b732a5fc31afcd2cc52593d`; exact-head workflow, independent and external denominators remain open.
+- Trillionnium-Integration PR #8 remains the coordination surface requiring repin to the final accepted component identities.
 
 World cannot close those repositories by assertion. Integration must bind exact accepted commits, trees, artifacts and protocol bytes, then retain divergence, fault, drain, cutover and rollback evidence.
 
