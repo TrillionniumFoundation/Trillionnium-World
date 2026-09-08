@@ -16,7 +16,7 @@ It does **not** own canonical online admission or event ordering, Chain finality
 | Nakama closed online | Blocked until the World transition contract, Nakama shadow runner and Integration component lock converge |
 | Public online / public player market | **NO-GO / disabled** |
 
-No source change, local test, generated status file, or single-host fixture may promote public-online, custody, market, commercial, human, or cross-host claims.
+No source change, local test, generated status file, single-host fixture or external runner can promote public-online, custody, market, commercial, human or cross-host claims.
 
 ## Accountable systems
 
@@ -46,8 +46,6 @@ trillionnium/
     trnm-economy-protocol/         # game-owned intent/receipt vocabulary
 ```
 
-`trillionnium/crates/platform` is excluded legacy material and is not an active development workspace.
-
 ## Isolated World-domain authority candidate
 
 ```text
@@ -63,15 +61,26 @@ trillionnium/crates/world-authority/
 
 This nested Cargo workspace is deliberately excluded from the active eight-crate product workspace. It has its own source, documentation and PostgreSQL gates. Fixture identity/session/account/ledger/evidence/metrics adapters and the file repository are development evidence only; production authorization remains `not_granted`.
 
+## Complete physical repository inventory
+
+`docs/component-catalog.json` classifies every Cargo manifest and the retained Web4 Node application. In addition to the 8+7 current/candidate crates above, it explicitly records:
+
+- `trillionnium/crates/platform`: excluded 12-crate legacy platform source; not an active development or release denominator;
+- `contracts`: four-crate Rust MVP external-contract perimeter; scope-dependent and not connected to a canonical production host runtime;
+- `web4-frontend`: historical-compatible subproject; not part of the World game-product release denominator.
+
+An unclassified source/application manifest is a gate failure. Source presence does not silently change lifecycle or release scope.
+
 ## Start here
 
 1. `PROJECT_BOUNDARY.md` — binding repository and authority boundary.
 2. `CURRENT_PLAN.md` — canonical pointer to the active execution plan.
 3. `docs/catalog.json` — machine current-document catalogue and review ownership.
-4. `docs/README.md` — current documentation map.
-5. `docs/modules/README.md` — active module contracts and detailed designs.
-6. `docs/status/CURRENT.md` — generated human-readable gate posture.
-7. `GAME_STATUS.md` — native gameplay/runtime evidence and honest open boundaries.
+4. `docs/component-catalog.json` — complete component/manifests/lifecycle inventory.
+5. `docs/README.md` — current documentation map.
+6. `docs/modules/README.md` — active module contracts and detailed designs.
+7. `docs/status/CURRENT.md` — generated human-readable gate posture.
+8. `GAME_STATUS.md` — native gameplay/runtime evidence and honest open boundaries.
 
 ## Development preflight
 
@@ -89,6 +98,8 @@ Primary source and documentation gates:
 ./scripts/check_trnm_runtime_configuration.sh
 ./scripts/check_trnm_settlement_outbox_contract.sh
 ./scripts/check_trnm_settlement_transaction_boundary.sh
+python3 scripts/check-trnm-world-component-catalog.py
+python3 scripts/test-trnm-world-component-catalog.py
 python3 scripts/check-trnm-world-module-documentation.py
 python3 scripts/check-trnm-world-detailed-documentation.py
 python3 scripts/check-trnm-world-authority-documentation.py
@@ -101,7 +112,7 @@ PostgreSQL cutover validation additionally runs:
 bash scripts/run-trnm-world-authority-postgres-check.sh
 ```
 
-The exact active plan defines additional workstream-specific checks. A missing, skipped, cancelled, stale, base-only, or identity-unbound check is a blocker, not a pass.
+The exact active plan defines additional workstream-specific checks. A missing, skipped, cancelled, stale, base-only, zero-step or identity-unbound check is a blocker, not a pass.
 
 ## Local Rust validation
 
@@ -133,8 +144,9 @@ Release eligibility additionally requires exact commit/tree/binary/toolchain/env
 - Pull-request review is mandatory for release credit.
 - CI workflows must be read-only with respect to repository source; validation may upload evidence but must not modify or push candidate code.
 - Branch protection and required checks are server-side controls. Files in `.github/` cannot self-assert that those controls are active.
-- Historical Chain/Web4/World-Bevy documents are provenance only unless a current document explicitly cites a bounded artifact.
+- Historical Chain/Web4/World-Bevy documents and excluded legacy source are provenance only unless a current document explicitly cites a bounded artifact.
 - The World-domain cutover cannot be activated until CEX embedded mutation is retired under one fenced writer epoch and Nakama remains the canonical online caller.
+- A temporary external runner is diagnostic/retained evidence only and cannot replace World repository-native checks or governance.
 
 ## Licensing
 
