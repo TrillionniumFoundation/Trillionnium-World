@@ -40,6 +40,14 @@ jobs:
           cd repository
           python3 scripts/test-trnm-world-strict-json.py
 
+      - name: Verify current machine-truth hierarchy
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd repository
+          python3 scripts/check-trnm-world-machine-truth.py
+          python3 scripts/test-trnm-world-machine-truth.py
+
       - name: Verify active module entry contracts
         shell: bash
         run: |

@@ -40,6 +40,9 @@
       "native-client",
       "player-facing-economy-intents"
     ],
+    "world_domain_service_workspace": "trillionnium/crates/world-authority/Cargo.toml",
+    "world_production_adapter_contract": "trillionnium_world_production_adapter_v1",
+    "world_production_authorization": "not_granted",
     "online_match_authority": "Trillionnium-Nakama",
     "chain_finality_authority": "Trillionnium-Chain",
     "wallet_settlement_authority": "CEX",
@@ -63,11 +66,15 @@
     }
   ],
   "documentation": {
-    "current_plan": "docs/development/TRILLIONNIUM_WORLD_DEVELOPMENT_PLAN_2026-08-29.md",
-    "current_plan_manifest": "docs/development/trillionnium-world-development-plan-2026-08-29.json",
-    "gap_ledger": "docs/development/trnm-world-gap-closure-ledger-v4.json",
+    "current_plan": "CURRENT_PLAN.md",
+    "current_execution_snapshot": "docs/status/world-plan-v4-execution-truth-2026-09-08.json",
+    "planning_foundation": "docs/development/TRILLIONNIUM_WORLD_DEVELOPMENT_PLAN_2026-08-29.md",
+    "historical_plan_manifest": "docs/development/trillionnium-world-development-plan-2026-08-29.json",
+    "historical_gap_ledger": "docs/development/trnm-world-gap-closure-ledger-v4.json",
+    "historical_machine_inputs_are_execution_authority": false,
     "authority_adr": "docs/adr/0001-realtime-authority-and-match-evidence-ownership.md",
     "settlement_adr": "docs/adr/0002-transaction-free-external-settlement.md",
+    "domain_service_adr": "docs/adr/0003-world-domain-authority-and-nakama-canonical-online.md",
     "release_matrix": "docs/release/trnm-world-release-gate-matrix-v2.md",
     "current_status": "docs/status/CURRENT.md"
   },
@@ -77,6 +84,7 @@
     "require_distinct_role_credentials": true,
     "require_verified_release_in_production": true,
     "development_binary_fallback": "explicit-opt-in-only",
+    "fixture_listener": "explicit-opt-in-loopback-only",
     "external_settlement_under_mutable_transaction": "forbid"
   },
   "ci": {
@@ -87,12 +95,14 @@
   },
   "source_review": {
     "semantic_build_time_source_rewrite": "forbid_for_new_code",
-    "generated_contracts": "must_be_reproducible_and_diff_reviewable"
+    "generated_contracts": "must_be_reproducible_and_diff_reviewable",
+    "historical_origin_and_reviewed_successor_must_be_separately_bound": true
   },
   "release": {
     "public_online": "no_go",
     "public_player_market": "disabled",
-    "source_change_may_enable_public_claim": false
+    "source_change_may_enable_public_claim": false,
+    "production_authorization": "not_granted"
   },
   "deny_changed_paths_regex": "^trillionnium/crates/platform/"
 }
