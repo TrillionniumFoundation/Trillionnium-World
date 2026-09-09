@@ -73,8 +73,16 @@ include!("lib_parts/campaign_commands/part_05.rs");
 // Ownership section: campaign_commands. Ordinary Git-tracked source.
 include!("lib_parts/campaign_commands/part_06.rs");
 
-// Ownership section: rts_mapping. Ordinary Git-tracked source.
-include!("lib_parts/rts_mapping/part_01.rs");
+// RTS mapping is an explicit module. Public mapping APIs remain exported, while
+// helpers retain their former crate-wide visibility without becoming public.
+#[path = "lib_parts/rts_mapping/part_01.rs"]
+mod rts_mapping;
+pub use rts_mapping::{map_rpg_to_rts_stats, typed_equipment_modifier};
+pub(crate) use rts_mapping::{
+    apply_campaign_growth, apply_conditional_equipment_affixes, apply_expedition_readiness,
+    apply_regional_skills_and_sect, canonical_json_hash, character_item_conditions, consume_loot,
+    current_sect, equipped_item_ids, merge_loot, remove_origin_bonus, require_supplies,
+};
 
 // Save slots own slot enumeration and filesystem routing behind an explicit
 // module boundary while preserving the existing crate-root API.
