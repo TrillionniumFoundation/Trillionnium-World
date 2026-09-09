@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://trillionnium.invalid/schemas/trnm-world-v4-candidate-status-v1.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "candidate_branch",
+    "base_branch",
+    "base_commit",
+    "candidate_commit",
+    "candidate_tree",
+    "status",
+    "required_checks",
+    "workflow_runs",
+    "artifacts",
+    "reviewers",
+    "release_effect",
+    "public_online",
+    "public_player_market",
+    "limitations"
+  ],
+  "properties": {
+    "schema": { "const": "trnm_world_v4_candidate_status_v1" },
+    "candidate_branch": { "const": "fix/world-plan-gap-closure-v4" },
+    "base_branch": { "const": "fix/world-settlement-gap-closure-v1" },
+    "base_commit": { "$ref": "#/$defs/sha" },
+    "candidate_commit": { "oneOf": [{ "$ref": "#/$defs/sha" }, { "type": "null" }] },
+    "candidate_tree": { "oneOf": [{ "$ref": "#/$defs/sha" }, { "type": "null" }] },
+    "status": {
+      "enum": [
+        "implemented_pending_exact_head_ci",
+        "exact_head_checks_green_pending_review",
+        "module_closed_candidate"
+      ]
+    },
+    "required_checks": {
+      "type": "array",
+      "minItems": 5,
+      "maxItems": 5,
+      "uniqueItems": true,
+      "items": { "type": "string", "pattern": "^trnm-world-v4/[a-z0-9-]+$" }
+    },
+    "workflow_runs": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "type": "integer", "minimum": 1 }
+    },
+    "artifacts": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1, "maxLength": 512 }
+    },
+    "reviewers": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "type": "string", "pattern": "^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$" }
+    },
+    "release_effect": { "const": "none" },
+    "public_online": { "const": "no_go" },
+    "public_player_market": { "const": "disabled" },
+    "limitations": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1, "maxLength": 512 }
+    }
+  },
+  "$defs": {
+    "sha": { "type": "string", "pattern": "^[0-9a-f]{40}$" }
+  }
+}

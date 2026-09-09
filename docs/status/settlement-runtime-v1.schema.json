@@ -1,0 +1,127 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://trillionnium.internal/schemas/trnm-world-settlement-runtime-status-v1.json",
+  "title": "TRNM World Settlement Runtime Status v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "claim_id",
+    "work_item",
+    "status",
+    "as_of",
+    "owner_repository",
+    "branch",
+    "base_commit",
+    "verified_commit",
+    "authority_profile",
+    "release_effect",
+    "public_online",
+    "public_player_market",
+    "implemented_controls",
+    "open_gates",
+    "required_checks",
+    "evidence"
+  ],
+  "properties": {
+    "schema": { "const": "trnm_world_settlement_runtime_status_v1" },
+    "claim_id": { "const": "WORLD-P0-001-settlement-fencing-v1" },
+    "work_item": { "const": "WORLD-P0-001" },
+    "status": {
+      "enum": [
+        "planned",
+        "implemented_pending_exact_commit_ci",
+        "verified_remote",
+        "deployed",
+        "operational"
+      ]
+    },
+    "as_of": { "type": "string", "format": "date" },
+    "owner_repository": {
+      "const": "TrillionniumFoundation/Trillionnium-World"
+    },
+    "branch": {
+      "type": "string",
+      "pattern": "^(feature|fix|chore|docs|test)/world-[a-z0-9][a-z0-9._-]*$",
+      "maxLength": 256
+    },
+    "base_commit": { "$ref": "#/$defs/sha1" },
+    "verified_commit": {
+      "oneOf": [
+        { "$ref": "#/$defs/sha1" },
+        { "type": "null" }
+      ]
+    },
+    "authority_profile": { "const": "world_legacy_local_alpha" },
+    "release_effect": {
+      "enum": ["none", "trusted_cex_settlement_candidate"]
+    },
+    "public_online": { "const": "no_go" },
+    "public_player_market": { "const": "disabled" },
+    "implemented_controls": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/token" }
+    },
+    "open_gates": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/token" }
+    },
+    "required_checks": {
+      "type": "array",
+      "minItems": 3,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^trnm-world-v4/[a-z0-9-]+$"
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "remote_workflow_runs",
+        "artifacts",
+        "reviewers",
+        "limitations"
+      ],
+      "properties": {
+        "remote_workflow_runs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "integer", "minimum": 1 }
+        },
+        "artifacts": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1, "maxLength": 512 }
+        },
+        "reviewers": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$"
+          }
+        },
+        "limitations": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1, "maxLength": 512 }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "sha1": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "token": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9_]*$",
+      "maxLength": 160
+    }
+  }
+}

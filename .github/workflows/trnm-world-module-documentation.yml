@@ -1,0 +1,90 @@
+name: trnm-world-module-documentation
+
+on:
+  pull_request:
+  merge_group:
+  push:
+    branches:
+      - main
+      - 'fix/world-*'
+      - 'integration/world-*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trnm-world-module-documentation-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  module-documentation:
+    name: trnm-world/module-documentation
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout exact event commit without third-party actions
+        shell: bash
+        run: |
+          set -euo pipefail
+          git init repository
+          git -C repository remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          git -C repository fetch --no-tags --depth=2 origin "${GITHUB_SHA}"
+          git -C repository checkout --detach FETCH_HEAD
+          test "$(git -C repository rev-parse HEAD)" = "${GITHUB_SHA}"
+
+      - name: Verify shared strict JSON parser
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd repository
+          python3 scripts/test-trnm-world-strict-json.py
+
+      - name: Verify complete physical component catalogue
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd repository
+          python3 scripts/check-trnm-world-component-catalog.py
+          python3 scripts/test-trnm-world-component-catalog.py
+
+      - name: Verify current machine-truth hierarchy
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd repository
+          python3 scripts/check-trnm-world-machine-truth.py
+          python3 scripts/test-trnm-world-machine-truth.py
+
+      - name: Verify active closure truth and current CEX observation
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd repository
+          python3 scripts/check-trnm-world-active-closure.py
+          python3 scripts/test-trnm-world-active-closure.py
+          python3 scripts/check-trnm-world-cex-pending-lock.py
+
+      - name: Verify active module entry contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd repository
+          python3 scripts/check-trnm-world-module-documentation.py
+          python3 scripts/test-trnm-world-module-documentation-negative.py
+
+      - name: Verify current catalogue and active detailed designs
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd repository
+          python3 scripts/check-trnm-world-detailed-documentation.py --as-of "$(date -u +%F)"
+          python3 scripts/test-trnm-world-detailed-documentation.py
+
+      - name: Verify isolated World-domain authority module contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd repository
+          python3 scripts/check-trnm-world-authority-documentation.py --as-of "$(date -u +%F)"
+          python3 scripts/test-trnm-world-authority-documentation.py
