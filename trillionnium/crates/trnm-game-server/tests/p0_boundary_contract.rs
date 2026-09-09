@@ -1,5 +1,6 @@
 use std::{
     fs,
+    ops::Range,
     path::{Path, PathBuf},
 };
 
@@ -17,18 +18,164 @@ fn rust_files(root: &Path, out: &mut Vec<PathBuf>) {
     }
 }
 
-fn function_bodies(source: &str) -> Vec<(&str, &str)> {
+fn raw_string_open(bytes: &[u8], start: usize) -> Option<(usize, usize)> {
+    let mut cursor = start;
+    if bytes.get(cursor) == Some(&b'b') || bytes.get(cursor) == Some(&b'c') {
+        cursor += 1;
+    }
+    if bytes.get(cursor) != Some(&b'r') {
+        return None;
+    }
+    cursor += 1;
+    let hashes_start = cursor;
+    while bytes.get(cursor) == Some(&b'#') {
+        cursor += 1;
+    }
+    (bytes.get(cursor) == Some(&b'"')).then_some((cursor + 1, cursor - hashes_start))
+}
+
+fn mask_rust_comments_and_literals(source: &str) -> String {
     let bytes = source.as_bytes();
+    let mut masked = bytes.to_vec();
+    let blank = |masked: &mut [u8], index: usize| {
+        if masked[index] != b'\n' && masked[index] != b'\r' {
+            masked[index] = b' ';
+        }
+    };
+    let mut cursor = 0usize;
+    while cursor < bytes.len() {
+        if bytes[cursor..].starts_with(b"//") {
+            while cursor < bytes.len() && bytes[cursor] != b'\n' {
+                blank(&mut masked, cursor);
+                cursor += 1;
+            }
+            continue;
+        }
+        if bytes[cursor..].starts_with(b"/*") {
+            let mut depth = 0usize;
+            while cursor < bytes.len() {
+                if bytes[cursor..].starts_with(b"/*") {
+                    depth += 1;
+                    blank(&mut masked, cursor);
+                    if cursor + 1 < bytes.len() {
+                        blank(&mut masked, cursor + 1);
+                    }
+                    cursor += 2;
+                    continue;
+                }
+                if bytes[cursor..].starts_with(b"*/") {
+                    blank(&mut masked, cursor);
+                    if cursor + 1 < bytes.len() {
+                        blank(&mut masked, cursor + 1);
+                    }
+                    cursor += 2;
+                    depth = depth.saturating_sub(1);
+                    if depth == 0 {
+                        break;
+                    }
+                    continue;
+                }
+                blank(&mut masked, cursor);
+                cursor += 1;
+            }
+            continue;
+        }
+        if let Some((payload_start, hashes)) = raw_string_open(bytes, cursor) {
+            let opening_end = payload_start;
+            for index in cursor..opening_end {
+                blank(&mut masked, index);
+            }
+            cursor = payload_start;
+            loop {
+                if cursor >= bytes.len() {
+                    break;
+                }
+                if bytes[cursor] == b'"'
+                    && cursor + 1 + hashes <= bytes.len()
+                    && bytes[cursor + 1..cursor + 1 + hashes]
+                        .iter()
+                        .all(|byte| *byte == b'#')
+                {
+                    for index in cursor..cursor + 1 + hashes {
+                        blank(&mut masked, index);
+                    }
+                    cursor += 1 + hashes;
+                    break;
+                }
+                blank(&mut masked, cursor);
+                cursor += 1;
+            }
+            continue;
+        }
+        let string_prefix = if bytes[cursor..].starts_with(b"b\"")
+            || bytes[cursor..].starts_with(b"c\"")
+        {
+            2
+        } else if bytes[cursor] == b'"' {
+            1
+        } else {
+            0
+        };
+        if string_prefix > 0 {
+            for index in cursor..cursor + string_prefix {
+                blank(&mut masked, index);
+            }
+            cursor += string_prefix;
+            let mut escaped = false;
+            while cursor < bytes.len() {
+                let byte = bytes[cursor];
+                blank(&mut masked, cursor);
+                cursor += 1;
+                if escaped {
+                    escaped = false;
+                } else if byte == b'\\' {
+                    escaped = true;
+                } else if byte == b'"' {
+                    break;
+                }
+            }
+            continue;
+        }
+        if bytes[cursor] == b'\'' {
+            let mut end = cursor + 1;
+            let mut escaped = false;
+            while end < bytes.len() && end.saturating_sub(cursor) <= 8 {
+                let byte = bytes[end];
+                if escaped {
+                    escaped = false;
+                } else if byte == b'\\' {
+                    escaped = true;
+                } else if byte == b'\'' {
+                    for index in cursor..=end {
+                        blank(&mut masked, index);
+                    }
+                    cursor = end + 1;
+                    break;
+                }
+                end += 1;
+            }
+            if cursor > end.saturating_sub(8) {
+                continue;
+            }
+        }
+        cursor += 1;
+    }
+    String::from_utf8(masked).expect("masking Rust source preserves UTF-8")
+}
+
+fn function_ranges(source: &str) -> Vec<(String, Range<usize>)> {
+    let masked = mask_rust_comments_and_literals(source);
+    let bytes = masked.as_bytes();
     let mut bodies = Vec::new();
     let mut cursor = 0usize;
-    while let Some(relative) = source[cursor..].find("fn ") {
+    while let Some(relative) = masked[cursor..].find("fn ") {
         let start = cursor + relative;
         let name_start = start + 3;
-        let Some(open_relative) = source[name_start..].find('{') else {
+        let Some(open_relative) = masked[name_start..].find('{') else {
             break;
         };
         let open = name_start + open_relative;
-        let signature = &source[name_start..open];
+        let signature = &masked[name_start..open];
         if signature.contains(';') {
             cursor = open + 1;
             continue;
@@ -36,29 +183,16 @@ fn function_bodies(source: &str) -> Vec<(&str, &str)> {
         let name_end = signature
             .find(|character: char| !(character.is_ascii_alphanumeric() || character == '_'))
             .unwrap_or(signature.len());
-        let name = &signature[..name_end];
+        let name = signature[..name_end].to_string();
         if name.is_empty() {
             cursor = open + 1;
             continue;
         }
 
         let mut depth = 0i64;
-        let mut in_string = false;
-        let mut escaped = false;
         let mut end = None;
         for (offset, byte) in bytes[open..].iter().copied().enumerate() {
-            if in_string {
-                if escaped {
-                    escaped = false;
-                } else if byte == b'\\' {
-                    escaped = true;
-                } else if byte == b'"' {
-                    in_string = false;
-                }
-                continue;
-            }
             match byte {
-                b'"' => in_string = true,
                 b'{' => depth += 1,
                 b'}' => {
                     depth -= 1;
@@ -71,13 +205,162 @@ fn function_bodies(source: &str) -> Vec<(&str, &str)> {
             }
         }
         if let Some(end) = end {
-            bodies.push((name, &source[start..end]));
+            bodies.push((name, start..end));
             cursor = end;
         } else {
             break;
         }
     }
     bodies
+}
+
+fn first_call_argument(code: &str, open: usize) -> Option<&str> {
+    let bytes = code.as_bytes();
+    let mut round = 0i64;
+    let mut square = 0i64;
+    let mut curly = 0i64;
+    for (offset, byte) in bytes.get(open + 1..)?.iter().copied().enumerate() {
+        match byte {
+            b'(' => round += 1,
+            b')' if round == 0 && square == 0 && curly == 0 => {
+                return Some(code[open + 1..open + 1 + offset].trim())
+            }
+            b')' => round -= 1,
+            b'[' => square += 1,
+            b']' => square -= 1,
+            b'{' => curly += 1,
+            b'}' => curly -= 1,
+            b',' if round == 0 && square == 0 && curly == 0 => {
+                return Some(code[open + 1..open + 1 + offset].trim())
+            }
+            _ => {}
+        }
+    }
+    None
+}
+
+fn reconciliation_calls(code: &str) -> Vec<(usize, &str)> {
+    let marker = ".reconcile_economy(";
+    let mut calls = Vec::new();
+    let mut cursor = 0usize;
+    while let Some(relative) = code[cursor..].find(marker) {
+        let marker_start = cursor + relative;
+        let open = marker_start + marker.len() - 1;
+        if let Some(argument) = first_call_argument(code, open) {
+            calls.push((marker_start, argument));
+        }
+        cursor = open + 1;
+    }
+    calls
+}
+
+fn borrowed_identifier(argument: &str) -> Option<&str> {
+    let argument = argument.trim().strip_prefix('&')?.trim_start();
+    let argument = argument.strip_prefix("mut ").unwrap_or(argument).trim();
+    (!argument.is_empty()
+        && argument
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || byte == b'_'))
+    .then_some(argument)
+}
+
+fn captured_backend_binding_before(code: &str, call_start: usize, identifier: &str) -> bool {
+    let compact = code[..call_start]
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ");
+    for statement in compact.split(';') {
+        let statement = statement.trim();
+        let Some(binding) = statement.strip_prefix("let ") else {
+            continue;
+        };
+        let binding = binding.strip_prefix("mut ").unwrap_or(binding).trim_start();
+        let Some((left, right)) = binding.split_once('=') else {
+            continue;
+        };
+        let bound_name = left
+            .split(':')
+            .next()
+            .unwrap_or_default()
+            .trim();
+        if bound_name == identifier
+            && (right.trim_start().starts_with("CapturedReceiptBackend")
+                || right.contains("::CapturedReceiptBackend"))
+        {
+            return true;
+        }
+    }
+    false
+}
+
+fn call_uses_captured_backend(code: &str, call_start: usize, argument: &str) -> bool {
+    let direct = argument
+        .trim()
+        .strip_prefix('&')
+        .map(str::trim_start)
+        .is_some_and(|value| {
+            value.starts_with("CapturedReceiptBackend {")
+                || value.starts_with("CapturedReceiptBackend::")
+                || value.contains("::CapturedReceiptBackend {")
+                || value.contains("::CapturedReceiptBackend::")
+        });
+    direct
+        || borrowed_identifier(argument)
+            .is_some_and(|identifier| captured_backend_binding_before(code, call_start, identifier))
+}
+
+fn transaction_reconciliation_counts(source: &str) -> (usize, usize, Vec<String>) {
+    let code = mask_rust_comments_and_literals(source);
+    let transaction_markers = [".begin().await", "Transaction<'", "Transaction <'"];
+    let sql_lock_markers = ["FOR UPDATE", "for update", "FOR SHARE", "for share"];
+    let external_markers = [
+        ".execute_authoritative(",
+        ".authorize_settlement_intent(",
+        ".submit_authorized_settlement_intent(",
+        ".readiness().await",
+        ".send().await",
+        ".blocking_client",
+    ];
+
+    let mut reconcile_count = 0usize;
+    let mut captured_transaction_reconcile_count = 0usize;
+    let mut violations = Vec::new();
+    for (name, range) in function_ranges(source) {
+        let raw_body = &source[range.clone()];
+        let code_body = &code[range];
+        let has_external = external_markers
+            .iter()
+            .any(|marker| code_body.contains(marker));
+        let has_transaction = transaction_markers
+            .iter()
+            .any(|marker| code_body.contains(marker))
+            || sql_lock_markers
+                .iter()
+                .any(|marker| raw_body.contains(marker));
+        let calls = reconciliation_calls(code_body);
+        reconcile_count += calls.len();
+        if has_transaction {
+            for (call_start, argument) in calls {
+                if call_uses_captured_backend(code_body, call_start, argument) {
+                    captured_transaction_reconcile_count += 1;
+                } else {
+                    violations.push(format!(
+                        "{name} reconciles economy under a transaction without passing a value constructed as CapturedReceiptBackend"
+                    ));
+                }
+            }
+        }
+        if has_external && has_transaction {
+            violations.push(format!(
+                "{name} performs remote settlement I/O while owning a database transaction"
+            ));
+        }
+    }
+    (
+        reconcile_count,
+        captured_transaction_reconcile_count,
+        violations,
+    )
 }
 
 #[test]
@@ -87,58 +370,21 @@ fn settlement_external_io_is_not_owned_by_a_database_transaction_function() {
     rust_files(&root, &mut files);
     assert!(!files.is_empty(), "game-server source tree is empty");
 
-    let transaction_markers = [
-        ".begin().await",
-        "Transaction<'",
-        "Transaction <'",
-        "FOR UPDATE",
-        "for update",
-        "FOR SHARE",
-        "for share",
-    ];
-    let external_markers = [
-        ".execute_authoritative(",
-        ".authorize_settlement_intent(",
-        ".submit_authorized_settlement_intent(",
-        ".readiness().await",
-        ".send().await",
-        ".blocking_client",
-    ];
-    let reconciliation_marker = ".reconcile_economy(";
-    let captured_backend_marker = "CapturedReceiptBackend";
-
     let mut reconcile_count = 0usize;
     let mut captured_transaction_reconcile_count = 0usize;
     let mut violations = Vec::new();
     for path in files {
         let source = fs::read_to_string(&path)
             .unwrap_or_else(|error| panic!("read {}: {error}", path.display()));
-        for (name, body) in function_bodies(&source) {
-            let has_external = external_markers.iter().any(|marker| body.contains(marker));
-            let has_transaction = transaction_markers
-                .iter()
-                .any(|marker| body.contains(marker));
-            let has_reconciliation = body.contains(reconciliation_marker);
-            if has_reconciliation {
-                reconcile_count += 1;
-            }
-            if has_transaction && has_reconciliation {
-                if body.contains(captured_backend_marker) {
-                    captured_transaction_reconcile_count += 1;
-                } else {
-                    violations.push(format!(
-                        "{}::{name} reconciles economy under a transaction without the reviewed captured-receipt backend",
-                        path.display()
-                    ));
-                }
-            }
-            if has_external && has_transaction {
-                violations.push(format!(
-                    "{}::{name} performs remote settlement I/O while owning a database transaction",
-                    path.display()
-                ));
-            }
-        }
+        let (reconciliations, captured, file_violations) =
+            transaction_reconciliation_counts(&source);
+        reconcile_count += reconciliations;
+        captured_transaction_reconcile_count += captured;
+        violations.extend(
+            file_violations
+                .into_iter()
+                .map(|violation| format!("{}::{violation}", path.display())),
+        );
     }
 
     assert!(
@@ -153,6 +399,61 @@ fn settlement_external_io_is_not_owned_by_a_database_transaction_function() {
         violations.is_empty(),
         "settlement transaction boundary violations: {violations:?}"
     );
+}
+
+#[test]
+fn captured_receipt_exception_is_bound_to_the_actual_argument_value() {
+    let accepted = r#"
+        async fn apply() {
+            let mut transaction = pool.begin().await?;
+            let captured = CapturedReceiptBackend::from_receipt(receipt);
+            campaign.reconcile_economy(&captured, 8)?;
+            transaction.commit().await?;
+        }
+    "#;
+    let (_, captured, violations) = transaction_reconciliation_counts(accepted);
+    assert_eq!(captured, 1);
+    assert!(violations.is_empty());
+
+    let rejected = [
+        r#"
+            async fn comment_injection() {
+                // CapturedReceiptBackend is not used here.
+                let mut transaction = pool.begin().await?;
+                campaign.reconcile_economy(&remote, 8)?;
+                transaction.commit().await?;
+            }
+        "#,
+        r#"
+            async fn string_injection() {
+                let _claim = "CapturedReceiptBackend";
+                let mut transaction = pool.begin().await?;
+                campaign.reconcile_economy(&remote, 8)?;
+                transaction.commit().await?;
+            }
+        "#,
+        r#"
+            async fn irrelevant_variable() {
+                let captured = CapturedReceiptBackend::from_receipt(receipt);
+                let mut transaction = pool.begin().await?;
+                campaign.reconcile_economy(&remote, 8)?;
+                transaction.commit().await?;
+            }
+        "#,
+        r#"
+            async fn mixed_receivers() {
+                let captured = CapturedReceiptBackend::from_receipt(receipt);
+                let mut transaction = pool.begin().await?;
+                campaign.reconcile_economy(&captured, 8)?;
+                campaign.reconcile_economy(&remote, 8)?;
+                transaction.commit().await?;
+            }
+        "#,
+    ];
+    for source in rejected {
+        let (_, _, violations) = transaction_reconciliation_counts(source);
+        assert!(!violations.is_empty(), "unsafe fixture unexpectedly passed");
+    }
 }
 
 #[test]
