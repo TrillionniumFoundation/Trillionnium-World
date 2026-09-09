@@ -82,14 +82,10 @@ include!("lib_parts/rts_mapping/part_01.rs");
 mod save_slots;
 pub use save_slots::*;
 
-// Player settings are the first ownership section promoted from crate-root text
-// inclusion into a real Rust module boundary. The temporary `use super::*`
-// keeps the semantic dependency surface unchanged while the public API remains
-// available at the crate root; later tranches narrow these imports explicitly.
-mod player_settings {
-    use super::*;
-    include!("lib_parts/player_settings/part_01.rs");
-}
+// Player settings own migration/default/persistence behavior behind an explicit
+// module boundary while preserving the existing crate-root public API.
+#[path = "lib_parts/player_settings/part_01.rs"]
+mod player_settings;
 use player_settings::atomic_write_json;
 pub use player_settings::*;
 
