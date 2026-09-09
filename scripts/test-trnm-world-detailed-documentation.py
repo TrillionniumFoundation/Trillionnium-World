@@ -38,7 +38,10 @@ def design(name: str, due: str = "2026-10-08") -> str:
     for heading in M.REQUIRED_SECTIONS:
         body = GENERIC + ALL_TERMS
         if heading == "Test and evidence traceability":
-            body += " Source: trillionnium/crates/example/src/lib.rs; docs/protocol/example.md; tests and scripts/example.py."
+            body += (
+                " Source: trillionnium/crates/example/src/lib.rs; "
+                "docs/protocol/example.md; tests and scripts/example.py."
+            )
         if heading == "Change checklist and open work":
             body += " Open work remains explicit and cannot be promoted by documentation alone."
         sections.append(f"## {heading}\n\n{body}")
@@ -75,6 +78,36 @@ class DetailedDocumentationTests(unittest.TestCase):
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes(content)
 
+    def load_catalog(self) -> dict[str, object]:
+        return json.loads((self.root / M.CATALOG).read_text(encoding="utf-8"))
+
+    def save_catalog(self, catalog: dict[str, object]) -> None:
+        (self.root / M.CATALOG).write_text(
+            json.dumps(catalog, indent=2) + "\n",
+            encoding="utf-8",
+        )
+
+    def add_document(
+        self,
+        relative: str,
+        document_class: str,
+        status: str,
+    ) -> None:
+        self.write(relative, "{}\n" if relative.endswith(".json") else "# fixture\n")
+        catalog = self.load_catalog()
+        documents = catalog["documents"]
+        assert isinstance(documents, list)
+        documents.append(
+            {
+                "path": relative,
+                "class": document_class,
+                "owner": "test-owner",
+                "status": status,
+                "review_due": "2026-10-08",
+            }
+        )
+        self.save_catalog(catalog)
+
     def make_fixture(self) -> None:
         members = [f"crates/{name}" for name in self.names]
         self.write(
@@ -99,7 +132,8 @@ class DetailedDocumentationTests(unittest.TestCase):
             M.MODULE_INDEX,
             "# modules\n\n"
             + "\n".join(
-                f"- `{name}`: [`{name}-design.md`]({name}-design.md)" for name in self.names
+                f"- `{name}`: [`{name}-design.md`]({name}-design.md)"
+                for name in self.names
             ),
         )
         self.write(
@@ -149,7 +183,8 @@ class DetailedDocumentationTests(unittest.TestCase):
                 {
                     "path": path,
                     "class": "module-design"
-                    if path.startswith("docs/modules/trnm-") and path.endswith("-design.md")
+                    if path.startswith("docs/modules/trnm-")
+                    and path.endswith("-design.md")
                     else "fixture",
                     "owner": "test-owner",
                     "status": "current-candidate",
@@ -168,7 +203,7 @@ class DetailedDocumentationTests(unittest.TestCase):
             ],
             "documents": documents,
         }
-        self.write(M.CATALOG, json.dumps(catalog, indent=2) + "\n")
+        self.save_catalog(catalog)
 
     def validate(self) -> list[str]:
         return M.validate(self.root, dt.date(2026, 9, 8))
@@ -178,6 +213,19 @@ class DetailedDocumentationTests(unittest.TestCase):
             self.validate()
 
     def test_valid_fixture(self) -> None:
+        self.assertEqual(self.validate(), sorted(self.names))
+
+    def test_valid_template_and_historical_material(self) -> None:
+        self.add_document(
+            "docs/release/templates/evidence.json",
+            "evidence-template",
+            "template",
+        )
+        self.add_document(
+            "docs/status/historical.json",
+            "historical-execution-snapshot",
+            "historical",
+        )
         self.assertEqual(self.validate(), sorted(self.names))
 
     def test_missing_design(self) -> None:
@@ -194,7 +242,10 @@ class DetailedDocumentationTests(unittest.TestCase):
 
     def test_stale_review(self) -> None:
         path = self.root / "docs/modules/trnm-rpg-core-design.md"
-        path.write_text(design("trnm-rpg-core", due="2026-09-07"), encoding="utf-8")
+        path.write_text(
+            design("trnm-rpg-core", due="2026-09-07"),
+            encoding="utf-8",
+        )
         self.expect_failure()
 
     def test_missing_readme_link(self) -> None:
@@ -203,25 +254,31 @@ class DetailedDocumentationTests(unittest.TestCase):
         self.expect_failure()
 
     def test_unregistered_design(self) -> None:
-        catalog = json.loads((self.root / M.CATALOG).read_text())
+        catalog = self.load_catalog()
+        documents = catalog["documents"]
+        assert isinstance(documents, list)
         catalog["documents"] = [
             item
-            for item in catalog["documents"]
+            for item in documents
             if item["path"] != "docs/modules/trnm-rpg-core-design.md"
         ]
-        (self.root / M.CATALOG).write_text(json.dumps(catalog), encoding="utf-8")
+        self.save_catalog(catalog)
         self.expect_failure()
 
     def test_forbidden_overclaim(self) -> None:
         path = self.root / "docs/modules/trnm-rpg-core-design.md"
-        path.write_text(path.read_text() + "\nWorld owns wallet custody.\n", encoding="utf-8")
+        path.write_text(
+            path.read_text() + "\nWorld owns wallet custody.\n",
+            encoding="utf-8",
+        )
         self.expect_failure()
 
     def test_missing_traceability(self) -> None:
         path = self.root / "docs/modules/trnm-rpg-core-design.md"
         text = path.read_text()
         text = text.replace(
-            " Source: trillionnium/crates/example/src/lib.rs; docs/protocol/example.md; tests and scripts/example.py.",
+            " Source: trillionnium/crates/example/src/lib.rs; "
+            "docs/protocol/example.md; tests and scripts/example.py.",
             "",
         )
         path.write_text(text, encoding="utf-8")
@@ -230,14 +287,20 @@ class DetailedDocumentationTests(unittest.TestCase):
     def test_duplicate_section(self) -> None:
         path = self.root / "docs/modules/trnm-rpg-core-design.md"
         path.write_text(
-            path.read_text() + "\n## Scope and authority\n\n" + GENERIC + ALL_TERMS + "\n",
+            path.read_text()
+            + "\n## Scope and authority\n\n"
+            + GENERIC
+            + ALL_TERMS
+            + "\n",
             encoding="utf-8",
         )
         self.expect_failure()
 
     def test_unsafe_catalog_path(self) -> None:
-        catalog = json.loads((self.root / M.CATALOG).read_text())
-        catalog["documents"].append(
+        catalog = self.load_catalog()
+        documents = catalog["documents"]
+        assert isinstance(documents, list)
+        documents.append(
             {
                 "path": "../outside.md",
                 "class": "fixture",
@@ -246,7 +309,81 @@ class DetailedDocumentationTests(unittest.TestCase):
                 "review_due": "2026-10-08",
             }
         )
-        (self.root / M.CATALOG).write_text(json.dumps(catalog), encoding="utf-8")
+        self.save_catalog(catalog)
+        self.expect_failure()
+
+    def test_template_wrong_class(self) -> None:
+        self.add_document(
+            "docs/release/templates/evidence.json",
+            "fixture",
+            "template",
+        )
+        self.expect_failure()
+
+    def test_template_class_requires_template_status(self) -> None:
+        self.add_document(
+            "docs/release/templates/evidence.json",
+            "evidence-template",
+            "current-candidate",
+        )
+        self.expect_failure()
+
+    def test_template_outside_release_templates(self) -> None:
+        self.add_document("docs/evidence.json", "evidence-template", "template")
+        self.expect_failure()
+
+    def test_template_cannot_enter_truth_order(self) -> None:
+        relative = "docs/release/templates/evidence.json"
+        self.add_document(relative, "evidence-template", "template")
+        catalog = self.load_catalog()
+        truth_order = catalog["truth_order"]
+        assert isinstance(truth_order, list)
+        truth_order.append(relative)
+        self.save_catalog(catalog)
+        self.expect_failure()
+
+    def test_historical_wrong_class(self) -> None:
+        self.add_document("docs/status/historical.json", "fixture", "historical")
+        self.expect_failure()
+
+    def test_historical_class_requires_historical_status(self) -> None:
+        self.add_document(
+            "docs/status/historical.json",
+            "historical-execution-snapshot",
+            "current-candidate",
+        )
+        self.expect_failure()
+
+    def test_historical_cannot_enter_truth_order(self) -> None:
+        relative = "docs/status/historical.json"
+        self.add_document(
+            relative,
+            "historical-execution-snapshot",
+            "historical",
+        )
+        catalog = self.load_catalog()
+        truth_order = catalog["truth_order"]
+        assert isinstance(truth_order, list)
+        truth_order.append(relative)
+        self.save_catalog(catalog)
+        self.expect_failure()
+
+    def test_unknown_status(self) -> None:
+        self.add_document("docs/unknown.md", "fixture", "unknown")
+        self.expect_failure()
+
+    def test_extra_root_key(self) -> None:
+        catalog = self.load_catalog()
+        catalog["extra"] = True
+        self.save_catalog(catalog)
+        self.expect_failure()
+
+    def test_extra_entry_key(self) -> None:
+        catalog = self.load_catalog()
+        documents = catalog["documents"]
+        assert isinstance(documents, list)
+        documents[0]["extra"] = True
+        self.save_catalog(catalog)
         self.expect_failure()
 
     def test_duplicate_top_level_catalog_key(self) -> None:
@@ -290,7 +427,11 @@ class DetailedDocumentationTests(unittest.TestCase):
     def test_catalog_depth_budget(self) -> None:
         path = self.root / M.CATALOG
         raw = path.read_text(encoding="utf-8")
-        nested = "[" * (M.MAX_JSON_DEPTH + 1) + "0" + "]" * (M.MAX_JSON_DEPTH + 1)
+        nested = (
+            "[" * (M.MAX_JSON_DEPTH + 1)
+            + "0"
+            + "]" * (M.MAX_JSON_DEPTH + 1)
+        )
         path.write_text('{"probe":' + nested + "," + raw[1:], encoding="utf-8")
         self.expect_failure()
 
@@ -307,7 +448,10 @@ class DetailedDocumentationTests(unittest.TestCase):
 
     def test_extra_workspace_member_requires_classification(self) -> None:
         path = self.root / "trillionnium/Cargo.toml"
-        path.write_text(path.read_text().replace("]\n", '  "crates/trnm-extra",\n]\n'))
+        path.write_text(
+            path.read_text().replace("]\n", '  "crates/trnm-extra",\n]\n'),
+            encoding="utf-8",
+        )
         self.write(
             "trillionnium/crates/trnm-extra/Cargo.toml",
             '[package]\nname = "trnm-extra"\nversion = "0.1.0"\n',
