@@ -215,8 +215,12 @@ fn normalize_service_base_url(raw: &str, variable: &str) -> Result<String, Strin
         "https" => {}
         "http" => {
             let host = url.host_str().unwrap_or_default();
+            let ip_literal = host
+                .strip_prefix('[')
+                .and_then(|value| value.strip_suffix(']'))
+                .unwrap_or(host);
             let loopback = host.eq_ignore_ascii_case("localhost")
-                || host
+                || ip_literal
                     .parse::<IpAddr>()
                     .is_ok_and(|address| address.is_loopback());
             if !loopback {
