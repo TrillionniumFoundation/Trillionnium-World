@@ -133,7 +133,11 @@ fn enum_fields_require_strings_not_externally_tagged_maps() {
     ))
     .unwrap();
     let mut tested_kinds = std::collections::BTreeSet::new();
-    for case in corpus.cases.iter().filter(|case| case.id.starts_with("kind-")) {
+    for case in corpus
+        .cases
+        .iter()
+        .filter(|case| case.id.starts_with("kind-"))
+    {
         let mut value: serde_json::Value = serde_json::from_str(&case.raw).unwrap();
         let spelling = value["order"]["kind"].as_str().unwrap().to_owned();
         tested_kinds.insert(spelling.clone());

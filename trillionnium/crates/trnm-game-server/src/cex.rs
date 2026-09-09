@@ -22,8 +22,7 @@ use trnm_economy_protocol::{
 const PLAYER_SESSION_HEADER: &str = "x-trnm-player-session";
 const GAME_AUTHORITY_HEADER: &str = "x-trnm-game-authority";
 const INTENT_HASH_HEADER: &str = "x-trnm-intent-sha256";
-const CEX_SETTLEMENT_RECEIPT_LOOKUP_CONTRACT: &str =
-    "trnm_cex_settlement_receipt_lookup_v1";
+const CEX_SETTLEMENT_RECEIPT_LOOKUP_CONTRACT: &str = "trnm_cex_settlement_receipt_lookup_v1";
 const CEX_SETTLEMENT_RECEIPT_LOOKUP_PATH: &str = "/v1/trnm/economy/receipts/by-intent";
 const SETTLEMENT_OUTBOX_REQUIRED: &str =
     "external economy settlement is owned by trnm-settlement-worker; synchronous EconomyBackend I/O is prohibited";
@@ -226,7 +225,11 @@ fn normalize_service_base_url(raw: &str, variable: &str) -> Result<String, Strin
                 ));
             }
         }
-        _ => return Err(format!("{variable} must use HTTPS, or HTTP on loopback only")),
+        _ => {
+            return Err(format!(
+                "{variable} must use HTTPS, or HTTP on loopback only"
+            ))
+        }
     }
 
     url.set_path("");
@@ -325,10 +328,12 @@ impl CexClient {
         if signer_token.len() < 32 {
             return Err("TRNM_ENTITLEMENT_SIGNER_TOKEN must be at least 32 characters".to_string());
         }
-        reqwest::header::HeaderValue::from_str(&game_authority_token)
-            .map_err(|_| "TRNM_GAME_AUTHORITY_TOKEN must be a valid HTTP header value".to_string())?;
-        reqwest::header::HeaderValue::from_str(&signer_token)
-            .map_err(|_| "TRNM_ENTITLEMENT_SIGNER_TOKEN must be a valid HTTP header value".to_string())?;
+        reqwest::header::HeaderValue::from_str(&game_authority_token).map_err(|_| {
+            "TRNM_GAME_AUTHORITY_TOKEN must be a valid HTTP header value".to_string()
+        })?;
+        reqwest::header::HeaderValue::from_str(&signer_token).map_err(|_| {
+            "TRNM_ENTITLEMENT_SIGNER_TOKEN must be a valid HTTP header value".to_string()
+        })?;
         let async_client = reqwest::Client::builder()
             // Custom credential headers must never be forwarded to a redirect target.
             .redirect(reqwest::redirect::Policy::none())
@@ -516,7 +521,10 @@ impl CexClient {
             .send()
             .await
             .map_err(|error| {
-                ExternalSettlementError::transport("isolated signer receipt lookup transport", error)
+                ExternalSettlementError::transport(
+                    "isolated signer receipt lookup transport",
+                    error,
+                )
             })?;
         if response.status() == StatusCode::NOT_FOUND {
             return Ok(None);
@@ -605,9 +613,7 @@ impl CexClient {
             && authorized.amount_credits.unwrap_or_default() > 0
         {
             let actor = authorized.actors.first().ok_or_else(|| {
-                ExternalSettlementError::Permanent(
-                    "reward intent has no primary actor".to_string(),
-                )
+                ExternalSettlementError::Permanent("reward intent has no primary actor".to_string())
             })?;
             let account_id = actor.account_id.clone().ok_or_else(|| {
                 ExternalSettlementError::Permanent("reward intent has no account".to_string())
@@ -625,11 +631,12 @@ impl CexClient {
                         ))
                     })
             };
-            let issued_at = DateTime::<Utc>::from_timestamp(issued_at_epoch, 0).ok_or_else(|| {
-                ExternalSettlementError::Permanent(
-                    "settlement entitlement issued_at is outside chrono range".to_string(),
-                )
-            })?;
+            let issued_at =
+                DateTime::<Utc>::from_timestamp(issued_at_epoch, 0).ok_or_else(|| {
+                    ExternalSettlementError::Permanent(
+                        "settlement entitlement issued_at is outside chrono range".to_string(),
+                    )
+                })?;
             let entitlement = ServerSignedValueEntitlementV2 {
                 contract_version: SERVER_SIGNED_VALUE_ENTITLEMENT_V2_CONTRACT.to_string(),
                 entitlement_id: stable_entitlement_id(authorization_request_id),
@@ -661,10 +668,7 @@ impl CexClient {
                 nonce: nonce.to_string(),
                 signature: String::new(),
             };
-            let signed = match self
-                .lookup_signer_receipt(authorization_request_id)
-                .await?
-            {
+            let signed = match self.lookup_signer_receipt(authorization_request_id).await? {
                 Some(existing) => existing,
                 None => {
                     self.create_signer_receipt(authorization_request_id, &entitlement)
@@ -826,10 +830,10 @@ impl EconomyBackend for CexClient {
 #[cfg(test)]
 mod tests {
     use super::{
-        bounded_error_body, normalize_service_base_url, retryable_status,
-        serialized_intent_hash, stable_entitlement_id, CexSettlementReceiptLookupResponse,
-        CexClient, ExternalSettlementError, CEX_SETTLEMENT_RECEIPT_LOOKUP_CONTRACT,
-        INTENT_HASH_HEADER, MAX_REMOTE_ERROR_BODY_BYTES, SETTLEMENT_OUTBOX_REQUIRED,
+        bounded_error_body, normalize_service_base_url, retryable_status, serialized_intent_hash,
+        stable_entitlement_id, CexClient, CexSettlementReceiptLookupResponse,
+        ExternalSettlementError, CEX_SETTLEMENT_RECEIPT_LOOKUP_CONTRACT, INTENT_HASH_HEADER,
+        MAX_REMOTE_ERROR_BODY_BYTES, SETTLEMENT_OUTBOX_REQUIRED,
     };
     use crate::signer_protocol::{
         EntitlementSignRequest, EntitlementSignResponse, ENTITLEMENT_SIGNER_CONTRACT,
@@ -1010,9 +1014,7 @@ mod tests {
             .route("/v1/trnm/economy/intents", post(cex_submit))
             .route("/oversized-error", get(oversized_chunked_error))
             .with_state(state.clone());
-        let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
-            .await
-            .unwrap();
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         let address = listener.local_addr().unwrap();
         let task = tokio::spawn(async move {
             axum::serve(listener, app).await.unwrap();
@@ -1062,7 +1064,10 @@ mod tests {
         )
         .unwrap();
         let intent = base_intent(EconomicIntentKind::CompleteContract, 0);
-        assert_eq!(client.execute(&intent), Err(SETTLEMENT_OUTBOX_REQUIRED.to_string()));
+        assert_eq!(
+            client.execute(&intent),
+            Err(SETTLEMENT_OUTBOX_REQUIRED.to_string())
+        );
         assert_eq!(
             client.wallet_snapshot(
                 &trnm_economy_protocol::EconomyAccountBinding {

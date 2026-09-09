@@ -339,10 +339,7 @@ impl OnlineClient {
             .await
             .map_err(|error| error.to_string())?;
         let status = response.status();
-        let bytes = response
-            .bytes()
-            .await
-            .map_err(|error| error.to_string())?;
+        let bytes = response.bytes().await.map_err(|error| error.to_string())?;
         if !status.is_success() {
             return Err(format!(
                 "POST {path} returned {status}: {}",
@@ -366,10 +363,7 @@ impl OnlineClient {
             .json(body);
         let response = send_with_lost_response_retry(request).await?;
         let status = response.status();
-        let bytes = response
-            .bytes()
-            .await
-            .map_err(|error| error.to_string())?;
+        let bytes = response.bytes().await.map_err(|error| error.to_string())?;
         if !status.is_success() {
             return Err(format!(
                 "POST {path} returned {status}: {}",
@@ -393,10 +387,7 @@ impl OnlineClient {
         let started = Instant::now();
         let response = send_with_retry(request).await?;
         let status = response.status();
-        let bytes = response
-            .bytes()
-            .await
-            .map_err(|error| error.to_string())?;
+        let bytes = response.bytes().await.map_err(|error| error.to_string())?;
         if !status.is_success() {
             return Err(format!(
                 "POST {path} returned {status}: {}",
@@ -621,9 +612,7 @@ fn publication_transition_is_recoverable(status: u16, body: &Value) -> bool {
         && body["recoverable"].as_bool() == Some(true)
 }
 
-async fn send_with_retry(
-    request: reqwest::RequestBuilder,
-) -> Result<reqwest::Response, String> {
+async fn send_with_retry(request: reqwest::RequestBuilder) -> Result<reqwest::Response, String> {
     send_with_retry_inner(request, false).await
 }
 
@@ -869,36 +858,38 @@ async fn clear_living_enemies(
     let host_attack_issued = !host_units.is_empty();
     let mut attack_snapshot = snapshot;
     if host_attack_issued {
-        let _ = client.submit(
-            host,
-            match_id,
-            &attack_snapshot,
-            CommandSpec {
-                command_id: format!("{command_prefix}-host-attack"),
-                kind: RtsOrderKind::Attack,
-                subjects: host_units,
-                target: objective,
-                queued: false,
-            },
-        )
-        .await?;
+        let _ = client
+            .submit(
+                host,
+                match_id,
+                &attack_snapshot,
+                CommandSpec {
+                    command_id: format!("{command_prefix}-host-attack"),
+                    kind: RtsOrderKind::Attack,
+                    subjects: host_units,
+                    target: objective,
+                    queued: false,
+                },
+            )
+            .await?;
         attack_snapshot = client.snapshot(guest, match_id).await?;
     }
     let guest_units = controlled(&attack_snapshot, guest)?;
     if !guest_units.is_empty() {
-        let _ = client.submit(
-            guest,
-            match_id,
-            &attack_snapshot,
-            CommandSpec {
-                command_id: format!("{command_prefix}-guest-attack"),
-                kind: RtsOrderKind::Attack,
-                subjects: guest_units,
-                target: objective,
-                queued: host_attack_issued,
-            },
-        )
-        .await?;
+        let _ = client
+            .submit(
+                guest,
+                match_id,
+                &attack_snapshot,
+                CommandSpec {
+                    command_id: format!("{command_prefix}-guest-attack"),
+                    kind: RtsOrderKind::Attack,
+                    subjects: guest_units,
+                    target: objective,
+                    queued: host_attack_issued,
+                },
+            )
+            .await?;
     }
 
     let cleared = wait_for(client, host, match_id, phase_timeout(), |candidate| {
@@ -929,19 +920,20 @@ async fn move_squad_to_objective(
     if units.is_empty() {
         return Err(format!("{command_prefix} has no living objective holder"));
     }
-    let _ = client.submit(
-        identity,
-        match_id,
-        snapshot,
-        CommandSpec {
-            command_id: format!("{command_prefix}-move"),
-            kind: movement.kind,
-            subjects: units.clone(),
-            target: movement.target,
-            queued: false,
-        },
-    )
-    .await?;
+    let _ = client
+        .submit(
+            identity,
+            match_id,
+            snapshot,
+            CommandSpec {
+                command_id: format!("{command_prefix}-move"),
+                kind: movement.kind,
+                subjects: units.clone(),
+                target: movement.target,
+                queued: false,
+            },
+        )
+        .await?;
     let units = units.into_iter().collect::<std::collections::BTreeSet<_>>();
     let moved = wait_for(client, identity, match_id, phase_timeout(), |candidate| {
         candidate.snapshot["phase"] == "complete"
@@ -1041,19 +1033,20 @@ async fn move_largest_squad_to_objective_and_hold(
     if hold_units.is_empty() {
         return Err(format!("{command_prefix} objective squad died before hold"));
     }
-    let _ = client.submit(
-        capture_identity,
-        match_id,
-        &moved,
-        CommandSpec {
-            command_id: format!("{command_prefix}-hold"),
-            kind: RtsOrderKind::Hold,
-            subjects: hold_units,
-            target: objective,
-            queued: false,
-        },
-    )
-    .await?;
+    let _ = client
+        .submit(
+            capture_identity,
+            match_id,
+            &moved,
+            CommandSpec {
+                command_id: format!("{command_prefix}-hold"),
+                kind: RtsOrderKind::Hold,
+                subjects: hold_units,
+                target: objective,
+                queued: false,
+            },
+        )
+        .await?;
     Ok(moved)
 }
 
@@ -1098,72 +1091,77 @@ async fn run() -> Result<Value, String> {
     let run_id = format!("online-e2e-{}", chrono::Utc::now().timestamp_millis());
     let slot_key = std::env::var("TRNM_ONLINE_SLOT_KEY").unwrap_or_else(|_| run_id.clone());
 
-    let campaign: OnlineCampaignView = client.post(
-        &host,
-        "/v1/online/campaigns/connect",
-        &OnlineCampaignConnectRequest {
-            protocol_version: ONLINE_AUTHORITY_PROTOCOL.to_string(),
-            build_id: ONLINE_AUTHORITY_BUILD.to_string(),
-            player_id: host.player_id.clone(),
-            account_id: host.account_id.clone(),
-            slot_key: slot_key.clone(),
-        },
-    )
-    .await?;
-    let guest_campaign: OnlineCampaignView = client.post(
-        &guest,
-        "/v1/online/campaigns/connect",
-        &OnlineCampaignConnectRequest {
-            protocol_version: ONLINE_AUTHORITY_PROTOCOL.to_string(),
-            build_id: ONLINE_AUTHORITY_BUILD.to_string(),
-            player_id: guest.player_id.clone(),
-            account_id: guest.account_id.clone(),
-            slot_key,
-        },
-    )
-    .await?;
+    let campaign: OnlineCampaignView = client
+        .post(
+            &host,
+            "/v1/online/campaigns/connect",
+            &OnlineCampaignConnectRequest {
+                protocol_version: ONLINE_AUTHORITY_PROTOCOL.to_string(),
+                build_id: ONLINE_AUTHORITY_BUILD.to_string(),
+                player_id: host.player_id.clone(),
+                account_id: host.account_id.clone(),
+                slot_key: slot_key.clone(),
+            },
+        )
+        .await?;
+    let guest_campaign: OnlineCampaignView = client
+        .post(
+            &guest,
+            "/v1/online/campaigns/connect",
+            &OnlineCampaignConnectRequest {
+                protocol_version: ONLINE_AUTHORITY_PROTOCOL.to_string(),
+                build_id: ONLINE_AUTHORITY_BUILD.to_string(),
+                player_id: guest.player_id.clone(),
+                account_id: guest.account_id.clone(),
+                slot_key,
+            },
+        )
+        .await?;
     let (created, started, start_lost_response_retry_verified) =
         if let Ok(match_id) = std::env::var("TRNM_ONLINE_EXISTING_MATCH_ID") {
             let snapshot = client.snapshot(&host, &match_id).await?;
             (snapshot.view.clone(), snapshot.view, false)
         } else {
-            let created: OnlineMatchView = client.post_one_shot_non_idempotent(
-                &host,
-                "/v1/online/matches",
-                &OnlineMatchCreateRequest {
-                    protocol_version: ONLINE_AUTHORITY_PROTOCOL.to_string(),
-                    build_id: ONLINE_AUTHORITY_BUILD.to_string(),
-                    campaign_id: campaign.campaign_id.clone(),
-                    map_id: "first_contact".to_string(),
-                    expected_campaign_revision: campaign.campaign_revision,
-                },
-            )
-            .await?;
-            let _: OnlineMatchView = client.post_one_shot_non_idempotent(
-                &guest,
-                "/v1/online/matches/join",
-                &OnlineMatchJoinRequest {
-                    protocol_version: ONLINE_AUTHORITY_PROTOCOL.to_string(),
-                    build_id: ONLINE_AUTHORITY_BUILD.to_string(),
-                    player_id: guest.player_id.clone(),
-                    account_id: guest.account_id.clone(),
-                    campaign_id: guest_campaign.campaign_id.clone(),
-                    join_code: created.join_code.clone(),
-                },
-            )
-            .await?;
-            let started = client.start_with_lost_response_retry(
-                &host,
-                &created.match_id,
-                &OnlineMatchStartRequest {
-                    protocol_version: ONLINE_AUTHORITY_PROTOCOL.to_string(),
-                    build_id: ONLINE_AUTHORITY_BUILD.to_string(),
-                    player_id: host.player_id.clone(),
-                    account_id: host.account_id.clone(),
-                    expected_match_revision: 0,
-                },
-            )
-            .await?;
+            let created: OnlineMatchView = client
+                .post_one_shot_non_idempotent(
+                    &host,
+                    "/v1/online/matches",
+                    &OnlineMatchCreateRequest {
+                        protocol_version: ONLINE_AUTHORITY_PROTOCOL.to_string(),
+                        build_id: ONLINE_AUTHORITY_BUILD.to_string(),
+                        campaign_id: campaign.campaign_id.clone(),
+                        map_id: "first_contact".to_string(),
+                        expected_campaign_revision: campaign.campaign_revision,
+                    },
+                )
+                .await?;
+            let _: OnlineMatchView = client
+                .post_one_shot_non_idempotent(
+                    &guest,
+                    "/v1/online/matches/join",
+                    &OnlineMatchJoinRequest {
+                        protocol_version: ONLINE_AUTHORITY_PROTOCOL.to_string(),
+                        build_id: ONLINE_AUTHORITY_BUILD.to_string(),
+                        player_id: guest.player_id.clone(),
+                        account_id: guest.account_id.clone(),
+                        campaign_id: guest_campaign.campaign_id.clone(),
+                        join_code: created.join_code.clone(),
+                    },
+                )
+                .await?;
+            let started = client
+                .start_with_lost_response_retry(
+                    &host,
+                    &created.match_id,
+                    &OnlineMatchStartRequest {
+                        protocol_version: ONLINE_AUTHORITY_PROTOCOL.to_string(),
+                        build_id: ONLINE_AUTHORITY_BUILD.to_string(),
+                        player_id: host.player_id.clone(),
+                        account_id: host.account_id.clone(),
+                        expected_match_revision: 0,
+                    },
+                )
+                .await?;
             (created, started, true)
         };
     if started.phase != OnlineMatchPhase::Running || started.members.len() != 2 {
@@ -1201,19 +1199,20 @@ async fn run() -> Result<Value, String> {
         let command_id = format!("{run_id}-host-move");
         let subjects = host_units.clone();
         tokio::spawn(async move {
-            client.submit(
-                &host,
-                &match_id,
-                &snapshot,
-                CommandSpec {
-                    command_id,
-                    kind: RtsOrderKind::Move,
-                    subjects,
-                    target: approach,
-                    queued: true,
-                },
-            )
-            .await
+            client
+                .submit(
+                    &host,
+                    &match_id,
+                    &snapshot,
+                    CommandSpec {
+                        command_id,
+                        kind: RtsOrderKind::Move,
+                        subjects,
+                        target: approach,
+                        queued: true,
+                    },
+                )
+                .await
         })
     };
     let guest_submit = {
@@ -1224,19 +1223,20 @@ async fn run() -> Result<Value, String> {
         let command_id = format!("{run_id}-guest-concurrent-move");
         let subjects = guest_units.clone();
         tokio::spawn(async move {
-            client.submit(
-                &guest,
-                &match_id,
-                &snapshot,
-                CommandSpec {
-                    command_id,
-                    kind: RtsOrderKind::Move,
-                    subjects,
-                    target: approach,
-                    queued: true,
-                },
-            )
-            .await
+            client
+                .submit(
+                    &guest,
+                    &match_id,
+                    &snapshot,
+                    CommandSpec {
+                        command_id,
+                        kind: RtsOrderKind::Move,
+                        subjects,
+                        target: approach,
+                        queued: true,
+                    },
+                )
+                .await
         })
     };
     let (first, first_request) = host_submit
@@ -1276,19 +1276,20 @@ async fn run() -> Result<Value, String> {
         let effect_units = &host_units;
         let effect_snapshot = client.snapshot(effect_identity, &created.match_id).await?;
         let effect_started = Instant::now();
-        let (receipt, _) = client.submit(
-            effect_identity,
-            &created.match_id,
-            &effect_snapshot,
-            CommandSpec {
-                command_id: format!("{run_id}-effect-sample-{sample}"),
-                kind: RtsOrderKind::Move,
-                subjects: effect_units.clone(),
-                target: approach,
-                queued: false,
-            },
-        )
-        .await?;
+        let (receipt, _) = client
+            .submit(
+                effect_identity,
+                &created.match_id,
+                &effect_snapshot,
+                CommandSpec {
+                    command_id: format!("{run_id}-effect-sample-{sample}"),
+                    kind: RtsOrderKind::Move,
+                    subjects: effect_units.clone(),
+                    target: approach,
+                    queued: false,
+                },
+            )
+            .await?;
         tokio::task::block_in_place(|| {
             wait_for_stream_total_order(
                 &mut state_stream,
@@ -1327,24 +1328,27 @@ async fn run() -> Result<Value, String> {
     let reconnect_cursor = 0_u64;
     let reconnect_hash = "stale-race-snapshot".to_string();
     let mut reconnect_threads = Vec::with_capacity(reconnect_command_race_pipeline_depth);
-    let validate_reconnect =
-        |reconnect_thread: tokio::task::JoinHandle<Result<OnlineReconnectResponse, String>>| async move {
-            let raced_reconnect = reconnect_thread
-                .await
-                .map_err(|_| "reconnect race request panicked".to_string())??;
-            if raced_reconnect.next_receipt_sequence < reconnect_cursor
-                || raced_reconnect.view.next_sequence < raced_reconnect.next_receipt_sequence
-            {
-                return Err(
-                    "reconnect race returned a regressed or impossible replay cursor".to_string(),
-                );
-            }
-            Ok(())
-        };
+    let validate_reconnect = |reconnect_thread: tokio::task::JoinHandle<
+        Result<OnlineReconnectResponse, String>,
+    >| async move {
+        let raced_reconnect = reconnect_thread
+            .await
+            .map_err(|_| "reconnect race request panicked".to_string())??;
+        if raced_reconnect.next_receipt_sequence < reconnect_cursor
+            || raced_reconnect.view.next_sequence < raced_reconnect.next_receipt_sequence
+        {
+            return Err(
+                "reconnect race returned a regressed or impossible replay cursor".to_string(),
+            );
+        }
+        Ok(())
+    };
     for round in 0..reconnect_command_race_rounds {
         let command_identity = host.clone();
         let subjects = host_units.clone();
-        let command_snapshot = client.snapshot(&command_identity, &created.match_id).await?;
+        let command_snapshot = client
+            .snapshot(&command_identity, &created.match_id)
+            .await?;
         let barrier = Arc::new(Barrier::new(2));
         let race_command_id = format!("{run_id}-reconnect-race-{round}");
         let command_thread = {
@@ -1353,19 +1357,20 @@ async fn run() -> Result<Value, String> {
             let barrier = Arc::clone(&barrier);
             tokio::spawn(async move {
                 barrier.wait().await;
-                client.submit(
-                    &command_identity,
-                    &match_id,
-                    &command_snapshot,
-                    CommandSpec {
-                        command_id: race_command_id,
-                        kind: RtsOrderKind::Move,
-                        subjects,
-                        target: approach,
-                        queued: false,
-                    },
-                )
-                .await
+                client
+                    .submit(
+                        &command_identity,
+                        &match_id,
+                        &command_snapshot,
+                        CommandSpec {
+                            command_id: race_command_id,
+                            kind: RtsOrderKind::Move,
+                            subjects,
+                            target: approach,
+                            queued: false,
+                        },
+                    )
+                    .await
             })
         };
         let reconnect_thread = {
@@ -1376,13 +1381,14 @@ async fn run() -> Result<Value, String> {
             let last_snapshot_hash = reconnect_hash.clone();
             tokio::spawn(async move {
                 barrier.wait().await;
-                client.reconnect(
-                    &reconnect_identity,
-                    &match_id,
-                    reconnect_cursor,
-                    last_snapshot_hash,
-                )
-                .await
+                client
+                    .reconnect(
+                        &reconnect_identity,
+                        &match_id,
+                        reconnect_cursor,
+                        last_snapshot_hash,
+                    )
+                    .await
             })
         };
         command_thread
@@ -1396,12 +1402,13 @@ async fn run() -> Result<Value, String> {
     for reconnect_thread in reconnect_threads {
         validate_reconnect(reconnect_thread).await?;
     }
-    let duplicate: OnlineCommandReceipt = client.post(
-        &host,
-        &format!("/v1/online/matches/{}/commands", created.match_id),
-        &first_request,
-    )
-    .await?;
+    let duplicate: OnlineCommandReceipt = client
+        .post(
+            &host,
+            &format!("/v1/online/matches/{}/commands", created.match_id),
+            &first_request,
+        )
+        .await?;
     if !duplicate.duplicate
         || duplicate.sequence != first.sequence
         || duplicate.input_sequence != first.input_sequence
@@ -1410,12 +1417,13 @@ async fn run() -> Result<Value, String> {
     }
     let mut tampered_duplicate = first_request.clone();
     tampered_duplicate.target_tick = tampered_duplicate.target_tick.saturating_add(1);
-    let (status, _) = client.post_status(
-        &host,
-        &format!("/v1/online/matches/{}/commands", created.match_id),
-        &tampered_duplicate,
-    )
-    .await?;
+    let (status, _) = client
+        .post_status(
+            &host,
+            &format!("/v1/online/matches/{}/commands", created.match_id),
+            &tampered_duplicate,
+        )
+        .await?;
     if status != 409 {
         return Err(format!(
             "tampered duplicate returned HTTP {status}, expected 409"
@@ -1425,12 +1433,13 @@ async fn run() -> Result<Value, String> {
     skipped.command_id = format!("{run_id}-sequence-skip");
     skipped.input_sequence = skipped.input_sequence.map(|value| value.saturating_add(2));
     skipped.expected_match_revision = first.match_revision;
-    let (status, _) = client.post_status(
-        &host,
-        &format!("/v1/online/matches/{}/commands", created.match_id),
-        &skipped,
-    )
-    .await?;
+    let (status, _) = client
+        .post_status(
+            &host,
+            &format!("/v1/online/matches/{}/commands", created.match_id),
+            &skipped,
+        )
+        .await?;
     if status != 409 {
         return Err(format!(
             "input sequence skip returned HTTP {status}, expected 409"
@@ -1454,12 +1463,13 @@ async fn run() -> Result<Value, String> {
     theft.order.frame = u32::try_from(theft.target_tick)
         .map_err(|_| "control-theft target tick overflow".to_string())?;
     theft.order.subject_actor_ids = host_units.clone();
-    let (status, _) = client.post_status(
-        &guest,
-        &format!("/v1/online/matches/{}/commands", created.match_id),
-        &theft,
-    )
-    .await?;
+    let (status, _) = client
+        .post_status(
+            &guest,
+            &format!("/v1/online/matches/{}/commands", created.match_id),
+            &theft,
+        )
+        .await?;
     if status != 403 {
         return Err(format!(
             "control theft returned HTTP {status}, expected 403"
@@ -1468,12 +1478,13 @@ async fn run() -> Result<Value, String> {
     let mut old_build = theft;
     old_build.command_id = format!("{run_id}-old-build");
     old_build.build_id = "trnm-online-old-build".to_string();
-    let (status, _) = client.post_status(
-        &guest,
-        &format!("/v1/online/matches/{}/commands", created.match_id),
-        &old_build,
-    )
-    .await?;
+    let (status, _) = client
+        .post_status(
+            &guest,
+            &format!("/v1/online/matches/{}/commands", created.match_id),
+            &old_build,
+        )
+        .await?;
     if status != 426 {
         return Err(format!("old build returned HTTP {status}, expected 426"));
     }
@@ -1488,13 +1499,14 @@ async fn run() -> Result<Value, String> {
     if restart_recovery {
         restart_server(&base_url).await?;
     }
-    let reconnected = client.reconnect(
-        &guest,
-        &created.match_id,
-        0,
-        "stale-client-snapshot".to_string(),
-    )
-    .await?;
+    let reconnected = client
+        .reconnect(
+            &guest,
+            &created.match_id,
+            0,
+            "stale-client-snapshot".to_string(),
+        )
+        .await?;
     if reconnected.reconnect_count < reconnect_command_race_rounds.saturating_add(1)
         || !reconnected.full_snapshot_required
         || reconnected.replayed_commands.len() != before_restart.view.next_sequence as usize
@@ -1578,19 +1590,20 @@ async fn run() -> Result<Value, String> {
         ));
     }
     let guest_ready = client.snapshot(&guest, &created.match_id).await?;
-    let _ = client.submit(
-        &guest,
-        &created.match_id,
-        &guest_ready,
-        CommandSpec {
-            command_id: format!("{run_id}-guest-ability"),
-            kind: RtsOrderKind::Ability,
-            subjects: controlled(&guest_ready, &guest)?,
-            target: objective,
-            queued: false,
-        },
-    )
-    .await?;
+    let _ = client
+        .submit(
+            &guest,
+            &created.match_id,
+            &guest_ready,
+            CommandSpec {
+                command_id: format!("{run_id}-guest-ability"),
+                kind: RtsOrderKind::Ability,
+                subjects: controlled(&guest_ready, &guest)?,
+                target: objective,
+                queued: false,
+            },
+        )
+        .await?;
     // The mission actor accepts a primary order plus queued co-op subjects.
     // Keep both authority partitions active: the unqueued host order starts
     // the assault and the queued guest order joins it without replacing it.
@@ -1603,36 +1616,38 @@ async fn run() -> Result<Value, String> {
     let host_relay_attack_issued = !host_relay_attack_units.is_empty();
     let mut guest_relay_snapshot = relay_attack;
     if host_relay_attack_issued {
-        let _ = client.submit(
-            &host,
-            &created.match_id,
-            &guest_relay_snapshot,
-            CommandSpec {
-                command_id: format!("{run_id}-host-attack-relay"),
-                kind: RtsOrderKind::Attack,
-                subjects: host_relay_attack_units,
-                target: objective,
-                queued: false,
-            },
-        )
-        .await?;
+        let _ = client
+            .submit(
+                &host,
+                &created.match_id,
+                &guest_relay_snapshot,
+                CommandSpec {
+                    command_id: format!("{run_id}-host-attack-relay"),
+                    kind: RtsOrderKind::Attack,
+                    subjects: host_relay_attack_units,
+                    target: objective,
+                    queued: false,
+                },
+            )
+            .await?;
         guest_relay_snapshot = client.snapshot(&guest, &created.match_id).await?;
     }
     let guest_relay_attack_units = controlled(&guest_relay_snapshot, &guest)?;
     if !guest_relay_attack_units.is_empty() {
-        let _ = client.submit(
-            &guest,
-            &created.match_id,
-            &guest_relay_snapshot,
-            CommandSpec {
-                command_id: format!("{run_id}-guest-attack-relay"),
-                kind: RtsOrderKind::Attack,
-                subjects: guest_relay_attack_units,
-                target: objective,
-                queued: host_relay_attack_issued,
-            },
-        )
-        .await?;
+        let _ = client
+            .submit(
+                &guest,
+                &created.match_id,
+                &guest_relay_snapshot,
+                CommandSpec {
+                    command_id: format!("{run_id}-guest-attack-relay"),
+                    kind: RtsOrderKind::Attack,
+                    subjects: guest_relay_attack_units,
+                    target: objective,
+                    queued: host_relay_attack_issued,
+                },
+            )
+            .await?;
     }
     let relay = wait_for(
         &client,
@@ -1699,19 +1714,20 @@ async fn run() -> Result<Value, String> {
             .cloned()
             .collect::<std::collections::BTreeSet<_>>();
         if selected_signature_ability_ready(&wave_snapshot.snapshot, &ability_selected) {
-            let _ = client.submit(
-                ability_identity,
-                &created.match_id,
-                &wave_snapshot,
-                CommandSpec {
-                    command_id: format!("{run_id}-wave-{wave}-ability"),
-                    kind: RtsOrderKind::Ability,
-                    subjects: ability_units,
-                    target: objective,
-                    queued: false,
-                },
-            )
-            .await?;
+            let _ = client
+                .submit(
+                    ability_identity,
+                    &created.match_id,
+                    &wave_snapshot,
+                    CommandSpec {
+                        command_id: format!("{run_id}-wave-{wave}-ability"),
+                        kind: RtsOrderKind::Ability,
+                        subjects: ability_units,
+                        target: objective,
+                        queued: false,
+                    },
+                )
+                .await?;
         }
         let wave_snapshot = client.snapshot(&host, &created.match_id).await?;
         let cleared = clear_living_enemies(
@@ -1781,12 +1797,13 @@ async fn run() -> Result<Value, String> {
         )
         .await?
     };
-    let terminal_duplicate: OnlineCommandReceipt = client.post(
-        &host,
-        &format!("/v1/online/matches/{}/commands", created.match_id),
-        &first_request,
-    )
-    .await?;
+    let terminal_duplicate: OnlineCommandReceipt = client
+        .post(
+            &host,
+            &format!("/v1/online/matches/{}/commands", created.match_id),
+            &first_request,
+        )
+        .await?;
     if !terminal_duplicate.duplicate || terminal_duplicate.sequence != first.sequence {
         return Err("terminal exact duplicate did not return the durable receipt".to_string());
     }

@@ -41,10 +41,7 @@ async fn run() -> Result<(), String> {
                 .await
                 .map_err(|error| error.to_string())?;
             let status_code = response.status();
-            let body = response
-                .text()
-                .await
-                .map_err(|error| error.to_string())?;
+            let body = response.text().await.map_err(|error| error.to_string())?;
             if !status_code.is_success() {
                 return Err(format!("moderation queue rejected ({status_code}): {body}"));
             }
@@ -77,10 +74,7 @@ async fn run() -> Result<(), String> {
                 .await
                 .map_err(|error| error.to_string())?;
             let status_code = response.status();
-            let body = response
-                .text()
-                .await
-                .map_err(|error| error.to_string())?;
+            let body = response.text().await.map_err(|error| error.to_string())?;
             if !status_code.is_success() {
                 return Err(format!(
                     "moderation action rejected ({status_code}): {body}"
@@ -106,10 +100,7 @@ async fn run() -> Result<(), String> {
                 .await
                 .map_err(|error| error.to_string())?;
             let status_code = response.status();
-            let body = response
-                .text()
-                .await
-                .map_err(|error| error.to_string())?;
+            let body = response.text().await.map_err(|error| error.to_string())?;
             if !status_code.is_success() {
                 return Err(format!("appeal queue rejected ({status_code}): {body}"));
             }
@@ -135,10 +126,7 @@ async fn run() -> Result<(), String> {
                 .await
                 .map_err(|error| error.to_string())?;
             let status_code = response.status();
-            let body = response
-                .text()
-                .await
-                .map_err(|error| error.to_string())?;
+            let body = response.text().await.map_err(|error| error.to_string())?;
             if !status_code.is_success() {
                 return Err(format!("appeal action rejected ({status_code}): {body}"));
             }
@@ -168,10 +156,7 @@ async fn run() -> Result<(), String> {
                     .await
                     .map_err(|error| error.to_string())?;
                 let status_code = response.status();
-                let body = response
-                    .text()
-                    .await
-                    .map_err(|error| error.to_string())?;
+                let body = response.text().await.map_err(|error| error.to_string())?;
                 if !status_code.is_success() {
                     return Err(format!(
                         "season automation rejected ({status_code}): {body}"
@@ -222,10 +207,7 @@ async fn run() -> Result<(), String> {
                 .await
                 .map_err(|error| error.to_string())?;
             let status_code = response.status();
-            let body = response
-                .text()
-                .await
-                .map_err(|error| error.to_string())?;
+            let body = response.text().await.map_err(|error| error.to_string())?;
             if !status_code.is_success() {
                 return Err(format!("season action rejected ({status_code}): {body}"));
             }
@@ -249,10 +231,7 @@ async fn run() -> Result<(), String> {
                 .await
                 .map_err(|error| error.to_string())?;
             let status_code = response.status();
-            let body = response
-                .text()
-                .await
-                .map_err(|error| error.to_string())?;
+            let body = response.text().await.map_err(|error| error.to_string())?;
             if !status_code.is_success() {
                 return Err(format!("fleet action rejected ({status_code}): {body}"));
             }
@@ -279,10 +258,7 @@ async fn run() -> Result<(), String> {
                 .await
                 .map_err(|error| error.to_string())?;
             let status_code = response.status();
-            let body = response
-                .text()
-                .await
-                .map_err(|error| error.to_string())?;
+            let body = response.text().await.map_err(|error| error.to_string())?;
             if !status_code.is_success() {
                 return Err(format!("shift start rejected ({status_code}): {body}"));
             }
@@ -312,10 +288,7 @@ async fn run() -> Result<(), String> {
                 .await
                 .map_err(|error| error.to_string())?;
             let status_code = response.status();
-            let body = response
-                .text()
-                .await
-                .map_err(|error| error.to_string())?;
+            let body = response.text().await.map_err(|error| error.to_string())?;
             if !status_code.is_success() {
                 return Err(format!("shift {action} rejected ({status_code}): {body}"));
             }
@@ -340,10 +313,7 @@ async fn run() -> Result<(), String> {
                 .await
                 .map_err(|error| error.to_string())?;
             let status_code = response.status();
-            let body = response
-                .text()
-                .await
-                .map_err(|error| error.to_string())?;
+            let body = response.text().await.map_err(|error| error.to_string())?;
             if !status_code.is_success() {
                 return Err(format!("case claim rejected ({status_code}): {body}"));
             }

@@ -58,7 +58,9 @@ async fn capture_request(stream: &mut AsyncTcpStream) -> CapturedRequest {
 async fn server(
     script: Vec<Option<(u16, &'static str)>>,
 ) -> (String, JoinHandle<Vec<CapturedRequest>>) {
-    let listener = TcpListener::bind("127.0.0.1:0").await.expect("loopback bind");
+    let listener = TcpListener::bind("127.0.0.1:0")
+        .await
+        .expect("loopback bind");
     let base_url = format!("http://{}", listener.local_addr().expect("bound address"));
     let task = tokio::spawn(async move {
         let mut requests = Vec::new();
@@ -81,7 +83,9 @@ async fn server(
             drop(stream);
         }
         assert!(
-            timeout(Duration::from_millis(350), listener.accept()).await.is_err(),
+            timeout(Duration::from_millis(350), listener.accept())
+                .await
+                .is_err(),
             "unexpected extra request: retry policy changed"
         );
         requests
@@ -106,7 +110,9 @@ fn http_client() -> Client {
 #[tokio::test]
 async fn successful_request_is_not_retried() {
     let (base_url, task) = server(vec![Some((200, "{}"))]).await;
-    let response = send_with_retry(request(&http_client(), &base_url)).await.expect("response");
+    let response = send_with_retry(request(&http_client(), &base_url))
+        .await
+        .expect("response");
     assert_eq!(response.status().as_u16(), 200);
     assert_eq!(task.await.expect("server task").len(), 1);
 }
@@ -114,7 +120,9 @@ async fn successful_request_is_not_retried() {
 #[tokio::test]
 async fn http_conflict_is_returned_without_transport_retry() {
     let (base_url, task) = server(vec![Some((409, "{\"recoverable\":true}"))]).await;
-    let response = send_with_retry(request(&http_client(), &base_url)).await.expect("HTTP response");
+    let response = send_with_retry(request(&http_client(), &base_url))
+        .await
+        .expect("HTTP response");
     assert_eq!(response.status().as_u16(), 409);
     assert_eq!(task.await.expect("server task").len(), 1);
 }
@@ -130,13 +138,18 @@ async fn lost_success_replays_exact_request_identity_and_body() {
     assert_eq!(requests.len(), 2);
     assert_eq!(requests[0].request_line, requests[1].request_line);
     assert_eq!(requests[0].body, requests[1].body);
-    assert_eq!(serde_json::from_slice::<Value>(&requests[0].body).unwrap()["command_id"], "same-intent");
+    assert_eq!(
+        serde_json::from_slice::<Value>(&requests[0].body).unwrap()["command_id"],
+        "same-intent"
+    );
 }
 
 #[tokio::test]
 async fn transport_failure_replays_exact_bytes_then_stops_on_success() {
     let (base_url, task) = server(vec![None, Some((200, "{}"))]).await;
-    send_with_retry(request(&http_client(), &base_url)).await.expect("transport recovery");
+    send_with_retry(request(&http_client(), &base_url))
+        .await
+        .expect("transport recovery");
     let requests = task.await.expect("server task");
     assert_eq!(requests.len(), 2);
     assert_eq!(requests[0].body, requests[1].body);
@@ -145,7 +158,9 @@ async fn transport_failure_replays_exact_bytes_then_stops_on_success() {
 #[tokio::test]
 async fn transport_retries_are_bounded_to_four_attempts() {
     let (base_url, task) = server(vec![None, None, None, None]).await;
-    assert!(send_with_retry(request(&http_client(), &base_url)).await.is_err());
+    assert!(send_with_retry(request(&http_client(), &base_url))
+        .await
+        .is_err());
     let requests = task.await.expect("server task");
     assert_eq!(requests.len(), 4);
     assert!(requests.iter().all(|item| item.body == requests[0].body));
@@ -179,7 +194,11 @@ async fn malformed_success_is_not_reported_as_a_decoded_receipt() {
         session: "fixture-session".into(),
     };
     let result: Result<Value, String> = client
-        .post(&identity, "/same-intent", &json!({"command_id": "same-intent"}))
+        .post(
+            &identity,
+            "/same-intent",
+            &json!({"command_id": "same-intent"}),
+        )
         .await;
     assert!(result.is_err());
     assert_eq!(task.await.expect("server task").len(), 1);

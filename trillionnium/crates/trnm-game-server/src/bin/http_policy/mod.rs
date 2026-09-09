@@ -90,12 +90,8 @@ mod tests {
     }
 
     async fn assert_redirect_stops(status: u16, relative: bool) {
-        let origin = TcpListener::bind("127.0.0.1:0")
-            .await
-            .expect("origin bind");
-        let target = TcpListener::bind("127.0.0.1:0")
-            .await
-            .expect("target bind");
+        let origin = TcpListener::bind("127.0.0.1:0").await.expect("origin bind");
+        let target = TcpListener::bind("127.0.0.1:0").await.expect("target bind");
         let origin_url = format!("http://{}/authorized", origin.local_addr().unwrap());
         let target_url = format!("http://{}/not-authorized", target.local_addr().unwrap());
         let location = if relative {
@@ -150,7 +146,10 @@ mod tests {
         assert_original_request(&request);
         assert_eq!(actual_status, status, "redirect response was replaced");
         assert!(!same_origin_followed, "same-origin redirect was followed");
-        assert!(!cross_origin_followed, "credentialed request crossed origin");
+        assert!(
+            !cross_origin_followed,
+            "credentialed request crossed origin"
+        );
     }
 
     #[tokio::test]
@@ -185,9 +184,7 @@ mod tests {
 
     #[tokio::test]
     async fn direct_success_still_sends_the_original_credentials_and_body() {
-        let listener = TcpListener::bind("127.0.0.1:0")
-            .await
-            .expect("origin bind");
+        let listener = TcpListener::bind("127.0.0.1:0").await.expect("origin bind");
         let url = format!("http://{}/authorized", listener.local_addr().unwrap());
         let task = tokio::spawn(async move {
             let (mut stream, _) = timeout(IO_LIMIT, listener.accept())
