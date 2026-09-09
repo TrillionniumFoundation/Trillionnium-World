@@ -38,7 +38,11 @@ REQUIRED_METADATA = {
     "status": "current-candidate",
     "implementation_conformance": "not-implied",
 }
-ALLOWED_CATALOG_STATUS = {"current", "current-candidate"}
+ALLOWED_CATALOG_STATUS = {"current", "current-candidate", "historical", "template"}
+SPECIAL_STATUS_CLASS = {
+    "historical": {"historical-execution-snapshot"},
+    "template": {"evidence-template"},
+}
 REQUIRED_TRUTH_ORDER = (
     "PROJECT_BOUNDARY.md",
     "CURRENT_PLAN.md",
@@ -90,159 +94,136 @@ class DocumentationFailure(ValueError):
 
 
 def safe_relative(relative: str) -> PurePosixPath:
-    path = PurePosixPath(relative)
-    if (
-        not path.parts
-        or path.is_absolute()
-        or ".." in path.parts
-        or "\\" in relative
-        or path.as_posix() != relative
-    ):
-        raise DocumentationFailure(f"unsafe path: {relative}")
-    return path
+    if not isinstance(relative, str) or not relative or relative != relative.strip():
+        raise DocumentationFailure(f"invalid relative path: {relative!r}")
+    if "\\" in relative or relative.startswith("/") or relative.startswith("./") or relative.endswith("/"):
+        raise DocumentationFailure(f"unsafe relative path: {relative}")
+    value = PurePosixPath(relative)
+    if value.is_absolute() or value.as_posix() != relative or any(part in {"", ".", ".."} for part in value.parts):
+        raise DocumentationFailure(f"unsafe relative path: {relative}")
+    return value
 
 
-def read_bytes(root: Path, relative: str, maximum_bytes: int) -> bytes:
-    path = safe_relative(relative)
-    cursor = root
-    for part in path.parts:
-        cursor = cursor / part
-        if cursor.is_symlink():
-            raise DocumentationFailure(f"symlink is not an accepted documentation source: {relative}")
-    if not cursor.is_file():
-        raise DocumentationFailure(f"missing file: {relative}")
-    size = cursor.stat().st_size
-    if size > maximum_bytes:
-        raise DocumentationFailure(
-            f"oversized file: {relative} ({size} bytes > {maximum_bytes})"
-        )
-    raw = cursor.read_bytes()
-    if not raw:
-        raise DocumentationFailure(f"empty file: {relative}")
-    return raw
-
-
-def decode_utf8(raw: bytes, relative: str) -> str:
+def checked_file(root: Path, relative: str) -> Path:
+    value = safe_relative(relative)
+    root_real = root.resolve(strict=True)
+    current = root_real
+    for part in value.parts:
+        current = current / part
+        try:
+            if current.is_symlink():
+                raise DocumentationFailure(f"document path traverses a symlink: {relative}")
+        except OSError as error:
+            raise DocumentationFailure(f"cannot inspect document path: {relative}") from error
     try:
-        text = raw.decode("utf-8", errors="strict")
-    except UnicodeDecodeError as error:
-        raise DocumentationFailure(f"invalid UTF-8 in {relative}: {error}") from error
-    if not text.strip():
-        raise DocumentationFailure(f"empty file: {relative}")
-    return text
+        resolved = current.resolve(strict=True)
+        resolved.relative_to(root_real)
+    except (OSError, ValueError) as error:
+        raise DocumentationFailure(f"document path escapes or is missing: {relative}") from error
+    if not resolved.is_file():
+        raise DocumentationFailure(f"not a regular document file: {relative}")
+    return resolved
 
 
 def read_text(root: Path, relative: str) -> str:
-    return decode_utf8(read_bytes(root, relative, MAX_DOCUMENT_BYTES), relative)
+    path = checked_file(root, relative)
+    data = path.read_bytes()
+    if len(data) > MAX_DOCUMENT_BYTES:
+        raise DocumentationFailure(f"document exceeds {MAX_DOCUMENT_BYTES} bytes: {relative}")
+    try:
+        return data.decode("utf-8", errors="strict")
+    except UnicodeDecodeError as error:
+        raise DocumentationFailure(f"document is not strict UTF-8: {relative}") from error
 
 
-def reject_json_constant(token: str) -> object:
-    raise DocumentationFailure(f"non-finite JSON token is forbidden: {token}")
+def _reject_constant(value: str) -> None:
+    raise DocumentationFailure(f"non-finite JSON constant is forbidden: {value}")
 
 
-def reject_duplicate_json_object(pairs: list[tuple[str, object]]) -> dict[str, object]:
+def _strict_object(pairs: list[tuple[str, object]]) -> dict[str, object]:
     result: dict[str, object] = {}
     for key, value in pairs:
         if key in result:
-            raise DocumentationFailure(f"duplicate JSON object key: {key}")
+            raise DocumentationFailure(f"duplicate JSON key: {key}")
         result[key] = value
     return result
 
 
-def enforce_json_budget(value: object) -> None:
-    stack: list[tuple[object, int]] = [(value, 1)]
-    nodes = 0
-    while stack:
-        current, depth = stack.pop()
-        nodes += 1
-        if nodes > MAX_JSON_NODES:
-            raise DocumentationFailure(
-                f"JSON node budget exceeded: {nodes} > {MAX_JSON_NODES}"
-            )
-        if depth > MAX_JSON_DEPTH:
-            raise DocumentationFailure(
-                f"JSON depth budget exceeded: {depth} > {MAX_JSON_DEPTH}"
-            )
-        if isinstance(current, dict):
-            stack.extend((item, depth + 1) for item in current.values())
-        elif isinstance(current, list):
-            stack.extend((item, depth + 1) for item in current)
+def _json_budget(value: object, depth: int = 0, nodes: list[int] | None = None) -> None:
+    if nodes is None:
+        nodes = [0]
+    nodes[0] += 1
+    if nodes[0] > MAX_JSON_NODES:
+        raise DocumentationFailure(f"JSON node budget exceeded: {MAX_JSON_NODES}")
+    if depth > MAX_JSON_DEPTH:
+        raise DocumentationFailure(f"JSON depth exceeded: {MAX_JSON_DEPTH}")
+    if isinstance(value, dict):
+        for key, child in value.items():
+            if not isinstance(key, str):
+                raise DocumentationFailure("JSON object key is not a string")
+            _json_budget(child, depth + 1, nodes)
+    elif isinstance(value, list):
+        for child in value:
+            _json_budget(child, depth + 1, nodes)
 
 
 def load_strict_json(root: Path, relative: str) -> object:
-    raw = read_bytes(root, relative, MAX_CATALOG_BYTES)
-    text = decode_utf8(raw, relative)
+    path = checked_file(root, relative)
+    data = path.read_bytes()
+    if len(data) > MAX_CATALOG_BYTES:
+        raise DocumentationFailure(f"catalogue exceeds {MAX_CATALOG_BYTES} bytes")
+    try:
+        text = data.decode("utf-8", errors="strict")
+    except UnicodeDecodeError as error:
+        raise DocumentationFailure("catalogue is not strict UTF-8") from error
     try:
         value = json.loads(
             text,
-            object_pairs_hook=reject_duplicate_json_object,
-            parse_constant=reject_json_constant,
+            object_pairs_hook=_strict_object,
+            parse_constant=_reject_constant,
         )
     except json.JSONDecodeError as error:
-        raise DocumentationFailure(f"invalid {relative}: {error}") from error
-    enforce_json_budget(value)
+        raise DocumentationFailure(f"invalid catalogue JSON: {error}") from error
+    _json_budget(value)
     return value
 
 
 def visible_markdown(text: str) -> str:
-    if text.count("<!--") != text.count("-->"):
-        raise DocumentationFailure("unbalanced Markdown comment")
-    text = re.sub(r"<!--.*?-->", "", text, flags=re.S)
-    lines: list[str] = []
-    fence: str | None = None
-    length = 0
-    for line in text.splitlines():
-        match = re.match(r"^ {0,3}(`{3,}|~{3,})(.*)$", line)
-        if fence:
-            if match and match[1][0] == fence and len(match[1]) >= length and not match[2].strip():
-                fence = None
-            continue
-        if match:
-            fence, length = match[1][0], len(match[1])
-            continue
-        lines.append(line)
-    if fence:
-        raise DocumentationFailure("unclosed Markdown code fence")
-    return "\n".join(lines)
-
-
-def parse_sections(text: str) -> dict[str, str]:
-    visible = visible_markdown(text)
-    matches = list(re.finditer(r"(?m)^## ([^\n]+)\s*$", visible))
-    result: dict[str, str] = {}
-    for index, match in enumerate(matches):
-        heading = match[1].strip()
-        if heading in result:
-            raise DocumentationFailure(f"duplicate section: {heading}")
-        end = matches[index + 1].start() if index + 1 < len(matches) else len(visible)
-        result[heading] = visible[match.end() : end].strip()
-    return result
+    return re.sub(r"```.*?```", "", text, flags=re.DOTALL)
 
 
 def parse_front_matter(text: str) -> dict[str, str]:
     if not text.startswith("---\n"):
-        raise DocumentationFailure("missing YAML front matter")
+        raise DocumentationFailure("missing front matter")
     end = text.find("\n---\n", 4)
-    if end < 0:
-        raise DocumentationFailure("unterminated YAML front matter")
+    if end == -1:
+        raise DocumentationFailure("unterminated front matter")
     result: dict[str, str] = {}
     for raw in text[4:end].splitlines():
-        if not raw.strip():
+        if not raw.strip() or raw.startswith(" ") or ":" not in raw:
             continue
-        match = re.fullmatch(r"([a-z_]+):\s*(.*?)\s*", raw)
-        if not match:
-            raise DocumentationFailure(f"unsupported front-matter line: {raw}")
-        key, value = match.groups()
-        if key in result or not value:
-            raise DocumentationFailure(f"duplicate or empty front-matter field: {key}")
-        result[key] = value.strip("\"'")
+        key, value = raw.split(":", 1)
+        result[key.strip()] = value.strip()
     return result
+
+
+def parse_sections(text: str) -> dict[str, str]:
+    matches = list(re.finditer(r"(?m)^## ([^\n]+)\s*$", text))
+    sections: dict[str, str] = {}
+    for index, match in enumerate(matches):
+        heading = match.group(1).strip()
+        if heading in sections:
+            raise DocumentationFailure(f"duplicate section: {heading}")
+        start = match.end()
+        end = matches[index + 1].start() if index + 1 < len(matches) else len(text)
+        sections[heading] = text[start:end]
+    return sections
 
 
 def parse_date(value: str, field: str) -> dt.date:
     try:
         return dt.date.fromisoformat(value)
-    except ValueError as error:
+    except (TypeError, ValueError) as error:
         raise DocumentationFailure(f"invalid {field}: {value}") from error
 
 
@@ -280,40 +261,66 @@ def validate_catalog(root: Path, as_of: dt.date) -> dict[str, dict[str, str]]:
     data = load_strict_json(root, CATALOG)
     if not isinstance(data, dict):
         raise DocumentationFailure("document catalogue root must be an object")
+    if set(data) != {"schema", "as_of", "truth_order", "documents"}:
+        raise DocumentationFailure("document catalogue root key set drift")
     if data.get("schema") != "trnm_world_document_catalog_v1":
         raise DocumentationFailure("document catalogue schema drift")
     parse_date(data.get("as_of", ""), "catalogue as_of")
     truth_order = data.get("truth_order")
     if (
         not isinstance(truth_order, list)
+        or not truth_order
+        or not all(isinstance(item, str) for item in truth_order)
         or len(truth_order) != len(set(truth_order))
         or tuple(truth_order[: len(REQUIRED_TRUTH_ORDER)]) != REQUIRED_TRUTH_ORDER
     ):
         raise DocumentationFailure("truth_order must begin with the binding boundary, current plan and catalogue")
+    for relative in truth_order:
+        safe_relative(relative)
     documents = data.get("documents")
     if not isinstance(documents, list) or not documents:
         raise DocumentationFailure("document catalogue is empty")
     by_path: dict[str, dict[str, str]] = {}
+    required = {"path", "class", "owner", "status", "review_due"}
     for item in documents:
         if not isinstance(item, dict):
             raise DocumentationFailure("catalogue entry is not an object")
-        required = {"path", "class", "owner", "status", "review_due"}
-        if not required.issubset(item):
-            raise DocumentationFailure(f"catalogue entry missing fields: {item!r}")
+        if set(item) != required:
+            raise DocumentationFailure(f"catalogue entry key set drift: {item!r}")
         relative = item["path"]
         if not isinstance(relative, str) or relative in by_path:
             raise DocumentationFailure(f"invalid or duplicate catalogue path: {relative!r}")
+        safe_relative(relative)
         for key in ("class", "owner", "status", "review_due"):
             if not isinstance(item[key], str) or not item[key].strip():
                 raise DocumentationFailure(f"invalid catalogue {key} for {relative}")
-        if item["status"] not in ALLOWED_CATALOG_STATUS:
-            raise DocumentationFailure(f"unsupported current catalogue status for {relative}: {item['status']}")
+        status = item["status"]
+        document_class = item["class"]
+        if status not in ALLOWED_CATALOG_STATUS:
+            raise DocumentationFailure(f"unsupported catalogue status for {relative}: {status}")
+        expected_classes = SPECIAL_STATUS_CLASS.get(status)
+        if expected_classes is not None:
+            if document_class not in expected_classes:
+                raise DocumentationFailure(
+                    f"{relative}: status {status!r} requires class in {sorted(expected_classes)}"
+                )
+            if relative in truth_order:
+                raise DocumentationFailure(f"{relative}: {status} material cannot enter truth_order")
+        elif document_class in set().union(*SPECIAL_STATUS_CLASS.values()):
+            raise DocumentationFailure(
+                f"{relative}: special class {document_class!r} requires its matching status"
+            )
+        if status == "template" and not relative.startswith("docs/release/templates/"):
+            raise DocumentationFailure(f"{relative}: evidence template is outside docs/release/templates")
         if parse_date(item["review_due"], f"review_due for {relative}") < as_of:
-            raise DocumentationFailure(f"stale current document: {relative}")
+            raise DocumentationFailure(f"stale catalogue material: {relative}")
         read_text(root, relative)
         by_path[relative] = item
     if not set(truth_order).issubset(by_path):
         raise DocumentationFailure("truth_order contains unregistered paths")
+    for relative in truth_order:
+        if by_path[relative]["status"] not in {"current", "current-candidate"}:
+            raise DocumentationFailure(f"truth_order contains non-current material: {relative}")
     missing = sorted(REQUIRED_CATALOG_PATHS - set(by_path))
     if missing:
         raise DocumentationFailure(f"required current documents are absent from catalogue: {missing}")
@@ -390,23 +397,23 @@ def validate(root: Path, as_of: dt.date) -> list[str]:
     return sorted(names)
 
 
-def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("root", nargs="?", type=Path, default=Path(__file__).resolve().parents[1])
-    parser.add_argument(
-        "--as-of",
-        default=os.environ.get("TRNM_DOC_AS_OF") or dt.datetime.now(dt.timezone.utc).date().isoformat(),
-        help="UTC review date used for expiry checks (YYYY-MM-DD)",
-    )
-    args = parser.parse_args()
+def parse_args(argv: list[str]) -> argparse.Namespace:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--root", default=str(Path(__file__).resolve().parents[1]))
+    parser.add_argument("--as-of", default=dt.date.today().isoformat())
+    return parser.parse_args(argv)
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = parse_args(sys.argv[1:] if argv is None else argv)
+    root = Path(args.root)
     try:
-        as_of = parse_date(args.as_of, "as_of")
-        names = validate(args.root, as_of)
-    except (DocumentationFailure, OSError, UnicodeError, json.JSONDecodeError, tomllib.TOMLDecodeError) as error:
+        names = validate(root, parse_date(args.as_of, "--as-of"))
+    except (DocumentationFailure, OSError, ValueError, tomllib.TOMLDecodeError) as error:
         print(f"TRNM World detailed documentation: FAIL: {error}", file=sys.stderr)
         return 1
-    print(f"TRNM World detailed documentation: PASS ({len(names)}/{len(names)} modules; catalogue + detailed design)")
-    print("Implementation, hosted execution, external evidence and release authorization are separate denominators.")
+    print(f"TRNM World detailed documentation: PASS ({len(names)}/8 active detailed designs)")
+    print("Implementation conformance, hosted CI, governance, standalone components and release evidence remain separate.")
     return 0
 
 
