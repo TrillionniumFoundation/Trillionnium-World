@@ -1,0 +1,348 @@
+name: trnm-world-authority-cutover
+
+on:
+  workflow_dispatch:
+  pull_request:
+  merge_group:
+  push:
+    branches:
+      - main
+      - 'fix/world-*'
+      - 'integration/world-*'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trnm-world-authority-cutover-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: never
+  CARGO_INCREMENTAL: '0'
+  RUST_BACKTRACE: '1'
+  RUST_TEST_THREADS: '1'
+  RUST_TOOLCHAIN: '1.98.1'
+  SOURCE_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+  BASE_SHA: ${{ github.event.pull_request.base.sha || '' }}
+  CHECKOUT_ACTION_SHA: 11d5960a326750d5838078e36cf38b85af677262
+  RUST_TOOLCHAIN_ACTION_SHA: 6bed0761d98439e5a578e2877258200ad565ba87
+  UPLOAD_ARTIFACT_ACTION_SHA: ea165f8d65b6e75b540449e92b4886f43607fa02
+
+jobs:
+  authority-source-qualification:
+    name: trnm-world-p0-boundaries
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - name: Checkout exact source head with full provenance history
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ env.SOURCE_HEAD_SHA }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Resolve source, base, trigger and prospective-merge identities
+        id: identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$SOURCE_HEAD_SHA"
+          test -z "$(git status --porcelain)"
+          source_tree="$(git rev-parse "${SOURCE_HEAD_SHA}^{tree}")"
+          trigger_sha="$GITHUB_SHA"
+          if ! git cat-file -e "${trigger_sha}^{commit}" 2>/dev/null; then
+            git fetch --no-tags origin "$trigger_sha"
+          fi
+          trigger_tree="$(git rev-parse "${trigger_sha}^{tree}")"
+          if [[ -n "$BASE_SHA" ]]; then
+            git cat-file -e "${BASE_SHA}^{commit}"
+            base_tree="$(git rev-parse "${BASE_SHA}^{tree}")"
+            prospective_merge_tree="$(git merge-tree --write-tree "$BASE_SHA" "$SOURCE_HEAD_SHA" | head -n1)"
+            [[ "$prospective_merge_tree" =~ ^[0-9a-f]{40}$ ]]
+            export GIT_AUTHOR_NAME='Trillionnium qualification'
+            export GIT_AUTHOR_EMAIL='qualification@trillionnium.invalid'
+            export GIT_AUTHOR_DATE='2000-01-01T00:00:00Z'
+            export GIT_COMMITTER_NAME="$GIT_AUTHOR_NAME"
+            export GIT_COMMITTER_EMAIL="$GIT_AUTHOR_EMAIL"
+            export GIT_COMMITTER_DATE="$GIT_AUTHOR_DATE"
+            prospective_merge_commit="$(printf 'Synthetic prospective merge for qualification only\n' | git commit-tree "$prospective_merge_tree" -p "$BASE_SHA" -p "$SOURCE_HEAD_SHA")"
+          else
+            base_tree=''
+            prospective_merge_tree="$source_tree"
+            prospective_merge_commit="$SOURCE_HEAD_SHA"
+          fi
+          {
+            echo "source_tree=$source_tree"
+            echo "base_tree=$base_tree"
+            echo "trigger_tree=$trigger_tree"
+            echo "prospective_merge_tree=$prospective_merge_tree"
+            echo "prospective_merge_commit=$prospective_merge_commit"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Install immutable Rust toolchain
+        uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: 1.98.1
+          components: rustfmt, clippy
+
+      - name: Record exact toolchain identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p run/ci-world-authority
+          rustc --version --verbose | tee run/ci-world-authority/rustc-version.txt
+          cargo --version --verbose | tee run/ci-world-authority/cargo-version.txt
+          rustfmt --version | tee run/ci-world-authority/rustfmt-version.txt
+          cargo clippy --version | tee run/ci-world-authority/clippy-version.txt
+          test "$(rustc --version | awk '{print $2}')" = "$RUST_TOOLCHAIN"
+
+      - name: Validate machine truth and exact source head
+        shell: bash
+        env:
+          CARGO_TARGET_DIR: ${{ runner.temp }}/world-authority-target
+        run: |
+          set -euo pipefail
+          python3 scripts/test-trnm-world-strict-json.py
+          python3 scripts/check-trnm-world-machine-truth.py
+          python3 scripts/test-trnm-world-machine-truth.py
+          bash scripts/check-trnm-world-authority-cutover.sh
+
+      - name: Validate fixture and production adapter surfaces
+        shell: bash
+        env:
+          CARGO_TARGET_DIR: ${{ runner.temp }}/world-authority-target
+        run: |
+          set -euo pipefail
+          out=run/ci-world-authority
+          manifest=trillionnium/crates/world-authority/Cargo.toml
+          cargo run --quiet --locked --manifest-path "$manifest" -p trnm-world-server -- fixture-runtime-policy > "$out/fixture-runtime-policy.json"
+          cargo run --quiet --locked --manifest-path "$manifest" -p trnm-world-server -- production-adapter-readiness > "$out/production-adapter-readiness.json"
+          PYTHONPATH=scripts python3 - "$out" <<'PY'
+          import pathlib
+          import sys
+          from trnm_world_strict_json import load_strict_json
+
+          out = pathlib.Path(sys.argv[1])
+          fixture = load_strict_json(out / 'fixture-runtime-policy.json')
+          if fixture != {
+              'contract_version': 'trillionnium_world_fixture_runtime_policy_v1',
+              'classification': 'development_fixture_only',
+              'explicit_opt_in_flag': '--allow-fixture-runtime',
+              'literal_ip_socket_required': True,
+              'loopback_only': True,
+              'ephemeral_port_allowed': False,
+              'public_ingress_allowed': False,
+              'production_authorization': 'not_granted',
+          }:
+              raise SystemExit(f'fixture runtime policy drift: {fixture!r}')
+
+          production = load_strict_json(out / 'production-adapter-readiness.json')
+          if production.get('adapter_contract') != 'trillionnium_world_production_adapter_v1':
+              raise SystemExit('production adapter contract drift')
+          if production.get('production_ready') is not False:
+              raise SystemExit('unimplemented production adapter surface claimed ready')
+          if production.get('production_authorization') != 'not_granted':
+              raise SystemExit('production adapter surface self-granted authorization')
+          if production.get('fixture_adapter_credit_allowed') is not False:
+              raise SystemExit('fixture adapter received production credit')
+          capabilities = production.get('capabilities')
+          expected = {
+              'identity', 'session_guard', 'account', 'repository', 'ledger',
+              'evidence_sink', 'metrics_sink', 'internal_routing', 'deployment_identity',
+          }
+          if not isinstance(capabilities, list) or {item.get('role') for item in capabilities} != expected:
+              raise SystemExit('production adapter capability inventory drift')
+          if len(capabilities) != len(expected):
+              raise SystemExit('duplicate production adapter capability')
+          if not all(item.get('contract_defined') is True for item in capabilities):
+              raise SystemExit('production adapter contract shape incomplete')
+          if any(item.get('implementation_available') is not False for item in capabilities):
+              raise SystemExit('production adapter implementation falsely claimed')
+          if any(item.get('exact_head_qualified') is not False for item in capabilities):
+              raise SystemExit('production adapter exact-head qualification falsely claimed')
+          PY
+
+      - name: Validate prospective merge tree
+        if: github.event_name == 'pull_request'
+        shell: bash
+        env:
+          CARGO_TARGET_DIR: ${{ runner.temp }}/world-authority-target
+          PROSPECTIVE_MERGE_COMMIT: ${{ steps.identity.outputs.prospective_merge_commit }}
+        run: |
+          set -euo pipefail
+          worktree="$RUNNER_TEMP/world-authority-prospective-merge"
+          git worktree add --detach "$worktree" "$PROSPECTIVE_MERGE_COMMIT"
+          trap 'git worktree remove --force "$worktree"' EXIT
+          test "$(git -C "$worktree" rev-parse HEAD^{tree})" = "${{ steps.identity.outputs.prospective_merge_tree }}"
+          python3 "$worktree/scripts/check-trnm-world-machine-truth.py" "$worktree"
+          bash "$worktree/scripts/check-trnm-world-authority-cutover.sh"
+          test -z "$(git -C "$worktree" status --porcelain --untracked-files=no)"
+
+      - name: Record immutable source and prospective-merge evidence
+        shell: bash
+        env:
+          SOURCE_TREE: ${{ steps.identity.outputs.source_tree }}
+          BASE_TREE: ${{ steps.identity.outputs.base_tree }}
+          TRIGGER_TREE: ${{ steps.identity.outputs.trigger_tree }}
+          PROSPECTIVE_MERGE_TREE: ${{ steps.identity.outputs.prospective_merge_tree }}
+          PROSPECTIVE_MERGE_COMMIT: ${{ steps.identity.outputs.prospective_merge_commit }}
+        run: |
+          set -euo pipefail
+          out=run/ci-world-authority
+          manifest=trillionnium/crates/world-authority/Cargo.toml
+          cargo run --quiet --locked --manifest-path "$manifest" -p trnm-world-server -- adapter-readiness > "$out/fixture-adapter-readiness.json"
+          cargo run --quiet --locked --manifest-path "$manifest" -p trnm-world-server -- full-split-json > "$out/full-split.json"
+          cargo run --quiet --locked --manifest-path "$manifest" -p trnm-world-server -- dev-runtime-repository-smoke "$out/world-state.json" > "$out/repository-restart-reload.json"
+          git ls-tree -r "$SOURCE_HEAD_SHA" -- trillionnium/crates/world-authority > "$out/source-authority-tree.txt"
+          git ls-tree -r "$PROSPECTIVE_MERGE_COMMIT" -- trillionnium/crates/world-authority > "$out/prospective-merge-authority-tree.txt"
+          PYTHONPATH=scripts python3 - <<'PY'
+          import hashlib
+          import json
+          import os
+          import pathlib
+          import subprocess
+          from trnm_world_strict_json import load_strict_json
+
+          out = pathlib.Path('run/ci-world-authority')
+          workflow = pathlib.Path('.github/workflows/trnm-world-authority-cutover.yml')
+          provenance_path = pathlib.Path('docs/contracts/trillionnium-world-authority-provenance-v1.json')
+          checker_path = pathlib.Path('scripts/check-trnm-world-authority-provenance.py')
+
+          def sha256(path: pathlib.Path) -> str:
+              digest = hashlib.sha256()
+              with path.open('rb') as handle:
+                  for chunk in iter(lambda: handle.read(1024 * 1024), b''):
+                      digest.update(chunk)
+              return digest.hexdigest()
+
+          def git(*args: str) -> str:
+              return subprocess.run(['git', *args], check=True, text=True, stdout=subprocess.PIPE).stdout.strip()
+
+          provenance = load_strict_json(provenance_path)
+          production = load_strict_json(out / 'production-adapter-readiness.json')
+          summary = {
+              'schema': 'trillionnium.world.authority.source-evidence.v3',
+              'status': 'source_and_prospective_merge_qualification_green',
+              'repository': os.environ['GITHUB_REPOSITORY'],
+              'event_name': os.environ['GITHUB_EVENT_NAME'],
+              'source_head_sha': os.environ['SOURCE_HEAD_SHA'],
+              'source_head_tree': os.environ['SOURCE_TREE'],
+              'base_sha': os.environ.get('BASE_SHA') or None,
+              'base_tree': os.environ.get('BASE_TREE') or None,
+              'trigger_sha': os.environ['GITHUB_SHA'],
+              'trigger_tree': os.environ['TRIGGER_TREE'],
+              'prospective_merge_tree': os.environ['PROSPECTIVE_MERGE_TREE'],
+              'prospective_merge_commit': os.environ['PROSPECTIVE_MERGE_COMMIT'],
+              'run_id': os.environ['GITHUB_RUN_ID'],
+              'run_attempt': os.environ['GITHUB_RUN_ATTEMPT'],
+              'workflow': os.environ['GITHUB_WORKFLOW'],
+              'workflow_ref': os.environ['GITHUB_WORKFLOW_REF'],
+              'workflow_blob_sha': git('rev-parse', 'HEAD:.github/workflows/trnm-world-authority-cutover.yml'),
+              'workflow_sha256': sha256(workflow),
+              'actions': {
+                  'actions/checkout': os.environ['CHECKOUT_ACTION_SHA'],
+                  'dtolnay/rust-toolchain': os.environ['RUST_TOOLCHAIN_ACTION_SHA'],
+                  'actions/upload-artifact': os.environ['UPLOAD_ARTIFACT_ACTION_SHA'],
+              },
+              'rust_toolchain': os.environ['RUST_TOOLCHAIN'],
+              'cutover_contract': 'trillionnium_world_authority_cutover_v1',
+              'production_adapter_contract': production['adapter_contract'],
+              'production_adapter_implementation_available': False,
+              'provenance_schema': provenance['schema'],
+              'historical_baseline_files': provenance['counts']['baseline_files'],
+              'exact_historical_files': provenance['counts']['exact_historical'],
+              'reviewed_successor_files': provenance['counts']['reviewed_successor'],
+              'new_qualification_files': provenance['counts']['new_qualification'],
+              'provenance_manifest_blob_sha': git('rev-parse', 'HEAD:docs/contracts/trillionnium-world-authority-provenance-v1.json'),
+              'provenance_manifest_sha256': sha256(provenance_path),
+              'provenance_checker_blob_sha': git('rev-parse', 'HEAD:scripts/check-trnm-world-authority-provenance.py'),
+              'provenance_checker_sha256': sha256(checker_path),
+              'production_authorization': 'not_granted',
+              'no_dual_writer_claim': False,
+              'qualification_scope': [
+                  'immutable_historical_origin',
+                  'exact_reviewed_successor_inventory',
+                  'strict_machine_truth',
+                  'format_all_target_tests_clippy',
+                  'fixture_listener_policy',
+                  'production_adapter_contract_shape_only',
+                  'source_head_runtime_smokes',
+                  'prospective_merge_runtime_smokes',
+                  'development_file_repository_restart_reload',
+              ],
+          }
+          (out / 'source-evidence-summary.json').write_text(json.dumps(summary, indent=2, sort_keys=True) + '\n')
+          artifact_paths = sorted(path for path in out.iterdir() if path.is_file() and path.name != 'artifact-manifest.json')
+          manifest = {
+              'schema': 'trillionnium.world.authority.artifact-manifest.v1',
+              'source_head_sha': os.environ['SOURCE_HEAD_SHA'],
+              'prospective_merge_tree': os.environ['PROSPECTIVE_MERGE_TREE'],
+              'files': [
+                  {'path': path.name, 'bytes': path.stat().st_size, 'sha256': sha256(path)}
+                  for path in artifact_paths
+              ],
+          }
+          (out / 'artifact-manifest.json').write_text(json.dumps(manifest, indent=2, sort_keys=True) + '\n')
+          PY
+
+      - name: Upload immutable qualification evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: trnm-world-authority-source-${{ env.SOURCE_HEAD_SHA }}
+          path: run/ci-world-authority/**
+          if-no-files-found: error
+          retention-days: 90
+
+  authority-status-evidence:
+    name: trnm-world-status-evidence
+    needs: authority-source-qualification
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout the same exact source head
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ env.SOURCE_HEAD_SHA }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify current status remains truth-bound and non-production
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$SOURCE_HEAD_SHA"
+          python3 scripts/check-trnm-world-machine-truth.py
+          python3 scripts/check-trnm-world-authority-provenance.py \
+            --repo-root . \
+            --manifest docs/contracts/trillionnium-world-authority-provenance-v1.json \
+            --self-test
+          PYTHONPATH=scripts python3 - <<'PY'
+          import pathlib
+          from trnm_world_strict_json import load_strict_json
+
+          contract = load_strict_json(pathlib.Path('docs/contracts/trillionnium-world-authority-cutover-v1.json'))
+          provenance = load_strict_json(pathlib.Path('docs/contracts/trillionnium-world-authority-provenance-v1.json'))
+          production = contract['profiles']['production']
+          if contract.get('production_authorization') != 'not_granted':
+              raise SystemExit('authority contract must remain non-production')
+          if provenance.get('schema') != 'trillionnium.world.authority.provenance.v2':
+              raise SystemExit('provenance schema drift')
+          if provenance.get('counts') != {
+              'baseline_trees': 7,
+              'baseline_files': 15,
+              'current_trees': 7,
+              'current_files': 27,
+              'exact_historical': 13,
+              'reviewed_successor': 2,
+              'new_qualification': 12,
+          }:
+              raise SystemExit('provenance count contract drift')
+          if production.get('implementation_state') != 'absent':
+              raise SystemExit('production implementations were asserted without evidence')
+          if production.get('exact_head_qualified') is not False:
+              raise SystemExit('production qualification was asserted without evidence')
+          if contract.get('authority_rule') != 'world_repository_is_the_only_world_state_writer':
+              raise SystemExit('single-writer rule missing')
+          print('World authority source status is truth-bound; production authorization remains not_granted')
+          PY
