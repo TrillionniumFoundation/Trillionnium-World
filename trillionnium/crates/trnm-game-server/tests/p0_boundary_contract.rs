@@ -97,12 +97,18 @@ fn settlement_external_io_is_not_owned_by_a_database_transaction_function() {
         "for share",
     ];
     let external_markers = [
-        ".reconcile_economy(",
         ".execute_authoritative(",
+        ".authorize_settlement_intent(",
+        ".submit_authorized_settlement_intent(",
+        ".readiness().await",
+        ".send().await",
         ".blocking_client",
     ];
+    let reconciliation_marker = ".reconcile_economy(";
+    let captured_backend_marker = "CapturedReceiptBackend";
 
     let mut reconcile_count = 0usize;
+    let mut captured_transaction_reconcile_count = 0usize;
     let mut violations = Vec::new();
     for path in files {
         let source = fs::read_to_string(&path)
@@ -112,22 +118,40 @@ fn settlement_external_io_is_not_owned_by_a_database_transaction_function() {
             let has_transaction = transaction_markers
                 .iter()
                 .any(|marker| body.contains(marker));
-            if body.contains(".reconcile_economy(") {
+            let has_reconciliation = body.contains(reconciliation_marker);
+            if has_reconciliation {
                 reconcile_count += 1;
             }
+            if has_transaction && has_reconciliation {
+                if body.contains(captured_backend_marker) {
+                    captured_transaction_reconcile_count += 1;
+                } else {
+                    violations.push(format!(
+                        "{}::{name} reconciles economy under a transaction without the reviewed captured-receipt backend",
+                        path.display()
+                    ));
+                }
+            }
             if has_external && has_transaction {
-                violations.push(format!("{}::{name}", path.display()));
+                violations.push(format!(
+                    "{}::{name} performs remote settlement I/O while owning a database transaction",
+                    path.display()
+                ));
             }
         }
     }
 
     assert!(
         reconcile_count > 0,
-        "the synchronous economy backend marker disappeared; update ADR-0002 and this reviewed contract with its replacement"
+        "the economy reconciliation marker disappeared; update ADR-0002 and this reviewed contract with its replacement"
+    );
+    assert!(
+        captured_transaction_reconcile_count > 0,
+        "the reviewed captured-receipt reconciliation boundary disappeared; update this contract with its replacement"
     );
     assert!(
         violations.is_empty(),
-        "external settlement work shares a transaction-owning function: {violations:?}"
+        "settlement transaction boundary violations: {violations:?}"
     );
 }
 
