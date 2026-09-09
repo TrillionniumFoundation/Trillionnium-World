@@ -121,7 +121,10 @@ impl PlayerSettingsStore {
     }
 }
 
-fn atomic_write_json<T: Serialize>(path: &Path, value: &T) -> Result<(), CampaignError> {
+pub(crate) fn atomic_write_json<T: Serialize>(
+    path: &Path,
+    value: &T,
+) -> Result<(), CampaignError> {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)?;
     }
@@ -136,4 +139,3 @@ fn atomic_write_json<T: Serialize>(path: &Path, value: &T) -> Result<(), Campaig
     }
     Ok(())
 }
-
