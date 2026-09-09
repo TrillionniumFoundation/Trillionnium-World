@@ -76,6 +76,10 @@ assert catalog['truth_order'][:3]==['PROJECT_BOUNDARY.md','CURRENT_PLAN.md','doc
 PY
     ;;
   source)
+    py scripts/check-trnm-world-component-catalog.py
+    py scripts/test-trnm-world-component-catalog.py
+    py scripts/check-trnm-world-operational-surfaces.py
+    py scripts/test-trnm-world-operational-surfaces.py
     py scripts/check-trnm-world-transition-conformance.py
     py scripts/check-trnm-world-include-boundaries.py
     py scripts/test-trnm-world-include-boundaries.py
