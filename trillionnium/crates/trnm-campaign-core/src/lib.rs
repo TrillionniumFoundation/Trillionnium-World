@@ -102,5 +102,8 @@ pub use campaign_storage::*;
 // Ownership section: economy_commands. Ordinary Git-tracked source.
 include!("lib_parts/economy_commands/part_01.rs");
 
-// Ownership section: tests. Ordinary Git-tracked source.
-include!("lib_parts/tests/part_01.rs");
+// Test ownership keeps the historical `crate::tests` namespace while replacing
+// the crate-root textual inclusion with an ordinary cfg-gated Rust module.
+#[cfg(test)]
+#[path = "lib_parts/tests/part_01.rs"]
+mod tests;
