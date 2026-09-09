@@ -88,6 +88,7 @@ mod player_settings {
     include!("lib_parts/player_settings/part_01.rs");
 }
 pub use player_settings::*;
+use player_settings::atomic_write_json;
 
 // Ownership section: campaign_storage. Ordinary Git-tracked source.
 include!("lib_parts/campaign_storage/part_01.rs");
