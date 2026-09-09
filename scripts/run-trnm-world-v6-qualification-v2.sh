@@ -38,9 +38,27 @@ case "$scope" in
     python3 - <<'PY'
 from pathlib import Path
 import json
-for path in ('CURRENT_PLAN.md','PROJECT_BOUNDARY.json','docs/catalog.json','rust-toolchain.toml'):
-    target=Path(path)
+
+required = (
+    'CURRENT_PLAN.md',
+    'PROJECT_BOUNDARY.json',
+    'docs/catalog.json',
+    'rust-toolchain.toml',
+    'RELEASE_READINESS.md',
+    'docs/development/trnm-world-gap-closure-ledger-v6.json',
+    'docs/integration/trnm-world-cex-current-pending-lock-v2.json',
+    'docs/release/trnm-world-external-execution-board-v1.json',
+    'docs/status/world-plan-v4-execution-truth-2026-09-08.json',
+)
+for path in required:
+    target = Path(path)
     assert target.is_file() and target.stat().st_size > 0, path
+
+plan = Path('CURRENT_PLAN.md').read_text(encoding='utf-8')
+assert 'docs/development/TRILLIONNIUM_WORLD_CLOSURE_EXECUTION_BOARD_V5.md' not in plan
+for path in required[4:]:
+    assert f'`{path}`' in plan, path
+
 boundary=json.loads(Path('PROJECT_BOUNDARY.json').read_text(encoding='utf-8'))
 assert boundary['project_id']=='trillionnium-world'
 assert boundary['lane']=='game-product'
