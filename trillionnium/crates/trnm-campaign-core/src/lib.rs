@@ -73,28 +73,41 @@ include!("lib_parts/campaign_commands/part_05.rs");
 // Ownership section: campaign_commands. Ordinary Git-tracked source.
 include!("lib_parts/campaign_commands/part_06.rs");
 
-// Ownership section: rts_mapping. Ordinary Git-tracked source.
-include!("lib_parts/rts_mapping/part_01.rs");
+// RTS mapping is an explicit module. Public mapping APIs remain exported, while
+// helpers retain their former crate-wide visibility without becoming public.
+#[path = "lib_parts/rts_mapping/part_01.rs"]
+mod rts_mapping;
+pub use rts_mapping::{map_rpg_to_rts_stats, typed_equipment_modifier};
+pub(crate) use rts_mapping::{
+    apply_campaign_growth, apply_conditional_equipment_affixes, apply_expedition_readiness,
+    apply_regional_skills_and_sect, canonical_json_hash, character_item_conditions, consume_loot,
+    current_sect, equipped_item_ids, merge_loot, remove_origin_bonus, require_supplies,
+};
 
-// Ownership section: save_slots. Ordinary Git-tracked source.
-include!("lib_parts/save_slots/part_01.rs");
+// Save slots own slot enumeration and filesystem routing behind an explicit
+// module boundary while preserving the existing crate-root API.
+#[path = "lib_parts/save_slots/part_01.rs"]
+mod save_slots;
+pub use save_slots::*;
 
-// Player settings are the first ownership section promoted from crate-root text
-// inclusion into a real Rust module boundary. The temporary `use super::*`
-// keeps the semantic dependency surface unchanged while the public API remains
-// available at the crate root; later tranches narrow these imports explicitly.
-mod player_settings {
-    use super::*;
-    include!("lib_parts/player_settings/part_01.rs");
-}
+// Player settings own migration/default/persistence behavior behind an explicit
+// module boundary while preserving the existing crate-root public API.
+#[path = "lib_parts/player_settings/part_01.rs"]
+mod player_settings;
 use player_settings::atomic_write_json;
 pub use player_settings::*;
 
-// Ownership section: campaign_storage. Ordinary Git-tracked source.
-include!("lib_parts/campaign_storage/part_01.rs");
+// Campaign storage owns persistence orchestration behind an explicit Rust
+// module boundary. Its public API remains available at the crate root.
+#[path = "lib_parts/campaign_storage/part_01.rs"]
+mod campaign_storage;
+pub use campaign_storage::*;
 
 // Ownership section: economy_commands. Ordinary Git-tracked source.
 include!("lib_parts/economy_commands/part_01.rs");
 
-// Ownership section: tests. Ordinary Git-tracked source.
-include!("lib_parts/tests/part_01.rs");
+// Test ownership keeps the historical `crate::tests` namespace while replacing
+// the crate-root textual inclusion with an ordinary cfg-gated Rust module.
+#[cfg(test)]
+#[path = "lib_parts/tests/part_01.rs"]
+mod tests;

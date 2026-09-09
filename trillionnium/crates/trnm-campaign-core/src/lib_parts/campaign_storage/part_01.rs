@@ -1,3 +1,5 @@
+use super::*;
+
 #[derive(Debug, Clone)]
 pub struct CampaignStore {
     path: PathBuf,
@@ -88,4 +90,3 @@ impl CampaignStore {
         self.settle_atomic(save)
     }
 }
-
