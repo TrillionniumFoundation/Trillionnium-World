@@ -17,7 +17,7 @@ The current convergence and evidence authorities are:
 - `RELEASE_READINESS.md`
 - `docs/status/world-plan-v4-execution-truth-2026-09-08.json`
 
-Historical plans, ledgers and coordination locks remain provenance only. The V6 ledger, current external-execution board and current coordination lock govern current object selection; accepted ADRs and `PROJECT_BOUNDARY.*` remain binding. The qualification entrypoint rejects a missing authority file and rejects reintroduction of the nonexistent historical V5 board path.
+Historical plans, ledgers and coordination locks remain provenance only. The V6 ledger, current external-execution board and current coordination lock govern current object selection; accepted ADRs and `PROJECT_BOUNDARY.*` remain binding. The qualification entrypoint rejects a missing authority file and rejects reintroduction of the obsolete untracked V5 board reference.
 
 ## Operative candidate
 
@@ -53,7 +53,7 @@ ADR `docs/adr/0003-world-domain-authority-and-nakama-canonical-online.md` remain
 
 The current ordinary source is reviewable and retains detailed contracts for all active and isolated World-authority crates, PostgreSQL base/hardening/catalog-fingerprint contracts, strict bounded JSON parsing, an unconditional pull-request documentation gate and read-only evidence workflows. These are `closed_candidate` source facts, not independently executed qualification. Historical Rust 1.98.0 artifact evidence does not transfer; the final candidate must execute under Rust 1.98.1.
 
-The prior plan referenced `docs/development/TRILLIONNIUM_WORLD_CLOSURE_EXECUTION_BOARD_V5.md`, which does not exist in the candidate tree. The current authority is the tracked and catalogued `docs/release/trnm-world-external-execution-board-v1.json`; the exact truth qualification now checks this reference and the other current authority files fail closed.
+The prior plan named an untracked V5 Markdown closure board that does not exist in the candidate tree. The current authority is the tracked and catalogued `docs/release/trnm-world-external-execution-board-v1.json`; the exact truth qualification checks this reference and the other current authority files fail closed.
 
 ## Current repository observations
 
