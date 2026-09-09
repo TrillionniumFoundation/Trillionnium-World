@@ -51,7 +51,7 @@ Telemetry records fragment/projection/source versions, output type/item count/by
 
 ## Test and evidence traceability
 
-Primary source is `trillionnium/crates/world-authority/trnm-world-ui-fragments/src/lib.rs`. Normative neighbors include ADR-0003, the projection/API/server designs, authority contract JSON and the browser-parity tests exercised by `scripts/check-trnm-world-authority-cutover.sh`. Tests cover quotes/control/CJK/HTML/script payloads, attribute/text escaping, deterministic output, disabled movement, target mapping, output bounds and bilingual/accessibility attributes. Browser, CSP, screen-reader and human usability evidence remains separate.
+Primary source is `trillionnium/crates/world-authority/trnm-world-ui-fragments/src/lib.rs`. Normative documents are `docs/adr/0003-world-domain-authority-and-nakama-canonical-online.md`, the projection/API/server designs under `docs/modules/world-authority/`, and `docs/contracts/trillionnium-world-authority-cutover-v1.json`. Executable trace checks are `scripts/check-trnm-world-authority-documentation.py` and `scripts/check-trnm-world-authority-cutover.sh`. Tests cover quotes, controls, CJK and HTML/script payloads; attribute/text escaping; deterministic output; disabled movement; target mapping; output bounds; and bilingual/accessibility attributes. Browser, CSP, screen-reader and human usability evidence remains separate.
 
 ## Change checklist and open work
 

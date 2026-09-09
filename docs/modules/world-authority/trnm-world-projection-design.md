@@ -51,7 +51,7 @@ Telemetry records projection contract, source aggregate revision/hash, source ev
 
 ## Test and evidence traceability
 
-Primary source is `trillionnium/crates/world-authority/trnm-world-projection/src/lib.rs`. Normative neighbors are ADR-0003, the domain and UI/API module designs, cutover architecture/contract JSON and server parity tests. Crate tests and `scripts/check-trnm-world-authority-cutover.sh` cover deterministic ordering, stable IDs, source binding, route/status combinations, missing/duplicate records, bounds, hostile strings and golden JSON. Browser/human/public evidence is separate.
+Primary source is `trillionnium/crates/world-authority/trnm-world-projection/src/lib.rs`. Normative documents are `docs/adr/0003-world-domain-authority-and-nakama-canonical-online.md`, `docs/architecture/cex-world-authority-cutover-v1.md`, and the sibling domain/UI/API/server designs under `docs/modules/world-authority/`. Executable trace checks are `scripts/check-trnm-world-authority-documentation.py` and `scripts/check-trnm-world-authority-cutover.sh`. Crate and server parity tests cover deterministic ordering, stable IDs, source binding, route/status combinations, missing/duplicate records, bounds, hostile strings and golden JSON. Browser, human and public-network evidence remains separate.
 
 ## Change checklist and open work
 
