@@ -77,6 +77,8 @@ PY
     ;;
   source)
     py scripts/check-trnm-world-transition-conformance.py
+    py scripts/check-trnm-world-include-boundaries.py
+    py scripts/test-trnm-world-include-boundaries.py
     for gate in \
       scripts/check_trnm_game_product.sh \
       scripts/check_trnm_authority_boundary.sh \
