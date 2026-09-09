@@ -52,5 +52,7 @@ include!("lib_parts/replay/part_01.rs");
 mod checkpoint_storage;
 pub use checkpoint_storage::*;
 
-// Ownership section: tests. Ordinary Git-tracked source.
-include!("lib_parts/tests/part_01.rs");
+// Ownership section: tests. Explicit ordinary Rust module.
+#[cfg(test)]
+#[path = "lib_parts/tests/part_01.rs"]
+mod tests;
