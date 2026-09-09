@@ -107,15 +107,14 @@ fn mask_rust_comments_and_literals(source: &str) -> String {
             }
             continue;
         }
-        let string_prefix = if bytes[cursor..].starts_with(b"b\"")
-            || bytes[cursor..].starts_with(b"c\"")
-        {
-            2
-        } else if bytes[cursor] == b'"' {
-            1
-        } else {
-            0
-        };
+        let string_prefix =
+            if bytes[cursor..].starts_with(b"b\"") || bytes[cursor..].starts_with(b"c\"") {
+                2
+            } else if bytes[cursor] == b'"' {
+                1
+            } else {
+                0
+            };
         if string_prefix > 0 {
             for index in cursor..cursor + string_prefix {
                 blank(&mut masked, index);
@@ -278,11 +277,7 @@ fn captured_backend_binding_before(code: &str, call_start: usize, identifier: &s
         let Some((left, right)) = binding.split_once('=') else {
             continue;
         };
-        let bound_name = left
-            .split(':')
-            .next()
-            .unwrap_or_default()
-            .trim();
+        let bound_name = left.split(':').next().unwrap_or_default().trim();
         if bound_name == identifier
             && (right.trim_start().starts_with("CapturedReceiptBackend")
                 || right.contains("::CapturedReceiptBackend"))
