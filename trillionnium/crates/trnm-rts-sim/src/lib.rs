@@ -47,8 +47,10 @@ include!("lib_parts/simulation_helpers/part_01.rs");
 // Ownership section: replay. Ordinary Git-tracked source.
 include!("lib_parts/replay/part_01.rs");
 
-// Ownership section: checkpoint_storage. Ordinary Git-tracked source.
-include!("lib_parts/checkpoint_storage/part_01.rs");
+// Ownership section: checkpoint_storage. Explicit ordinary Rust module.
+#[path = "lib_parts/checkpoint_storage/part_01.rs"]
+mod checkpoint_storage;
+pub use checkpoint_storage::*;
 
 // Ownership section: tests. Ordinary Git-tracked source.
 include!("lib_parts/tests/part_01.rs");

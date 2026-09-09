@@ -1,3 +1,5 @@
+use super::*;
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SimCheckpointV1 {
     pub contract_version: String,
@@ -90,4 +92,3 @@ impl SimCheckpointStore {
         }
     }
 }
-
