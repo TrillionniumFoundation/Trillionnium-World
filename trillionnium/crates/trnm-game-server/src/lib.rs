@@ -68,5 +68,7 @@ include!("lib_parts/actor_runtime/part_03.rs");
 // Ownership section: campaign_persistence. Ordinary Git-tracked source.
 include!("lib_parts/campaign_persistence/part_01.rs");
 
-// Ownership section: tests. Ordinary Git-tracked source.
-include!("lib_parts/tests/part_01.rs");
+// Ownership section: tests. Explicit ordinary Rust module.
+#[cfg(test)]
+#[path = "lib_parts/tests/part_01.rs"]
+mod tests;
