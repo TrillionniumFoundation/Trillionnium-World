@@ -1,3 +1,5 @@
+use super::*;
+
 pub fn typed_equipment_modifier(item_id: &str) -> TypedEquipmentModifier {
     let mut modifier = TypedEquipmentModifier {
         item_id: item_id.to_string(),
@@ -79,7 +81,7 @@ pub fn typed_equipment_modifier(item_id: &str) -> TypedEquipmentModifier {
     modifier
 }
 
-fn apply_conditional_equipment_affixes(
+pub(crate) fn apply_conditional_equipment_affixes(
     stats: &mut RtsUnitStats,
     equipment_ids: &[String],
     origin: CharacterOrigin,
@@ -142,7 +144,10 @@ fn apply_conditional_equipment_affixes(
     }
 }
 
-fn remove_origin_bonus(origin: CharacterOrigin, attributes: &mut TrillionniumAttributes) {
+pub(crate) fn remove_origin_bonus(
+    origin: CharacterOrigin,
+    attributes: &mut TrillionniumAttributes,
+) {
     match origin {
         CharacterOrigin::Balanced => {
             attributes.physique = attributes.physique.saturating_sub(2);
@@ -201,7 +206,7 @@ pub fn map_rpg_to_rts_stats(
     stats
 }
 
-fn apply_campaign_growth(stats: &mut RtsUnitStats, level: u32, reputation: i32) {
+pub(crate) fn apply_campaign_growth(stats: &mut RtsUnitStats, level: u32, reputation: i32) {
     let growth = level.saturating_sub(1).min(12);
     let morale = reputation.clamp(0, 40) as u32;
     stats.max_hp = stats
@@ -216,7 +221,10 @@ fn apply_campaign_growth(stats: &mut RtsUnitStats, level: u32, reputation: i32) 
         .saturating_add(morale / 2);
 }
 
-fn apply_expedition_readiness(stats: &mut RtsUnitStats, readiness: &ExpeditionReadiness) {
+pub(crate) fn apply_expedition_readiness(
+    stats: &mut RtsUnitStats,
+    readiness: &ExpeditionReadiness,
+) {
     let stamina_permille = 700_u32.saturating_add(u32::from(readiness.stamina) * 3);
     stats.max_hp = (stats.max_hp.saturating_mul(stamina_permille) / 1000).max(1);
     stats.move_speed_milli =
@@ -233,7 +241,7 @@ fn apply_expedition_readiness(stats: &mut RtsUnitStats, readiness: &ExpeditionRe
     }
 }
 
-fn apply_regional_skills_and_sect(
+pub(crate) fn apply_regional_skills_and_sect(
     stats: &mut RtsUnitStats,
     skill_ids: &[String],
     sect: Option<SectId>,
@@ -300,7 +308,7 @@ fn apply_regional_skills_and_sect(
     }
 }
 
-fn require_supplies(
+pub(crate) fn require_supplies(
     supplies: &ExpeditionSupplyState,
     rations: u8,
     water: u8,
@@ -314,11 +322,11 @@ fn require_supplies(
     }
 }
 
-fn add_signed(value: u32, delta: i32, minimum: u32) -> u32 {
+pub(crate) fn add_signed(value: u32, delta: i32, minimum: u32) -> u32 {
     (value as i64 + delta as i64).max(minimum as i64) as u32
 }
 
-fn equipped_item_ids(character: &WorldTrillionniumCharacter) -> Vec<String> {
+pub(crate) fn equipped_item_ids(character: &WorldTrillionniumCharacter) -> Vec<String> {
     let equipped_instances = character
         .equipment_slots
         .values()
@@ -334,7 +342,7 @@ fn equipped_item_ids(character: &WorldTrillionniumCharacter) -> Vec<String> {
     ids
 }
 
-fn character_item_conditions(
+pub(crate) fn character_item_conditions(
     character: &WorldTrillionniumCharacter,
 ) -> BTreeMap<String, ItemCondition> {
     character
@@ -348,7 +356,7 @@ fn character_item_conditions(
         .collect()
 }
 
-fn current_sect(character: &WorldTrillionniumCharacter) -> Option<SectId> {
+pub(crate) fn current_sect(character: &WorldTrillionniumCharacter) -> Option<SectId> {
     match character.sect_id.as_deref()? {
         "signal-road-school" | "street_compass_society" => Some(SectId::StreetCompass),
         "iron_workshop_gate" => Some(SectId::IronWorkshop),
@@ -357,7 +365,7 @@ fn current_sect(character: &WorldTrillionniumCharacter) -> Option<SectId> {
     }
 }
 
-fn merge_loot(inventory: &mut Vec<LootStack>, loot: &[LootStack]) {
+pub(crate) fn merge_loot(inventory: &mut Vec<LootStack>, loot: &[LootStack]) {
     for incoming in loot {
         if let Some(existing) = inventory
             .iter_mut()
@@ -371,7 +379,7 @@ fn merge_loot(inventory: &mut Vec<LootStack>, loot: &[LootStack]) {
     inventory.sort_by(|left, right| left.item_id.cmp(&right.item_id));
 }
 
-fn consume_loot(
+pub(crate) fn consume_loot(
     inventory: &mut Vec<LootStack>,
     item_id: &str,
     quantity: u16,
@@ -385,9 +393,8 @@ fn consume_loot(
     Ok(())
 }
 
-fn canonical_json_hash<T: Serialize>(value: &T) -> Result<String, CampaignError> {
+pub(crate) fn canonical_json_hash<T: Serialize>(value: &T) -> Result<String, CampaignError> {
     let bytes = serde_json::to_vec(value)?;
     let digest = Sha256::digest(bytes);
     Ok(digest.iter().map(|byte| format!("{byte:02x}")).collect())
 }
-

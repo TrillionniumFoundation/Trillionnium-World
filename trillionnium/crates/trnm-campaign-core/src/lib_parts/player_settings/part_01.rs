@@ -1,3 +1,5 @@
+use super::*;
+
 pub const PLAYER_SETTINGS_CONTRACT: &str = "trnm_player_settings_v2";
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -121,10 +123,7 @@ impl PlayerSettingsStore {
     }
 }
 
-pub(crate) fn atomic_write_json<T: Serialize>(
-    path: &Path,
-    value: &T,
-) -> Result<(), CampaignError> {
+pub(crate) fn atomic_write_json<T: Serialize>(path: &Path, value: &T) -> Result<(), CampaignError> {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)?;
     }

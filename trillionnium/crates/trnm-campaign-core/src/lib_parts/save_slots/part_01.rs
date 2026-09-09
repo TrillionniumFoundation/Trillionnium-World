@@ -1,3 +1,5 @@
+use super::*;
+
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum SaveSlotId {
@@ -157,4 +159,3 @@ impl SaveSlotStore {
             .collect()
     }
 }
-
