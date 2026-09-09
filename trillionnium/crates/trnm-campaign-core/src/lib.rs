@@ -77,12 +77,12 @@ include!("lib_parts/campaign_commands/part_06.rs");
 // helpers retain their former crate-wide visibility without becoming public.
 #[path = "lib_parts/rts_mapping/part_01.rs"]
 mod rts_mapping;
-pub use rts_mapping::{map_rpg_to_rts_stats, typed_equipment_modifier};
 pub(crate) use rts_mapping::{
     apply_campaign_growth, apply_conditional_equipment_affixes, apply_expedition_readiness,
     apply_regional_skills_and_sect, canonical_json_hash, character_item_conditions, consume_loot,
     current_sect, equipped_item_ids, merge_loot, remove_origin_bonus, require_supplies,
 };
+pub use rts_mapping::{map_rpg_to_rts_stats, typed_equipment_modifier};
 
 // Save slots own slot enumeration and filesystem routing behind an explicit
 // module boundary while preserving the existing crate-root API.
