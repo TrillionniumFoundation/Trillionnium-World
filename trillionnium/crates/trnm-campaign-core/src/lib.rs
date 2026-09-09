@@ -83,10 +83,8 @@ include!("lib_parts/save_slots/part_01.rs");
 // inclusion into a real Rust module boundary. The temporary `use super::*`
 // keeps the semantic dependency surface unchanged while the public API remains
 // available at the crate root; later tranches narrow these imports explicitly.
-mod player_settings {
-    use super::*;
-    include!("lib_parts/player_settings/part_01.rs");
-}
+#[path = "lib_parts/player_settings/part_01.rs"]
+mod player_settings;
 use player_settings::atomic_write_json;
 pub use player_settings::*;
 

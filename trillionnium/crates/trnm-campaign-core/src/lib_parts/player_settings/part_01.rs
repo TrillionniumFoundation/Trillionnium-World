@@ -1,3 +1,5 @@
+use super::*;
+
 pub const PLAYER_SETTINGS_CONTRACT: &str = "trnm_player_settings_v2";
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
