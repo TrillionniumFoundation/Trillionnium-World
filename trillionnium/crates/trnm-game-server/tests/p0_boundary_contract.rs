@@ -593,6 +593,25 @@ fn call_uses_captured_backend(code: &str, call_start: usize, argument: &str) -> 
             .is_some_and(|identifier| captured_backend_binding_before(code, call_start, identifier))
 }
 
+// This is the only reviewed production source shape that is allowed to apply a
+// captured receipt while owning the local PostgreSQL transaction. It is kept as
+// an exact, whitespace-insensitive suffix rather than a broad type-name or
+// function-name exception: inserting another statement, returning a different
+// value, rebinding `backend`, changing the receipt or changing the call target
+// makes the contract fail closed and requires an explicit review update.
+fn exact_apply_capture_backend_call(code: &str, call_start: usize, argument: &str) -> bool {
+    if borrowed_identifier(argument) != Some("backend") {
+        return false;
+    }
+    let compact = code[..call_start]
+        .chars()
+        .filter(|character| !character.is_whitespace())
+        .collect::<String>();
+    compact.ends_with(
+        "letbackend=CapturedReceiptBackend{receipt,wallet_snapshot:job.wallet_snapshot.clone(),};letreport=matchcampaign.campaign",
+    )
+}
+
 fn transaction_reconciliation_counts(source: &str) -> (usize, usize, Vec<String>) {
     let code = mask_rust_comments_and_literals(source);
     let external_markers = [
@@ -624,7 +643,10 @@ fn transaction_reconciliation_counts(source: &str) -> (usize, usize, Vec<String>
 
         if has_transaction {
             for (call_start, argument) in calls {
-                if call_uses_captured_backend(code_body, call_start, argument) {
+                if call_uses_captured_backend(code_body, call_start, argument)
+                    || (name == "apply_capture"
+                        && exact_apply_capture_backend_call(code_body, call_start, argument))
+                {
                     captured_transaction_reconcile_count += 1;
                 } else {
                     violations.push(format!(
@@ -676,12 +698,12 @@ fn settlement_external_io_is_not_owned_by_a_database_transaction_function() {
         "the economy reconciliation marker disappeared; update ADR-0002 and this reviewed contract with its replacement"
     );
     assert!(
-        captured_transaction_reconcile_count > 0,
-        "the reviewed captured-receipt reconciliation boundary disappeared; update this contract with its replacement"
-    );
-    assert!(
         violations.is_empty(),
         "settlement transaction boundary violations: {violations:?}"
+    );
+    assert!(
+        captured_transaction_reconcile_count > 0,
+        "the reviewed captured-receipt reconciliation boundary disappeared; update this contract with its replacement"
     );
 }
 
@@ -727,6 +749,20 @@ fn captured_receipt_exception_is_bound_to_the_actual_argument_value() {
                     &CapturedReceiptBackend::from_receipt(receipt),
                     1,
                 )?;
+                transaction.commit().await?;
+            }
+        "#,
+        r#"
+            async fn apply_capture() {
+                let mut transaction = pool.begin().await?;
+                let backend = CapturedReceiptBackend {
+                    receipt,
+                    wallet_snapshot: job.wallet_snapshot.clone(),
+                };
+                let report = match campaign.campaign.reconcile_economy(&backend, 1) {
+                    Ok(report) => report,
+                    Err(error) => return Err(error),
+                };
                 transaction.commit().await?;
             }
         "#,
@@ -833,6 +869,21 @@ fn captured_receipt_exception_is_bound_to_the_actual_argument_value() {
                     remote
                 };
                 campaign.reconcile_economy(&backend, 8)?;
+                transaction.commit().await?;
+            }
+        "#,
+        r#"
+            async fn apply_capture() {
+                let mut transaction = pool.begin().await?;
+                let backend = CapturedReceiptBackend {
+                    receipt,
+                    wallet_snapshot: job.wallet_snapshot.clone(),
+                };
+                let _unexpected = remote_side_effect();
+                let report = match campaign.campaign.reconcile_economy(&backend, 1) {
+                    Ok(report) => report,
+                    Err(error) => return Err(error),
+                };
                 transaction.commit().await?;
             }
         "#,
