@@ -336,11 +336,7 @@ fn simple_let_binding(code: &str, start: usize) -> Option<(usize, String, bool)>
             b'}' => curly -= 1,
             b';' if round == 0 && square == 0 && curly == 0 => {
                 let initializer = &code[initializer_start..cursor];
-                return Some((
-                    cursor + 1,
-                    name,
-                    captured_backend_constructor(initializer),
-                ));
+                return Some((cursor + 1, name, captured_backend_constructor(initializer)));
             }
             _ => {}
         }
