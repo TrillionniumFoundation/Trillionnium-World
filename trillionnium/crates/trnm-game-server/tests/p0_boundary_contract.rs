@@ -53,7 +53,10 @@ fn identifier_byte(byte: u8) -> bool {
 
 fn lifetime_or_label(bytes: &[u8], quote: usize) -> bool {
     let mut cursor = quote + 1;
-    if !bytes.get(cursor).is_some_and(|byte| identifier_start(*byte)) {
+    if !bytes
+        .get(cursor)
+        .is_some_and(|byte| identifier_start(*byte))
+    {
         return false;
     }
     cursor += 1;
@@ -312,7 +315,10 @@ fn reconciliation_calls(code: &str) -> Vec<(usize, &str)> {
 }
 
 fn skip_ascii_whitespace(bytes: &[u8], mut cursor: usize) -> usize {
-    while bytes.get(cursor).is_some_and(|byte| byte.is_ascii_whitespace()) {
+    while bytes
+        .get(cursor)
+        .is_some_and(|byte| byte.is_ascii_whitespace())
+    {
         cursor += 1;
     }
     cursor
@@ -368,7 +374,9 @@ fn consume_balanced_group(bytes: &[u8], open: usize) -> Option<usize> {
 }
 
 fn only_ascii_whitespace(bytes: &[u8], cursor: usize) -> bool {
-    bytes[cursor..].iter().all(|byte| byte.is_ascii_whitespace())
+    bytes[cursor..]
+        .iter()
+        .all(|byte| byte.is_ascii_whitespace())
 }
 
 fn exact_captured_backend_constructor(value: &str) -> bool {
@@ -443,7 +451,10 @@ fn simple_let_binding(code: &str, start: usize) -> Option<(usize, String, Bindin
         return None;
     }
     let mut cursor = start + 3;
-    if !bytes.get(cursor).is_some_and(|byte| byte.is_ascii_whitespace()) {
+    if !bytes
+        .get(cursor)
+        .is_some_and(|byte| byte.is_ascii_whitespace())
+    {
         return None;
     }
     cursor = skip_ascii_whitespace(bytes, cursor);
@@ -505,11 +516,7 @@ fn simple_assignment(code: &str, start: usize) -> Option<(usize, String, Binding
     Some((initializer_end + 1, name, kind))
 }
 
-fn record_assignment(
-    scopes: &mut [Vec<(String, BindingKind)>],
-    name: String,
-    kind: BindingKind,
-) {
+fn record_assignment(scopes: &mut [Vec<(String, BindingKind)>], name: String, kind: BindingKind) {
     for scope in scopes.iter_mut().rev() {
         if scope.iter().rev().any(|(candidate, _)| candidate == &name) {
             scope.push((name, kind));
@@ -727,7 +734,10 @@ fn captured_receipt_exception_is_bound_to_the_actual_argument_value() {
     for source in accepted {
         let (_, captured, violations) = transaction_reconciliation_counts(source);
         assert_eq!(captured, 1, "captured fixture was not recognized");
-        assert!(violations.is_empty(), "captured fixture failed: {violations:?}");
+        assert!(
+            violations.is_empty(),
+            "captured fixture failed: {violations:?}"
+        );
     }
 
     let rejected = [
@@ -856,7 +866,8 @@ fn literal_masker_is_total_and_preserves_lifetime_syntax() {
         assert_eq!(masked.len(), expected_len);
     }
 
-    let source = "fn chars<'a>(value: &'a str) { let a = 'x'; let b = '\\''; let c = 'é'; let d = b'z'; }";
+    let source =
+        "fn chars<'a>(value: &'a str) { let a = 'x'; let b = '\\''; let c = 'é'; let d = b'z'; }";
     let masked = mask_rust_comments_and_literals(source);
     assert!(masked.contains("'a"));
     assert!(!masked.contains("'x'"));
