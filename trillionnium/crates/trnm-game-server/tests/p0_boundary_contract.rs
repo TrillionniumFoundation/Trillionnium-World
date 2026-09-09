@@ -263,50 +263,145 @@ fn borrowed_identifier(argument: &str) -> Option<&str> {
     .then_some(argument)
 }
 
+fn identifier_byte(byte: u8) -> bool {
+    byte.is_ascii_alphanumeric() || byte == b'_'
+}
+
+fn keyword_at(bytes: &[u8], start: usize, keyword: &[u8]) -> bool {
+    bytes.get(start..start + keyword.len()) == Some(keyword)
+        && (start == 0 || !identifier_byte(bytes[start - 1]))
+        && bytes
+            .get(start + keyword.len())
+            .is_none_or(|byte| !identifier_byte(*byte))
+}
+
+fn captured_backend_constructor(value: &str) -> bool {
+    let value = value.trim_start();
+    value.starts_with("CapturedReceiptBackend {")
+        || value.starts_with("CapturedReceiptBackend::")
+        || value.contains("::CapturedReceiptBackend {")
+        || value.contains("::CapturedReceiptBackend::")
+}
+
+fn simple_let_binding(code: &str, start: usize) -> Option<(usize, String, bool)> {
+    let bytes = code.as_bytes();
+    if !keyword_at(bytes, start, b"let") {
+        return None;
+    }
+    let mut cursor = start + 3;
+    if !bytes.get(cursor).is_some_and(u8::is_ascii_whitespace) {
+        return None;
+    }
+    while bytes.get(cursor).is_some_and(u8::is_ascii_whitespace) {
+        cursor += 1;
+    }
+    if keyword_at(bytes, cursor, b"mut") {
+        cursor += 3;
+        while bytes.get(cursor).is_some_and(u8::is_ascii_whitespace) {
+            cursor += 1;
+        }
+    }
+    let name_start = cursor;
+    while bytes.get(cursor).is_some_and(|byte| identifier_byte(*byte)) {
+        cursor += 1;
+    }
+    if cursor == name_start {
+        return None;
+    }
+    let name = code[name_start..cursor].to_string();
+
+    let initializer_start = loop {
+        match bytes.get(cursor).copied()? {
+            b'=' if bytes.get(cursor + 1) != Some(&b'=')
+                && cursor.checked_sub(1).and_then(|index| bytes.get(index)) != Some(&b'=') =>
+            {
+                break cursor + 1;
+            }
+            b';' => return None,
+            _ => cursor += 1,
+        }
+    };
+
+    let mut round = 0i64;
+    let mut square = 0i64;
+    let mut curly = 0i64;
+    cursor = initializer_start;
+    while let Some(byte) = bytes.get(cursor).copied() {
+        match byte {
+            b'(' => round += 1,
+            b')' => round -= 1,
+            b'[' => square += 1,
+            b']' => square -= 1,
+            b'{' => curly += 1,
+            b'}' => curly -= 1,
+            b';' if round == 0 && square == 0 && curly == 0 => {
+                let initializer = &code[initializer_start..cursor];
+                return Some((
+                    cursor + 1,
+                    name,
+                    captured_backend_constructor(initializer),
+                ));
+            }
+            _ => {}
+        }
+        cursor += 1;
+    }
+    None
+}
+
 fn captured_backend_binding_before(code: &str, call_start: usize, identifier: &str) -> bool {
-    let compact = code[..call_start]
-        .split_whitespace()
-        .collect::<Vec<_>>()
-        .join(" ");
-    for statement in compact.split(';') {
-        let statement = statement.trim();
-        let Some(binding) = statement.strip_prefix("let ") else {
-            continue;
-        };
-        let binding = binding.strip_prefix("mut ").unwrap_or(binding).trim_start();
-        let Some((left, right)) = binding.split_once('=') else {
-            continue;
-        };
-        let bound_name = left.split(':').next().unwrap_or_default().trim();
-        if bound_name == identifier
-            && (right.trim_start().starts_with("CapturedReceiptBackend")
-                || right.contains("::CapturedReceiptBackend"))
-        {
-            return true;
+    let prefix = &code[..call_start];
+    let bytes = prefix.as_bytes();
+    let mut scopes: Vec<Vec<(String, bool)>> = vec![Vec::new()];
+    let mut cursor = 0usize;
+    while cursor < bytes.len() {
+        match bytes[cursor] {
+            b'{' => {
+                scopes.push(Vec::new());
+                cursor += 1;
+            }
+            b'}' => {
+                if scopes.len() > 1 {
+                    scopes.pop();
+                }
+                cursor += 1;
+            }
+            _ if keyword_at(bytes, cursor, b"let") => {
+                if let Some((end, name, captured)) = simple_let_binding(prefix, cursor) {
+                    scopes
+                        .last_mut()
+                        .expect("scope stack is never empty")
+                        .push((name, captured));
+                    cursor = end;
+                } else {
+                    cursor += 1;
+                }
+            }
+            _ => cursor += 1,
+        }
+    }
+
+    for scope in scopes.iter().rev() {
+        if let Some((_, captured)) = scope.iter().rev().find(|(name, _)| name == identifier) {
+            return *captured;
         }
     }
     false
 }
 
 fn call_uses_captured_backend(code: &str, call_start: usize, argument: &str) -> bool {
-    let direct = argument
-        .trim()
-        .strip_prefix('&')
-        .map(str::trim_start)
-        .is_some_and(|value| {
-            value.starts_with("CapturedReceiptBackend {")
-                || value.starts_with("CapturedReceiptBackend::")
-                || value.contains("::CapturedReceiptBackend {")
-                || value.contains("::CapturedReceiptBackend::")
-        });
-    direct
-        || borrowed_identifier(argument)
-            .is_some_and(|identifier| captured_backend_binding_before(code, call_start, identifier))
+    captured_backend_constructor(
+        argument
+            .trim()
+            .strip_prefix('&')
+            .map(str::trim_start)
+            .unwrap_or_default(),
+    ) || borrowed_identifier(argument)
+        .is_some_and(|identifier| captured_backend_binding_before(code, call_start, identifier))
 }
 
 fn transaction_reconciliation_counts(source: &str) -> (usize, usize, Vec<String>) {
     let code = mask_rust_comments_and_literals(source);
-    let transaction_markers = [".begin().await", "Transaction<'", "Transaction <'"];
     let sql_lock_markers = ["FOR UPDATE", "for update", "FOR SHARE", "for share"];
     let external_markers = [
         ".execute_authoritative(",
@@ -323,12 +418,15 @@ fn transaction_reconciliation_counts(source: &str) -> (usize, usize, Vec<String>
     for (name, range) in function_ranges(source) {
         let raw_body = &source[range.clone()];
         let code_body = &code[range];
+        let compact_code = code_body
+            .chars()
+            .filter(|character| !character.is_whitespace())
+            .collect::<String>();
         let has_external = external_markers
             .iter()
             .any(|marker| code_body.contains(marker));
-        let has_transaction = transaction_markers
-            .iter()
-            .any(|marker| code_body.contains(marker))
+        let has_transaction = compact_code.contains(".begin().await")
+            || compact_code.contains("Transaction<'")
             || sql_lock_markers
                 .iter()
                 .any(|marker| raw_body.contains(marker));
@@ -410,6 +508,26 @@ fn captured_receipt_exception_is_bound_to_the_actual_argument_value() {
     assert_eq!(captured, 1);
     assert!(violations.is_empty());
 
+    let accepted_after_block = r#"
+        async fn apply_capture() {
+            let mut transaction = pool
+                .begin()
+                .await?;
+            if receipt.is_none() {
+                return Ok(());
+            }
+            let backend = CapturedReceiptBackend {
+                receipt,
+                wallet_snapshot,
+            };
+            campaign.reconcile_economy(&backend, 1)?;
+            transaction.commit().await?;
+        }
+    "#;
+    let (_, captured, violations) = transaction_reconciliation_counts(accepted_after_block);
+    assert_eq!(captured, 1);
+    assert!(violations.is_empty());
+
     let rejected = [
         r#"
             async fn comment_injection() {
@@ -441,6 +559,25 @@ fn captured_receipt_exception_is_bound_to_the_actual_argument_value() {
                 let mut transaction = pool.begin().await?;
                 campaign.reconcile_economy(&captured, 8)?;
                 campaign.reconcile_economy(&remote, 8)?;
+                transaction.commit().await?;
+            }
+        "#,
+        r#"
+            async fn closed_scope_binding() {
+                let mut transaction = pool.begin().await?;
+                {
+                    let backend = CapturedReceiptBackend::from_receipt(receipt);
+                }
+                campaign.reconcile_economy(&backend, 8)?;
+                transaction.commit().await?;
+            }
+        "#,
+        r#"
+            async fn shadowed_binding() {
+                let mut transaction = pool.begin().await?;
+                let backend = CapturedReceiptBackend::from_receipt(receipt);
+                let backend = remote;
+                campaign.reconcile_economy(&backend, 8)?;
                 transaction.commit().await?;
             }
         "#,
