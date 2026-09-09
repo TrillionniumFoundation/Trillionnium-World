@@ -1,0 +1,119 @@
+{
+  "schema": "trnm_world_gap_closure_ledger_v6",
+  "generated_utc": "2026-09-08T16:22:35Z",
+  "plan": "trillionnium-world-development-2026-08-29-v4",
+  "review_surface": {
+    "repository": "TrillionniumFoundation/Trillionnium-World",
+    "pull_request": 104,
+    "branch": "fix/world-convergence-v6-20260908",
+    "merge_target": "main",
+    "base_commit": "0f6117a56263bcb5bf89e34b8bcda557a7da2e6d",
+    "observed_head_before_update": "1acb5e2a4bf872fc487caa6dfe52c0b4c4fe32a9",
+    "observed_tree_before_update": "7e0511496a7b7d36dba0d845a1c134f064581552",
+    "observed_prospective_merge_before_update": "a03a6e2ddc9a62264410a04ca541b559e6be93be",
+    "draft_required": true,
+    "production_authorization": "not_granted"
+  },
+  "toolchain": {
+    "current_candidate": "1.98.1",
+    "historical_qualification": "1.98.0",
+    "historical_credit_transfers": false
+  },
+  "repository_source": {
+    "ordinary_reviewable_source": true,
+    "semantic_build_generation_absent": true,
+    "active_crate_detailed_designs": 8,
+    "world_authority_crate_detailed_designs": 7,
+    "strict_machine_truth_parser": true,
+    "unconditional_pull_request_documentation_gate": true,
+    "state": "closed_candidate",
+    "qualification_scope": "source_and_documentation_only"
+  },
+  "repository_evidence": {
+    "exact_head_workflow_runs": 0,
+    "exact_head_ci_closed": false,
+    "prospective_merge_ci_closed": false,
+    "independent_review_closed": false,
+    "server_governance_closed": false,
+    "observed_main": "0f6117a56263bcb5bf89e34b8bcda557a7da2e6d",
+    "observed_main_protected": true,
+    "observed_main_required_contexts": [
+      "trnm-game-ci",
+      "trnm-world-p0-boundaries",
+      "trnm-world-status-evidence"
+    ],
+    "desired_contract_matches_observation": false,
+    "rulesets_observed": 0,
+    "state": "server_configuration_required"
+  },
+  "dependencies": {
+    "cex": {
+      "repository": "TrillionniumFoundation/CEX",
+      "pull_request": 53,
+      "branch": "integration/cex-v12-sequence54-20260908",
+      "commit": "882014451c22026dfe4848248f2b26a9b46ac049",
+      "tree": "cb5b69f79eeb4e6d2032b93115d3e25c88957903",
+      "base": "db75c74094748a1139fd64b0360e122d8ec797a0",
+      "prospective_merge": "7a93ca40eb9278b4da7dc64b9f773acd639b9410",
+      "sequence": 54,
+      "state": "observed_unqualified_draft",
+      "qualified": false,
+      "production_authorization": "not_granted"
+    },
+    "nakama": {
+      "repository": "TrillionniumFoundation/TrillionniumGame",
+      "pull_request": 63,
+      "commit": "6dd5a101c67d78572a9dcaa3ab6ff96ef1966850",
+      "state": "observed_unqualified_draft",
+      "qualified": false,
+      "production_authorization": "not_granted"
+    },
+    "chain": {
+      "repository": "TrillionniumFoundation/Trillionnium-Chain",
+      "pull_request": 62,
+      "commit": "521726e47ce0efad6b732a5fc31afcd2cc52593d",
+      "state": "observed_unqualified_draft",
+      "qualified": false,
+      "production_authorization": "not_granted"
+    },
+    "integration": {
+      "repository": "TrillionniumFoundation/Trillionnium-Integration",
+      "pull_request": 8,
+      "state": "coordination_lock_unqualified_dynamic_repin_required",
+      "qualified": false,
+      "production_authorization": "not_granted"
+    }
+  },
+  "denominators": [
+    {"id":"WORLD-SOURCE-DOCUMENTATION","owner":"World maintainers","state":"closed_candidate","evidence_class":"source_static"},
+    {"id":"WORLD-EXACT-HEAD-CI","owner":"World repository operations","state":"server_configuration_required","evidence_class":"unit"},
+    {"id":"WORLD-PROSPECTIVE-MERGE-CI","owner":"World repository operations","state":"server_configuration_required","evidence_class":"unit"},
+    {"id":"WORLD-MAIN-GOVERNANCE","owner":"GitHub organization administrators","state":"observed_mismatch","evidence_class":"source_static"},
+    {"id":"WORLD-INDEPENDENT-REVIEW","owner":"independent reviewers","state":"changes_requested","evidence_class":"source_static"},
+    {"id":"WORLD-PRODUCTION-ADAPTERS","owner":"World operations/security","state":"absent","evidence_class":"single_host_runtime"},
+    {"id":"NAKAMA-CANONICAL-AUTHORITY","owner":"Nakama and Integration","state":"blocked_upstream","evidence_class":"cross_repository_integration"},
+    {"id":"TRUSTED-CEX-SETTLEMENT","owner":"CEX and Integration","state":"blocked_upstream","evidence_class":"custody_security"},
+    {"id":"CHAIN-FINALITY-LOCK","owner":"Chain and Integration","state":"blocked_upstream","evidence_class":"cross_repository_integration"},
+    {"id":"DEPLOYMENT-PUBLIC-EDGE-RECOVERY","owner":"operations and Integration","state":"external_evidence_required","evidence_class":"cross_host"},
+    {"id":"HUMAN-ACCESSIBILITY","owner":"product research and accessibility","state":"human_evidence_required","evidence_class":"human"},
+    {"id":"PRIVACY-LEGAL-SUPPORT-COMMERCIAL","owner":"accountable organizational authorities","state":"commercial_approval_required","evidence_class":"commercial_legal"}
+  ],
+  "closure": {
+    "repository_source_documentation_closed_candidate": true,
+    "world_owned_source_development_closed": false,
+    "exact_head_ci_closed": false,
+    "prospective_merge_ci_closed": false,
+    "independent_review_closed": false,
+    "server_governance_closed": false,
+    "cross_repository_qualification_closed": false,
+    "external_evidence_closed": false,
+    "all_repository_gaps_closed": false,
+    "all_plan_gaps_closed": false,
+    "public_online": false,
+    "trusted_settlement": false,
+    "public_player_market": false,
+    "production_ready": false,
+    "production_authorization": "not_granted"
+  },
+  "no_credit_rule": "source and local fixtures cannot synthesize hosted CI, governance, independent review, cross-repository, deployment, custody, human, legal, commercial or production evidence"
+}

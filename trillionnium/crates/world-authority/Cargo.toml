@@ -1,0 +1,23 @@
+[workspace]
+members = [
+  "trnm-world-domain",
+  "trnm-world-command",
+  "trnm-world-projection",
+  "trnm-world-map-provider",
+  "trnm-world-ui-fragments",
+  "trnm-world-api",
+  "trnm-world-server",
+]
+resolver = "2"
+
+[workspace.package]
+edition = "2021"
+license = "LicenseRef-Trillionnium-Internal"
+authors = ["Trillionnium Contributors"]
+
+[workspace.metadata.trnm]
+lane = "world-authority-cutover"
+owner_repository = "TrillionniumFoundation/Trillionnium-World"
+source_history_commit = "d44d8930c917b55da7b23eb19e9645feb8f4ee59"
+cex_role = "authenticated-ingress-and-projection-consumer-only"
+production_authorization = "not_granted"
