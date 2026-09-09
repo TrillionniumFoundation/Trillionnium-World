@@ -76,8 +76,11 @@ include!("lib_parts/campaign_commands/part_06.rs");
 // Ownership section: rts_mapping. Ordinary Git-tracked source.
 include!("lib_parts/rts_mapping/part_01.rs");
 
-// Ownership section: save_slots. Ordinary Git-tracked source.
-include!("lib_parts/save_slots/part_01.rs");
+// Save slots own slot enumeration and filesystem routing behind an explicit
+// module boundary while preserving the existing crate-root API.
+#[path = "lib_parts/save_slots/part_01.rs"]
+mod save_slots;
+pub use save_slots::*;
 
 // Player settings are the first ownership section promoted from crate-root text
 // inclusion into a real Rust module boundary. The temporary `use super::*`
