@@ -51,7 +51,7 @@ Audit data binds immutable request/event identity, admitted actor/account contex
 
 ## Test and evidence traceability
 
-Primary source is `trillionnium/crates/world-authority/trnm-world-command/src/lib.rs`; domain input is defined by the sibling package. ADR-0003, the cutover architecture document, authority contract JSON and PostgreSQL SQL are normative neighbors. Crate tests and `scripts/check-trnm-world-authority-cutover.sh` cover each command family, movement topology, task/tactics/item/skill effects, rejection state preservation, deterministic repetition and adapter split. Cross-language/Nakama shadow and database replay evidence remain open.
+Primary source is `trillionnium/crates/world-authority/trnm-world-command/src/lib.rs`; domain input is defined by `trillionnium/crates/world-authority/trnm-world-domain/src/lib.rs`. Normative documents are `docs/adr/0003-world-domain-authority-and-nakama-canonical-online.md`, `docs/architecture/cex-world-authority-cutover-v1.md`, and `docs/contracts/trillionnium-world-authority-cutover-v1.json`. Executable trace checks are `scripts/check-trnm-world-authority-documentation.py` and `scripts/check-trnm-world-authority-cutover.sh`. Crate tests cover each command family, movement topology, task/tactics/item/skill effects, rejection state preservation, deterministic repetition and adapter separation. Cross-language/Nakama shadow and database replay evidence remain open and receive no production credit.
 
 ## Change checklist and open work
 
