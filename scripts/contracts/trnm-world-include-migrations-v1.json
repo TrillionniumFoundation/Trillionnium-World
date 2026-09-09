@@ -80,6 +80,17 @@
         "mod tests;"
       ],
       "completed_commit": "13f0416f433eb5eb040309cb03d39d913b9dccb4"
+    },
+    {
+      "path": "trillionnium/crates/trnm-game-server/src/lib.rs",
+      "expression": "\"lib_parts/tests/part_01.rs\"",
+      "replacement_module": "tests",
+      "required_fragments": [
+        "#[cfg(test)]",
+        "#[path = \"lib_parts/tests/part_01.rs\"]",
+        "mod tests;"
+      ],
+      "completed_commit": "3501a999959f97d568bfa13d4c59c943ec1e5d82"
     }
   ]
 }
