@@ -90,8 +90,11 @@ mod player_settings {
 use player_settings::atomic_write_json;
 pub use player_settings::*;
 
-// Ownership section: campaign_storage. Ordinary Git-tracked source.
-include!("lib_parts/campaign_storage/part_01.rs");
+// Campaign storage owns persistence orchestration behind an explicit Rust
+// module boundary. Its public API remains available at the crate root.
+#[path = "lib_parts/campaign_storage/part_01.rs"]
+mod campaign_storage;
+pub use campaign_storage::*;
 
 // Ownership section: economy_commands. Ordinary Git-tracked source.
 include!("lib_parts/economy_commands/part_01.rs");
