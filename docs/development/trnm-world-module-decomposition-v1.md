@@ -4,8 +4,8 @@ owner: trillionnium-world-architecture
 work_items:
   - WORLD-P1-001
   - WORLD-P1-009
-last_reviewed: 2026-09-09
-review_due: 2026-10-08
+last_reviewed: 2026-09-10
+review_due: 2026-10-09
 implementation_conformance: not-implied
 ---
 
@@ -20,8 +20,7 @@ is tested through its public interface.
 
 ## Current debt
 
-The former semantic `trnm-game-server/build.rs` and `src/lib.rs.in` generation
-authority is retired. Correctness code is now ordinary Git-tracked Rust source,
+The former semantic `trnm-game-server/build.rs` and `src/lib.rs.in` generation authority is retired and removed from the current candidate. Correctness code is now ordinary Git-tracked Rust source,
 so hidden build-time rewriting is no longer part of the current candidate.
 
 The remaining structural debt is different: several large crates still compose
@@ -218,5 +217,3 @@ A module tranche closes only when:
 9. exact evidence and independent review are attached;
 10. the change does not alter authority, protocol, economic or release semantics
     without the corresponding version and migration process.
-
-A documentation or ownership-manifest pass alone cannot close this work item.
