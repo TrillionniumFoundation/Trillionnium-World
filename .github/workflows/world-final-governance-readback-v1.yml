@@ -1,0 +1,100 @@
+name: world-final-governance-readback-v1
+
+on:
+  push:
+    branches:
+      - ops/p0-statement-let-fix-58f76a-20260910
+
+permissions:
+  checks: read
+  contents: read
+  pull-requests: write
+  statuses: read
+
+concurrency:
+  group: world-final-governance-readback-v1
+  cancel-in-progress: false
+
+jobs:
+  governance:
+    name: world-governance/final-exact-head-readback
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    env:
+      TARGET_BRANCH: refactor/campaign-module-stack-v2-20260909
+      BASE_BRANCH: main
+      ORIGINAL_HEAD: 58f76a6100bade6e148a56bd429eff34f8a255cd
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - name: Wait for final source state and freeze live PR head
+        id: tuple
+        shell: bash
+        run: |
+          set -euo pipefail
+          remote="https://github.com/${GITHUB_REPOSITORY}.git"
+          ready=false
+          for _ in $(seq 1 360); do
+            head="$(git ls-remote "$remote" "refs/heads/$TARGET_BRANCH" | awk '{print $1}')"
+            test -n "$head"
+            rm -rf "$RUNNER_TEMP/probe"
+            git init -q "$RUNNER_TEMP/probe"
+            git -C "$RUNNER_TEMP/probe" remote add origin "$remote"
+            git -C "$RUNNER_TEMP/probe" fetch -q --no-tags origin "$head" "$ORIGINAL_HEAD"
+            git -C "$RUNNER_TEMP/probe" checkout -q --detach "$head"
+            git -C "$RUNNER_TEMP/probe" merge-base --is-ancestor "$ORIGINAL_HEAD" HEAD
+            p0="$RUNNER_TEMP/probe/trillionnium/crates/trnm-game-server/tests/p0_boundary_contract.rs"
+            rts="$RUNNER_TEMP/probe/trillionnium/crates/trnm-rts-sim/src/lib_parts/tests/part_01.rs"
+            if grep -Fq 'fn statement_let_at(bytes: &[u8], start: usize) -> bool' "$p0" \
+              && grep -Fq '#[path = "rts_tests_01.rs"]' "$rts" \
+              && grep -Fq '#[path = "rts_tests_02.rs"]' "$rts" \
+              && grep -Fq '#[path = "rts_tests_03.rs"]' "$rts" \
+              && ! grep -Fq '/src/lib_parts/tests/rts_tests_01.rs' "$rts"; then
+              ready=true
+              break
+            fi
+            sleep 20
+          done
+          test "$ready" = true
+          printf 'head=%s\n' "$head" >> "$GITHUB_OUTPUT"
+          printf 'WORLD_GOVERNANCE_HEAD=%s\n' "$head"
+
+      - name: Fetch immutable governance checker
+        shell: bash
+        run: |
+          set -euo pipefail
+          checker="$RUNNER_TEMP/github-pr-governance-readback-v1.py"
+          curl --fail --silent --show-error --location \
+            "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${GITHUB_SHA}/scripts/github-pr-governance-readback-v1.py" \
+            > "$checker"
+          python3 -m py_compile "$checker"
+          test -s "$checker"
+
+      - name: Read back protection, exact approvals, threads, and contexts
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          EXPECTED_HEAD: ${{ steps.tuple.outputs.head }}
+        run: |
+          set -euo pipefail
+          python3 "$RUNNER_TEMP/github-pr-governance-readback-v1.py" \
+            --repository "$GITHUB_REPOSITORY" \
+            --pull-request 115 \
+            --expected-head "$EXPECTED_HEAD" \
+            --expected-base "$BASE_BRANCH" \
+            --author ProfHepta \
+            --eligible-reviewer Franksudoman \
+            --eligible-reviewer Tomasrgbsf \
+            --request-missing
+          printf 'WORLD_FINAL_GOVERNANCE=PASS\n'
+          printf 'PRODUCTION_AUTHORIZATION=not_granted\n'
+
+      - name: Reject head movement after governance readback
+        shell: bash
+        env:
+          EXPECTED_HEAD: ${{ steps.tuple.outputs.head }}
+        run: |
+          set -euo pipefail
+          live="$(git ls-remote "https://github.com/${GITHUB_REPOSITORY}.git" \
+            "refs/heads/$TARGET_BRANCH" | awk '{print $1}')"
+          test "$live" = "$EXPECTED_HEAD"
+          printf 'WORLD_GOVERNANCE_FINAL_HEAD_UNCHANGED=true\n'
