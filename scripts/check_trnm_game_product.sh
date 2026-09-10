@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Closed component-catalog identity: legacy-platform-workspace.
+# Canonical excluded workspace manifest: trillionnium/crates/platform/Cargo.toml.
+# The checks below execute from trillionnium/, prove that exact workspace remains
+# separate, and reject any platform member from the active game-product tree.
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR/trillionnium"
 
