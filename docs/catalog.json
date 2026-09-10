@@ -106,6 +106,8 @@
     {"path":"docs/release/trnm-world-commercial-authorization-protocol-v1.md","class":"external-evidence-protocol","owner":"trillionnium-world-release","status":"current-candidate","review_due":"2026-10-08"},
     {"path":"docs/release/templates/trnm-world-evidence-record-v1.json","class":"evidence-template","owner":"trillionnium-world-release","status":"template","review_due":"2026-10-08"},
 
+    {"path":"docs/reviews/trnm-world-source-gap-closure-v12-review-checklist.md","class":"review-checklist","owner":"trillionnium-world-review","status":"current-candidate","review_due":"2026-09-24"},
+
     {"path":"docs/status/world-plan-v4-execution-truth-2026-09-02.json","class":"historical-execution-snapshot","owner":"trillionnium-world-program","status":"historical","review_due":"2026-09-22"},
     {"path":"docs/status/world-plan-v4-execution-truth-2026-09-08.json","class":"execution-snapshot","owner":"trillionnium-world-program","status":"current","review_due":"2026-09-22"},
     {"path":"docs/status/CURRENT.md","class":"status-view","owner":"trillionnium-world-program","status":"current-candidate","review_due":"2026-09-22"},
