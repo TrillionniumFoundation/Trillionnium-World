@@ -1,0 +1,192 @@
+name: trnm-world-native-admission
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trnm-world-native-admission-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  RUST_TOOLCHAIN: "1.98.1"
+  CARGO_INCREMENTAL: "0"
+  CARGO_TERM_COLOR: always
+
+jobs:
+  game:
+    name: trnm-game-ci
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - name: Fetch exact head and prospective merge
+        env:
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          MERGE_SHA: ${{ github.sha }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          checkout_exact() {
+            local destination="$1"
+            local ref="$2"
+            local expected="$3"
+            rm -rf "$destination"
+            git init -q "$destination"
+            git -C "$destination" remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+            git -C "$destination" fetch -q --no-tags --depth=1 origin "$ref"
+            git -C "$destination" checkout -q --detach FETCH_HEAD
+            test "$(git -C "$destination" rev-parse HEAD)" = "$expected"
+          }
+          checkout_exact "$RUNNER_TEMP/world-head" "$HEAD_SHA" "$HEAD_SHA"
+          if [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
+            checkout_exact "$RUNNER_TEMP/world-merge" "refs/pull/${PR_NUMBER}/merge" "$MERGE_SHA"
+          else
+            checkout_exact "$RUNNER_TEMP/world-merge" "$MERGE_SHA" "$MERGE_SHA"
+          fi
+          printf 'head=%s\nmerge=%s\n' "$HEAD_SHA" "$MERGE_SHA"
+
+      - name: Install pinned native build prerequisites
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            pkg-config libasound2-dev libudev-dev libx11-dev libxi-dev \
+            libxkbcommon-dev libwayland-dev
+          rustup toolchain install "$RUST_TOOLCHAIN" \
+            --profile minimal --component rustfmt,clippy
+          rustc "+$RUST_TOOLCHAIN" --version
+          cargo "+$RUST_TOOLCHAIN" --version
+
+      - name: Validate exact head and prospective merge
+        run: |
+          set -euo pipefail
+          for source in "$RUNNER_TEMP/world-head" "$RUNNER_TEMP/world-merge"; do
+            echo "validating $source @ $(git -C "$source" rev-parse HEAD)"
+            (
+              cd "$source"
+              bash scripts/check_trnm_game_product.sh
+              cargo "+$RUST_TOOLCHAIN" fmt \
+                --manifest-path trillionnium/Cargo.toml --all -- --check
+              cargo "+$RUST_TOOLCHAIN" test \
+                --manifest-path trillionnium/Cargo.toml \
+                --workspace --all-targets --locked
+              cargo "+$RUST_TOOLCHAIN" clippy \
+                --manifest-path trillionnium/Cargo.toml \
+                --workspace --all-targets --locked -- -D warnings
+              git diff --exit-code
+            )
+          done
+
+  boundaries:
+    name: trnm-world-p0-boundaries
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Fetch exact head and prospective merge
+        env:
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          MERGE_SHA: ${{ github.sha }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          checkout_exact() {
+            local destination="$1"
+            local ref="$2"
+            local expected="$3"
+            rm -rf "$destination"
+            git init -q "$destination"
+            git -C "$destination" remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+            git -C "$destination" fetch -q --no-tags --depth=1 origin "$ref"
+            git -C "$destination" checkout -q --detach FETCH_HEAD
+            test "$(git -C "$destination" rev-parse HEAD)" = "$expected"
+          }
+          checkout_exact "$RUNNER_TEMP/world-head" "$HEAD_SHA" "$HEAD_SHA"
+          if [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
+            checkout_exact "$RUNNER_TEMP/world-merge" "refs/pull/${PR_NUMBER}/merge" "$MERGE_SHA"
+          else
+            checkout_exact "$RUNNER_TEMP/world-merge" "$MERGE_SHA" "$MERGE_SHA"
+          fi
+
+      - name: Enforce repository and authority boundaries
+        run: |
+          set -euo pipefail
+          for source in "$RUNNER_TEMP/world-head" "$RUNNER_TEMP/world-merge"; do
+            echo "validating $source @ $(git -C "$source" rev-parse HEAD)"
+            (
+              cd "$source"
+              bash scripts/check_trnm_game_product.sh
+              bash scripts/validate_workflow_script_refs.sh
+              bash scripts/check_root_readme_local_links.sh README.md
+              bash scripts/check_trillionnium_world_repository_adapter_boundary.sh
+              test -s PROJECT_BOUNDARY.md
+              test -s RELEASE_READINESS.md
+              if grep -R -Eiq \
+                'permissions:[[:space:]]*write-all|contents:[[:space:]]*write' \
+                .github/workflows; then
+                echo 'validation workflow requests repository write permission' >&2
+                exit 1
+              fi
+              git diff --exit-code
+            )
+          done
+
+  status:
+    name: trnm-world-status-evidence
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Fetch exact head and prospective merge
+        env:
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          MERGE_SHA: ${{ github.sha }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          checkout_exact() {
+            local destination="$1"
+            local ref="$2"
+            local expected="$3"
+            rm -rf "$destination"
+            git init -q "$destination"
+            git -C "$destination" remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+            git -C "$destination" fetch -q --no-tags --depth=1 origin "$ref"
+            git -C "$destination" checkout -q --detach FETCH_HEAD
+            test "$(git -C "$destination" rev-parse HEAD)" = "$expected"
+          }
+          checkout_exact "$RUNNER_TEMP/world-head" "$HEAD_SHA" "$HEAD_SHA"
+          if [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
+            checkout_exact "$RUNNER_TEMP/world-merge" "refs/pull/${PR_NUMBER}/merge" "$MERGE_SHA"
+          else
+            checkout_exact "$RUNNER_TEMP/world-merge" "$MERGE_SHA" "$MERGE_SHA"
+          fi
+
+      - name: Validate fail-closed release truth
+        run: |
+          set -euo pipefail
+          for source in "$RUNNER_TEMP/world-head" "$RUNNER_TEMP/world-merge"; do
+            echo "validating $source @ $(git -C "$source" rev-parse HEAD)"
+            (
+              cd "$source"
+              test -s README.md
+              test -s PROJECT_BOUNDARY.md
+              test -s GAME_STATUS.md
+              test -s RELEASE_READINESS.md
+              test -s docs/README.md
+              grep -Eqi 'NO-GO|NO_GO|not[_ -]granted|not release-ready' \
+                RELEASE_READINESS.md
+              if grep -Eiq \
+                'production_authorization[=:[:space:]]+granted|public online[^.]*enabled|public player market[^.]*enabled' \
+                PROJECT_BOUNDARY.md RELEASE_READINESS.md; then
+                echo 'release truth contains an unsupported promotion claim' >&2
+                exit 1
+              fi
+              grep -q 'contents: read' \
+                .github/workflows/trnm-world-native-admission.yml
+              git diff --exit-code
+            )
+          done
