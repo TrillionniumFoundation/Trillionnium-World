@@ -1,0 +1,54 @@
+name: tmp-world-exact-source-export
+
+on:
+  push:
+    branches:
+      - tmp/world-source-export-ad0fd-20260910
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tmp-world-exact-source-export
+  cancel-in-progress: false
+
+env:
+  SOURCE_SHA: ad0fd6378242992cea4e035efe90174f5f2bc138
+  SOURCE_TREE: 25d540f93f2a83133f4f6d1b94d3916b1d7498ee
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout immutable World source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Verify and archive exact tracked tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          test "$(git rev-parse HEAD^{tree})" = "$SOURCE_TREE"
+          archive="$RUNNER_TEMP/world-${SOURCE_SHA}.tar.gz"
+          manifest="$RUNNER_TEMP/world-${SOURCE_SHA}.manifest.txt"
+          git archive --format=tar.gz --output="$archive" HEAD
+          {
+            printf 'source_sha=%s\n' "$SOURCE_SHA"
+            printf 'source_tree=%s\n' "$SOURCE_TREE"
+            sha256sum "$archive"
+            printf 'production_authorization=not_granted\n'
+          } > "$manifest"
+      - name: Upload exact source archive
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: world-source-${{ env.SOURCE_SHA }}
+          path: |
+            ${{ runner.temp }}/world-${{ env.SOURCE_SHA }}.tar.gz
+            ${{ runner.temp }}/world-${{ env.SOURCE_SHA }}.manifest.txt
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0
