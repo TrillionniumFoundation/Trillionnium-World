@@ -343,6 +343,17 @@ fn keyword_at(bytes: &[u8], start: usize, keyword: &[u8]) -> bool {
             .is_none_or(|byte| !identifier_byte(*byte))
 }
 
+fn standalone_let_at(bytes: &[u8], start: usize) -> bool {
+    if !keyword_at(bytes, start, b"let") {
+        return false;
+    }
+    let mut cursor = start;
+    while cursor > 0 && bytes[cursor - 1].is_ascii_whitespace() {
+        cursor -= 1;
+    }
+    cursor == 0 || matches!(bytes[cursor - 1], b'{' | b';' | b'}')
+}
+
 fn consume_balanced_group(bytes: &[u8], open: usize) -> Option<usize> {
     let opener = *bytes.get(open)?;
     let expected_close = match opener {
@@ -447,7 +458,7 @@ fn statement_initializer_end(code: &str, start: usize) -> Option<usize> {
 
 fn simple_let_binding(code: &str, start: usize) -> Option<(usize, String, BindingKind)> {
     let bytes = code.as_bytes();
-    if !keyword_at(bytes, start, b"let") {
+    if !standalone_let_at(bytes, start) {
         return None;
     }
     let mut cursor = start + 3;
@@ -721,6 +732,20 @@ fn captured_receipt_exception_is_bound_to_the_actual_argument_value() {
             }
         "#,
         r#"
+            async fn if_let_guard_before_captured_binding() {
+                let mut transaction = pool.begin().await?;
+                if let Err(error) = receipt.validate_for(intent) {
+                    return Err(error);
+                }
+                let backend = CapturedReceiptBackend {
+                    receipt,
+                    wallet_snapshot,
+                };
+                campaign.reconcile_economy(&backend, 1)?;
+                transaction.commit().await?;
+            }
+        "#,
+        r#"
             async fn inline_constructor() {
                 let mut transaction = pool.begin().await?;
                 campaign.reconcile_economy(
@@ -807,6 +832,16 @@ fn captured_receipt_exception_is_bound_to_the_actual_argument_value() {
                 let mut transaction = pool.begin().await?;
                 let backend = CapturedReceiptBackendRemote::new(receipt);
                 campaign.reconcile_economy(&backend, 8)?;
+                transaction.commit().await?;
+            }
+        "#,
+        r#"
+            async fn if_let_pattern_is_not_standalone_binding_credit() {
+                let mut transaction = pool.begin().await?;
+                if let CapturedReceiptBackend { .. } = remote {
+                    audit();
+                }
+                campaign.reconcile_economy(&remote, 8)?;
                 transaction.commit().await?;
             }
         "#,
