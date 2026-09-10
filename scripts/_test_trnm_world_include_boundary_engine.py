@@ -71,6 +71,19 @@ class IncludeBoundaryTests(unittest.TestCase):
         self.write_inventory(root, inventory([entry()]))
         self.assertEqual(MODULE.validate(root), (1, 0))
 
+    def test_rustfmt_multiline_manifest_include_passes(self) -> None:
+        root = self.root()
+        (root / "crate/src/lib.rs").write_text(
+            'include!(concat!(\n'
+            '    env!("CARGO_MANIFEST_DIR"),\n'
+            '    "/src/body.rs"\n'
+            '));\n',
+            encoding="utf-8",
+        )
+        expression = 'concat!(env!("CARGO_MANIFEST_DIR"),"/src/body.rs")'
+        self.write_inventory(root, inventory([entry(expression=expression)]))
+        self.assertEqual(MODULE.validate(root), (1, 0))
+
     def test_unclassified_include_fails_closed(self) -> None:
         root = self.root()
         (root / "crate/src/lib.rs").write_text(
@@ -99,18 +112,35 @@ class IncludeBoundaryTests(unittest.TestCase):
         self.write_inventory(root, inventory([]))
         self.assertEqual(MODULE.validate(root), (0, 0))
 
-    def test_multiline_or_embedded_include_is_rejected(self) -> None:
+    def test_embedded_include_is_rejected(self) -> None:
         for source in (
-            'include!(\n    "body.rs"\n);\n',
             'const A: u8 = 1; include!("body.rs");\n',
+            'let _value = include!("body.rs");\n',
+            'include!("body.rs"); const B: u8 = 2;\n',
         ):
             with self.subTest(source=source):
                 root = self.root()
                 (root / "crate/src/lib.rs").write_text(source, encoding="utf-8")
                 self.write_inventory(root, inventory([entry()]))
                 with self.assertRaisesRegex(
-                    MODULE.IncludeBoundaryFailure, "one-line standalone"
+                    MODULE.IncludeBoundaryFailure, "standalone statement"
                 ):
+                    MODULE.validate(root)
+
+    def test_missing_semicolon_or_unbalanced_delimiter_is_rejected(self) -> None:
+        cases = (
+            ('include!("body.rs")\n', "semicolon"),
+            (
+                'include!(concat!(env!("CARGO_MANIFEST_DIR"), "/src/body.rs");\n',
+                "unterminated|mismatched",
+            ),
+        )
+        for source, message in cases:
+            with self.subTest(source=source):
+                root = self.root()
+                (root / "crate/src/lib.rs").write_text(source, encoding="utf-8")
+                self.write_inventory(root, inventory([entry()]))
+                with self.assertRaisesRegex(MODULE.IncludeBoundaryFailure, message):
                     MODULE.validate(root)
 
     def test_traversal_and_missing_targets_are_rejected(self) -> None:
