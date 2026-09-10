@@ -9,90 +9,93 @@ The historical machine inputs retained for provenance only are:
 - `docs/development/trillionnium-world-development-plan-2026-08-29.json`
 - `docs/development/trnm-world-gap-closure-ledger-v4.json`
 
-The current convergence and evidence authorities are:
+They are not execution authority and cannot select, qualify, merge, release, deploy, or authorize a current object.
 
-- `docs/release/trnm-world-external-execution-board-v1.json`
-- `docs/development/trnm-world-gap-closure-ledger-v6.json`
-- `docs/integration/trnm-world-cex-current-pending-lock-v2.json`
-- `RELEASE_READINESS.md`
+## Current truth and evidence authorities
+
+Read the current sources in this order:
+
+1. `PROJECT_BOUNDARY.md` and `PROJECT_BOUNDARY.json` — binding repository and authority ownership.
+2. `CURRENT_PLAN.md` — operative PR/branch and blocker ordering.
+3. `docs/catalog.json` — machine document lifecycle and truth ordering.
+4. `docs/status/world-plan-v4-execution-truth-2026-09-08.json` — selected historical execution observation for the current PR/branch identity.
+5. `docs/status/CURRENT.md` — deterministic rendering of that selected observation.
+6. `RELEASE_READINESS.md` — repository-level release decision.
+7. `docs/development/trnm-world-gap-closure-ledger-v6.json` — current denominator, owner, and fail-closed state ledger.
+8. `docs/integration/trnm-world-cex-current-pending-lock-v2.json` — coordination-only CEX observation.
+9. `docs/release/trnm-world-external-execution-board-v1.json` — external execution inventory and evidence limits.
+
+The authoritative current execution snapshot is:
+
 - `docs/status/world-plan-v4-execution-truth-2026-09-08.json`
 
-Historical plans, ledgers and coordination locks remain provenance only. The V6 ledger, current external-execution board and current coordination lock govern current object selection; accepted ADRs and `PROJECT_BOUNDARY.*` remain binding. The qualification entrypoint rejects a missing authority file and rejects reintroduction of the obsolete untracked V5 board reference.
+<!-- trnm-current-execution-snapshot: docs/status/world-plan-v4-execution-truth-2026-09-08.json -->
+
+The selected snapshot is a dated, immutable observation. It does not certify the current branch head, current prospective merge, current checks, current review, or current external component identities.
 
 ## Operative candidate
 
 - Repository: `TrillionniumFoundation/Trillionnium-World`
 - Pull request: `#104`
 - Branch: `fix/world-convergence-v6-20260908`
-- Base observed: `main@0f6117a56263bcb5bf89e34b8bcda557a7da2e6d`
-- Head observed before this truth update: `bd1603ea6087f71ee1fe2d7940c729931105c25f`
-- Head tree observed before this truth update: `50f2b8d7a6fb75ad77210d3082a2362e4b210438`
-- Prospective merge observed before this truth update: `98a6c53d98cac94dcf746704c8d6508ad0cb10fc`
+- Merge target: `main`
 - Current candidate toolchain: `1.98.1`
 - Historical qualification toolchain: `1.98.0`
 
-Committing this truth update moves the branch head. These values are an explicit pre-update observation, not qualification credit for the successor. Every successor head and actual prospective merge require fresh read-back and non-empty execution.
+### Live object rule
 
-PR #104 supersedes earlier World convergence surfaces, including closed unmerged PR #60. No CI, review, governance, cross-repository, release or production credit transfers from a superseded object.
+Tracked source cannot certify its own current Git head: committing such a value changes the head and makes the assertion stale. The current head, tree, actual GitHub prospective-merge object, checks, review state, and branch-control state must therefore be read from the live pull request and GitHub control plane, then bound by an immutable check artifact or independently retained evidence record.
+
+The PR body may render the latest live tuple for review, but it is not execution evidence. Any base, head, tree, merge object, workflow definition, component lock, or review movement invalidates object-bound credit and requires fresh read-back and non-empty execution.
+
+PR #104 supersedes earlier World convergence and ownership-migration review surfaces. Their source history remains provenance; their CI, review, governance, release, or production credit does not transfer.
 
 ## Binding architecture decisions
 
-- **World** owns deterministic game-domain behavior, authored content, native client behavior, World aggregate mutation under one fenced writer epoch, player-facing economic intents, World outcome hashes and unsigned replay/outcome material.
-- **Nakama** owns target online admission, identity, canonical total order, durable online idempotency, reconnect/restart recovery, archive roots and `MatchCompletedV1` signing.
+- **World** owns deterministic game-domain behavior, authored content, native client behavior, World aggregate mutation under one fenced writer epoch, player-facing economic intents, World outcome hashes, and unsigned replay/outcome material.
+- **Nakama** owns target online admission, identity, canonical total order, durable online idempotency, reconnect/restart recovery, archive roots, and `MatchCompletedV1` signing.
 - **CEX** owns wallet/ledger settlement and custody.
-- **Chain** owns ingress, consensus, inclusion and finality.
-- **Integration** owns exact cross-repository component locks, compatibility matrices and release evidence.
-- `trillionnium/crates/trnm-game-server` remains a `world_legacy_local_alpha` compatibility enclave.
-- `trillionnium/crates/world-authority` remains an isolated World-domain cutover candidate; fixture adapters and the file-backed server are non-production.
-- External settlement follows capture -> transaction-free remote execution -> fenced apply. Signer, CEX or network I/O under mutable World rows is prohibited.
-- CI may validate and upload immutable evidence but may not move refs, self-approve, synthesize statuses, bypass protection, tag, release or deploy.
+- **Chain** owns ingress, consensus, inclusion, and finality.
+- **Integration** owns exact cross-repository component locks, compatibility matrices, and release evidence.
+- `trillionnium/crates/trnm-game-server` remains the bounded `world_legacy_local_alpha` compatibility enclave.
+- `trillionnium/crates/world-authority` remains an isolated World-domain cutover candidate. Fixture adapters and the file-backed server are non-production.
+- External settlement follows capture -> transaction-free remote execution -> fenced apply. Signer, CEX, or network I/O while mutable World rows are held is prohibited.
+- CI may validate and upload immutable evidence but may not move refs, self-approve, synthesize statuses, dismiss substantive review, bypass protection, tag, release, or deploy.
 
 ADR `docs/adr/0003-world-domain-authority-and-nakama-canonical-online.md` remains binding. A World-domain service cannot become a second canonical online authority.
 
-## Current source interpretation
+## Current repository interpretation
 
-The current ordinary source is reviewable and retains detailed contracts for all active and isolated World-authority crates, PostgreSQL base/hardening/catalog-fingerprint contracts, strict bounded JSON parsing, an unconditional pull-request documentation gate and read-only evidence workflows. These are `closed_candidate` source facts, not independently executed qualification. Historical Rust 1.98.0 artifact evidence does not transfer; the final candidate must execute under Rust 1.98.1.
+The current candidate contains ordinary Git-tracked correctness source, detailed contracts for the active game-product and isolated World-authority crates, strict bounded JSON parsing, closed-world component/document inventories, PostgreSQL fencing/CAS contracts, transition vectors, settlement boundaries, and read-only exact-head/merge qualification definitions.
 
-The prior plan named an untracked V5 Markdown closure board that does not exist in the candidate tree. The current authority is the tracked and catalogued `docs/release/trnm-world-external-execution-board-v1.json`; the exact truth qualification checks this reference and the other current authority files fail closed.
+These are source-side `closed_candidate` facts only. Documentation structure, workflow definitions, local fixtures, and historical artifacts do not imply implementation conformance, hosted execution, protected admission, independent acceptance, deployment, custody, human validation, commercial approval, or production authorization.
 
-## Current repository observations
+### Native Actions blocker
 
-The latest pre-update read-back showed zero repository-native pull-request workflow runs for the exact World head. The observed `main` protection retains an older three-context set and the repository Rulesets collection is empty. The managed GitHub App cannot install the complete protection contract or prove latest-push approval, stale-review dismissal, conversation resolution, force-push/deletion denial and no-bypass behavior. These are server-control blockers, not source claims.
+Repository-native job creation remains an external GitHub control-plane blocker. Canonical PR #104 and the independent protected-main bootstrap PR #124 both contain unconditional read-only pull-request workflows, but live API read-back must show non-empty runs, jobs, and steps before any check receives credit.
 
-Draft PR `TrillionniumFoundation/TrillionniumGame#122` provides a temporary read-only external execution route for exact World head and true prospective-merge qualification. It is technical execution evidence only and cannot replace World-native required checks or protected admission.
+The accountable remediation record is issue #58. Repository or organization administrators must inspect the effective Actions enablement/allowlist, billing or quota suspension, hosted/self-hosted runner availability, event restrictions, and any enterprise or ruleset suppression. A synthetic commit status, external status injection, reduced gate, or protection bypass is prohibited.
 
-## Current CEX dependency observation
+## Current dependency interpretation
 
-The coordination-only current observation is `docs/integration/trnm-world-cex-current-pending-lock-v2.json`.
+Exact external candidate identities are deliberately not duplicated in this tracked plan. Current observations live only in their versioned machine records and must be refreshed by the accountable Integration process:
 
-CEX PR #53 is the single Sequence 54 Draft candidate observed at the time of this update:
+- World↔CEX coordination: `docs/integration/trnm-world-cex-current-pending-lock-v2.json`
+- Cross-repository execution inventory: `docs/release/trnm-world-external-execution-board-v1.json`
+- Repository denominator ledger: `docs/development/trnm-world-gap-closure-ledger-v6.json`
 
-```text
-head              df877364a38e66b6e8908f8ea0650dc1a6ef1d35
-tree              4cf744c3ad586aa2381d6b9e389620e7f88e0b14
-base              db75c74094748a1139fd64b0360e122d8ec797a0
-prospective merge 81f3089fd2753cb8cab82431c8c77bc7e056ce61
-```
-
-CEX source-side RustSec and Sequence 54 admission material remains present, but hosted jobs still fail before source steps with `steps=null`; Rulesets are empty and current exact-head approvals are absent. World adoption and trusted settlement remain disabled. Any later CEX movement invalidates this observation and requires a fresh Integration repin.
-
-## Current upstream coordination observations
-
-- TrillionniumGame/Nakama PR #63 remains Draft at `6dd5a101c67d78572a9dcaa3ab6ff96ef1966850`, tree `01d528735ac10653eb811500e0febb2f4a6eef14`, prospective merge `b78a095a712f55746b4b4fe04ad6db8456baa98c`; repository-controlled source/CI is substantially closed, while conflict-free specialist capacity, governance and production evidence remain open.
-- Trillionnium-Chain PR #62 remains Draft at `bbee7c0194e420a36c7747167000450083d5d951`, tree `f7b239de6bd3ec1bd782c429e7a141776314a078`, prospective merge `f2125748fd733b85f45567334e6e1b4aab80f86c`; required baseline is successful, while other native workflows, independent campaigns/audit and activation remain open.
-- Trillionnium-Integration PR #8 remains the coordination surface at `07decde85fe0f29f37a078055196ffff46bca242`, prospective merge `d302c4b88b114a1e88a7139546982c851c54be81`, and must repin each final component movement. Exact pinning is not component qualification.
+A coordination pin is not component qualification. Any external repository movement requires a fresh immutable Integration lock and fresh contract-byte, fault, cutover, and rollback evidence.
 
 ## Ordered remaining blockers
 
-1. Obtain non-empty terminal-success Rust 1.98.1, PostgreSQL, transition, documentation, package, source-boundary and supply-chain execution on one unchanged final World head and actual prospective merge; restore World repository-native Actions scheduling for protected admission.
-2. Apply and read back server-side main protection, current required contexts, stale-review dismissal, conversation resolution, linear/no-force-push/no-bypass controls; then obtain fresh independent approval on the unchanged final tuple.
-3. Qualify the immutable final CEX object with non-empty execution, candidate manifest, SBOM/provenance, custody evidence and independent approval.
-4. Qualify World, CEX, Nakama and Chain independently; have Integration pin exact accepted commits, trees, artifacts and contract bytes and close divergence, no-dual-writer, fault, cutover and rollback evidence.
-5. Replace fixture/file-backed World authority adapters with independently reviewed production identity/session, PostgreSQL repository, ledger, evidence, metrics, routing and deployment adapters.
-6. Complete remaining `include!` ownership-part migration into true Rust module/trait/visibility boundaries through test-preserving review tranches.
-7. Obtain deployment, public-edge, cross-host recovery/endurance, custody/KMS, accessibility, privacy, legal, support, commercial and final human go/no-go evidence.
+1. Restore GitHub repository-native job creation and obtain non-empty terminal-success truth, source, Rust 1.98.1, PostgreSQL, transition, documentation, package, boundary, and supply-chain execution for one unchanged exact World head and actual prospective merge.
+2. Read back and enforce protected-main required contexts, review freshness, stale-review dismissal, conversation resolution, linear history, force-push/deletion denial, and no-bypass policy; then obtain a fresh eligible non-author approval on the unchanged final tuple.
+3. Complete all remaining classified `include!` ownership migrations into real Rust module/trait/visibility boundaries through compile/test-preserving review tranches.
+4. Replace fixture/file-backed World authority adapters with independently reviewed production identity, session, account, PostgreSQL repository, ledger, evidence, metrics, internal-routing, and deployment-identity implementations.
+5. Independently qualify World, CEX, Nakama, and Chain; have Integration pin exact accepted commits, trees, artifacts, and contract bytes and close divergence, response-loss, restart, failover, no-dual-writer, cutover, rollback, and disablement matrices.
+6. Obtain deployment, public-edge, cross-host recovery/endurance, KMS/HSM custody, accessibility, privacy, licensing, legal, support, commercial, and final accountable human go/no-go evidence.
 
-Public online operation, public player markets, trusted settlement and commercial release remain **NO-GO / disabled**. Production authorization remains **not granted**.
+Public online operation, public player markets, trusted settlement, and commercial release remain **NO-GO / disabled**. Production authorization remains **not granted**.
 
 ## Executable truth and integrity checks
 
@@ -105,12 +108,14 @@ python3 scripts/check-trnm-world-active-closure.py
 python3 scripts/test-trnm-world-active-closure.py
 python3 scripts/check-trnm-world-ci-integrity.py
 python3 scripts/test-trnm-world-ci-integrity.py
+python3 scripts/check-trnm-world-current-conformance.py
+python3 scripts/test-trnm-world-current-conformance.py
 python3 scripts/check-trnm-world-detailed-documentation.py
 python3 scripts/check-trnm-world-authority-documentation.py
 python3 scripts/check-trnm-world-cex-pending-lock.py
 bash scripts/run-trnm-world-v6-qualification-v2.sh truth
 ```
 
-`docs/status/CURRENT.md` is a deterministic rendering of the selected snapshot, not a fresh GitHub query. A local operator may regenerate it with `--write` only after an authorized snapshot/pointer update; CI rejects that option.
+`docs/status/CURRENT.md` is a deterministic rendering of the selected dated snapshot, not a fresh GitHub query. A local operator may regenerate it with `--write` only after an authorized snapshot/pointer update; CI rejects that option. Neither generation nor a status file closes evidence.
 
 Production authorization remains **not granted**.
