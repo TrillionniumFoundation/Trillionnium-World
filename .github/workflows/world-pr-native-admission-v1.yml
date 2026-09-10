@@ -1,31 +1,39 @@
-name: world-pr-native-admission-v2
+name: world-pr-native-admission-v3
 
 on:
   push:
     branches:
-      - refactor/campaign-module-stack-v2-20260909
+      - fix/world-convergence-v6-20260908
+      - fix/world-source-gap-closure-v12-20260910
   pull_request:
     types:
       - opened
       - synchronize
       - reopened
       - ready_for_review
+  merge_group:
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: world-native-v2-${{ github.event.pull_request.number || github.ref }}
+  group: world-native-v3-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 env:
   RUSTUP_TOOLCHAIN: "1.98.1"
   CARGO_INCREMENTAL: "0"
-  CARGO_TERM_COLOR: always
+  CARGO_TERM_COLOR: never
   RUST_BACKTRACE: "1"
   RUST_TEST_THREADS: "1"
   PRODUCTION_AUTHORIZATION: not_granted
+  HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+  BASE_SHA: ${{ github.event.pull_request.base.sha || '' }}
+  MERGE_SHA: ${{ github.sha }}
+  PR_NUMBER: ${{ github.event.pull_request.number || '' }}
+  POSTGRES_IMAGE: postgres@sha256:f1c3376c26f2609ab9f29f71f824103fe2fcd8ee0346485cb6122a4f93df6f94
+  POSTGRES_REQUIRED_VERSION_NUM: "160004"
 
 jobs:
   game:
@@ -33,57 +41,120 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 360
     steps:
-      - name: Fetch and verify exact head and prospective merge
-        env:
-          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-          MERGE_SHA: ${{ github.sha }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
+      - name: Initialize evidence boundary
+        shell: bash
         run: |
           set -euo pipefail
-          checkout_exact() {
+          mkdir -p evidence
+          {
+            printf 'job=trnm-game-ci\n'
+            printf 'repository=%s\n' "$GITHUB_REPOSITORY"
+            printf 'event=%s\n' "$GITHUB_EVENT_NAME"
+            printf 'head=%s\n' "$HEAD_SHA"
+            printf 'base=%s\n' "$BASE_SHA"
+            printf 'merge=%s\n' "$MERGE_SHA"
+            printf 'run_id=%s\n' "$GITHUB_RUN_ID"
+            printf 'run_attempt=%s\n' "$GITHUB_RUN_ATTEMPT"
+            printf 'production_authorization=%s\n' "$PRODUCTION_AUTHORIZATION"
+          } > evidence/job-identity.txt
+
+      - name: Fetch and verify exact head and actual prospective merge
+        shell: bash
+        run: |
+          set -euo pipefail
+          materialize_object() {
             local destination="$1"
             local ref="$2"
             local expected="$3"
             rm -rf "$destination"
             git init -q "$destination"
             git -C "$destination" remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
-            git -C "$destination" fetch -q --no-tags --depth=1 origin "$ref"
+            git -C "$destination" fetch -q --no-tags --depth=3 origin "$ref"
             git -C "$destination" checkout -q --detach FETCH_HEAD
             test "$(git -C "$destination" rev-parse HEAD)" = "$expected"
+            test -z "$(git -C "$destination" status --porcelain=v1 --untracked-files=no)"
           }
-          checkout_exact "$RUNNER_TEMP/world-head" "$HEAD_SHA" "$HEAD_SHA"
-          if [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
-            checkout_exact "$RUNNER_TEMP/world-merge" "refs/pull/${PR_NUMBER}/merge" "$MERGE_SHA"
-          else
-            checkout_exact "$RUNNER_TEMP/world-merge" "$MERGE_SHA" "$MERGE_SHA"
-          fi
-          printf 'head=%s\nmerge=%s\n' "$HEAD_SHA" "$MERGE_SHA"
 
-      - name: Install pinned toolchain and native dependencies
+          materialize_object "$RUNNER_TEMP/world-head" "$HEAD_SHA" "$HEAD_SHA"
+          if test "$GITHUB_EVENT_NAME" = pull_request; then
+            test -n "$PR_NUMBER"
+            test -n "$BASE_SHA"
+            materialize_object \
+              "$RUNNER_TEMP/world-merge" \
+              "refs/pull/${PR_NUMBER}/merge" \
+              "$MERGE_SHA"
+            test "$(git -C "$RUNNER_TEMP/world-merge" rev-parse HEAD^1)" = "$BASE_SHA"
+            test "$(git -C "$RUNNER_TEMP/world-merge" rev-parse HEAD^2)" = "$HEAD_SHA"
+          fi
+
+          {
+            printf 'head_tree=%s\n' "$(git -C "$RUNNER_TEMP/world-head" rev-parse 'HEAD^{tree}')"
+            if test "$GITHUB_EVENT_NAME" = pull_request; then
+              printf 'merge_tree=%s\n' "$(git -C "$RUNNER_TEMP/world-merge" rev-parse 'HEAD^{tree}')"
+              printf 'merge_parent_1=%s\n' "$(git -C "$RUNNER_TEMP/world-merge" rev-parse HEAD^1)"
+              printf 'merge_parent_2=%s\n' "$(git -C "$RUNNER_TEMP/world-merge" rev-parse HEAD^2)"
+            fi
+          } >> evidence/job-identity.txt
+
+      - name: Install pinned Rust toolchain and native dependencies
+        shell: bash
         run: |
           set -euo pipefail
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             pkg-config libasound2-dev libudev-dev libx11-dev libxi-dev \
             libxkbcommon-dev libwayland-dev
-          rustup toolchain install 1.98.1 \
+          rustup toolchain install "$RUSTUP_TOOLCHAIN" \
             --profile minimal --component rustfmt,clippy
-          test "$(rustc --version | awk '{print $2}')" = "1.98.1"
+          test "$(rustc --version | awk '{print $2}')" = "$RUSTUP_TOOLCHAIN"
+          rustc --version --verbose | tee evidence/rustc-version.txt
+          cargo --version --verbose | tee evidence/cargo-version.txt
 
-      - name: Execute truth and source qualification on both objects
+      - name: Execute truth and complete source qualification on exact objects
+        shell: bash
         run: |
           set -euo pipefail
-          for source in "$RUNNER_TEMP/world-head" "$RUNNER_TEMP/world-merge"; do
-            echo "qualifying $source @ $(git -C "$source" rev-parse HEAD)"
+          labels=(head)
+          if test "$GITHUB_EVENT_NAME" = pull_request; then
+            labels+=(merge)
+          fi
+
+          for label in "${labels[@]}"; do
+            source="$RUNNER_TEMP/world-${label}"
+            export CARGO_TARGET_DIR="$RUNNER_TEMP/target-game-${label}"
+            echo "qualifying ${label} @ $(git -C "$source" rev-parse HEAD)"
             (
               cd "$source"
               bash scripts/run-trnm-world-v6-qualification-v2.sh truth
               bash scripts/run-trnm-world-v6-qualification-v2.sh source
               test -z "$(git status --porcelain=v1 --untracked-files=no)"
             )
+            mkdir -p "evidence/${label}"
+            cp -R "$source/run/world-v6-v2/truth" "evidence/${label}/"
+            cp -R "$source/run/world-v6-v2/source" "evidence/${label}/"
           done
-          printf 'WORLD_NATIVE_HEAD_AND_MERGE_SOURCE=PASS\n'
+
+          printf 'WORLD_NATIVE_V3_HEAD_AND_MERGE_SOURCE=PASS\n'
           printf 'PRODUCTION_AUTHORIZATION=%s\n' "$PRODUCTION_AUTHORIZATION"
+
+      - name: Hash retained source evidence
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          find evidence -type f ! -name MANIFEST.sha256 -print0 \
+            | sort -z \
+            | xargs -0 -r sha256sum \
+            > evidence/MANIFEST.sha256
+
+      - name: Upload immutable source evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: world-native-v3-source-${{ env.HEAD_SHA }}-${{ github.run_attempt }}
+          path: evidence/**
+          if-no-files-found: error
+          retention-days: 90
 
   boundaries:
     name: trnm-world-p0-boundaries
@@ -91,7 +162,7 @@ jobs:
     timeout-minutes: 360
     services:
       postgres:
-        image: postgres:16
+        image: postgres@sha256:f1c3376c26f2609ab9f29f71f824103fe2fcd8ee0346485cb6122a4f93df6f94
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
@@ -110,118 +181,286 @@ jobs:
       PGPASSWORD: postgres
       PGDATABASE: postgres
     steps:
-      - name: Fetch and verify exact head and prospective merge
-        env:
-          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-          MERGE_SHA: ${{ github.sha }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
+      - name: Initialize evidence boundary
+        shell: bash
         run: |
           set -euo pipefail
-          checkout_exact() {
+          mkdir -p evidence
+          {
+            printf 'job=trnm-world-p0-boundaries\n'
+            printf 'repository=%s\n' "$GITHUB_REPOSITORY"
+            printf 'event=%s\n' "$GITHUB_EVENT_NAME"
+            printf 'head=%s\n' "$HEAD_SHA"
+            printf 'base=%s\n' "$BASE_SHA"
+            printf 'merge=%s\n' "$MERGE_SHA"
+            printf 'postgres_image=%s\n' "$POSTGRES_IMAGE"
+            printf 'postgres_required_version_num=%s\n' "$POSTGRES_REQUIRED_VERSION_NUM"
+            printf 'run_id=%s\n' "$GITHUB_RUN_ID"
+            printf 'run_attempt=%s\n' "$GITHUB_RUN_ATTEMPT"
+            printf 'production_authorization=%s\n' "$PRODUCTION_AUTHORIZATION"
+          } > evidence/job-identity.txt
+
+      - name: Fetch and verify exact head and actual prospective merge
+        shell: bash
+        run: |
+          set -euo pipefail
+          materialize_object() {
             local destination="$1"
             local ref="$2"
             local expected="$3"
             rm -rf "$destination"
             git init -q "$destination"
             git -C "$destination" remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
-            git -C "$destination" fetch -q --no-tags --depth=1 origin "$ref"
+            git -C "$destination" fetch -q --no-tags --depth=3 origin "$ref"
             git -C "$destination" checkout -q --detach FETCH_HEAD
             test "$(git -C "$destination" rev-parse HEAD)" = "$expected"
+            test -z "$(git -C "$destination" status --porcelain=v1 --untracked-files=no)"
           }
-          checkout_exact "$RUNNER_TEMP/world-head" "$HEAD_SHA" "$HEAD_SHA"
-          if [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
-            checkout_exact "$RUNNER_TEMP/world-merge" "refs/pull/${PR_NUMBER}/merge" "$MERGE_SHA"
-          else
-            checkout_exact "$RUNNER_TEMP/world-merge" "$MERGE_SHA" "$MERGE_SHA"
+
+          materialize_object "$RUNNER_TEMP/world-head" "$HEAD_SHA" "$HEAD_SHA"
+          if test "$GITHUB_EVENT_NAME" = pull_request; then
+            test -n "$PR_NUMBER"
+            test -n "$BASE_SHA"
+            materialize_object \
+              "$RUNNER_TEMP/world-merge" \
+              "refs/pull/${PR_NUMBER}/merge" \
+              "$MERGE_SHA"
+            test "$(git -C "$RUNNER_TEMP/world-merge" rev-parse HEAD^1)" = "$BASE_SHA"
+            test "$(git -C "$RUNNER_TEMP/world-merge" rev-parse HEAD^2)" = "$HEAD_SHA"
           fi
 
-      - name: Install PostgreSQL client and pinned Rust toolchain
+          {
+            printf 'head_tree=%s\n' "$(git -C "$RUNNER_TEMP/world-head" rev-parse 'HEAD^{tree}')"
+            if test "$GITHUB_EVENT_NAME" = pull_request; then
+              printf 'merge_tree=%s\n' "$(git -C "$RUNNER_TEMP/world-merge" rev-parse 'HEAD^{tree}')"
+              printf 'merge_parent_1=%s\n' "$(git -C "$RUNNER_TEMP/world-merge" rev-parse HEAD^1)"
+              printf 'merge_parent_2=%s\n' "$(git -C "$RUNNER_TEMP/world-merge" rev-parse HEAD^2)"
+            fi
+          } >> evidence/job-identity.txt
+
+      - name: Install exact database client and pinned Rust toolchain
+        shell: bash
         run: |
           set -euo pipefail
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends postgresql-client
-          rustup toolchain install 1.98.1 --profile minimal
-          test "$(rustc --version | awk '{print $2}')" = "1.98.1"
+          rustup toolchain install "$RUSTUP_TOOLCHAIN" --profile minimal
+          test "$(rustc --version | awk '{print $2}')" = "$RUSTUP_TOOLCHAIN"
           pg_isready -h "$PGHOST" -p "$PGPORT" -U "$PGUSER" -d "$PGDATABASE"
+          actual_version="$(psql -Atqc 'show server_version_num')"
+          printf 'postgres_server_version=' >> evidence/postgres-version.txt
+          psql -Atqc 'show server_version' >> evidence/postgres-version.txt
+          printf 'postgres_server_version_num=%s\n' "$actual_version" >> evidence/postgres-version.txt
+          psql -Atqc 'select version()' >> evidence/postgres-version.txt
+          test "$actual_version" = "$POSTGRES_REQUIRED_VERSION_NUM"
 
-      - name: Execute PostgreSQL and fencing qualification on both objects
+      - name: Execute PostgreSQL and fencing qualification on exact objects
+        shell: bash
         run: |
           set -euo pipefail
-          index=0
-          for source in "$RUNNER_TEMP/world-head" "$RUNNER_TEMP/world-merge"; do
-            index=$((index + 1))
-            database="world_native_${GITHUB_RUN_ID}_${GITHUB_RUN_ATTEMPT}_${index}"
+          labels=(head)
+          if test "$GITHUB_EVENT_NAME" = pull_request; then
+            labels+=(merge)
+          fi
+
+          run_object() {
+            local label="$1"
+            local source="$RUNNER_TEMP/world-${label}"
+            local database="world_v12_${GITHUB_RUN_ID}_${GITHUB_RUN_ATTEMPT}_${label}"
             database="${database//[^A-Za-z0-9_]/_}"
             createdb "$database"
-            cleanup_database() {
-              dropdb --if-exists --force "$database" >/dev/null 2>&1 || true
-            }
-            trap cleanup_database EXIT
-            echo "qualifying $source @ $(git -C "$source" rev-parse HEAD) against $database"
+
+            set +e
             (
+              set -euo pipefail
               cd "$source"
+              export PGDATABASE="$database"
               export DATABASE_URL="postgres://postgres:postgres@127.0.0.1:5432/${database}"
               export TEST_DATABASE_URL="$DATABASE_URL"
+              export TRNM_SETTLEMENT_TEST_DATABASE_URL="$DATABASE_URL"
+              export TRNM_REQUIRE_SETTLEMENT_DATABASE_TEST=1
+              export CARGO_TARGET_DIR="$RUNNER_TEMP/target-postgres-${label}"
               bash scripts/run-trnm-world-v6-qualification-v2.sh postgres
               test -z "$(git status --porcelain=v1 --untracked-files=no)"
             )
-            cleanup_database
-            trap - EXIT
+            status=$?
+            set -e
+
+            mkdir -p "evidence/${label}"
+            if test -d "$source/run/world-v6-v2/postgres"; then
+              cp -R "$source/run/world-v6-v2/postgres" "evidence/${label}/"
+            fi
+            dropdb --if-exists --force "$database"
+            return "$status"
+          }
+
+          for label in "${labels[@]}"; do
+            echo "qualifying ${label} @ $(git -C "$RUNNER_TEMP/world-${label}" rev-parse HEAD)"
+            run_object "$label"
           done
-          printf 'WORLD_NATIVE_HEAD_AND_MERGE_POSTGRES=PASS\n'
+
+          printf 'WORLD_NATIVE_V3_HEAD_AND_MERGE_POSTGRES=PASS\n'
           printf 'PRODUCTION_AUTHORIZATION=%s\n' "$PRODUCTION_AUTHORIZATION"
+
+      - name: Hash retained PostgreSQL evidence
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          find evidence -type f ! -name MANIFEST.sha256 -print0 \
+            | sort -z \
+            | xargs -0 -r sha256sum \
+            > evidence/MANIFEST.sha256
+
+      - name: Upload immutable PostgreSQL evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: world-native-v3-postgres-${{ env.HEAD_SHA }}-${{ github.run_attempt }}
+          path: evidence/**
+          if-no-files-found: error
+          retention-days: 90
 
   status:
     name: trnm-world-status-evidence
     runs-on: ubuntu-24.04
     timeout-minutes: 360
     steps:
-      - name: Fetch and verify exact head and prospective merge
-        env:
-          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-          MERGE_SHA: ${{ github.sha }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
+      - name: Initialize evidence boundary
+        shell: bash
         run: |
           set -euo pipefail
-          checkout_exact() {
+          mkdir -p evidence
+          {
+            printf 'job=trnm-world-status-evidence\n'
+            printf 'repository=%s\n' "$GITHUB_REPOSITORY"
+            printf 'event=%s\n' "$GITHUB_EVENT_NAME"
+            printf 'head=%s\n' "$HEAD_SHA"
+            printf 'base=%s\n' "$BASE_SHA"
+            printf 'merge=%s\n' "$MERGE_SHA"
+            printf 'run_id=%s\n' "$GITHUB_RUN_ID"
+            printf 'run_attempt=%s\n' "$GITHUB_RUN_ATTEMPT"
+            printf 'production_authorization=%s\n' "$PRODUCTION_AUTHORIZATION"
+          } > evidence/job-identity.txt
+
+      - name: Fetch and verify exact head and actual prospective merge
+        shell: bash
+        run: |
+          set -euo pipefail
+          materialize_object() {
             local destination="$1"
             local ref="$2"
             local expected="$3"
             rm -rf "$destination"
             git init -q "$destination"
             git -C "$destination" remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
-            git -C "$destination" fetch -q --no-tags --depth=1 origin "$ref"
+            git -C "$destination" fetch -q --no-tags --depth=3 origin "$ref"
             git -C "$destination" checkout -q --detach FETCH_HEAD
             test "$(git -C "$destination" rev-parse HEAD)" = "$expected"
+            test -z "$(git -C "$destination" status --porcelain=v1 --untracked-files=no)"
           }
-          checkout_exact "$RUNNER_TEMP/world-head" "$HEAD_SHA" "$HEAD_SHA"
-          if [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
-            checkout_exact "$RUNNER_TEMP/world-merge" "refs/pull/${PR_NUMBER}/merge" "$MERGE_SHA"
-          else
-            checkout_exact "$RUNNER_TEMP/world-merge" "$MERGE_SHA" "$MERGE_SHA"
+
+          materialize_object "$RUNNER_TEMP/world-head" "$HEAD_SHA" "$HEAD_SHA"
+          if test "$GITHUB_EVENT_NAME" = pull_request; then
+            test -n "$PR_NUMBER"
+            test -n "$BASE_SHA"
+            materialize_object \
+              "$RUNNER_TEMP/world-merge" \
+              "refs/pull/${PR_NUMBER}/merge" \
+              "$MERGE_SHA"
+            test "$(git -C "$RUNNER_TEMP/world-merge" rev-parse HEAD^1)" = "$BASE_SHA"
+            test "$(git -C "$RUNNER_TEMP/world-merge" rev-parse HEAD^2)" = "$HEAD_SHA"
           fi
 
-      - name: Install pinned package dependencies
+          {
+            printf 'head_tree=%s\n' "$(git -C "$RUNNER_TEMP/world-head" rev-parse 'HEAD^{tree}')"
+            if test "$GITHUB_EVENT_NAME" = pull_request; then
+              printf 'merge_tree=%s\n' "$(git -C "$RUNNER_TEMP/world-merge" rev-parse 'HEAD^{tree}')"
+              printf 'merge_parent_1=%s\n' "$(git -C "$RUNNER_TEMP/world-merge" rev-parse HEAD^1)"
+              printf 'merge_parent_2=%s\n' "$(git -C "$RUNNER_TEMP/world-merge" rev-parse HEAD^2)"
+            fi
+          } >> evidence/job-identity.txt
+
+      - name: Install pinned package toolchain and native dependencies
+        shell: bash
         run: |
           set -euo pipefail
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             pkg-config libasound2-dev libudev-dev libx11-dev libxi-dev \
             libxkbcommon-dev libwayland-dev
-          rustup toolchain install 1.98.1 --profile minimal
-          test "$(rustc --version | awk '{print $2}')" = "1.98.1"
+          rustup toolchain install "$RUSTUP_TOOLCHAIN" --profile minimal
+          test "$(rustc --version | awk '{print $2}')" = "$RUSTUP_TOOLCHAIN"
+          rustc --version --verbose | tee evidence/rustc-version.txt
+          cargo --version --verbose | tee evidence/cargo-version.txt
 
-      - name: Build and verify release packages on both objects
+      - name: Build and verify packages on exact objects
+        shell: bash
         run: |
           set -euo pipefail
-          for source in "$RUNNER_TEMP/world-head" "$RUNNER_TEMP/world-merge"; do
-            echo "packaging $source @ $(git -C "$source" rev-parse HEAD)"
+          labels=(head)
+          if test "$GITHUB_EVENT_NAME" = pull_request; then
+            labels+=(merge)
+          fi
+
+          for label in "${labels[@]}"; do
+            source="$RUNNER_TEMP/world-${label}"
+            export CARGO_TARGET_DIR="$RUNNER_TEMP/target-package-${label}"
+            echo "packaging ${label} @ $(git -C "$source" rev-parse HEAD)"
             (
               cd "$source"
               bash scripts/run-trnm-world-v6-qualification-v2.sh package
               grep -Eqi 'NO-GO|NO_GO|not[_ -]granted|not release-ready' RELEASE_READINESS.md
               test -z "$(git status --porcelain=v1 --untracked-files=no)"
             )
+            mkdir -p "evidence/${label}"
+            cp -R "$source/run/world-v6-v2/package" "evidence/${label}/"
           done
-          printf 'WORLD_NATIVE_HEAD_AND_MERGE_PACKAGE=PASS\n'
+
+          printf 'WORLD_NATIVE_V3_HEAD_AND_MERGE_PACKAGE=PASS\n'
+          printf 'PRODUCTION_AUTHORIZATION=%s\n' "$PRODUCTION_AUTHORIZATION"
+
+      - name: Hash retained package evidence
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          find evidence -type f ! -name MANIFEST.sha256 -print0 \
+            | sort -z \
+            | xargs -0 -r sha256sum \
+            > evidence/MANIFEST.sha256
+
+      - name: Upload immutable package evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: world-native-v3-package-${{ env.HEAD_SHA }}-${{ github.run_attempt }}
+          path: evidence/**
+          if-no-files-found: error
+          retention-days: 90
+
+  required:
+    name: trnm-world-v12/required
+    if: always()
+    needs:
+      - game
+      - boundaries
+      - status
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Enforce complete admission result
+        env:
+          GAME_RESULT: ${{ needs.game.result }}
+          BOUNDARIES_RESULT: ${{ needs.boundaries.result }}
+          STATUS_RESULT: ${{ needs.status.result }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GAME_RESULT" = success
+          test "$BOUNDARIES_RESULT" = success
+          test "$STATUS_RESULT" = success
+          printf 'TRNM_WORLD_V12_REQUIRED=PASS\n'
+          printf 'HEAD_SHA=%s\n' "$HEAD_SHA"
+          printf 'MERGE_SHA=%s\n' "$MERGE_SHA"
           printf 'PRODUCTION_AUTHORIZATION=%s\n' "$PRODUCTION_AUTHORIZATION"
