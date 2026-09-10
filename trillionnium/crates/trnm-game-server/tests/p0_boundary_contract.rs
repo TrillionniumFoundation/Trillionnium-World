@@ -611,13 +611,11 @@ fn call_uses_captured_backend(code: &str, call_start: usize, argument: &str) -> 
 }
 
 fn brace_depth(bytes: &[u8], end: usize) -> i64 {
-    bytes[..end]
-        .iter()
-        .fold(0i64, |depth, byte| match byte {
-            b'{' => depth + 1,
-            b'}' => depth - 1,
-            _ => depth,
-        })
+    bytes[..end].iter().fold(0i64, |depth, byte| match byte {
+        b'{' => depth + 1,
+        b'}' => depth - 1,
+        _ => depth,
+    })
 }
 
 fn lexical_scope_end(code: &str, start: usize) -> usize {
@@ -651,9 +649,7 @@ fn transaction_ranges(code: &str) -> Vec<Range<usize>> {
     let mut ranges = Vec::new();
     if let Some(open) = code.find('{') {
         let signature = &code[..open];
-        if signature.contains("Transaction<")
-            || signature.contains("transaction::Transaction<")
-        {
+        if signature.contains("Transaction<") || signature.contains("transaction::Transaction<") {
             ranges.push(open + 1..code.len().saturating_sub(1));
         }
     }
@@ -676,8 +672,8 @@ fn transaction_ranges(code: &str) -> Vec<Range<usize>> {
                         format!("drop({name})"),
                         format!("std::mem::drop({name})"),
                     ];
-                    let live_end = first_pattern(code, end, scope_end, &terminators)
-                        .unwrap_or(scope_end);
+                    let live_end =
+                        first_pattern(code, end, scope_end, &terminators).unwrap_or(scope_end);
                     if end < live_end {
                         ranges.push(end..live_end);
                     }
@@ -727,9 +723,16 @@ fn remote_settlement_positions(code: &str) -> Vec<usize> {
             .chars()
             .filter(|character| !character.is_whitespace())
             .collect::<String>();
-        if [".get(", ".post(", ".put(", ".patch(", ".delete(", ".request("]
-            .iter()
-            .any(|marker| prefix.contains(marker))
+        if [
+            ".get(",
+            ".post(",
+            ".put(",
+            ".patch(",
+            ".delete(",
+            ".request(",
+        ]
+        .iter()
+        .any(|marker| prefix.contains(marker))
         {
             positions.push(position);
         }
@@ -1035,7 +1038,10 @@ fn remote_io_is_checked_only_while_the_transaction_is_live() {
     ];
     for source in accepted {
         let (_, _, violations) = transaction_reconciliation_counts(source);
-        assert!(violations.is_empty(), "safe phase fixture failed: {violations:?}");
+        assert!(
+            violations.is_empty(),
+            "safe phase fixture failed: {violations:?}"
+        );
     }
 
     let rejected = [
@@ -1056,7 +1062,10 @@ fn remote_io_is_checked_only_while_the_transaction_is_live() {
     ];
     for source in rejected {
         let (_, _, violations) = transaction_reconciliation_counts(source);
-        assert!(!violations.is_empty(), "unsafe phase fixture unexpectedly passed");
+        assert!(
+            !violations.is_empty(),
+            "unsafe phase fixture unexpectedly passed"
+        );
     }
 }
 
