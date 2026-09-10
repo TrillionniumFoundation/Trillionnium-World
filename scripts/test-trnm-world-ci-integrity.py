@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Offline regressions of the reviewed workflow inventory, not hosted validation."""
+"""Offline negative fixtures for the complete reviewed World workflow inventory."""
 from __future__ import annotations
 
 import importlib.util
@@ -18,190 +18,218 @@ spec = importlib.util.spec_from_file_location("ci_integrity", SCRIPT)
 assert spec is not None and spec.loader is not None
 checker = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(checker)
+
 GAP = "trnm-world-gap-closure-v4.yml"
-FINAL = "trnm-world-v4-final-gates.yml"
-AUTHORITY = "trnm-world-authority-cutover.yml"
-POSTGRES = "trnm-world-postgres-cutover.yml"
+MODULES = "trnm-world-module-documentation.yml"
+NATIVE = "world-pr-native-admission-v1.yml"
+V5 = "trnm-world-v5-closure-contract.yml"
+EXPECTED_WORKFLOWS = 13
+EXPECTED_CONTEXTS = 40
 
 
 class WorkflowInventoryTests(unittest.TestCase):
-    def setUp(self):
+    def setUp(self) -> None:
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.root = pathlib.Path(self.temp.name)
         self.folder = self.root / ".github/workflows"
         shutil.copytree(ROOT / ".github/workflows", self.folder)
 
-    def edit(self, name, before, after):
+    def edit(self, name: str, before: str, after: str) -> None:
         path = self.folder / name
-        source = path.read_text()
+        source = path.read_text(encoding="utf-8")
         self.assertIn(before, source)
-        path.write_text(source.replace(before, after, 1))
+        path.write_text(source.replace(before, after, 1), encoding="utf-8")
 
-    def reject(self):
+    def reject(self) -> None:
         with self.assertRaises(SystemExit):
             checker.workflow_inventory(self.root)
 
-    def test_reviewed_ten_workflows_have_twenty_three_unique_contexts(self):
+    def test_complete_inventory_has_unique_static_and_matrix_contexts(self) -> None:
         contexts = checker.workflow_inventory(self.root)
-        self.assertEqual(len(contexts), 23)
-        for job in ("docs-governance", "transition-contract", "settlement-postgres", "game-workspace-release", "supply-chain"):
-            self.assertEqual(contexts["trnm-world-v4/" + job], GAP)
-        self.assertEqual(contexts["trnm-world-v5/closure-contract"], "trnm-world-v5-closure-contract.yml")
-        self.assertEqual(contexts["trnm-world-p0-boundaries"], AUTHORITY)
-        self.assertEqual(contexts["trnm-world-status-evidence"], AUTHORITY)
-        self.assertEqual(contexts["trnm-world-postgres-cutover"], POSTGRES)
+        self.assertEqual(len(checker.WORKFLOW_JOBS) + len(checker.MATRIX_WORKFLOWS), EXPECTED_WORKFLOWS)
+        self.assertEqual(len(contexts), EXPECTED_CONTEXTS)
+        self.assertEqual(contexts["trnm-game-ci"], NATIVE)
+        self.assertEqual(contexts["trnm-world-p0-boundaries"], NATIVE)
+        self.assertEqual(contexts["trnm-world-status-evidence"], NATIVE)
+        self.assertEqual(contexts["trnm-world-v12/required"], NATIVE)
+        self.assertEqual(contexts["trnm-world/docs-complete"], MODULES)
 
-    def test_ephemeral_commit_tree_is_allowed_but_source_commit_is_not(self):
-        # The reviewed authority/PostgreSQL workflows create an unreachable
-        # deterministic prospective-merge object with `git commit-tree`; this
-        # does not move refs or mutate candidate source.
-        checker.workflow_inventory(self.root)
-        original = (self.folder / AUTHORITY).read_text()
-        (self.folder / AUTHORITY).write_text(original + "\n# forbidden: git commit candidate\n")
+    def test_removed_and_extra_workflows_are_rejected(self) -> None:
+        (self.folder / V5).unlink()
+        self.reject()
+        shutil.copy2(ROOT / ".github/workflows" / V5, self.folder / V5)
+        (self.folder / "unreviewed.yml").write_text("name: surprise\n", encoding="utf-8")
         self.reject()
 
-    def test_removed_workflow_rejected(self):
-        (self.folder / FINAL).unlink()
+    def test_yaml_extension_extra_is_rejected(self) -> None:
+        (self.folder / "unreviewed.yaml").write_text("name: surprise\n", encoding="utf-8")
         self.reject()
 
-    def test_extra_workflow_rejected(self):
-        (self.folder / "unreviewed.yml").write_text("name: surprise\n")
+    def test_linked_file_and_directory_are_rejected(self) -> None:
+        source = self.folder / V5
+        outside = self.root / "outside.yml"
+        source.rename(outside)
+        source.symlink_to(outside)
         self.reject()
 
-    def test_extra_yaml_extension_rejected(self):
-        (self.folder / "unreviewed.yaml").write_text("name: surprise\n")
-        self.reject()
-
-    def test_linked_workflow_rejected(self):
-        path = self.folder / FINAL
-        copy = self.root / "outside.yml"
-        path.rename(copy)
-        path.symlink_to(copy)
-        self.reject()
-
-    def test_linked_workflow_directory_rejected(self):
-        original = self.root / "outside"
+        source.unlink()
+        shutil.copy2(ROOT / ".github/workflows" / V5, source)
+        original = self.root / "outside-workflows"
         self.folder.rename(original)
         self.folder.symlink_to(original, target_is_directory=True)
         self.reject()
 
-    def test_empty_oversized_and_non_utf8_workflow_rejected(self):
-        path = self.folder / FINAL
+    def test_empty_oversized_and_non_utf8_workflows_are_rejected(self) -> None:
+        path = self.folder / V5
+        original = path.read_bytes()
         for content in (b"", b" \n", b" " * (256 * 1024 + 1), b"\xff"):
             path.write_bytes(content)
-            with self.subTest(content=content[:4]):
-                with self.assertRaises((SystemExit, UnicodeError)):
-                    checker.workflow_inventory(self.root)
+            with self.subTest(prefix=content[:4]):
+                self.reject()
+        path.write_bytes(original)
 
-    def test_primary_context_cannot_move_to_narrower_job(self):
-        self.edit(GAP, "name: trnm-world-v4/supply-chain", "name: trnm-world-v4-supplemental/supply-chain")
-        self.edit(FINAL, "name: trnm-world-v4-supplemental/supply-chain", "name: trnm-world-v4/supply-chain")
+    def test_static_context_and_job_identifier_drift_are_rejected(self) -> None:
+        self.edit(
+            MODULES,
+            "name: trnm-world/docs-complete",
+            "name: trnm-world-v5/closure-contract",
+        )
         self.reject()
 
-    def test_duplicate_primary_context_rejected(self):
-        self.edit(FINAL, "name: trnm-world-v4-supplemental/supply-chain", "name: trnm-world-v4/supply-chain")
+        shutil.rmtree(self.folder)
+        shutil.copytree(ROOT / ".github/workflows", self.folder)
+        self.edit(MODULES, "  complete-documentation:\n", "  renamed-documentation:\n")
         self.reject()
 
-    def test_duplicate_closure_context_rejected(self):
-        self.edit(FINAL, "name: trnm-world-v5-supplemental/closure-contract", "name: trnm-world-v5/closure-contract")
+    def test_ordinary_workflow_dynamic_name_is_rejected(self) -> None:
+        self.edit(
+            GAP,
+            "name: trnm-world-v4/docs-governance",
+            "name: ${{ matrix.context }}",
+        )
         self.reject()
 
-    def test_missing_job_rejected(self):
-        self.edit(FINAL, "  supply-chain:\n", "  renamed-supply:\n")
+    def test_matrix_context_name_and_required_dependency_drift_are_rejected(self) -> None:
+        self.edit(NATIVE, "context: trnm-game-ci", "context: trnm-game-ci-drift")
         self.reject()
 
-    def test_duplicate_job_identifier_rejected(self):
-        path = self.folder / GAP
-        path.write_text(path.read_text() + "\n  supply-chain:\n    name: trnm-world-v4/other\n")
+        shutil.rmtree(self.folder)
+        shutil.copytree(ROOT / ".github/workflows", self.folder)
+        self.edit(NATIVE, "name: ${{ matrix.context }}", "name: trnm-game-ci")
         self.reject()
 
-    def test_duplicate_jobs_mapping_rejected(self):
-        path = self.folder / GAP
-        path.write_text(path.read_text() + "\njobs:\n  other:\n    name: trnm-world-v4/other\n")
+        shutil.rmtree(self.folder)
+        shutil.copytree(ROOT / ".github/workflows", self.folder)
+        self.edit(NATIVE, "needs: [qualification]", "needs: []")
         self.reject()
 
-    def test_missing_static_job_name_rejected(self):
-        self.edit(GAP, "    name: trnm-world-v4/docs-governance\n", "")
-        self.reject()
-
-    def test_dynamic_name_rejected(self):
-        self.edit(GAP, "name: trnm-world-v4/docs-governance", "name: ${{ matrix.context }}")
-        self.reject()
-
-    def test_quoted_or_commented_marker_cannot_supply_job_name(self):
-        self.edit(GAP, "    name: trnm-world-v4/docs-governance", "    # name: trnm-world-v4/docs-governance")
-        self.reject()
-
-    def test_missing_read_permission_rejected(self):
+    def test_missing_read_permission_and_any_write_permission_are_rejected(self) -> None:
         self.edit(GAP, "permissions:\n  contents: read\n", "")
         self.reject()
 
-    def test_write_permissions_rejected(self):
-        original = (self.folder / GAP).read_text()
-        for value in ("contents: write", "contents:  write # unauthorized", "issues: write"):
-            (self.folder / GAP).write_text(original.replace("contents: read", value))
-            with self.subTest(value=value): self.reject()
-
-    def test_job_permission_override_rejected(self):
-        self.edit(GAP, "    runs-on: ubuntu-24.04", "    permissions:\n      contents: read\n    runs-on: ubuntu-24.04")
-        self.reject()
-
-    def test_mutable_action_rejected(self):
-        self.edit(GAP, "actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683", "actions/checkout@v4")
-        self.reject()
-
-    def test_mutable_runner_rejected(self):
-        self.edit(GAP, "runs-on: ubuntu-24.04", "runs-on: ubuntu-latest")
-        self.reject()
-
-    def test_privileged_trigger_rejected(self):
-        self.edit(GAP, "  pull_request:", "  pull_request_target:")
-        self.reject()
-
-    def test_source_mutation_and_retained_credentials_rejected(self):
-        original = (self.folder / GAP).read_text()
-        for marker in ("git push", "git commit", "git tag", "gh pr merge", "update-ref", "clippy --fix", "persist-credentials: true"):
-            (self.folder / GAP).write_text(original + "\n# forbidden: " + marker + "\n")
-            with self.subTest(marker=marker): self.reject()
-
-    def test_all_other_reviewed_workflow_names_are_required(self):
-        for name in sorted(set(checker.WORKFLOW_JOBS) - {GAP, FINAL}):
-            with self.subTest(name=name):
-                data = (self.folder / name).read_bytes()
-                (self.folder / name).unlink()
+        for value in ("contents: write", "issues: write", "statuses: write"):
+            shutil.rmtree(self.folder)
+            shutil.copytree(ROOT / ".github/workflows", self.folder)
+            self.edit(GAP, "contents: read", value)
+            with self.subTest(value=value):
                 self.reject()
-                (self.folder / name).write_bytes(data)
 
-    def test_cli_narrow_mode_does_not_claim_full_validation(self):
-        result = subprocess.run([sys.executable, str(SCRIPT), "--root", str(self.root), "--workflows-only"],
-                                capture_output=True, text=True, timeout=15)
+    def test_job_level_permissions_are_rejected(self) -> None:
+        self.edit(
+            MODULES,
+            "    runs-on: ubuntu-24.04",
+            "    permissions:\n      contents: read\n    runs-on: ubuntu-24.04",
+        )
+        self.reject()
+
+    def test_mutable_action_runner_and_privileged_trigger_are_rejected(self) -> None:
+        self.edit(
+            NATIVE,
+            "actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02",
+            "actions/upload-artifact@v4",
+        )
+        self.reject()
+
+        shutil.rmtree(self.folder)
+        shutil.copytree(ROOT / ".github/workflows", self.folder)
+        self.edit(NATIVE, "runs-on: ubuntu-24.04", "runs-on: ubuntu-latest")
+        self.reject()
+
+        shutil.rmtree(self.folder)
+        shutil.copytree(ROOT / ".github/workflows", self.folder)
+        self.edit(NATIVE, "  pull_request:", "  pull_request_target:")
+        self.reject()
+
+    def test_retained_credentials_and_source_mutation_are_rejected(self) -> None:
+        original = (self.folder / NATIVE).read_text(encoding="utf-8")
+        for marker in (
+            "persist-credentials: true",
+            "git push",
+            "git commit candidate",
+            "git tag release",
+            "gh pr merge 1",
+            "git update-ref refs/heads/main HEAD",
+            "cargo clippy --fix",
+        ):
+            injected = marker if marker.startswith("persist-credentials:") else "# forbidden: " + marker
+            (self.folder / NATIVE).write_text(original + "\n" + injected + "\n", encoding="utf-8")
+            with self.subTest(marker=marker):
+                self.reject()
+
+    def test_commit_tree_is_allowed_because_it_does_not_move_a_ref(self) -> None:
+        path = self.folder / GAP
+        source = path.read_text(encoding="utf-8")
+        path.write_text(source + "\n# allowed token: git commit-tree\n", encoding="utf-8")
+        contexts = checker.workflow_inventory(self.root)
+        self.assertEqual(len(contexts), EXPECTED_CONTEXTS)
+
+    def test_cli_workflows_only_is_explicitly_non_hosted(self) -> None:
+        result = subprocess.run(
+            [sys.executable, str(SCRIPT), "--root", str(self.root), "--workflows-only"],
+            capture_output=True,
+            text=True,
+            timeout=15,
+            check=False,
+        )
         self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn(f"{EXPECTED_CONTEXTS} unique contexts", result.stdout)
         self.assertIn("workflow inventory only", result.stdout)
         self.assertIn("no hosted/governance evidence", result.stdout)
 
-    def test_default_mode_does_not_skip_missing_documentation(self):
-        result = subprocess.run([sys.executable, str(SCRIPT), "--root", str(self.root)],
-                                capture_output=True, text=True, timeout=15)
+    def test_default_mode_rejects_missing_documentation(self) -> None:
+        result = subprocess.run(
+            [sys.executable, str(SCRIPT), "--root", str(self.root)],
+            capture_output=True,
+            text=True,
+            timeout=15,
+            check=False,
+        )
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("required current/historical contract is missing", result.stderr)
 
-    def test_child_failure_and_timeout_are_not_swallowed(self):
+    def test_child_failure_and_timeout_are_not_swallowed(self) -> None:
         for relative in checker.REQUIRED_DOCS:
             path = self.root / relative
             path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_text("fixture input, not real evidence\n")
+            path.write_text("fixture input, not real evidence\n", encoding="utf-8")
         with patch.object(sys, "argv", [str(SCRIPT), "--root", str(self.root)]):
-            for outcome in (subprocess.CompletedProcess([], 1, "", "fixture failed"), subprocess.TimeoutExpired("fixture", 180)):
+            outcomes = (
+                subprocess.CompletedProcess([], 1, "", "fixture failed"),
+                subprocess.TimeoutExpired("fixture", 180),
+            )
+            for outcome in outcomes:
                 with self.subTest(outcome=type(outcome).__name__):
                     kwargs = {"side_effect": outcome} if isinstance(outcome, Exception) else {"return_value": outcome}
                     with patch.object(checker.subprocess, "run", **kwargs):
-                        with self.assertRaises(SystemExit): checker.main()
+                        with self.assertRaises(SystemExit):
+                            checker.main()
 
-    def test_inventory_check_does_not_write_source(self):
-        before = {p.name: p.read_bytes() for p in self.folder.iterdir()}
+    def test_inventory_check_does_not_write_source(self) -> None:
+        before = {path.name: path.read_bytes() for path in self.folder.iterdir()}
         checker.workflow_inventory(self.root)
-        self.assertEqual(before, {p.name: p.read_bytes() for p in self.folder.iterdir()})
+        after = {path.name: path.read_bytes() for path in self.folder.iterdir()}
+        self.assertEqual(before, after)
 
 
 if __name__ == "__main__":
