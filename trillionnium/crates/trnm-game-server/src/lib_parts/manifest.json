@@ -132,10 +132,10 @@
       "sha256": "0a9a6af72f4e8e603ade26e3c15af907b032d664ce358e2d4565f68db08b8f71"
     },
     {
-      "bytes": 1586,
+      "bytes": 1459,
       "path": "lib_parts/tests/part_01.rs",
       "section": "tests",
-      "sha256": "eff00426b7d8b3c2abb3f39c9ca5c035cfd95f5ca601ef81bcf43805cd0b659b"
+      "sha256": "07e0f0b8e9dce58b613b7494e0ab94600b931d92255ef8f8092d8f933e23119a"
     }
   ],
   "schema": "trnm_semantic_direct_source_partition_v1",
