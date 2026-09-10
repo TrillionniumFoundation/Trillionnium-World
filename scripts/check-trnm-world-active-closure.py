@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Current World closure checker with exact live CEX Sequence 54 binding."""
+"""Validate the current World closure without stale Markdown identity duplication."""
 
 from __future__ import annotations
 
@@ -19,8 +19,9 @@ if _SPEC is None or _SPEC.loader is None:
 _BASE = importlib.util.module_from_spec(_SPEC)
 _SPEC.loader.exec_module(_BASE)
 
-# Re-export the complete established checker API. Existing hostile fixtures must
-# continue to exercise the full V6 validator rather than a reduced compatibility shim.
+# Re-export the established checker API. The current wrapper deliberately keeps
+# the archived validator as the broad negative surface and overlays only facts
+# that moved after the archived snapshot.
 for _name in dir(_BASE):
     if not _name.startswith("__"):
         globals()[_name] = getattr(_BASE, _name)
@@ -62,7 +63,82 @@ def reject_current_stale_identity(relative: str, text: str) -> None:
 
 
 _BASE.reject_current_stale_identity = reject_current_stale_identity
-validate = _BASE.validate
+
+# The archived validator required the selected CEX PR and Git SHAs to be copied
+# into both CURRENT_PLAN.md and RELEASE_READINESS.md. The current plan explicitly
+# removed that self-invalidating duplication: exact external identities now live
+# in versioned machine records and are still checked below by the archived
+# ledger/lock comparisons. Suppress only those obsolete presentation assertions;
+# every structural, exact-object and no-overclaim assertion remains active.
+_BASE_REQUIRE = _BASE.require
+_OBSOLETE_MARKDOWN_IDENTITY_FAILURES = {
+    "release truth missing marker: CEX PR #53",
+    f"release truth missing marker: {CURRENT_CEX['commit']}",
+    f"release truth missing marker: {CURRENT_CEX['tree']}",
+    "CURRENT_PLAN.md missing current marker: CEX PR #53",
+    f"CURRENT_PLAN.md missing current marker: {CURRENT_CEX['commit']}",
+    f"CURRENT_PLAN.md missing current marker: {CURRENT_CEX['tree']}",
+}
+
+
+def require(condition: bool, message: str) -> None:
+    if not condition and message in _OBSOLETE_MARKDOWN_IDENTITY_FAILURES:
+        return
+    _BASE_REQUIRE(condition, message)
+
+
+_BASE.require = require
+_BASE_VALIDATE = _BASE.validate
+
+
+def validate(root: Path) -> None:
+    root = root.resolve()
+    _BASE_VALIDATE(root)
+
+    plan = _BASE.read_text(root, _BASE.PLAN)
+    release = _BASE.read_text(root, _BASE.RELEASE)
+
+    for marker in (
+        "Tracked source cannot certify its own current Git head",
+        "Exact external candidate identities are deliberately not duplicated in this tracked plan.",
+        _BASE.CEX_LOCK,
+        _BASE.LEDGER,
+        _BASE.RELEASE,
+        "Production authorization remains **not granted**",
+    ):
+        _BASE_REQUIRE(marker in plan, f"CURRENT_PLAN.md missing live-object rule marker: {marker}")
+
+    for marker in (
+        "CEX trusted settlement/custody",
+        "blocked_upstream",
+        "all_repository_gaps_closed=false",
+        "all_plan_gaps_closed=false",
+        "production_ready=false",
+        "production_authorization=not_granted",
+    ):
+        _BASE_REQUIRE(marker in release, f"release truth missing current generic marker: {marker}")
+
+    # Exact external values remain mandatory in the machine lock and ledger, but
+    # must not be reintroduced into the tracked plan where they become stale as
+    # soon as an accountable external repository moves.
+    for marker in (
+        "CEX PR #53",
+        CURRENT_CEX["commit"],
+        CURRENT_CEX["tree"],
+        CURRENT_CEX["prospective_merge"],
+    ):
+        _BASE_REQUIRE(
+            marker not in plan,
+            f"CURRENT_PLAN.md duplicates external candidate identity: {marker}",
+        )
+
+
+_BASE.validate = validate
+
+# The archived module lives one directory deeper than the current entrypoint.
+# Point its CLI default-root calculation at this wrapper so parents[1] resolves
+# to the repository root without rewriting the retained archive snapshot.
+_BASE.__file__ = str(Path(__file__).resolve())
 main = _BASE.main
 
 if __name__ == "__main__":
