@@ -106,7 +106,7 @@ def make_fixture(root: Path) -> None:
     components.append(entry("audit-events", "contracts/audit-events", "rust-crate", "mvp-perimeter", "scope-dependent", ["contracts/audit-events/README.md", "docs/modules/contracts/audit-events-design.md"]))
 
     transition = "trillionnium/contracts/trnm-world-transition-v1"
-    rust_package(root, transition, "trnm-world-transition-v1")
+    rust_package(root, transition, "trnm-world-transition-contract")
     write(root / "docs/protocol/trnm-world-transition-v1.md", f"trnm-world-transition-v1 {transition}\n")
     components.append(entry("trnm-world-transition-v1", transition, "rust-crate", "protocol-contract", "cross-repository-contract", [f"{transition}/README.md", "docs/protocol/trnm-world-transition-v1.md"]))
 
