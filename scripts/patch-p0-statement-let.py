@@ -124,6 +124,57 @@ OPERATOR_REAPPLY = OPERATOR_APPLY + '''    pool.execute(OPERATOR_MIGRATION)
         .expect("reapply operator migration idempotently");
 '''
 
+MUTATION_LOOP = '''    for statement in [
+        "update public.trnm_online_settlement_operator_replay_requests set reason = 'tampered evidence'",
+        "delete from public.trnm_online_settlement_operator_replay_requests",
+        "truncate public.trnm_online_settlement_operator_replay_requests",
+        "update public.trnm_online_settlement_operator_policy_revisions set reason = 'tampered policy'",
+        "delete from public.trnm_online_settlement_operator_policy_revisions",
+        "truncate public.trnm_online_settlement_operator_policy_revisions",
+    ] {
+        let error = sqlx::query::query(statement)
+            .execute(&pool)
+            .await
+            .unwrap_err();
+        assert_sqlstate(error, "55000");
+    }
+'''
+MUTATION_FENCES = '''    for statement in [
+        "update public.trnm_online_settlement_operator_replay_requests set reason = 'tampered evidence'",
+        "delete from public.trnm_online_settlement_operator_replay_requests",
+        "truncate public.trnm_online_settlement_operator_replay_requests",
+        "update public.trnm_online_settlement_operator_policy_revisions set reason = 'tampered policy'",
+        "delete from public.trnm_online_settlement_operator_policy_revisions",
+    ] {
+        let error = sqlx::query::query(statement)
+            .execute(&pool)
+            .await
+            .unwrap_err();
+        assert_sqlstate(error, "55000");
+    }
+
+    // PostgreSQL rejects a parent-only TRUNCATE before relation triggers because
+    // replay evidence holds an exact foreign key to the policy revision. That
+    // native fence is expected and distinct from the append-only trigger fence.
+    let native_fk_fence = sqlx::query::query(
+        "truncate public.trnm_online_settlement_operator_policy_revisions",
+    )
+    .execute(&pool)
+    .await
+    .unwrap_err();
+    assert_sqlstate(native_fk_fence, "0A000");
+
+    // Including dependent rows reaches the reviewed BEFORE TRUNCATE trigger and
+    // must still fail with the component-owned append-only SQLSTATE.
+    let append_only_fence = sqlx::query::query(
+        "truncate public.trnm_online_settlement_operator_policy_revisions cascade",
+    )
+    .execute(&pool)
+    .await
+    .unwrap_err();
+    assert_sqlstate(append_only_fence, "55000");
+'''
+
 
 def replace_once(text: str, old: str, new: str, label: str) -> str:
     if text.count(old) != 1:
@@ -186,6 +237,12 @@ def patch_operator_policy(root: Path) -> None:
         OPERATOR_APPLY,
         OPERATOR_REAPPLY,
         "operator migration idempotence regression",
+    )
+    text = replace_once(
+        text,
+        MUTATION_LOOP,
+        MUTATION_FENCES,
+        "operator mutation fence SQLSTATE regression",
     )
     test.write_text(text, encoding="utf-8", newline="\n")
 
