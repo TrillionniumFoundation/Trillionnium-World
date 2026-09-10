@@ -201,8 +201,6 @@ fn mask_rust_comments_and_literals(source: &str) -> String {
                 }
                 cursor = end + 1;
             } else {
-                // A malformed quote must not trap the source gate. Preserve it as
-                // structural input and advance by one byte so the scan is total.
                 cursor += 1;
             }
             continue;
@@ -456,7 +454,7 @@ fn statement_initializer_end(code: &str, start: usize) -> Option<usize> {
     None
 }
 
-fn simple_let_binding(code: &str, start: usize) -> Option<(usize, String, BindingKind)> {
+fn simple_let_statement(code: &str, start: usize) -> Option<(usize, String, &str)> {
     let bytes = code.as_bytes();
     if !standalone_let_at(bytes, start) {
         return None;
@@ -493,13 +491,21 @@ fn simple_let_binding(code: &str, start: usize) -> Option<(usize, String, Bindin
     };
 
     let initializer_end = statement_initializer_end(code, initializer_start)?;
-    let initializer = &code[initializer_start..initializer_end];
+    Some((
+        initializer_end + 1,
+        name,
+        &code[initializer_start..initializer_end],
+    ))
+}
+
+fn simple_let_binding(code: &str, start: usize) -> Option<(usize, String, BindingKind)> {
+    let (end, name, initializer) = simple_let_statement(code, start)?;
     let kind = if exact_captured_backend_constructor(initializer) {
         BindingKind::CapturedReceipt
     } else {
         BindingKind::Other
     };
-    Some((initializer_end + 1, name, kind))
+    Some((end, name, kind))
 }
 
 fn simple_assignment(code: &str, start: usize) -> Option<(usize, String, BindingKind)> {
@@ -604,49 +610,171 @@ fn call_uses_captured_backend(code: &str, call_start: usize, argument: &str) -> 
             .is_some_and(|identifier| captured_backend_binding_before(code, call_start, identifier))
 }
 
-fn transaction_reconciliation_counts(source: &str) -> (usize, usize, Vec<String>) {
-    let code = mask_rust_comments_and_literals(source);
-    let external_markers = [
+fn brace_depth(bytes: &[u8], end: usize) -> i64 {
+    bytes[..end]
+        .iter()
+        .fold(0i64, |depth, byte| match byte {
+            b'{' => depth + 1,
+            b'}' => depth - 1,
+            _ => depth,
+        })
+}
+
+fn lexical_scope_end(code: &str, start: usize) -> usize {
+    let bytes = code.as_bytes();
+    let binding_depth = brace_depth(bytes, start);
+    let mut depth = binding_depth;
+    for (relative, byte) in bytes[start..].iter().copied().enumerate() {
+        match byte {
+            b'{' => depth += 1,
+            b'}' => {
+                depth -= 1;
+                if depth < binding_depth {
+                    return start + relative;
+                }
+            }
+            _ => {}
+        }
+    }
+    code.len()
+}
+
+fn first_pattern(code: &str, start: usize, end: usize, patterns: &[String]) -> Option<usize> {
+    patterns
+        .iter()
+        .filter_map(|pattern| code[start..end].find(pattern).map(|offset| start + offset))
+        .min()
+}
+
+fn transaction_ranges(code: &str) -> Vec<Range<usize>> {
+    let bytes = code.as_bytes();
+    let mut ranges = Vec::new();
+    if let Some(open) = code.find('{') {
+        let signature = &code[..open];
+        if signature.contains("Transaction<")
+            || signature.contains("transaction::Transaction<")
+        {
+            ranges.push(open + 1..code.len().saturating_sub(1));
+        }
+    }
+
+    let mut cursor = 0usize;
+    while cursor < bytes.len() {
+        if keyword_at(bytes, cursor, b"let") {
+            if let Some((end, name, initializer)) = simple_let_statement(code, cursor) {
+                let compact = initializer
+                    .chars()
+                    .filter(|character| !character.is_whitespace())
+                    .collect::<String>();
+                if compact.contains(".begin().await")
+                    || (compact.contains("Connection::begin(") && compact.contains(".await"))
+                {
+                    let scope_end = lexical_scope_end(code, end);
+                    let terminators = [
+                        format!("{name}.commit().await"),
+                        format!("{name}.rollback().await"),
+                        format!("drop({name})"),
+                        format!("std::mem::drop({name})"),
+                    ];
+                    let live_end = first_pattern(code, end, scope_end, &terminators)
+                        .unwrap_or(scope_end);
+                    if end < live_end {
+                        ranges.push(end..live_end);
+                    }
+                }
+                cursor = end;
+                continue;
+            }
+        }
+        cursor += 1;
+    }
+    ranges
+}
+
+fn find_all(code: &str, marker: &str, out: &mut Vec<usize>) {
+    let mut cursor = 0usize;
+    while let Some(relative) = code[cursor..].find(marker) {
+        let position = cursor + relative;
+        out.push(position);
+        cursor = position + marker.len();
+    }
+}
+
+fn statement_prefix(code: &str, position: usize) -> &str {
+    let start = code[..position]
+        .rfind(|character| matches!(character, ';' | '{' | '}'))
+        .map_or(0, |index| index + 1);
+    &code[start..position]
+}
+
+fn remote_settlement_positions(code: &str) -> Vec<usize> {
+    let mut positions = Vec::new();
+    for marker in [
         ".execute_authoritative(",
         ".authorize_settlement_intent(",
         ".submit_authorized_settlement_intent(",
         ".readiness().await",
-        ".send().await",
         ".blocking_client",
-    ];
+    ] {
+        find_all(code, marker, &mut positions);
+    }
 
+    let mut cursor = 0usize;
+    let send = ".send().await";
+    while let Some(relative) = code[cursor..].find(send) {
+        let position = cursor + relative;
+        let prefix = statement_prefix(code, position)
+            .chars()
+            .filter(|character| !character.is_whitespace())
+            .collect::<String>();
+        if [".get(", ".post(", ".put(", ".patch(", ".delete(", ".request("]
+            .iter()
+            .any(|marker| prefix.contains(marker))
+        {
+            positions.push(position);
+        }
+        cursor = position + send.len();
+    }
+
+    positions.sort_unstable();
+    positions.dedup();
+    positions
+}
+
+fn inside_transaction(position: usize, ranges: &[Range<usize>]) -> bool {
+    ranges.iter().any(|range| range.contains(&position))
+}
+
+fn transaction_reconciliation_counts(source: &str) -> (usize, usize, Vec<String>) {
+    let code = mask_rust_comments_and_literals(source);
     let mut reconcile_count = 0usize;
     let mut captured_transaction_reconcile_count = 0usize;
     let mut violations = Vec::new();
 
     for (name, range) in function_ranges(source) {
         let code_body = &code[range];
-        let compact_code = code_body
-            .chars()
-            .filter(|character| !character.is_whitespace())
-            .collect::<String>();
-        let has_transaction =
-            compact_code.contains(".begin().await") || compact_code.contains("Transaction<'");
-        let has_external = external_markers
-            .iter()
-            .any(|marker| compact_code.contains(marker));
+        let transactions = transaction_ranges(code_body);
         let calls = reconciliation_calls(code_body);
         reconcile_count += calls.len();
 
-        if has_transaction {
-            for (call_start, argument) in calls {
+        for (call_start, argument) in calls {
+            if inside_transaction(call_start, &transactions) {
                 if call_uses_captured_backend(code_body, call_start, argument) {
                     captured_transaction_reconcile_count += 1;
                 } else {
                     violations.push(format!(
-                        "{name} reconciles economy under a transaction without passing an exact CapturedReceiptBackend value"
+                        "{name} reconciles economy under a live transaction without passing an exact CapturedReceiptBackend value"
                     ));
                 }
             }
         }
-        if has_external && has_transaction {
+
+        if remote_settlement_positions(code_body)
+            .into_iter()
+            .any(|position| inside_transaction(position, &transactions))
+        {
             violations.push(format!(
-                "{name} performs remote settlement I/O while owning a database transaction"
+                "{name} performs remote settlement I/O while a database transaction is live"
             ));
         }
     }
@@ -875,6 +1003,60 @@ fn captured_receipt_exception_is_bound_to_the_actual_argument_value() {
     for source in rejected {
         let (_, _, violations) = transaction_reconciliation_counts(source);
         assert!(!violations.is_empty(), "unsafe fixture unexpectedly passed");
+    }
+}
+
+#[test]
+fn remote_io_is_checked_only_while_the_transaction_is_live() {
+    let accepted = [
+        r#"
+            async fn preflight_before_transaction() {
+                cex.readiness().await?;
+                let mut transaction = pool.begin().await?;
+                mutate(&mut transaction).await?;
+                transaction.commit().await?;
+            }
+        "#,
+        r#"
+            async fn remote_after_commit() {
+                let mut transaction = pool.begin().await?;
+                mutate(&mut transaction).await?;
+                transaction.commit().await?;
+                cex.readiness().await?;
+            }
+        "#,
+        r#"
+            async fn local_channel_send_is_not_remote_settlement() {
+                let mut transaction = pool.begin().await?;
+                queue.send(message).await?;
+                transaction.commit().await?;
+            }
+        "#,
+    ];
+    for source in accepted {
+        let (_, _, violations) = transaction_reconciliation_counts(source);
+        assert!(violations.is_empty(), "safe phase fixture failed: {violations:?}");
+    }
+
+    let rejected = [
+        r#"
+            async fn readiness_under_transaction() {
+                let mut transaction = pool.begin().await?;
+                cex.readiness().await?;
+                transaction.commit().await?;
+            }
+        "#,
+        r#"
+            async fn http_send_under_transaction() {
+                let mut transaction = pool.begin().await?;
+                client.post(url).send().await?;
+                transaction.commit().await?;
+            }
+        "#,
+    ];
+    for source in rejected {
+        let (_, _, violations) = transaction_reconciliation_counts(source);
+        assert!(!violations.is_empty(), "unsafe phase fixture unexpectedly passed");
     }
 }
 
