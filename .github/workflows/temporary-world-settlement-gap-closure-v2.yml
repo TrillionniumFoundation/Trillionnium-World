@@ -1,6 +1,11 @@
 name: temporary-world-settlement-gap-closure-v2
 
 on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - .github/workflows/temporary-world-settlement-gap-closure-v2.yml
   push:
     branches:
       - fix/world-settlement-gap-closure-v2-20260910
@@ -50,16 +55,16 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           ref: ${{ env.TARGET_BRANCH }}
-          fetch-depth: 2
+          fetch-depth: 0
           persist-credentials: true
 
-      - name: Verify exact source parent and install pinned Rust
+      - name: Verify exact source ancestry and install pinned Rust
         shell: bash
         run: |
           set -euo pipefail
           carrier_sha="$(git rev-parse HEAD)"
-          test "$(git rev-parse HEAD^)" = "$SOURCE_SHA"
-          test "$(git diff --name-only HEAD^ HEAD)" = "$WORKFLOW_PATH"
+          test "$(git merge-base HEAD "$SOURCE_SHA")" = "$SOURCE_SHA"
+          test "$(git diff --name-only "$SOURCE_SHA" HEAD)" = "$WORKFLOW_PATH"
           printf '%s\n' "$carrier_sha" > "$RUNNER_TEMP/world-carrier-sha"
           printf '%s  %s\n' \
             7add94356f80eb31764aa4e60af4aec227303aa3d816ca8ea83d2b49afd26a09 \
