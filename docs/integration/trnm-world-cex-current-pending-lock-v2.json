@@ -1,0 +1,55 @@
+{
+  "schema": "trnm_world_cex_pending_component_lock_v2",
+  "recorded_at_utc": "2026-09-08T16:22:35Z",
+  "lock_state": "coordination_only_blocked",
+  "selection_state": "observed_unqualified_candidate",
+  "world": {
+    "repository": "TrillionniumFoundation/Trillionnium-World",
+    "pull_request": 104,
+    "branch": "fix/world-convergence-v6-20260908",
+    "base": "0f6117a56263bcb5bf89e34b8bcda557a7da2e6d",
+    "observed_commit_before_update": "1acb5e2a4bf872fc487caa6dfe52c0b4c4fe32a9",
+    "observed_tree_before_update": "7e0511496a7b7d36dba0d845a1c134f064581552",
+    "observed_prospective_merge_before_update": "a03a6e2ddc9a62264410a04ca541b559e6be93be",
+    "qualification": "pending_non_empty_exact_head_and_merge_evidence",
+    "production_authorization": "not_granted"
+  },
+  "cex": {
+    "repository": "TrillionniumFoundation/CEX",
+    "pull_request": 53,
+    "branch": "integration/cex-v12-sequence54-20260908",
+    "commit": "882014451c22026dfe4848248f2b26a9b46ac049",
+    "tree": "cb5b69f79eeb4e6d2032b93115d3e25c88957903",
+    "base": "db75c74094748a1139fd64b0360e122d8ec797a0",
+    "prospective_merge": "7a93ca40eb9278b4da7dc64b9f773acd639b9410",
+    "sequence": 54,
+    "qualification": "pending_non_empty_exact_head_and_merge_evidence_and_independent_approval",
+    "production_authorization": "not_granted"
+  },
+  "required_before_selection": [
+    "CEX exact head and prospective merge have non-empty terminal-success repository-native workflows",
+    "CEX source, migrations, manifest, SBOM and provenance bind one immutable commit and tree",
+    "World exact head and prospective merge have non-empty terminal-success workflows",
+    "World and CEX agree on exact request, receipt, idempotency and ambiguity-recovery bytes",
+    "response-loss, conflict, replay, stale lease and provider-unknown-outcome matrices pass",
+    "independent CEX, World, security and Integration reviewers approve the unchanged component tuple",
+    "Integration records the exact accepted World/CEX/Nakama/Chain component lock",
+    "custody, deployment, rollback and no-dual-writer evidence remain separately satisfied"
+  ],
+  "prohibited_promotions": [
+    "qualified",
+    "trusted_settlement",
+    "production_ready",
+    "custody_approved",
+    "public_player_market",
+    "production_authorization"
+  ],
+  "world_adoption": "disabled",
+  "qualified": false,
+  "trusted_settlement": false,
+  "custody_approved": false,
+  "public_player_market": false,
+  "production_ready": false,
+  "production_authorization": "not_granted",
+  "no_credit_rule": "this file records an observed candidate for coordination only; it is not a component selection, qualification, custody approval or production authorization"
+}

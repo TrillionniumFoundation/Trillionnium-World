@@ -1,0 +1,184 @@
+{
+  "schema": "trnm_world_development_plan_v4",
+  "plan_id": "trillionnium-world-development-2026-08-29-v4",
+  "status": "current_candidate",
+  "as_of": "2026-08-29",
+  "review_due": "2026-09-12",
+  "base_commit": "1d4dee6d5add45a64f5c138f424e3bdab369ecd4",
+  "working_branch": "fix/world-plan-gap-closure-v4",
+  "verified_commit": null,
+  "release_effect": "none",
+  "public_online": "no_go",
+  "public_player_market": "disabled",
+  "decision": {
+    "world_role": "deterministic_game_domain_and_native_product",
+    "online_match_authority": "Trillionnium-Nakama",
+    "chain_finality_authority": "Trillionnium-Chain",
+    "wallet_settlement_authority": "CEX",
+    "cross_repository_evidence_authority": "Trillionnium-Integration",
+    "world_local_game_server": "world_legacy_local_alpha_compatibility_enclave"
+  },
+  "truth_hierarchy": [
+    "project_boundary",
+    "accepted_adrs",
+    "current_plan_and_manifest",
+    "normative_protocol_and_database_contracts",
+    "machine_gate_status_and_exact_evidence",
+    "implementation_and_tests",
+    "operational_reports",
+    "historical_material"
+  ],
+  "evidence_classes": [
+    "source_static",
+    "unit",
+    "database_black_box",
+    "single_host_runtime",
+    "cross_repository_integration",
+    "cross_host",
+    "public_network",
+    "human",
+    "custody_security",
+    "commercial_legal"
+  ],
+  "release_denominators": [
+    {
+      "id": "deterministic_world_runtime",
+      "status": "implemented_candidate",
+      "promotion_requires": ["strict_canonical_contract", "cross_language_vectors", "exact_head_ci"]
+    },
+    {
+      "id": "native_software_alpha",
+      "status": "technical_alpha",
+      "promotion_requires": ["exact_package_runtime_evidence", "supported_target_matrix"]
+    },
+    {
+      "id": "commercial_single_player",
+      "status": "blocked",
+      "promotion_requires": ["human", "accessibility", "distribution", "support", "privacy", "legal"]
+    },
+    {
+      "id": "trusted_cex_settlement",
+      "status": "blocked",
+      "promotion_requires": ["deployed_fault_matrix", "custody", "pitr", "retention", "independent_review"]
+    },
+    {
+      "id": "closed_nakama_online",
+      "status": "blocked",
+      "promotion_requires": ["sole_nakama_authority", "shadow_convergence", "component_lock", "cutover_rollback"]
+    },
+    {
+      "id": "public_online",
+      "status": "no_go",
+      "promotion_requires": ["closed_nakama_online", "public_edge", "cross_host", "capacity", "endurance", "moderation", "human"]
+    },
+    {
+      "id": "public_player_market",
+      "status": "disabled",
+      "promotion_requires": ["public_online", "custody", "fraud", "dispute", "commercial", "privacy", "legal", "governance"]
+    }
+  ],
+  "workstreams": [
+    {"id": "W0", "name": "governance_truth_and_documentation", "owner": "Trillionnium-World"},
+    {"id": "W1", "name": "strict_world_transition_contract", "owner": "Trillionnium-World"},
+    {"id": "W2", "name": "settlement_runtime_closure", "owner": "Trillionnium-World"},
+    {"id": "W3", "name": "nakama_adapter_shadow_and_cutover", "owner": "Trillionnium-Nakama+Trillionnium-Integration"},
+    {"id": "W4", "name": "correctness_module_decomposition", "owner": "Trillionnium-World"},
+    {"id": "W5", "name": "protocol_and_database_formalization", "owner": "Trillionnium-World"},
+    {"id": "W6", "name": "portable_runtime_secrets_and_supply_chain", "owner": "Trillionnium-World+CEX"},
+    {"id": "W7", "name": "reliability_and_evidence", "owner": "Trillionnium-World+Trillionnium-Integration"},
+    {"id": "W8", "name": "product_and_human_validation", "owner": "Trillionnium-World"},
+    {"id": "W9", "name": "public_and_commercial_readiness", "owner": "Operations+CEX+Business+Legal"}
+  ],
+  "tranches": [
+    {
+      "id": "T0",
+      "name": "plan_document_governance_convergence",
+      "depends_on": [],
+      "exit": ["truth_sources_converged", "documentation_checks_green", "server_governance_observed_or_explicitly_blocked"]
+    },
+    {
+      "id": "T1",
+      "name": "source_manageable_p0_closure",
+      "depends_on": ["T0"],
+      "exit": ["settlement_source_p0_validated", "transition_contract_p0_validated", "no_external_evidence_overclaim"]
+    },
+    {
+      "id": "T2",
+      "name": "cross_repository_authority_and_settlement_integration",
+      "depends_on": ["T1"],
+      "exit": ["nakama_sole_authority", "deployed_settlement_ambiguity_converges", "exact_component_lock"]
+    },
+    {
+      "id": "T3",
+      "name": "decomposition_protocol_and_database_formalization",
+      "depends_on": ["T2"],
+      "exit": ["reviewable_module_ownership", "schema_conformance", "reproducible_release_provenance"]
+    },
+    {
+      "id": "T4",
+      "name": "reliability_and_portable_distribution",
+      "depends_on": ["T3"],
+      "exit": ["multi_os_distribution", "cross_host_recovery", "clean_24h_endurance", "backup_pitr_incident_drills"]
+    },
+    {
+      "id": "T5",
+      "name": "human_product_validation",
+      "depends_on": ["T4"],
+      "exit": ["all_required_human_rows_accepted"]
+    },
+    {
+      "id": "T6",
+      "name": "public_commercial_decision",
+      "depends_on": ["T5"],
+      "exit": ["explicit_owner_approval_for_exact_denominator_or_remain_no_go"]
+    }
+  ],
+  "immediate_work_items": [
+    {"id": "WORLD-P0-001", "workstream": "W2", "owner": "Trillionnium-World", "state": "implemented_candidate", "evidence_class": "database_black_box"},
+    {"id": "WORLD-P0-001A", "workstream": "W2", "owner": "Trillionnium-World", "state": "source_gap", "evidence_class": "single_host_runtime"},
+    {"id": "WORLD-P0-001B", "workstream": "W2", "owner": "Trillionnium-World", "state": "source_database_gap", "evidence_class": "database_black_box"},
+    {"id": "WORLD-P0-001C", "workstream": "W2", "owner": "Trillionnium-World+CEX", "state": "source_and_cross_repository_gap", "evidence_class": "cross_repository_integration"},
+    {"id": "WORLD-P0-002", "workstream": "W1", "owner": "Trillionnium-World", "state": "separate_candidate_requires_integration", "evidence_class": "unit"},
+    {"id": "WORLD-P0-002A", "workstream": "W1", "owner": "Trillionnium-World", "state": "source_gap", "evidence_class": "unit"},
+    {"id": "WORLD-P0-003", "workstream": "W3", "owner": "Trillionnium-Nakama", "state": "blocked_upstream", "evidence_class": "cross_repository_integration"},
+    {"id": "WORLD-P0-004", "workstream": "W3", "owner": "Trillionnium-Integration", "state": "blocked_upstream", "evidence_class": "cross_repository_integration"},
+    {"id": "WORLD-P0-005", "workstream": "W0", "owner": "repository_admin", "state": "server_configuration_required", "evidence_class": "source_static"},
+    {"id": "WORLD-P0-006", "workstream": "W0", "owner": "Trillionnium-World", "state": "source_gap", "evidence_class": "source_static"},
+    {"id": "WORLD-P1-001", "workstream": "W4", "owner": "Trillionnium-World", "state": "pending_p0_freeze", "evidence_class": "unit"},
+    {"id": "WORLD-P1-002", "workstream": "W5", "owner": "Trillionnium-World", "state": "pending_authority_contract", "evidence_class": "unit"},
+    {"id": "WORLD-P1-003", "workstream": "W5", "owner": "Trillionnium-World", "state": "pending_settlement_schema_freeze", "evidence_class": "database_black_box"},
+    {"id": "WORLD-P1-004", "workstream": "W6", "owner": "Trillionnium-World", "state": "partial_source_foundation", "evidence_class": "single_host_runtime"},
+    {"id": "WORLD-P1-005", "workstream": "W6", "owner": "Trillionnium-World+CEX", "state": "environment_custody_pending", "evidence_class": "custody_security"},
+    {"id": "WORLD-P1-006", "workstream": "W6", "owner": "Trillionnium-World", "state": "source_environment_pending", "evidence_class": "single_host_runtime"},
+    {"id": "WORLD-P1-007", "workstream": "W7", "owner": "Trillionnium-World+CEX", "state": "deployed_environment_pending", "evidence_class": "cross_repository_integration"},
+    {"id": "WORLD-P1-008", "workstream": "W7", "owner": "Trillionnium-World", "state": "environment_pending", "evidence_class": "single_host_runtime"},
+    {"id": "WORLD-P2-001", "workstream": "W9", "owner": "Trillionnium-Integration+Operations", "state": "blocked_by_T2_T4", "evidence_class": "public_network"},
+    {"id": "WORLD-P2-002", "workstream": "W8", "owner": "Trillionnium-World", "state": "exact_candidate_and_participants_pending", "evidence_class": "human"},
+    {"id": "WORLD-P2-003", "workstream": "W9", "owner": "CEX+Business+Legal", "state": "disabled", "evidence_class": "commercial_legal"}
+  ],
+  "valid_stop_outcomes": [
+    "MODULE_CLOSED_CANDIDATE",
+    "BLOCKED_UPSTREAM",
+    "SERVER_CONFIGURATION_REQUIRED",
+    "EXTERNAL_EVIDENCE_REQUIRED",
+    "BASE_DRIFT",
+    "RESUME_REQUIRED",
+    "STOP_CONDITION"
+  ],
+  "no_go": [
+    "dual_canonical_world_and_nakama_authority",
+    "canonical_json_divergence",
+    "remote_settlement_before_capture_commit",
+    "duplicate_value_from_ambiguous_outcome",
+    "stale_or_expired_lease_mutation",
+    "poison_work_blocks_unrelated_accounts",
+    "sigterm_continues_admission_indefinitely",
+    "ci_modifies_candidate_source",
+    "unverified_production_binary_fallback",
+    "shared_root_secret_across_roles",
+    "unbound_or_partial_evidence",
+    "unproven_active_match_takeover",
+    "lower_evidence_class_used_for_higher_claim",
+    "missing_or_bypassed_required_checks"
+  ]
+}
