@@ -1,0 +1,164 @@
+name: world-pr-labeled-recheck-v1
+
+on:
+  pull_request:
+    branches:
+      - main
+    types:
+      - labeled
+
+permissions:
+  contents: read
+
+concurrency:
+  group: world-labeled-recheck-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+env:
+  RUSTUP_TOOLCHAIN: '1.98.1'
+  CARGO_INCREMENTAL: '0'
+  RUST_BACKTRACE: '1'
+  RUST_TEST_THREADS: '1'
+  PRODUCTION_AUTHORIZATION: not_granted
+
+jobs:
+  truth:
+    if: github.event.label.name == 'exact-tuple-recheck'
+    name: truth
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Checkout exact PR merge source without credentials
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Execute closed-world truth gates
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          git diff --check
+          python3 scripts/check-trnm-world-component-catalog.py
+          python3 scripts/test-trnm-world-component-catalog.py
+          python3 scripts/check-trnm-world-include-boundaries.py
+          python3 scripts/test-trnm-world-include-boundaries.py
+          test -z "$(git status --porcelain=v1 --untracked-files=no)"
+          printf 'WORLD_RECHECK_EVENT_SHA=%s\n' "$GITHUB_SHA"
+          printf 'WORLD_RECHECK_HEAD_SHA=%s\n' '${{ github.event.pull_request.head.sha }}'
+          printf 'PRODUCTION_AUTHORIZATION=%s\n' "$PRODUCTION_AUTHORIZATION"
+
+  source:
+    if: github.event.label.name == 'exact-tuple-recheck'
+    name: source
+    needs: truth
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - name: Checkout exact PR merge source without credentials
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Install exact Rust toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          rustup toolchain install 1.98.1 --profile minimal --component rustfmt,clippy
+          test "$(rustc --version | awk '{print $2}')" = '1.98.1'
+      - name: Execute complete workspace source qualification
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo fmt --manifest-path trillionnium/Cargo.toml --all -- --check
+          cargo test --manifest-path trillionnium/Cargo.toml --workspace --all-targets --locked
+          cargo clippy --manifest-path trillionnium/Cargo.toml --workspace --all-targets --locked -- -D warnings
+          cargo build --manifest-path trillionnium/Cargo.toml --workspace --release --locked
+          test -z "$(git status --porcelain=v1 --untracked-files=no)"
+          printf 'WORLD_LABELED_SOURCE_RECHECK=PASS\n'
+          printf 'PRODUCTION_AUTHORIZATION=%s\n' "$PRODUCTION_AUTHORIZATION"
+
+  postgres:
+    if: github.event.label.name == 'exact-tuple-recheck'
+    name: postgres
+    needs: truth
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: trillionnium_world_recheck
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d trillionnium_world_recheck"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 30
+    env:
+      DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/trillionnium_world_recheck
+      TEST_DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/trillionnium_world_recheck
+      PGPASSWORD: postgres
+    steps:
+      - name: Checkout exact PR merge source without credentials
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Execute PostgreSQL-aware complete tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          rustup toolchain install 1.98.1 --profile minimal
+          test "$(rustc --version | awk '{print $2}')" = '1.98.1'
+          pg_isready -h 127.0.0.1 -p 5432 -U postgres -d trillionnium_world_recheck
+          cargo test --manifest-path trillionnium/Cargo.toml \
+            --workspace --all-targets --locked -- --test-threads=1
+          test -z "$(git status --porcelain=v1 --untracked-files=no)"
+          printf 'WORLD_LABELED_POSTGRES_RECHECK=PASS\n'
+          printf 'PRODUCTION_AUTHORIZATION=%s\n' "$PRODUCTION_AUTHORIZATION"
+
+  package:
+    if: github.event.label.name == 'exact-tuple-recheck'
+    name: package
+    needs:
+      - truth
+      - source
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - name: Checkout exact PR merge source without credentials
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Package every publishable workspace member
+        shell: bash
+        run: |
+          set -euo pipefail
+          rustup toolchain install 1.98.1 --profile minimal
+          python3 - <<'PY' > "$RUNNER_TEMP/publishable-packages.txt"
+          import json
+          import subprocess
+          metadata = json.loads(subprocess.check_output([
+              'cargo', 'metadata', '--manifest-path', 'trillionnium/Cargo.toml',
+              '--format-version', '1', '--no-deps', '--locked'
+          ]))
+          members = set(metadata['workspace_members'])
+          for name in sorted({
+              package['name'] for package in metadata['packages']
+              if package['id'] in members and package.get('publish') != []
+          }):
+              print(name)
+          PY
+          test -s "$RUNNER_TEMP/publishable-packages.txt"
+          while IFS= read -r package; do
+            cargo package --manifest-path trillionnium/Cargo.toml \
+              -p "$package" --locked --allow-dirty
+          done < "$RUNNER_TEMP/publishable-packages.txt"
+          test -z "$(git status --porcelain=v1 --untracked-files=no)"
+          printf 'WORLD_LABELED_PACKAGE_RECHECK=PASS\n'
+          printf 'PRODUCTION_AUTHORIZATION=%s\n' "$PRODUCTION_AUTHORIZATION"
