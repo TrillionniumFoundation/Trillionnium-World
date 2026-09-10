@@ -109,6 +109,7 @@
     {"path":"docs/status/world-plan-v4-execution-truth-2026-09-02.json","class":"historical-execution-snapshot","owner":"trillionnium-world-program","status":"historical","review_due":"2026-09-22"},
     {"path":"docs/status/world-plan-v4-execution-truth-2026-09-08.json","class":"execution-snapshot","owner":"trillionnium-world-program","status":"current","review_due":"2026-09-22"},
     {"path":"docs/status/CURRENT.md","class":"status-view","owner":"trillionnium-world-program","status":"current-candidate","review_due":"2026-09-22"},
+    {"path":"docs/status/world-source-gap-closure-v12.json","class":"source-closure-status","owner":"trillionnium-world-program","status":"current-candidate","review_due":"2026-09-24"},
 
     {"path":"trillionnium/crates/world-authority/README.md","class":"world-authority-workspace","owner":"trillionnium-world-domain-service","status":"current-candidate","review_due":"2026-10-08"},
     {"path":"docs/modules/world-authority/README.md","class":"world-authority-module-index","owner":"trillionnium-world-architecture","status":"current-candidate","review_due":"2026-10-08"},
