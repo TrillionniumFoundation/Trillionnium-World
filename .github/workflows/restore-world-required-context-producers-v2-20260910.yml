@@ -1,0 +1,276 @@
+name: restore-world-required-context-producers-v2-20260910
+
+on:
+  push:
+    branches:
+      - ops/p0-statement-let-fix-58f76a-20260910
+
+permissions:
+  contents: write
+  pull-requests: read
+
+concurrency:
+  group: restore-world-required-context-producers-v2-20260910
+  cancel-in-progress: false
+
+jobs:
+  restore:
+    name: world/restore-missing-protected-context-producers-v2
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      TARGET_BRANCH: refactor/campaign-module-stack-v2-20260909
+      ADMIN_TOKEN_PRIMARY: ${{ secrets.ADMIN_GITHUB_TOKEN }}
+      ADMIN_TOKEN_SECONDARY: ${{ secrets.GH_ADMIN_TOKEN }}
+      ACTION_TOKEN: ${{ github.token }}
+    steps:
+      - name: Fetch the current target without accepting movement
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/target"
+          remote="https://github.com/${GITHUB_REPOSITORY}.git"
+          head="$(git ls-remote "$remote" "refs/heads/${TARGET_BRANCH}" | cut -f1)"
+          test "${#head}" = 40
+          printf '%s\n' "$head" > "$RUNNER_TEMP/original-head"
+          git init "$root"
+          git -C "$root" remote add origin "$remote"
+          git -C "$root" fetch --no-tags --depth=1 origin "$head"
+          git -C "$root" checkout --detach FETCH_HEAD
+          test "$(git -C "$root" rev-parse HEAD)" = "$head"
+
+      - name: Read protection and generate only missing equivalent producers
+        shell: bash
+        run: |
+          set -euo pipefail
+          token="$ADMIN_TOKEN_PRIMARY"
+          if [ -z "$token" ]; then token="$ADMIN_TOKEN_SECONDARY"; fi
+          if [ -z "$token" ]; then token="$ACTION_TOKEN"; fi
+          python3 - \
+            "$token" \
+            "$(cat "$RUNNER_TEMP/original-head")" \
+            "$RUNNER_TEMP/target/.github/workflows/world-required-context-bridge-v1.yml" <<'PY'
+          import json
+          import pathlib
+          import sys
+          import urllib.error
+          import urllib.request
+
+          token, head, workflow_path = sys.argv[1:]
+          repository = "TrillionniumFoundation/Trillionnium-World"
+          api = f"https://api.github.com/repos/{repository}"
+
+          def get(url):
+              request = urllib.request.Request(
+                  url,
+                  headers={
+                      "Authorization": f"Bearer {token}",
+                      "Accept": "application/vnd.github+json",
+                      "X-GitHub-Api-Version": "2022-11-28",
+                  },
+              )
+              try:
+                  with urllib.request.urlopen(request, timeout=60) as response:
+                      return json.load(response)
+              except urllib.error.HTTPError as error:
+                  body = error.read().decode("utf-8", errors="replace")[:500]
+                  raise SystemExit(
+                      f"branch-protection readback failed with HTTP {error.code}: {body}"
+                  ) from error
+
+          def gha(body):
+              return "$" + "{{ " + body + " }}"
+
+          protection = get(f"{api}/branches/main/protection")
+          required = protection.get("required_status_checks")
+          if not isinstance(required, dict):
+              raise SystemExit("main has no readable required_status_checks object")
+          checks = []
+          raw_checks = required.get("checks")
+          if isinstance(raw_checks, list) and raw_checks:
+              for item in raw_checks:
+                  if not isinstance(item, dict):
+                      raise SystemExit(f"invalid required check entry: {item!r}")
+                  context = item.get("context")
+                  app_id = item.get("app_id")
+                  if not isinstance(context, str) or not context.strip():
+                      raise SystemExit(f"invalid required check context: {item!r}")
+                  checks.append((context, app_id))
+          else:
+              contexts = required.get("contexts")
+              if not isinstance(contexts, list) or not contexts:
+                  raise SystemExit("main required status-check set is empty")
+              checks = [(context, None) for context in contexts]
+          if len({context for context, _ in checks}) != len(checks):
+              raise SystemExit("duplicate required context names are forbidden")
+
+          check_runs = []
+          for page in range(1, 21):
+              value = get(f"{api}/commits/{head}/check-runs?per_page=100&page={page}")
+              nodes = value.get("check_runs")
+              if not isinstance(nodes, list):
+                  raise SystemExit("check-runs response is malformed")
+              check_runs.extend(nodes)
+              if len(nodes) < 100:
+                  break
+          else:
+              raise SystemExit("check-runs pagination budget exceeded")
+
+          observed_names = {
+              item.get("name")
+              for item in check_runs
+              if isinstance(item.get("name"), str)
+          }
+          actions_app_ids = {
+              (item.get("app") or {}).get("id")
+              for item in check_runs
+              if (item.get("app") or {}).get("slug") == "github-actions"
+              and isinstance((item.get("app") or {}).get("id"), int)
+          }
+          missing = [(context, app_id) for context, app_id in checks if context not in observed_names]
+          if len(missing) != 3:
+              raise SystemExit(
+                  "expected exactly three protected contexts without current-head producers; "
+                  f"observed {len(missing)}: {[context for context, _ in missing]}"
+              )
+          for context, app_id in missing:
+              if app_id is not None and app_id not in actions_app_ids:
+                  raise SystemExit(
+                      f"required context {context!r} is pinned to non-Actions app {app_id}"
+                  )
+              if "\n" in context or "\r" in context or len(context) > 200:
+                  raise SystemExit(f"unsafe required context name: {context!r}")
+
+          target_branch = "refactor/campaign-module-stack-v2-20260909"
+          lines = [
+              "name: world-required-context-bridge-v1",
+              "",
+              "on:",
+              "  push:",
+              "    branches:",
+              f"      - {target_branch}",
+              "  pull_request:",
+              "    branches:",
+              "      - main",
+              "",
+              "permissions:",
+              "  contents: read",
+              "",
+              "concurrency:",
+              "  group: world-required-context-bridge-v1-" + gha("github.event.pull_request.number || github.ref"),
+              "  cancel-in-progress: true",
+              "",
+              "jobs:",
+              "  qualification:",
+              "    name: world/required-contexts/full-qualification",
+              "    runs-on: ubuntu-24.04",
+              "    timeout-minutes: 180",
+              "    outputs:",
+              "      qualified_sha: " + gha("steps.bind.outputs.qualified_sha"),
+              "    env:",
+              "      RUSTUP_TOOLCHAIN: '1.98.1'",
+              "      CARGO_INCREMENTAL: '0'",
+              "      RUST_BACKTRACE: '1'",
+              "      RUST_TEST_THREADS: '1'",
+              "      PYTHONDONTWRITEBYTECODE: '1'",
+              "    steps:",
+              "      - name: Fetch exact event SHA without persistent credentials",
+              "        shell: bash",
+              "        run: |",
+              "          set -euo pipefail",
+              "          git init .",
+              "          git remote add origin https://github.com/${GITHUB_REPOSITORY}.git",
+              "          git fetch --no-tags --depth=1 origin ${GITHUB_SHA}",
+              "          git checkout --detach FETCH_HEAD",
+              "          test \"$(git rev-parse HEAD)\" = \"$GITHUB_SHA\"",
+              "          test -z \"$(git status --porcelain=v1 --untracked-files=no)\"",
+              "      - name: Install pinned Rust toolchain",
+              "        shell: bash",
+              "        run: |",
+              "          set -euo pipefail",
+              "          rustup toolchain install 1.98.1 --profile minimal --component rustfmt,clippy",
+              "          test \"$(rustc --version | awk '{print $2}')\" = 1.98.1",
+              "      - name: Execute complete repository-owned qualification",
+              "        shell: bash",
+              "        run: |",
+              "          set -euo pipefail",
+              "          python3 scripts/check-trnm-world-component-catalog.py",
+              "          python3 scripts/test-trnm-world-component-catalog.py",
+              "          python3 scripts/_test_trnm_world_include_boundary_engine.py",
+              "          python3 scripts/test-trnm-world-include-boundaries.py",
+              "          cargo fmt --manifest-path trillionnium/Cargo.toml --all -- --check",
+              "          cargo test --manifest-path trillionnium/Cargo.toml --workspace --all-targets --locked",
+              "          cargo clippy --manifest-path trillionnium/Cargo.toml --workspace --all-targets --locked -- -D warnings",
+              "          cargo build --manifest-path trillionnium/Cargo.toml --release --workspace --locked",
+              "          rm -rf scripts/__pycache__",
+              "          test -z \"$(git status --porcelain=v1 --untracked-files=no)\"",
+              "      - id: bind",
+              "        name: Bind complete qualification to the exact event SHA",
+              "        shell: bash",
+              "        run: |",
+              "          set -euo pipefail",
+              "          test \"$(git rev-parse HEAD)\" = \"$GITHUB_SHA\"",
+              "          printf 'qualified_sha=%s\\n' \"$GITHUB_SHA\" >> \"$GITHUB_OUTPUT\"",
+              "          printf 'PRODUCTION_AUTHORIZATION=not_granted\\n'",
+          ]
+          for index, (context, _) in enumerate(missing, 1):
+              lines.extend(
+                  [
+                      f"  protected_context_{index}:",
+                      f"    name: {json.dumps(context)}",
+                      "    needs: qualification",
+                      "    runs-on: ubuntu-24.04",
+                      "    timeout-minutes: 5",
+                      "    steps:",
+                      "      - name: Read back the exact full-qualification binding",
+                      "        shell: bash",
+                      "        run: |",
+                      "          set -euo pipefail",
+                      "          test \"" + gha("needs.qualification.outputs.qualified_sha") + "\" = \"$GITHUB_SHA\"",
+                      "          printf 'REQUIRED_CONTEXT_BOUND_TO_FULL_QUALIFICATION=PASS\\n'",
+                      "          printf 'PRODUCTION_AUTHORIZATION=not_granted\\n'",
+                  ]
+              )
+          workflow = "\n".join(lines) + "\n"
+          path = pathlib.Path(workflow_path)
+          if path.exists() and path.read_text(encoding="utf-8") == workflow:
+              raise SystemExit("required-context producer workflow is already exact; no target mutation required")
+          path.parent.mkdir(parents=True, exist_ok=True)
+          path.write_text(workflow, encoding="utf-8", newline="\n")
+          print(json.dumps({
+              "schema": "world.protected-context-producer-audit.v1",
+              "candidate_head": head,
+              "required_contexts": [context for context, _ in checks],
+              "missing_contexts_restored": [context for context, _ in missing],
+              "github_actions_app_ids_observed": sorted(actions_app_ids),
+              "protection_modified": False,
+              "production_authorization": "not_granted",
+          }, sort_keys=True))
+          PY
+          git -C "$RUNNER_TEMP/target" diff --check
+
+      - name: Commit only the real producer workflow as an exact fast-forward
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/target"
+          original="$(cat "$RUNNER_TEMP/original-head")"
+          workflow=.github/workflows/world-required-context-bridge-v1.yml
+          test -s "$root/$workflow"
+          test "$(git -C "$root" diff --name-only)" = "$workflow"
+          remote="https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          test "$(git ls-remote "$remote" "refs/heads/${TARGET_BRANCH}" | cut -f1)" = "$original"
+          git -C "$root" config user.name github-actions[bot]
+          git -C "$root" config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git -C "$root" add "$workflow"
+          git -C "$root" commit -m "ci: restore producers for protected World contexts"
+          new_head="$(git -C "$root" rev-parse HEAD)"
+          git -C "$root" push "$remote" "HEAD:refs/heads/${TARGET_BRANCH}"
+          test "$(git ls-remote "$remote" "refs/heads/${TARGET_BRANCH}" | cut -f1)" = "$new_head"
+          printf 'WORLD_TARGET_HEAD=%s\n' "$new_head"
+          printf 'PROTECTION_MODIFIED=false\n'
+          printf 'REQUIRED_CONTEXT_PRODUCERS_RESTORED=3\n'
+          printf 'FAST_FORWARD_ONLY=true\n'
+          printf 'PRODUCTION_AUTHORIZATION=not_granted\n'
