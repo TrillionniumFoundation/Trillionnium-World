@@ -1,0 +1,103 @@
+name: world-p0-apply-fallback-v4
+
+on:
+  push:
+    branches:
+      - ops/p0-statement-let-fix-58f76a-20260910
+
+permissions:
+  contents: write
+
+concurrency:
+  group: world-p0-apply-fallback-v4
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    name: world-p0/idempotent-exact-ref-fallback
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    env:
+      ORIGINAL_HEAD: 58f76a6100bade6e148a56bd429eff34f8a255cd
+      TARGET_BRANCH: refactor/campaign-module-stack-v2-20260909
+      RUSTUP_TOOLCHAIN: '1.98.1'
+      CARGO_INCREMENTAL: '0'
+      RUST_TEST_THREADS: '1'
+    steps:
+      - name: Fetch current exact ref and helper
+        shell: bash
+        env:
+          GH_WRITE_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          remote="https://x-access-token:${GH_WRITE_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          current="$(git ls-remote "$remote" "refs/heads/$TARGET_BRANCH" | awk '{print $1}')"
+          test -n "$current"
+          work="$RUNNER_TEMP/world"
+          helper="$RUNNER_TEMP/helper"
+          rm -rf "$work" "$helper"
+          git init -q "$work"
+          git -C "$work" remote add origin "$remote"
+          git -C "$work" fetch -q --no-tags origin "$current" "$ORIGINAL_HEAD"
+          git -C "$work" checkout -q --detach "$current"
+          git -C "$work" merge-base --is-ancestor "$ORIGINAL_HEAD" HEAD
+          git init -q "$helper"
+          git -C "$helper" remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          git -C "$helper" fetch -q --no-tags --depth=1 origin "$GITHUB_SHA"
+          git -C "$helper" checkout -q --detach FETCH_HEAD
+          test -s "$helper/scripts/patch-p0-statement-let.py"
+          printf 'WORLD_FALLBACK_INPUT_HEAD=%s\n' "$current"
+
+      - name: Apply only when the frozen head is still current
+        id: patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          work="$RUNNER_TEMP/world"
+          target="$work/trillionnium/crates/trnm-game-server/tests/p0_boundary_contract.rs"
+          if grep -Fq 'fn statement_let_at(bytes: &[u8], start: usize) -> bool' "$target"; then
+            test "$(grep -Fc 'fn statement_let_at(bytes: &[u8], start: usize) -> bool' "$target")" -eq 1
+            test "$(grep -Fc '_ if statement_let_at(bytes, cursor) => {' "$target")" -eq 1
+            test "$(grep -Fc 'async fn pattern_let_before_captured_backend()' "$target")" -eq 1
+            printf 'changed=false\n' >> "$GITHUB_OUTPUT"
+            printf 'WORLD_P0_FALLBACK=already_present\n'
+          else
+            test "$(git -C "$work" rev-parse HEAD)" = "$ORIGINAL_HEAD"
+            python3 "$RUNNER_TEMP/helper/scripts/patch-p0-statement-let.py" "$target"
+            git -C "$work" diff --check
+            test "$(git -C "$work" diff --name-only)" = \
+              'trillionnium/crates/trnm-game-server/tests/p0_boundary_contract.rs'
+            printf 'changed=true\n' >> "$GITHUB_OUTPUT"
+            printf 'WORLD_P0_FALLBACK=patched\n'
+          fi
+
+      - name: Verify exact boundary and format
+        shell: bash
+        run: |
+          set -euo pipefail
+          rustup toolchain install 1.98.1 --profile minimal --component rustfmt
+          cd "$RUNNER_TEMP/world"
+          cargo fmt --manifest-path trillionnium/Cargo.toml --all -- --check
+          cargo test --manifest-path trillionnium/Cargo.toml \
+            -p trnm-game-server --test p0_boundary_contract --locked -- --nocapture
+
+      - name: Ordinary fast-forward when a patch was created
+        if: steps.patch.outputs.changed == 'true'
+        shell: bash
+        env:
+          GH_WRITE_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          work="$RUNNER_TEMP/world"
+          remote="https://x-access-token:${GH_WRITE_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          test "$(git ls-remote "$remote" "refs/heads/$TARGET_BRANCH" | awk '{print $1}')" = "$ORIGINAL_HEAD"
+          git -C "$work" config user.name 'ProfHepta'
+          git -C "$work" config user.email '102159240+ProfHepta@users.noreply.github.com'
+          git -C "$work" add trillionnium/crates/trnm-game-server/tests/p0_boundary_contract.rs
+          git -C "$work" commit -m 'fix(p0): distinguish statement let from pattern bindings'
+          new_head="$(git -C "$work" rev-parse HEAD)"
+          git -C "$work" push origin "HEAD:refs/heads/$TARGET_BRANCH"
+          test "$(git ls-remote "$remote" "refs/heads/$TARGET_BRANCH" | awk '{print $1}')" = "$new_head"
+          printf 'WORLD_PR_BRANCH_ADVANCED=%s\n' "$new_head"
+          printf 'FORCE_UPDATE=false\n'
+          printf 'PRODUCTION_AUTHORIZATION=not_granted\n'
