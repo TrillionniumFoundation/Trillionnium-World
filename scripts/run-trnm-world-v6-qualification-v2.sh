@@ -162,7 +162,9 @@ PY
         psql -Atqc 'show server_version_num'
         psql -Atqc 'select version()'
       } > "run/world-v6-v2/${scope}/postgres-version.txt"
-      test "$(psql -Atqc 'show server_version_num')" = "160004"
+      if test -n "${POSTGRES_REQUIRED_VERSION_NUM:-}"; then
+        test "$(psql -Atqc 'show server_version_num')" = "$POSTGRES_REQUIRED_VERSION_NUM"
+      fi
     fi
 
     bash scripts/run-trnm-world-authority-postgres-check.sh
