@@ -28,15 +28,17 @@ The tranche starts from canonical candidate commit `20942ec3505d977d385f2660499e
 3. Validate local contracts, detailed designs, review metadata, section depth, source traces, component-catalog ownership, release denominator, and hostile mutations.
 4. Run documentation gates for active product, World authority, and external-contract modules from one unconditional pull-request workflow.
 5. Include active, World-authority, transition-contract, and external-contract Rust format/test/Clippy qualification in the source entrypoint.
-6. Expand PostgreSQL settlement qualification to the full maintained database-test inventory and require exact PostgreSQL `server_version_num=160004`.
+6. Expand PostgreSQL settlement qualification to the full maintained database-test inventory and require exact PostgreSQL `server_version_num=160004` in the pinned admission profile.
 7. Bind exact head and actual GitHub prospective-merge objects, retain hashed evidence artifacts, and expose one aggregate `trnm-world-v12/required` result while preserving the three currently observed protected context names.
+8. Retire the overlapping Authority workflow that emitted duplicate `trnm-world-p0-boundaries` and `trnm-world-status-evidence` contexts; its source, adapter, and PostgreSQL checks remain executed by the unified qualification entrypoints.
+9. Make the complete remaining workflow set fail closed: exactly 13 reviewed workflow files, 40 unique check contexts, immutable action references, `ubuntu-24.04`, top-level `contents: read`, no job-level permissions, no privileged triggers, and no source-mutating commands.
 
 ## Explicitly open source work
 
 - Remaining correctness `include!` seams require compile-preserving conversion to real Rust modules and independent review.
 - The current Game Server source/lint failure must be identified from a real non-empty native run and repaired against its exact logs.
 - Production identity, session, account, PostgreSQL repository, ledger, evidence, metrics, internal-routing, and deployment-identity implementations remain absent.
-- Duplicate historical workflow surfaces should be retired only after the replacement workflow executes successfully and server-side required contexts are updated and read back.
+- Supplemental historical workflows still have unique names and remain reviewable, but they should be retired only in a later bounded change after the v12 replacement executes successfully and server-side required contexts are updated and read back.
 
 ## External blockers
 
@@ -48,6 +50,8 @@ The tranche is source-reviewable only. It becomes integration-eligible only when
 
 ```text
 source_gap_tranche=implemented_pending_exact_head_ci
+reviewed_workflows=13
+unique_check_contexts=40
 repository_native_admission=false
 production_adapters_complete=false
 cross_repository_release_complete=false
