@@ -7,6 +7,15 @@ use trnm_campaign_core::{
 };
 use trnm_rts_protocol::{RtsOrderSource, RtsTile};
 
-include!(concat!(env!("CARGO_MANIFEST_DIR"), "/src/lib_parts/tests/rts_tests_01.rs"));
-include!(concat!(env!("CARGO_MANIFEST_DIR"), "/src/lib_parts/tests/rts_tests_02.rs"));
-include!(concat!(env!("CARGO_MANIFEST_DIR"), "/src/lib_parts/tests/rts_tests_03.rs"));
+include!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/src/lib_parts/tests/rts_tests_01.rs"
+));
+include!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/src/lib_parts/tests/rts_tests_02.rs"
+));
+include!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/src/lib_parts/tests/rts_tests_03.rs"
+));
