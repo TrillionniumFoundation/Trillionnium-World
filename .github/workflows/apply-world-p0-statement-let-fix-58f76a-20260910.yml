@@ -1,0 +1,97 @@
+name: apply-world-p0-statement-let-fix-58f76a-20260910
+
+on:
+  push:
+    branches:
+      - ops/p0-statement-let-fix-58f76a-20260910
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apply-world-p0-statement-let-fix-58f76a-20260910
+  cancel-in-progress: false
+
+jobs:
+  verify_and_apply:
+    name: world/verify-and-fast-forward-p0-statement-let-fix
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    env:
+      TARGET_BRANCH: refactor/campaign-module-stack-v2-20260909
+      EXPECTED_HEAD: 58f76a6100bade6e148a56bd429eff34f8a255cd
+      RUSTUP_TOOLCHAIN: '1.98.1'
+      CARGO_INCREMENTAL: '0'
+      RUST_BACKTRACE: '1'
+      RUST_TEST_THREADS: '1'
+    steps:
+      - name: Fetch exact target and this exact helper revision
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          target="$RUNNER_TEMP/target"
+          helper="$RUNNER_TEMP/helper"
+          remote_url="https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          rm -rf "$target" "$helper"
+          git init "$target"
+          git -C "$target" remote add origin "$remote_url"
+          git -C "$target" fetch --no-tags --depth=1 origin "$EXPECTED_HEAD"
+          git -C "$target" checkout --detach FETCH_HEAD
+          test "$(git -C "$target" rev-parse HEAD)" = "$EXPECTED_HEAD"
+          remote_head="$(git ls-remote "$remote_url" "refs/heads/${TARGET_BRANCH}" | cut -f1)"
+          test "$remote_head" = "$EXPECTED_HEAD"
+          git init "$helper"
+          git -C "$helper" remote add origin "$remote_url"
+          git -C "$helper" fetch --no-tags --depth=1 origin "$GITHUB_SHA"
+          git -C "$helper" checkout --detach FETCH_HEAD
+          test "$(git -C "$helper" rev-parse HEAD)" = "$GITHUB_SHA"
+          test -s "$helper/scripts/patch-p0-statement-let.py"
+          test -z "$(git -C "$target" status --porcelain=v1 --untracked-files=no)"
+
+      - name: Apply the exact scanner repair
+        shell: bash
+        run: |
+          set -euo pipefail
+          target="$RUNNER_TEMP/target"
+          python3 "$RUNNER_TEMP/helper/scripts/patch-p0-statement-let.py" \
+            "$target/trillionnium/crates/trnm-game-server/tests/p0_boundary_contract.rs"
+          git -C "$target" diff --check
+          test "$(git -C "$target" diff --name-only)" = \
+            "trillionnium/crates/trnm-game-server/tests/p0_boundary_contract.rs"
+
+      - name: Verify formatting and complete P0 boundary contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          rustup toolchain install 1.98.1 --profile minimal --component rustfmt
+          cd "$RUNNER_TEMP/target"
+          cargo fmt --manifest-path trillionnium/Cargo.toml --all -- --check
+          cargo test \
+            --manifest-path trillionnium/Cargo.toml \
+            -p trnm-game-server \
+            --test p0_boundary_contract \
+            --locked -- --nocapture
+
+      - name: Commit and non-force fast-forward target branch
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          target="$RUNNER_TEMP/target"
+          remote_url="https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          remote_head="$(git ls-remote "$remote_url" "refs/heads/${TARGET_BRANCH}" | cut -f1)"
+          test "$remote_head" = "$EXPECTED_HEAD"
+          git -C "$target" config user.name github-actions[bot]
+          git -C "$target" config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git -C "$target" add trillionnium/crates/trnm-game-server/tests/p0_boundary_contract.rs
+          git -C "$target" commit -m "fix(world): distinguish statement let from pattern let in P0 scanner"
+          new_head="$(git -C "$target" rev-parse HEAD)"
+          git -C "$target" push "$remote_url" "HEAD:refs/heads/${TARGET_BRANCH}"
+          observed="$(git ls-remote "$remote_url" "refs/heads/${TARGET_BRANCH}" | cut -f1)"
+          test "$observed" = "$new_head"
+          printf 'WORLD_TARGET_HEAD=%s\n' "$new_head"
+          printf 'FAST_FORWARD_ONLY=true\n'
+          printf 'PRODUCTION_AUTHORIZATION=not_granted\n'
