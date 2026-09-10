@@ -1,0 +1,45 @@
+{
+  "schema": "trnm_world_source_gap_closure_v12",
+  "as_of": "2026-09-10",
+  "repository": "TrillionniumFoundation/Trillionnium-World",
+  "base_branch": "fix/world-convergence-v6-20260908",
+  "base_commit": "20942ec3505d977d385f2660499ecc7a26c26232",
+  "candidate_branch": "fix/world-source-gap-closure-v12-20260910",
+  "source_changes": {
+    "contract_workspace_documentation_catalogued": true,
+    "contract_module_checker_workspace_derived": true,
+    "contract_module_negative_fixtures_present": true,
+    "active_workspace_in_source_gate": true,
+    "world_authority_workspace_in_source_gate": true,
+    "external_contract_workspace_in_source_gate": true,
+    "transition_contract_in_source_gate": true,
+    "postgres_16_4_exact_version_required": true,
+    "expanded_settlement_database_matrix_required": true,
+    "exact_head_and_actual_merge_evidence_workflow_defined": true,
+    "immutable_artifact_hashing_defined": true
+  },
+  "local_static_validation": {
+    "shell_syntax": "pass",
+    "python_compile": "pass",
+    "yaml_parse": "pass",
+    "repository_rust_execution": "not_executed_in_connector_environment",
+    "repository_postgres_execution": "not_executed_in_connector_environment"
+  },
+  "repository_native_execution": {
+    "workflow_runs_observed_after_push": 0,
+    "state": "repository_control_blocked"
+  },
+  "closure": {
+    "source_tranche_implemented": true,
+    "exact_head_ci_closed": false,
+    "actual_merge_ci_closed": false,
+    "independent_review_closed": false,
+    "server_governance_closed": false,
+    "ownership_migration_complete": false,
+    "production_adapters_complete": false,
+    "cross_repository_release_complete": false,
+    "external_evidence_closed": false,
+    "production_ready": false,
+    "production_authorization": "not_granted"
+  }
+}
