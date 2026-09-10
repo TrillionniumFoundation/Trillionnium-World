@@ -1,0 +1,184 @@
+name: world-final-exact-tuple-after-migration-v6
+
+on:
+  push:
+    branches:
+      - ops/p0-statement-let-fix-58f76a-20260910
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: world-final-exact-tuple-after-migration-v6
+  cancel-in-progress: false
+
+jobs:
+  qualify:
+    name: world-final/head-and-prospective-merge
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: trillionnium_world_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d trillionnium_world_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 30
+    env:
+      TARGET_BRANCH: refactor/campaign-module-stack-v2-20260909
+      BASE_BRANCH: main
+      ORIGINAL_HEAD: 58f76a6100bade6e148a56bd429eff34f8a255cd
+      RUSTUP_TOOLCHAIN: '1.98.1'
+      CARGO_INCREMENTAL: '0'
+      RUST_BACKTRACE: '1'
+      RUST_TEST_THREADS: '1'
+      PGPASSWORD: postgres
+    steps:
+      - name: Wait for both source repairs and freeze final tuple
+        id: tuple
+        shell: bash
+        run: |
+          set -euo pipefail
+          remote="https://github.com/${GITHUB_REPOSITORY}.git"
+          ready=false
+          for _ in $(seq 1 360); do
+            head="$(git ls-remote "$remote" "refs/heads/$TARGET_BRANCH" | awk '{print $1}')"
+            base="$(git ls-remote "$remote" "refs/heads/$BASE_BRANCH" | awk '{print $1}')"
+            test -n "$head"
+            test -n "$base"
+            rm -rf "$RUNNER_TEMP/probe"
+            git init -q "$RUNNER_TEMP/probe"
+            git -C "$RUNNER_TEMP/probe" remote add origin "$remote"
+            git -C "$RUNNER_TEMP/probe" fetch -q --no-tags origin "$head" "$ORIGINAL_HEAD"
+            git -C "$RUNNER_TEMP/probe" checkout -q --detach "$head"
+            git -C "$RUNNER_TEMP/probe" merge-base --is-ancestor "$ORIGINAL_HEAD" HEAD
+            p0="$RUNNER_TEMP/probe/trillionnium/crates/trnm-game-server/tests/p0_boundary_contract.rs"
+            rts="$RUNNER_TEMP/probe/trillionnium/crates/trnm-rts-sim/src/lib_parts/tests/part_01.rs"
+            if grep -Fq 'fn statement_let_at(bytes: &[u8], start: usize) -> bool' "$p0" \
+              && grep -Fq '#[path = "rts_tests_01.rs"]' "$rts" \
+              && grep -Fq '#[path = "rts_tests_02.rs"]' "$rts" \
+              && grep -Fq '#[path = "rts_tests_03.rs"]' "$rts" \
+              && ! grep -Fq '/src/lib_parts/tests/rts_tests_01.rs' "$rts"; then
+              ready=true
+              break
+            fi
+            sleep 20
+          done
+          test "$ready" = true
+          printf 'base=%s\n' "$base" >> "$GITHUB_OUTPUT"
+          printf 'head=%s\n' "$head" >> "$GITHUB_OUTPUT"
+          printf 'WORLD_FINAL_BASE_SHA=%s\n' "$base"
+          printf 'WORLD_FINAL_HEAD_SHA=%s\n' "$head"
+
+      - name: Fetch exact runner and materialize both surfaces
+        shell: bash
+        env:
+          BASE_SHA: ${{ steps.tuple.outputs.base }}
+          HEAD_SHA: ${{ steps.tuple.outputs.head }}
+        run: |
+          set -euo pipefail
+          runner="$RUNNER_TEMP/run-world-exact-surface-v1.sh"
+          curl --fail --silent --show-error --location \
+            "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${GITHUB_SHA}/scripts/run-world-exact-surface-v1.sh" \
+            > "$runner"
+          chmod 0755 "$runner"
+          remote="https://github.com/${GITHUB_REPOSITORY}.git"
+          for surface in head prospective-merge; do
+            work="$RUNNER_TEMP/$surface"
+            rm -rf "$work"
+            git init -q "$work"
+            git -C "$work" remote add origin "$remote"
+            git -C "$work" fetch -q --no-tags origin "$BASE_SHA" "$HEAD_SHA"
+            if test "$surface" = head; then
+              git -C "$work" checkout -q --detach "$HEAD_SHA"
+            else
+              git -C "$work" config user.name 'World final tuple runner'
+              git -C "$work" config user.email 'world-final@invalid.example'
+              git -C "$work" checkout -q --detach "$BASE_SHA"
+              git -C "$work" merge -q --no-ff --no-edit "$HEAD_SHA"
+              test "$(git -C "$work" show -s --format='%P' HEAD)" = "$BASE_SHA $HEAD_SHA"
+              printf 'WORLD_FINAL_MERGE_SHA=%s\n' "$(git -C "$work" rev-parse HEAD)"
+              printf 'WORLD_FINAL_MERGE_TREE=%s\n' "$(git -C "$work" rev-parse 'HEAD^{tree}')"
+            fi
+            test -z "$(git -C "$work" status --porcelain=v1 --untracked-files=no)"
+          done
+
+      - name: Install exact toolchain and verify PostgreSQL service
+        shell: bash
+        run: |
+          set -euo pipefail
+          rustup toolchain install 1.98.1 --profile minimal --component rustfmt,clippy
+          pg_isready -h 127.0.0.1 -p 5432 -U postgres -d trillionnium_world_test
+          rustc --version
+          cargo --version
+          psql --version
+
+      - name: Qualify exact final head
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$RUNNER_TEMP/run-world-exact-surface-v1.sh" "$RUNNER_TEMP/head" head
+
+      - name: Qualify exact final prospective merge
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$RUNNER_TEMP/run-world-exact-surface-v1.sh" \
+            "$RUNNER_TEMP/prospective-merge" prospective-merge
+
+      - name: Reject live tuple movement and record CI-only qualification
+        shell: bash
+        env:
+          BASE_SHA: ${{ steps.tuple.outputs.base }}
+          HEAD_SHA: ${{ steps.tuple.outputs.head }}
+          GH_WRITE_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          remote="https://github.com/${GITHUB_REPOSITORY}.git"
+          live_base="$(git ls-remote "$remote" "refs/heads/$BASE_BRANCH" | awk '{print $1}')"
+          live_head="$(git ls-remote "$remote" "refs/heads/$TARGET_BRANCH" | awk '{print $1}')"
+          test "$live_base" = "$BASE_SHA"
+          test "$live_head" = "$HEAD_SHA"
+          printf 'WORLD_FINAL_EXACT_TUPLE_QUALIFICATION=PASS\n'
+          printf 'PRODUCTION_AUTHORIZATION=not_granted\n'
+          python3 - <<'PY'
+          import json
+          import os
+          import urllib.request
+
+          repo = os.environ['GITHUB_REPOSITORY']
+          body = (
+              'Final exact-tuple repository execution passed after the P0 scanner repair '
+              'and RTS test-module migration.\n\n'
+              f"- base: `{os.environ['BASE_SHA']}`\n"
+              f"- head: `{os.environ['HEAD_SHA']}`\n"
+              '- exact head: closed-world checks, full Rust test/Clippy/release build, '
+              'PostgreSQL-aware tests, and package verification succeeded\n'
+              '- GitHub-order prospective merge: the same complete set succeeded\n'
+              '- final live base/head read-back: unchanged\n'
+              '- production authorization: `not_granted`\n\n'
+              'This is repository CI evidence only. It does not replace independent review, '
+              'deployment evidence, external authority acceptance, or production authorization.'
+          )
+          request = urllib.request.Request(
+              f'https://api.github.com/repos/{repo}/issues/115/comments',
+              data=json.dumps({'body': body}).encode(),
+              method='POST',
+              headers={
+                  'Accept': 'application/vnd.github+json',
+                  'Authorization': f"Bearer {os.environ['GH_WRITE_TOKEN']}",
+                  'Content-Type': 'application/json',
+                  'X-GitHub-Api-Version': '2022-11-28',
+              },
+          )
+          with urllib.request.urlopen(request, timeout=60):
+              pass
+          PY
