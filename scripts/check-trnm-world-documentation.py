@@ -233,7 +233,7 @@ for relative, arguments in (
     ("scripts/test-trnm-world-machine-truth.py", []),
     ("scripts/check-trnm-world-active-closure.py", [str(ROOT)]),
     ("scripts/test-trnm-world-active-closure.py", []),
-    ("scripts/check-trnm-world-detailed-documentation.py", [str(ROOT)]),
+    ("scripts/check-trnm-world-detailed-documentation.py", ["--root", str(ROOT)]),
     ("scripts/test-trnm-world-detailed-documentation.py", []),
     ("scripts/check-trnm-world-authority-documentation.py", [str(ROOT)]),
     ("scripts/test-trnm-world-authority-documentation.py", []),
