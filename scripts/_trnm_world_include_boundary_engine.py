@@ -34,7 +34,7 @@ POLICY_KEYS = {
     "generated_vendored_assets",
 }
 HEX40 = re.compile(r"^[0-9a-f]{40}$")
-FULL_LINE_INCLUDE = re.compile(r"^\s*include!\s*\((?P<expression>.+)\)\s*;\s*$")
+INCLUDE_OPEN = re.compile(r"\binclude!\s*\(")
 LITERAL_INCLUDE = re.compile(r'^"(?P<path>[^"]+)"$')
 MANIFEST_INCLUDE = re.compile(
     r'^concat!\(env!\("CARGO_MANIFEST_DIR"\),"(?P<path>/[^"]+)"\)$'
@@ -252,6 +252,73 @@ def source_paths(root: Path) -> Iterable[Path]:
             yield path
 
 
+def _parse_include_statement(
+    text: str,
+    mask: str,
+    match: re.Match[str],
+    relative: str,
+    line_number: int,
+) -> tuple[int, str]:
+    """Parse one complete standalone include! statement.
+
+    Rustfmt may render a static concat!/env! expression across several lines.
+    The scanner therefore follows balanced delimiters in the comment/literal
+    mask instead of assuming one physical line. The macro must still be the
+    only statement on its starting and terminating physical lines.
+    """
+    line_start = mask.rfind("\n", 0, match.start()) + 1
+    if mask[line_start : match.start()].strip():
+        raise IncludeBoundaryFailure(
+            f"{relative}:{line_number}: include! must begin a standalone statement"
+        )
+
+    open_index = match.end() - 1
+    if mask[open_index] != "(":
+        raise IncludeBoundaryFailure(
+            f"{relative}:{line_number}: malformed include! opening delimiter"
+        )
+
+    closing_for = {"(": ")", "[": "]", "{": "}"}
+    stack = [")"]
+    cursor = open_index + 1
+    close_index: int | None = None
+    while cursor < len(mask):
+        char = mask[cursor]
+        if char in closing_for:
+            stack.append(closing_for[char])
+        elif char in ")]}":
+            if not stack or stack.pop() != char:
+                raise IncludeBoundaryFailure(
+                    f"{relative}:{line_number}: mismatched delimiter in include!"
+                )
+            if not stack:
+                close_index = cursor
+                break
+        cursor += 1
+    if close_index is None:
+        raise IncludeBoundaryFailure(
+            f"{relative}:{line_number}: unterminated include! expression"
+        )
+
+    cursor = close_index + 1
+    while cursor < len(mask) and mask[cursor].isspace():
+        cursor += 1
+    if cursor >= len(mask) or mask[cursor] != ";":
+        raise IncludeBoundaryFailure(
+            f"{relative}:{line_number}: include! must end with a semicolon"
+        )
+    statement_end = cursor + 1
+    line_end = mask.find("\n", statement_end)
+    line_end = len(mask) if line_end == -1 else line_end
+    if mask[statement_end:line_end].strip():
+        raise IncludeBoundaryFailure(
+            f"{relative}:{line_number}: include! must end a standalone statement"
+        )
+
+    expression = normalize_expression(text[open_index + 1 : close_index])
+    return statement_end, expression
+
+
 def scan_includes(root: Path) -> dict[tuple[str, str], int]:
     observed: dict[tuple[str, str], int] = {}
     for path in source_paths(root):
@@ -264,24 +331,22 @@ def scan_includes(root: Path) -> dict[tuple[str, str], int]:
             raise IncludeBoundaryFailure(f"Rust source is not strict UTF-8: {path.relative_to(root)}") from error
         mask = rust_code_mask(text)
         relative = path.relative_to(root).as_posix()
-        for match in re.finditer(r"\binclude!\s*\(", mask):
+        cursor = 0
+        while True:
+            match = INCLUDE_OPEN.search(mask, cursor)
+            if match is None:
+                break
             line_number = text.count("\n", 0, match.start()) + 1
-            line_start = text.rfind("\n", 0, match.start()) + 1
-            line_end = text.find("\n", match.start())
-            line_end = len(text) if line_end == -1 else line_end
-            line = text[line_start:line_end]
-            parsed = FULL_LINE_INCLUDE.fullmatch(line)
-            if parsed is None:
-                raise IncludeBoundaryFailure(
-                    f"{relative}:{line_number}: include! must be a one-line standalone statement"
-                )
-            expression = normalize_expression(parsed.group("expression"))
+            statement_end, expression = _parse_include_statement(
+                text, mask, match, relative, line_number
+            )
             key = (relative, expression)
             if key in observed:
                 raise IncludeBoundaryFailure(
                     f"{relative}:{line_number}: duplicate include expression"
                 )
             observed[key] = line_number
+            cursor = statement_end
     return observed
 
 
