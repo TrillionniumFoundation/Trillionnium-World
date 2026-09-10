@@ -1,0 +1,213 @@
+name: temporary-world-settlement-gap-closure-v2
+
+on:
+  push:
+    branches:
+      - fix/world-settlement-gap-closure-v2-20260910
+
+permissions:
+  contents: write
+
+concurrency:
+  group: temporary-world-settlement-gap-closure-v2
+  cancel-in-progress: false
+
+env:
+  SOURCE_SHA: ad0fd6378242992cea4e035efe90174f5f2bc138
+  TARGET_BRANCH: fix/world-settlement-gap-closure-v2-20260910
+  WORKFLOW_PATH: .github/workflows/temporary-world-settlement-gap-closure-v2.yml
+  RUST_TOOLCHAIN: '1.98.1'
+  RUST_RELEASE_COMMIT: 48a229ceaefd4985c50990b14116b6d856af0985
+  CARGO_TERM_COLOR: never
+  CARGO_INCREMENTAL: '0'
+  RUST_BACKTRACE: '1'
+  RUST_TEST_THREADS: '1'
+  TRNM_SETTLEMENT_TEST_DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/world_settlement
+  TRNM_REQUIRE_SETTLEMENT_DATABASE_TEST: '1'
+  TRNM_CEX_SETTLEMENT_TEST_DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/world_settlement
+  TRNM_REQUIRE_CEX_SETTLEMENT_DATABASE_TEST: '1'
+
+jobs:
+  repair-and-qualify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    services:
+      postgres:
+        image: postgres:16.4-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: world_settlement
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d world_settlement"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    steps:
+      - name: Checkout exact repair carrier
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ env.TARGET_BRANCH }}
+          fetch-depth: 2
+          persist-credentials: true
+
+      - name: Verify exact source parent and install pinned Rust
+        shell: bash
+        run: |
+          set -euo pipefail
+          carrier_sha="$(git rev-parse HEAD)"
+          test "$(git rev-parse HEAD^)" = "$SOURCE_SHA"
+          test "$(git diff --name-only HEAD^ HEAD)" = "$WORKFLOW_PATH"
+          printf '%s\n' "$carrier_sha" > "$RUNNER_TEMP/world-carrier-sha"
+          printf '%s  %s\n' \
+            7add94356f80eb31764aa4e60af4aec227303aa3d816ca8ea83d2b49afd26a09 \
+            trillionnium/crates/trnm-game-server/src/cex.rs \
+            > "$RUNNER_TEMP/world-source-sha256"
+          printf '%s  %s\n' \
+            db8bf41a5d03b795309f5620dc9d4d84124b6796abc6f7d97d5d31b2d0a4d5b5 \
+            trillionnium/crates/trnm-game-server/migrations/0018_online_settlement_operator_controls_v1.sql \
+            >> "$RUNNER_TEMP/world-source-sha256"
+          printf '%s  %s\n' \
+            456336ead6daaf3ece976aa681ed67125ebfb38765d6340a9c30a3c3b5268ac1 \
+            trillionnium/crates/trnm-game-server/tests/settlement_database_contract.rs \
+            >> "$RUNNER_TEMP/world-source-sha256"
+          sha256sum --check "$RUNNER_TEMP/world-source-sha256"
+          rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal --component rustfmt,clippy
+          rustup override set "$RUST_TOOLCHAIN"
+          rustc --version --verbose | tee "$RUNNER_TEMP/rustc-version.txt"
+          grep -Fx "commit-hash: $RUST_RELEASE_COMMIT" "$RUNNER_TEMP/rustc-version.txt"
+          cargo --version --verbose
+
+      - name: Apply exact sequence, lint and rustfmt repairs
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          migration = Path(
+              "trillionnium/crates/trnm-game-server/migrations/"
+              "0018_online_settlement_operator_controls_v1.sql"
+          )
+          source = migration.read_text(encoding="utf-8")
+          old = """on conflict (policy_revision) do nothing;
+
+          create table if not exists public.trnm_online_settlement_operator_replay_requests (
+          """
+          new = """on conflict (policy_revision) do nothing;
+
+          -- An explicit identity value does not advance PostgreSQL's backing sequence.
+          -- Synchronize it to the greatest durable revision so the first audited append
+          -- receives revision 2 and migration replay remains monotonic.
+          select pg_catalog.setval(
+              pg_catalog.pg_get_serial_sequence(
+                  'public.trnm_online_settlement_operator_policy_revisions',
+                  'policy_revision'
+              )::pg_catalog.regclass,
+              (
+                  select pg_catalog.greatest(
+                      1::bigint,
+                      pg_catalog.coalesce(pg_catalog.max(policy_revision), 1::bigint)
+                  )
+                    from public.trnm_online_settlement_operator_policy_revisions
+              ),
+              true
+          );
+
+          create table if not exists public.trnm_online_settlement_operator_replay_requests (
+          """
+          if source.count(old) != 1:
+              raise SystemExit("operator policy seed repair site drifted")
+          migration.write_text(source.replace(old, new), encoding="utf-8")
+
+          test_file = Path(
+              "trillionnium/crates/trnm-game-server/tests/"
+              "settlement_database_contract.rs"
+          )
+          source = test_file.read_text(encoding="utf-8")
+          old = "    let (_, changed_payload_job) = insert_capture_and_job(\n"
+          new = "    let (_, _changed_payload_job) = insert_capture_and_job(\n"
+          if source.count(old) != 1:
+              raise SystemExit("unused-variable repair site drifted")
+          test_file.write_text(source.replace(old, new), encoding="utf-8")
+          PY
+          (
+            cd trillionnium
+            cargo metadata --locked --no-deps --format-version 1 > /dev/null
+            cargo fmt --all
+            cargo fmt --all -- --check
+          )
+          printf '%s  %s\n' \
+            614c2b97d88e43da427d0c928b3092fdca00b751d1d0edc0f80e7d7c2522dcf2 \
+            trillionnium/crates/trnm-game-server/src/cex.rs \
+            > "$RUNNER_TEMP/world-repaired-sha256"
+          printf '%s  %s\n' \
+            ad5799a2d9e0a539c0f1cd01b33d08a85f98d6b923ac43c97d59dfee23a43e47 \
+            trillionnium/crates/trnm-game-server/migrations/0018_online_settlement_operator_controls_v1.sql \
+            >> "$RUNNER_TEMP/world-repaired-sha256"
+          printf '%s  %s\n' \
+            79c01ac01ba2dd18498476cb7807c18eefed4f335349fafa5eaacb3f8c84bde4 \
+            trillionnium/crates/trnm-game-server/tests/settlement_database_contract.rs \
+            >> "$RUNNER_TEMP/world-repaired-sha256"
+          sha256sum --check "$RUNNER_TEMP/world-repaired-sha256"
+          git diff --check
+
+      - name: Run complete World settlement unit and ownership contracts
+        working-directory: trillionnium
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo test -p trnm-game-server --lib --locked
+          cargo test -p trnm-game-server --bin trnm-entitlement-signer --locked
+          cargo test -p trnm-game-server --test settlement_game_server_boundary --locked
+          cargo test -p trnm-game-server --test settlement_remote_identity_contract --locked
+          cargo test -p trnm-game-server --test settlement_worker_contract --locked
+          cargo test -p trnm-game-server --test settlement_fault_model --locked
+
+      - name: Run complete World PostgreSQL settlement contracts
+        working-directory: trillionnium
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo test -p trnm-game-server --test settlement_capture_commit_boundary --locked
+          cargo test -p trnm-game-server --test settlement_database_contract --locked
+          cargo test -p trnm-game-server --test settlement_serialization_database --locked
+          cargo test -p trnm-game-server --test settlement_operator_controls_database --locked
+
+      - name: Strict lint complete World settlement target
+        working-directory: trillionnium
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo clippy -p trnm-game-server --all-targets --locked -- -D warnings
+
+      - name: Commit and fast-forward qualified minimal repair
+        shell: bash
+        run: |
+          set -euo pipefail
+          carrier_sha="$(cat "$RUNNER_TEMP/world-carrier-sha")"
+          git rm "$WORKFLOW_PATH"
+          mapfile -t changed < <(git diff --name-only | sort)
+          expected=(
+            trillionnium/crates/trnm-game-server/migrations/0018_online_settlement_operator_controls_v1.sql
+            trillionnium/crates/trnm-game-server/src/cex.rs
+            trillionnium/crates/trnm-game-server/tests/settlement_database_contract.rs
+          )
+          test "${#changed[@]}" -eq "${#expected[@]}"
+          for index in "${!expected[@]}"; do
+            test "${changed[$index]}" = "${expected[$index]}"
+          done
+          git diff --check
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add "${expected[@]}"
+          git commit -m "fix(settlement): synchronize policy identity and qualify World source"
+          test "$(git rev-parse HEAD^)" = "$carrier_sha"
+          git fetch --no-tags origin "refs/heads/$TARGET_BRANCH"
+          test "$(git rev-parse FETCH_HEAD)" = "$carrier_sha"
+          git push origin "HEAD:refs/heads/$TARGET_BRANCH"
+          printf 'world_source_sha=%s\n' "$(git rev-parse HEAD)"
+          printf 'world_source_tree=%s\n' "$(git rev-parse HEAD^{tree})"
+          printf 'production_authorization=not_granted\n'
