@@ -27,8 +27,16 @@ mkdir -p "run/world-v6-v2/${scope}"
 case "$scope" in
   truth)
     py scripts/test-trnm-world-strict-json.py
+    py scripts/check-trnm-world-execution-truth.py
+    py scripts/test-trnm-world-execution-truth.py
     py scripts/check-trnm-world-machine-truth.py
     py scripts/test-trnm-world-machine-truth.py
+    py scripts/check-trnm-world-active-closure.py
+    py scripts/test-trnm-world-active-closure.py
+    py scripts/check-trnm-world-ci-integrity.py
+    py scripts/test-trnm-world-ci-integrity.py
+    py scripts/check-trnm-world-current-conformance.py
+    py scripts/test-trnm-world-current-conformance.py
     py scripts/check-trnm-world-module-documentation.py
     py scripts/test-trnm-world-module-documentation-negative.py
     py scripts/check-trnm-world-detailed-documentation.py
@@ -58,6 +66,10 @@ plan = Path('CURRENT_PLAN.md').read_text(encoding='utf-8')
 assert 'docs/development/TRILLIONNIUM_WORLD_CLOSURE_EXECUTION_BOARD_V5.md' not in plan
 for path in required[4:]:
     assert f'`{path}`' in plan, path
+assert plan.count('trnm-current-execution-snapshot') == 1
+assert 'Tracked source cannot certify its own current Git head' in plan
+assert 'Head observed before this truth update:' not in plan
+assert 'Prospective merge observed before this truth update:' not in plan
 
 boundary=json.loads(Path('PROJECT_BOUNDARY.json').read_text(encoding='utf-8'))
 assert boundary['project_id']=='trillionnium-world'
