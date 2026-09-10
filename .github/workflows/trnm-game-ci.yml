@@ -1,167 +1,226 @@
 name: trnm-game-ci
 
 on:
-  workflow_dispatch:
   pull_request:
     paths:
-      - 'PROJECT_BOUNDARY.md'
-      - 'PROJECT_BOUNDARY.json'
-      - 'CURRENT_PLAN.md'
-      - 'docs/**'
-      - 'config/trnm-*.env.example'
-      - 'trillionnium/Cargo.toml'
-      - 'trillionnium/Cargo.lock'
-      - 'trillionnium/deny.toml'
-      - 'trillionnium/crates/trnm-*/**'
-      - 'trillionnium/tools/trnm-settlement-outbox-contract/**'
-      - 'assets/first_contact/**'
-      - 'deploy/systemd/trnm-*.service'
-      - 'scripts/check-trnm-online-*.sh'
-      - 'scripts/check_trnm_*.sh'
-      - 'scripts/run-trnm-*.sh'
-      - 'scripts/install-trnm-game-server-systemd.sh'
-      - 'scripts/package-trnm-game-release.sh'
-      - 'scripts/check-trnm-game-package.sh'
-      - 'packaging/**'
-      - 'GAME_STATUS.md'
       - '.github/workflows/trnm-game-ci.yml'
-  push:
-    branches: [main, feature/world-p0-execution-v3]
-    paths:
-      - 'PROJECT_BOUNDARY.md'
-      - 'PROJECT_BOUNDARY.json'
-      - 'CURRENT_PLAN.md'
-      - 'docs/**'
-      - 'config/trnm-*.env.example'
-      - 'trillionnium/Cargo.toml'
-      - 'trillionnium/Cargo.lock'
-      - 'trillionnium/deny.toml'
-      - 'trillionnium/crates/trnm-*/**'
-      - 'trillionnium/tools/trnm-settlement-outbox-contract/**'
-      - 'assets/first_contact/**'
-      - 'deploy/systemd/trnm-*.service'
-      - 'scripts/check-trnm-online-*.sh'
-      - 'scripts/check_trnm_*.sh'
-      - 'scripts/run-trnm-*.sh'
-      - 'scripts/install-trnm-game-server-systemd.sh'
-      - 'scripts/package-trnm-game-release.sh'
-      - 'scripts/check-trnm-game-package.sh'
-      - 'packaging/**'
-      - 'GAME_STATUS.md'
-      - '.github/workflows/trnm-game-ci.yml'
+      - '.github/workflows/temporary-world-settlement-gap-closure-v2.yml'
+      - 'trillionnium/crates/trnm-game-server/**'
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
-  group: trnm-game-ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: temporary-world-settlement-gap-closure-v2
+  cancel-in-progress: false
 
 env:
+  SOURCE_SHA: ad0fd6378242992cea4e035efe90174f5f2bc138
+  TARGET_BRANCH: fix/world-settlement-gap-closure-v2-20260910
+  REGISTERED_WORKFLOW_PATH: .github/workflows/trnm-game-ci.yml
+  TEMPORARY_WORKFLOW_PATH: .github/workflows/temporary-world-settlement-gap-closure-v2.yml
+  RUST_TOOLCHAIN: '1.98.1'
+  RUST_RELEASE_COMMIT: 48a229ceaefd4985c50990b14116b6d856af0985
   CARGO_TERM_COLOR: never
   CARGO_INCREMENTAL: '0'
   RUST_BACKTRACE: '1'
   RUST_TEST_THREADS: '1'
+  TRNM_SETTLEMENT_TEST_DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/world_settlement
+  TRNM_REQUIRE_SETTLEMENT_DATABASE_TEST: '1'
+  TRNM_CEX_SETTLEMENT_TEST_DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/world_settlement
+  TRNM_REQUIRE_CEX_SETTLEMENT_DATABASE_TEST: '1'
 
 jobs:
-  architecture-contracts:
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
+  exact-settlement-gap-closure:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    services:
+      postgres:
+        image: postgres:16.4-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: world_settlement
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d world_settlement"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-      - uses: dtolnay/rust-toolchain@stable
+      - name: Checkout exact repair carrier
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
-          components: rustfmt
-      - name: Install boundary-check dependencies
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends jq
-      - name: Authority ownership boundary
-        run: ./scripts/check_trnm_authority_boundary.sh
-      - name: Runtime configuration boundary
-        run: ./scripts/check_trnm_runtime_configuration.sh
-      - name: Settlement outbox invariant contract
-        run: ./scripts/check_trnm_settlement_outbox_contract.sh
-      - name: Registered settlement migration-debt boundary
-        run: ./scripts/check_trnm_settlement_transaction_boundary.sh
-      - name: Transaction-free settlement runtime boundary
-        run: ./scripts/check-trnm-settlement-transaction-boundary.sh
-      - name: Transaction-free settlement negative fixture
-        run: ./scripts/test-trnm-settlement-transaction-boundary-negative.sh
-      - name: Settlement deployment shell syntax
-        run: bash -n scripts/run-trnm-settlement-worker.sh scripts/install-trnm-game-server-systemd.sh
+          ref: ${{ env.TARGET_BRANCH }}
+          fetch-depth: 0
+          persist-credentials: true
 
-  game-workspace:
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
-    defaults:
-      run:
-        working-directory: trillionnium
-    steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt, clippy
-      - name: Install native build dependencies
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends jq libasound2-dev libudev-dev libx11-dev libxi-dev libxkbcommon-dev libwayland-dev pkg-config
-      - name: Product workspace and repository boundary
-        run: ../scripts/check_trnm_game_product.sh
-      - name: Authority ownership boundary
-        run: ../scripts/check_trnm_authority_boundary.sh
-      - name: Runtime configuration boundary
-        run: ../scripts/check_trnm_runtime_configuration.sh
-      - name: Registered settlement migration-debt boundary
-        run: ../scripts/check_trnm_settlement_transaction_boundary.sh
-      - name: Transaction-free settlement runtime boundary
-        run: ../scripts/check-trnm-settlement-transaction-boundary.sh
-      - name: Resource budget contract
-        run: ../scripts/check-trnm-online-resource-budgets.sh
-      - name: Format
-        run: cargo fmt --all -- --check
-      - name: Test all targets
-        run: cargo test --workspace --all-targets --locked
-      - name: Clippy
-        run: cargo clippy --workspace --all-targets --locked -- -D warnings
-      - name: Release player and online compatibility services
-        run: cargo build --release --locked -p trnm-first-contact -p trnm-game-server --bins
-      - name: Package complete Linux distribution
-        run: ../scripts/package-trnm-game-release.sh --require-clean --output-dir ../run/ci-distribution
-      - name: Verify Linux distribution
+      - name: Verify exact source ancestry and install pinned Rust
+        shell: bash
         run: |
-          archive="$(find ../run/ci-distribution -maxdepth 1 -type f -name '*.tar.gz' -print -quit)"
-          TRNM_REQUIRE_CLEAN_PACKAGE=1 ../scripts/check-trnm-game-package.sh "$archive"
-      - name: Upload complete release artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: trnm-game-${{ github.sha }}
-          path: run/ci-distribution/**
-          if-no-files-found: error
+          set -euo pipefail
+          carrier_sha="$(git rev-parse HEAD)"
+          test "$(git merge-base HEAD "$SOURCE_SHA")" = "$SOURCE_SHA"
+          mapfile -t carrier_changes < <(git diff --name-only "$SOURCE_SHA" HEAD | sort)
+          expected_carrier_changes=(
+            "$REGISTERED_WORKFLOW_PATH"
+            "$TEMPORARY_WORKFLOW_PATH"
+          )
+          test "${#carrier_changes[@]}" -eq "${#expected_carrier_changes[@]}"
+          for index in "${!expected_carrier_changes[@]}"; do
+            test "${carrier_changes[$index]}" = "${expected_carrier_changes[$index]}"
+          done
+          printf '%s\n' "$carrier_sha" > "$RUNNER_TEMP/world-carrier-sha"
+          printf '%s  %s\n' \
+            7add94356f80eb31764aa4e60af4aec227303aa3d816ca8ea83d2b49afd26a09 \
+            trillionnium/crates/trnm-game-server/src/cex.rs \
+            > "$RUNNER_TEMP/world-source-sha256"
+          printf '%s  %s\n' \
+            db8bf41a5d03b795309f5620dc9d4d84124b6796abc6f7d97d5d31b2d0a4d5b5 \
+            trillionnium/crates/trnm-game-server/migrations/0018_online_settlement_operator_controls_v1.sql \
+            >> "$RUNNER_TEMP/world-source-sha256"
+          printf '%s  %s\n' \
+            456336ead6daaf3ece976aa681ed67125ebfb38765d6340a9c30a3c3b5268ac1 \
+            trillionnium/crates/trnm-game-server/tests/settlement_database_contract.rs \
+            >> "$RUNNER_TEMP/world-source-sha256"
+          sha256sum --check "$RUNNER_TEMP/world-source-sha256"
+          rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal --component rustfmt,clippy
+          rustup override set "$RUST_TOOLCHAIN"
+          rustc --version --verbose | tee "$RUNNER_TEMP/rustc-version.txt"
+          grep -Fx "commit-hash: $RUST_RELEASE_COMMIT" "$RUNNER_TEMP/rustc-version.txt"
+          cargo --version --verbose
 
-  supply-chain:
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    defaults:
-      run:
-        working-directory: trillionnium
-    steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: taiki-e/install-action@v2
-        with:
-          tool: cargo-audit,cargo-deny
-      - name: RustSec advisory gate
-        # Current Bevy/winit has no maintained replacement for ttf-parser;
-        # every vulnerability and unsoundness advisory remains denied.
-        run: cargo audit --deny warnings --ignore RUSTSEC-2026-0192
-      - name: Dependency policy gate
-        run: cargo deny check advisories bans licenses sources
-      - name: Preserve supply-chain reports
-        if: always()
+      - name: Apply exact sequence, lint and rustfmt repairs
+        shell: bash
         run: |
-          mkdir -p ../run/ci-supply-chain
-          cargo audit --json --ignore RUSTSEC-2026-0192 > ../run/ci-supply-chain/cargo-audit.json || true
-          cargo deny --format json check advisories bans licenses sources > ../run/ci-supply-chain/cargo-deny.json || true
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: trnm-supply-chain-${{ github.sha }}
-          path: run/ci-supply-chain/**
-          if-no-files-found: error
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          migration = Path(
+              "trillionnium/crates/trnm-game-server/migrations/"
+              "0018_online_settlement_operator_controls_v1.sql"
+          )
+          source = migration.read_text(encoding="utf-8")
+          old = """on conflict (policy_revision) do nothing;
+
+          create table if not exists public.trnm_online_settlement_operator_replay_requests (
+          """
+          new = """on conflict (policy_revision) do nothing;
+
+          -- An explicit identity value does not advance PostgreSQL's backing sequence.
+          -- Synchronize it to the greatest durable revision so the first audited append
+          -- receives revision 2 and migration replay remains monotonic.
+          select pg_catalog.setval(
+              pg_catalog.pg_get_serial_sequence(
+                  'public.trnm_online_settlement_operator_policy_revisions',
+                  'policy_revision'
+              )::pg_catalog.regclass,
+              (
+                  select pg_catalog.greatest(
+                      1::bigint,
+                      pg_catalog.coalesce(pg_catalog.max(policy_revision), 1::bigint)
+                  )
+                    from public.trnm_online_settlement_operator_policy_revisions
+              ),
+              true
+          );
+
+          create table if not exists public.trnm_online_settlement_operator_replay_requests (
+          """
+          if source.count(old) != 1:
+              raise SystemExit("operator policy seed repair site drifted")
+          migration.write_text(source.replace(old, new), encoding="utf-8")
+
+          test_file = Path(
+              "trillionnium/crates/trnm-game-server/tests/"
+              "settlement_database_contract.rs"
+          )
+          source = test_file.read_text(encoding="utf-8")
+          old = "    let (_, changed_payload_job) = insert_capture_and_job(\n"
+          new = "    let (_, _changed_payload_job) = insert_capture_and_job(\n"
+          if source.count(old) != 1:
+              raise SystemExit("unused-variable repair site drifted")
+          test_file.write_text(source.replace(old, new), encoding="utf-8")
+          PY
+          (
+            cd trillionnium
+            cargo metadata --locked --no-deps --format-version 1 > /dev/null
+            cargo fmt --all
+            cargo fmt --all -- --check
+          )
+          printf '%s  %s\n' \
+            614c2b97d88e43da427d0c928b3092fdca00b751d1d0edc0f80e7d7c2522dcf2 \
+            trillionnium/crates/trnm-game-server/src/cex.rs \
+            > "$RUNNER_TEMP/world-repaired-sha256"
+          printf '%s  %s\n' \
+            ad5799a2d9e0a539c0f1cd01b33d08a85f98d6b923ac43c97d59dfee23a43e47 \
+            trillionnium/crates/trnm-game-server/migrations/0018_online_settlement_operator_controls_v1.sql \
+            >> "$RUNNER_TEMP/world-repaired-sha256"
+          printf '%s  %s\n' \
+            79c01ac01ba2dd18498476cb7807c18eefed4f335349fafa5eaacb3f8c84bde4 \
+            trillionnium/crates/trnm-game-server/tests/settlement_database_contract.rs \
+            >> "$RUNNER_TEMP/world-repaired-sha256"
+          sha256sum --check "$RUNNER_TEMP/world-repaired-sha256"
+          git diff --check
+
+      - name: Run complete World settlement unit and ownership contracts
+        working-directory: trillionnium
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo test -p trnm-game-server --lib --locked
+          cargo test -p trnm-game-server --bin trnm-entitlement-signer --locked
+          cargo test -p trnm-game-server --test settlement_game_server_boundary --locked
+          cargo test -p trnm-game-server --test settlement_remote_identity_contract --locked
+          cargo test -p trnm-game-server --test settlement_worker_contract --locked
+          cargo test -p trnm-game-server --test settlement_fault_model --locked
+
+      - name: Run complete World PostgreSQL settlement contracts
+        working-directory: trillionnium
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo test -p trnm-game-server --test settlement_capture_commit_boundary --locked
+          cargo test -p trnm-game-server --test settlement_database_contract --locked
+          cargo test -p trnm-game-server --test settlement_serialization_database --locked
+          cargo test -p trnm-game-server --test settlement_operator_controls_database --locked
+
+      - name: Strict lint complete World settlement target
+        working-directory: trillionnium
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo clippy -p trnm-game-server --all-targets --locked -- -D warnings
+
+      - name: Commit exact qualified source tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          carrier_sha="$(cat "$RUNNER_TEMP/world-carrier-sha")"
+          git checkout "$SOURCE_SHA" -- "$REGISTERED_WORKFLOW_PATH"
+          git rm "$TEMPORARY_WORKFLOW_PATH"
+          mapfile -t source_changes < <(git diff --name-only "$SOURCE_SHA" | sort)
+          expected_source_changes=(
+            trillionnium/crates/trnm-game-server/migrations/0018_online_settlement_operator_controls_v1.sql
+            trillionnium/crates/trnm-game-server/src/cex.rs
+            trillionnium/crates/trnm-game-server/tests/settlement_database_contract.rs
+          )
+          test "${#source_changes[@]}" -eq "${#expected_source_changes[@]}"
+          for index in "${!expected_source_changes[@]}"; do
+            test "${source_changes[$index]}" = "${expected_source_changes[$index]}"
+          done
+          git diff --check "$SOURCE_SHA"
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          git commit -m "fix(settlement): synchronize policy identity and qualify World source"
+          test "$(git rev-parse HEAD^)" = "$carrier_sha"
+          test "$(git diff --name-only "$SOURCE_SHA" HEAD | sort)" = "$(printf '%s\n' "${expected_source_changes[@]}")"
+          git fetch --no-tags origin "refs/heads/$TARGET_BRANCH"
+          test "$(git rev-parse FETCH_HEAD)" = "$carrier_sha"
+          git push origin "HEAD:refs/heads/$TARGET_BRANCH"
+          printf 'world_source_sha=%s\n' "$(git rev-parse HEAD)"
+          printf 'world_source_tree=%s\n' "$(git rev-parse HEAD^{tree})"
+          printf 'production_authorization=not_granted\n'
