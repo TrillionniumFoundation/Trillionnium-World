@@ -43,6 +43,7 @@
     {"path":"docs/development/trnm-world-testing-strategy-v2.md","class":"testing","owner":"trillionnium-world-quality","status":"current-candidate","review_due":"2026-10-08"},
     {"path":"docs/development/trnm-world-module-documentation-matrix-v1.md","class":"module-matrix","owner":"trillionnium-world-architecture","status":"current-candidate","review_due":"2026-10-08"},
     {"path":"docs/development/trnm-world-gap-closure-ledger-v6.json","class":"gap-ledger","owner":"trillionnium-world-program","status":"current","review_due":"2026-09-22"},
+    {"path":"docs/development/trnm-world-source-gap-closure-v12.md","class":"development-plan","owner":"trillionnium-world-program","status":"current-candidate","review_due":"2026-09-24"},
     {"path":"docs/development/trnm-settlement-outbox-v1.md","class":"development-design","owner":"trillionnium-world-settlement","status":"current-candidate","review_due":"2026-10-08"},
     {"path":"docs/development/trnm-settlement-database-contract-v1.md","class":"development-design","owner":"trillionnium-world-settlement","status":"current-candidate","review_due":"2026-10-08"},
 
