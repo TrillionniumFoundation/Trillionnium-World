@@ -260,6 +260,8 @@ def allowed_package_names(component_id: str) -> set[str]:
     names = {component_id}
     if component_id.startswith("legacy-"):
         names.add(component_id.removeprefix("legacy-"))
+    if component_id == "trnm-world-transition-v1":
+        names.add("trnm-world-transition-contract")
     if component_id == "vendor-wayland-scanner":
         names.add("wayland-scanner")
     return names
