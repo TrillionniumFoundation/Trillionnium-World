@@ -1,0 +1,122 @@
+name: migrate-rts-inner-test-modules-v3-20260910
+
+on:
+  push:
+    branches:
+      - ops/p0-statement-let-fix-58f76a-20260910
+
+permissions:
+  contents: write
+
+concurrency:
+  group: migrate-rts-inner-test-modules-v3-20260910
+  cancel-in-progress: false
+
+jobs:
+  verify_and_apply:
+    name: world/verify-rts-modules-and-direct-source-manifest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    env:
+      TARGET_BRANCH: refactor/campaign-module-stack-v2-20260909
+      RUSTUP_TOOLCHAIN: '1.98.1'
+      CARGO_INCREMENTAL: '0'
+      RUST_BACKTRACE: '1'
+      RUST_TEST_THREADS: '1'
+    steps:
+      - name: Fetch current target and exact helpers
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          target="$RUNNER_TEMP/target"
+          helper="$RUNNER_TEMP/helper"
+          remote_url="https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          rm -rf "$target" "$helper"
+          git init "$target"
+          git -C "$target" remote add origin "$remote_url"
+          git -C "$target" fetch --no-tags --depth=1 origin "refs/heads/${TARGET_BRANCH}"
+          git -C "$target" checkout --detach FETCH_HEAD
+          git -C "$target" rev-parse HEAD > "$RUNNER_TEMP/original-head"
+          git init "$helper"
+          git -C "$helper" remote add origin "$remote_url"
+          git -C "$helper" fetch --no-tags --depth=1 origin "$GITHUB_SHA"
+          git -C "$helper" checkout --detach FETCH_HEAD
+          test "$(git -C "$helper" rev-parse HEAD)" = "$GITHUB_SHA"
+          test -s "$helper/scripts/patch-rts-inner-test-modules.py"
+          test -s "$helper/scripts/refresh-direct-source-manifest.py"
+
+      - name: Migrate seams and bind exact source bytes
+        shell: bash
+        run: |
+          set -euo pipefail
+          target="$RUNNER_TEMP/target"
+          wrapper="$target/trillionnium/crates/trnm-rts-sim/src/lib_parts/tests/part_01.rs"
+          if grep -Fq 'include!(concat!(' "$wrapper"; then
+            python3 "$RUNNER_TEMP/helper/scripts/patch-rts-inner-test-modules.py" "$target"
+          else
+            for name in rts_tests_01 rts_tests_02 rts_tests_03; do
+              grep -Fq "mod ${name};" "$wrapper"
+            done
+            echo 'WORLD_RTS_INNER_TEST_MODULE_MIGRATION=ALREADY_PRESENT'
+          fi
+          manifest="$target/trillionnium/crates/trnm-rts-sim/src/lib_parts/manifest.json"
+          python3 "$RUNNER_TEMP/helper/scripts/refresh-direct-source-manifest.py" \
+            "$target" "$manifest" \
+            "$wrapper" \
+            "$target/trillionnium/crates/trnm-rts-sim/src/lib_parts/tests/rts_tests_01.rs" \
+            "$target/trillionnium/crates/trnm-rts-sim/src/lib_parts/tests/rts_tests_02.rs" \
+            "$target/trillionnium/crates/trnm-rts-sim/src/lib_parts/tests/rts_tests_03.rs"
+          git -C "$target" diff --check
+
+      - name: Verify formatting, crate behavior, and source-boundary integrity
+        shell: bash
+        run: |
+          set -euo pipefail
+          rustup toolchain install 1.98.1 --profile minimal --component rustfmt
+          cd "$RUNNER_TEMP/target"
+          cargo fmt --manifest-path trillionnium/Cargo.toml --all -- --check
+          cargo test \
+            --manifest-path trillionnium/Cargo.toml \
+            -p trnm-rts-sim \
+            --all-targets --locked
+          python3 scripts/_test_trnm_world_include_boundary_engine.py
+          python3 scripts/test-trnm-world-include-boundaries.py
+          git diff --check
+
+      - name: Commit exact changed set and non-force fast-forward
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          target="$RUNNER_TEMP/target"
+          original="$(cat "$RUNNER_TEMP/original-head")"
+          remote_url="https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          test "$(git ls-remote "$remote_url" "refs/heads/${TARGET_BRANCH}" | cut -f1)" = "$original"
+          changed="$(git -C "$target" diff --name-only | sort)"
+          expected="$(printf '%s\n' \
+            trillionnium/crates/trnm-rts-sim/src/lib_parts/manifest.json \
+            trillionnium/crates/trnm-rts-sim/src/lib_parts/tests/part_01.rs \
+            trillionnium/crates/trnm-rts-sim/src/lib_parts/tests/rts_tests_01.rs \
+            trillionnium/crates/trnm-rts-sim/src/lib_parts/tests/rts_tests_02.rs \
+            trillionnium/crates/trnm-rts-sim/src/lib_parts/tests/rts_tests_03.rs | sort)"
+          test "$changed" = "$expected"
+          git -C "$target" config user.name github-actions[bot]
+          git -C "$target" config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git -C "$target" add \
+            trillionnium/crates/trnm-rts-sim/src/lib_parts/manifest.json \
+            trillionnium/crates/trnm-rts-sim/src/lib_parts/tests/part_01.rs \
+            trillionnium/crates/trnm-rts-sim/src/lib_parts/tests/rts_tests_01.rs \
+            trillionnium/crates/trnm-rts-sim/src/lib_parts/tests/rts_tests_02.rs \
+            trillionnium/crates/trnm-rts-sim/src/lib_parts/tests/rts_tests_03.rs
+          git -C "$target" commit -m "refactor(rts): replace inner test includes with Rust modules"
+          new_head="$(git -C "$target" rev-parse HEAD)"
+          git -C "$target" push "$remote_url" "HEAD:refs/heads/${TARGET_BRANCH}"
+          test "$(git ls-remote "$remote_url" "refs/heads/${TARGET_BRANCH}" | cut -f1)" = "$new_head"
+          printf 'WORLD_TARGET_HEAD=%s\n' "$new_head"
+          printf 'RTS_INCLUDE_SEAMS_REMOVED=3\n'
+          printf 'DIRECT_SOURCE_MANIFEST_REFRESHED=true\n'
+          printf 'FAST_FORWARD_ONLY=true\n'
+          printf 'PRODUCTION_AUTHORIZATION=not_granted\n'
