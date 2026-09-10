@@ -13,15 +13,22 @@
     "world_authority_workspace_in_source_gate": true,
     "external_contract_workspace_in_source_gate": true,
     "transition_contract_in_source_gate": true,
-    "postgres_16_4_exact_version_required": true,
+    "postgres_16_4_exact_version_required_in_pinned_admission": true,
     "expanded_settlement_database_matrix_required": true,
     "exact_head_and_actual_merge_evidence_workflow_defined": true,
-    "immutable_artifact_hashing_defined": true
+    "immutable_artifact_hashing_defined": true,
+    "duplicate_protected_context_workflow_retired": true,
+    "reviewed_workflow_inventory_closed": true,
+    "reviewed_workflow_count": 13,
+    "unique_check_context_count": 40,
+    "aggregate_context": "trnm-world-v12/required"
   },
   "local_static_validation": {
     "shell_syntax": "pass",
     "python_compile": "pass",
     "yaml_parse": "pass",
+    "synthetic_ci_integrity_negative_fixture_classes": 17,
+    "synthetic_ci_integrity_negative_fixtures": "pass",
     "repository_rust_execution": "not_executed_in_connector_environment",
     "repository_postgres_execution": "not_executed_in_connector_environment"
   },
