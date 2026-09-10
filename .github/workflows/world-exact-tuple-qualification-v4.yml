@@ -1,0 +1,326 @@
+name: world-exact-tuple-qualification-v4
+
+on:
+  push:
+    branches:
+      - ops/p0-statement-let-fix-58f76a-20260910
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: world-exact-tuple-qualification-v4
+  cancel-in-progress: false
+
+jobs:
+  freeze:
+    name: world-tuple/freeze-live-pr
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    outputs:
+      base: ${{ steps.tuple.outputs.base }}
+      head: ${{ steps.tuple.outputs.head }}
+      merge: ${{ steps.tuple.outputs.merge }}
+      merge_tree: ${{ steps.tuple.outputs.merge_tree }}
+    env:
+      TARGET_BRANCH: refactor/campaign-module-stack-v2-20260909
+      BASE_BRANCH: main
+    steps:
+      - name: Wait for verified P0 repair and freeze tuple
+        id: tuple
+        shell: bash
+        run: |
+          set -euo pipefail
+          remote="https://github.com/${GITHUB_REPOSITORY}.git"
+          ready=false
+          for _ in $(seq 1 180); do
+            head="$(git ls-remote "$remote" "refs/heads/$TARGET_BRANCH" | awk '{print $1}')"
+            test -n "$head"
+            rm -rf "$RUNNER_TEMP/freeze"
+            git init -q "$RUNNER_TEMP/freeze"
+            git -C "$RUNNER_TEMP/freeze" remote add origin "$remote"
+            git -C "$RUNNER_TEMP/freeze" fetch -q --no-tags origin "$BASE_BRANCH" "$head"
+            git -C "$RUNNER_TEMP/freeze" checkout -q --detach "$head"
+            if grep -Fq 'fn statement_let_at(bytes: &[u8], start: usize) -> bool' \
+              "$RUNNER_TEMP/freeze/trillionnium/crates/trnm-game-server/tests/p0_boundary_contract.rs"; then
+              ready=true
+              break
+            fi
+            sleep 20
+          done
+          test "$ready" = true
+          base="$(git -C "$RUNNER_TEMP/freeze" rev-parse "origin/$BASE_BRANCH")"
+          git -C "$RUNNER_TEMP/freeze" config user.name 'World exact tuple runner'
+          git -C "$RUNNER_TEMP/freeze" config user.email 'world-tuple@invalid.example'
+          git -C "$RUNNER_TEMP/freeze" checkout -q -B prospective "$base"
+          git -C "$RUNNER_TEMP/freeze" merge -q --no-ff --no-edit "$head"
+          merge="$(git -C "$RUNNER_TEMP/freeze" rev-parse HEAD)"
+          merge_tree="$(git -C "$RUNNER_TEMP/freeze" rev-parse 'HEAD^{tree}')"
+          parents="$(git -C "$RUNNER_TEMP/freeze" show -s --format='%P' HEAD)"
+          test "$parents" = "$base $head"
+          printf 'base=%s\n' "$base" >> "$GITHUB_OUTPUT"
+          printf 'head=%s\n' "$head" >> "$GITHUB_OUTPUT"
+          printf 'merge=%s\n' "$merge" >> "$GITHUB_OUTPUT"
+          printf 'merge_tree=%s\n' "$merge_tree" >> "$GITHUB_OUTPUT"
+          printf 'WORLD_BASE_SHA=%s\n' "$base"
+          printf 'WORLD_HEAD_SHA=%s\n' "$head"
+          printf 'WORLD_PROSPECTIVE_MERGE_SHA=%s\n' "$merge"
+          printf 'WORLD_PROSPECTIVE_MERGE_TREE=%s\n' "$merge_tree"
+          printf 'PRODUCTION_AUTHORIZATION=not_granted\n'
+
+  source:
+    name: world-tuple/source-${{ matrix.surface }}
+    needs: freeze
+    strategy:
+      fail-fast: false
+      matrix:
+        surface: [head, prospective-merge]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    env:
+      RUSTUP_TOOLCHAIN: '1.98.1'
+      CARGO_INCREMENTAL: '0'
+      RUST_BACKTRACE: '1'
+      RUST_TEST_THREADS: '1'
+      BASE_SHA: ${{ needs.freeze.outputs.base }}
+      HEAD_SHA: ${{ needs.freeze.outputs.head }}
+      MERGE_SHA: ${{ needs.freeze.outputs.merge }}
+    steps:
+      - name: Materialize exact surface
+        shell: bash
+        run: |
+          set -euo pipefail
+          remote="https://github.com/${GITHUB_REPOSITORY}.git"
+          work="$RUNNER_TEMP/world"
+          git init -q "$work"
+          git -C "$work" remote add origin "$remote"
+          git -C "$work" fetch -q --no-tags origin "$BASE_SHA" "$HEAD_SHA"
+          if test '${{ matrix.surface }}' = head; then
+            git -C "$work" checkout -q --detach "$HEAD_SHA"
+          else
+            git -C "$work" config user.name 'World exact tuple runner'
+            git -C "$work" config user.email 'world-tuple@invalid.example'
+            git -C "$work" checkout -q -B prospective "$BASE_SHA"
+            git -C "$work" merge -q --no-ff --no-edit "$HEAD_SHA"
+            test "$(git -C "$work" rev-parse HEAD)" = "$MERGE_SHA"
+          fi
+          test -z "$(git -C "$work" status --porcelain=v1 --untracked-files=no)"
+
+      - name: Execute closed-world truth and parser gates
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/world"
+          git diff --check
+          python3 scripts/check-trnm-world-component-catalog.py
+          python3 scripts/test-trnm-world-component-catalog.py
+          python3 scripts/check-trnm-world-include-boundaries.py
+          python3 scripts/test-trnm-world-include-boundaries.py
+
+      - name: Execute complete Rust source surface
+        shell: bash
+        run: |
+          set -euo pipefail
+          rustup toolchain install 1.98.1 --profile minimal --component rustfmt,clippy
+          cd "$RUNNER_TEMP/world"
+          cargo fmt --manifest-path trillionnium/Cargo.toml --all -- --check
+          cargo test --manifest-path trillionnium/Cargo.toml --workspace --all-targets --locked
+          cargo clippy --manifest-path trillionnium/Cargo.toml --workspace --all-targets --locked -- -D warnings
+          cargo build --manifest-path trillionnium/Cargo.toml --workspace --release --locked
+
+  postgres:
+    name: world-tuple/postgres-${{ matrix.surface }}
+    needs: freeze
+    strategy:
+      fail-fast: false
+      matrix:
+        surface: [head, prospective-merge]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: trillionnium_world_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d trillionnium_world_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 30
+    env:
+      RUSTUP_TOOLCHAIN: '1.98.1'
+      CARGO_INCREMENTAL: '0'
+      RUST_BACKTRACE: '1'
+      RUST_TEST_THREADS: '1'
+      DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/trillionnium_world_test
+      TEST_DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/trillionnium_world_test
+      BASE_SHA: ${{ needs.freeze.outputs.base }}
+      HEAD_SHA: ${{ needs.freeze.outputs.head }}
+      MERGE_SHA: ${{ needs.freeze.outputs.merge }}
+    steps:
+      - name: Materialize exact surface
+        shell: bash
+        run: |
+          set -euo pipefail
+          remote="https://github.com/${GITHUB_REPOSITORY}.git"
+          work="$RUNNER_TEMP/world"
+          git init -q "$work"
+          git -C "$work" remote add origin "$remote"
+          git -C "$work" fetch -q --no-tags origin "$BASE_SHA" "$HEAD_SHA"
+          if test '${{ matrix.surface }}' = head; then
+            git -C "$work" checkout -q --detach "$HEAD_SHA"
+          else
+            git -C "$work" config user.name 'World exact tuple runner'
+            git -C "$work" config user.email 'world-tuple@invalid.example'
+            git -C "$work" checkout -q -B prospective "$BASE_SHA"
+            git -C "$work" merge -q --no-ff --no-edit "$HEAD_SHA"
+            test "$(git -C "$work" rev-parse HEAD)" = "$MERGE_SHA"
+          fi
+
+      - name: Execute PostgreSQL-aware workspace tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          rustup toolchain install 1.98.1 --profile minimal
+          cd "$RUNNER_TEMP/world"
+          pg_isready -h 127.0.0.1 -p 5432 -U postgres -d trillionnium_world_test
+          cargo test --manifest-path trillionnium/Cargo.toml --workspace --all-targets --locked -- --test-threads=1
+
+  package:
+    name: world-tuple/package-${{ matrix.surface }}
+    needs: freeze
+    strategy:
+      fail-fast: false
+      matrix:
+        surface: [head, prospective-merge]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    env:
+      RUSTUP_TOOLCHAIN: '1.98.1'
+      CARGO_INCREMENTAL: '0'
+      BASE_SHA: ${{ needs.freeze.outputs.base }}
+      HEAD_SHA: ${{ needs.freeze.outputs.head }}
+      MERGE_SHA: ${{ needs.freeze.outputs.merge }}
+    steps:
+      - name: Materialize exact surface
+        shell: bash
+        run: |
+          set -euo pipefail
+          remote="https://github.com/${GITHUB_REPOSITORY}.git"
+          work="$RUNNER_TEMP/world"
+          git init -q "$work"
+          git -C "$work" remote add origin "$remote"
+          git -C "$work" fetch -q --no-tags origin "$BASE_SHA" "$HEAD_SHA"
+          if test '${{ matrix.surface }}' = head; then
+            git -C "$work" checkout -q --detach "$HEAD_SHA"
+          else
+            git -C "$work" config user.name 'World exact tuple runner'
+            git -C "$work" config user.email 'world-tuple@invalid.example'
+            git -C "$work" checkout -q -B prospective "$BASE_SHA"
+            git -C "$work" merge -q --no-ff --no-edit "$HEAD_SHA"
+            test "$(git -C "$work" rev-parse HEAD)" = "$MERGE_SHA"
+          fi
+
+      - name: Verify publishable Cargo packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          rustup toolchain install 1.98.1 --profile minimal
+          cd "$RUNNER_TEMP/world"
+          python3 - <<'PY' > "$RUNNER_TEMP/publishable-packages.txt"
+          import json
+          import subprocess
+          metadata = json.loads(subprocess.check_output([
+              'cargo', 'metadata', '--manifest-path', 'trillionnium/Cargo.toml',
+              '--format-version', '1', '--no-deps', '--locked'
+          ]))
+          members = set(metadata['workspace_members'])
+          names = []
+          for package in metadata['packages']:
+              if package['id'] not in members:
+                  continue
+              publish = package.get('publish')
+              if publish == []:
+                  continue
+              names.append(package['name'])
+          for name in sorted(set(names)):
+              print(name)
+          PY
+          test -s "$RUNNER_TEMP/publishable-packages.txt"
+          while IFS= read -r package; do
+            cargo package --manifest-path trillionnium/Cargo.toml -p "$package" --locked --allow-dirty
+          done < "$RUNNER_TEMP/publishable-packages.txt"
+
+  final:
+    name: world-tuple/final-live-readback
+    needs: [freeze, source, postgres, package]
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      EXPECTED_BASE: ${{ needs.freeze.outputs.base }}
+      EXPECTED_HEAD: ${{ needs.freeze.outputs.head }}
+      TARGET_BRANCH: refactor/campaign-module-stack-v2-20260909
+      BASE_BRANCH: main
+      SOURCE_RESULT: ${{ needs.source.result }}
+      POSTGRES_RESULT: ${{ needs.postgres.result }}
+      PACKAGE_RESULT: ${{ needs.package.result }}
+    steps:
+      - name: Require every non-empty scope and unchanged tuple
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$SOURCE_RESULT" = success
+          test "$POSTGRES_RESULT" = success
+          test "$PACKAGE_RESULT" = success
+          remote="https://github.com/${GITHUB_REPOSITORY}.git"
+          live_base="$(git ls-remote "$remote" "refs/heads/$BASE_BRANCH" | awk '{print $1}')"
+          live_head="$(git ls-remote "$remote" "refs/heads/$TARGET_BRANCH" | awk '{print $1}')"
+          test "$live_base" = "$EXPECTED_BASE"
+          test "$live_head" = "$EXPECTED_HEAD"
+          printf 'WORLD_EXACT_TUPLE_QUALIFICATION=PASS\n'
+          printf 'WORLD_BASE_SHA=%s\n' "$EXPECTED_BASE"
+          printf 'WORLD_HEAD_SHA=%s\n' "$EXPECTED_HEAD"
+          printf 'PRODUCTION_AUTHORIZATION=not_granted\n'
+
+      - name: Record CI-only qualification on PR 115
+        shell: bash
+        env:
+          GH_WRITE_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          import urllib.request
+          repo = os.environ['GITHUB_REPOSITORY']
+          body = (
+              'Exact-tuple repository CI qualification passed for this unchanged head.\n\n'
+              f"- base: `{os.environ['EXPECTED_BASE']}`\n"
+              f"- head: `{os.environ['EXPECTED_HEAD']}`\n"
+              '- source: success\n- PostgreSQL-aware tests: success\n'
+              '- package verification: success\n'
+              '- production authorization: `not_granted`\n\n'
+              'This is repository execution evidence only; it is not independent review, '
+              'deployment evidence, or production authorization.'
+          )
+          payload = json.dumps({'body': body}).encode()
+          request = urllib.request.Request(
+              f'https://api.github.com/repos/{repo}/issues/115/comments',
+              data=payload,
+              method='POST',
+              headers={
+                  'Accept': 'application/vnd.github+json',
+                  'Authorization': f"Bearer {os.environ['GH_WRITE_TOKEN']}",
+                  'Content-Type': 'application/json',
+                  'X-GitHub-Api-Version': '2022-11-28',
+              },
+          )
+          with urllib.request.urlopen(request, timeout=60):
+              pass
+          PY
