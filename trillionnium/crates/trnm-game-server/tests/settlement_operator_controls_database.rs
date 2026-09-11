@@ -485,12 +485,11 @@ async fn settlement_operator_replay_is_exact_audited_one_attempt_and_append_only
     // PostgreSQL rejects a referenced parent table before firing its own
     // TRUNCATE trigger. That native foreign-key fence is still a hard,
     // fail-closed refusal and must preserve both append-only evidence sets.
-    let parent_truncate = sqlx::query::query(
-        "truncate public.trnm_online_settlement_operator_policy_revisions",
-    )
-    .execute(&pool)
-    .await
-    .unwrap_err();
+    let parent_truncate =
+        sqlx::query::query("truncate public.trnm_online_settlement_operator_policy_revisions")
+            .execute(&pool)
+            .await
+            .unwrap_err();
     assert_sqlstate(parent_truncate, "0A000");
 
     let preserved = sqlx::query::query(
