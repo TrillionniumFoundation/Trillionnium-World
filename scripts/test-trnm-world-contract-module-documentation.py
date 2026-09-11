@@ -186,7 +186,6 @@ def main() -> None:
             lambda text: text.replace(
                 "../../docs/modules/contracts/audit-events-design.md",
                 "../../docs/modules/contracts/missing-design.md",
-                1,
             ),
         )
     )
