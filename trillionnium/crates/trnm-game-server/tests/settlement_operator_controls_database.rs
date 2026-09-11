@@ -474,7 +474,6 @@ async fn settlement_operator_replay_is_exact_audited_one_attempt_and_append_only
         "truncate public.trnm_online_settlement_operator_replay_requests",
         "update public.trnm_online_settlement_operator_policy_revisions set reason = 'tampered policy'",
         "delete from public.trnm_online_settlement_operator_policy_revisions",
-        "truncate public.trnm_online_settlement_operator_policy_revisions",
     ] {
         let error = sqlx::query::query(statement)
             .execute(&pool)
@@ -482,6 +481,30 @@ async fn settlement_operator_replay_is_exact_audited_one_attempt_and_append_only
             .unwrap_err();
         assert_sqlstate(error, "55000");
     }
+
+    // PostgreSQL rejects a referenced parent table before firing its own
+    // TRUNCATE trigger. That native foreign-key fence is still a hard,
+    // fail-closed refusal and must preserve both append-only evidence sets.
+    let parent_truncate = sqlx::query::query(
+        "truncate public.trnm_online_settlement_operator_policy_revisions",
+    )
+    .execute(&pool)
+    .await
+    .unwrap_err();
+    assert_sqlstate(parent_truncate, "0A000");
+
+    let preserved = sqlx::query::query(
+        "select
+            (select count(*) from public.trnm_online_settlement_operator_policy_revisions)
+                as policy_count,
+            (select count(*) from public.trnm_online_settlement_operator_replay_requests)
+                as replay_count",
+    )
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert_eq!(preserved.get::<i64, _>("policy_count"), 2);
+    assert_eq!(preserved.get::<i64, _>("replay_count"), 2);
 
     let current_policy = sqlx::query::query(
         "select policy_revision, retention_days
