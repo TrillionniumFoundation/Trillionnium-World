@@ -1322,7 +1322,9 @@ async fn run() -> Result<Value, String> {
             ));
         }
     }
-    let _ = tokio::task::block_in_place(|| state_stream.close(None));
+    tokio::task::block_in_place(|| {
+        let _ = state_stream.close(None);
+    });
     let reconnect_command_race_rounds = 32_u64;
     let reconnect_command_race_pipeline_depth = 4_usize;
     let reconnect_cursor = 0_u64;
