@@ -51,7 +51,7 @@ Audit data binds stable relay/message/proof/checkpoint IDs, contract/verifier ve
 
 ## Test and evidence traceability
 
-Primary source is `contracts/bridge-relay/src/`. Root status is `contracts/README.md`; target host architecture is under `trillionnium/docs/protocol/external-contracts-rust/` but remains a target, not current implementation. Tests cover exact relay, altered duplicate, nonce replay/order, proof/hash/domain mismatch, insufficient/regressing finality, bounds, state preservation and audit normalization. Real-chain, reorg, cross-client, host and custody tests remain absent.
+Primary source is `contracts/bridge-relay/src/`. The binding design is `docs/modules/contracts/bridge-relay-design.md`, and root status is `contracts/README.md`. Structural and hostile-fixture enforcement is executed by `scripts/check-trnm-world-contract-module-documentation.py` and `scripts/test-trnm-world-contract-module-documentation.py`. Rust tests cover exact relay, altered duplicate, nonce replay/order, proof/hash/domain mismatch, insufficient/regressing finality, bounds, state preservation and audit normalization. Real-chain, reorganization, cross-client, host and custody tests remain absent.
 
 ## Change checklist and open work
 
