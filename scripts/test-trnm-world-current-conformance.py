@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 import shutil
 import subprocess
@@ -27,7 +28,7 @@ def run(root: Path, expect_success: bool) -> None:
         raise AssertionError(f"unexpected rc={completed.returncode}\n{completed.stdout}")
 
 
-def copy_and_mutate(relative: str, mutate) -> None:
+def copy_and_apply(mutate) -> None:
     with tempfile.TemporaryDirectory(prefix="trnm-current-conformance-") as temporary:
         clone = Path(temporary) / "repo"
         shutil.copytree(
@@ -35,13 +36,32 @@ def copy_and_mutate(relative: str, mutate) -> None:
             clone,
             ignore=shutil.ignore_patterns(".git", "target", "node_modules", "run", "assets"),
         )
+        mutate(clone)
+        run(clone, False)
+
+
+def copy_and_mutate(relative: str, mutate) -> None:
+    def apply(clone: Path) -> None:
         target = clone / relative
         text = target.read_text(encoding="utf-8")
         mutated = mutate(text)
         if mutated == text:
             raise AssertionError(f"negative fixture did not mutate {relative}")
         target.write_text(mutated, encoding="utf-8")
-        run(clone, False)
+
+    copy_and_apply(apply)
+
+
+def grant_component_catalog_authorization(clone: Path) -> None:
+    target = clone / "docs/component-catalog.json"
+    value = json.loads(target.read_text(encoding="utf-8"))
+    if value.get("production_authorization") != "not_granted":
+        raise AssertionError("component catalog fixture baseline drift")
+    value["production_authorization"] = "granted"
+    target.write_text(
+        json.dumps(value, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
 
 
 def main() -> None:
@@ -66,10 +86,7 @@ def main() -> None:
             "World game-product release denominator: **game-product**",
         ).replace("world_release_denominator=none", "world_release_denominator=game-product"),
     )
-    copy_and_mutate(
-        "contracts/README.md",
-        lambda text: text + "\nproduction_authorization=granted\n",
-    )
+    copy_and_apply(grant_component_catalog_authorization)
     copy_and_mutate(
         "PROJECT_BOUNDARY.md",
         lambda text: text.replace("Public online remains NO-GO", "Public online is enabled"),
