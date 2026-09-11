@@ -10,7 +10,6 @@ pub(crate) use crate::{
     WorldMetricReceipt, WorldRepositoryReceipt, WorldSessionDecision,
 };
 
-#[path = "../production_contract_base.rs"]
 mod base;
 pub use base::*;
 
