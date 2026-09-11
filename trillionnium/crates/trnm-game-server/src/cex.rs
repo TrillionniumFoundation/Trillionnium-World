@@ -5,7 +5,7 @@ use crate::signer_protocol::{
     ENTITLEMENT_SIGNER_ISSUER, ENTITLEMENT_SIGNER_RECEIPT_PATH, SIGNER_AUTH_HEADER,
 };
 use base64::{engine::general_purpose::STANDARD, Engine as _};
-use chrono::{Datelike, DateTime, Utc};
+use chrono::{DateTime, Datelike, Utc};
 use ed25519_dalek::{Signature, Verifier, VerifyingKey};
 use reqwest::{header::HeaderMap, StatusCode};
 use serde::{Deserialize, Serialize};
@@ -22,8 +22,7 @@ use trnm_economy_protocol::{
 const PLAYER_SESSION_HEADER: &str = "x-trnm-player-session";
 const GAME_AUTHORITY_HEADER: &str = "x-trnm-game-authority";
 const INTENT_HASH_HEADER: &str = "x-trnm-intent-sha256";
-const CEX_SETTLEMENT_RECEIPT_LOOKUP_CONTRACT: &str =
-    "trnm_cex_settlement_receipt_lookup_v1";
+const CEX_SETTLEMENT_RECEIPT_LOOKUP_CONTRACT: &str = "trnm_cex_settlement_receipt_lookup_v1";
 const CEX_SETTLEMENT_RECEIPT_LOOKUP_PATH: &str = "/v1/trnm/economy/receipts/by-intent";
 const SETTLEMENT_OUTBOX_REQUIRED: &str =
     "external economy settlement is owned by trnm-settlement-worker; synchronous EconomyBackend I/O is prohibited";
@@ -387,7 +386,10 @@ impl CexClient {
             .send()
             .await
             .map_err(|error| {
-                ExternalSettlementError::transport("isolated signer receipt lookup transport", error)
+                ExternalSettlementError::transport(
+                    "isolated signer receipt lookup transport",
+                    error,
+                )
             })?;
         if response.status() == StatusCode::NOT_FOUND {
             return Ok(None);
@@ -478,9 +480,7 @@ impl CexClient {
             && authorized.amount_credits.unwrap_or_default() > 0
         {
             let actor = authorized.actors.first().ok_or_else(|| {
-                ExternalSettlementError::Permanent(
-                    "reward intent has no primary actor".to_string(),
-                )
+                ExternalSettlementError::Permanent("reward intent has no primary actor".to_string())
             })?;
             let account_id = actor.account_id.clone().ok_or_else(|| {
                 ExternalSettlementError::Permanent("reward intent has no account".to_string())
@@ -498,11 +498,12 @@ impl CexClient {
                         ))
                     })
             };
-            let issued_at = DateTime::<Utc>::from_timestamp(issued_at_epoch, 0).ok_or_else(|| {
-                ExternalSettlementError::Permanent(
-                    "settlement entitlement issued_at is outside chrono range".to_string(),
-                )
-            })?;
+            let issued_at =
+                DateTime::<Utc>::from_timestamp(issued_at_epoch, 0).ok_or_else(|| {
+                    ExternalSettlementError::Permanent(
+                        "settlement entitlement issued_at is outside chrono range".to_string(),
+                    )
+                })?;
             let entitlement = ServerSignedValueEntitlementV2 {
                 contract_version: SERVER_SIGNED_VALUE_ENTITLEMENT_V2_CONTRACT.to_string(),
                 entitlement_id: stable_entitlement_id(authorization_request_id),
@@ -534,10 +535,7 @@ impl CexClient {
                 nonce: nonce.to_string(),
                 signature: String::new(),
             };
-            let signed = match self
-                .lookup_signer_receipt(authorization_request_id)
-                .await?
-            {
+            let signed = match self.lookup_signer_receipt(authorization_request_id).await? {
                 Some(existing) => existing,
                 None => {
                     self.create_signer_receipt(authorization_request_id, &entitlement)
@@ -600,9 +598,7 @@ impl CexClient {
             .json::<CexSettlementReceiptLookupResponse>()
             .await
             .map_err(|error| {
-                ExternalSettlementError::Permanent(format!(
-                    "decode CEX receipt lookup: {error}"
-                ))
+                ExternalSettlementError::Permanent(format!("decode CEX receipt lookup: {error}"))
             })?;
         if lookup.contract_version != CEX_SETTLEMENT_RECEIPT_LOOKUP_CONTRACT
             || lookup.intent_id != authorized.intent_id
@@ -696,8 +692,8 @@ impl EconomyBackend for CexClient {
 #[cfg(test)]
 mod tests {
     use super::{
-        retryable_status, serialized_intent_hash, stable_entitlement_id,
-        CexSettlementReceiptLookupResponse, CexClient, ExternalSettlementError,
+        retryable_status, serialized_intent_hash, stable_entitlement_id, CexClient,
+        CexSettlementReceiptLookupResponse, ExternalSettlementError,
         CEX_SETTLEMENT_RECEIPT_LOOKUP_CONTRACT, INTENT_HASH_HEADER, SETTLEMENT_OUTBOX_REQUIRED,
     };
     use crate::signer_protocol::{
@@ -861,9 +857,7 @@ mod tests {
             .route("/v1/trnm/economy/receipts/by-intent", get(cex_lookup))
             .route("/v1/trnm/economy/intents", post(cex_submit))
             .with_state(state.clone());
-        let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
-            .await
-            .unwrap();
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         let address = listener.local_addr().unwrap();
         let task = tokio::spawn(async move {
             axum::serve(listener, app).await.unwrap();
@@ -913,7 +907,10 @@ mod tests {
         )
         .unwrap();
         let intent = base_intent(EconomicIntentKind::CompleteContract, 0);
-        assert_eq!(client.execute(&intent), Err(SETTLEMENT_OUTBOX_REQUIRED.to_string()));
+        assert_eq!(
+            client.execute(&intent),
+            Err(SETTLEMENT_OUTBOX_REQUIRED.to_string())
+        );
         assert_eq!(
             client.wallet_snapshot(
                 &trnm_economy_protocol::EconomyAccountBinding {
