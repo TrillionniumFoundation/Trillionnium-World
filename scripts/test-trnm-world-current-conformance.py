@@ -55,11 +55,16 @@ def main() -> None:
     )
     copy_and_mutate(
         "trillionnium/crates/platform/README.md",
-        lambda text: text.replace("Release denominator: **none**", "Release denominator: **game-product**"),
+        lambda text: text.replace(
+            "Release denominator: **none**", "Release denominator: **game-product**"
+        ).replace("release_denominator=none", "release_denominator=game-product"),
     )
     copy_and_mutate(
         "web4-frontend/README.md",
-        lambda text: text.replace("World game-product release denominator: **none**", "World game-product release denominator: **game-product**"),
+        lambda text: text.replace(
+            "World game-product release denominator: **none**",
+            "World game-product release denominator: **game-product**",
+        ).replace("world_release_denominator=none", "world_release_denominator=game-product"),
     )
     copy_and_mutate(
         "contracts/README.md",
