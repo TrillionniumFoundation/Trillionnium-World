@@ -698,7 +698,7 @@ fn find_all(code: &str, marker: &str, out: &mut Vec<usize>) {
 
 fn statement_prefix(code: &str, position: usize) -> &str {
     let start = code[..position]
-        .rfind(|character| matches!(character, ';' | '{' | '}'))
+        .rfind([';', '{', '}'])
         .map_or(0, |index| index + 1);
     &code[start..position]
 }
