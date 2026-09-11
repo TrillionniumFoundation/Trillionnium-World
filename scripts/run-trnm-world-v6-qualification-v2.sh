@@ -117,6 +117,8 @@ PY
     py scripts/check-trnm-world-transition-conformance.py
     py scripts/check-trnm-world-include-boundaries.py
     py scripts/test-trnm-world-include-boundaries.py
+    py scripts/check-trnm-world-partition-manifests.py
+    py scripts/test-trnm-world-partition-manifests.py
 
     for gate in \
       scripts/check_trnm_game_product.sh \
