@@ -37,7 +37,10 @@ def copy_and_mutate(relative: str, mutate) -> None:
         )
         target = clone / relative
         text = target.read_text(encoding="utf-8")
-        target.write_text(mutate(text), encoding="utf-8")
+        mutated = mutate(text)
+        if mutated == text:
+            raise AssertionError(f"negative fixture did not mutate {relative}")
+        target.write_text(mutated, encoding="utf-8")
         run(clone, False)
 
 
@@ -46,7 +49,7 @@ def main() -> None:
     copy_and_mutate(
         "docs/development/trnm-world-module-decomposition-v1.md",
         lambda text: text.replace(
-            "The former semantic `trnm-game-server/build.rs` and `src/lib.rs.in` generation\nauthority is retired.",
+            "The former semantic `trnm-game-server/build.rs` and `src/lib.rs.in` generation authority is retired and removed from the current candidate.",
             "trnm-game-server still contains a build script and source template.",
         ),
     )
