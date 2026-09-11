@@ -144,6 +144,11 @@ def main() -> int:
         ):
             require(source, r"platform", f"{label} identifies platform")
             require(source, r"excluded|legacy|not an active", f"{label} excludes legacy platform")
+        require(
+            platform_readme,
+            r"release denominator.*none|release_denominator=none",
+            "platform release denominator none",
+        )
         require(web4_readme, r"release denominator.*none|world_release_denominator=none", "Web4 denominator none")
         require(contract_readme, r"MVP", "contracts MVP boundary")
         require(contract_readme, r"not.*production|production.*not", "contracts non-production boundary")

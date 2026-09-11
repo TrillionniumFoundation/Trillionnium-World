@@ -51,7 +51,7 @@ Audit/metrics may expose stable operation/vault/asset IDs and bounded result cod
 
 ## Test and evidence traceability
 
-Primary source is `contracts/settlement-vault/src/`. `contracts/README.md` defines the MVP boundary; `docs/adr/0002-transaction-free-external-settlement.md` defines the separate World/CEX settlement boundary and must not be conflated with this state machine. Tests cover accepted lifecycle paths, unauthorized calls, over-release/slash, overflow, duplicate exact/altered requests, error-state preservation and normalized audit events. Host/storage/fault/custody evidence remains absent.
+Primary source is `contracts/settlement-vault/src/`. The binding design is `docs/modules/contracts/settlement-vault-design.md`; `contracts/README.md` defines the MVP boundary, and `docs/adr/0002-transaction-free-external-settlement.md` defines the separate World/CEX settlement boundary. Structural and hostile-fixture enforcement is executed by `scripts/check-trnm-world-contract-module-documentation.py` and `scripts/test-trnm-world-contract-module-documentation.py`. Rust tests cover accepted lifecycle paths, unauthorized calls, over-release/slash, overflow, duplicate exact/altered requests, error-state preservation and normalized audit events. Host/storage/fault/custody evidence remains absent.
 
 ## Change checklist and open work
 

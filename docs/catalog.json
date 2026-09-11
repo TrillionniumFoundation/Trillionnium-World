@@ -1,6 +1,6 @@
 {
   "schema": "trnm_world_document_catalog_v1",
-  "as_of": "2026-09-09",
+  "as_of": "2026-09-10",
   "truth_order": [
     "PROJECT_BOUNDARY.md",
     "CURRENT_PLAN.md",
@@ -43,6 +43,7 @@
     {"path":"docs/development/trnm-world-testing-strategy-v2.md","class":"testing","owner":"trillionnium-world-quality","status":"current-candidate","review_due":"2026-10-08"},
     {"path":"docs/development/trnm-world-module-documentation-matrix-v1.md","class":"module-matrix","owner":"trillionnium-world-architecture","status":"current-candidate","review_due":"2026-10-08"},
     {"path":"docs/development/trnm-world-gap-closure-ledger-v6.json","class":"gap-ledger","owner":"trillionnium-world-program","status":"current","review_due":"2026-09-22"},
+    {"path":"docs/development/trnm-world-source-gap-closure-v12.md","class":"development-plan","owner":"trillionnium-world-program","status":"current-candidate","review_due":"2026-09-24"},
     {"path":"docs/development/trnm-settlement-outbox-v1.md","class":"development-design","owner":"trillionnium-world-settlement","status":"current-candidate","review_due":"2026-10-08"},
     {"path":"docs/development/trnm-settlement-database-contract-v1.md","class":"development-design","owner":"trillionnium-world-settlement","status":"current-candidate","review_due":"2026-10-08"},
 
@@ -57,6 +58,17 @@
     {"path":"docs/modules/trnm-online-protocol-design.md","class":"module-design","owner":"trillionnium-world-compatibility-protocol","status":"current-candidate","review_due":"2026-10-08"},
     {"path":"docs/modules/trnm-game-server-design.md","class":"module-design","owner":"trillionnium-world-server","status":"current-candidate","review_due":"2026-10-08"},
     {"path":"docs/modules/trnm-first-contact-design.md","class":"module-design","owner":"trillionnium-world-client","status":"current-candidate","review_due":"2026-10-08"},
+
+    {"path":"contracts/README.md","class":"contract-workspace","owner":"trillionnium-world-contracts","status":"current-candidate","review_due":"2026-10-08"},
+    {"path":"docs/modules/contracts/README.md","class":"contract-module-index","owner":"trillionnium-world-contracts","status":"current-candidate","review_due":"2026-10-08"},
+    {"path":"contracts/audit-events/README.md","class":"contract-module-contract","owner":"trillionnium-world-contracts","status":"current-candidate","review_due":"2026-10-08"},
+    {"path":"docs/modules/contracts/audit-events-design.md","class":"contract-module-design","owner":"trillionnium-world-contracts","status":"current-candidate","review_due":"2026-10-08"},
+    {"path":"contracts/bridge-relay/README.md","class":"contract-module-contract","owner":"trillionnium-world-contracts","status":"current-candidate","review_due":"2026-10-08"},
+    {"path":"docs/modules/contracts/bridge-relay-design.md","class":"contract-module-design","owner":"trillionnium-world-contracts","status":"current-candidate","review_due":"2026-10-08"},
+    {"path":"contracts/governance-guard/README.md","class":"contract-module-contract","owner":"trillionnium-world-contracts","status":"current-candidate","review_due":"2026-10-08"},
+    {"path":"docs/modules/contracts/governance-guard-design.md","class":"contract-module-design","owner":"trillionnium-world-contracts","status":"current-candidate","review_due":"2026-10-08"},
+    {"path":"contracts/settlement-vault/README.md","class":"contract-module-contract","owner":"trillionnium-world-contracts","status":"current-candidate","review_due":"2026-10-08"},
+    {"path":"docs/modules/contracts/settlement-vault-design.md","class":"contract-module-design","owner":"trillionnium-world-contracts","status":"current-candidate","review_due":"2026-10-08"},
 
     {"path":"docs/protocol/trnm-world-transition-v1.md","class":"protocol","owner":"trillionnium-world-protocol","status":"current-candidate","review_due":"2026-10-08"},
     {"path":"docs/protocol/schemas/trnm-world-transition-v1.schema.json","class":"protocol-schema","owner":"trillionnium-world-protocol","status":"current-candidate","review_due":"2026-10-08"},
@@ -94,9 +106,13 @@
     {"path":"docs/release/trnm-world-commercial-authorization-protocol-v1.md","class":"external-evidence-protocol","owner":"trillionnium-world-release","status":"current-candidate","review_due":"2026-10-08"},
     {"path":"docs/release/templates/trnm-world-evidence-record-v1.json","class":"evidence-template","owner":"trillionnium-world-release","status":"template","review_due":"2026-10-08"},
 
+    {"path":"docs/reviews/README.md","class":"review-index","owner":"trillionnium-world-review","status":"current-candidate","review_due":"2026-09-24"},
+    {"path":"docs/reviews/trnm-world-source-gap-closure-v12-review-checklist.md","class":"review-checklist","owner":"trillionnium-world-review","status":"current-candidate","review_due":"2026-09-24"},
+
     {"path":"docs/status/world-plan-v4-execution-truth-2026-09-02.json","class":"historical-execution-snapshot","owner":"trillionnium-world-program","status":"historical","review_due":"2026-09-22"},
     {"path":"docs/status/world-plan-v4-execution-truth-2026-09-08.json","class":"execution-snapshot","owner":"trillionnium-world-program","status":"current","review_due":"2026-09-22"},
     {"path":"docs/status/CURRENT.md","class":"status-view","owner":"trillionnium-world-program","status":"current-candidate","review_due":"2026-09-22"},
+    {"path":"docs/status/world-source-gap-closure-v12.json","class":"source-closure-status","owner":"trillionnium-world-program","status":"current-candidate","review_due":"2026-09-24"},
 
     {"path":"trillionnium/crates/world-authority/README.md","class":"world-authority-workspace","owner":"trillionnium-world-domain-service","status":"current-candidate","review_due":"2026-10-08"},
     {"path":"docs/modules/world-authority/README.md","class":"world-authority-module-index","owner":"trillionnium-world-architecture","status":"current-candidate","review_due":"2026-10-08"},

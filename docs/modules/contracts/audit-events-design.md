@@ -51,7 +51,7 @@ Audit events contain stable non-secret references and bounded machine codes. The
 
 ## Test and evidence traceability
 
-Primary source is `contracts/audit-events/src/`. The workspace boundary and honest status are defined by `contracts/README.md` and this index. Tests must cover deterministic round trips, stable spellings, duplicate/oversized/unsupported values, secret-like field rejection where supported, exact duplicate identity and cross-crate fixture emission. Future sink conformance requires golden bytes, database/outbox fault tests and independent review.
+Primary source is `contracts/audit-events/src/`. The binding design is `docs/modules/contracts/audit-events-design.md`, and the workspace boundary is `contracts/README.md`. Structural and hostile-fixture enforcement is executed by `scripts/check-trnm-world-contract-module-documentation.py` and `scripts/test-trnm-world-contract-module-documentation.py`. Rust tests cover deterministic round trips, stable spellings, duplicate/oversized/unsupported values, secret-like field rejection where supported, exact duplicate identity and cross-crate fixture emission. Future sink conformance requires golden bytes, database/outbox fault tests and independent review.
 
 ## Change checklist and open work
 

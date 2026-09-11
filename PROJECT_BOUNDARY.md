@@ -34,7 +34,7 @@ The August machine plan and gap ledger remain planning/provenance inputs. They a
 - cross-repository component locks and release evidence;
 - public player-market enablement.
 
-Those responsibilities belong to Trillionnium Nakama, Trillionnium Chain, CEX and Trillionnium Integration as defined by the accepted ADRs.
+Nakama owns canonical online authority, including participant admission, total order, durable idempotency, reconnect/restart recovery, archive roots and `MatchCompletedV1` signing. Those responsibilities otherwise belong to Trillionnium Chain, CEX and Trillionnium Integration as defined by the accepted ADRs.
 
 ## World-domain service boundary
 
