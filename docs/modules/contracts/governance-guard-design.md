@@ -51,7 +51,7 @@ Audit data binds stable proposal/action/target/version IDs, supplied time/height
 
 ## Test and evidence traceability
 
-Primary source is `contracts/governance-guard/src/`; current scope is defined by `contracts/README.md`. Tests cover schedule/execute/cancel, too-early and expired execution, action/version drift, exact/altered duplicate, pause/resume role/state behavior, overflow/bounds, state preservation and audit normalization. Host time, signatures/quorum, durable execution and live governance probes remain absent.
+Primary source is `contracts/governance-guard/src/`. The binding design is `docs/modules/contracts/governance-guard-design.md`, and current scope is defined by `contracts/README.md`. Structural and hostile-fixture enforcement is executed by `scripts/check-trnm-world-contract-module-documentation.py` and `scripts/test-trnm-world-contract-module-documentation.py`. Rust tests cover schedule/execute/cancel, too-early and expired execution, action/version drift, exact/altered duplicate, pause/resume role/state behavior, overflow/bounds, state preservation and audit normalization. Host time, signatures/quorum, durable execution and live governance probes remain absent.
 
 ## Change checklist and open work
 
