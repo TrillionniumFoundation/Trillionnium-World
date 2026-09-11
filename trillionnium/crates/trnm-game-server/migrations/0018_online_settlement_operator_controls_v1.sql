@@ -56,6 +56,19 @@ insert into public.trnm_online_settlement_operator_policy_revisions (
 )
 on conflict (policy_revision) do nothing;
 
+-- An explicit identity value does not advance PostgreSQL's backing sequence.
+-- Align it to the append-only evidence head so the first operator-authored
+-- revision is 2 and migration replay cannot regress the next generated value.
+select pg_catalog.setval(
+    pg_catalog.pg_get_serial_sequence(
+        'public.trnm_online_settlement_operator_policy_revisions',
+        'policy_revision'
+    ),
+    pg_catalog.max(policy_revision),
+    true
+)
+from public.trnm_online_settlement_operator_policy_revisions;
+
 create table if not exists public.trnm_online_settlement_operator_replay_requests (
     request_id text primary key
         check (request_id ~ '^trnm-settlement-replay-v1:[0-9a-f]{64}$'),
