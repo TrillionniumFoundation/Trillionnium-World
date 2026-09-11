@@ -89,7 +89,10 @@ def main() -> None:
     copy_and_apply(grant_component_catalog_authorization)
     copy_and_mutate(
         "PROJECT_BOUNDARY.md",
-        lambda text: text.replace("Public online remains NO-GO", "Public online is enabled"),
+        lambda text: text.replace(
+            "Public online remains NO-GO, public player markets remain disabled and production authorization remains `not_granted` until every dependency in the release matrix is independently green.",
+            "Public online is enabled.",
+        ),
     )
     print("TRNM_WORLD_CURRENT_CONFORMANCE_TESTS=PASS")
 
