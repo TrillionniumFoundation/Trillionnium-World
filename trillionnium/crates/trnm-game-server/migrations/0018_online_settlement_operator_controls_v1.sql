@@ -56,6 +56,24 @@ insert into public.trnm_online_settlement_operator_policy_revisions (
 )
 on conflict (policy_revision) do nothing;
 
+-- An explicit identity value does not advance PostgreSQL's backing sequence.
+-- Synchronize it to the greatest durable revision so the first audited append
+-- receives revision 2 and migration replay remains monotonic.
+select pg_catalog.setval(
+    pg_catalog.pg_get_serial_sequence(
+        'public.trnm_online_settlement_operator_policy_revisions',
+        'policy_revision'
+    )::pg_catalog.regclass,
+    (
+        select greatest(
+            coalesce(max(policy_revision), 1::bigint),
+            1::bigint
+        )
+          from public.trnm_online_settlement_operator_policy_revisions
+    ),
+    true
+);
+
 create table if not exists public.trnm_online_settlement_operator_replay_requests (
     request_id text primary key
         check (request_id ~ '^trnm-settlement-replay-v1:[0-9a-f]{64}$'),
