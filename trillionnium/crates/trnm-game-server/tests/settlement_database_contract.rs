@@ -199,7 +199,7 @@ async fn settlement_database_identity_lease_and_retention_contract() {
         &"a".repeat(64),
     )
     .await;
-    let (_, changed_payload_job) = insert_capture_and_job(
+    let (_, _changed_payload_job) = insert_capture_and_job(
         &pool,
         match_id,
         campaign_id,
