@@ -1,0 +1,26 @@
+name: world-actions-control-plane-probe-20260911
+
+on:
+  push:
+    branches:
+      - ops/actions-control-plane-probe-20260911
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    name: world-actions-control-plane-probe
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Emit immutable probe receipt
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf 'repository=%s\n' "$GITHUB_REPOSITORY"
+          printf 'commit=%s\n' "$GITHUB_SHA"
+          printf 'event=%s\n' "$GITHUB_EVENT_NAME"
+          printf 'WORLD_ACTIONS_CONTROL_PLANE_PROBE=PASS\n'
+          printf 'PRODUCTION_AUTHORIZATION=not_granted\n'
