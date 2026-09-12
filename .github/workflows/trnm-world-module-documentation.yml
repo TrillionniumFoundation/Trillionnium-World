@@ -1,0 +1,114 @@
+name: trnm-world-module-documentation-v2
+
+on:
+  pull_request:
+  merge_group:
+  push:
+    branches:
+      - main
+      - 'fix/world-*'
+      - 'integration/world-*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trnm-world-module-documentation-v2-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  complete-documentation:
+    name: trnm-world/docs-complete
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout exact event object without credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          git init repository
+          git -C repository remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          git -C repository fetch --no-tags --depth=3 origin "${GITHUB_SHA}"
+          git -C repository checkout --detach FETCH_HEAD
+          test "$(git -C repository rev-parse HEAD)" = "${GITHUB_SHA}"
+          test -z "$(git -C repository status --porcelain=v1 --untracked-files=no)"
+
+      - name: Validate strict JSON and current truth hierarchy
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd repository
+          python3 scripts/test-trnm-world-strict-json.py
+          python3 scripts/check-trnm-world-execution-truth.py
+          python3 scripts/test-trnm-world-execution-truth.py
+          python3 scripts/check-trnm-world-machine-truth.py
+          python3 scripts/test-trnm-world-machine-truth.py
+          python3 scripts/check-trnm-world-active-closure.py
+          python3 scripts/test-trnm-world-active-closure.py
+          python3 scripts/check-trnm-world-ci-integrity.py
+          python3 scripts/test-trnm-world-ci-integrity.py
+          python3 scripts/check-trnm-world-current-conformance.py
+          python3 scripts/test-trnm-world-current-conformance.py
+
+      - name: Validate complete physical component catalogue
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd repository
+          python3 scripts/check-trnm-world-component-catalog.py
+          python3 scripts/test-trnm-world-component-catalog.py
+
+      - name: Validate active game-product module contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd repository
+          python3 scripts/check-trnm-world-module-documentation.py
+          python3 scripts/test-trnm-world-module-documentation-negative.py
+          python3 scripts/check-trnm-world-detailed-documentation.py --as-of "$(date -u +%F)"
+          python3 scripts/test-trnm-world-detailed-documentation.py
+
+      - name: Validate isolated World-domain authority module contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd repository
+          python3 scripts/check-trnm-world-authority-documentation.py --as-of "$(date -u +%F)"
+          python3 scripts/test-trnm-world-authority-documentation.py
+
+      - name: Validate maintained external-contract module contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd repository
+          python3 scripts/check-trnm-world-contract-module-documentation.py --as-of "$(date -u +%F)"
+          python3 scripts/test-trnm-world-contract-module-documentation.py
+
+      - name: Record immutable documentation evidence
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          {
+            printf 'repository=%s\n' "$GITHUB_REPOSITORY"
+            printf 'event=%s\n' "$GITHUB_EVENT_NAME"
+            printf 'commit=%s\n' "$GITHUB_SHA"
+            if test -d repository/.git; then
+              printf 'tree=%s\n' "$(git -C repository rev-parse 'HEAD^{tree}')"
+              printf 'dirty=%s\n' "$(test -z "$(git -C repository status --porcelain=v1 --untracked-files=no)" && printf false || printf true)"
+            fi
+            printf 'run_id=%s\n' "$GITHUB_RUN_ID"
+            printf 'run_attempt=%s\n' "$GITHUB_RUN_ATTEMPT"
+            printf 'production_authorization=not_granted\n'
+          } > evidence/documentation-identity.txt
+
+      - name: Upload immutable documentation evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: trnm-world-docs-${{ github.sha }}-${{ github.run_attempt }}
+          path: evidence/**
+          if-no-files-found: error
+          retention-days: 90

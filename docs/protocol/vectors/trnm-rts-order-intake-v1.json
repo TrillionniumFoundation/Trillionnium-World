@@ -1,0 +1,575 @@
+{
+  "schema": "trnm_rts_order_intake_vectors_v1",
+  "cases": [
+    {
+      "id": "hold-minimal",
+      "raw": "{\"intake_contract\":\"trnm_rts_order_intake_v1\",\"order\":{\"contract\":\"trnm_rts_order_protocol_v1\",\"frame\":1,\"player_id\":\"p\",\"subject_actor_ids\":[\"u\"],\"kind\":\"hold\",\"source\":\"local_input\"}}",
+      "expected": "accepted"
+    },
+    {
+      "id": "whitespace",
+      "raw": "{\n  \"intake_contract\": \"trnm_rts_order_intake_v1\",\n  \"order\": {\n    \"contract\": \"trnm_rts_order_protocol_v1\",\n    \"frame\": 1,\n    \"player_id\": \"p\",\n    \"subject_actor_ids\": [\n      \"u\"\n    ],\n    \"kind\": \"hold\",\n    \"source\": \"local_input\"\n  }\n}",
+      "expected": "accepted"
+    },
+    {
+      "id": "kind-ability",
+      "raw": "{\"intake_contract\":\"trnm_rts_order_intake_v1\",\"order\":{\"contract\":\"trnm_rts_order_protocol_v1\",\"frame\":1,\"player_id\":\"p\",\"subject_actor_ids\":[\"u\"],\"kind\":\"ability\",\"source\":\"local_input\",\"target_rule_id\":\"rule\"}}",
+      "expected": "accepted"
+    },
+    {
+      "id": "missing-required-ability",
+      "raw": "{\"intake_contract\":\"trnm_rts_order_intake_v1\",\"order\":{\"contract\":\"trnm_rts_order_protocol_v1\",\"frame\":1,\"player_id\":\"p\",\"subject_actor_ids\":[\"u\"],\"kind\":\"ability\",\"source\":\"local_input\"}}",
+      "expected": "invalid_shape"
+    },
+    {
+      "id": "kind-append_group",
+      "raw": "{\"intake_contract\":\"trnm_rts_order_intake_v1\",\"order\":{\"contract\":\"trnm_rts_order_protocol_v1\",\"frame\":1,\"player_id\":\"p\",\"subject_actor_ids\":[\"u\"],\"kind\":\"append_group\",\"source\":\"local_input\",\"target_rule_id\":\"rule\"}}",
+      "expected": "accepted"
+    },
+    {
+      "id": "missing-required-append_group",
+      "raw": "{\"intake_contract\":\"trnm_rts_order_intake_v1\",\"order\":{\"contract\":\"trnm_rts_order_protocol_v1\",\"frame\":1,\"player_id\":\"p\",\"subject_actor_ids\":[\"u\"],\"kind\":\"append_group\",\"source\":\"local_input\"}}",
+      "expected": "invalid_shape"
+    },
+    {
+      "id": "kind-assign_group",
+      "raw": "{\"intake_contract\":\"trnm_rts_order_intake_v1\",\"order\":{\"contract\":\"trnm_rts_order_protocol_v1\",\"frame\":1,\"player_id\":\"p\",\"subject_actor_ids\":[\"u\"],\"kind\":\"assign_group\",\"source\":\"local_input\",\"target_rule_id\":\"rule\"}}",
+      "expected": "accepted"
+    },
+    {
+      "id": "missing-required-assign_group",
+      "raw": "{\"intake_contract\":\"trnm_rts_order_intake_v1\",\"order\":{\"contract\":\"trnm_rts_order_protocol_v1\",\"frame\":1,\"player_id\":\"p\",\"subject_actor_ids\":[\"u\"],\"kind\":\"assign_group\",\"source\":\"local_input\"}}",
+      "expected": "invalid_shape"
+    },
+    {
+      "id": "kind-attack",
+      "raw": "{\"intake_contract\":\"trnm_rts_order_intake_v1\",\"order\":{\"contract\":\"trnm_rts_order_protocol_v1\",\"frame\":1,\"player_id\":\"p\",\"subject_actor_ids\":[\"u\"],\"kind\":\"attack\",\"source\":\"local_input\",\"target_actor_id\":\"target\"}}",
+      "expected": "accepted"
+    },
+    {
+      "id": "missing-required-attack",
+      "raw": "{\"intake_contract\":\"trnm_rts_order_intake_v1\",\"order\":{\"contract\":\"trnm_rts_order_protocol_v1\",\"frame\":1,\"player_id\":\"p\",\"subject_actor_ids\":[\"u\"],\"kind\":\"attack\",\"source\":\"local_input\"}}",
+      "expected": "invalid_shape"
+    },
+    {
+      "id": "kind-attack_move",
+      "raw": "{\"intake_contract\":\"trnm_rts_order_intake_v1\",\"order\":{\"contract\":\"trnm_rts_order_protocol_v1\",\"frame\":1,\"player_id\":\"p\",\"subject_actor_ids\":[\"u\"],\"kind\":\"attack_move\",\"source\":\"local_input\",\"target_tile\":{\"x\":4,\"y\":5}}}",
+      "expected": "accepted"
+    },
+    {
+      "id": "missing-required-attack_move",
+      "raw": "{\"intake_contract\":\"trnm_rts_order_intake_v1\",\"order\":{\"contract\":\"trnm_rts_order_protocol_v1\",\"frame\":1,\"player_id\":\"p\",\"subject_actor_ids\":[\"u\"],\"kind\":\"attack_move\",\"source\":\"local_input\"}}",
+      "expected": "invalid_shape"
+    },
+    {
+      "id": "kind-build",
+      "raw": "{\"intake_contract\":\"trnm_rts_order_intake_v1\",\"order\":{\"contract\":\"trnm_rts_order_protocol_v1\",\"frame\":1,\"player_id\":\"p\",\"subject_actor_ids\":[\"u\"],\"kind\":\"build\",\"source\":\"local_input\",\"target_tile\":{\"x\":4,\"y\":5},\"target_rule_id\":\"rule\"}}",
+      "expected": "accepted"
+    },
+    {
+      "id": "missing-required-build",
+      "raw": "{\"intake_contract\":\"trnm_rts_order_intake_v1\",\"order\":{\"contract\":\"trnm_rts_order_protocol_v1\",\"frame\":1,\"player_id\":\"p\",\"subject_actor_ids\":[\"u\"],\"kind\":\"build\",\"source\":\"local_input\"}}",
+      "expected": "invalid_shape"
+    },
+    {
+      "id": "kind-cancel_job",
+      "raw": "{\"intake_contract\":\"trnm_rts_order_intake_v1\",\"order\":{\"contract\":\"trnm_rts_order_protocol_v1\",\"frame\":1,\"player_id\":\"p\",\"subject_actor_ids\":[\"u\"],\"kind\":\"cancel_job\",\"source\":\"local_input\",\"queue_id\":\"queue\"}}",
+      "expected": "accepted"
+    },
+    {
+      "id": "missing-required-cancel_job",
+      "raw": "{\"intake_contract\":\"trnm_rts_order_intake_v1\",\"order\":{\"contract\":\"trnm_rts_order_protocol_v1\",\"frame\":1,\"player_id\":\"p\",\"subject_actor_ids\":[\"u\"],\"kind\":\"cancel_job\",\"source\":\"local_input\"}}",
+      "expected": "invalid_shape"
+    },
+    {
+      "id": "kind-cancel_queued_order",
+      "raw": "{\"intake_contract\":\"trnm_rts_order_intake_v1\",\"order\":{\"contract\":\"trnm_rts_order_protocol_v1\",\"frame\":1,\"player_id\":\"p\",\"subject_actor_ids\":[\"u\"],\"kind\":\"cancel_queued_order\",\"source\":\"local_input\",\"queue_id\":\"queue\"}}",
+      "expected": "accepted"
+    },
+    {
+      "id": "missing-required-cancel_queued_order",
+      "raw": "{\"intake_contract\":\"trnm_rts_order_intake_v1\",\"order\":{\"contract\":\"trnm_rts_order_protocol_v1\",\"frame\":1,\"player_id\":\"p\",\"subject_actor_ids\":[\"u\"],\"kind\":\"cancel_queued_order\",\"source\":\"local_input\"}}",
+      "expected": "invalid_shape"
+    },
+    {
+      "id": "kind-capture",
+      "raw": "{\"intake_contract\":\"trnm_rts_order_intake_v1\",\"order\":{\"contract\":\"trnm_rts_order_protocol_v1\",\"frame\":1,\"player_id\":\"p\",\"subject_actor_ids\":[\"u\"],\"kind\":\"capture\",\"source\":\"local_input\",\"target_actor_id\":\"target\"}}",
+      "expected": "accepted"
+    },
+    {
+      "id": "missing-required-capture",
+      "raw": "{\"intake_contract\":\"trnm_rts_order_intake_v1\",\"order\":{\"contract\":\"trnm_rts_order_protocol_v1\",\"frame\":1,\"player_id\":\"p\",\"subject_actor_ids\":[\"u\"],\"kind\":\"capture\",\"source\":\"local_input\"}}",
+      "expected": "invalid_shape"
+    },
+    {
+      "id": "kind-extract",
+      "raw": "{\"intake_contract\":\"trnm_rts_order_intake_v1\",\"order\":{\"contract\":\"trnm_rts_order_protocol_v1\",\"frame\":1,\"player_id\":\"p\",\"subject_actor_ids\":[\"u\"],\"kind\":\"extract\",\"source\":\"local_input\",\"target_actor_id\":\"target\"}}",
+      "expected": "accepted"
+    },
+    {
+      "id": "missing-required-extract",
+      "raw": "{\"intake_contract\":\"trnm_rts_order_intake_v1\",\"order\":{\"contract\":\"trnm_rts_order_protocol_v1\",\"frame\":1,\"player_id\":\"p\",\"subject_actor_ids\":[\"u\"],\"kind\":\"extract\",\"source\":\"local_input\"}}",
+      "expected": "invalid_shape"
+    },
+    {
+      "id": "kind-focus_fire",
+      "raw": "{\"intake_contract\":\"trnm_rts_order_intake_v1\",\"order\":{\"contract\":\"trnm_rts_order_protocol_v1\",\"frame\":1,\"player_id\":\"p\",\"subject_actor_ids\":[\"u\"],\"kind\":\"focus_fire\",\"source\":\"local_input\",\"target_actor_id\":\"target\"}}",
+      "expected": "accepted"
+    },
+    {
+      "id": "missing-required-focus_fire",
+      "raw": "{\"intake_contract\":\"trnm_rts_order_intake_v1\",\"order\":{\"contract\":\"trnm_rts_order_protocol_v1\",\"frame\":1,\"player_id\":\"p\",\"subject_actor_ids\":[\"u\"],\"kind\":\"focus_fire\",\"source\":\"local_input\"}}",
+      "expected": "invalid_shape"
+    },
+    {
+      "id": "kind-harvest",
+      "raw": "{\"intake_contract\":\"trnm_rts_order_intake_v1\",\"order\":{\"contract\":\"trnm_rts_order_protocol_v1\",\"frame\":1,\"player_id\":\"p\",\"subject_actor_ids\":[\"u\"],\"kind\":\"harvest\",\"source\":\"local_input\",\"target_actor_id\":\"target\"}}",
+      "expected": "accepted"
+    },
+    {
+      "id": "missing-required-harvest",
+      "raw": "{\"intake_contract\":\"trnm_rts_order_intake_v1\",\"order\":{\"contract\":\"trnm_rts_order_protocol_v1\",\"frame\":1,\"player_id\":\"p\",\"subject_actor_ids\":[\"u\"],\"kind\":\"harvest\",\"source\":\"local_input\"}}",
+      "expected": "invalid_shape"
+    },
+    {
+      "id": "kind-hold",
+      "raw": "{\"intake_contract\":\"trnm_rts_order_intake_v1\",\"order\":{\"contract\":\"trnm_rts_order_protocol_v1\",\"frame\":1,\"player_id\":\"p\",\"subject_actor_ids\":[\"u\"],\"kind\":\"hold\",\"source\":\"local_input\"}}",
+      "expected": "accepted"
+    },
+    {
+      "id": "kind-move",
+      "raw": "{\"intake_contract\":\"trnm_rts_order_intake_v1\",\"order\":{\"contract\":\"trnm_rts_order_protocol_v1\",\"frame\":1,\"player_id\":\"p\",\"subject_actor_ids\":[\"u\"],\"kind\":\"move\",\"source\":\"local_input\",\"target_tile\":{\"x\":4,\"y\":5}}}",
+      "expected": "accepted"
+    },
+    {
+      "id": "missing-required-move",
+      "raw": "{\"intake_contract\":\"trnm_rts_order_intake_v1\",\"order\":{\"contract\":\"trnm_rts_order_protocol_v1\",\"frame\":1,\"player_id\":\"p\",\"subject_actor_ids\":[\"u\"],\"kind\":\"move\",\"source\":\"local_input\"}}",
+      "expected": "invalid_shape"
+    },
+    {
+      "id": "kind-patrol",
+      "raw": "{\"intake_contract\":\"trnm_rts_order_intake_v1\",\"order\":{\"contract\":\"trnm_rts_order_protocol_v1\",\"frame\":1,\"player_id\":\"p\",\"subject_actor_ids\":[\"u\"],\"kind\":\"patrol\",\"source\":\"local_input\",\"target_tile\":{\"x\":4,\"y\":5}}}",
+      "expected": "accepted"
+    },
+    {
+      "id": "missing-required-patrol",
+      "raw": "{\"intake_contract\":\"trnm_rts_order_intake_v1\",\"order\":{\"contract\":\"trnm_rts_order_protocol_v1\",\"frame\":1,\"player_id\":\"p\",\"subject_actor_ids\":[\"u\"],\"kind\":\"patrol\",\"source\":\"local_input\"}}",
+      "expected": "invalid_shape"
+    },
+    {
+      "id": "kind-pause_job",
+      "raw": "{\"intake_contract\":\"trnm_rts_order_intake_v1\",\"order\":{\"contract\":\"trnm_rts_order_protocol_v1\",\"frame\":1,\"player_id\":\"p\",\"subject_actor_ids\":[\"u\"],\"kind\":\"pause_job\",\"source\":\"local_input\",\"queue_id\":\"queue\"}}",
+      "expected": "accepted"
+    },
+    {
+      "id": "missing-required-pause_job",
+      "raw": "{\"intake_contract\":\"trnm_rts_order_intake_v1\",\"order\":{\"contract\":\"trnm_rts_order_protocol_v1\",\"frame\":1,\"player_id\":\"p\",\"subject_actor_ids\":[\"u\"],\"kind\":\"pause_job\",\"source\":\"local_input\"}}",
+      "expected": "invalid_shape"
+    },
+    {
+      "id": "kind-promote_job",
+      "raw": "{\"intake_contract\":\"trnm_rts_order_intake_v1\",\"order\":{\"contract\":\"trnm_rts_order_protocol_v1\",\"frame\":1,\"player_id\":\"p\",\"subject_actor_ids\":[\"u\"],\"kind\":\"promote_job\",\"source\":\"local_input\",\"queue_id\":\"queue\"}}",
+      "expected": "accepted"
+    },
+    {
+      "id": "missing-required-promote_job",
+      "raw": "{\"intake_contract\":\"trnm_rts_order_intake_v1\",\"order\":{\"contract\":\"trnm_rts_order_protocol_v1\",\"frame\":1,\"player_id\":\"p\",\"subject_actor_ids\":[\"u\"],\"kind\":\"promote_job\",\"source\":\"local_input\"}}",
+      "expected": "invalid_shape"
+    },
+    {
+      "id": "kind-recall_group",
+      "raw": "{\"intake_contract\":\"trnm_rts_order_intake_v1\",\"order\":{\"contract\":\"trnm_rts_order_protocol_v1\",\"frame\":1,\"player_id\":\"p\",\"subject_actor_ids\":[\"u\"],\"kind\":\"recall_group\",\"source\":\"local_input\",\"target_rule_id\":\"rule\"}}",
+      "expected": "accepted"
+    },
+    {
+      "id": "missing-required-recall_group",
+      "raw": "{\"intake_contract\":\"trnm_rts_order_intake_v1\",\"order\":{\"contract\":\"trnm_rts_order_protocol_v1\",\"frame\":1,\"player_id\":\"p\",\"subject_actor_ids\":[\"u\"],\"kind\":\"recall_group\",\"source\":\"local_input\"}}",
+      "expected": "invalid_shape"
+    },
+    {
+      "id": "kind-recon",
+      "raw": "{\"intake_contract\":\"trnm_rts_order_intake_v1\",\"order\":{\"contract\":\"trnm_rts_order_protocol_v1\",\"frame\":1,\"player_id\":\"p\",\"subject_actor_ids\":[\"u\"],\"kind\":\"recon\",\"source\":\"local_input\",\"target_tile\":{\"x\":4,\"y\":5}}}",
+      "expected": "accepted"
+    },
+    {
+      "id": "missing-required-recon",
+      "raw": "{\"intake_contract\":\"trnm_rts_order_intake_v1\",\"order\":{\"contract\":\"trnm_rts_order_protocol_v1\",\"frame\":1,\"player_id\":\"p\",\"subject_actor_ids\":[\"u\"],\"kind\":\"recon\",\"source\":\"local_input\"}}",
+      "expected": "invalid_shape"
+    },
+    {
+      "id": "kind-remove_group",
+      "raw": "{\"intake_contract\":\"trnm_rts_order_intake_v1\",\"order\":{\"contract\":\"trnm_rts_order_protocol_v1\",\"frame\":1,\"player_id\":\"p\",\"subject_actor_ids\":[\"u\"],\"kind\":\"remove_group\",\"source\":\"local_input\",\"target_rule_id\":\"rule\"}}",
+      "expected": "accepted"
+    },
+    {
+      "id": "missing-required-remove_group",
+      "raw": "{\"intake_contract\":\"trnm_rts_order_intake_v1\",\"order\":{\"contract\":\"trnm_rts_order_protocol_v1\",\"frame\":1,\"player_id\":\"p\",\"subject_actor_ids\":[\"u\"],\"kind\":\"remove_group\",\"source\":\"local_input\"}}",
+      "expected": "invalid_shape"
+    },
+    {
+      "id": "kind-repair",
+      "raw": "{\"intake_contract\":\"trnm_rts_order_intake_v1\",\"order\":{\"contract\":\"trnm_rts_order_protocol_v1\",\"frame\":1,\"player_id\":\"p\",\"subject_actor_ids\":[\"u\"],\"kind\":\"repair\",\"source\":\"local_input\",\"target_actor_id\":\"target\"}}",
+      "expected": "accepted"
+    },
+    {
+      "id": "missing-required-repair",
+      "raw": "{\"intake_contract\":\"trnm_rts_order_intake_v1\",\"order\":{\"contract\":\"trnm_rts_order_protocol_v1\",\"frame\":1,\"player_id\":\"p\",\"subject_actor_ids\":[\"u\"],\"kind\":\"repair\",\"source\":\"local_input\"}}",
+      "expected": "invalid_shape"
+    },
+    {
+      "id": "kind-research",
+      "raw": "{\"intake_contract\":\"trnm_rts_order_intake_v1\",\"order\":{\"contract\":\"trnm_rts_order_protocol_v1\",\"frame\":1,\"player_id\":\"p\",\"subject_actor_ids\":[\"u\"],\"kind\":\"research\",\"source\":\"local_input\",\"target_rule_id\":\"rule\",\"queue_id\":\"queue\"}}",
+      "expected": "accepted"
+    },
+    {
+      "id": "missing-required-research",
+      "raw": "{\"intake_contract\":\"trnm_rts_order_intake_v1\",\"order\":{\"contract\":\"trnm_rts_order_protocol_v1\",\"frame\":1,\"player_id\":\"p\",\"subject_actor_ids\":[\"u\"],\"kind\":\"research\",\"source\":\"local_input\"}}",
+      "expected": "invalid_shape"
+    },
+    {
+      "id": "kind-resume_job",
+      "raw": "{\"intake_contract\":\"trnm_rts_order_intake_v1\",\"order\":{\"contract\":\"trnm_rts_order_protocol_v1\",\"frame\":1,\"player_id\":\"p\",\"subject_actor_ids\":[\"u\"],\"kind\":\"resume_job\",\"source\":\"local_input\",\"queue_id\":\"queue\"}}",
+      "expected": "accepted"
+    },
+    {
+      "id": "missing-required-resume_job",
+      "raw": "{\"intake_contract\":\"trnm_rts_order_intake_v1\",\"order\":{\"contract\":\"trnm_rts_order_protocol_v1\",\"frame\":1,\"player_id\":\"p\",\"subject_actor_ids\":[\"u\"],\"kind\":\"resume_job\",\"source\":\"local_input\"}}",
+      "expected": "invalid_shape"
+    },
+    {
+      "id": "kind-set_rally",
+      "raw": "{\"intake_contract\":\"trnm_rts_order_intake_v1\",\"order\":{\"contract\":\"trnm_rts_order_protocol_v1\",\"frame\":1,\"player_id\":\"p\",\"subject_actor_ids\":[\"u\"],\"kind\":\"set_rally\",\"source\":\"local_input\",\"target_tile\":{\"x\":4,\"y\":5},\"queue_id\":\"queue\"}}",
+      "expected": "accepted"
+    },
+    {
+      "id": "missing-required-set_rally",
+      "raw": "{\"intake_contract\":\"trnm_rts_order_intake_v1\",\"order\":{\"contract\":\"trnm_rts_order_protocol_v1\",\"frame\":1,\"player_id\":\"p\",\"subject_actor_ids\":[\"u\"],\"kind\":\"set_rally\",\"source\":\"local_input\"}}",
+      "expected": "invalid_shape"
+    },
+    {
+      "id": "kind-set_stance",
+      "raw": "{\"intake_contract\":\"trnm_rts_order_intake_v1\",\"order\":{\"contract\":\"trnm_rts_order_protocol_v1\",\"frame\":1,\"player_id\":\"p\",\"subject_actor_ids\":[\"u\"],\"kind\":\"set_stance\",\"source\":\"local_input\",\"target_rule_id\":\"guard\"}}",
+      "expected": "accepted"
+    },
+    {
+      "id": "missing-required-set_stance",
+      "raw": "{\"intake_contract\":\"trnm_rts_order_intake_v1\",\"order\":{\"contract\":\"trnm_rts_order_protocol_v1\",\"frame\":1,\"player_id\":\"p\",\"subject_actor_ids\":[\"u\"],\"kind\":\"set_stance\",\"source\":\"local_input\"}}",
+      "expected": "invalid_shape"
+    },
+    {
+      "id": "kind-stop",
+      "raw": "{\"intake_contract\":\"trnm_rts_order_intake_v1\",\"order\":{\"contract\":\"trnm_rts_order_protocol_v1\",\"frame\":1,\"player_id\":\"p\",\"subject_actor_ids\":[\"u\"],\"kind\":\"stop\",\"source\":\"local_input\"}}",
+      "expected": "accepted"
+    },
+    {
+      "id": "kind-train",
+      "raw": "{\"intake_contract\":\"trnm_rts_order_intake_v1\",\"order\":{\"contract\":\"trnm_rts_order_protocol_v1\",\"frame\":1,\"player_id\":\"p\",\"subject_actor_ids\":[\"u\"],\"kind\":\"train\",\"source\":\"local_input\",\"target_rule_id\":\"rule\",\"queue_id\":\"queue\"}}",
+      "expected": "accepted"
+    },
+    {
+      "id": "missing-required-train",
+      "raw": "{\"intake_contract\":\"trnm_rts_order_intake_v1\",\"order\":{\"contract\":\"trnm_rts_order_protocol_v1\",\"frame\":1,\"player_id\":\"p\",\"subject_actor_ids\":[\"u\"],\"kind\":\"train\",\"source\":\"local_input\"}}",
+      "expected": "invalid_shape"
+    },
+    {
+      "id": "kind-upgrade",
+      "raw": "{\"intake_contract\":\"trnm_rts_order_intake_v1\",\"order\":{\"contract\":\"trnm_rts_order_protocol_v1\",\"frame\":1,\"player_id\":\"p\",\"subject_actor_ids\":[\"u\"],\"kind\":\"upgrade\",\"source\":\"local_input\",\"target_rule_id\":\"rule\",\"queue_id\":\"queue\"}}",
+      "expected": "accepted"
+    },
+    {
+      "id": "missing-required-upgrade",
+      "raw": "{\"intake_contract\":\"trnm_rts_order_intake_v1\",\"order\":{\"contract\":\"trnm_rts_order_protocol_v1\",\"frame\":1,\"player_id\":\"p\",\"subject_actor_ids\":[\"u\"],\"kind\":\"upgrade\",\"source\":\"local_input\"}}",
+      "expected": "invalid_shape"
+    },
+    {
+      "id": "unknown-envelope-future",
+      "raw": "{\"intake_contract\":\"trnm_rts_order_intake_v1\",\"order\":{\"contract\":\"trnm_rts_order_protocol_v1\",\"frame\":1,\"player_id\":\"p\",\"subject_actor_ids\":[\"u\"],\"kind\":\"hold\",\"source\":\"local_input\"},\"future\":\"denied\"}",
+      "expected": "invalid_encoding"
+    },
+    {
+      "id": "unknown-envelope-nakama_private_key",
+      "raw": "{\"intake_contract\":\"trnm_rts_order_intake_v1\",\"order\":{\"contract\":\"trnm_rts_order_protocol_v1\",\"frame\":1,\"player_id\":\"p\",\"subject_actor_ids\":[\"u\"],\"kind\":\"hold\",\"source\":\"local_input\"},\"nakama_private_key\":\"denied\"}",
+      "expected": "invalid_encoding"
+    },
+    {
+      "id": "unknown-order",
+      "raw": "{\"intake_contract\":\"trnm_rts_order_intake_v1\",\"order\":{\"contract\":\"trnm_rts_order_protocol_v1\",\"frame\":1,\"player_id\":\"p\",\"subject_actor_ids\":[\"u\"],\"kind\":\"hold\",\"source\":\"local_input\",\"future\":true}}",
+      "expected": "invalid_encoding"
+    },
+    {
+      "id": "unknown-tile",
+      "raw": "{\"intake_contract\":\"trnm_rts_order_intake_v1\",\"order\":{\"contract\":\"trnm_rts_order_protocol_v1\",\"frame\":1,\"player_id\":\"p\",\"subject_actor_ids\":[\"u\"],\"kind\":\"hold\",\"source\":\"local_input\",\"target_tile\":{\"x\":1,\"y\":2,\"z\":3}}}",
+      "expected": "invalid_encoding"
+    },
+    {
+      "id": "wrong-intake",
+      "raw": "{\"intake_contract\":\"future\",\"order\":{\"contract\":\"trnm_rts_order_protocol_v1\",\"frame\":1,\"player_id\":\"p\",\"subject_actor_ids\":[\"u\"],\"kind\":\"hold\",\"source\":\"local_input\"}}",
+      "expected": "unsupported_intake_contract"
+    },
+    {
+      "id": "wrong-order-contract",
+      "raw": "{\"intake_contract\":\"trnm_rts_order_intake_v1\",\"order\":{\"contract\":\"future\",\"frame\":1,\"player_id\":\"p\",\"subject_actor_ids\":[\"u\"],\"kind\":\"hold\",\"source\":\"local_input\"}}",
+      "expected": "unsupported_order_contract"
+    },
+    {
+      "id": "bad-kind",
+      "raw": "{\"intake_contract\":\"trnm_rts_order_intake_v1\",\"order\":{\"contract\":\"trnm_rts_order_protocol_v1\",\"frame\":1,\"player_id\":\"p\",\"subject_actor_ids\":[\"u\"],\"kind\":\"unknown\",\"source\":\"local_input\"}}",
+      "expected": "invalid_encoding"
+    },
+    {
+      "id": "bad-source",
+      "raw": "{\"intake_contract\":\"trnm_rts_order_intake_v1\",\"order\":{\"contract\":\"trnm_rts_order_protocol_v1\",\"frame\":1,\"player_id\":\"p\",\"subject_actor_ids\":[\"u\"],\"kind\":\"hold\",\"source\":\"remote-admin\"}}",
+      "expected": "invalid_encoding"
+    },
+    {
+      "id": "missing-field-contract",
+      "raw": "{\"intake_contract\":\"trnm_rts_order_intake_v1\",\"order\":{\"frame\":1,\"player_id\":\"p\",\"subject_actor_ids\":[\"u\"],\"kind\":\"hold\",\"source\":\"local_input\"}}",
+      "expected": "invalid_encoding"
+    },
+    {
+      "id": "missing-field-frame",
+      "raw": "{\"intake_contract\":\"trnm_rts_order_intake_v1\",\"order\":{\"contract\":\"trnm_rts_order_protocol_v1\",\"player_id\":\"p\",\"subject_actor_ids\":[\"u\"],\"kind\":\"hold\",\"source\":\"local_input\"}}",
+      "expected": "invalid_encoding"
+    },
+    {
+      "id": "missing-field-kind",
+      "raw": "{\"intake_contract\":\"trnm_rts_order_intake_v1\",\"order\":{\"contract\":\"trnm_rts_order_protocol_v1\",\"frame\":1,\"player_id\":\"p\",\"subject_actor_ids\":[\"u\"],\"source\":\"local_input\"}}",
+      "expected": "invalid_encoding"
+    },
+    {
+      "id": "missing-field-player_id",
+      "raw": "{\"intake_contract\":\"trnm_rts_order_intake_v1\",\"order\":{\"contract\":\"trnm_rts_order_protocol_v1\",\"frame\":1,\"subject_actor_ids\":[\"u\"],\"kind\":\"hold\",\"source\":\"local_input\"}}",
+      "expected": "invalid_encoding"
+    },
+    {
+      "id": "missing-field-source",
+      "raw": "{\"intake_contract\":\"trnm_rts_order_intake_v1\",\"order\":{\"contract\":\"trnm_rts_order_protocol_v1\",\"frame\":1,\"player_id\":\"p\",\"subject_actor_ids\":[\"u\"],\"kind\":\"hold\"}}",
+      "expected": "invalid_encoding"
+    },
+    {
+      "id": "missing-field-subject_actor_ids",
+      "raw": "{\"intake_contract\":\"trnm_rts_order_intake_v1\",\"order\":{\"contract\":\"trnm_rts_order_protocol_v1\",\"frame\":1,\"player_id\":\"p\",\"kind\":\"hold\",\"source\":\"local_input\"}}",
+      "expected": "invalid_encoding"
+    },
+    {
+      "id": "frame-type--1",
+      "raw": "{\"intake_contract\":\"trnm_rts_order_intake_v1\",\"order\":{\"contract\":\"trnm_rts_order_protocol_v1\",\"frame\":-1,\"player_id\":\"p\",\"subject_actor_ids\":[\"u\"],\"kind\":\"hold\",\"source\":\"local_input\"}}",
+      "expected": "invalid_encoding"
+    },
+    {
+      "id": "frame-type-4294967296",
+      "raw": "{\"intake_contract\":\"trnm_rts_order_intake_v1\",\"order\":{\"contract\":\"trnm_rts_order_protocol_v1\",\"frame\":4294967296,\"player_id\":\"p\",\"subject_actor_ids\":[\"u\"],\"kind\":\"hold\",\"source\":\"local_input\"}}",
+      "expected": "invalid_encoding"
+    },
+    {
+      "id": "frame-type-True",
+      "raw": "{\"intake_contract\":\"trnm_rts_order_intake_v1\",\"order\":{\"contract\":\"trnm_rts_order_protocol_v1\",\"frame\":true,\"player_id\":\"p\",\"subject_actor_ids\":[\"u\"],\"kind\":\"hold\",\"source\":\"local_input\"}}",
+      "expected": "invalid_encoding"
+    },
+    {
+      "id": "frame-type-1",
+      "raw": "{\"intake_contract\":\"trnm_rts_order_intake_v1\",\"order\":{\"contract\":\"trnm_rts_order_protocol_v1\",\"frame\":\"1\",\"player_id\":\"p\",\"subject_actor_ids\":[\"u\"],\"kind\":\"hold\",\"source\":\"local_input\"}}",
+      "expected": "invalid_encoding"
+    },
+    {
+      "id": "frame-type-None",
+      "raw": "{\"intake_contract\":\"trnm_rts_order_intake_v1\",\"order\":{\"contract\":\"trnm_rts_order_protocol_v1\",\"frame\":null,\"player_id\":\"p\",\"subject_actor_ids\":[\"u\"],\"kind\":\"hold\",\"source\":\"local_input\"}}",
+      "expected": "invalid_encoding"
+    },
+    {
+      "id": "frame-bound-0",
+      "raw": "{\"intake_contract\":\"trnm_rts_order_intake_v1\",\"order\":{\"contract\":\"trnm_rts_order_protocol_v1\",\"frame\":0,\"player_id\":\"p\",\"subject_actor_ids\":[\"u\"],\"kind\":\"hold\",\"source\":\"local_input\"}}",
+      "expected": "accepted"
+    },
+    {
+      "id": "frame-bound-4294967295",
+      "raw": "{\"intake_contract\":\"trnm_rts_order_intake_v1\",\"order\":{\"contract\":\"trnm_rts_order_protocol_v1\",\"frame\":4294967295,\"player_id\":\"p\",\"subject_actor_ids\":[\"u\"],\"kind\":\"hold\",\"source\":\"local_input\"}}",
+      "expected": "accepted"
+    },
+    {
+      "id": "coordinate-bound--2147483648",
+      "raw": "{\"intake_contract\":\"trnm_rts_order_intake_v1\",\"order\":{\"contract\":\"trnm_rts_order_protocol_v1\",\"frame\":1,\"player_id\":\"p\",\"subject_actor_ids\":[\"u\"],\"kind\":\"hold\",\"source\":\"local_input\",\"target_tile\":{\"x\":-2147483648,\"y\":-2147483648}}}",
+      "expected": "accepted"
+    },
+    {
+      "id": "coordinate-bound-2147483647",
+      "raw": "{\"intake_contract\":\"trnm_rts_order_intake_v1\",\"order\":{\"contract\":\"trnm_rts_order_protocol_v1\",\"frame\":1,\"player_id\":\"p\",\"subject_actor_ids\":[\"u\"],\"kind\":\"hold\",\"source\":\"local_input\",\"target_tile\":{\"x\":2147483647,\"y\":2147483647}}}",
+      "expected": "accepted"
+    },
+    {
+      "id": "tile-missing-y",
+      "raw": "{\"intake_contract\":\"trnm_rts_order_intake_v1\",\"order\":{\"contract\":\"trnm_rts_order_protocol_v1\",\"frame\":1,\"player_id\":\"p\",\"subject_actor_ids\":[\"u\"],\"kind\":\"hold\",\"source\":\"local_input\",\"target_tile\":{\"x\":0}}}",
+      "expected": "invalid_encoding"
+    },
+    {
+      "id": "tile-wide-x",
+      "raw": "{\"intake_contract\":\"trnm_rts_order_intake_v1\",\"order\":{\"contract\":\"trnm_rts_order_protocol_v1\",\"frame\":1,\"player_id\":\"p\",\"subject_actor_ids\":[\"u\"],\"kind\":\"hold\",\"source\":\"local_input\",\"target_tile\":{\"x\":2147483648,\"y\":0}}}",
+      "expected": "invalid_encoding"
+    },
+    {
+      "id": "tile-bool-x",
+      "raw": "{\"intake_contract\":\"trnm_rts_order_intake_v1\",\"order\":{\"contract\":\"trnm_rts_order_protocol_v1\",\"frame\":1,\"player_id\":\"p\",\"subject_actor_ids\":[\"u\"],\"kind\":\"hold\",\"source\":\"local_input\",\"target_tile\":{\"x\":true,\"y\":0}}}",
+      "expected": "invalid_encoding"
+    },
+    {
+      "id": "null-queued",
+      "raw": "{\"intake_contract\":\"trnm_rts_order_intake_v1\",\"order\":{\"contract\":\"trnm_rts_order_protocol_v1\",\"frame\":1,\"player_id\":\"p\",\"subject_actor_ids\":[\"u\"],\"kind\":\"hold\",\"source\":\"local_input\",\"queued\":null}}",
+      "expected": "invalid_encoding"
+    },
+    {
+      "id": "integer-queued",
+      "raw": "{\"intake_contract\":\"trnm_rts_order_intake_v1\",\"order\":{\"contract\":\"trnm_rts_order_protocol_v1\",\"frame\":1,\"player_id\":\"p\",\"subject_actor_ids\":[\"u\"],\"kind\":\"hold\",\"source\":\"local_input\",\"queued\":1}}",
+      "expected": "invalid_encoding"
+    },
+    {
+      "id": "queued-no-identity",
+      "raw": "{\"intake_contract\":\"trnm_rts_order_intake_v1\",\"order\":{\"contract\":\"trnm_rts_order_protocol_v1\",\"frame\":1,\"player_id\":\"p\",\"subject_actor_ids\":[\"u\"],\"kind\":\"hold\",\"source\":\"local_input\",\"queued\":true}}",
+      "expected": "invalid_shape"
+    },
+    {
+      "id": "queued-with-identity",
+      "raw": "{\"intake_contract\":\"trnm_rts_order_intake_v1\",\"order\":{\"contract\":\"trnm_rts_order_protocol_v1\",\"frame\":1,\"player_id\":\"p\",\"subject_actor_ids\":[\"u\"],\"kind\":\"hold\",\"source\":\"local_input\",\"queued\":true,\"queue_id\":\"q\"}}",
+      "expected": "accepted"
+    },
+    {
+      "id": "empty-subjects",
+      "raw": "{\"intake_contract\":\"trnm_rts_order_intake_v1\",\"order\":{\"contract\":\"trnm_rts_order_protocol_v1\",\"frame\":1,\"player_id\":\"p\",\"subject_actor_ids\":[],\"kind\":\"hold\",\"source\":\"local_input\"}}",
+      "expected": "invalid_shape"
+    },
+    {
+      "id": "duplicate-subjects",
+      "raw": "{\"intake_contract\":\"trnm_rts_order_intake_v1\",\"order\":{\"contract\":\"trnm_rts_order_protocol_v1\",\"frame\":1,\"player_id\":\"p\",\"subject_actor_ids\":[\"u\",\"u\"],\"kind\":\"hold\",\"source\":\"local_input\"}}",
+      "expected": "duplicate_subject"
+    },
+    {
+      "id": "null-subject",
+      "raw": "{\"intake_contract\":\"trnm_rts_order_intake_v1\",\"order\":{\"contract\":\"trnm_rts_order_protocol_v1\",\"frame\":1,\"player_id\":\"p\",\"subject_actor_ids\":[null],\"kind\":\"hold\",\"source\":\"local_input\"}}",
+      "expected": "invalid_encoding"
+    },
+    {
+      "id": "empty-player",
+      "raw": "{\"intake_contract\":\"trnm_rts_order_intake_v1\",\"order\":{\"contract\":\"trnm_rts_order_protocol_v1\",\"frame\":1,\"player_id\":\"\",\"subject_actor_ids\":[\"u\"],\"kind\":\"hold\",\"source\":\"local_input\"}}",
+      "expected": "invalid_identifier"
+    },
+    {
+      "id": "space-player",
+      "raw": "{\"intake_contract\":\"trnm_rts_order_intake_v1\",\"order\":{\"contract\":\"trnm_rts_order_protocol_v1\",\"frame\":1,\"player_id\":\"a b\",\"subject_actor_ids\":[\"u\"],\"kind\":\"hold\",\"source\":\"local_input\"}}",
+      "expected": "invalid_identifier"
+    },
+    {
+      "id": "control-player",
+      "raw": "{\"intake_contract\":\"trnm_rts_order_intake_v1\",\"order\":{\"contract\":\"trnm_rts_order_protocol_v1\",\"frame\":1,\"player_id\":\"ab\",\"subject_actor_ids\":[\"u\"],\"kind\":\"hold\",\"source\":\"local_input\"}}",
+      "expected": "invalid_identifier"
+    },
+    {
+      "id": "long-player",
+      "raw": "{\"intake_contract\":\"trnm_rts_order_intake_v1\",\"order\":{\"contract\":\"trnm_rts_order_protocol_v1\",\"frame\":1,\"player_id\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"subject_actor_ids\":[\"u\"],\"kind\":\"hold\",\"source\":\"local_input\"}}",
+      "expected": "resource_budget_exceeded"
+    },
+    {
+      "id": "empty-target",
+      "raw": "{\"intake_contract\":\"trnm_rts_order_intake_v1\",\"order\":{\"contract\":\"trnm_rts_order_protocol_v1\",\"frame\":1,\"player_id\":\"p\",\"subject_actor_ids\":[\"u\"],\"kind\":\"hold\",\"source\":\"local_input\",\"target_actor_id\":\"\"}}",
+      "expected": "invalid_identifier"
+    },
+    {
+      "id": "long-label",
+      "raw": "{\"intake_contract\":\"trnm_rts_order_intake_v1\",\"order\":{\"contract\":\"trnm_rts_order_protocol_v1\",\"frame\":1,\"player_id\":\"p\",\"subject_actor_ids\":[\"u\"],\"kind\":\"hold\",\"source\":\"local_input\",\"raw_command_label\":\"界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界\"}}",
+      "expected": "resource_budget_exceeded"
+    },
+    {
+      "id": "bounded-label",
+      "raw": "{\"intake_contract\":\"trnm_rts_order_intake_v1\",\"order\":{\"contract\":\"trnm_rts_order_protocol_v1\",\"frame\":1,\"player_id\":\"p\",\"subject_actor_ids\":[\"u\"],\"kind\":\"hold\",\"source\":\"local_input\",\"raw_command_label\":\"界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界\"}}",
+      "expected": "accepted"
+    },
+    {
+      "id": "bounded-player",
+      "raw": "{\"intake_contract\":\"trnm_rts_order_intake_v1\",\"order\":{\"contract\":\"trnm_rts_order_protocol_v1\",\"frame\":1,\"player_id\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"subject_actor_ids\":[\"u\"],\"kind\":\"hold\",\"source\":\"local_input\"}}",
+      "expected": "accepted"
+    },
+    {
+      "id": "null-optionals",
+      "raw": "{\"intake_contract\":\"trnm_rts_order_intake_v1\",\"order\":{\"contract\":\"trnm_rts_order_protocol_v1\",\"frame\":1,\"player_id\":\"p\",\"subject_actor_ids\":[\"u\"],\"kind\":\"hold\",\"source\":\"local_input\",\"target_tile\":null,\"target_actor_id\":null,\"target_rule_id\":null,\"queue_id\":null,\"formation_id\":null,\"raw_command_label\":null}}",
+      "expected": "accepted"
+    },
+    {
+      "id": "duplicate-envelope",
+      "raw": "{\"intake_contract\":\"trnm_rts_order_intake_v1\",\"intake_contract\":\"trnm_rts_order_intake_v1\",\"order\":{\"contract\":\"trnm_rts_order_protocol_v1\",\"frame\":1,\"player_id\":\"p\",\"subject_actor_ids\":[\"u\"],\"kind\":\"hold\",\"source\":\"local_input\"}}",
+      "expected": "invalid_encoding"
+    },
+    {
+      "id": "duplicate-field",
+      "raw": "{\"intake_contract\":\"trnm_rts_order_intake_v1\",\"order\":{\"contract\":\"trnm_rts_order_protocol_v1\",\"frame\":1,\"frame\":2,\"player_id\":\"p\",\"subject_actor_ids\":[\"u\"],\"kind\":\"hold\",\"source\":\"local_input\"}}",
+      "expected": "invalid_encoding"
+    },
+    {
+      "id": "escaped-duplicate-field",
+      "raw": "{\"intake_contract\":\"trnm_rts_order_intake_v1\",\"order\":{\"contract\":\"trnm_rts_order_protocol_v1\",\"frame\":1,\"fr\\u0061me\":2,\"player_id\":\"p\",\"subject_actor_ids\":[\"u\"],\"kind\":\"hold\",\"source\":\"local_input\"}}",
+      "expected": "invalid_encoding"
+    },
+    {
+      "id": "duplicate-null-option",
+      "raw": "{\"intake_contract\":\"trnm_rts_order_intake_v1\",\"order\":{\"contract\":\"trnm_rts_order_protocol_v1\",\"frame\":1,\"player_id\":\"p\",\"subject_actor_ids\":[\"u\"],\"target_tile\":null,\"target_tile\":null,\"kind\":\"hold\",\"source\":\"local_input\"}}",
+      "expected": "invalid_encoding"
+    },
+    {
+      "id": "trailing-data",
+      "raw": "{\"intake_contract\":\"trnm_rts_order_intake_v1\",\"order\":{\"contract\":\"trnm_rts_order_protocol_v1\",\"frame\":1,\"player_id\":\"p\",\"subject_actor_ids\":[\"u\"],\"kind\":\"hold\",\"source\":\"local_input\"}}{}",
+      "expected": "invalid_encoding"
+    },
+    {
+      "id": "float-frame",
+      "raw": "{\"intake_contract\":\"trnm_rts_order_intake_v1\",\"order\":{\"contract\":\"trnm_rts_order_protocol_v1\",\"frame\":1.0,\"player_id\":\"p\",\"subject_actor_ids\":[\"u\"],\"kind\":\"hold\",\"source\":\"local_input\"}}",
+      "expected": "invalid_encoding"
+    },
+    {
+      "id": "exponent-frame",
+      "raw": "{\"intake_contract\":\"trnm_rts_order_intake_v1\",\"order\":{\"contract\":\"trnm_rts_order_protocol_v1\",\"frame\":1e0,\"player_id\":\"p\",\"subject_actor_ids\":[\"u\"],\"kind\":\"hold\",\"source\":\"local_input\"}}",
+      "expected": "invalid_encoding"
+    },
+    {
+      "id": "surrogate-player",
+      "raw": "{\"intake_contract\":\"trnm_rts_order_intake_v1\",\"order\":{\"contract\":\"trnm_rts_order_protocol_v1\",\"frame\":1,\"player_id\":\"\\ud800\",\"subject_actor_ids\":[\"u\"],\"kind\":\"hold\",\"source\":\"local_input\"}}",
+      "expected": "invalid_encoding"
+    },
+    {
+      "id": "nonfinite-frame",
+      "raw": "{\"intake_contract\":\"trnm_rts_order_intake_v1\",\"order\":{\"contract\":\"trnm_rts_order_protocol_v1\",\"frame\":NaN,\"player_id\":\"p\",\"subject_actor_ids\":[\"u\"],\"kind\":\"hold\",\"source\":\"local_input\"}}",
+      "expected": "invalid_encoding"
+    },
+    {
+      "id": "scalar-null",
+      "raw": "null",
+      "expected": "invalid_encoding"
+    },
+    {
+      "id": "scalar-array",
+      "raw": "[]",
+      "expected": "invalid_encoding"
+    },
+    {
+      "id": "empty",
+      "raw": "",
+      "expected": "invalid_encoding"
+    },
+    {
+      "id": "trailing-comma",
+      "raw": "{\"a\":1,}",
+      "expected": "invalid_encoding"
+    },
+    {
+      "id": "positional-envelope",
+      "raw": "[\"trnm_rts_order_intake_v1\", {\"contract\": \"trnm_rts_order_protocol_v1\", \"frame\": 1, \"player_id\": \"p\", \"subject_actor_ids\": [\"u\"], \"kind\": \"hold\", \"source\": \"local_input\"}]",
+      "expected": "invalid_encoding"
+    },
+    {
+      "id": "positional-order",
+      "raw": "{\"intake_contract\":\"trnm_rts_order_intake_v1\",\"order\":[\"trnm_rts_order_protocol_v1\",1,\"p\",[\"u\"],\"hold\",\"local_input\"]}",
+      "expected": "invalid_encoding"
+    },
+    {
+      "id": "positional-tile",
+      "raw": "{\"intake_contract\":\"trnm_rts_order_intake_v1\",\"order\":{\"contract\":\"trnm_rts_order_protocol_v1\",\"frame\":1,\"player_id\":\"p\",\"subject_actor_ids\":[\"u\"],\"kind\":\"hold\",\"source\":\"local_input\",\"target_tile\":[4,5]}}",
+      "expected": "invalid_encoding"
+    }
+  ]
+}

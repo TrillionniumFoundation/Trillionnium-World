@@ -1,0 +1,20 @@
+{
+  "schema": "trillionnium_world_production_config_v1",
+  "authority_mode": "nakama_only",
+  "environment": "production-candidate",
+  "deployment_id": "replace-with-deployment-identity",
+  "component_lock_id": "replace-with-integration-lock-id",
+  "source_commit": "0000000000000000000000000000000000000000",
+  "source_tree": "0000000000000000000000000000000000000000",
+  "binary_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "nakama_base_url": "https://nakama.internal.example",
+  "cex_base_url": "https://cex.internal.example",
+  "chain_base_url": "https://chain.internal.example",
+  "postgres_dsn_file": "/run/secrets/trnm-world-postgres-dsn",
+  "session_verification_key_file": "/run/secrets/trnm-world-session-verification-key",
+  "tls_ca_file": "/etc/trillionnium/world/ca.pem",
+  "evidence_root": "/var/lib/trillionnium/world-evidence",
+  "metrics_bind": "127.0.0.1:9464",
+  "request_timeout_ms": 5000,
+  "max_in_flight": 512
+}

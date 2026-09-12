@@ -1,5 +1,8 @@
 //! Minimal frame-order protocol used by the current playable RTS simulation.
 
+/// Versioned, bounded JSON intake; legacy serialization remains unchanged.
+pub mod strict;
+
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 

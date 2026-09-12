@@ -1,63 +1,37 @@
-# settlement-vault (Rust)
+# settlement-vault
 
-最小可测试的 `SettlementVault` Rust 合约骨架（内存态状态机版本）。
+`settlement-vault` is the deterministic Rust MVP for bounded deposit, lock, release, slash, transfer, pause, replay-protection, accounting, and normalized audit semantics.
 
-## 功能范围
+Detailed design: [`../../docs/modules/contracts/settlement-vault-design.md`](../../docs/modules/contracts/settlement-vault-design.md)
 
-当前实现提供以下最小接口：
+## Purpose
 
-- `deposit`
-- `lock`
-- `release`
-- `slash`
-- `transfer`
-- `pause`
-- `unpause`
+The crate fixes a reviewable pure state-machine contract for vault and position identity, actors and roles, typed assets, checked amounts, operation identity, lifecycle transitions, exact duplicate behavior, stable errors, and audit material. It provides a semantic baseline for future host, storage, formal-accounting, and cross-system conformance work.
 
-并包含 fail-closed 约束：
+## Authority and non-goals
 
-- 重复请求（`DuplicateRequest`）拒绝
-- 空白或带首尾空白的请求 ID（`InvalidRequestId`）拒绝，避免锁定/释放/惩罚审计记录出现空主键或非 canonical 主键
-- 越权调用（`Unauthorized`）拒绝
-- 非法状态迁移（`InvalidStateTransition`）拒绝
-- 暂停期间所有状态变更入口拒绝（`Paused`）
+This crate is not a wallet, ledger, custodian, deployed smart contract, Chain-finality source, CEX implementation, or production settlement service. In-memory balances and fixture roles do not represent held funds or authenticated principals. CEX remains authoritative for real wallet and ledger custody, and World may consume value only through independently verified receipts and the separate capture, execute, and fenced-apply protocol.
 
-## 构建与测试
+## Public contract
 
-在目录 `contracts/settlement-vault` 下执行：
+The public surface includes typed vault, position, operation, actor, role, asset, request, decision, result, and error values; deterministic deposit, lock, release, slash, transfer, pause, and resume methods where implemented; replay protection; and normalized audit events. An operation identity binds actor, vault or account, asset, amount, action, expected state or revision, and contract version. Exact names, arithmetic, lifecycle and error precedence require versioned vectors.
+
+## State and invariants
+
+Amounts are nonnegative, bounded, and checked. A release or slash cannot exceed the locked amount; total-accounting invariants are preserved; terminal operations cannot be replayed under altered bytes; paused state blocks mutation according to contract; and every rejection leaves the full state unchanged. Exact duplicate requests may converge only after verifying every binding. Altered reuse, unauthorized roles, overflow, missing positions, and invalid transitions fail closed.
+
+## Host and durability boundary
+
+Current state is in memory. Production adoption requires a canonical state encoding, durable storage delta, expected revision or serialized actor, immutable request and result records, atomic state-plus-audit publication, crash recovery, backup/PITR, old-writer fencing, host ABI and runtime specification, deterministic execution and metering, reconciliation, custody separation, and independent security review. This crate performs no SQL, network, filesystem, clock, credential, wallet, or remote settlement operation.
+
+## Verification
+
+Run:
 
 ```bash
-cargo test
+cargo test --manifest-path contracts/Cargo.toml --workspace --all-targets --locked
+cargo clippy --manifest-path contracts/Cargo.toml --workspace --all-targets --locked -- -D warnings
+python3 scripts/check-trnm-world-contract-module-documentation.py
 ```
 
-## 说明
-
-- 当前版本为纯 Rust 内存状态机，便于先行验证接口语义与状态迁移。
-- 这里的“可迁移”仅表示语义与边界可以为后续宿主接线提供基线；**不表示** 当前 crate 已接入 canonical `HostAbiV1`、`trnm-node` deterministic WASM executor，或已默认产出 `wasm32-unknown-unknown` 合约工件。
-- 按 `trillionnium/docs/protocol/external-contracts-rust/RUST_NATIVE_EXTERNAL_CONTRACTS_ARCH_2026-03-05.md` 的目标布局，`SettlementVault` 未来应与 `sdk/`、`runtime-spec/`、`integration-tests/` 一起构成更完整的 external-contract workspace；当前 README 只能被读作单 crate Rust MVP 说明，**不能**反推这些目录、宿主 trait 接线或 golden replay 已在仓内落地。
-- 是否进入 Day-1 / release-ready / public-mainnet scope，仍应以仓库根 `RELEASE_READINESS.md` 与 `trillionnium/docs/release/TRNM_MAINNET_GAP_MATRIX_2026-03-26.md` 为准；在 scope freeze 明确前，更安全的口径是把本 crate 视作 scope-dependent / trailing-capable 模块，而不是默认 Day-1 minimum。
-
-## 建议提交信息前缀
-
-```text
-trnm(contract-rs-vault): ...
-```
-
-
-## 可观测能力（审计事件）
-
-新增 `SettlementVault` 可观测能力：
-- `audit_log() -> &[VaultEvent]`
-- `consume_audit_log() -> Vec<VaultEvent>`
-
-事件包括：`Deposited`、`Locked`、`Released`、`Slashed`、`Transferred`、`Paused`、`Unpaused`。
-
-
-## 标准化审计事件（v1）
-
-新增 `normalized_audit_log() -> Vec<AuditEvent>`（复用 `audit-events` 共享 schema）：
-- `source: "settlement-vault"`
-- `event_type`：`vault.deposited` / `vault.locked` / `vault.released` / `vault.slashed` / `vault.transferred` / `vault.paused` / `vault.unpaused`。
-- `amount` 承载金额；`object_id` 承载主对象（如 `request_id`，或转账接收账户）；`related_id` 承载次级关联对象（如锁定账户、转账发起账户），避免多主体事件归一化后丢键。
-- `vault.slashed` 的标准化事件使用 `related_id=locked_account`，并将 `beneficiary` 放入 `note`（如 `beneficiary=treasury`），避免把多个主体拼进同一个 ID 字段。
-- `vault.transferred` 的标准化事件使用 `object_id=from`、`related_id=to`，保持“主对象在前、次级关联对象在后”的共享归一化约定。
+Coverage must include accepted lifecycle paths, exact and altered duplicate requests, unauthorized actors, over-release and over-slash, accounting conservation, overflow and resource bounds, pause behavior, state preservation, and normalized audit output. Host ABI, durable storage, gas or quota, Chain/CEX integration, custody, and production authorization remain independent evidence gates.

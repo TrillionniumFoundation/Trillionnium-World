@@ -35,8 +35,13 @@ bundle_dir="${roots[0]}"
 [[ -z "$(find "$work_dir" -mindepth 1 -maxdepth 1 ! -type d -print -quit)" ]]
 [[ -z "$(find "$bundle_dir" -type l -print -quit)" ]]
 
-for executable in trnm-first-contact bin/trnm-first-contact bin/trnm-online-product \
-  bin/trnm-game-server bin/trnm-entitlement-signer; do
+for executable in \
+  trnm-first-contact \
+  bin/trnm-first-contact \
+  bin/trnm-online-product \
+  bin/trnm-game-server \
+  bin/trnm-entitlement-signer \
+  bin/trnm-settlement-worker; do
   [[ -x "$bundle_dir/$executable" ]]
 done
 for required in manifest.json SHA256SUMS Cargo.lock RUNTIME_REQUIREMENTS.txt \

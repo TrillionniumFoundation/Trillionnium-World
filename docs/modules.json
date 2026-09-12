@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "generated_at_utc": "2026-09-11T00:00:00Z",
+  "baseline_commit": "0f6117a56263bcb5bf89e34b8bcda557a7da2e6d",
+  "canonical_documentation_root": "docs",
+  "modules": [
+    {"id":"trnm-economy-protocol","kind":"rust-crate","workspace":"game","path":"trillionnium/crates/trnm-economy-protocol","status":"alpha","owner":"Trillionnium Foundation game-product maintainers","entry_document":"trillionnium/crates/trnm-economy-protocol/README.md"},
+    {"id":"trnm-rpg-core","kind":"rust-crate","workspace":"game","path":"trillionnium/crates/trnm-rpg-core","status":"alpha","owner":"Trillionnium Foundation game-product maintainers","entry_document":"trillionnium/crates/trnm-rpg-core/README.md"},
+    {"id":"trnm-campaign-core","kind":"rust-crate","workspace":"game","path":"trillionnium/crates/trnm-campaign-core","status":"alpha","owner":"Trillionnium Foundation game-product maintainers","entry_document":"trillionnium/crates/trnm-campaign-core/README.md"},
+    {"id":"trnm-rts-protocol","kind":"rust-crate","workspace":"game","path":"trillionnium/crates/trnm-rts-protocol","status":"alpha","owner":"Trillionnium Foundation game-product maintainers","entry_document":"trillionnium/crates/trnm-rts-protocol/README.md"},
+    {"id":"trnm-rts-sim","kind":"rust-crate","workspace":"game","path":"trillionnium/crates/trnm-rts-sim","status":"alpha","owner":"Trillionnium Foundation game-product maintainers","entry_document":"trillionnium/crates/trnm-rts-sim/README.md"},
+    {"id":"trnm-online-protocol","kind":"rust-crate","workspace":"game","path":"trillionnium/crates/trnm-online-protocol","status":"alpha","owner":"Trillionnium Foundation game-product maintainers","entry_document":"trillionnium/crates/trnm-online-protocol/README.md"},
+    {"id":"trnm-game-server","kind":"rust-crate","workspace":"game","path":"trillionnium/crates/trnm-game-server","status":"alpha","owner":"Trillionnium Foundation game-product maintainers","entry_document":"trillionnium/crates/trnm-game-server/README.md"},
+    {"id":"trnm-first-contact","kind":"rust-crate","workspace":"game","path":"trillionnium/crates/trnm-first-contact","status":"pre-alpha","owner":"Trillionnium Foundation game-product maintainers","entry_document":"trillionnium/crates/trnm-first-contact/README.md"},
+
+    {"id":"trnm-node","kind":"rust-crate","workspace":"platform","path":"trillionnium/crates/platform/trnm-node","status":"migration-only","owner":"Trillionnium Foundation platform maintainers","entry_document":"trillionnium/crates/platform/trnm-node/README.md"},
+    {"id":"trnm-types","kind":"rust-crate","workspace":"platform","path":"trillionnium/crates/platform/trnm-types","status":"migration-only","owner":"Trillionnium Foundation platform maintainers","entry_document":"trillionnium/crates/platform/trnm-types/README.md"},
+    {"id":"trnm-state","kind":"rust-crate","workspace":"platform","path":"trillionnium/crates/platform/trnm-state","status":"migration-only","owner":"Trillionnium Foundation platform maintainers","entry_document":"trillionnium/crates/platform/trnm-state/README.md"},
+    {"id":"trnm-pouw","kind":"rust-crate","workspace":"platform","path":"trillionnium/crates/platform/trnm-pouw","status":"migration-only","owner":"Trillionnium Foundation platform maintainers","entry_document":"trillionnium/crates/platform/trnm-pouw/README.md"},
+    {"id":"trnm-executor","kind":"rust-crate","workspace":"platform","path":"trillionnium/crates/platform/trnm-executor","status":"migration-only","owner":"Trillionnium Foundation platform maintainers","entry_document":"trillionnium/crates/platform/trnm-executor/README.md"},
+    {"id":"trnm-mempool","kind":"rust-crate","workspace":"platform","path":"trillionnium/crates/platform/trnm-mempool","status":"migration-only","owner":"Trillionnium Foundation platform maintainers","entry_document":"trillionnium/crates/platform/trnm-mempool/README.md"},
+    {"id":"trnm-rpc","kind":"rust-crate","workspace":"platform","path":"trillionnium/crates/platform/trnm-rpc","status":"migration-only","owner":"Trillionnium Foundation platform maintainers","entry_document":"trillionnium/crates/platform/trnm-rpc/README.md"},
+    {"id":"trnm-bench","kind":"rust-crate","workspace":"platform","path":"trillionnium/crates/platform/trnm-bench","status":"migration-only","owner":"Trillionnium Foundation platform maintainers","entry_document":"trillionnium/crates/platform/trnm-bench/README.md"},
+    {"id":"trnm-worker-agent","kind":"rust-crate","workspace":"platform","path":"trillionnium/crates/platform/trnm-worker-agent","status":"migration-only","owner":"Trillionnium Foundation platform maintainers","entry_document":"trillionnium/crates/platform/trnm-worker-agent/README.md"},
+    {"id":"trnm-cli","kind":"rust-crate","workspace":"platform","path":"trillionnium/crates/platform/trnm-cli","status":"migration-only","owner":"Trillionnium Foundation platform maintainers","entry_document":"trillionnium/crates/platform/trnm-cli/README.md"},
+    {"id":"trnm-bridge-poc","kind":"rust-crate","workspace":"platform","path":"trillionnium/crates/platform/trnm-bridge-poc","status":"migration-only","owner":"Trillionnium Foundation platform maintainers","entry_document":"trillionnium/crates/platform/trnm-bridge-poc/README.md"},
+    {"id":"trnm-oracle","kind":"rust-crate","workspace":"platform","path":"trillionnium/crates/platform/trnm-oracle","status":"migration-only","owner":"Trillionnium Foundation platform maintainers","entry_document":"trillionnium/crates/platform/trnm-oracle/README.md"},
+
+    {"id":"audit-events","kind":"rust-crate","workspace":"contracts","path":"contracts/audit-events","status":"mvp","owner":"Trillionnium Foundation contract maintainers","entry_document":"contracts/audit-events/README.md"},
+    {"id":"bridge-relay","kind":"rust-crate","workspace":"contracts","path":"contracts/bridge-relay","status":"mvp","owner":"Trillionnium Foundation contract maintainers","entry_document":"contracts/bridge-relay/README.md"},
+    {"id":"governance-guard","kind":"rust-crate","workspace":"contracts","path":"contracts/governance-guard","status":"mvp","owner":"Trillionnium Foundation contract maintainers","entry_document":"contracts/governance-guard/README.md"},
+    {"id":"settlement-vault","kind":"rust-crate","workspace":"contracts","path":"contracts/settlement-vault","status":"mvp","owner":"Trillionnium Foundation contract maintainers","entry_document":"contracts/settlement-vault/README.md"},
+
+    {"id":"web4-frontend","kind":"frontend","workspace":"web","path":"web4-frontend","status":"alpha","owner":"Trillionnium Foundation repository maintainers","entry_document":"web4-frontend/README.md"},
+    {"id":"authored-assets","kind":"assets","workspace":"content","path":"assets","status":"alpha","owner":"Trillionnium Foundation repository maintainers","entry_document":"assets/README.md"},
+    {"id":"repository-config","kind":"configuration","workspace":"operations","path":"config","status":"alpha","owner":"Trillionnium Foundation repository maintainers","entry_document":"config/README.md"},
+    {"id":"deployment-definitions","kind":"deployment","workspace":"operations","path":"deploy","status":"alpha","owner":"Trillionnium Foundation repository maintainers","entry_document":"deploy/README.md"},
+    {"id":"packaging","kind":"packaging","workspace":"operations","path":"packaging","status":"alpha","owner":"Trillionnium Foundation repository maintainers","entry_document":"packaging/README.md"},
+    {"id":"playtest-evidence","kind":"evidence","workspace":"product","path":"playtests","status":"pre-alpha","owner":"Trillionnium Foundation repository maintainers","entry_document":"playtests/README.md"},
+    {"id":"automation-scripts","kind":"automation","workspace":"operations","path":"scripts","status":"alpha","owner":"Trillionnium Foundation repository maintainers","entry_document":"scripts/README.md"}
+  ]
+}
