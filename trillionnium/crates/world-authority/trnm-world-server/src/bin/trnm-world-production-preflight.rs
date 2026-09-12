@@ -8,9 +8,10 @@ use anyhow::{bail, Context, Result};
 use serde::Deserialize;
 use serde_json::json;
 use std::collections::BTreeSet;
-use std::fs;
 use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
+
+mod production_preflight;
 
 const CONFIG_SCHEMA: &str = "trillionnium_world_production_config_v1";
 const AUTHORITY_MODE: &str = "nakama_only";
@@ -63,51 +64,18 @@ fn require_lower_hex(value: &str, length: usize, field: &str) -> Result<()> {
 }
 
 fn endpoint_host(value: &str, field: &str) -> Result<String> {
-    require_text(value, field)?;
-    let remainder = value
-        .strip_prefix("https://")
-        .with_context(|| format!("{field} must use https://"))?;
-    let authority = remainder.split('/').next().unwrap_or_default();
-    if authority.is_empty() || authority.contains('@') {
-        bail!("{field} must contain a nonempty authority and no embedded credentials");
-    }
-    let host = if let Some(bracketed) = authority.strip_prefix('[') {
-        let end = bracketed
-            .find(']')
-            .with_context(|| format!("{field} contains an invalid IPv6 authority"))?;
-        bracketed[..end].to_ascii_lowercase()
-    } else {
-        authority
-            .rsplit_once(':')
-            .map_or(authority, |(candidate, port)| {
-                if !port.is_empty() && port.bytes().all(|byte| byte.is_ascii_digit()) {
-                    candidate
-                } else {
-                    authority
-                }
-            })
-            .to_ascii_lowercase()
-    };
-    if host.is_empty()
-        || host == "localhost"
-        || host == "::1"
-        || host == "0.0.0.0"
-        || host.starts_with("127.")
-        || host.ends_with(".localhost")
-    {
-        bail!("{field} must not target loopback, wildcard, or localhost");
-    }
-    Ok(host)
+    production_preflight::endpoint_host(value)
+        .map_err(|reason| anyhow::anyhow!("{field}: {reason}"))
 }
 
 fn require_absolute_file(path: &Path, field: &str, secret: bool) -> Result<()> {
     if !path.is_absolute() {
         bail!("{field} must be an absolute path");
     }
-    let metadata = fs::symlink_metadata(path)
-        .with_context(|| format!("{field} cannot be inspected: {}", path.display()))?;
-    if metadata.file_type().is_symlink() || !metadata.is_file() || metadata.len() == 0 {
-        bail!("{field} must be a nonempty ordinary file and not a symlink");
+    let metadata = production_preflight::ordinary_absolute_path(path, false)
+        .map_err(|reason| anyhow::anyhow!("{field}: {reason}"))?;
+    if metadata.len() == 0 {
+        bail!("{field} must be nonempty");
     }
     if secret {
         #[cfg(unix)]
@@ -154,15 +122,8 @@ fn validate(config: &ProductionConfig) -> Result<Vec<String>> {
     if !config.evidence_root.is_absolute() {
         bail!("evidence_root must be an absolute path");
     }
-    let evidence_metadata = fs::symlink_metadata(&config.evidence_root).with_context(|| {
-        format!(
-            "evidence_root cannot be inspected: {}",
-            config.evidence_root.display()
-        )
-    })?;
-    if evidence_metadata.file_type().is_symlink() || !evidence_metadata.is_dir() {
-        bail!("evidence_root must be an ordinary directory and not a symlink");
-    }
+    production_preflight::ordinary_absolute_path(&config.evidence_root, true)
+        .map_err(|reason| anyhow::anyhow!("evidence_root: {reason}"))?;
 
     let metrics: SocketAddr = config
         .metrics_bind
@@ -190,17 +151,8 @@ fn main() -> Result<()> {
     if !path.is_absolute() {
         bail!("production config path must be absolute");
     }
-    let metadata = fs::symlink_metadata(&path)
-        .with_context(|| format!("cannot inspect production config: {}", path.display()))?;
-    if metadata.file_type().is_symlink()
-        || !metadata.is_file()
-        || metadata.len() == 0
-        || metadata.len() > MAX_CONFIG_BYTES
-    {
-        bail!("production config must be a nonempty ordinary file within the byte budget");
-    }
-    let bytes = fs::read(&path)
-        .with_context(|| format!("cannot read production config: {}", path.display()))?;
+    let bytes = production_preflight::read_bounded_config(&path, MAX_CONFIG_BYTES)
+        .map_err(|reason| anyhow::anyhow!("production config: {reason}"))?;
     let config: ProductionConfig =
         serde_json::from_slice(&bytes).context("production config is not strict schema JSON")?;
     let endpoint_hosts = validate(&config)?;
@@ -209,6 +161,9 @@ fn main() -> Result<()> {
         "schema": CONFIG_SCHEMA,
         "status": "production_configuration_preflight_passed",
         "authority_mode": AUTHORITY_MODE,
+        "endpoint_intake_policy": production_preflight::ENDPOINT_POLICY,
+        "dns_egress_verified": false,
+        "filesystem_checks_are_point_in_time": true,
         "environment": config.environment,
         "deployment_id": config.deployment_id,
         "component_lock_id": config.component_lock_id,
