@@ -2,6 +2,7 @@
 name = "trnm-world-server"
 version = "0.1.0"
 edition = "2021"
+default-run = "trnm-world-server"
 license = "LicenseRef-Trillionnium-Internal"
 authors = ["Trillionnium Contributors"]
 
