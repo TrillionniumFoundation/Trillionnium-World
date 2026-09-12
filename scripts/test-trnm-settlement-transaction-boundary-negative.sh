@@ -54,3 +54,4 @@ echo "TRNM settlement transaction-boundary negative fixture passed"
 # Keep the original shell/argument regression, then exercise lexical, include,
 # source and workflow mutations. These are offline tests, not Rust/DB evidence.
 python3 "$ROOT_DIR/scripts/test-trnm-settlement-transaction-boundary.py"
+python3 "$ROOT_DIR/scripts/test-trnm-settlement-module-resolution.py"

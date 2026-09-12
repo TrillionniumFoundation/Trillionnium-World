@@ -199,6 +199,128 @@ class SourceBundle:
         require(0 < len(data) <= MAX_FILE_BYTES and bool(data.strip()), 'empty or oversized source')
         return data.decode('utf-8')
 
+    def expand_modules(self, relative: str, stream: list[Token]) -> list[Token]:
+        """Resolve the supported ordinary Rust module forms before phase checks.
+
+        The eight pre-existing library adapters below are deliberately outside
+        the historical game-library phase scan. This exact root/name/path
+        boundary is preserved, NOT extended to arbitrary new modules. Full mode
+        checks CEX separately. No transitive call-graph claim is made here.
+        Test-only modules cannot supply a production phase implementation.
+        Conditional production modules and block-local modules fail closed;
+        evaluating arbitrary cfg/macro expansion requires Rust qualification.
+        """
+        source = PurePosixPath(relative)
+        source_dir = source.parent
+        default_dir = source_dir if source.name in {'lib.rs', 'main.rs', 'mod.rs'} else source.with_suffix('')
+        separate = {'cex', 'map', 'operations_v1', 'product_v2', 'production_v1',
+                    'published_tick_journal', 'signer_protocol', 'stream'}
+
+        def walk(items: list[Token], directory: PurePosixPath, inline: bool,
+                 module_scope: bool = True, depth: int = 0) -> list[Token]:
+            require(depth <= MAX_NESTING, 'module nesting budget exceeded')
+            result: list[Token] = []
+            i = 0
+            while i < len(items):
+                start = i
+                attributes: list[list[Token]] = []
+                while i + 1 < len(items) and is_token(items[i], '#'):
+                    bracket = i + 1
+                    if is_token(items[bracket], '!'):
+                        bracket += 1
+                    require(bracket < len(items) and is_token(items[bracket], '['), 'malformed module attribute')
+                    end = group_end(items, bracket)
+                    attributes.append(items[bracket + 1:end])
+                    i = end + 1
+                probe = i
+                if probe < len(items) and is_token(items[probe], 'pub'):
+                    probe += 1
+                    if probe < len(items) and is_token(items[probe], '('):
+                        probe = group_end(items, probe) + 1
+                if probe < len(items) and is_token(items[probe], 'mod'):
+                    require(module_scope, 'block-local module requires explicit Rust qualification')
+                    require(probe + 2 < len(items) and items[probe + 1].kind == 'id', 'malformed module declaration')
+                    name = items[probe + 1].value
+                    delimiter = probe + 2
+                    require(is_token(items[delimiter], ';') or is_token(items[delimiter], '{'), 'unsupported module declaration')
+                    outlined = is_token(items[delimiter], ';')
+                    end = delimiter if outlined else group_end(items, delimiter)
+                    paths: list[str] = []
+                    test_only = False
+                    for attr in attributes:
+                        if not attr:
+                            continue
+                        if is_token(attr[0], 'path'):
+                            require(len(attr) == 3 and is_token(attr[1], '=') and attr[2].kind == 'string',
+                                    'module path must be one literal string')
+                            paths.append(safe_relative(attr[2].value))
+                        elif is_token(attr[0], 'cfg'):
+                            require(attr == [Token('id', 'cfg'), Token('punct', '('), Token('id', 'test'), Token('punct', ')')],
+                                    'conditional production module requires explicit Rust qualification')
+                            test_only = True
+                        elif is_token(attr[0], 'cfg_attr'):
+                            raise BoundaryFailure('conditional module attribute requires explicit Rust qualification')
+                    require(len(paths) <= 1, 'duplicate module path attribute')
+                    if test_only:
+                        # Retain no executable phase tokens from test-only code.
+                        i = end + 1
+                        continue
+                    if (relative == 'src/lib.rs' and not inline and outlined
+                            and name in separate and not paths):
+                        result.extend(items[start:end + 1])
+                        i = end + 1
+                        continue
+                    path_base = directory if inline else source_dir
+                    if outlined:
+                        if paths:
+                            child = safe_relative((path_base / paths[0]).as_posix())
+                        else:
+                            candidates = [(directory / (name + '.rs')).as_posix(),
+                                          (directory / name / 'mod.rs').as_posix()]
+                            for candidate in candidates:
+                                safe_relative(candidate)
+                            matches = [candidate for candidate in candidates
+                                       if (self.root / candidate).exists() or (self.root / candidate).is_symlink()]
+                            require(len(matches) == 1, f'missing or ambiguous module: {name}')
+                            child = matches[0]
+                        result.extend(items[start:delimiter])
+                        result.append(Token('punct', '{'))
+                        result.extend(self.bundle(child))
+                        result.append(Token('punct', '}'))
+                    else:
+                        child_dir = path_base / paths[0] if paths else directory / name
+                        safe_relative(child_dir.as_posix())
+                        result.extend(items[start:delimiter + 1])
+                        result.extend(walk(items[delimiter + 1:end], child_dir, True, True, depth + 1))
+                        result.append(items[end])
+                    i = end + 1
+                    continue
+                result.extend(items[start:i])
+                if i >= len(items):
+                    break
+                # Never interpret module-looking tokens in macro syntax.
+                if is_token(items[i], 'macro_rules') and i + 3 < len(items) and is_token(items[i + 1], '!'):
+                    end = group_end(items, i + 3)
+                    result.extend(items[i:end + 1])
+                    i = end + 1
+                elif (items[i].kind == 'id' and i + 2 < len(items) and is_token(items[i + 1], '!')
+                      and items[i + 2].kind == 'punct' and items[i + 2].value in {'(', '[', '{'}):
+                    end = group_end(items, i + 2)
+                    result.extend(items[i:end + 1])
+                    i = end + 1
+                elif items[i].kind == 'punct' and items[i].value in {'(', '[', '{'}:
+                    end = group_end(items, i)
+                    result.append(items[i])
+                    result.extend(walk(items[i + 1:end], directory, inline, False, depth + 1))
+                    result.append(items[end])
+                    i = end + 1
+                else:
+                    result.append(items[i])
+                    i += 1
+            return result
+
+        return walk(stream, default_dir, False)
+
     def bundle(self, relative: str) -> list[Token]:
         relative = safe_relative(relative)
         require(relative not in self.seen, 'duplicate or cyclic semantic include')
@@ -210,6 +332,7 @@ class SourceBundle:
         stream = tokens(text)
         self.token_count += len(stream)
         require(self.token_count <= MAX_TOKENS, 'included token budget exceeded')
+        stream = self.expand_modules(relative, stream)
         result: list[Token] = []
         i = 0
         while i < len(stream):
