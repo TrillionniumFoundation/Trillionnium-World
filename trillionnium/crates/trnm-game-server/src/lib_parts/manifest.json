@@ -1,0 +1,159 @@
+{
+  "crate": "trnm-game-server",
+  "max_impl_bytes": 32000,
+  "max_part_bytes": 60000,
+  "nested_test_parts": [
+    {
+      "bytes": 27767,
+      "path": "lib_parts/tests/game_server_tests_01.rs",
+      "section": "tests",
+      "sha256": "9d4c9c65c05df2bcd8450fd8a7edfd05d0bd90e43d227a1a50cfb5c5ceaaf854"
+    },
+    {
+      "bytes": 27844,
+      "path": "lib_parts/tests/game_server_tests_02.rs",
+      "section": "tests",
+      "sha256": "9915ba15aa012498b17a383ea1d4467ba39d363cadbe4c9f06672956328a4e13"
+    },
+    {
+      "bytes": 26956,
+      "path": "lib_parts/tests/game_server_tests_03.rs",
+      "section": "tests",
+      "sha256": "1770f0586249ffd8a2695cd2c20ca6039205d34d925eb61f6b7260d56a15d9a1"
+    },
+    {
+      "bytes": 26668,
+      "path": "lib_parts/tests/game_server_tests_04.rs",
+      "section": "tests",
+      "sha256": "1588159a780365d51fd91f4a5300aae9620078bab51b51e3c196791b0dcefc31"
+    }
+  ],
+  "parts": [
+    {
+      "bytes": 57854,
+      "path": "lib_parts/authority_foundation/part_01.rs",
+      "section": "authority_foundation",
+      "sha256": "805889f65c984743dc4f664ef06e462b1e6991f55083ba0fe7b32036ca54dfac"
+    },
+    {
+      "bytes": 36838,
+      "path": "lib_parts/configuration_and_migrations/part_01.rs",
+      "section": "configuration_and_migrations",
+      "sha256": "92571cb0cf45f02ea38e2280710bfc6af5592e80a29fef34e662b3259ecfe1cd"
+    },
+    {
+      "bytes": 58219,
+      "path": "lib_parts/terminal_recovery/part_01.rs",
+      "section": "terminal_recovery",
+      "sha256": "a153ccfbedbca4411d4bbe870de2da5d2d5d598065e91559cc6b986fdb53366b"
+    },
+    {
+      "bytes": 59467,
+      "path": "lib_parts/terminal_recovery/part_02.rs",
+      "section": "terminal_recovery",
+      "sha256": "95366eee93b9eb47a65da5487b6791a12b28f15d420d75ceaca45b70ba856e08"
+    },
+    {
+      "bytes": 27300,
+      "path": "lib_parts/terminal_recovery/part_03.rs",
+      "section": "terminal_recovery",
+      "sha256": "1ad5da89ccb66f88275a002fbf1b486558757aef400f8e8425d1dcc248b61a4c"
+    },
+    {
+      "bytes": 1133,
+      "path": "lib_parts/operations_boundary/part_01.rs",
+      "section": "operations_boundary",
+      "sha256": "4bcd9438aca51d5d5b24e897a9a47c47b31f9a5785d2d4f0bdd070dfe8dc715d"
+    },
+    {
+      "bytes": 3399,
+      "path": "lib_parts/fleet_fencing/part_01.rs",
+      "section": "fleet_fencing",
+      "sha256": "9f6e72842e66e409d13ce886c394adb9d0b601a6a9fb60303c92a2a9bf4315dc"
+    },
+    {
+      "bytes": 2562,
+      "path": "lib_parts/identity/part_01.rs",
+      "section": "identity",
+      "sha256": "369876df912450e7aa0f0ed3dffb3f989eb042a20bcae51dcd5dc6059df566a8"
+    },
+    {
+      "bytes": 7212,
+      "path": "lib_parts/application/part_01.rs",
+      "section": "application",
+      "sha256": "ab8802da53b695e83624369001d14a235448450c730291aa79168aeb169f686c"
+    },
+    {
+      "bytes": 5662,
+      "path": "lib_parts/http_routing/part_01.rs",
+      "section": "http_routing",
+      "sha256": "219d56f17f1837fc5e599a4d35f8952b9344f5ab7c58cfa457eaf2515c272f3b"
+    },
+    {
+      "bytes": 44553,
+      "path": "lib_parts/readiness/part_01.rs",
+      "section": "readiness",
+      "sha256": "c3037bbd7c1b8fd01822b5d67a78eb069476b3634b79413519ade0723723878d"
+    },
+    {
+      "bytes": 55844,
+      "path": "lib_parts/product_api/part_01.rs",
+      "section": "product_api",
+      "sha256": "cb55d3b145283881d86248face334f644f862d1af5b82277e875b1fc13f215e7"
+    },
+    {
+      "bytes": 46948,
+      "path": "lib_parts/product_api/part_02.rs",
+      "section": "product_api",
+      "sha256": "ac577174be27e67fd0c59d04aebe2078d380f1ac4c76d2ac4c984c55ae01c376"
+    },
+    {
+      "bytes": 59890,
+      "path": "lib_parts/actor_runtime/part_01.rs",
+      "section": "actor_runtime",
+      "sha256": "f685183a69ef33fad7aa959c05c48f535a8c4525a90a06fab893a6abba9f8c32"
+    },
+    {
+      "bytes": 59127,
+      "path": "lib_parts/actor_runtime/part_02.rs",
+      "section": "actor_runtime",
+      "sha256": "04f7c867f882b7560c7b28b59f7c165a8ad816b6537285c5da865775431fec49"
+    },
+    {
+      "bytes": 29326,
+      "path": "lib_parts/actor_runtime/part_03.rs",
+      "section": "actor_runtime",
+      "sha256": "7569f4cedd3c6ce73a7971dba9753c7dc51c3fe70872620994040b62148e143d"
+    },
+    {
+      "bytes": 14400,
+      "path": "lib_parts/campaign_persistence/part_01.rs",
+      "section": "campaign_persistence",
+      "sha256": "0a9a6af72f4e8e603ade26e3c15af907b032d664ce358e2d4565f68db08b8f71"
+    },
+    {
+      "bytes": 1459,
+      "path": "lib_parts/tests/part_01.rs",
+      "section": "tests",
+      "sha256": "07e0f0b8e9dce58b613b7494e0ab94600b931d92255ef8f8092d8f933e23119a"
+    }
+  ],
+  "schema": "trnm_semantic_direct_source_partition_v1",
+  "sections": [
+    "authority_foundation",
+    "configuration_and_migrations",
+    "terminal_recovery",
+    "operations_boundary",
+    "fleet_fencing",
+    "identity",
+    "application",
+    "http_routing",
+    "readiness",
+    "product_api",
+    "actor_runtime",
+    "campaign_persistence",
+    "tests"
+  ],
+  "semantic_generation": false,
+  "textual_include_reason": "preserve the reviewed crate-root API while shrinking ownership and review radius"
+}

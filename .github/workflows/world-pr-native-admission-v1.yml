@@ -1,0 +1,263 @@
+name: world-pr-native-admission-v3
+
+on:
+  push:
+    branches:
+      - fix/world-convergence-v6-20260908
+      - fix/world-source-gap-closure-v12-20260910
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  merge_group:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: world-native-v3-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  RUSTUP_TOOLCHAIN: "1.98.1"
+  CARGO_INCREMENTAL: "0"
+  CARGO_TERM_COLOR: never
+  RUST_BACKTRACE: "1"
+  RUST_TEST_THREADS: "1"
+  PRODUCTION_AUTHORIZATION: not_granted
+  HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+  BASE_SHA: ${{ github.event.pull_request.base.sha || '' }}
+  MERGE_SHA: ${{ github.sha }}
+  PR_NUMBER: ${{ github.event.pull_request.number || '' }}
+  POSTGRES_IMAGE: postgres:16.4-alpine@sha256:5660c2cbfea50c7a9127d17dc4e48543eedd3d7a41a595a2dfa572471e37e64c
+  POSTGRES_REQUIRED_VERSION_NUM: "160004"
+
+jobs:
+  qualification:
+    name: ${{ matrix.context }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - lane: source
+            context: trnm-game-ci
+          - lane: postgres
+            context: trnm-world-p0-boundaries
+          - lane: package
+            context: trnm-world-status-evidence
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    services:
+      postgres:
+        image: postgres:16.4-alpine@sha256:5660c2cbfea50c7a9127d17dc4e48543eedd3d7a41a595a2dfa572471e37e64c
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 30
+    env:
+      PGHOST: 127.0.0.1
+      PGPORT: "5432"
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      PGDATABASE: postgres
+    steps:
+      - name: Initialize exact-object evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          {
+            printf 'lane=%s\n' '${{ matrix.lane }}'
+            printf 'context=%s\n' '${{ matrix.context }}'
+            printf 'repository=%s\n' "$GITHUB_REPOSITORY"
+            printf 'event=%s\n' "$GITHUB_EVENT_NAME"
+            printf 'head=%s\n' "$HEAD_SHA"
+            printf 'base=%s\n' "$BASE_SHA"
+            printf 'merge=%s\n' "$MERGE_SHA"
+            printf 'postgres_image=%s\n' "$POSTGRES_IMAGE"
+            printf 'run_id=%s\n' "$GITHUB_RUN_ID"
+            printf 'run_attempt=%s\n' "$GITHUB_RUN_ATTEMPT"
+            printf 'production_authorization=%s\n' "$PRODUCTION_AUTHORIZATION"
+          } > evidence/job-identity.txt
+
+      - name: Fetch exact head and actual GitHub merge object
+        shell: bash
+        run: |
+          set -euo pipefail
+          materialize() {
+            local destination="$1" ref="$2" expected="$3"
+            rm -rf "$destination"
+            git init -q "$destination"
+            git -C "$destination" remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+            git -C "$destination" fetch -q --no-tags --depth=3 origin "$ref"
+            git -C "$destination" checkout -q --detach FETCH_HEAD
+            test "$(git -C "$destination" rev-parse HEAD)" = "$expected"
+            test -z "$(git -C "$destination" status --porcelain=v1 --untracked-files=no)"
+          }
+          materialize "$RUNNER_TEMP/world-head" "$HEAD_SHA" "$HEAD_SHA"
+          if test "$GITHUB_EVENT_NAME" = pull_request; then
+            test -n "$PR_NUMBER" && test -n "$BASE_SHA"
+            materialize "$RUNNER_TEMP/world-merge" "refs/pull/${PR_NUMBER}/merge" "$MERGE_SHA"
+            test "$(git -C "$RUNNER_TEMP/world-merge" rev-parse HEAD^1)" = "$BASE_SHA"
+            test "$(git -C "$RUNNER_TEMP/world-merge" rev-parse HEAD^2)" = "$HEAD_SHA"
+          fi
+          printf 'head_tree=%s\n' "$(git -C "$RUNNER_TEMP/world-head" rev-parse 'HEAD^{tree}')" >> evidence/job-identity.txt
+          if test "$GITHUB_EVENT_NAME" = pull_request; then
+            {
+              printf 'merge_tree=%s\n' "$(git -C "$RUNNER_TEMP/world-merge" rev-parse 'HEAD^{tree}')"
+              printf 'merge_parent_1=%s\n' "$(git -C "$RUNNER_TEMP/world-merge" rev-parse HEAD^1)"
+              printf 'merge_parent_2=%s\n' "$(git -C "$RUNNER_TEMP/world-merge" rev-parse HEAD^2)"
+            } >> evidence/job-identity.txt
+          fi
+
+      - name: Install pinned toolchain and complete native dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            postgresql-client python3-yaml pkg-config libasound2-dev libudev-dev \
+            libx11-dev libxi-dev libxkbcommon-dev libwayland-dev
+          rustup toolchain install "$RUSTUP_TOOLCHAIN" \
+            --profile minimal --component rustfmt,clippy
+          test "$(rustc --version | awk '{print $2}')" = "$RUSTUP_TOOLCHAIN"
+          rustc --version --verbose | tee evidence/rustc-version.txt
+          cargo --version --verbose | tee evidence/cargo-version.txt
+          actual_version="$(psql -Atqc 'show server_version_num')"
+          {
+            printf 'postgres_server_version='; psql -Atqc 'show server_version'
+            printf 'postgres_server_version_num=%s\n' "$actual_version"
+            psql -Atqc 'select version()'
+          } > evidence/postgres-version.txt
+          test "$actual_version" = "$POSTGRES_REQUIRED_VERSION_NUM"
+
+      - name: Qualify lane on exact objects
+        shell: bash
+        run: |
+          set -euo pipefail
+          labels=(head)
+          test "$GITHUB_EVENT_NAME" != pull_request || labels+=(merge)
+          lane='${{ matrix.lane }}'
+          for label in "${labels[@]}"; do
+            source="$RUNNER_TEMP/world-${label}"
+            export CARGO_TARGET_DIR="$RUNNER_TEMP/target-${lane}-${label}"
+            expected_commit="$HEAD_SHA"
+            test "$label" != merge || expected_commit="$MERGE_SHA"
+            expected_tree="$(git -C "$source" rev-parse 'HEAD^{tree}')"
+            recorded() {
+              local scope="$1"
+              python3 "$source/scripts/run-trnm-world-recorded-command.py" \
+                --log "$GITHUB_WORKSPACE/evidence/${label}/${scope}.log" \
+                --metadata "$GITHUB_WORKSPACE/evidence/${label}/${scope}-execution.json" \
+                --require-source-binding --expected-commit "$expected_commit" \
+                --expected-tree "$expected_tree" --timeout-seconds 18000 -- \
+                bash scripts/run-trnm-world-v6-qualification-v2.sh "$scope"
+            }
+            case "$lane" in
+              source)
+                (
+                  cd "$source"
+                  python3 "$source/scripts/run-trnm-world-recorded-command.py" \
+                    --log "$GITHUB_WORKSPACE/evidence/${label}/recorder-regressions.log" \
+                    --metadata "$GITHUB_WORKSPACE/evidence/${label}/recorder-regressions-execution.json" \
+                    --require-source-binding --expected-commit "$expected_commit" \
+                    --expected-tree "$expected_tree" --timeout-seconds 18000 -- \
+                    python3 -B -m unittest discover -s scripts -p 'test_trnm_world_priority_*.py' -v
+                  recorded truth
+                  recorded source
+                  test -z "$(git status --porcelain=v1 --untracked-files=no)"
+                )
+                ;;
+              postgres)
+                database="world_v12_${GITHUB_RUN_ID}_${GITHUB_RUN_ATTEMPT}_${label}"
+                database="${database//[^A-Za-z0-9_]/_}"
+                createdb "$database"
+                set +e
+                (
+                  set -euo pipefail
+                  cd "$source"
+                  export PGDATABASE="$database"
+                  export DATABASE_URL="postgres://postgres:postgres@127.0.0.1:5432/${database}"
+                  export TEST_DATABASE_URL="$DATABASE_URL"
+                  export TRNM_SETTLEMENT_TEST_DATABASE_URL="$DATABASE_URL"
+                  export TRNM_REQUIRE_SETTLEMENT_DATABASE_TEST=1
+                  recorded postgres
+                  test -z "$(git status --porcelain=v1 --untracked-files=no)"
+                )
+                status=$?
+                set -e
+                dropdb --if-exists --force "$database"
+                test "$status" = 0
+                ;;
+              package)
+                (
+                  cd "$source"
+                  recorded package
+                  grep -Eqi 'NO-GO|NO_GO|not[_ -]granted|not release-ready' RELEASE_READINESS.md
+                  test -z "$(git status --porcelain=v1 --untracked-files=no)"
+                )
+                ;;
+              *) exit 64 ;;
+            esac
+          done
+          printf 'TRNM_WORLD_NATIVE_V3_%s=PASS\n' "$(printf '%s' "$lane" | tr '[:lower:]' '[:upper:]')"
+          printf 'PRODUCTION_AUTHORIZATION=%s\n' "$PRODUCTION_AUTHORIZATION"
+
+      - name: Collect exact-object artifacts after success or failure
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          lane='${{ matrix.lane }}'
+          for label in head merge; do
+            source="$RUNNER_TEMP/world-${label}"
+            mkdir -p "evidence/${label}"
+            for scope in "$lane" truth; do
+              input="$source/run/world-v6-v2/${scope}"
+              if test -d "$input"; then
+                cp -R "$input" "evidence/${label}/"
+              fi
+            done
+          done
+
+      - name: Hash retained lane evidence
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          find evidence -type f ! -name MANIFEST.sha256 -print0 \
+            | sort -z | xargs -0 -r sha256sum > evidence/MANIFEST.sha256
+
+      - name: Upload immutable lane evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: world-native-v3-${{ matrix.lane }}-${{ env.HEAD_SHA }}-${{ github.run_attempt }}
+          path: evidence/**
+          if-no-files-found: error
+          retention-days: 90
+
+  required:
+    name: trnm-world-v12/required
+    if: always()
+    needs: [qualification]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Enforce complete admission result
+        env:
+          QUALIFICATION_RESULT: ${{ needs.qualification.result }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$QUALIFICATION_RESULT" = success
+          printf 'TRNM_WORLD_V12_REQUIRED=PASS\n'
+          printf 'HEAD_SHA=%s\n' "$HEAD_SHA"
+          printf 'MERGE_SHA=%s\n' "$MERGE_SHA"
+          printf 'PRODUCTION_AUTHORIZATION=%s\n' "$PRODUCTION_AUTHORIZATION"

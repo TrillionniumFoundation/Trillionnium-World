@@ -1,0 +1,16 @@
+# Trillionnium World canonical ownership
+#
+# Critical authority, protocol, database and CI paths always name at least one
+# reviewer who is independent from the primary implementation author.
+* @Tomasrgbsf @ProfHepta @Franksudoman
+
+/.github/ @ProfHepta @Franksudoman
+/CURRENT_PLAN.md @Tomasrgbsf @ProfHepta @Franksudoman
+/docs/ @Tomasrgbsf @ProfHepta
+/scripts/ @Tomasrgbsf @ProfHepta @Franksudoman
+
+/trillionnium/contracts/ @ProfHepta @Franksudoman
+/trillionnium/crates/trnm-campaign-core/ @Tomasrgbsf @ProfHepta
+/trillionnium/crates/trnm-rts-sim/ @Tomasrgbsf @ProfHepta
+/trillionnium/crates/trnm-game-server/ @Tomasrgbsf @ProfHepta @Franksudoman
+/trillionnium/crates/trnm-game-server/migrations/ @ProfHepta @Franksudoman

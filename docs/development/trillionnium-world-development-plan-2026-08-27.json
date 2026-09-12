@@ -1,0 +1,273 @@
+{
+  "schema": 1,
+  "plan_id": "trillionnium-world-development-2026-08-27",
+  "status": "current",
+  "as_of": "2026-08-27",
+  "review_due": "2026-09-10",
+  "decision": {
+    "world_role": "deterministic-game-domain",
+    "online_match_authority": "Trillionnium-Nakama",
+    "chain_finality_authority": "Trillionnium-Chain",
+    "wallet_settlement_authority": "CEX",
+    "cross_repository_evidence_authority": "Trillionnium-Integration",
+    "world_local_game_server_status": "compatibility-authority-enclave"
+  },
+  "tranches": [
+    {
+      "id": "T0",
+      "name": "P0 foundation",
+      "status": "in_progress",
+      "exit_gate": "authority/runtime checks and settlement outbox invariant contract pass"
+    },
+    {
+      "id": "T1",
+      "name": "runtime settlement migration",
+      "status": "planned",
+      "depends_on": ["T0"],
+      "exit_gate": "no external network I/O under mutable match/campaign transactions"
+    },
+    {
+      "id": "T2",
+      "name": "World-to-Nakama authority adapter and cutover",
+      "status": "planned",
+      "depends_on": ["T0", "T1"],
+      "exit_gate": "Nakama is the sole canonical match completion signer"
+    },
+    {
+      "id": "T3",
+      "name": "module and protocol formalization",
+      "status": "planned",
+      "depends_on": ["T1", "T2"],
+      "exit_gate": "reviewable modules, schemas, golden vectors and reproducible release provenance"
+    },
+    {
+      "id": "T4",
+      "name": "production and human evidence",
+      "status": "blocked",
+      "depends_on": ["T2", "T3"],
+      "exit_gate": "all explicitly scoped public, human, commercial and operational rows pass"
+    }
+  ],
+  "work_items": [
+    {
+      "id": "WORLD-P0-001",
+      "priority": "P0",
+      "tranche": "T1",
+      "owner_repository": "Trillionnium-World",
+      "title": "Migrate runtime settlement to a durable outbox",
+      "depends_on": ["ADR-0002"],
+      "acceptance": [
+        "claim transaction commits before signer or CEX calls",
+        "stale lease generation cannot apply a result",
+        "exact duplicate receipt is idempotent",
+        "mismatched receipt fails closed",
+        "legacy transaction-held external call path is removed"
+      ]
+    },
+    {
+      "id": "WORLD-P0-002",
+      "priority": "P0",
+      "tranche": "T2",
+      "owner_repository": "Trillionnium-World",
+      "title": "Publish the deterministic World transition and outcome contract",
+      "depends_on": ["ADR-0001"],
+      "acceptance": [
+        "schema and canonical serialization are versioned",
+        "golden hashes cover valid and invalid transitions",
+        "contract contains no runtime authority credential"
+      ]
+    },
+    {
+      "id": "WORLD-P0-003",
+      "priority": "P0",
+      "tranche": "T2",
+      "owner_repository": "Trillionnium-Nakama",
+      "title": "Implement Nakama adapter and shadow comparison",
+      "depends_on": ["WORLD-P0-002"],
+      "acceptance": [
+        "identical fixtures produce identical state and outcome hashes",
+        "unexplained divergence blocks promotion",
+        "Nakama owns canonical ordering and restart recovery"
+      ]
+    },
+    {
+      "id": "WORLD-P0-004",
+      "priority": "P0",
+      "tranche": "T2",
+      "owner_repository": "Trillionnium-Integration",
+      "title": "Bind cross-repository component revisions and cutover evidence",
+      "depends_on": ["WORLD-P0-002", "WORLD-P0-003"],
+      "acceptance": [
+        "exact World and Nakama revisions are locked",
+        "active World-local matches are drained or takeover is separately proven",
+        "rollback rehearsal passes"
+      ]
+    },
+    {
+      "id": "WORLD-P0-005",
+      "priority": "P0",
+      "tranche": "T0",
+      "owner_repository": "Trillionnium-World",
+      "title": "Enforce protected main and required current-game checks",
+      "depends_on": [],
+      "acceptance": [
+        "direct main push is blocked",
+        "pull request and required checks are mandatory",
+        "authority and runtime boundary checks are required"
+      ]
+    },
+    {
+      "id": "WORLD-P1-001",
+      "priority": "P1",
+      "tranche": "T3",
+      "owner_repository": "Trillionnium-World",
+      "title": "Decompose game-server correctness modules",
+      "depends_on": ["WORLD-P0-001"],
+      "acceptance": [
+        "HTTP, identity, actor, persistence, journal, settlement, readiness and fleet boundaries are explicit",
+        "each module documents lock order and durable/public boundary",
+        "invariant-focused tests cover module interfaces"
+      ]
+    },
+    {
+      "id": "WORLD-P1-002",
+      "priority": "P1",
+      "tranche": "T3",
+      "owner_repository": "Trillionnium-World",
+      "title": "Publish HTTP, WebSocket and error schemas",
+      "depends_on": ["WORLD-P0-002"],
+      "acceptance": [
+        "OpenAPI and message schemas validate implementation fixtures",
+        "stable error codes and retry semantics are documented",
+        "compatibility retirement dates are explicit"
+      ]
+    },
+    {
+      "id": "WORLD-P1-003",
+      "priority": "P1",
+      "tranche": "T3",
+      "owner_repository": "Trillionnium-World",
+      "title": "Specify stored-procedure API and database lock order",
+      "depends_on": ["WORLD-P0-001"],
+      "acceptance": [
+        "every procedure has preconditions, postconditions and result codes",
+        "privileges and supported PostgreSQL versions are explicit",
+        "rolling writer and rollback matrix passes"
+      ]
+    },
+    {
+      "id": "WORLD-P1-004",
+      "priority": "P1",
+      "tranche": "T3",
+      "owner_repository": "Trillionnium-World",
+      "title": "Produce a portable self-contained release installation",
+      "depends_on": [],
+      "acceptance": [
+        "clean host requires no sibling repository checkout",
+        "production startup requires a verified release",
+        "personal paths are absent"
+      ]
+    },
+    {
+      "id": "WORLD-P1-005",
+      "priority": "P1",
+      "tranche": "T3",
+      "owner_repository": "Trillionnium-World",
+      "title": "Separate and rotate runtime role credentials",
+      "depends_on": ["WORLD-P1-004"],
+      "acceptance": [
+        "game authority, moderator and signer credentials are independent",
+        "rotation and revocation are rehearsed",
+        "role-compromise negative tests pass"
+      ]
+    },
+    {
+      "id": "WORLD-P1-006",
+      "priority": "P1",
+      "tranche": "T3",
+      "owner_repository": "Trillionnium-World",
+      "title": "Pin toolchains and sign release provenance",
+      "depends_on": ["WORLD-P1-004"],
+      "acceptance": [
+        "Rust and CI action revisions are pinned",
+        "SBOM and licence inventory are attached",
+        "release signature and reproducibility evidence pass"
+      ]
+    },
+    {
+      "id": "WORLD-P1-007",
+      "priority": "P1",
+      "tranche": "T4",
+      "owner_repository": "Trillionnium-World",
+      "title": "Execute settlement and authority fault matrices",
+      "depends_on": ["WORLD-P0-001", "WORLD-P0-003"],
+      "acceptance": [
+        "signer and CEX ambiguous commits converge",
+        "PostgreSQL kill-before-ACK and rollback converge",
+        "journal corruption and lease takeover fail closed"
+      ]
+    },
+    {
+      "id": "WORLD-P1-008",
+      "priority": "P1",
+      "tranche": "T4",
+      "owner_repository": "Trillionnium-World",
+      "title": "Complete an isolated clean 24-hour endurance run",
+      "depends_on": ["WORLD-P1-007"],
+      "acceptance": [
+        "run completes with a final summary",
+        "environment and binary are bound",
+        "no partial endurance credit is used"
+      ]
+    },
+    {
+      "id": "WORLD-P2-001",
+      "priority": "P2",
+      "tranche": "T4",
+      "owner_repository": "Trillionnium-Integration",
+      "title": "Complete public edge, cross-host and regional evidence",
+      "depends_on": ["WORLD-P0-004", "WORLD-P1-008"],
+      "acceptance": [
+        "TLS/WAF/DDoS and capacity rows pass",
+        "cross-host recovery and backup retention are proven",
+        "scope is bound to exact component revisions"
+      ]
+    },
+    {
+      "id": "WORLD-P2-002",
+      "priority": "P2",
+      "tranche": "T4",
+      "owner_repository": "Trillionnium-World",
+      "title": "Complete human single-player and multiplayer validation",
+      "depends_on": ["WORLD-P0-004"],
+      "acceptance": [
+        "independent observer and non-developer sessions pass",
+        "multiplayer comprehension and recovery sessions pass",
+        "privacy-bounded participant evidence is signed"
+      ]
+    },
+    {
+      "id": "WORLD-P2-003",
+      "priority": "P2",
+      "tranche": "T4",
+      "owner_repository": "CEX",
+      "title": "Review public player-market enablement",
+      "depends_on": ["WORLD-P2-001", "WORLD-P2-002"],
+      "acceptance": [
+        "custody, listing ownership and fraud controls pass",
+        "dispute, chargeback and support operations pass",
+        "commercial, privacy and legal approval is explicit"
+      ]
+    }
+  ],
+  "no_go": [
+    "dual canonical World and Nakama authority",
+    "external network I/O under mutable match or campaign row locks",
+    "stale settlement lease result application",
+    "unverified production binary fallback",
+    "shared root secret across runtime roles",
+    "unbound or partial release evidence",
+    "unproven active-match cross-generation takeover",
+    "automated evidence used as human, public-network or commercial credit"
+  ]
+}

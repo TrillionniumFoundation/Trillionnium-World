@@ -1,0 +1,194 @@
+{
+  "schema": "trnm_world_external_execution_board_v1",
+  "as_of": "2026-09-09",
+  "repository": "TrillionniumFoundation/Trillionnium-World",
+  "candidate_branch": "fix/world-v6-ci-finalize-20260909",
+  "production_authorization": "not_granted",
+  "all_external_gaps_closed": false,
+  "evidence_validator": "scripts/check-trnm-world-external-evidence.py",
+  "record_template": "docs/release/templates/trnm-world-evidence-record-v1.json",
+  "rows": [
+    {
+      "gap_id": "WORLD-V5-009",
+      "title": "Exact-head and prospective-merge hosted execution",
+      "owner": "github-administrator-and-world-ci",
+      "evidence_class": "single_host_runtime",
+      "state": "repository_control_blocked",
+      "execution_entry": ".github/workflows/trnm-world-v6-admission-v2.yml",
+      "required_context": "trnm-world-v6/required-v2",
+      "minimum_evidence": [
+        "nonempty workflow run and job identities",
+        "exact pull-request head and actual prospective-merge ordered parents",
+        "terminal-success truth source postgres and package jobs",
+        "retained artifact digests and expiration",
+        "no manually synthesized commit status"
+      ]
+    },
+    {
+      "gap_id": "WORLD-V5-010",
+      "title": "Server-side branch protection and independent review",
+      "owner": "github-administrator",
+      "evidence_class": "source_static",
+      "state": "repository_control_blocked",
+      "execution_entry": "docs/governance/main-protection-contract-v2.json",
+      "minimum_evidence": [
+        "authenticated branch-protection readback",
+        "current required context set",
+        "fresh approval after the latest push by an eligible independent reviewer",
+        "direct update non-fast-forward and deletion rejection probes",
+        "conversation resolution linear history no force push and no ordinary bypass"
+      ]
+    },
+    {
+      "gap_id": "WORLD-V5-011",
+      "title": "Qualified immutable CEX settlement component",
+      "owner": "TrillionniumFoundation/CEX",
+      "evidence_class": "cross_repository_integration",
+      "state": "blocked_upstream",
+      "execution_entry": "CEX owner qualification issue",
+      "minimum_evidence": [
+        "exact commit tree deployable artifact SBOM and provenance",
+        "exact-head and actual prospective-merge terminal-success execution",
+        "response-loss lookup-before-submit altered-retry and ledger-conservation matrices",
+        "fresh independent approval",
+        "separate custody-security acceptance"
+      ]
+    },
+    {
+      "gap_id": "WORLD-V5-012",
+      "title": "Qualified Nakama canonical-online component",
+      "owner": "TrillionniumFoundation/TrillionniumGame",
+      "evidence_class": "cross_repository_integration",
+      "state": "blocked_upstream",
+      "execution_entry": "Nakama owner qualification issue",
+      "minimum_evidence": [
+        "exact commit tree and deployable artifact",
+        "admission roles total order idempotency restart reconnect and archive-root evidence",
+        "MatchCompletedV1 signing boundary",
+        "representative shadow corpus with zero unexplained divergence",
+        "no-dual-writer cutover drain and rollback rehearsal"
+      ]
+    },
+    {
+      "gap_id": "WORLD-V5-013",
+      "title": "Qualified Chain inclusion and finality component",
+      "owner": "TrillionniumFoundation/Trillionnium-Chain",
+      "evidence_class": "cross_repository_integration",
+      "state": "blocked_upstream",
+      "execution_entry": "Chain owner qualification issue",
+      "minimum_evidence": [
+        "exact commit tree and deployable artifact",
+        "authenticated ingress inclusion AppHash and declared finality receipt",
+        "restart fault and pre-finality failure matrices",
+        "exact completion-commitment binding",
+        "fresh independent approval"
+      ]
+    },
+    {
+      "gap_id": "WORLD-V5-014",
+      "title": "Final cross-repository component lock",
+      "owner": "TrillionniumFoundation/Trillionnium-Integration",
+      "evidence_class": "cross_repository_integration",
+      "state": "blocked_upstream",
+      "execution_entry": "Integration owner component-lock issue",
+      "minimum_evidence": [
+        "non-null qualified World Nakama CEX and Chain identities",
+        "contract schema vector and artifact digests",
+        "end-to-end success ambiguity outage recovery cutover and rollback matrices",
+        "zero unexplained divergence",
+        "independent owner acceptance for each component"
+      ]
+    },
+    {
+      "gap_id": "WORLD-V5-015",
+      "title": "Cross-host failover PITR and old-primary isolation",
+      "owner": "world-database-and-sre",
+      "evidence_class": "cross_host",
+      "state": "environment_evidence_required",
+      "execution_entry": "scripts/run-trnm-world-cross-host-evidence-v1.sh",
+      "minimum_evidence": [
+        "two independently identified failure domains",
+        "exact binaries configuration database system identifier and timeline",
+        "primary loss lease takeover PITR and old-primary-return injections",
+        "zero duplicate value and zero stale publication",
+        "independent review and immutable raw artifacts"
+      ]
+    },
+    {
+      "gap_id": "WORLD-V5-016",
+      "title": "Uninterrupted 24-hour endurance and capacity",
+      "owner": "world-operations-and-performance",
+      "evidence_class": "cross_host",
+      "state": "environment_evidence_required",
+      "execution_entry": "scripts/run-trnm-world-endurance-24h-v1.sh",
+      "minimum_evidence": [
+        "at least 86400 uninterrupted seconds",
+        "exact binaries configuration topology and workload manifest",
+        "predeclared latency error memory queue and backlog thresholds",
+        "periodic process database network and host metrics",
+        "terminal summary independent review and retained artifacts"
+      ]
+    },
+    {
+      "gap_id": "WORLD-V5-017",
+      "title": "Public-edge TLS WAF abuse and capacity",
+      "owner": "platform-security-and-sre",
+      "evidence_class": "public_network",
+      "state": "environment_evidence_required",
+      "execution_entry": "scripts/run-trnm-world-public-edge-evidence-v1.sh",
+      "minimum_evidence": [
+        "public HTTPS endpoint and certificate-chain observation",
+        "rate body concurrency slow-client and connection-storm tests",
+        "WAF DDoS service-identity alert and rollback evidence",
+        "privacy-safe logs and exact edge configuration digest",
+        "independent security review"
+      ]
+    },
+    {
+      "gap_id": "WORLD-V5-018",
+      "title": "Independent usability and accessibility",
+      "owner": "world-product-and-accessibility",
+      "evidence_class": "human",
+      "state": "human_evidence_required",
+      "execution_entry": "docs/release/trnm-world-human-evidence-protocol-v1.md",
+      "minimum_evidence": [
+        "three independent five-second comprehension observers",
+        "one nondeveloper unguided vertical-slice session",
+        "keyboard mouse high-contrast subtitles low-motion and viewport coverage",
+        "exact binary platform consent and anonymized raw artifact hashes",
+        "independent decision"
+      ]
+    },
+    {
+      "gap_id": "WORLD-V5-019",
+      "title": "Custody KMS HSM rotation and fraud controls",
+      "owner": "cex-security-and-custody",
+      "evidence_class": "custody_security",
+      "state": "custody_security_required",
+      "execution_entry": "docs/release/trnm-world-custody-evidence-protocol-v1.md",
+      "minimum_evidence": [
+        "approved KMS HSM or equivalent custody boundary",
+        "key creation activation rotation revocation destruction and recovery",
+        "workload identity least privilege separation of duties and audit trails",
+        "compromised-role lost-response fraud and reconciliation drills",
+        "independent security approval without recording secret material"
+      ]
+    },
+    {
+      "gap_id": "WORLD-V5-020",
+      "title": "Licensing privacy support moderation and commercial authorization",
+      "owner": "legal-privacy-product-support-and-commercial",
+      "evidence_class": "commercial_legal",
+      "state": "commercial_approval_required",
+      "execution_entry": "docs/release/trnm-world-commercial-authorization-protocol-v1.md",
+      "minimum_evidence": [
+        "source asset audio and vendor license inventory",
+        "privacy data map minimization retention deletion and regional scope",
+        "terms age payment support moderation appeal and incident readiness",
+        "exact launch artifact region price and market scope",
+        "explicit accountable human go or no-go decision"
+      ]
+    }
+  ],
+  "closure_rule": "A row changes to closed only through a reviewed ledger update that references a strict-validator PASS record and immutable artifacts appropriate to the row evidence class. Coordination issues templates local tests and lower-class evidence cannot close a higher-class row."
+}

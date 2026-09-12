@@ -1,0 +1,68 @@
+name: trnm-world-repository-contract-v3
+
+on:
+  pull_request:
+    paths:
+      - docs/governance/main-protection-contract-v2.json
+      - scripts/admin/apply-world-repository-controls.py
+      - scripts/check-world-main-protection-contract-v2.py
+      - scripts/check-world-repository-control-applier-v2.py
+      - .github/workflows/trnm-world-repository-contract-v3.yml
+  push:
+    branches:
+      - main
+      - fix/world-plan-v4-development-closure-20260831
+    paths:
+      - docs/governance/main-protection-contract-v2.json
+      - scripts/admin/apply-world-repository-controls.py
+      - scripts/check-world-main-protection-contract-v2.py
+      - scripts/check-world-repository-control-applier-v2.py
+      - .github/workflows/trnm-world-repository-contract-v3.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trnm-world-repository-contract-v3-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  repository-contract:
+    name: trnm-world-v5/repository-contract-v3
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout exact event commit without third-party actions
+        shell: bash
+        run: |
+          set -euo pipefail
+          git init repository
+          git -C repository remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          git -C repository fetch --no-tags --depth=3 origin "${GITHUB_SHA}"
+          git -C repository checkout --detach FETCH_HEAD
+          test "$(git -C repository rev-parse HEAD)" = "${GITHUB_SHA}"
+
+      - name: Validate declared controls without applying them
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd repository
+          python3 -m json.tool docs/governance/main-protection-contract-v2.json >/dev/null
+          python3 -m py_compile \
+            scripts/admin/apply-world-repository-controls.py \
+            scripts/check-world-main-protection-contract-v2.py \
+            scripts/check-world-repository-control-applier-v2.py
+          python3 scripts/check-world-main-protection-contract-v2.py
+          python3 scripts/check-world-repository-control-applier-v2.py
+          python3 - <<'PY'
+          import json
+          contract=json.load(open('docs/governance/main-protection-contract-v2.json'))
+          assert contract['server_state']=='not_enforced_until_api_readback'
+          assert contract['production_authorization']=='not_granted'
+          assert contract['block_direct_pushes'] is True
+          assert contract['allow_force_pushes'] is False
+          assert contract['allow_deletions'] is False
+          assert contract['admin_enforcement'] is True
+          PY
+          printf 'TRNM_WORLD_REPOSITORY_CONTRACT_V3=PASS\n'

@@ -1,0 +1,287 @@
+name: trnm-world-v6-admission-v2
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trnm-world-v6-admission-v2-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  RUST_TOOLCHAIN: '1.98.1'
+  RUSTUP_TOOLCHAIN: '1.98.1'
+  CARGO_TERM_COLOR: never
+  CARGO_INCREMENTAL: '0'
+  RUST_BACKTRACE: '1'
+  RUST_TEST_THREADS: '1'
+  HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+  BASE_SHA: ${{ github.event.pull_request.base.sha || '' }}
+  MERGE_SHA: ${{ github.sha }}
+
+jobs:
+  truth:
+    name: trnm-world-v6/truth-head-and-merge
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Checkout actual event object
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ env.MERGE_SHA }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Materialize and validate exact objects
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin "$HEAD_SHA"
+          head_dir="$RUNNER_TEMP/world-head"
+          rm -rf "$head_dir"
+          git worktree add --detach "$head_dir" "$HEAD_SHA"
+          test "$(git -C "$head_dir" rev-parse HEAD)" = "$HEAD_SHA"
+          if test "$GITHUB_EVENT_NAME" = pull_request; then
+            test "$(git rev-parse HEAD)" = "$MERGE_SHA"
+            test "$(git rev-parse HEAD^1)" = "$BASE_SHA"
+            test "$(git rev-parse HEAD^2)" = "$HEAD_SHA"
+          else
+            test "$(git rev-parse HEAD)" = "$HEAD_SHA"
+          fi
+      - name: Qualify truth on exact head and actual prospective merge
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash "$RUNNER_TEMP/world-head/scripts/run-trnm-world-v6-qualification-v2.sh" truth
+          mkdir -p evidence/head evidence/merge
+          cp -R "$RUNNER_TEMP/world-head/run/world-v6-v2/truth/." evidence/head/
+          if test "$GITHUB_EVENT_NAME" = pull_request; then
+            bash scripts/run-trnm-world-v6-qualification-v2.sh truth
+            cp -R run/world-v6-v2/truth/. evidence/merge/
+          fi
+      - name: Upload truth evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: trnm-world-v6-v2-truth-${{ env.HEAD_SHA }}-${{ env.MERGE_SHA }}-${{ github.run_attempt }}
+          path: evidence/**
+          if-no-files-found: warn
+          retention-days: 30
+
+  source:
+    name: trnm-world-v6/source-head-and-merge
+    runs-on: ubuntu-24.04
+    timeout-minutes: 240
+    steps:
+      - name: Checkout actual event object
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ env.MERGE_SHA }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Materialize and validate exact objects
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin "$HEAD_SHA"
+          head_dir="$RUNNER_TEMP/world-head"
+          rm -rf "$head_dir"
+          git worktree add --detach "$head_dir" "$HEAD_SHA"
+          test "$(git -C "$head_dir" rev-parse HEAD)" = "$HEAD_SHA"
+          if test "$GITHUB_EVENT_NAME" = pull_request; then
+            test "$(git rev-parse HEAD)" = "$MERGE_SHA"
+            test "$(git rev-parse HEAD^1)" = "$BASE_SHA"
+            test "$(git rev-parse HEAD^2)" = "$HEAD_SHA"
+          else
+            test "$(git rev-parse HEAD)" = "$HEAD_SHA"
+          fi
+      - name: Install pinned toolchain and native dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal --component rustfmt,clippy
+          rustup default "$RUST_TOOLCHAIN"
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libasound2-dev libudev-dev libx11-dev libxi-dev libxkbcommon-dev libwayland-dev pkg-config
+          rustc --version --verbose
+          cargo --version --verbose
+      - name: Qualify source on exact head and actual prospective merge
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash "$RUNNER_TEMP/world-head/scripts/run-trnm-world-v6-qualification-v2.sh" source
+          mkdir -p evidence/head evidence/merge
+          cp -R "$RUNNER_TEMP/world-head/run/world-v6-v2/source/." evidence/head/
+          if test "$GITHUB_EVENT_NAME" = pull_request; then
+            bash scripts/run-trnm-world-v6-qualification-v2.sh source
+            cp -R run/world-v6-v2/source/. evidence/merge/
+          fi
+      - name: Upload source evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: trnm-world-v6-v2-source-${{ env.HEAD_SHA }}-${{ env.MERGE_SHA }}-${{ github.run_attempt }}
+          path: evidence/**
+          if-no-files-found: warn
+          retention-days: 30
+
+  postgres:
+    name: trnm-world-v6/postgres-head-and-merge
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    services:
+      postgres:
+        image: postgres:16@sha256:f1c3376c26f2609ab9f29f71f824103fe2fcd8ee0346485cb6122a4f93df6f94
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      PGHOST: 127.0.0.1
+      PGPORT: '5432'
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      PGDATABASE: postgres
+      TRNM_SETTLEMENT_TEST_DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/postgres
+      TRNM_WORLD_POSTGRES_CLIENT_IMAGE: postgres:16@sha256:f1c3376c26f2609ab9f29f71f824103fe2fcd8ee0346485cb6122a4f93df6f94
+    steps:
+      - name: Checkout actual event object
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ env.MERGE_SHA }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Materialize and validate exact objects
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin "$HEAD_SHA"
+          head_dir="$RUNNER_TEMP/world-head"
+          rm -rf "$head_dir"
+          git worktree add --detach "$head_dir" "$HEAD_SHA"
+          test "$(git -C "$head_dir" rev-parse HEAD)" = "$HEAD_SHA"
+          if test "$GITHUB_EVENT_NAME" = pull_request; then
+            test "$(git rev-parse HEAD)" = "$MERGE_SHA"
+            test "$(git rev-parse HEAD^1)" = "$BASE_SHA"
+            test "$(git rev-parse HEAD^2)" = "$HEAD_SHA"
+          else
+            test "$(git rev-parse HEAD)" = "$HEAD_SHA"
+          fi
+      - name: Install pinned Rust toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal
+          rustup default "$RUST_TOOLCHAIN"
+      - name: Qualify PostgreSQL on exact head and actual prospective merge
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash "$RUNNER_TEMP/world-head/scripts/run-trnm-world-v6-qualification-v2.sh" postgres
+          mkdir -p evidence/head evidence/merge
+          cp -R "$RUNNER_TEMP/world-head/run/world-v6-v2/postgres/." evidence/head/
+          if test "$GITHUB_EVENT_NAME" = pull_request; then
+            bash scripts/run-trnm-world-v6-qualification-v2.sh postgres
+            cp -R run/world-v6-v2/postgres/. evidence/merge/
+          fi
+      - name: Upload PostgreSQL evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: trnm-world-v6-v2-postgres-${{ env.HEAD_SHA }}-${{ env.MERGE_SHA }}-${{ github.run_attempt }}
+          path: evidence/**
+          if-no-files-found: warn
+          retention-days: 30
+
+  package:
+    name: trnm-world-v6/package-head-and-merge
+    runs-on: ubuntu-24.04
+    timeout-minutes: 240
+    steps:
+      - name: Checkout actual event object
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ env.MERGE_SHA }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Materialize and validate exact objects
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin "$HEAD_SHA"
+          head_dir="$RUNNER_TEMP/world-head"
+          rm -rf "$head_dir"
+          git worktree add --detach "$head_dir" "$HEAD_SHA"
+          test "$(git -C "$head_dir" rev-parse HEAD)" = "$HEAD_SHA"
+          if test "$GITHUB_EVENT_NAME" = pull_request; then
+            test "$(git rev-parse HEAD)" = "$MERGE_SHA"
+            test "$(git rev-parse HEAD^1)" = "$BASE_SHA"
+            test "$(git rev-parse HEAD^2)" = "$HEAD_SHA"
+          else
+            test "$(git rev-parse HEAD)" = "$HEAD_SHA"
+          fi
+      - name: Install pinned toolchain and native dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal
+          rustup default "$RUST_TOOLCHAIN"
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libasound2-dev libudev-dev libx11-dev libxi-dev libxkbcommon-dev libwayland-dev pkg-config
+      - name: Qualify package on exact head and actual prospective merge
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash "$RUNNER_TEMP/world-head/scripts/run-trnm-world-v6-qualification-v2.sh" package
+          mkdir -p evidence/head evidence/merge
+          cp -R "$RUNNER_TEMP/world-head/run/world-v6-v2/package/." evidence/head/
+          if test "$GITHUB_EVENT_NAME" = pull_request; then
+            bash scripts/run-trnm-world-v6-qualification-v2.sh package
+            cp -R run/world-v6-v2/package/. evidence/merge/
+          fi
+      - name: Upload package evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: trnm-world-v6-v2-package-${{ env.HEAD_SHA }}-${{ env.MERGE_SHA }}-${{ github.run_attempt }}
+          path: evidence/**
+          if-no-files-found: warn
+          retention-days: 30
+
+  required:
+    name: trnm-world-v6/required-v2
+    if: always()
+    needs:
+      - truth
+      - source
+      - postgres
+      - package
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Enforce all current qualification jobs
+        env:
+          TRUTH_RESULT: ${{ needs.truth.result }}
+          SOURCE_RESULT: ${{ needs.source.result }}
+          POSTGRES_RESULT: ${{ needs.postgres.result }}
+          PACKAGE_RESULT: ${{ needs.package.result }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$TRUTH_RESULT" = success
+          test "$SOURCE_RESULT" = success
+          test "$POSTGRES_RESULT" = success
+          test "$PACKAGE_RESULT" = success
+          printf 'TRNM_WORLD_V6_REQUIRED_V2=PASS\n'
+          printf 'HEAD_SHA=%s\n' "$HEAD_SHA"
+          printf 'MERGE_SHA=%s\n' "$MERGE_SHA"
+          printf 'PRODUCTION_AUTHORIZATION=not_granted\n'

@@ -3,6 +3,7 @@ use trnm_economy_protocol::ServerSignedValueEntitlementV2;
 
 pub const ENTITLEMENT_SIGNER_CONTRACT: &str = "trnm_entitlement_signer_v1";
 pub const ENTITLEMENT_SIGNER_ISSUER: &str = "trnm-online-game-server";
+pub const ENTITLEMENT_SIGNER_RECEIPT_PATH: &str = "/v1/signer/receipts";
 pub const SIGNER_AUTH_HEADER: &str = "x-trnm-signer-auth";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
