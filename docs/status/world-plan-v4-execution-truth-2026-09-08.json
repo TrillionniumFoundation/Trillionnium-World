@@ -1,0 +1,99 @@
+{
+  "schema": "trnm_world_plan_v4_execution_truth_v1",
+  "recorded_at_utc": "2026-09-08T13:09:03Z",
+  "repository": "TrillionniumFoundation/Trillionnium-World",
+  "operative_pull_request": 104,
+  "operative_branch": "fix/world-convergence-v6-20260908",
+  "observed_head_before_truth_update": "b218dbfb6c22f6b44e8ee542d2ab62c27d160349",
+  "observed_tree_before_truth_update": "1c3a79ad518716fc574deda039a49d8e29aa07f9",
+  "base": {
+    "branch": "main",
+    "head": "0f6117a56263bcb5bf89e34b8bcda557a7da2e6d"
+  },
+  "source_qualification": {
+    "source_world_head": "5605cfb8861aa923f69ff032ddbff7d035bccb0c",
+    "source_world_tree": "928f43b328e5347b07357e41481df1c7e097adca",
+    "qualification_control_head": "68e9631b3fc3f75f332497f8d0551608bf0e1413",
+    "workflow_run_id": 33452853784,
+    "workflow_job_id": 99686384472,
+    "artifact_id": 9780499701,
+    "artifact_zip_sha256": "456a181bdc8f8aa248229b044db9eec4f52572ea3b20bca6492907db58d64ef5",
+    "source_patch_sha256": "ba49dba1e7fbf842f146ac399647e188faafcfbd5ce3ad17425ef88850e0199f",
+    "candidate_archive_sha256": "4c703f428f9a54262a6c0c1340028d08d7883f25ef437c1d7e221a280f53f071",
+    "manifest_sha256": "44cf59478b28e8fde793ca0d705ba3634216a5d388ce7264e74cd0319c41ff6f",
+    "identity_sha256": "d05b375af8d0d8317a2e6e58b75a594949729203499f6677b43f1ea36ff31110",
+    "qualified_source_tree": "5e613185f5a2abda42df371f3755e73667717309",
+    "rust_toolchain": "1.98.0",
+    "qualification_result": "pass",
+    "scope": "historical_immutable_source_artifact_only",
+    "credit_transfer_to_current_head": false
+  },
+  "source_publication": {
+    "state": "converged_source_candidate_requires_fresh_qualification",
+    "qualified_tree_present": true,
+    "qualified_tree_attached_to_pull_request": true,
+    "direct_source_required": true,
+    "semantic_build_rs_and_lib_rs_in_must_be_absent": true,
+    "published_head": "5e7bb9a3e44e61371972d1fe1054fefb637a5629",
+    "published_parent": "b131aaccddf1a5a1474e95cd7eec018deeed08d7",
+    "published_tree": "1d2e01be24434390593b11202e6c374d4773d4e0",
+    "convergence_head_before_truth_update": "b218dbfb6c22f6b44e8ee542d2ab62c27d160349",
+    "world_authority_source_imported": true,
+    "world_authority_production_authorization": "not_granted",
+    "build_rs_absent": true,
+    "lib_rs_in_absent": true,
+    "rule": "historical source qualification does not transfer to the converged head; fresh exact-head and prospective-merge execution is required"
+  },
+  "github_actions": {
+    "repository_workflow_run_total": 0,
+    "state": "scheduler_no_exact_head_runs",
+    "exact_head_evidence": "absent",
+    "exact_head": "b218dbfb6c22f6b44e8ee542d2ab62c27d160349",
+    "prospective_merge": "56c3d79b98dc478cd6148ebb4d19c27c72d9ab89",
+    "ordinary_push_and_pull_request_events_observed": true,
+    "reviewers_requested": true,
+    "rule": "empty check collections and zero exact-head workflow runs receive no verification credit"
+  },
+  "cex_dependency": {
+    "repository": "TrillionniumFoundation/CEX",
+    "pull_request": 53,
+    "branch": "integration/cex-v12-sequence54-20260908",
+    "commit": "6a14d0da4cf1aefd4689708a6967a4ae1c0e84fc",
+    "tree": "e425423fda89ce5438879518367f4b12ad2ef3f5",
+    "base": "db75c74094748a1139fd64b0360e122d8ec797a0",
+    "prospective_merge": "53676ad0ea2712b5efa2bf2a49359e00035521c4",
+    "sequence": 54,
+    "qualification_state": "draft_unqualified",
+    "production_authorization": "not_granted",
+    "observed_state": "open",
+    "observed_at_utc": "2026-09-08T13:09:03Z"
+  },
+  "repository_governance": {
+    "main": "0f6117a56263bcb5bf89e34b8bcda557a7da2e6d",
+    "main_protected": true,
+    "required_contexts": [
+      "trnm-game-ci",
+      "trnm-world-p0-boundaries",
+      "trnm-world-status-evidence"
+    ],
+    "desired_contract_matches_observation": false,
+    "rulesets_observed": 0
+  },
+  "closure": {
+    "world_owned_source_development_closed": false,
+    "exact_head_ci_closed": false,
+    "independent_review_closed": false,
+    "server_governance_closed": false,
+    "all_plan_gaps_closed": false,
+    "production_authorization": "not_granted"
+  },
+  "external_evidence_gaps": {
+    "nakama_canonical_authority_and_cutover": "open",
+    "trusted_cex_custody_and_settlement": "open",
+    "deployment_and_public_edge": "open",
+    "cross_host_recovery_and_endurance": "open",
+    "human_and_accessibility_validation": "open",
+    "privacy_legal_support_and_commercial": "open"
+  },
+  "no_credit_rule": "source and local fixture tests cannot synthesize hosted CI, server governance, cross-repository, deployed, custody, human, legal, commercial, or independent-review evidence"
+}

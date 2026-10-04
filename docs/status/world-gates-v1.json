@@ -1,0 +1,106 @@
+{
+  "schema_version": 1,
+  "project_id": "trillionnium-world",
+  "as_of": "2026-08-29",
+  "source_plan": "docs/development/TRILLIONNIUM_WORLD_DEVELOPMENT_PLAN_2026-08-29.md",
+  "gates": [
+    {
+      "id": "deterministic_runtime_alpha",
+      "status": "implemented",
+      "authority_profile": "world_game_domain",
+      "evidence": [],
+      "blockers": [
+        "exact-head Rust and independent conformance workflow evidence is not yet registered",
+        "Nakama shadow implementation and cross-repository component lock remain open"
+      ],
+      "limitations": [
+        "source implementation is not equivalent to remote verification or deployment",
+        "World hashes do not prove online admission, total order, archive completeness, Chain finality, or settlement"
+      ]
+    },
+    {
+      "id": "native_software_alpha",
+      "status": "blocked",
+      "authority_profile": "world_native_client",
+      "evidence": [],
+      "blockers": [
+        "current exact-head workspace, package, and platform workflow evidence is not registered",
+        "human usability and accessibility rows remain external"
+      ],
+      "limitations": [
+        "no Windows/macOS signed distribution credit",
+        "no independent human usability credit"
+      ]
+    },
+    {
+      "id": "trusted_cex_settlement",
+      "status": "implemented",
+      "authority_profile": "world_legacy_local_alpha_plus_cex",
+      "evidence": [],
+      "blockers": [
+        "exact-head PostgreSQL and Rust checks have not completed",
+        "CEX owner implementation and exact deployment artifact are not merged and bound",
+        "deployed response-loss, process-kill, cancellation, shutdown, apply-rollback, backup and PITR evidence is absent",
+        "independent reviewer signoff is absent"
+      ],
+      "limitations": [
+        "source-level capture/execute/apply, lease fencing, quarantine, and recovery controls are not deployment evidence",
+        "public wallet, custody, and market credit remain prohibited"
+      ]
+    },
+    {
+      "id": "closed_online_nakama",
+      "status": "blocked",
+      "authority_profile": "nakama_target",
+      "evidence": [],
+      "blockers": [
+        "Nakama adapter and independent shadow comparison are not complete",
+        "active compatibility matches have not been drained under a reviewed cutover",
+        "Integration exact World/Nakama component lock and rollback evidence are absent"
+      ],
+      "limitations": [
+        "World-local Online Authority remains migration-era world_legacy_local_alpha",
+        "no dual-authority or active-match takeover credit"
+      ]
+    },
+    {
+      "id": "public_online",
+      "status": "no_go",
+      "authority_profile": "nakama_target",
+      "evidence": [],
+      "blockers": [
+        "closed-online authority migration is incomplete",
+        "public TLS, WAF/DDoS, KMS/HSM, replicated durability, multi-host recovery, 24-hour endurance, capacity, staffed operations, and human gates are incomplete"
+      ],
+      "limitations": [
+        "current evidence is source/local/single-host only",
+        "cross-host RPO=0 and public ingress are not implemented or attested"
+      ]
+    },
+    {
+      "id": "public_player_market",
+      "status": "disabled",
+      "authority_profile": "separate_future_approval",
+      "evidence": [],
+      "blockers": [
+        "public online is no-go",
+        "custody, listing ownership, fraud, dispute, chargeback, support, privacy, legal, economic, and governance approvals are absent"
+      ],
+      "limitations": [
+        "a game-source change or local test can never enable the public market"
+      ]
+    },
+    {
+      "id": "commercial_single_player",
+      "status": "blocked",
+      "authority_profile": "world_native_client",
+      "evidence": [],
+      "blockers": [
+        "multi-OS distribution, accessibility, support, legal, and external human evidence are incomplete"
+      ],
+      "limitations": [
+        "technical-alpha source evidence does not imply commercial readiness"
+      ]
+    }
+  ]
+}

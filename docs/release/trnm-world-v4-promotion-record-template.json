@@ -1,0 +1,22 @@
+{
+  "schema": "trnm_world_v4_promotion_record_v1",
+  "claim": "v4_source_candidate",
+  "commit": "REPLACE_WITH_EXACT_HEAD_AFTER_GREEN_RUN",
+  "tree": "REPLACE_WITH_EXACT_TREE_AFTER_GREEN_RUN",
+  "workflow_run_ids": [],
+  "required_checks": {
+    "trnm-world-v4/docs-governance": "pending",
+    "trnm-world-v4/transition-contract": "pending",
+    "trnm-world-v4/settlement-postgres": "pending",
+    "trnm-world-v4/game-workspace-release": "pending",
+    "trnm-world-v4/supply-chain": "pending"
+  },
+  "artifacts": [],
+  "reviewers": [],
+  "limitations": [
+    "template grants no credit",
+    "server-side main protection must be separately observed",
+    "external authority, deployment, human, custody, and commercial gates remain separate"
+  ],
+  "decision": "pending"
+}

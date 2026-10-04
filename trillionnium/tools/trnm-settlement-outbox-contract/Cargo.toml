@@ -1,0 +1,10 @@
+[workspace]
+
+[package]
+name = "trnm-settlement-outbox-contract"
+version = "0.1.0"
+edition = "2021"
+license = "LicenseRef-Trillionnium-Internal"
+publish = false
+
+[dependencies]

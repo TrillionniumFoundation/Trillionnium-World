@@ -1,0 +1,60 @@
+name: docs-quality
+
+on:
+  pull_request:
+    paths:
+      - 'README.md'
+      - 'PROJECT_BOUNDARY.md'
+      - 'SECURITY.md'
+      - 'CONTRIBUTING.md'
+      - 'docs/**'
+      - 'trillionnium/docs/**'
+      - 'trillionnium/**/README.md'
+      - 'contracts/**/README.md'
+      - 'web4-frontend/**/README.md'
+      - 'assets/**/README.md'
+      - 'config/**/README.md'
+      - 'deploy/**/README.md'
+      - 'packaging/**/README.md'
+      - 'playtests/**/README.md'
+      - 'scripts/**'
+      - '.github/workflows/docs-quality.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'README.md'
+      - 'PROJECT_BOUNDARY.md'
+      - 'SECURITY.md'
+      - 'CONTRIBUTING.md'
+      - 'docs/**'
+      - 'trillionnium/docs/**'
+      - 'trillionnium/**/README.md'
+      - 'contracts/**/README.md'
+      - 'web4-frontend/**/README.md'
+      - 'assets/**/README.md'
+      - 'config/**/README.md'
+      - 'deploy/**/README.md'
+      - 'packaging/**/README.md'
+      - 'playtests/**/README.md'
+      - 'scripts/**'
+      - '.github/workflows/docs-quality.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docs-quality-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  canonical-documentation:
+    name: canonical-documentation
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate module coverage, canonical links, and path hygiene
+        run: python3 scripts/check_docs_quality.py

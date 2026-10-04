@@ -1,5 +1,5 @@
 use axum::{
-    extract::{DefaultBodyLimit, State},
+    extract::{DefaultBodyLimit, Path, State},
     http::{HeaderMap, StatusCode},
     response::IntoResponse,
     routing::{get, post},
@@ -12,7 +12,7 @@ use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use sqlx::row::Row;
 use sqlx_postgres::{PgPool, PgPoolOptions};
-use std::{net::SocketAddr, path::Path, sync::Arc, time::Duration};
+use std::{net::SocketAddr, path::Path as FsPath, sync::Arc, time::Duration};
 use trnm_economy_protocol::{
     ServerSignedValueEntitlementV2, ValueEntitlementSource,
     SERVER_SIGNED_VALUE_ENTITLEMENT_V2_CONTRACT,
@@ -20,7 +20,7 @@ use trnm_economy_protocol::{
 use trnm_game_server::signer_protocol::{
     EntitlementSignRequest, EntitlementSignResponse, EntitlementSignerAttestationRequest,
     EntitlementSignerAttestationResponse, EntitlementSignerReadiness, ENTITLEMENT_SIGNER_CONTRACT,
-    ENTITLEMENT_SIGNER_ISSUER, SIGNER_AUTH_HEADER,
+    ENTITLEMENT_SIGNER_ISSUER, ENTITLEMENT_SIGNER_RECEIPT_PATH, SIGNER_AUTH_HEADER,
 };
 
 const SIGNER_DATABASE_MAX_CONNECTIONS: u32 = 4;
@@ -159,21 +159,26 @@ async fn attest_signer(
     Ok(Json(response))
 }
 
-fn validate_request_identity(request: &EntitlementSignRequest) -> Result<(), ApiError> {
-    if request.contract_version != ENTITLEMENT_SIGNER_CONTRACT
-        || request.request_id.is_empty()
-        || request.request_id.len() > 200
-        || !request
-            .request_id
+fn validate_request_id(request_id: &str) -> Result<(), ApiError> {
+    if request_id.is_empty()
+        || request_id.len() > 200
+        || !request_id
             .bytes()
             .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b':' | b'-' | b'_' | b'.'))
     {
-        return Err(error(
-            StatusCode::BAD_REQUEST,
-            "invalid signer request contract or id",
-        ));
+        return Err(error(StatusCode::BAD_REQUEST, "invalid signer request id"));
     }
     Ok(())
+}
+
+fn validate_request_identity(request: &EntitlementSignRequest) -> Result<(), ApiError> {
+    if request.contract_version != ENTITLEMENT_SIGNER_CONTRACT {
+        return Err(error(
+            StatusCode::BAD_REQUEST,
+            "invalid signer request contract",
+        ));
+    }
+    validate_request_id(&request.request_id)
 }
 
 fn validate_request(request: &EntitlementSignRequest) -> Result<(), ApiError> {
@@ -195,8 +200,8 @@ fn validate_request(request: &EntitlementSignRequest) -> Result<(), ApiError> {
         || entitlement.match_id.is_empty()
         || entitlement.result_hash.len() != 64
         || entitlement.participants_hash.len() != 64
-        || entitlement.nonce.is_empty()
-        || entitlement.intent_id != request.request_id
+        || entitlement.intent_id.is_empty()
+        || entitlement.nonce != request.request_id
     {
         return Err(error(
             StatusCode::UNPROCESSABLE_ENTITY,
@@ -231,6 +236,26 @@ fn response_from_row(
             .map_err(|db| error(StatusCode::INTERNAL_SERVER_ERROR, db.to_string()))?,
         duplicate,
     })
+}
+
+async fn get_signing_receipt(
+    State(state): State<SignerState>,
+    headers: HeaderMap,
+    Path(request_id): Path<String>,
+) -> Result<Json<EntitlementSignResponse>, ApiError> {
+    require_auth(&state, &headers)?;
+    validate_request_id(&request_id)?;
+    let row = sqlx::query::query(
+        "select request_hash, signing_receipt_hash, key_id, issuer, signature
+           from trnm_entitlement_signing_receipts
+          where request_id = $1",
+    )
+    .bind(&request_id)
+    .fetch_optional(&state.pool)
+    .await
+    .map_err(|db| error(StatusCode::INTERNAL_SERVER_ERROR, db.to_string()))?
+    .ok_or_else(|| error(StatusCode::NOT_FOUND, "signer receipt not found"))?;
+    Ok(Json(response_from_row(&request_id, &row, true)?))
 }
 
 async fn sign_entitlement(
@@ -336,7 +361,7 @@ async fn sign_entitlement(
 }
 
 #[cfg(unix)]
-fn verify_private_key_permissions(path: &Path) -> Result<(), String> {
+fn verify_private_key_permissions(path: &FsPath) -> Result<(), String> {
     use std::os::unix::fs::PermissionsExt;
     let metadata =
         std::fs::metadata(path).map_err(|error| format!("inspect signer private seed: {error}"))?;
@@ -347,7 +372,7 @@ fn verify_private_key_permissions(path: &Path) -> Result<(), String> {
 }
 
 #[cfg(not(unix))]
-fn verify_private_key_permissions(path: &Path) -> Result<(), String> {
+fn verify_private_key_permissions(path: &FsPath) -> Result<(), String> {
     if !path.is_file() {
         return Err("signer private seed must be a regular file".to_string());
     }
@@ -376,7 +401,7 @@ async fn main() -> Result<(), String> {
     }
     let key_path = std::env::var("TRNM_ENTITLEMENT_ED25519_PRIVATE_KEY_FILE")
         .map_err(|_| "TRNM_ENTITLEMENT_ED25519_PRIVATE_KEY_FILE is required".to_string())?;
-    verify_private_key_permissions(Path::new(&key_path))?;
+    verify_private_key_permissions(FsPath::new(&key_path))?;
     let seed = STANDARD
         .decode(
             std::fs::read_to_string(&key_path)
@@ -419,6 +444,7 @@ async fn main() -> Result<(), String> {
         .await
         .map_err(|error| format!("bind isolated signer {bind_addr}: {error}"))?;
     tracing::info!(%bind_addr, key_id = %state.key_id, "isolated entitlement signer ready");
+    debug_assert_eq!(ENTITLEMENT_SIGNER_RECEIPT_PATH, "/v1/signer/receipts");
     axum::serve(
         listener,
         Router::new()
@@ -426,6 +452,7 @@ async fn main() -> Result<(), String> {
             .route("/v1/signer/readiness", get(readiness))
             .route("/v1/signer/attest", post(attest_signer))
             .route("/v1/signer/sign", post(sign_entitlement))
+            .route("/v1/signer/receipts/:request_id", get(get_signing_receipt))
             .layer(DefaultBodyLimit::max(64 * 1024))
             .with_state(state),
     )
@@ -435,12 +462,22 @@ async fn main() -> Result<(), String> {
 
 #[cfg(test)]
 mod tests {
-    use super::database_pool_is_operational;
+    use super::{database_pool_is_operational, validate_request_id};
 
     #[test]
     fn readiness_only_reports_saturation_at_the_pool_limit() {
         assert!(database_pool_is_operational(1, 0, 4));
         assert!(database_pool_is_operational(4, 1, 4));
         assert!(!database_pool_is_operational(4, 0, 4));
+    }
+
+    #[test]
+    fn signer_receipt_lookup_accepts_only_stable_request_ids() {
+        assert!(validate_request_id(
+            "trnm-settlement-remote-v1:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+        )
+        .is_ok());
+        assert!(validate_request_id("bad/request").is_err());
+        assert!(validate_request_id("").is_err());
     }
 }

@@ -1,0 +1,16 @@
+{
+  "schema": "trnm_world_document_catalog_additions_v1",
+  "as_of": "2026-09-09",
+  "base_catalog": "docs/catalog.json",
+  "production_authorization": "not_granted",
+  "documents": [
+    {"path":"docs/component-catalog.json","class":"component-catalog","owner":"trillionnium-world-architecture","status":"current-candidate","review_due":"2026-10-08"},
+    {"path":"docs/component-catalog.README.md","class":"component-catalog-contract","owner":"trillionnium-world-architecture","status":"current-candidate","review_due":"2026-10-08"},
+    {"path":"docs/modules/contracts/README.md","class":"contract-module-index","owner":"trillionnium-world-contracts","status":"current-candidate","review_due":"2026-10-08"},
+    {"path":"docs/modules/contracts/audit-events-design.md","class":"module-design","owner":"trillionnium-world-contracts","status":"current-candidate","review_due":"2026-10-08"},
+    {"path":"docs/modules/contracts/settlement-vault-design.md","class":"module-design","owner":"trillionnium-world-contracts","status":"current-candidate","review_due":"2026-10-08"},
+    {"path":"docs/modules/contracts/bridge-relay-design.md","class":"module-design","owner":"trillionnium-world-contracts","status":"current-candidate","review_due":"2026-10-08"},
+    {"path":"docs/modules/contracts/governance-guard-design.md","class":"module-design","owner":"trillionnium-world-contracts","status":"current-candidate","review_due":"2026-10-08"}
+  ],
+  "merge_rule": "These rows must be folded into docs/catalog.json before merge; this additions file grants no catalogue or release credit."
+}

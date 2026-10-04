@@ -1,0 +1,28 @@
+{
+  "schema": "trnm_world_evidence_record_v1",
+  "claim_id": "replace-with-exact-claim-id",
+  "gate_id": "replace-with-exact-gate-id",
+  "evidence_class": "replace-with-required-evidence-class",
+  "scope": "Template only. This record grants no qualification, release, deployment, or production authority.",
+  "result": "inconclusive",
+  "source": {
+    "repository": "TrillionniumFoundation/Trillionnium-World",
+    "commit": "0000000000000000000000000000000000000000",
+    "tree": "0000000000000000000000000000000000000000",
+    "clean": false
+  },
+  "artifacts": [],
+  "toolchain": {},
+  "component_lock": {},
+  "environment": {},
+  "timing": {},
+  "thresholds": [],
+  "observations": [],
+  "faults": [],
+  "raw_evidence": [],
+  "limitations": [
+    "Template only. Replace every placeholder and attach hash-bound raw evidence before review."
+  ],
+  "expiry": {},
+  "review": {}
+}

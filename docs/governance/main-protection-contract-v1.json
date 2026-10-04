@@ -1,0 +1,19 @@
+{
+  "contract": "trnm_world_main_protection_v1",
+  "target": "main",
+  "required": {
+    "pull_request": true,
+    "independent_approvals": 1,
+    "code_owner_review": true,
+    "dismiss_stale_reviews": true,
+    "require_last_push_approval": true,
+    "require_conversation_resolution": true,
+    "block_force_push": true,
+    "block_deletion": true,
+    "required_linear_history": true,
+    "administrator_bypass": "none_or_audited_break_glass",
+    "required_checks_must_bind_exact_head": true
+  },
+  "evidence_rule": "This source contract grants no server-side governance credit. Closure requires GitHub API readback and a negative merge rehearsal.",
+  "release_effect": "none"
+}

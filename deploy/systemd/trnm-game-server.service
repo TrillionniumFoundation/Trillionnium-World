@@ -1,5 +1,5 @@
 [Unit]
-Description=TRNM Online Authority v3 / Production v2 Game Server
+Description=TRNM World Compatibility Authority / Game Server
 After=network-online.target cex-trnm-ledger.service trnm-entitlement-signer.service
 Wants=network-online.target cex-trnm-ledger.service trnm-entitlement-signer.service
 StartLimitIntervalSec=120
@@ -7,12 +7,16 @@ StartLimitBurst=5
 
 [Service]
 Type=simple
-WorkingDirectory=/home/qian/.openclaw/workspace/Trillionnium
-ExecStart=/home/qian/.openclaw/workspace/Trillionnium/scripts/run-trnm-game-server.sh
+Environment=TRNM_WORLD_ROOT=@TRNM_WORLD_ROOT@
+Environment=TRNM_STATE_HOME=@TRNM_STATE_HOME@
+EnvironmentFile=@TRNM_CONFIG_HOME@/game-server.env
+WorkingDirectory=@TRNM_WORLD_ROOT@
+ExecStart=@TRNM_WORLD_ROOT@/scripts/run-trnm-game-server.sh
 Restart=on-failure
 RestartSec=5
 TimeoutStartSec=90
 TimeoutStopSec=30
+UMask=0077
 CPUAccounting=true
 CPUWeight=200
 CPUQuota=200%
@@ -27,9 +31,15 @@ TasksAccounting=true
 TasksMax=256
 NoNewPrivileges=true
 PrivateTmp=true
+PrivateDevices=true
 ProtectSystem=strict
 ProtectHome=read-only
-ReadWritePaths=/home/qian/.openclaw/workspace/Trillionnium/run
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+LockPersonality=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+ReadWritePaths=@TRNM_STATE_HOME@ @TRNM_WORLD_ROOT@/run
 
 [Install]
 WantedBy=default.target

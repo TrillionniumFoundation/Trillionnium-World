@@ -1,0 +1,96 @@
+{
+  "schema": "trnm_world_include_migration_ledger_v1",
+  "as_of": "2026-09-10",
+  "inventory_baseline_commit": "956462f95675d3d4db89af03bc4b7cc8c9a3c975",
+  "completed": [
+    {
+      "path": "trillionnium/crates/trnm-campaign-core/src/lib.rs",
+      "expression": "\"lib_parts/rts_mapping/part_01.rs\"",
+      "replacement_module": "rts_mapping",
+      "required_fragments": [
+        "#[path = \"lib_parts/rts_mapping/part_01.rs\"]",
+        "mod rts_mapping;",
+        "pub use rts_mapping::{map_rpg_to_rts_stats, typed_equipment_modifier};"
+      ],
+      "completed_commit": "16755155c7aaeb805979fa79d655ef0e8fa9e5a9"
+    },
+    {
+      "path": "trillionnium/crates/trnm-campaign-core/src/lib.rs",
+      "expression": "\"lib_parts/save_slots/part_01.rs\"",
+      "replacement_module": "save_slots",
+      "required_fragments": [
+        "#[path = \"lib_parts/save_slots/part_01.rs\"]",
+        "mod save_slots;",
+        "pub use save_slots::*;"
+      ],
+      "completed_commit": "16755155c7aaeb805979fa79d655ef0e8fa9e5a9"
+    },
+    {
+      "path": "trillionnium/crates/trnm-campaign-core/src/lib.rs",
+      "expression": "\"lib_parts/player_settings/part_01.rs\"",
+      "replacement_module": "player_settings",
+      "required_fragments": [
+        "#[path = \"lib_parts/player_settings/part_01.rs\"]",
+        "mod player_settings;",
+        "use player_settings::atomic_write_json;",
+        "pub use player_settings::*;"
+      ],
+      "completed_commit": "16755155c7aaeb805979fa79d655ef0e8fa9e5a9"
+    },
+    {
+      "path": "trillionnium/crates/trnm-campaign-core/src/lib.rs",
+      "expression": "\"lib_parts/campaign_storage/part_01.rs\"",
+      "replacement_module": "campaign_storage",
+      "required_fragments": [
+        "#[path = \"lib_parts/campaign_storage/part_01.rs\"]",
+        "mod campaign_storage;",
+        "pub use campaign_storage::*;"
+      ],
+      "completed_commit": "16755155c7aaeb805979fa79d655ef0e8fa9e5a9"
+    },
+    {
+      "path": "trillionnium/crates/trnm-campaign-core/src/lib.rs",
+      "expression": "\"lib_parts/tests/part_01.rs\"",
+      "replacement_module": "tests",
+      "required_fragments": [
+        "#[cfg(test)]",
+        "#[path = \"lib_parts/tests/part_01.rs\"]",
+        "mod tests;"
+      ],
+      "completed_commit": "16755155c7aaeb805979fa79d655ef0e8fa9e5a9"
+    },
+    {
+      "path": "trillionnium/crates/trnm-rts-sim/src/lib.rs",
+      "expression": "\"lib_parts/checkpoint_storage/part_01.rs\"",
+      "replacement_module": "checkpoint_storage",
+      "required_fragments": [
+        "#[path = \"lib_parts/checkpoint_storage/part_01.rs\"]",
+        "mod checkpoint_storage;",
+        "pub use checkpoint_storage::*;"
+      ],
+      "completed_commit": "7c75a46b7fa952f12613a152fda2b134af811d1b"
+    },
+    {
+      "path": "trillionnium/crates/trnm-rts-sim/src/lib.rs",
+      "expression": "\"lib_parts/tests/part_01.rs\"",
+      "replacement_module": "tests",
+      "required_fragments": [
+        "#[cfg(test)]",
+        "#[path = \"lib_parts/tests/part_01.rs\"]",
+        "mod tests;"
+      ],
+      "completed_commit": "13f0416f433eb5eb040309cb03d39d913b9dccb4"
+    },
+    {
+      "path": "trillionnium/crates/trnm-game-server/src/lib.rs",
+      "expression": "\"lib_parts/tests/part_01.rs\"",
+      "replacement_module": "tests",
+      "required_fragments": [
+        "#[cfg(test)]",
+        "#[path = \"lib_parts/tests/part_01.rs\"]",
+        "mod tests;"
+      ],
+      "completed_commit": "3501a999959f97d568bfa13d4c59c943ec1e5d82"
+    }
+  ]
+}

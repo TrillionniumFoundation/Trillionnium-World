@@ -1,0 +1,102 @@
+name: trnm-world-cex-sequence-50-qualification
+
+on:
+  pull_request:
+    paths:
+      - docs/integration/trnm-world-cex-sequence-50-pending-lock-v1.json
+      - scripts/check-trnm-world-cex-pending-lock.py
+      - scripts/verify-trnm-world-cex-sequence-50.py
+      - scripts/check-trnm-world-cex-sequence-50-verifier-v3.py
+      - .github/workflows/trnm-world-cex-sequence-50-qualification.yml
+  push:
+    branches:
+      - main
+      - fix/world-plan-v4-development-closure-20260831
+    paths:
+      - docs/integration/trnm-world-cex-sequence-50-pending-lock-v1.json
+      - scripts/check-trnm-world-cex-pending-lock.py
+      - scripts/verify-trnm-world-cex-sequence-50.py
+      - scripts/check-trnm-world-cex-sequence-50-verifier-v3.py
+      - .github/workflows/trnm-world-cex-sequence-50-qualification.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trnm-world-cex-sequence-50-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  static-lock-contract:
+    name: trnm-world-v5/cex-lock-contract
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout exact event commit without third-party actions
+        shell: bash
+        run: |
+          set -euo pipefail
+          git init repository
+          git -C repository remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          git -C repository fetch --no-tags --depth=3 origin "${GITHUB_SHA}"
+          git -C repository checkout --detach FETCH_HEAD
+          test "$(git -C repository rev-parse HEAD)" = "${GITHUB_SHA}"
+      - name: Validate pending lock and read-only verifier
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd repository
+          python3 -m json.tool docs/integration/trnm-world-cex-sequence-50-pending-lock-v1.json >/dev/null
+          python3 -m py_compile \
+            scripts/check-trnm-world-cex-pending-lock.py \
+            scripts/verify-trnm-world-cex-sequence-50.py \
+            scripts/check-trnm-world-cex-sequence-50-verifier-v3.py
+          python3 scripts/check-trnm-world-cex-pending-lock.py
+          python3 scripts/check-trnm-world-cex-sequence-50-verifier-v3.py
+          printf 'TRNM_WORLD_CEX_STATIC_LOCK_CONTRACT=PASS\n'
+
+  live-upstream-qualification:
+    if: github.event_name == 'workflow_dispatch'
+    name: trnm-world-v5/cex-sequence-50-live
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      TRNM_GITHUB_READ_TOKEN: ${{ secrets.TRNM_CEX_READ_TOKEN }}
+    steps:
+      - name: Require dedicated read token
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${TRNM_GITHUB_READ_TOKEN}" || {
+            echo 'TRNM_WORLD_CEX_LIVE_BLOCKER=missing_TRNM_CEX_READ_TOKEN' >&2
+            exit 78
+          }
+      - name: Checkout exact event commit without third-party actions
+        shell: bash
+        run: |
+          set -euo pipefail
+          git init repository
+          git -C repository remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          git -C repository fetch --no-tags --depth=3 origin "${GITHUB_SHA}"
+          git -C repository checkout --detach FETCH_HEAD
+          test "$(git -C repository rev-parse HEAD)" = "${GITHUB_SHA}"
+      - name: Verify CEX runs, jobs, artifacts, governance and approval
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd repository
+          python3 scripts/verify-trnm-world-cex-sequence-50.py --result ../cex-sequence-50-verification.json
+          python3 -m json.tool ../cex-sequence-50-verification.json >/dev/null
+          sha256sum ../cex-sequence-50-verification.json
+          python3 - <<'PY'
+          import json
+          data=json.load(open('../cex-sequence-50-verification.json'))
+          assert data['commit']=='dc0862b8cf88a1f4e6328d519947e19b81122de0'
+          assert data['tree']=='762e33a3f16c14347a44cec1d862a8e0ab447ad8'
+          assert data['governance_verified'] is True
+          assert data['independent_approval_verified'] is True
+          assert data['world_adoption_eligible'] is True
+          assert data['production_authorization']=='not_granted_by_this_verifier'
+          print('TRNM_WORLD_CEX_LIVE_QUALIFICATION=PASS')
+          PY

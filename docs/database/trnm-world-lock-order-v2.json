@@ -1,0 +1,101 @@
+{
+  "schema": "trnm_world_settlement_lock_order_v2",
+  "status": "implemented_candidate_unverified",
+  "owner": "trillionnium-world",
+  "source_basis": "9a57222d1eacc7059e549df9c62a79046e8ae8ea",
+  "release_effect": "none",
+  "production_authorization": "not_granted",
+  "order": [
+    {
+      "id": "migration",
+      "rank": 1,
+      "description": "global migration advisory lock"
+    },
+    {
+      "id": "host",
+      "rank": 2,
+      "description": "database/physical-host authority advisory locks"
+    },
+    {
+      "id": "fleet",
+      "rank": 3,
+      "description": "fleet instance / route ownership rows"
+    },
+    {
+      "id": "match",
+      "rank": 4,
+      "description": "match row"
+    },
+    {
+      "id": "terminal_ack",
+      "rank": 5,
+      "description": "terminal publication ACK row"
+    },
+    {
+      "id": "members",
+      "rank": 6,
+      "description": "match-member rows ordered by player_id"
+    },
+    {
+      "id": "campaigns",
+      "rank": 7,
+      "description": "campaign rows ordered by campaign_id, player_id"
+    },
+    {
+      "id": "capture",
+      "rank": 8,
+      "description": "settlement capture row"
+    },
+    {
+      "id": "serialization",
+      "rank": 9,
+      "description": "transaction-scoped settlement serialization advisory lock"
+    },
+    {
+      "id": "jobs",
+      "rank": 10,
+      "description": "settlement jobs ordered by campaign_id, job_id"
+    },
+    {
+      "id": "operator",
+      "rank": 11,
+      "description": "operator policy/replay/quarantine rows"
+    }
+  ],
+  "checked_phases": {
+    "capture_match": [
+      "match",
+      "terminal_ack",
+      "members",
+      "campaigns",
+      "capture",
+      "jobs"
+    ],
+    "apply_capture": [
+      "match",
+      "terminal_ack",
+      "members",
+      "campaigns",
+      "capture",
+      "jobs"
+    ]
+  },
+  "unlocked_hint": {
+    "function": "apply_capture",
+    "table": "public.trnm_online_settlement_captures",
+    "revalidate": [
+      "capture_id",
+      "match_id",
+      "state"
+    ]
+  },
+  "scope": "Explicit row acquisitions in the two World settlement worker phases, not a database-wide deadlock proof.",
+  "remaining_evidence": [
+    "Rust compilation and lint on the unchanged final head",
+    "Actual PostgreSQL competition tests on the unchanged final head",
+    "Whole migration/procedure/trigger/foreign-key lock graph including operator replay",
+    "Query plans, lock/statement timeouts and cancellation under representative load",
+    "Server-side required checks and independent review",
+    "Cross-repository and deployed recovery qualification"
+  ]
+}

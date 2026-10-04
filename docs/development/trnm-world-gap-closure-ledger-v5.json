@@ -1,0 +1,162 @@
+{
+  "schema": "trnm_world_gap_closure_ledger_v5",
+  "generated_utc": "2026-09-02T00:00:00Z",
+  "plan": "trillionnium-world-development-2026-08-29-v4",
+  "review_surface": {
+    "repository": "TrillionniumFoundation/Trillionnium-World",
+    "pull_request": 46,
+    "branch": "fix/world-plan-v4-development-closure-20260831",
+    "merge_target": "main",
+    "draft_required_until_all_repository_gates_pass": true,
+    "production_authorization": "not_granted"
+  },
+  "qualified_source": {
+    "state": "qualified_artifact_exact_identity",
+    "source_commit": "5605cfb8861aa923f69ff032ddbff7d035bccb0c",
+    "source_tree": "928f43b328e5347b07357e41481df1c7e097adca",
+    "control_commit": "68e9631b3fc3f75f332497f8d0551608bf0e1413",
+    "workflow_run_id": 33452853784,
+    "workflow_job_id": 99686384472,
+    "artifact_id": 9780499701,
+    "artifact_zip_sha256": "456a181bdc8f8aa248229b044db9eec4f52572ea3b20bca6492907db58d64ef5",
+    "source_patch_sha256": "ba49dba1e7fbf842f146ac399647e188faafcfbd5ce3ad17425ef88850e0199f",
+    "candidate_archive_sha256": "4c703f428f9a54262a6c0c1340028d08d7883f25ef437c1d7e221a280f53f071",
+    "manifest_sha256": "44cf59478b28e8fde793ca0d705ba3634216a5d388ce7264e74cd0319c41ff6f",
+    "identity_sha256": "d05b375af8d0d8317a2e6e58b75a594949729203499f6677b43f1ea36ff31110",
+    "qualified_git_tree": "5e613185f5a2abda42df371f3755e73667717309",
+    "rust_toolchain": "1.98.0",
+    "claims": [
+      "ordinary directly compiled game-server ownership modules",
+      "semantic build.rs and src/lib.rs.in removal",
+      "Campaign state preservation on rejected economy commands",
+      "RTS byte preservation on rejected commands",
+      "transition-contract and settlement-boundary source qualification"
+    ],
+    "boundary": "qualification applies only to the exact artifact bytes until target-repository object and branch read-back"
+  },
+  "denominators": [
+    {
+      "id": "WORLD-SOURCE-MATERIALIZATION",
+      "owner": "World repository operations",
+      "state": "requires_exact_branch_readback",
+      "required_evidence": [
+        "qualified tree 5e613185f5a2abda42df371f3755e73667717309 exists in the World Git object database",
+        "PR 46 exact head contains every manifest blob and both required deletions",
+        "existing governance overlay is preserved",
+        "no force push, main write, tag, release or deployment"
+      ]
+    },
+    {
+      "id": "WORLD-EXACT-HEAD-CI",
+      "owner": "World repository operations",
+      "state": "blocked_repository_actions_scheduling",
+      "required_evidence": [
+        "non-empty runner, step and log evidence on final exact head",
+        "Rust 1.98 format, tests, strict Clippy and release build",
+        "PostgreSQL settlement database contracts",
+        "transition, source-boundary, package and supply-chain gates",
+        "prospective merge-object validation"
+      ]
+    },
+    {
+      "id": "WORLD-MAIN-GOVERNANCE",
+      "owner": "GitHub organization administrators",
+      "state": "open",
+      "required_evidence": [
+        "server reports main protected",
+        "pull request and required checks enforced",
+        "one independent approval and stale-review dismissal",
+        "conversation resolution and no unaudited bypass",
+        "negative rehearsal blocks a deliberately broken candidate"
+      ]
+    },
+    {
+      "id": "NAKAMA-CANONICAL-AUTHORITY",
+      "owner": "Nakama and Integration",
+      "state": "open_external_repository",
+      "required_evidence": [
+        "exact component lock",
+        "zero unexplained shadow divergence",
+        "sole canonical sequence, archive root and MatchCompletedV1 signer",
+        "drain, cutover, rollback and disablement rehearsal"
+      ]
+    },
+    {
+      "id": "TRUSTED-CEX-SETTLEMENT",
+      "owner": "CEX and Integration",
+      "state": "blocked_upstream_exact_head_execution",
+      "upstream_candidate": {
+        "repository": "TrillionniumFoundation/CEX",
+        "pull_request": 24,
+        "commit": "dc0862b8cf88a1f4e6328d519947e19b81122de0",
+        "tree": "762e33a3f16c14347a44cec1d862a8e0ab447ad8",
+        "trigger_sequence": 50,
+        "migration_head": "0088_enforce_provider_terminal_evidence_binding.sql",
+        "qualification": "pending_non_empty_hosted_evidence"
+      },
+      "required_evidence": [
+        "nine non-empty exact-head CEX contexts",
+        "immutable World-to-CEX component and artifact lock",
+        "response-loss, replay, conflict and provider-unknown-outcome matrix",
+        "zero unexplained receipt divergence",
+        "independent CEX and World review"
+      ]
+    },
+    {
+      "id": "DEPLOYMENT-PUBLIC-EDGE-RECOVERY",
+      "owner": "Integration and operations",
+      "state": "open_external_environment",
+      "required_evidence": [
+        "signed clean-host packages and provenance",
+        "real deployment and public-edge identity",
+        "cross-host failover and recovery",
+        "endurance, fault, SLO, alert and rollback evidence"
+      ]
+    },
+    {
+      "id": "HUMAN-ACCESSIBILITY-VALIDATION",
+      "owner": "Product research and accessibility reviewers",
+      "state": "open_external_human_evidence",
+      "required_evidence": [
+        "consented protocol",
+        "representative devices and users",
+        "accessibility findings and remediation",
+        "signed acceptance bound to exact build"
+      ]
+    },
+    {
+      "id": "PRIVACY-LEGAL-SUPPORT-COMMERCIAL",
+      "owner": "Privacy, legal, support, finance and commercial authorities",
+      "state": "open_external_approval",
+      "required_evidence": [
+        "privacy and retention approval",
+        "terms, jurisdiction and custody review",
+        "support and incident readiness",
+        "commercial go/no-go bound to exact release candidate"
+      ]
+    }
+  ],
+  "closure_rule": {
+    "repository_development_closed_when": [
+      "WORLD-SOURCE-MATERIALIZATION closed",
+      "WORLD-EXACT-HEAD-CI closed",
+      "WORLD-MAIN-GOVERNANCE closed",
+      "fresh independent approval on final exact head"
+    ],
+    "production_closed_when": "every denominator is independently closed with immutable exact evidence",
+    "forbidden_inferences": [
+      "source qualification implies branch publication",
+      "branch publication implies CI success",
+      "CI success implies deployment or custody",
+      "documentation or issue text implies server enforcement",
+      "review request implies approval",
+      "repository completion implies production authorization"
+    ]
+  },
+  "all_repository_gaps_closed": false,
+  "all_plan_gaps_closed": false,
+  "public_online": false,
+  "trusted_settlement": false,
+  "public_player_market": false,
+  "production_ready": false
+}

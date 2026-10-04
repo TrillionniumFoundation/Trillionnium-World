@@ -1,0 +1,112 @@
+name: trnm-world-v6-external-evidence-contract
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - 'fix/world-*'
+      - 'integration/world-*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trnm-world-v6-external-evidence-contract-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  external-evidence-contract:
+    name: trnm-world-v6/external-evidence-contract
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout exact event object
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify strict evidence parser and hostile fixtures
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile \
+            scripts/check-trnm-world-external-evidence.py \
+            scripts/test-trnm-world-external-evidence.py \
+            scripts/test-trnm-world-external-harnesses.py
+          python3 scripts/test-trnm-world-external-evidence.py
+          python3 scripts/test-trnm-world-external-harnesses.py
+      - name: Verify execution board and protocols
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          board=json.loads(Path('docs/release/trnm-world-external-execution-board-v1.json').read_text(encoding='utf-8'))
+          assert board['schema']=='trnm_world_external_execution_board_v1'
+          assert board['production_authorization']=='not_granted'
+          assert board['all_external_gaps_closed'] is False
+          rows=board['rows']
+          assert len(rows)==12
+          assert len({row['gap_id'] for row in rows})==12
+          required={f'WORLD-V5-{number:03d}' for number in range(9,21)}
+          assert {row['gap_id'] for row in rows}==required
+          for row in rows:
+              assert row['state']!='closed'
+              assert row['minimum_evidence']
+          for path in (
+              'docs/release/trnm-world-human-evidence-protocol-v1.md',
+              'docs/release/trnm-world-custody-evidence-protocol-v1.md',
+              'docs/release/trnm-world-commercial-authorization-protocol-v1.md',
+              'scripts/run-trnm-world-cross-host-evidence-v1.sh',
+              'scripts/trnm-world-cross-host-agent-v1.sh',
+              'scripts/run-trnm-world-endurance-24h-v1.sh',
+              'scripts/run-trnm-world-public-edge-evidence-v1.sh',
+          ):
+              target=Path(path)
+              assert target.is_file() and target.stat().st_size>0, path
+          PY
+          bash -n scripts/run-trnm-world-cross-host-evidence-v1.sh
+          bash -n scripts/trnm-world-cross-host-agent-v1.sh
+          bash -n scripts/run-trnm-world-endurance-24h-v1.sh
+          bash -n scripts/run-trnm-world-public-edge-evidence-v1.sh
+      - name: Demonstrate that the template is not accepted as evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          if python3 scripts/check-trnm-world-external-evidence.py docs/release/templates/trnm-world-evidence-record-v1.json; then
+            echo 'placeholder template was incorrectly accepted as evidence' >&2
+            exit 1
+          fi
+          printf 'TRNM_WORLD_EXTERNAL_TEMPLATE_REJECTED=PASS\n'
+      - name: Record source-only evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p run/world-v6-external-contract
+          printf 'commit=%s\ntree=%s\nproduction_authorization=not_granted\n' \
+            "$(git rev-parse HEAD)" "$(git rev-parse 'HEAD^{tree}')" \
+            > run/world-v6-external-contract/identity.txt
+          sha256sum \
+            scripts/check-trnm-world-external-evidence.py \
+            scripts/test-trnm-world-external-evidence.py \
+            scripts/test-trnm-world-external-harnesses.py \
+            scripts/run-trnm-world-cross-host-evidence-v1.sh \
+            scripts/trnm-world-cross-host-agent-v1.sh \
+            scripts/run-trnm-world-endurance-24h-v1.sh \
+            scripts/run-trnm-world-public-edge-evidence-v1.sh \
+            docs/release/trnm-world-external-execution-board-v1.json \
+            docs/release/trnm-world-human-evidence-protocol-v1.md \
+            docs/release/trnm-world-custody-evidence-protocol-v1.md \
+            docs/release/trnm-world-commercial-authorization-protocol-v1.md \
+            > run/world-v6-external-contract/SHA256SUMS
+      - name: Upload source-only external-contract evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: trnm-world-v6-external-contract-${{ github.sha }}-${{ github.run_attempt }}
+          path: run/world-v6-external-contract/**
+          if-no-files-found: warn
+          retention-days: 30

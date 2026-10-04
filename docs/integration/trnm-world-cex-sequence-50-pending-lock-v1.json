@@ -1,0 +1,52 @@
+{
+  "schema": "trnm_world_cex_pending_component_lock_v1",
+  "world": {
+    "repository": "TrillionniumFoundation/Trillionnium-World",
+    "pull_request": 46,
+    "branch": "fix/world-plan-v4-development-closure-20260831",
+    "qualified_source_tree": "5e613185f5a2abda42df371f3755e73667717309"
+  },
+  "cex": {
+    "repository": "TrillionniumFoundation/CEX",
+    "pull_request": 24,
+    "branch": "fix/cex-v12-seq45-full-gap-closure-20260902",
+    "commit": "dc0862b8cf88a1f4e6328d519947e19b81122de0",
+    "tree": "762e33a3f16c14347a44cec1d862a8e0ab447ad8",
+    "trigger_sequence": 50,
+    "migration_head": "0088_enforce_provider_terminal_evidence_binding.sql",
+    "qualification": "pending_non_empty_exact_head_evidence",
+    "production_authorization": "not_granted"
+  },
+  "required_exact_head_contexts": [
+    "cex-v12/postgres-migration",
+    "cex-v12/rust-format",
+    "cex-v12/rust-test",
+    "cex-v12/rust-clippy",
+    "cex-v12/rust-release",
+    "cex-v12/gateway-exact-reserve",
+    "cex-v12/execution-settlement",
+    "cex-v12/provider-reconciliation",
+    "cex-v12/aggregate-qualification"
+  ],
+  "required_before_qualification": [
+    "all required contexts are non-empty and successful on the exact CEX commit",
+    "candidate manifest binds commit, tree, migration, run, jobs, images and artifact digests",
+    "SBOM and provenance are retained and digest-bound",
+    "protected-main governance and an independent exact-head approval are verified",
+    "World pins immutable CEX artifact identities rather than branch or latest references",
+    "response-loss, duplicate, replay, hash-conflict, wrong-authority, provider-unknown and terminal-replay tests pass",
+    "World intent/receipt projections have zero unexplained divergence from CEX immutable evidence"
+  ],
+  "prohibited_promotions": [
+    "qualified",
+    "trusted_settlement",
+    "production_ready",
+    "public_online",
+    "public_player_market",
+    "custody_approved"
+  ],
+  "lock_state": "coordination_only_blocked",
+  "world_adoption": "disabled",
+  "trusted_settlement": false,
+  "production_ready": false
+}

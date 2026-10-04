@@ -13,6 +13,7 @@ require_line() {
 
 game_unit="$ROOT_DIR/deploy/systemd/trnm-game-server.service"
 signer_unit="$ROOT_DIR/deploy/systemd/trnm-entitlement-signer.service"
+worker_unit="$ROOT_DIR/deploy/systemd/trnm-settlement-worker.service"
 for setting in CPUAccounting=true CPUWeight=200 CPUQuota=200% \
   MemoryAccounting=true ManagedOOMPreference=avoid \
   MemoryHigh=384M MemoryMax=512M MemorySwapMax=128M \
@@ -24,6 +25,12 @@ for setting in CPUAccounting=true CPUWeight=100 CPUQuota=50% \
   MemoryHigh=64M MemoryMax=96M MemorySwapMax=32M \
   IOAccounting=true IOWeight=100 TasksAccounting=true TasksMax=128; do
   require_line "$signer_unit" "$setting"
+done
+for setting in CPUAccounting=true CPUWeight=100 CPUQuota=100% \
+  MemoryAccounting=true ManagedOOMPreference=avoid \
+  MemoryHigh=192M MemoryMax=256M MemorySwapMax=64M \
+  IOAccounting=true IOWeight=100 TasksAccounting=true TasksMax=128; do
+  require_line "$worker_unit" "$setting"
 done
 
 capacity_script="$ROOT_DIR/scripts/check-trnm-online-capacity-soak.sh"
@@ -59,13 +66,24 @@ rg -q 'READINESS_DATABASE_MAX_CONNECTIONS: u32 = 12' \
   "$ROOT_DIR/trillionnium/crates/trnm-game-server/src/lib.rs"
 rg -q 'SIGNER_DATABASE_MAX_CONNECTIONS: u32 = 4' \
   "$ROOT_DIR/trillionnium/crates/trnm-game-server/src/bin/trnm-entitlement-signer.rs"
+rg -q 'DEFAULT_POOL_MAX_CONNECTIONS: u32 = 4' \
+  "$ROOT_DIR/trillionnium/crates/trnm-game-server/src/settlement_worker.rs"
+
 install_script="$ROOT_DIR/scripts/install-trnm-game-server-systemd.sh"
-bash -n "$install_script"
+worker_launcher="$ROOT_DIR/scripts/run-trnm-settlement-worker.sh"
+bash -n "$install_script" "$worker_launcher"
 if [[ "$(rg -cF '.readiness_database_pool_max_connections == 12' \
     "$install_script")" != 2 ]]; then
   echo "game-server installer must enforce the 12-connection readiness pool" >&2
   exit 1
 fi
+for required in \
+  'trnm-settlement-worker.service' \
+  'settlement-worker.env' \
+  'systemctl --user restart trnm-settlement-worker.service' \
+  'systemctl --user is-active --quiet trnm-settlement-worker.service'; do
+  rg -Fq -- "$required" "$install_script"
+done
 
 installed=false
 if [[ "${TRNM_REQUIRE_INSTALLED_RESOURCE_BUDGETS:-0}" == 1 ]]; then
@@ -78,6 +96,10 @@ if [[ "${TRNM_REQUIRE_INSTALLED_RESOURCE_BUDGETS:-0}" == 1 ]]; then
   [[ "$(systemctl --user show trnm-entitlement-signer.service -p MemoryHigh --value)" == 67108864 ]]
   [[ "$(systemctl --user show trnm-entitlement-signer.service -p MemoryMax --value)" == 100663296 ]]
   [[ "$(systemctl --user show trnm-entitlement-signer.service -p ManagedOOMPreference --value)" == avoid ]]
+  [[ "$(systemctl --user show trnm-settlement-worker.service -p CPUQuotaPerSecUSec --value)" == 1s ]]
+  [[ "$(systemctl --user show trnm-settlement-worker.service -p MemoryHigh --value)" == 201326592 ]]
+  [[ "$(systemctl --user show trnm-settlement-worker.service -p MemoryMax --value)" == 268435456 ]]
+  [[ "$(systemctl --user show trnm-settlement-worker.service -p ManagedOOMPreference --value)" == avoid ]]
   probe="$(TRNM_CAPACITY_SCOPE_PROBE=1 "$capacity_script")"
   jq -e '.status == "passed"
     and .memory_high_bytes == 1610612736
@@ -90,9 +112,11 @@ fi
 
 jq -n --argjson installed "$installed" \
   '{status:"passed",game_server_data_pool_min:12,game_server_data_pool_max:12,
-    game_server_readiness_pool_min:4,game_server_readiness_pool_max:12,signer_pool_max:4,
-    game_server_total_pool_max:24,formal_database_connection_ceiling:40,
-    game_server_memory_max_mib:512,capacity_harness_memory_max_mib:2048,
+    game_server_readiness_pool_min:4,game_server_readiness_pool_max:12,
+    signer_pool_max:4,settlement_worker_pool_max:4,
+    game_server_total_pool_max:24,formal_database_connection_ceiling:44,
+    game_server_memory_max_mib:512,settlement_worker_memory_max_mib:256,
+    capacity_harness_memory_max_mib:2048,
     runtime_managed_oom_preference:"avoid",
     capacity_harness_managed_oom_preference:"omit",
     capacity_harness_min_available_memory_mib:3072,
