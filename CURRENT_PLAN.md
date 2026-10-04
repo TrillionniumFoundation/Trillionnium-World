@@ -39,7 +39,7 @@ The selected snapshot is a dated, immutable observation. It does not certify the
 - Pull request: `#104`
 - Branch: `fix/world-convergence-v6-20260908`
 - Merge target: `main`
-- Current candidate toolchain: `1.98.1`
+- Current candidate toolchain: `1.99.0`
 - Historical qualification toolchain: `1.98.0`
 
 ### Live object rule
@@ -88,7 +88,7 @@ A coordination pin is not component qualification. Any external repository movem
 
 ## Ordered remaining blockers
 
-1. Restore GitHub repository-native job creation and obtain non-empty terminal-success truth, source, Rust 1.98.1, PostgreSQL, transition, documentation, package, boundary, and supply-chain execution for one unchanged exact World head and actual prospective merge.
+1. Restore GitHub repository-native job creation and obtain non-empty terminal-success truth, source, Rust 1.99.0, PostgreSQL, transition, documentation, package, boundary, and supply-chain execution for one unchanged exact World head and actual prospective merge.
 2. Read back and enforce protected-main required contexts, review freshness, stale-review dismissal, conversation resolution, linear history, force-push/deletion denial, and no-bypass policy; then obtain a fresh eligible non-author approval on the unchanged final tuple.
 3. Complete all remaining classified `include!` ownership migrations into real Rust module/trait/visibility boundaries through compile/test-preserving review tranches.
 4. Replace fixture/file-backed World authority adapters with independently reviewed production identity, session, account, PostgreSQL repository, ledger, evidence, metrics, internal-routing, and deployment-identity implementations.

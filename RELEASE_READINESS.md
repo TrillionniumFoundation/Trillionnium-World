@@ -42,7 +42,7 @@ The machine-readable denominator view is `docs/development/trnm-world-gap-closur
 - ADR-0003 prevents the World-domain service from becoming a second canonical online authority.
 - Settlement remains capture -> transaction-free remote execution -> fenced apply.
 - Validation workflows are read-only and may not move refs or promote source.
-- The current candidate toolchain is Rust 1.98.1; historical Rust 1.98.0 evidence is exact-object provenance only.
+- The current candidate toolchain is Rust 1.99.0; historical Rust 1.98.0 evidence is exact-object provenance only.
 
 These facts require fresh execution on the final exact head before independent validation.
 

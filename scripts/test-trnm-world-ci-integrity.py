@@ -23,8 +23,8 @@ GAP = "trnm-world-gap-closure-v4.yml"
 MODULES = "trnm-world-module-documentation.yml"
 NATIVE = "world-pr-native-admission-v1.yml"
 V5 = "trnm-world-v5-closure-contract.yml"
-EXPECTED_WORKFLOWS = 13
-EXPECTED_CONTEXTS = 40
+EXPECTED_WORKFLOWS = 15
+EXPECTED_CONTEXTS = 49
 
 
 class WorkflowInventoryTests(unittest.TestCase):
@@ -54,6 +54,48 @@ class WorkflowInventoryTests(unittest.TestCase):
         self.assertEqual(contexts["trnm-world-status-evidence"], NATIVE)
         self.assertEqual(contexts["trnm-world-v12/required"], NATIVE)
         self.assertEqual(contexts["trnm-world/docs-complete"], MODULES)
+
+    def test_rust_199_matrix_covers_all_six_roots_and_portable_contract(self) -> None:
+        text = (self.folder / "trnm-world-rust-199.yml").read_text()
+        for manifest in (
+            "contracts/Cargo.toml",
+            "trillionnium/Cargo.toml",
+            "trillionnium/crates/platform/Cargo.toml",
+            "trillionnium/crates/world-authority/Cargo.toml",
+            "trillionnium/contracts/trnm-world-transition-v1/Cargo.toml",
+            "trillionnium/tools/trnm-settlement-outbox-contract/Cargo.toml",
+        ):
+            self.assertIn(f"manifest: {manifest}\n", text)
+        self.assertIn("commit-hash: b940084d7eb6a299eb4bfeb8e34901bc051e7ac4", text)
+        self.assertIn("cargo test --manifest-path \"$MANIFEST\" --workspace --all-targets --locked", text)
+        self.assertIn("cargo clippy --manifest-path \"$MANIFEST\" --workspace --all-targets --locked -- -D warnings", text)
+        self.assertIn('test "$(git -C "$source" rev-parse HEAD^2)" = "$HEAD_SHA"', text)
+        for target in ("wasm32-unknown-unknown", "aarch64-linux-android",
+                       "armv7-linux-androideabi", "x86_64-linux-android", "i686-linux-android"):
+            self.assertIn(target, text)
+
+    def test_rust_199_requires_pr_and_full_raw_admission_before_and_after(self) -> None:
+        text = (self.folder / "trnm-world-rust-199.yml").read_text()
+        triggers = text.split("\npermissions:", 1)[0]
+        self.assertIn("  pull_request:", triggers)
+        self.assertNotIn("  push:", triggers)
+        self.assertNotIn("  workflow_dispatch:", triggers)
+        self.assertIn("labels=(head merge)", text)
+        admission = 'python3 -B scripts/check-trnm-world-ci-target.py --root "$source" --role "$label"'
+        self.assertEqual(text.count(admission), 2)
+        self.assertIn("$label-admission-before.json", text)
+        self.assertIn("$label-admission-after.json", text)
+        self.assertIn("trap verify_after EXIT", text)
+        self.assertIn('|| status=1', text)
+        required = text.split("\n  required:", 1)[1]
+        self.assertIn('test "$GITHUB_EVENT_NAME" = pull_request', required)
+        self.assertIn('test "$RESULT" = success', required)
+
+    def test_rust_199_missing_lane_is_rejected(self) -> None:
+        path = self.folder / "trnm-world-rust-199.yml"
+        path.write_text(path.read_text().replace("context: trnm-world-rust-199/contracts", "context: omitted"))
+        with self.assertRaises(SystemExit):
+            checker.workflow_inventory(self.root)
 
     def test_removed_and_extra_workflows_are_rejected(self) -> None:
         (self.folder / V5).unlink()

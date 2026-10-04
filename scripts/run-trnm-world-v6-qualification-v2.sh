@@ -88,7 +88,8 @@ assert boundary['release']['public_player_market'] == 'disabled'
 assert boundary['release']['production_authorization'] == 'not_granted'
 
 toolchain = Path('rust-toolchain.toml').read_text(encoding='utf-8')
-assert '1.98.1' in toolchain and '1.98.0' not in toolchain
+import tomllib
+assert tomllib.loads(toolchain)['toolchain']['channel'] == '1.99.0'
 
 catalog = load_strict_json(Path('docs/catalog.json'))
 assert catalog['schema'] == 'trnm_world_document_catalog_v1'

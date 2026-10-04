@@ -75,6 +75,21 @@ WORKFLOW_JOBS = {
 }
 
 MATRIX_WORKFLOWS = {
+    "trnm-world-rust-199.yml": {
+        "job_id": "qualification",
+        "name_expression": "${{ matrix.context }}",
+        "pairs": {
+            ("contracts", "trnm-world-rust-199/contracts"),
+            ("game", "trnm-world-rust-199/game"),
+            ("legacy-platform", "trnm-world-rust-199/legacy-platform"),
+            ("world-authority", "trnm-world-rust-199/world-authority"),
+            ("transition", "trnm-world-rust-199/transition"),
+            ("settlement-outbox", "trnm-world-rust-199/settlement-outbox"),
+            ("portable-transition", "trnm-world-rust-199/portable-transition"),
+        },
+        "required_job_id": "required",
+        "required_context": "trnm-world-rust-199/required",
+    },
     "world-pr-native-admission-v1.yml": {
         "job_id": "qualification",
         "name_expression": "${{ matrix.context }}",

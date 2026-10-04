@@ -26,6 +26,10 @@ for _name in dir(_BASE):
     if not _name.startswith("__"):
         globals()[_name] = getattr(_BASE, _name)
 
+# Override the active compiler contract without rewriting the archived observation.
+SAFE_TOOLCHAIN = "1.99.0"
+_BASE.SAFE_TOOLCHAIN = SAFE_TOOLCHAIN
+
 CURRENT_CEX = {
     "repository": "TrillionniumFoundation/CEX",
     "pull_request": 53,
@@ -84,6 +88,8 @@ _OBSOLETE_MARKDOWN_IDENTITY_FAILURES = {
 def require(condition: bool, message: str) -> None:
     if not condition and message in _OBSOLETE_MARKDOWN_IDENTITY_FAILURES:
         return
+    if message == "root Rust toolchain must be 1.98.1":
+        message = f"root Rust toolchain must be {SAFE_TOOLCHAIN}"
     _BASE_REQUIRE(condition, message)
 
 

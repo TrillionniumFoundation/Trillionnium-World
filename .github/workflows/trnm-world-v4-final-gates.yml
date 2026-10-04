@@ -16,8 +16,8 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  RUST_TOOLCHAIN: 1.98.0
-  RUSTUP_TOOLCHAIN: "1.98.0"
+  RUST_TOOLCHAIN: 1.99.0
+  RUSTUP_TOOLCHAIN: "1.99.0"
   CARGO_TERM_COLOR: never
   CARGO_INCREMENTAL: "0"
   RUST_BACKTRACE: "1"

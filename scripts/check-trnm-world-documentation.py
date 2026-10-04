@@ -89,8 +89,8 @@ for path in required_paths:
     read(path)
 
 toolchain = tomllib.loads(read("rust-toolchain.toml")).get("toolchain", {})
-if toolchain.get("channel") != "1.98.1":
-    fail("current candidate toolchain must be Rust 1.98.1")
+if toolchain.get("channel") != "1.99.0":
+    fail("current candidate toolchain must be Rust 1.99.0")
 
 current_plan = read("CURRENT_PLAN.md")
 for path in (CURRENT_LEDGER, CURRENT_CEX_LOCK, CURRENT_SNAPSHOT, "RELEASE_READINESS.md"):

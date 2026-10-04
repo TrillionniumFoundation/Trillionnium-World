@@ -62,7 +62,8 @@ assert boundary['release']['production_authorization']=='not_granted'
 assert boundary['release']['public_online']=='no_go'
 assert boundary['release']['public_player_market']=='disabled'
 toolchain=Path('rust-toolchain.toml').read_text(encoding='utf-8')
-assert '1.98.1' in toolchain and '1.98.0' not in toolchain
+import tomllib
+assert tomllib.loads(toolchain)['toolchain']['channel'] == '1.99.0'
 PY
     ;;
 

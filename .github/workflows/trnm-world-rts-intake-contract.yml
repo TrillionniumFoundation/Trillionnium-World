@@ -24,7 +24,7 @@ jobs:
       EVENT_SHA: ${{ github.sha }}
       BASE_SHA: ${{ github.event.pull_request.base.sha }}
       EVENT_NAME: ${{ github.event_name }}
-      RUST_TOOLCHAIN: 1.98.0
+      RUST_TOOLCHAIN: 1.99.0
       CARGO_TERM_COLOR: never
       CARGO_TARGET_DIR: run/rts-intake-target
     steps:

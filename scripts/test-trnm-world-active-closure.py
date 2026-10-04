@@ -60,7 +60,7 @@ class ActiveClosureFixtures(unittest.TestCase):
 
     def test_toolchain_downgrade_fails(self) -> None:
         path = self.root / M.TOOLCHAIN
-        path.write_text(path.read_text().replace('channel = "1.98.1"', 'channel = "1.98.0"'))
+        path.write_text(path.read_text().replace('channel = "1.99.0"', 'channel = "1.98.0"'))
         self.expect_failure()
 
     def test_catalog_omits_release_truth_fails(self) -> None:

@@ -353,6 +353,34 @@ class CheckoutTests(unittest.TestCase):
         self.assertEqual(result.stdout, "")
         self.assertIn("FAIL", result.stderr)
 
+    def test_rust_199_both_roles_reject_non_main_base(self):
+        for role, commit in (("head", self.head), ("merge", self.merge)):
+            git(self.root, "checkout", "--detach", "-q", commit)
+            self.event["pull_request"]["base"]["ref"] = "docs/world-main-convergence"
+            self.env["GITHUB_BASE_REF"] = "docs/world-main-convergence"
+            with self.subTest(role=role): self.reject(role)
+
+    def test_rust_199_both_roles_reject_wrong_repository(self):
+        self.event["pull_request"]["head"]["repo"]["full_name"] = "other/repository"
+        for role, commit in (("head", self.head), ("merge", self.merge)):
+            git(self.root, "checkout", "--detach", "-q", commit)
+            with self.subTest(role=role): self.reject(role)
+
+    def test_rust_199_both_roles_reject_wrong_checkout(self):
+        git(self.root, "checkout", "--detach", "-q", self.base)
+        for role in ("head", "merge"):
+            with self.subTest(role=role): self.reject(role)
+
+    def test_rust_199_both_roles_reject_raw_dirty_checkout(self):
+        for role, commit in (("head", self.head), ("merge", self.merge)):
+            git(self.root, "checkout", "--detach", "-q", commit)
+            git(self.root, "update-index", "--assume-unchanged", "implementation.txt")
+            (self.root / "implementation.txt").write_text("Changed input\n")
+            self.assertEqual(git(self.root, "status", "--porcelain"), "")
+            with self.subTest(role=role): self.reject(role)
+            (self.root / "implementation.txt").write_text("Synthetic head\n")
+            git(self.root, "update-index", "--no-assume-unchanged", "implementation.txt")
+
 
 class ParserTests(unittest.TestCase):
     def test_event_input_budgets_types_and_unique_keys(self):
@@ -430,7 +458,7 @@ class WorkflowWiringTests(unittest.TestCase):
 
     def test_toolchain_override_is_explicit_and_original_pins_retained(self):
         for text in (self.gap, self.final):
-            self.assertIn('RUSTUP_TOOLCHAIN: "1.98.0"', text)
+            self.assertIn('RUSTUP_TOOLCHAIN: "1.99.0"', text)
         self.assertIn("EXPECTED_QUALIFIED_TREE: 5e613185f5a2abda42df371f3755e73667717309", self.final)
         self.assertIn("EXPECTED_PATCH_SHA256: ba49dba1e7fbf842f146ac399647e188faafcfbd5ce3ad17425ef88850e0199f", self.final)
 

@@ -15,7 +15,7 @@
     "production_authorization": "not_granted"
   },
   "toolchain": {
-    "current_candidate": "1.98.1",
+    "current_candidate": "1.99.0",
     "historical_qualification": "1.98.0",
     "historical_credit_transfers": false
   },
